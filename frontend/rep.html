@@ -5423,7 +5423,7 @@
     .rod-line-items-header {
       padding: 10px 20px;
       display: grid;
-      grid-template-columns: 52px 1fr 100px 80px 110px 110px 120px;
+      grid-template-columns: 52px 1.7fr 1fr 80px 100px 110px;
       gap: 12px;
       background: var(--rod-warm);
       border-bottom: 0.5px solid var(--rod-border);
@@ -5435,7 +5435,7 @@
     .rod-line-item-row {
       padding: 14px 20px;
       display: grid;
-      grid-template-columns: 52px 1fr 100px 80px 110px 110px 120px;
+      grid-template-columns: 52px 1.7fr 1fr 80px 100px 110px;
       gap: 12px;
       align-items: center;
       border-bottom: 0.5px solid rgba(28,25,23,0.06);
@@ -5918,6 +5918,242 @@
       margin-top: 3px;
     }
 
+    /* ===== Rep Order View v2 ===== */
+    .rov-micro {
+      font: 500 9px/1.4 ui-monospace, monospace;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--rod-muted);
+    }
+    .rov-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      font: 500 9px/1 ui-monospace, monospace;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .rov-chip.live { background: var(--rod-green); color: #ece5d8; }
+    .rov-chip.hot { background: var(--rod-red); color: #ece5d8; }
+    .rov-chip.hold { background: #5c6e94; color: #ece5d8; }
+    .rov-chip.done { background: var(--rod-ink); color: #ece5d8; }
+    .rov-chip.soft { background: var(--rod-warm); color: var(--rod-muted); }
+    .rov-header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: end;
+      padding-bottom: 20px;
+      border-bottom: 0.5px solid rgba(28,25,23,0.13);
+      margin-bottom: 20px;
+    }
+    .rov-header h1 {
+      font: 300 40px/1 'Cormorant Garamond', serif;
+      letter-spacing: -0.014em;
+      margin: 0;
+      color: var(--rod-ink);
+      display: inline;
+    }
+    .rov-header-title-row {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .rov-header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .rov-hbtn {
+      padding: 10px 16px;
+      cursor: pointer;
+      font: 500 11px/1 'Inter', sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 0.5px solid rgba(28,25,23,0.4);
+      color: var(--rod-ink);
+      background: transparent;
+    }
+    .rov-hbtn:hover { background: rgba(28,25,23,0.05); }
+    .rov-hbtn.danger { border-color: rgba(197,71,49,0.67); color: var(--rod-red); }
+    .rov-hbtn.danger:hover { background: rgba(197,71,49,0.06); }
+    .rov-lifecycle {
+      border: 0.5px solid rgba(28,25,23,0.13);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      margin-bottom: 24px;
+    }
+    .rov-stage {
+      padding: 14px 18px;
+      border-left: 0.5px solid rgba(28,25,23,0.09);
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 12px;
+      align-items: center;
+      min-width: 0;
+    }
+    .rov-stage:first-child { border-left: none; }
+    .rov-stage.current { background: var(--rod-warm); }
+    .rov-stage.future { opacity: 0.55; }
+    .rov-stage.dead { opacity: 0.45; }
+    .rov-stage-mark {
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font: 500 11px/1 ui-monospace, monospace;
+      border: 0.5px solid rgba(28,25,23,0.27);
+      color: var(--rod-muted);
+    }
+    .rov-stage.done .rov-stage-mark { background: var(--rod-ink); border-color: var(--rod-ink); color: #ece5d8; }
+    .rov-stage.current .rov-stage-mark { background: #ece5d8; border-color: var(--rod-ink); color: var(--rod-ink); }
+    .rov-stage-label { font: 500 13px/1.2 'Inter', sans-serif; color: var(--rod-muted); }
+    .rov-stage.done .rov-stage-label,
+    .rov-stage.current .rov-stage-label { color: var(--rod-ink); }
+    .rov-po-row {
+      padding: 14px 20px;
+      border-bottom: 0.5px solid rgba(28,25,23,0.06);
+      display: grid;
+      grid-template-columns: 40px 1.5fr 1.4fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+    .rov-po-row:last-child { border-bottom: none; }
+    .rov-po-code {
+      width: 38px;
+      height: 38px;
+      background: var(--rod-warm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font: 500 10px/1 ui-monospace, monospace;
+      letter-spacing: 0.06em;
+      color: var(--rod-ink);
+    }
+    .rov-fulfill-grid {
+      padding: 14px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 24px;
+    }
+    .rov-fulfill-cell { padding-bottom: 8px; border-bottom: 0.5px solid rgba(28,25,23,0.06); }
+    .rov-fulfill-value { font: 400 13px/1.35 'Inter', sans-serif; color: var(--rod-ink); margin-top: 3px; }
+    .rov-card-band {
+      padding: 12px 20px;
+      background: var(--rod-warm);
+      border-top: 0.5px solid rgba(28,25,23,0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .rov-activity-row {
+      display: grid;
+      grid-template-columns: 130px 14px 1fr auto;
+      gap: 12px;
+      align-items: baseline;
+      padding: 9px 0;
+      border-bottom: 0.5px solid rgba(28,25,23,0.05);
+    }
+    .rov-activity-row:last-child { border-bottom: none; }
+    .rov-activity-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 99px;
+      background: rgba(28,25,23,0.2);
+      position: relative;
+      top: -1px;
+    }
+    .rov-activity-row:first-child .rov-activity-dot { background: var(--rod-accent); }
+    .rov-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-bottom: 6px;
+      border-bottom: 0.5px solid rgba(28,25,23,0.06);
+      font: 400 13px/1.3 'Inter', sans-serif;
+    }
+    .rov-row-label { color: var(--rod-muted); }
+    .rov-row-value { font: 400 14px/1 'Cormorant Garamond', serif; color: var(--rod-ink); }
+    .rov-total-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-top: 6px;
+      border-top: 0.5px solid rgba(28,25,23,0.13);
+    }
+    .rov-total-value { font: 300 30px/1 'Cormorant Garamond', serif; letter-spacing: -0.014em; color: var(--rod-ink); }
+    .rov-band {
+      padding: 8px 12px;
+      font: 500 10px/1.4 ui-monospace, monospace;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      text-align: center;
+      color: #ece5d8;
+    }
+    .rov-band.green { background: var(--rod-green); }
+    .rov-band.ink { background: var(--rod-ink); }
+    .rov-band.amber { background: var(--rod-accent); }
+    .rov-band.blue { background: #5c6e94; }
+    .rov-pay-row {
+      padding: 12px 20px;
+      border-bottom: 0.5px solid rgba(28,25,23,0.06);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .rov-pay-row:last-child { border-bottom: none; }
+    .rov-doc-row2 {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 8px 0;
+      border-bottom: 0.5px solid rgba(28,25,23,0.05);
+      gap: 12px;
+    }
+    .rov-doc-row2:last-child { border-bottom: none; }
+    .rov-doc-link {
+      font: 500 10px/1 ui-monospace, monospace;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--rod-muted);
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .rov-doc-link:hover { color: var(--rod-accent); }
+    .rov-cust-avatar {
+      width: 38px;
+      height: 38px;
+      background: var(--rod-warm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font: 400 15px/1 'Cormorant Garamond', serif;
+      color: var(--rod-ink);
+      flex-shrink: 0;
+    }
+    .rov-textlink {
+      font: 500 11px/1 'Inter', sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--rod-ink);
+      cursor: pointer;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(28,25,23,0.33);
+      padding-bottom: 2px;
+      background: none;
+      border-top: none;
+      border-left: none;
+      border-right: none;
+    }
+    .rov-textlink:hover { color: var(--rod-accent); border-bottom-color: rgba(168,121,53,0.5); }
+
     /* Mobile responsive */
     @media (max-width: 768px) {
       .rod-body { grid-template-columns: 1fr; }
@@ -5925,13 +6161,11 @@
       .rod-header { flex-direction: column; }
       .rod-header-money { grid-template-columns: repeat(3, 1fr); width: 100%; }
       .rod-line-items-header,
-      .rod-line-item-row { grid-template-columns: 36px 1fr 60px 70px; gap: 6px; }
+      .rod-line-item-row { grid-template-columns: 36px 1fr 60px 80px; gap: 6px; }
+      .rod-line-items-header > :nth-child(3),
       .rod-line-items-header > :nth-child(5),
-      .rod-line-items-header > :nth-child(6),
-      .rod-line-items-header > :nth-child(7),
-      .rod-line-item-row > :nth-child(5),
-      .rod-line-item-row > :nth-child(6),
-      .rod-line-item-row > :nth-child(7) { display: none; }
+      .rod-line-item-row > :nth-child(3),
+      .rod-line-item-row > :nth-child(5) { display: none; }
       .rod-action-bar { gap: 4px; }
       .rod-action-bar .rod-btn { padding: 6px 8px; font-size: 10px; }
       .rod-activity-entry { grid-template-columns: 1fr; gap: 4px; }
@@ -5946,6 +6180,17 @@
       .rod-payment-row { grid-template-columns: 1fr 1fr; gap: 6px; }
       .rod-payment-row > :nth-child(3) { display: none; }
       .rod-breadcrumb-nav { display: none; }
+      .rov-header { grid-template-columns: 1fr; align-items: start; }
+      .rov-header h1 { font-size: 32px; }
+      .rov-lifecycle { grid-template-columns: 1fr; }
+      .rov-stage { border-left: none; border-top: 0.5px solid rgba(28,25,23,0.09); }
+      .rov-stage:first-child { border-top: none; }
+      .rov-po-row { grid-template-columns: 40px 1fr; }
+      .rov-po-row > :nth-child(3) { grid-column: 2; }
+      .rov-po-row > :nth-child(4) { grid-column: 1 / -1; justify-self: start; }
+      .rov-fulfill-grid { grid-template-columns: 1fr; }
+      .rov-activity-row { grid-template-columns: 1fr; gap: 3px; }
+      .rov-activity-row .rov-activity-dot { display: none; }
     }
   </style>
 </head>
@@ -17847,6 +18092,23 @@
       );
     }
 
+    function RovChip({ tone, children }) {
+      return <span className={'rov-chip ' + (tone || 'soft')}>● {children}</span>;
+    }
+
+    function RovMicro({ children, style, color }) {
+      return <div className="rov-micro" style={{ ...(color ? { color } : {}), ...style }}>{children}</div>;
+    }
+
+    function RovRow({ l, v, c, last }) {
+      return (
+        <div className="rov-row" style={last ? { borderBottom: 'none' } : {}}>
+          <span className="rov-row-label">{l}</span>
+          <span className="rov-row-value" style={c ? { color: c } : {}}>{v}</span>
+        </div>
+      );
+    }
+
     // ========== RepOrderDetailView ==========
     function RepOrderDetailView({ navigate, editId, terminalRef, terminalStatus, connectReader, showCost }) {
       const [order, setOrder] = useState(null);
@@ -17903,17 +18165,18 @@
       const [sendingInvoice, setSendingInvoice] = useState(false);
       const [showCollectPayment, setShowCollectPayment] = useState(false);
       const [collectMethod, setCollectMethod] = useState(null);
-      const [showCollectTapModal, setShowCollectTapModal] = useState(false);
-      const [showCollectCardChoice, setShowCollectCardChoice] = useState(false);
-      const [showCollectManualCard, setShowCollectManualCard] = useState(false);
+      const [showCollectCardModal, setShowCollectCardModal] = useState(false);
       const [collectCheckNumber, setCollectCheckNumber] = useState('');
       const [collectCashDrawerOpen, setCollectCashDrawerOpen] = useState(null);
       const [collectAmount, setCollectAmount] = useState('');
       const [collectSaving, setCollectSaving] = useState(false);
+      const [refundTarget, setRefundTarget] = useState(null);
+      const [refundAmount, setRefundAmount] = useState('');
+      const [refundReason, setRefundReason] = useState('');
+      const [refundSaving, setRefundSaving] = useState(false);
+      const [showRefundConfirm, setShowRefundConfirm] = useState(false);
       const [customerStats, setCustomerStats] = useState(null);
       const [showAddNote, setShowAddNote] = useState(false);
-      const [noteText, setNoteText] = useState('');
-      const [savingNote, setSavingNote] = useState(false);
       const [commission, setCommission] = useState(null);
       const [orderInvoices, setOrderInvoices] = useState([]);
       const [orderNotes, setOrderNotes] = useState([]);
@@ -18069,9 +18332,7 @@
             })
           });
           setShowCollectPayment(false);
-          setShowCollectTapModal(false);
-          setShowCollectCardChoice(false);
-          setShowCollectManualCard(false);
+          setShowCollectCardModal(false);
           setCollectMethod(null);
           setCollectCheckNumber('');
           setCollectAmount('');
@@ -18082,7 +18343,25 @@
       };
 
       const handleCollectCard = () => {
-        setShowCollectCardChoice(true);
+        setShowCollectCardModal(true);
+      };
+
+      const submitRefund = async () => {
+        if (!refundTarget) return;
+        setRefundSaving(true);
+        try {
+          const data = await repFetch('/api/rep/orders/' + editId + '/payments/' + refundTarget.id + '/refund', {
+            method: 'POST',
+            body: JSON.stringify({ amount: parseFloat(refundAmount), reason: refundReason.trim() }),
+          });
+          if (data.order) setOrder(data.order);
+          if (data.payments) setPayments(data.payments);
+          if (data.balance) setBalanceInfo(data.balance);
+          setRefundTarget(null); setRefundAmount(''); setRefundReason('');
+          loadOrderActivity();
+        } catch (err) { alert(err.message); }
+        setShowRefundConfirm(false);
+        setRefundSaving(false);
       };
 
       const savePOCost = async (poId, itemId) => {
@@ -18185,29 +18464,82 @@
         : { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled', refunded: 'Refunded' };
       const nextStatus = statusFlow[order.status];
       const canCancel = order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'refunded';
-      const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');
 
-      // Lifecycle stepper — same component language as the quote workspace
+      // Lifecycle rail — Order View v2: Placed / Paid / POs sent / In fulfillment / Delivered
       const rodFmtDT = (d) => {
         const dt = new Date(d);
         return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' +
           dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase().replace(' ', '');
       };
       const orderIsDead = ['cancelled', 'refunded'].includes(order.status);
-      const RANKS = { pending: 1, confirmed: 2, shipped: 3, delivered: 4 };
-      const orderStepRank = orderIsDead ? 1 : (RANKS[order.status] || 1);
-      const orderSteps = [
-        { label: 'Placed', meta: rodFmtDT(order.created_at) },
-        { label: 'Confirmed', meta: orderIsDead
-            ? (order.status === 'cancelled' ? 'order cancelled' : 'order refunded')
-            : balanceInfo && balanceInfo.balance_status === 'paid' ? 'paid in full'
-            : balanceInfo && balanceInfo.balance > 0 ? 'balance due' : 'payment pending' },
-        { label: isPickup ? 'Ready for pickup' : 'Shipped', meta:
+      const orderTotal = parseFloat(order.total || 0);
+      const amountPaid = parseFloat(order.amount_paid || 0);
+      const paidDone = balanceInfo
+        ? (balanceInfo.balance_status === 'paid' || balanceInfo.balance_status === 'credit')
+        : (orderTotal > 0 && amountPaid >= orderTotal);
+      const sentPOCount = purchaseOrders.filter(po => po.status !== 'draft').length;
+      const posDone = purchaseOrders.length > 0 && sentPOCount === purchaseOrders.length;
+      const inFulfillment = ['confirmed', 'ready_for_pickup', 'shipped'].includes(order.status);
+      const isDeliveredOrder = order.status === 'delivered';
+      const orderStages = [
+        { label: 'Placed', done: true, meta: rodFmtDT(order.created_at) },
+        { label: 'Paid', done: paidDone, meta: paidDone
+            ? '$' + amountPaid.toFixed(2) + ' collected'
+            : balanceInfo && balanceInfo.balance > 0 ? 'Balance $' + balanceInfo.balance.toFixed(2) : 'Payment pending' },
+        { label: 'POs sent', done: posDone, meta: purchaseOrders.length > 0
+            ? sentPOCount + ' of ' + purchaseOrders.length + ' transmitted'
+            : (order.status === 'pending' ? 'Generated on confirmation' : 'No POs') },
+        { label: 'In fulfillment', done: isDeliveredOrder, meta:
             order.tracking_number ? (order.shipping_carrier ? order.shipping_carrier + ' · ' : '') + order.tracking_number
-            : isPickup ? 'will-call · Anaheim' : 'awaiting fulfillment' },
-        { label: isPickup ? 'Picked up' : 'Delivered', meta:
-            order.status === 'delivered' ? 'complete' : isPickup ? 'customer collects' : 'final mile' },
+            : isPickup ? 'Will-call · Anaheim' : inFulfillment ? 'Awaiting fulfillment' : 'Pending' },
+        { label: isPickup ? 'Picked up' : 'Delivered', done: isDeliveredOrder, meta:
+            isDeliveredOrder ? 'Complete' : 'Pending' },
       ];
+      const currentStageIdx = orderStages.findIndex(s => !s.done);
+      // Per-tender refund bookkeeping — counter refunds only for 24h tenders
+      const refundedByTender = {};
+      payments.forEach(p => {
+        if (p.payment_type === 'refund' && p.refund_of_payment_id && (p.status === 'completed' || !p.status)) {
+          refundedByTender[p.refund_of_payment_id] = (refundedByTender[p.refund_of_payment_id] || 0) + Math.abs(parseFloat(p.amount));
+        }
+      });
+      const tenderRemaining = (p) => parseFloat((parseFloat(p.amount) - (refundedByTender[p.id] || 0)).toFixed(2));
+      const canCounterRefund = (p) =>
+        ['charge', 'additional_charge'].includes(p.payment_type) && parseFloat(p.amount) > 0 &&
+        p.status === 'completed' &&
+        Date.now() - new Date(p.created_at).getTime() <= 24 * 60 * 60 * 1000 &&
+        tenderRemaining(p) > 0;
+      const tenderMethod = (p) => p.payment_method || (p.stripe_payment_intent_id ? 'card' : 'offline');
+
+      // Header chips + pending-tender hold flag
+      const pendingPayment = payments.find(p => parseFloat(p.amount) > 0 && p.status === 'pending');
+      const pendingIsCheck = pendingPayment && /check/i.test(pendingPayment.description || pendingPayment.payment_method || '');
+      const headChip = order.status === 'cancelled' ? { tone: 'hot', label: 'Cancelled' }
+        : order.status === 'refunded' ? { tone: 'hot', label: 'Refunded' }
+        : isDeliveredOrder ? { tone: 'done', label: isPickup ? 'Closed · Picked up' : 'Closed · Delivered' }
+        : order.status === 'shipped' ? { tone: 'live', label: isPickup ? 'Ready for pickup' : 'Shipped · In transit' }
+        : order.status === 'confirmed' ? { tone: 'live', label: 'Processed · In fulfillment' }
+        : { tone: 'soft', label: 'Pending' };
+      // Map each order line to the vendor PO that carries it
+      const poForItem = (itemId) => purchaseOrders.find(po => (po.items || []).some(pi => pi.order_item_id === itemId));
+      const poChannel = (po) => po.edi_interchange_id ? 'EDI' : 'Email';
+      const poAckLine = (po) => {
+        if (po.status === 'draft') return 'Draft · not yet sent';
+        if (po.edi_ack_status === 'accepted') return 'Acknowledged · EDI 855';
+        if (po.edi_ack_status === 'rejected') return 'Rejected · EDI 855';
+        if (po.edi_interchange_id) return 'Awaiting acknowledgment';
+        return 'Sent · awaiting confirmation';
+      };
+      const poChip = (po) => {
+        if (po.status === 'cancelled') return { tone: 'hot', label: 'Cancelled' };
+        if (po.status === 'received' || po.status === 'delivered') return { tone: 'done', label: 'Closed' };
+        if (po.status === 'draft') return { tone: 'soft', label: 'Draft' };
+        if (po.edi_ack_status === 'accepted') return { tone: 'live', label: 'Acked' };
+        if (po.edi_ack_status === 'rejected') return { tone: 'hot', label: 'Rejected' };
+        return { tone: 'soft', label: 'Sent' };
+      };
+      const custId = order.trade_customer_id || order.customer_id || order.customer_email;
+      const custType = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
 
       return (
         <div style={{ paddingBottom: 96 }}>
@@ -18226,46 +18558,53 @@
             </div>
           </div>
 
-          {/* B. Header */}
-          <div className="rod-header">
-            <div className="rod-header-left">
-              <div className="rod-status-pill" style={{ background: (order.status === 'cancelled' || order.status === 'refunded') ? 'rgba(197,71,49,0.12)' : order.status === 'delivered' ? 'rgba(58,122,78,0.12)' : 'rgba(168,121,53,0.12)', color: (order.status === 'cancelled' || order.status === 'refunded') ? 'var(--rod-red)' : order.status === 'delivered' ? 'var(--rod-green)' : 'var(--rod-accent)' }}>
-                ● {statusLabels[order.status] || order.status}
+          {/* B. Header — Order View v2 */}
+          <div className="rov-header">
+            <div>
+              <RovMicro>Orders{order.project_name ? ' · ' + order.project_name : ''}</RovMicro>
+              <div className="rov-header-title-row">
+                <h1>{order.order_number}</h1>
+                <RovChip tone={headChip.tone}>{headChip.label}</RovChip>
+                {!orderIsDead && pendingPayment && (
+                  <RovChip tone="hold">{pendingIsCheck ? 'Check clearing' : 'Payment clearing'}</RovChip>
+                )}
               </div>
-              <h1>Order <em>{order.order_number}</em></h1>
-              <div className="rod-header-subtitle">
-                {order.customer_name} · {order.payment_method ? { cash: 'Cash', check: 'Check', card: 'Card', stripe: 'Payment Request', offline: 'Offline', ach: 'Check (ACH)' }[order.payment_method] || order.payment_method : 'Stripe'} · {order.project_name || ''}{order.project_name ? ' · ' : ''}placed {(() => { const d = new Date(order.created_at); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase().replace(' ', ''); })()}
-              </div>
+              <RovMicro style={{ marginTop: 10 }}>
+                Placed {rodFmtDT(order.created_at)} · {order.customer_name}
+                {order.payment_method ? ' · ' + ({ cash: 'Cash', check: 'Check', card: 'Card', stripe: 'Payment Request', offline: 'Offline', ach: 'Check (ACH)' }[order.payment_method] || order.payment_method) : ''}
+                {order.rep_name ? ' · Rep ' + order.rep_name : ''}
+              </RovMicro>
             </div>
-            <div className="rod-header-money">
-              <div>
-                <div className="rod-header-money-label">Total</div>
-                <div className="rod-header-money-value">${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              </div>
-              <div>
-                <div className="rod-header-money-label">Paid</div>
-                <div className="rod-header-money-value" style={{ color: 'var(--rod-green)' }}>${parseFloat(order.amount_paid || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              </div>
-              <div>
-                <div className="rod-header-money-label">Balance</div>
-                <div className="rod-header-money-value" style={{ color: balanceInfo && balanceInfo.balance > 0 ? 'var(--rod-red)' : 'var(--rod-ink)' }}>
-                  ${balanceInfo ? Math.abs(balanceInfo.balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
-                </div>
-              </div>
+            <div className="rov-header-actions">
+              {order.customer_email && (
+                <button className="rov-hbtn" onClick={() => { setInvoiceMessage(''); setShowSendInvoiceModal(true); }}>Resend invoice</button>
+              )}
+              {['pending', 'confirmed'].includes(order.status) && (
+                <button className="rov-hbtn" onClick={() => setCatalogOpen(true)}>Change order</button>
+              )}
+              {!showCancelForm && canCancel && (
+                <button className="rov-hbtn danger" onClick={() => setShowCancelForm(true)} disabled={updating}>Cancel order</button>
+              )}
+              {order.status === 'cancelled' && !order.stripe_refund_id && (
+                <button className="rov-hbtn" onClick={() => { if (confirm('Reopen this order? It will return to Pending status.')) updateStatus('pending'); }} disabled={updating}>Reopen</button>
+              )}
             </div>
           </div>
 
-          {/* Lifecycle stepper */}
-          <div className="qw-stepper cols-4">
-            {orderSteps.map((s, i) => {
-              const state = i < orderStepRank ? 'done' : i === orderStepRank ? (orderIsDead ? 'dead' : 'now') : 'next';
+          {/* Lifecycle rail */}
+          <div className="rov-lifecycle">
+            {orderStages.map((s, i) => {
+              const state = orderIsDead ? 'dead'
+                : s.done ? 'done'
+                : i === currentStageIdx ? 'current'
+                : 'future';
               return (
-                <div key={s.label} className={'qw-step ' + state}>
-                  <div className="qw-step-label">
-                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
-                    <span>{s.label}</span>
+                <div key={s.label} className={'rov-stage ' + state}>
+                  <span className="rov-stage-mark">{s.done ? '✓' : orderIsDead ? '✕' : '0' + (i + 1)}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="rov-stage-label">{s.label}</div>
+                    <RovMicro style={{ marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.meta}</RovMicro>
                   </div>
-                  <div className="qw-step-meta">{s.meta}</div>
                 </div>
               );
             })}
@@ -18287,14 +18626,6 @@
               Refunded ${parseFloat(order.refund_amount || 0).toFixed(2)}
             </div>
           )}
-          {order.tracking_number && (
-            <div style={{ marginBottom: '12px', padding: '0.75rem 1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-              <div><strong style={{ color: 'var(--stone-500)' }}>Tracking:</strong> {order.tracking_number}</div>
-              {order.shipping_carrier && <div><strong style={{ color: 'var(--stone-500)' }}>Carrier:</strong> {order.shipping_carrier}</div>}
-              {order.shipped_at && <div><strong style={{ color: 'var(--stone-500)' }}>Shipped:</strong> {new Date(order.shipped_at).toLocaleDateString()}</div>}
-            </div>
-          )}
-
           {/* Tracking form */}
           {showTrackingForm && (
             <div className="rod-inline-panel" style={{ marginTop: 0, marginBottom: '12px' }}>
@@ -18343,85 +18674,6 @@
             </div>
           )}
 
-          {/* C. Action Bar \u2014 status advance lives in the fixed bottom bar */}
-          <div className="rod-action-bar">
-            {order.customer_email && (
-              <button className="rod-btn" onClick={() => { setInvoiceMessage(''); setShowSendInvoiceModal(true); }}>
-                <span style={{ font: '400 13px/1 "Cormorant Garamond", serif' }}>{'\u2709'}</span>
-                Email customer
-              </button>
-            )}
-            {order.phone && (
-              <a className="rod-btn" href={'tel:' + order.phone} style={{ textDecoration: 'none' }}>
-                <span style={{ font: '400 13px/1 "Cormorant Garamond", serif' }}>{'\u260E'}</span>
-                Call customer
-              </a>
-            )}
-            <button className="rod-btn" onClick={async () => {
-              try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/invoice?preview=true'); setDocPreview({ url, title: 'Invoice' }); } catch(e) { alert('Failed to load invoice'); }
-            }}>
-              <span style={{ font: '400 13px/1 "Cormorant Garamond", serif' }}>{'\u2398'}</span>
-              Invoice
-            </button>
-            <button className="rod-btn" onClick={async () => {
-              try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/packing-slip?preview=true'); setDocPreview({ url, title: 'Packing Slip' }); } catch(e) { alert('Failed to load packing slip'); }
-            }}>
-              <span style={{ font: '400 13px/1 "Cormorant Garamond", serif' }}>{'\u270E'}</span>
-              Packing slip
-            </button>
-            {!showTrackingForm && !showCancelForm && canCancel && (
-              <button className="rod-btn rod-btn-danger" onClick={() => setShowCancelForm(true)} disabled={updating}>
-                <span style={{ font: '400 13px/1 "Cormorant Garamond", serif' }}>{'\u232B'}</span>
-                Cancel order
-              </button>
-            )}
-            <span className="rod-action-bar-right">{(() => {
-              if (orderActivity && orderActivity.length > 0) {
-                const latest = orderActivity[0];
-                const ago = (() => {
-                  const ms = Date.now() - new Date(latest.created_at).getTime();
-                  const mins = Math.floor(ms / 60000);
-                  if (mins < 60) return mins + ' min' + (mins !== 1 ? 's' : '') + ' ago';
-                  const hrs = Math.floor(mins / 60);
-                  if (hrs < 24) return hrs + ' hr' + (hrs !== 1 ? 's' : '') + ' ago';
-                  const days = Math.floor(hrs / 24);
-                  return days + ' day' + (days !== 1 ? 's' : '') + ' ago';
-                })();
-                return 'Last activity · ' + ago + (latest.performer_name ? ' by ' + latest.performer_name : '');
-              }
-              return order.rep_name || 'Unassigned';
-            })()}</span>
-          </div>
-
-          {/* D. Snapshot Band */}
-          <div className="rod-snapshot-band">
-            <div className="rod-snapshot-tile">
-              <div className="rod-snapshot-tile-label">Fulfillment</div>
-              <div className="rod-snapshot-tile-value">{isPickup ? 'Store Pickup' : 'Shipping'}</div>
-              <div className="rod-snapshot-tile-sub">{items.length} line item{items.length !== 1 ? 's' : ''}</div>
-            </div>
-            <div className="rod-snapshot-tile">
-              <div className="rod-snapshot-tile-label">Delivery</div>
-              <div className="rod-snapshot-tile-value">{isPickup ? 'Anaheim Showroom' : (order.shipping_city || 'TBD')}</div>
-              <div className="rod-snapshot-tile-sub">{isPickup ? '1440 S State College' : (order.shipping_state || '')}</div>
-            </div>
-            <div className="rod-snapshot-tile">
-              <div className="rod-snapshot-tile-label">Payment</div>
-              <div className="rod-snapshot-tile-value">{balanceInfo ? (balanceInfo.balance_status === 'paid' ? 'Paid in Full' : balanceInfo.balance_status === 'credit' ? 'Credit' : 'Balance Due') : 'Pending'}</div>
-              <div className="rod-snapshot-tile-sub">{order.payment_method || 'stripe'}</div>
-            </div>
-            <div className="rod-snapshot-tile">
-              <div className="rod-snapshot-tile-label">Sales Rep</div>
-              <div className="rod-snapshot-tile-value">{order.rep_name || 'Unassigned'}</div>
-              <div className="rod-snapshot-tile-sub">{repInfo.name ? 'You' : ''}</div>
-            </div>
-            <div className="rod-snapshot-tile">
-              <div className="rod-snapshot-tile-label">PO Status</div>
-              <div className="rod-snapshot-tile-value">{purchaseOrders.length > 0 ? purchaseOrders.length + ' PO' + (purchaseOrders.length > 1 ? 's' : '') : 'None'}</div>
-              <div className="rod-snapshot-tile-sub">{purchaseOrders.filter(po => po.status === 'draft').length > 0 ? purchaseOrders.filter(po => po.status === 'draft').length + ' draft' : purchaseOrders.length > 0 ? 'All sent' : ''}</div>
-            </div>
-          </div>
-
           {/* E. Two-Column Body */}
           <div className="rod-body">
             {/* LEFT COLUMN */}
@@ -18442,12 +18694,11 @@
               }}>
                 <div className="rod-line-items-header">
                   <span></span>
-                  <span>SKU · Item</span>
+                  <span>Item</span>
+                  <span>Vendor · PO</span>
                   <span style={{ textAlign: 'right' }}>Qty</span>
                   <span style={{ textAlign: 'right' }}>Unit $</span>
-                  <span style={{ textAlign: 'right' }}>Line $</span>
-                  <span>Vendor PO</span>
-                  <span>Fulfillment</span>
+                  <span style={{ textAlign: 'right' }}>Ext.</span>
                 </div>
                 {(() => {
                   const itemMaterialKind = (item) => {
@@ -18502,9 +18753,24 @@
                             {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
                           </div>
                           <div className="rod-line-item-meta">
-                            {!isCustom && <>{item.vendor_sku ? 'SKU ' + item.vendor_sku : ''}{item.category_name ? ' · ' + item.category_name : ''}{item.vendor_name ? ' · ' + item.vendor_name : ''}</>}
+                            {!isCustom && <>{item.vendor_sku ? 'SKU ' + item.vendor_sku : ''}{item.category_name ? (item.vendor_sku ? ' · ' : '') + item.category_name : ''}</>}
                             {isCustom && <span style={{ color: 'var(--rod-accent)' }}>Custom</span>}
                             {item.is_sample && <span style={{ marginLeft: '4px', color: 'var(--rod-muted)' }}>Sample</span>}
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ font: '400 13px/1.2 "Inter", sans-serif', color: 'var(--rod-ink)' }}>{item.vendor_name || (isCustom ? 'Custom' : 'Roma')}</div>
+                          <div className="rod-line-item-meta" style={{ marginTop: 3 }}>
+                            {(() => {
+                              const po = poForItem(item.id);
+                              if (po) return (
+                                <a style={{ color: 'var(--rod-muted)', textDecoration: 'underline rgba(28,25,23,0.2)', cursor: 'pointer' }} onClick={() => {
+                                  const poEl = document.querySelector('.rod-po-section');
+                                  if (poEl) poEl.scrollIntoView({ behavior: 'smooth' });
+                                }}>{po.po_number}</a>
+                              );
+                              return item.is_sample ? 'Sample · no PO' : 'No PO';
+                            })()}
                           </div>
                         </div>
                         <div className="rod-line-item-qty" style={{ textAlign: 'right' }}>
@@ -18550,17 +18816,6 @@
                               }}>×</button>
                           )}
                         </div>
-                        <div className="rod-line-item-po">
-                          {purchaseOrders.length > 0 ? (
-                            <a style={{ textDecoration: 'underline rgba(28,25,23,0.2)' }} onClick={() => {
-                              const poEl = document.querySelector('.rod-po-section');
-                              if (poEl) poEl.scrollIntoView({ behavior: 'smooth' });
-                            }}>{purchaseOrders[0] ? purchaseOrders[0].po_number : 'PO'}</a>
-                          ) : <span style={{ color: 'var(--rod-muted)' }}>—</span>}
-                        </div>
-                        <span className="rod-line-item-status" style={{
-                          color: order.status === 'delivered' ? '#3a7a4e' : order.status === 'shipped' ? '#3a7a4e' : order.status === 'cancelled' ? '#c54731' : '#a87935',
-                        }}>{'● ' + (statusLabels[order.status] || order.status)}</span>
                       </div>
                       {itemAdj.length > 0 && (
                         <div style={{ padding: '4px 18px 8px 62px', fontSize: '0.6875rem', color: 'var(--stone-500)' }}>
@@ -18577,29 +18832,6 @@
                     </React.Fragment>
                   );
                 }); })()}
-                {/* Totals row */}
-                <div className="rod-totals-row">
-                  <div style={{ textAlign: 'right' }}>
-                    <div className="rod-totals-label">Subtotal</div>
-                    <div className="rod-totals-value">${parseFloat(order.subtotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                  </div>
-                  {parseFloat(order.shipping || 0) > 0 && (
-                    <div style={{ textAlign: 'right' }}>
-                      <div className="rod-totals-label">Shipping</div>
-                      <div className="rod-totals-value">${parseFloat(order.shipping).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                    </div>
-                  )}
-                  {order.delivery_method === 'pickup' && (
-                    <div style={{ textAlign: 'right' }}>
-                      <div className="rod-totals-label">Shipping</div>
-                      <div className="rod-totals-value" style={{ color: 'var(--rod-green)' }}>FREE</div>
-                    </div>
-                  )}
-                  <div style={{ textAlign: 'right' }}>
-                    <div className="rod-totals-label">Total</div>
-                    <div className="rod-totals-value-big">${parseFloat(order.total).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                  </div>
-                </div>
                 {/* Add Item section */}
                 {['pending', 'confirmed'].includes(order.status) && addingItem && (
                   <div style={{ padding: '14px 18px', borderTop: '0.5px solid var(--rod-border)' }}>
@@ -18826,269 +19058,52 @@
                 )}
               </RodCard>
 
-              {/* Vendor POs */}
+              {/* Vendor POs — v2 */}
               {purchaseOrders.length > 0 && (
-                <RodCard title={'Vendor purchase orders · ' + purchaseOrders.length} action="+ New PO" action2="Sync from vendor">
+                <RodCard title={'Vendor POs · ' + sentPOCount + ' of ' + purchaseOrders.length + ' transmitted'}>
                   <div className="rod-po-section">
-                    {posLoading ? <div style={{ padding: '18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading...</div> : purchaseOrders.map((po, poIdx) => (
-                      <div className="rod-po-row" key={po.id} style={poIdx === purchaseOrders.length - 1 ? { borderBottom: 'none' } : {}}>
-                        <a className="rod-po-id" onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number, type: 'po', po: po }); } catch(e) { alert('Failed to load PO'); } }}>{po.po_number}</a>
-                        <div>
-                          <div className="rod-po-vendor">{po.vendor_name}</div>
-                          <div className="rod-po-detail">
-                            {(po.items || []).length} item{(po.items || []).length !== 1 ? 's' : ''}
-                            {po.approved_by_name ? ' · Approved ' + new Date(po.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
-                            {po.edi_interchange_id && !po.edi_ack_status ? ' · EDI sent' : ''}
-                            {po.edi_ack_status === 'accepted' ? ' · EDI accepted' : ''}
-                            {po.edi_ack_status === 'rejected' ? ' · EDI rejected' : ''}
+                    {posLoading ? <div style={{ padding: '18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading...</div> : purchaseOrders.map(po => {
+                      const chip = poChip(po);
+                      const poItems = po.items || [];
+                      const receivedCount = poItems.filter(i => i.status === 'received').length;
+                      return (
+                        <div className="rov-po-row" key={po.id}>
+                          <div className="rov-po-code">{(po.vendor_code || po.vendor_name || '?').slice(0, 3).toUpperCase()}</div>
+                          <div>
+                            <div style={{ font: '400 14px/1.2 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
+                              <a style={{ cursor: 'pointer', textDecoration: 'underline rgba(28,25,23,0.2)', color: 'var(--rod-ink)' }}
+                                onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number, type: 'po', po: po }); } catch(e) { alert('Failed to load PO'); } }}>{po.po_number}</a>
+                              {' · ' + po.vendor_name}
+                            </div>
+                            <RovMicro style={{ marginTop: 3 }}>
+                              {poChannel(po)}
+                              {po.approved_at ? ' · sent ' + rodFmtDT(po.approved_at) : ' · not sent'}
+                              {' · $' + parseFloat(po.subtotal || 0).toFixed(2)}
+                            </RovMicro>
+                          </div>
+                          <div>
+                            <div style={{ font: '400 13px/1.3 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
+                              {poItems.length} item{poItems.length !== 1 ? 's' : ''}
+                              {receivedCount > 0 ? ' · ' + receivedCount + ' received' : ''}
+                            </div>
+                            <RovMicro style={{ marginTop: 3 }}>{poAckLine(po)}</RovMicro>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <RovChip tone={chip.tone}>{chip.label}</RovChip>
+                            {po.status === 'draft' && (
+                              <button className="rov-hbtn" style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => approvePO(po.id)} disabled={poUpdating}>Send</button>
+                            )}
+                            <button className="rov-doc-link" style={{ fontSize: 13 }} onClick={() => navigate('purchase-order-detail', po.id)}>{'⋯'}</button>
                           </div>
                         </div>
-                        <span className="rod-po-placed">Placed {po.placed_at ? new Date(po.placed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : new Date(po.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                        <span className="rod-po-subtotal">${parseFloat(po.subtotal || 0).toFixed(2)}</span>
-                        <span className="rod-po-status" style={{
-                          color: po.status === 'delivered' || po.status === 'received' ? '#3a7a4e' : po.status === 'draft' ? 'var(--rod-muted)' : po.status === 'cancelled' ? '#c54731' : '#a87935',
-                        }}>{'● ' + (po.status || 'draft').charAt(0).toUpperCase() + (po.status || 'draft').slice(1)}</span>
-                        <div className="rod-po-actions">
-                          {po.status === 'draft' && (
-                            <button className="rod-btn" style={{ padding: '5px 10px', fontSize: '10px', letterSpacing: '0.08em' }} onClick={() => approvePO(po.id)} disabled={poUpdating}>Send</button>
-                          )}
-                          <button className="rod-btn" style={{ padding: '5px 8px', fontSize: '13px', border: 'none' }} onClick={() => navigate('purchase-order-detail', po.id)}>{'⋯'}</button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </RodCard>
               )}
 
-              {/* Payments */}
-              {payments.length > 0 && (
-                <RodCard title="Payments" action="+ Record payment" action2="Refund">
-                  {payments.map((p, pIdx) => (
-                    <div className="rod-payment-row" key={p.id} style={pIdx === payments.length - 1 ? { borderBottom: 'none' } : {}}>
-                      <span className="rod-payment-ts">
-                        {new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        {' · '}
-                        {new Date(p.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase().replace(' ', '')}
-                      </span>
-                      <div>
-                        <div className="rod-payment-method">
-                          {p.description || (p.payment_method === 'card' ? 'Card' : p.payment_method === 'cash' ? 'Cash' : p.payment_method === 'check' ? 'Check' : p.payment_method === 'ach' ? 'ACH' : p.payment_method || 'Payment')}
-                        </div>
-                        {p.stripe_payment_intent_id && (
-                          <div className="rod-payment-ref">{p.stripe_payment_intent_id.slice(0, 18)}</div>
-                        )}
-                        {p.initiated_by_name && !p.stripe_payment_intent_id && (
-                          <div className="rod-payment-ref">By {p.initiated_by_name}</div>
-                        )}
-                      </div>
-                      <span className="rod-payment-kind">{'● ' + (p.payment_type === 'charge' ? 'Charge' : p.payment_type === 'refund' ? 'Refund' : 'Additional')}</span>
-                      <span className="rod-payment-amount" style={{ color: parseFloat(p.amount) < 0 ? '#c54731' : 'var(--rod-ink)' }}>
-                        {parseFloat(p.amount) < 0 ? '-' : ''}${Math.abs(parseFloat(p.amount)).toFixed(2)}
-                      </span>
-                      <span className="rod-payment-status" style={{
-                        color: p.status === 'completed' || p.status === 'succeeded' ? '#3a7a4e' : p.status === 'pending' ? '#a87935' : p.status === 'failed' ? '#c54731' : '#3a7a4e',
-                      }}>{'● ' + (p.status === 'completed' || p.status === 'succeeded' || !p.status ? 'Cleared' : p.status.charAt(0).toUpperCase() + p.status.slice(1))}</span>
-                    </div>
-                  ))}
-                </RodCard>
-              )}
-
-              {/* Payment Requests */}
-              {paymentRequests.length > 0 && (
-                <RodCard title={'Payment requests · ' + paymentRequests.length}>
-                  {paymentRequests.map((pr, prIdx) => (
-                    <div className="rod-payment-row" key={pr.id} style={prIdx === paymentRequests.length - 1 ? { borderBottom: 'none' } : {}}>
-                      <span className="rod-payment-ts">
-                        {new Date(pr.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                      <div>
-                        <div className="rod-payment-method">{pr.sent_to_email}</div>
-                        <div className="rod-payment-ref">Payment link</div>
-                      </div>
-                      <span className="rod-payment-kind">● Request</span>
-                      <span className="rod-payment-amount">${parseFloat(pr.amount).toFixed(2)}</span>
-                      <span className="rod-payment-status" style={{
-                        color: pr.status === 'paid' ? '#3a7a4e' : pr.status === 'pending' ? '#a87935' : '#c54731',
-                      }}>{'● ' + pr.status.charAt(0).toUpperCase() + pr.status.slice(1)}</span>
-                    </div>
-                  ))}
-                </RodCard>
-              )}
-
-              {/* Invoices */}
-              {orderInvoices.length > 0 && (
-                <RodCard title={'Invoices · ' + orderInvoices.length}>
-                  {orderInvoices.map((iv, i) => (
-                    <div className="rod-invoice-row" key={iv.id} style={i === orderInvoices.length - 1 ? { borderBottom: 'none' } : {}}>
-                      <a onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/invoice?preview=true'); setDocPreview({ url, title: 'Invoice ' + iv.invoice_number }); } catch(e) {} }}>{iv.invoice_number}</a>
-                      <span style={{ font: '400 12px/1 Inter, sans-serif', color: 'var(--rod-muted)' }}>
-                        Issued {iv.issue_date ? new Date(iv.issue_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-                      </span>
-                      <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>
-                        Paid: ${parseFloat(iv.amount_paid || 0).toFixed(2)} / ${parseFloat(iv.total || 0).toFixed(2)}
-                      </span>
-                      <span style={{ font: '400 14px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)', letterSpacing: '-0.008em', textAlign: 'right' }}>
-                        ${parseFloat(iv.total || 0).toFixed(2)}
-                      </span>
-                      <span style={{
-                        font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase',
-                        color: iv.status === 'paid' ? '#3a7a4e' : iv.status === 'overdue' ? '#c54731' : iv.status === 'partial' ? '#a87935' : 'var(--rod-muted)',
-                      }}>{'● ' + (iv.status || 'draft').charAt(0).toUpperCase() + (iv.status || 'draft').slice(1)}</span>
-                      <a style={{
-                        font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em',
-                        textTransform: 'uppercase', color: 'var(--rod-accent)', cursor: 'pointer',
-                        textDecoration: 'none', textAlign: 'right',
-                      }} onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/invoice?preview=true'); setDocPreview({ url, title: 'Invoice ' + iv.invoice_number }); } catch(e) {} }}>PDF ↓</a>
-                    </div>
-                  ))}
-                </RodCard>
-              )}
-
-              {/* Activity */}
-              <RodCard title={'Activity' + (orderActivity ? ' · ' + orderActivity.length : '')} action="Full log →" action2="+ Add note" onAction={loadOrderActivity} onAction2={() => setShowAddNote(true)}>
-                {orderActivity === null ? (
-                  <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading activity...</div>
-                ) : orderActivity.length === 0 ? (
-                  <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>No activity recorded yet</div>
-                ) : (
-                  <div>
-                    {orderActivity.map(entry => (
-                      <div className="rod-activity-entry" key={entry.id}>
-                        <span className="rod-activity-ts">{new Date(entry.created_at).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
-                        <span className="rod-category-badge" style={{ color: 'var(--rod-accent)', border: '0.5px solid rgba(168,121,53,0.35)' }}>{orderActionLabel(entry.action).split(' ')[0]}</span>
-                        <span className="rod-customer-avatar">{entry.performer_name ? entry.performer_name.split(' ').map(n => n[0]).join('').slice(0, 2) : 'SY'}</span>
-                        <div>
-                          <div style={{ font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }}>
-                            <strong>{orderActionLabel(entry.action)}</strong> {orderActivityDetail(entry)}
-                          </div>
-                          {entry.performer_name && <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginTop: '2px' }}>{entry.performer_name}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </RodCard>
-
-            </div>
-
-            {/* RIGHT COLUMN */}
-            <div className="rod-col">
-
-              {/* Customer */}
-              <RodCard title="Customer" action="Open profile →">
-                <div className="rod-card-body-padded">
-                  <div className="rod-customer-info">
-                    <div className="rod-customer-avatar-lg">{order.customer_name ? order.customer_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'}</div>
-                    <div>
-                      <div className="rod-customer-name">{order.customer_name}</div>
-                      <div className="rod-customer-type">● {{ cash: 'Cash', check: 'Check', card: 'Card', stripe: 'Payment Request', offline: 'Offline', ach: 'ACH' }[order.payment_method] || 'Customer'}</div>
-                    </div>
-                  </div>
-                  <div className="rod-customer-details">
-                    {order.customer_email}<br/>
-                    {order.phone || '—'}<br/>
-                    {order.shipping_address_line1 && <>{order.shipping_address_line1}{order.shipping_address_line2 && <>, {order.shipping_address_line2}</>}<br/>{order.shipping_city}, {order.shipping_state} {order.shipping_zip}</>}
-                  </div>
-                  {customerStats && (
-                    <div className="rod-customer-stats">
-                      <div>
-                        <div className="rod-customer-stat-label">Lifetime</div>
-                        <div className="rod-customer-stat-value">
-                          ${(parseFloat(customerStats.total_spent || 0) / 1000).toFixed(1)}k
-                        </div>
-                      </div>
-                      <div>
-                        <div className="rod-customer-stat-label">Orders</div>
-                        <div className="rod-customer-stat-value">{customerStats.total_orders || 0}</div>
-                      </div>
-                      <div>
-                        <div className="rod-customer-stat-label">Since</div>
-                        <div className="rod-customer-stat-value">
-                          {customerStats.first_order_date ? new Date(customerStats.first_order_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '\u2014'}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="rod-customer-actions">
-                    {order.customer_email && <a href={'mailto:' + order.customer_email}>✉ Email</a>}
-                    {order.phone && <a href={'tel:' + order.phone}>☎ Call</a>}
-                    <a onClick={(e) => { e.preventDefault(); setShowAddNote(true); }} style={{ cursor: 'pointer' }}>+ Note</a>
-                  </div>
-                  {showAddNote && (
-                    <div style={{ marginTop: '8px' }}>
-                      <textarea
-                        value={noteText}
-                        onChange={e => setNoteText(e.target.value)}
-                        placeholder="Add a note about this customer..."
-                        style={{ width: '100%', minHeight: '60px', padding: '8px', fontSize: '0.8125rem', border: '0.5px solid rgba(28,25,23,0.2)', fontFamily: 'Inter, sans-serif', resize: 'vertical', boxSizing: 'border-box' }}
-                      />
-                      <div style={{ display: 'flex', gap: '6px', marginTop: '6px', justifyContent: 'flex-end' }}>
-                        <button onClick={() => { setShowAddNote(false); setNoteText(''); }}
-                          style={{ padding: '5px 10px', fontSize: '10px', fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
-                        <button disabled={!noteText.trim() || savingNote} onClick={async () => {
-                          setSavingNote(true);
-                          const custId = order.trade_customer_id || order.customer_id || order.customer_email;
-                          const custType = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
-                          try {
-                            await repFetch('/api/rep/customers/' + encodeURIComponent(custId) + '/notes', {
-                              method: 'POST',
-                              body: JSON.stringify({ customer_type: custType, customer_ref: String(custId), note: noteText.trim() })
-                            });
-                            setShowAddNote(false); setNoteText('');
-                          } catch (err) {}
-                          setSavingNote(false);
-                        }}
-                          style={{ padding: '5px 10px', fontSize: '10px', fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: 'pointer' }}>
-                          {savingNote ? 'Saving...' : 'Save'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </RodCard>
-
-              {/* Commission */}
-              {commission && (
-                <RodCard title="Commission · this order" action="Recalculate">
-                  <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
-                    <div className="rod-commission-earning">
-                      <div>
-                        <div className="rod-commission-earning-label">Earning</div>
-                        <div className="rod-commission-earning-value">${parseFloat(commission.commission_amount || 0).toFixed(2)}</div>
-                      </div>
-                      <span style={{
-                        padding: '4px 10px',
-                        font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em',
-                        textTransform: 'uppercase',
-                        color: commission.status === 'paid' ? '#3a7a4e' : commission.status === 'earned' ? '#3a7a4e' : commission.status === 'forfeited' ? '#c54731' : '#a87935',
-                        border: '0.5px solid ' + (commission.status === 'paid' ? '#3a7a4e55' : commission.status === 'earned' ? '#3a7a4e55' : commission.status === 'forfeited' ? '#c5473155' : '#a8793555'),
-                      }}>{'● ' + (commission.status || 'pending').charAt(0).toUpperCase() + (commission.status || 'pending').slice(1)}</span>
-                    </div>
-                    <div className="rod-commission-row">
-                      <span className="rod-commission-row-label">Order total</span>
-                      <span className="rod-commission-row-value">${parseFloat(commission.order_total || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="rod-commission-row">
-                      <span className="rod-commission-row-label">Vendor cost</span>
-                      <span className="rod-commission-row-value">${parseFloat(commission.vendor_cost || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="rod-commission-row">
-                      <span className="rod-commission-row-label">Margin</span>
-                      <span className="rod-commission-row-value">${parseFloat(commission.margin || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="rod-commission-row" style={{ borderBottom: 'none' }}>
-                      <span className="rod-commission-row-label">Commission rate</span>
-                      <span className="rod-commission-row-value">{(parseFloat(commission.commission_rate || 0) * 100).toFixed(2)}%</span>
-                    </div>
-                    <div className="rod-commission-footer">
-                      Moves to <span style={{ color: '#3a7a4e' }}>● Earned</span> when order is delivered &amp; balance is $0.
-                    </div>
-                  </div>
-                </RodCard>
-              )}
-
-              {/* Delivery */}
-              <RodCard title={isPickup ? 'Store Pickup' : 'Shipping Address'}
+              {/* Fulfillment — v2 */}
+              <RodCard title="Fulfillment"
                 action={['pending', 'confirmed'].includes(order.status) ? (isPickup ? 'Switch to Shipping' : 'Switch to Pickup') : undefined}
                 onAction={isPickup ? () => {
                   setDeliveryAddress({ line1: order.shipping_address_line1 || '', line2: order.shipping_address_line2 || '', city: order.shipping_city || '', state: order.shipping_state || '', zip: order.shipping_zip || '' });
@@ -19103,21 +19118,30 @@
                   } catch (err) {}
                   setDeliveryUpdating(false);
                 }}>
-                <div className="rod-card-body-padded">
-                  {isPickup ? (
-                    <div style={{ font: '400 13px/1.6 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
-                      <strong style={{ fontWeight: 500 }}>Roma Flooring Designs</strong><br/>
-                      1440 S. State College Blvd., Suite 6M<br/>
-                      Anaheim, CA 92806
+                <div className="rov-fulfill-grid">
+                  {[
+                    ['Method', isPickup ? 'Store pickup · will-call' : 'Shipping' + (order.shipping_method ? ' · ' + order.shipping_method : '')],
+                    ['Carrier', order.shipping_carrier || (isPickup ? 'Customer collects' : 'TBD')],
+                    [order.status === 'delivered' ? 'Delivered' : 'Shipped', order.shipped_at ? rodFmtDT(order.shipped_at) : '—'],
+                    [isPickup ? 'Pickup at' : 'Deliver to', isPickup
+                      ? 'Roma Flooring Designs · 1440 S. State College Blvd., Suite 6M · Anaheim, CA 92806'
+                      : [order.shipping_address_line1, order.shipping_address_line2, [order.shipping_city, order.shipping_state].filter(Boolean).join(', ') + (order.shipping_zip ? ' ' + order.shipping_zip : '')].filter(Boolean).join(' · ') || 'TBD'],
+                    ['Site contact', [order.customer_name, order.phone].filter(Boolean).join(' · ') || '—'],
+                    ['Status', statusLabels[order.status] || order.status],
+                  ].map(([k, v]) => (
+                    <div key={k} className="rov-fulfill-cell">
+                      <RovMicro>{k}</RovMicro>
+                      <div className="rov-fulfill-value">{v}</div>
                     </div>
-                  ) : (
-                    <div style={{ font: '400 13px/1.6 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
-                      {order.shipping_address_line1}
-                      {order.shipping_address_line2 && <><br/>{order.shipping_address_line2}</>}
-                      <br/>{order.shipping_city}, {order.shipping_state} {order.shipping_zip}
-                    </div>
-                  )}
-                  {showDeliveryForm && (
+                  ))}
+                </div>
+                {order.tracking_number && (
+                  <div className="rov-card-band">
+                    <RovMicro>Tracking {order.tracking_number}{order.shipping_carrier ? ' · ' + order.shipping_carrier : ''}</RovMicro>
+                  </div>
+                )}
+                {showDeliveryForm && (
+                  <div style={{ padding: '0 20px 14px' }}>
                     <div className="rod-inline-panel">
                       <div className="rod-field-label" style={{ marginBottom: '0.75rem' }}>Shipping Address</div>
                       <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
@@ -19187,170 +19211,300 @@
                         </div>
                       )}
                     </div>
+                  </div>
+                )}
+              </RodCard>
+
+              {/* Activity */}
+              <RodCard title={'Activity' + (orderActivity ? ' · ' + orderActivity.length : '')} action="Full log →" action2="+ Add note" onAction={loadOrderActivity} onAction2={() => setShowAddNote(true)}>
+                {orderActivity === null ? (
+                  <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading activity...</div>
+                ) : orderActivity.length === 0 ? (
+                  <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>No activity recorded yet</div>
+                ) : (
+                  <div style={{ padding: '6px 20px 14px' }}>
+                    {orderActivity.map(entry => (
+                      <div className="rov-activity-row" key={entry.id}>
+                        <RovMicro>{rodFmtDT(entry.created_at)}</RovMicro>
+                        <span className="rov-activity-dot" />
+                        <span style={{ font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                          {orderActionLabel(entry.action)}{orderActivityDetail(entry) ? ' · ' + orderActivityDetail(entry) : ''}
+                        </span>
+                        <RovMicro>{entry.performer_name || 'System'}</RovMicro>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </RodCard>
+
+            </div>
+
+            {/* RIGHT COLUMN */}
+            <div className="rod-col">
+
+              {/* Totals — v2 */}
+              <RodCard title="Totals"
+                action={balanceInfo && balanceInfo.balance_status === 'balance_due' ? 'Collect payment' : undefined}
+                onAction={() => { if (!showCollectPayment && balanceInfo) setCollectAmount(balanceInfo.balance.toFixed(2)); setShowCollectPayment(!showCollectPayment); setCollectMethod(null); }}>
+                <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
+                  <RovRow l={'Subtotal · ' + items.length + ' line' + (items.length !== 1 ? 's' : '')} v={'$' + parseFloat(order.subtotal).toFixed(2)} />
+                  {isPickup
+                    ? <RovRow l="Shipping · store pickup" v="Free" c="var(--rod-green)" />
+                    : <RovRow l="Shipping" v={'$' + parseFloat(order.shipping || 0).toFixed(2)} />}
+                  {parseFloat(order.sample_shipping || 0) > 0 && (
+                    <RovRow l="Sample shipping" v={'$' + parseFloat(order.sample_shipping).toFixed(2)} />
+                  )}
+                  <RovRow l="Amount paid" v={'$' + amountPaid.toFixed(2)} c="var(--rod-green)" />
+                  <div className="rov-total-row">
+                    <span style={{ font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>Total</span>
+                    <span className="rov-total-value">${parseFloat(order.total).toFixed(2)}</span>
+                  </div>
+                  {balanceInfo && balanceInfo.balance_status === 'paid' && (
+                    <div className={'rov-band ' + (isDeliveredOrder ? 'ink' : 'green')}>● Paid in full · $0.00 balance</div>
+                  )}
+                  {balanceInfo && balanceInfo.balance_status === 'credit' && (
+                    <div className="rov-band blue">● Credit available · ${Math.abs(balanceInfo.balance).toFixed(2)}</div>
+                  )}
+                  {balanceInfo && balanceInfo.balance_status === 'balance_due' && (
+                    <div className="rov-band amber">● Balance due · ${balanceInfo.balance.toFixed(2)}</div>
+                  )}
+                  {balanceInfo && balanceInfo.balance_status === 'balance_due' && order.customer_email && (
+                    <button className="rov-textlink" style={{ justifySelf: 'end' }}
+                      onClick={() => { setPaymentRequestMessage(''); setShowPaymentRequestModal(true); }}>Send payment request →</button>
+                  )}
+                  {showCollectPayment && balanceInfo && balanceInfo.balance_status === 'balance_due' && (
+                    <div className="rod-inline-panel">
+                      <div style={{ marginBottom: '0.75rem' }}>
+                        <label className="rod-field-label">Payment Amount</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <span style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>$</span>
+                          <input className="rod-input" type="number" min="0.01" max={balanceInfo.balance} step="0.01" value={collectAmount} onChange={e => setCollectAmount(e.target.value)}
+                            style={{ flex: 1, width: 'auto' }} />
+                          <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.1em', color: 'var(--rod-muted)', whiteSpace: 'nowrap' }}>OF ${balanceInfo.balance.toFixed(2)}</span>
+                        </div>
+                        {parseFloat(collectAmount) > 0 && parseFloat(collectAmount) < balanceInfo.balance && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--rod-accent)', marginTop: '0.375rem' }}>Remaining after: ${(balanceInfo.balance - parseFloat(collectAmount)).toFixed(2)}</div>
+                        )}
+                        {(parseFloat(collectAmount) <= 0 || parseFloat(collectAmount) > balanceInfo.balance || isNaN(parseFloat(collectAmount))) && collectAmount !== '' && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--rod-red)', marginTop: '0.375rem' }}>Amount must be between $0.01 and ${balanceInfo.balance.toFixed(2)}</div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                        {['card', 'cash', 'check'].map(m => (
+                          <button key={m} className={'rod-mini-btn' + (collectMethod === m ? ' selected' : '')}
+                            style={{ flex: 1 }}
+                            onClick={() => setCollectMethod(m)}>
+                            {m === 'card' ? 'Card' : m === 'cash' ? 'Cash' : 'Check'}
+                          </button>
+                        ))}
+                      </div>
+                      {collectMethod === 'card' && (
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--rod-muted)', marginBottom: '0.75rem' }}>
+                          {terminalStatus === 'connected' ? '✓ Tap to Pay terminal connected' : terminalStatus === 'connecting' ? 'Connecting to terminal...' : 'Terminal offline — manual card entry available'}
+                        </div>
+                      )}
+                      {collectMethod === 'cash' && collectCashDrawerOpen === false && (
+                        <div className="rod-banner amber" style={{ marginTop: 0, marginBottom: '0.75rem', textAlign: 'left' }}>No cash drawer open. Open one from the Cash Drawer tab first.</div>
+                      )}
+                      {collectMethod === 'check' && (
+                        <div style={{ marginBottom: '0.75rem' }}>
+                          <label className="rod-field-label">Check Number *</label>
+                          <input className="rod-input" type="text" maxLength={20} value={collectCheckNumber} onChange={e => setCollectCheckNumber(e.target.value)}
+                            placeholder="Enter check number" />
+                        </div>
+                      )}
+                      {collectMethod && (() => {
+                        const amt = parseFloat(collectAmount);
+                        const validAmt = !isNaN(amt) && amt > 0 && amt <= balanceInfo.balance;
+                        const amtLabel = validAmt ? ' — $' + amt.toFixed(2) : '';
+                        return (
+                          <button className="rod-mini-btn primary" style={{ width: '100%', padding: '10px 12px' }}
+                            disabled={collectSaving || !validAmt || (collectMethod === 'cash' && collectCashDrawerOpen === false) || (collectMethod === 'check' && !collectCheckNumber.trim())}
+                            onClick={() => {
+                              if (collectMethod === 'card') handleCollectCard();
+                              else if (collectMethod === 'cash') collectPayment('cash', null);
+                              else if (collectMethod === 'check') collectPayment('check', null);
+                            }}>
+                            {collectSaving ? 'Processing...' : collectMethod === 'card' ? 'Pay with Card' + amtLabel : collectMethod === 'cash' ? 'Record Cash Payment' + amtLabel : 'Record Check Payment' + amtLabel}
+                          </button>
+                        );
+                      })()}
+                    </div>
                   )}
                 </div>
               </RodCard>
 
-              {/* Order Summary */}
-              <RodCard title="Order Summary"
-                action={balanceInfo && balanceInfo.balance_status === 'balance_due' ? 'Collect Payment' : undefined}
-                onAction={() => { if (!showCollectPayment && balanceInfo) setCollectAmount(balanceInfo.balance.toFixed(2)); setShowCollectPayment(!showCollectPayment); setCollectMethod(null); }}>
-                <div className="rod-card-body-padded">
-                  <div style={{ maxWidth: '100%' }}>
-                    <div className="rod-commission-row">
-                      <span className="rod-commission-row-label">Subtotal</span>
-                      <span className="rod-commission-row-value">${parseFloat(order.subtotal).toFixed(2)}</span>
-                    </div>
-                    {order.delivery_method === 'pickup' ? (
-                      <div className="rod-commission-row">
-                        <span className="rod-commission-row-label">Shipping (Store Pickup)</span>
-                        <span className="rod-commission-row-value" style={{ color: 'var(--rod-green)' }}>Free</span>
-                      </div>
-                    ) : parseFloat(order.shipping || 0) > 0 ? (
-                      <div className="rod-commission-row">
-                        <span className="rod-commission-row-label">Shipping</span>
-                        <span className="rod-commission-row-value">${parseFloat(order.shipping).toFixed(2)}</span>
-                      </div>
-                    ) : null}
-                    {parseFloat(order.sample_shipping || 0) > 0 && (
-                      <div className="rod-commission-row">
-                        <span className="rod-commission-row-label">Sample Shipping</span>
-                        <span className="rod-commission-row-value">${parseFloat(order.sample_shipping).toFixed(2)}</span>
-                      </div>
-                    )}
-                    <div className="rod-commission-row" style={{ borderTop: '0.5px solid rgba(28,25,23,0.25)', borderBottom: 'none', marginTop: '4px', paddingTop: '10px' }}>
-                      <span style={{ font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>Total</span>
-                      <span className="rod-commission-row-value" style={{ fontSize: '18px' }}>${parseFloat(order.total).toFixed(2)}</span>
-                    </div>
-                    <div className="rod-commission-row" style={{ borderBottom: 'none' }}>
-                      <span className="rod-commission-row-label">Amount Paid</span>
-                      <span className="rod-commission-row-value" style={{ color: 'var(--rod-green)' }}>${parseFloat(order.amount_paid || 0).toFixed(2)}</span>
-                    </div>
-                    {balanceInfo && balanceInfo.balance_status === 'paid' && (
-                      <div className="rod-banner green">Paid in Full</div>
-                    )}
-                    {balanceInfo && balanceInfo.balance_status === 'credit' && (
-                      <div className="rod-banner blue">Credit Available: ${Math.abs(balanceInfo.balance).toFixed(2)}</div>
-                    )}
-                    {balanceInfo && balanceInfo.balance_status === 'balance_due' && (
-                      <div className="rod-banner amber">Balance Due: ${balanceInfo.balance.toFixed(2)}</div>
-                    )}
-                    {balanceInfo && balanceInfo.balance_status === 'balance_due' && (
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.75rem', flexWrap: 'wrap' }}>
-                        <button className="rod-mini-btn"
-                          onClick={() => { setPaymentRequestMessage(''); setShowPaymentRequestModal(true); }}>Send Payment Request</button>
-                      </div>
-                    )}
-                    {showCollectPayment && balanceInfo && balanceInfo.balance_status === 'balance_due' && (
-                      <div className="rod-inline-panel">
-                        <div style={{ marginBottom: '0.75rem' }}>
-                          <label className="rod-field-label">Payment Amount</label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                            <span style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>$</span>
-                            <input className="rod-input" type="number" min="0.01" max={balanceInfo.balance} step="0.01" value={collectAmount} onChange={e => setCollectAmount(e.target.value)}
-                              style={{ flex: 1, width: 'auto' }} />
-                            <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.1em', color: 'var(--rod-muted)', whiteSpace: 'nowrap' }}>OF ${balanceInfo.balance.toFixed(2)}</span>
+              {/* Payments — v2 */}
+              {(payments.length > 0 || paymentRequests.length > 0) && (
+                <RodCard title={'Payments · ' + payments.length + ' tender' + (payments.length !== 1 ? 's' : '')}>
+                  {payments.map(p => {
+                    const amt = parseFloat(p.amount);
+                    const state = p.status === 'pending' ? 'Clearing' : p.status === 'failed' ? 'Failed' : (p.payment_type === 'refund' || amt < 0) ? 'Refunded' : 'Captured';
+                    const stateColor = state === 'Clearing' ? '#5c6e94' : (state === 'Failed' || state === 'Refunded') ? 'var(--rod-red)' : 'var(--rod-green)';
+                    return (
+                      <div className="rov-pay-row" key={p.id}>
+                        <div>
+                          <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                            {p.description || ({ card: 'Card', cash: 'Cash', check: 'Check', ach: 'ACH' }[p.payment_method] || p.payment_method || 'Payment')}
                           </div>
-                          {parseFloat(collectAmount) > 0 && parseFloat(collectAmount) < balanceInfo.balance && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--rod-accent)', marginTop: '0.375rem' }}>Remaining after: ${(balanceInfo.balance - parseFloat(collectAmount)).toFixed(2)}</div>
-                          )}
-                          {(parseFloat(collectAmount) <= 0 || parseFloat(collectAmount) > balanceInfo.balance || isNaN(parseFloat(collectAmount))) && collectAmount !== '' && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--rod-red)', marginTop: '0.375rem' }}>Amount must be between $0.01 and ${balanceInfo.balance.toFixed(2)}</div>
+                          <RovMicro style={{ marginTop: 3 }}>
+                            {rodFmtDT(p.created_at)}
+                            {p.stripe_payment_intent_id ? ' · ' + p.stripe_payment_intent_id.slice(0, 18) : p.initiated_by_name ? ' · by ' + p.initiated_by_name : ''}
+                          </RovMicro>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: amt < 0 ? 'var(--rod-red)' : 'var(--rod-ink)' }}>
+                            {amt < 0 ? '-' : ''}${Math.abs(amt).toFixed(2)}
+                          </div>
+                          <RovMicro color={stateColor} style={{ marginTop: 3 }}>{state}</RovMicro>
+                          {canCounterRefund(p) && (
+                            <button className="rov-doc-link" style={{ marginTop: 4 }}
+                              onClick={() => { setRefundTarget(p); setRefundAmount(tenderRemaining(p).toFixed(2)); setRefundReason(''); }}>
+                              Refund
+                            </button>
                           )}
                         </div>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                          {['card', 'cash', 'check'].map(m => (
-                            <button key={m} className={'rod-mini-btn' + (collectMethod === m ? ' selected' : '')}
-                              style={{ flex: 1 }}
-                              onClick={() => setCollectMethod(m)}>
-                              {m === 'card' ? 'Card' : m === 'cash' ? 'Cash' : 'Check'}
-                            </button>
-                          ))}
-                        </div>
-                        {collectMethod === 'card' && (
-                          <div style={{ fontSize: '0.8125rem', color: 'var(--rod-muted)', marginBottom: '0.75rem' }}>
-                            {terminalStatus === 'connected' ? '✓ Tap to Pay terminal connected' : terminalStatus === 'connecting' ? 'Connecting to terminal...' : 'Terminal offline — manual card entry available'}
-                          </div>
-                        )}
-                        {collectMethod === 'cash' && collectCashDrawerOpen === false && (
-                          <div className="rod-banner amber" style={{ marginTop: 0, marginBottom: '0.75rem', textAlign: 'left' }}>No cash drawer open. Open one from the Cash Drawer tab first.</div>
-                        )}
-                        {collectMethod === 'check' && (
-                          <div style={{ marginBottom: '0.75rem' }}>
-                            <label className="rod-field-label">Check Number *</label>
-                            <input className="rod-input" type="text" maxLength={20} value={collectCheckNumber} onChange={e => setCollectCheckNumber(e.target.value)}
-                              placeholder="Enter check number" />
-                          </div>
-                        )}
-                        {collectMethod && (() => {
-                          const amt = parseFloat(collectAmount);
-                          const validAmt = !isNaN(amt) && amt > 0 && amt <= balanceInfo.balance;
-                          const amtLabel = validAmt ? ' — $' + amt.toFixed(2) : '';
-                          return (
-                            <button className="rod-mini-btn primary" style={{ width: '100%', padding: '10px 12px' }}
-                              disabled={collectSaving || !validAmt || (collectMethod === 'cash' && collectCashDrawerOpen === false) || (collectMethod === 'check' && !collectCheckNumber.trim())}
-                              onClick={() => {
-                                if (collectMethod === 'card') handleCollectCard();
-                                else if (collectMethod === 'cash') collectPayment('cash', null);
-                                else if (collectMethod === 'check') collectPayment('check', null);
-                              }}>
-                              {collectSaving ? 'Processing...' : collectMethod === 'card' ? 'Pay with Card' + amtLabel : collectMethod === 'cash' ? 'Record Cash Payment' + amtLabel : 'Record Check Payment' + amtLabel}
-                            </button>
-                          );
-                        })()}
                       </div>
-                    )}
+                    );
+                  })}
+                  {refundTarget && (
+                    <div style={{ padding: '12px 20px', borderTop: '0.5px solid rgba(28,25,23,0.13)', background: 'var(--rod-warm)' }}>
+                      <RovMicro>Refund · {refundTarget.description || tenderMethod(refundTarget)}</RovMicro>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                        <span style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>$</span>
+                        <input className="rod-input" type="number" min="0.01" max={tenderRemaining(refundTarget)} step="0.01"
+                          value={refundAmount} onChange={e => setRefundAmount(e.target.value)} style={{ flex: 1, width: 'auto' }} />
+                        <RovMicro style={{ whiteSpace: 'nowrap' }}>OF ${tenderRemaining(refundTarget).toFixed(2)}</RovMicro>
+                      </div>
+                      <input className="rod-input" placeholder="Reason (required)" maxLength={200}
+                        value={refundReason} onChange={e => setRefundReason(e.target.value)} style={{ marginTop: 8 }} />
+                      <RovMicro style={{ marginTop: 6 }}>
+                        {tenderMethod(refundTarget) === 'cash' ? 'Cash comes out of your open drawer'
+                          : tenderMethod(refundTarget) === 'check' ? 'Records the check as returned — hand it back or void it'
+                          : "Refunds to the customer's card via Stripe"}
+                      </RovMicro>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+                        <button className="rod-mini-btn" onClick={() => setRefundTarget(null)} disabled={refundSaving}>Cancel</button>
+                        <button className="rod-mini-btn primary" onClick={() => setShowRefundConfirm(true)}
+                          disabled={refundSaving || !refundReason.trim() || !(parseFloat(refundAmount) > 0) || parseFloat(refundAmount) > tenderRemaining(refundTarget) + 0.005}>
+                          {'Refund $' + (parseFloat(refundAmount) > 0 ? parseFloat(refundAmount).toFixed(2) : '0.00')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {paymentRequests.map(pr => (
+                    <div className="rov-pay-row" key={pr.id}>
+                      <div>
+                        <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Payment link · {pr.sent_to_email}</div>
+                        <RovMicro style={{ marginTop: 3 }}>{rodFmtDT(pr.created_at)}</RovMicro>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>${parseFloat(pr.amount).toFixed(2)}</div>
+                        <RovMicro color={pr.status === 'paid' ? 'var(--rod-green)' : pr.status === 'pending' ? 'var(--rod-accent)' : 'var(--rod-red)'} style={{ marginTop: 3 }}>{pr.status}</RovMicro>
+                      </div>
+                    </div>
+                  ))}
+                </RodCard>
+              )}
+
+              {/* Margin & commission — v2 */}
+              {commission && (
+                <RodCard title="Margin & commission">
+                  <div className="rod-card-body-padded" style={{ display: 'grid', gap: 10 }}>
+                    <RovRow l="Vendor cost" v={'$' + parseFloat(commission.vendor_cost || 0).toFixed(2)} />
+                    <RovRow l="Gross margin" v={'$' + parseFloat(commission.margin || 0).toFixed(2)} c="var(--rod-green)" />
+                    <RovRow l="Margin %" v={(parseFloat(commission.order_total || 0) > 0 ? (parseFloat(commission.margin || 0) / parseFloat(commission.order_total) * 100).toFixed(1) : '0.0') + '%'} c="var(--rod-green)" />
+                    <RovRow l={'Commission · ' + (parseFloat(commission.commission_rate || 0) * 100).toFixed(1) + '% of margin'} v={'$' + parseFloat(commission.commission_amount || 0).toFixed(2)} last />
+                  </div>
+                  <div className="rov-card-band">
+                    <RovMicro color={commission.status === 'forfeited' ? 'var(--rod-red)' : undefined}>
+                      {commission.status === 'paid' ? '✓ Paid out on commission statement'
+                        : commission.status === 'earned' ? '✓ Earned · pays on next statement'
+                        : commission.status === 'forfeited' ? 'Forfeited'
+                        : 'Releases when delivered & all tenders clear'}
+                    </RovMicro>
+                  </div>
+                </RodCard>
+              )}
+
+              {/* Customer — v2 */}
+              <RodCard title="Customer">
+                <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'center' }}>
+                    <div className="rov-cust-avatar">{order.customer_name ? order.customer_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'}</div>
+                    <div>
+                      <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{order.customer_name}</div>
+                      <RovMicro style={{ marginTop: 3 }}>
+                        {custType === 'trade' ? 'Trade pro' : custType === 'retail' ? 'Retail' : 'Guest'}
+                        {customerStats ? ' · ' + (customerStats.total_orders || 0) + ' order' + (customerStats.total_orders !== 1 ? 's' : '') + ' · $' + (parseFloat(customerStats.total_spent || 0) / 1000).toFixed(1) + 'k lifetime' : ''}
+                      </RovMicro>
+                    </div>
+                  </div>
+                  <RovMicro>{[order.customer_email, order.phone].filter(Boolean).join(' · ') || '—'}</RovMicro>
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                    <a className="rov-textlink" style={{ cursor: 'pointer' }} onClick={() => navigate('customer-detail', custType + '-' + custId)}>Open account →</a>
+                    {order.customer_email && <a className="rov-textlink" href={'mailto:' + order.customer_email}>Email</a>}
+                    {order.phone && <a className="rov-textlink" href={'tel:' + order.phone}>Call</a>}
                   </div>
                 </div>
               </RodCard>
 
-              {/* Workflow Checklist */}
-              {order.status !== 'cancelled' && order.status !== 'refunded' && (() => {
-                const isShippingOrder = !isPickup;
-                const steps = [];
-                const isConfirmed = order.status !== 'pending';
-                steps.push({ label: 'Order confirmed', done: isConfirmed, detail: isConfirmed ? (order.confirmed_at ? 'Confirmed ' + new Date(order.confirmed_at).toLocaleDateString() : 'Confirmed') : 'Awaiting confirmation' });
-                const totalAmount = parseFloat(order.total || 0);
-                const amountPaid = parseFloat(order.amount_paid || 0);
-                const paymentDone = totalAmount > 0 && amountPaid >= totalAmount;
-                steps.push({ label: 'Payment collected', done: paymentDone, detail: totalAmount > 0 ? (paymentDone ? 'Paid in full ($' + amountPaid.toFixed(2) + ')' : '$' + amountPaid.toFixed(2) + ' of $' + totalAmount.toFixed(2) + ' collected') : 'No total set' });
-                const totalPOs = purchaseOrders.length;
-                const sentPOs = purchaseOrders.filter(po => po.status !== 'draft').length;
-                steps.push({ label: 'Purchase orders sent', done: totalPOs > 0 && sentPOs === totalPOs, detail: totalPOs > 0 ? sentPOs + ' of ' + totalPOs + ' PO' + (totalPOs !== 1 ? 's' : '') + ' sent' : (isConfirmed ? 'No POs generated' : 'Generated on confirmation') });
-                const allPOItems = purchaseOrders.flatMap(po => (po.items || []).filter(i => i.status !== 'cancelled'));
-                const receivedPOItems = allPOItems.filter(i => i.status === 'received');
-                steps.push({ label: 'All items received', done: allPOItems.length > 0 && receivedPOItems.length === allPOItems.length, detail: allPOItems.length > 0 ? receivedPOItems.length + ' of ' + allPOItems.length + ' item' + (allPOItems.length !== 1 ? 's' : '') + ' received' : 'No PO items' });
-                const isFinalStep = order.status === 'shipped' || order.status === 'delivered';
-                steps.push({ label: isShippingOrder ? 'Order shipped' : 'Ready for pickup', done: isFinalStep, detail: isFinalStep ? (order.shipped_at ? new Date(order.shipped_at).toLocaleDateString() : statusLabels[order.status]) : null });
-                const completedCount = steps.filter(s => s.done).length;
-                const totalSteps = steps.length;
-                const pct = totalSteps > 0 ? (completedCount / totalSteps * 100) : 0;
-                return (
-                  <RodCard title="Workflow Checklist">
-                    <div className="rod-card-body-padded">
-                      <div style={{ marginBottom: '0.75rem', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: pct === 100 ? 'var(--rod-green)' : 'var(--rod-muted)' }}>
-                        {completedCount} of {totalSteps} steps complete
+              {/* Documents — v2 */}
+              <RodCard title="Documents">
+                <div style={{ padding: '8px 20px 14px' }}>
+                  {orderInvoices.length > 0 ? orderInvoices.map(iv => (
+                    <div className="rov-doc-row2" key={iv.id}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Invoice {iv.invoice_number}</div>
+                        <RovMicro style={{ marginTop: 2 }}>
+                          {iv.issue_date ? 'Issued ' + new Date(iv.issue_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Draft'}
+                          {' · paid $' + parseFloat(iv.amount_paid || 0).toFixed(2) + ' of $' + parseFloat(iv.total || 0).toFixed(2)}
+                        </RovMicro>
                       </div>
-                      <div style={{ display: 'flex', gap: '3px', marginBottom: '1rem' }}>
-                        {steps.map((_, i) => (
-                          <div key={i} className={'rod-check-segment' + (i < completedCount ? ' done' : '')} />
-                        ))}
-                      </div>
-                      {steps.map((step, i) => (
-                        <div key={i} className="rod-check-step">
-                          <div className={'rod-check-mark ' + (step.done ? 'done' : 'pending')}>
-                            {step.done ? '✓' : (i + 1)}
-                          </div>
-                          <div style={{ flex: 1 }}>
-                            <div className={'rod-check-label' + (step.done ? '' : ' pending')}>{step.label}</div>
-                            {step.detail && <div className="rod-check-detail">{step.detail}</div>}
-                          </div>
-                        </div>
-                      ))}
+                      <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/invoice?preview=true'); setDocPreview({ url, title: 'Invoice ' + iv.invoice_number }); } catch(e) { alert('Failed to load invoice'); } }}>PDF ↓</button>
                     </div>
-                  </RodCard>
-                );
-              })()}
+                  )) : (
+                    <div className="rov-doc-row2">
+                      <div>
+                        <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Invoice</div>
+                        <RovMicro style={{ marginTop: 2 }}>Customer-facing PDF</RovMicro>
+                      </div>
+                      <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/invoice?preview=true'); setDocPreview({ url, title: 'Invoice' }); } catch(e) { alert('Failed to load invoice'); } }}>PDF ↓</button>
+                    </div>
+                  )}
+                  <div className="rov-doc-row2">
+                    <div>
+                      <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Packing slip</div>
+                      <RovMicro style={{ marginTop: 2 }}>Warehouse copy</RovMicro>
+                    </div>
+                    <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/packing-slip?preview=true'); setDocPreview({ url, title: 'Packing Slip' }); } catch(e) { alert('Failed to load packing slip'); } }}>PDF ↓</button>
+                  </div>
+                  {purchaseOrders.map(po => (
+                    <div className="rov-doc-row2" key={po.id}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>{po.po_number}</div>
+                        <RovMicro style={{ marginTop: 2 }}>{po.vendor_name} · ${parseFloat(po.subtotal || 0).toFixed(2)}</RovMicro>
+                      </div>
+                      <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number, type: 'po', po: po }); } catch(e) { alert('Failed to load PO'); } }}>PDF ↓</button>
+                    </div>
+                  ))}
+                  {orderDocuments.map(doc => {
+                    const docLabel = doc.doc_type === 'customer_id' ? 'Customer ID' : doc.doc_type === 'check_photo' ? 'Check photo' : doc.file_name || doc.doc_type || 'Document';
+                    return (
+                      <div className="rov-doc-row2" key={doc.id}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>{docLabel}</div>
+                          <RovMicro style={{ marginTop: 2 }}>
+                            {doc.mime_type ? (doc.mime_type.split('/')[1] || 'file').toUpperCase() : 'FILE'}
+                            {doc.file_size ? ' · ' + (doc.file_size > 1024 * 1024 ? (doc.file_size / 1024 / 1024).toFixed(1) + ' MB' : Math.round(doc.file_size / 1024) + ' KB') : ''}
+                          </RovMicro>
+                        </div>
+                        {doc.url ? <a className="rov-doc-link" href={doc.url} target="_blank" rel="noopener noreferrer">Open ↓</a> : <span className="rov-doc-link">—</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </RodCard>
 
               {/* Internal Notes */}
               <RodCard title={'Internal notes' + (orderNotes.length ? ' · ' + orderNotes.length : '')} action="+ Add" onAction={() => setShowAddNote(true)}>
@@ -19391,8 +19545,6 @@
                           style={{ padding: '5px 10px', fontSize: '10px', fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
                         <button disabled={!orderNoteText.trim() || savingOrderNote} onClick={async () => {
                           setSavingOrderNote(true);
-                          const custId = order.trade_customer_id || order.customer_id || order.customer_email;
-                          const custType = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
                           try {
                             const data = await repFetch('/api/rep/customers/' + encodeURIComponent(custId) + '/notes', {
                               method: 'POST',
@@ -19411,29 +19563,6 @@
                   )}
                 </div>
               </RodCard>
-
-              {/* Documents */}
-              {orderDocuments.length > 0 && (
-                <RodCard title="Documents" action="+ Upload">
-                  {orderDocuments.map((doc, dIdx) => {
-                    const docGlyph = doc.doc_type === 'customer_id' ? '\uD83D\uDCCB' : doc.doc_type === 'check_photo' ? '\uD83D\uDCF7' : doc.doc_type === 'invoice' ? '\uD83D\uDCC4' : doc.doc_type === 'measure_report' ? '\uD83D\uDCD0' : doc.doc_type === 'slab_template' ? '\u2394' : '\uD83D\uDCC4';
-                    const docLabel = doc.doc_type === 'customer_id' ? 'Customer ID' : doc.doc_type === 'check_photo' ? 'Check Photo' : doc.file_name || doc.doc_type || 'Document';
-                    return (
-                      <a key={doc.id} className="rod-doc-row" href={doc.url || '#'} target={doc.url ? '_blank' : undefined} rel="noopener noreferrer" style={dIdx === orderDocuments.length - 1 ? { borderBottom: 'none' } : {}}>
-                        <span className="rod-doc-icon">{docGlyph}</span>
-                        <div>
-                          <div className="rod-doc-name">{docLabel}</div>
-                          <div className="rod-doc-meta">
-                            {doc.mime_type ? doc.mime_type.split('/')[1]?.toUpperCase() || 'FILE' : 'FILE'}
-                            {doc.file_size ? ' · ' + (doc.file_size > 1024 * 1024 ? (doc.file_size / 1024 / 1024).toFixed(1) + ' MB' : Math.round(doc.file_size / 1024) + ' KB') : ''}
-                          </div>
-                        </div>
-                        <span style={{ color: 'var(--rod-accent)', font: '500 13px/1 Inter, sans-serif', textAlign: 'right' }}>{'\u2193'}</span>
-                      </a>
-                    );
-                  })}
-                </RodCard>
-              )}
 
             </div>
           </div>
@@ -19558,36 +19687,48 @@
               </div>
             </div>
           )}
-          {showCollectTapModal && balanceInfo && (
-            <TapToPayModal
-              amount={parseFloat(collectAmount)}
-              terminal={terminalRef.current}
-              onSuccess={(piId) => { setShowCollectTapModal(false); collectPayment('card', piId); }}
-              onCancel={() => setShowCollectTapModal(false)}
-            />
+          {showRefundConfirm && refundTarget && (
+            <div className="modal-overlay" onClick={() => !refundSaving && setShowRefundConfirm(false)}>
+              <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                <h3>Confirm refund</h3>
+                <p style={{ margin: '0 0 0.75rem' }}>
+                  Refund <strong style={{ font: '400 20px/1 "Cormorant Garamond", serif' }}>${(parseFloat(refundAmount) || 0).toFixed(2)}</strong>
+                  {' of the '}<strong>${parseFloat(refundTarget.amount).toFixed(2)}</strong>{' '}
+                  {tenderMethod(refundTarget) === 'cash' ? 'cash payment' : tenderMethod(refundTarget) === 'check' ? 'check payment' : 'card payment'}
+                  {' on '}{order.order_number}?
+                </p>
+                <div style={{ padding: '0.6rem 0.75rem', background: 'var(--rod-warm)', font: '400 13px/1.45 Inter, sans-serif', color: 'var(--rod-ink)', marginBottom: '0.75rem' }}>
+                  {tenderMethod(refundTarget) === 'cash'
+                    ? 'Take the cash from your drawer and hand it to the customer — the drawer’s expected balance is adjusted automatically.'
+                    : tenderMethod(refundTarget) === 'check'
+                    ? 'The check is recorded as returned — hand it back to the customer or void it.'
+                    : 'The amount is refunded to the customer’s card through Stripe. This cannot be undone.'}
+                </div>
+                <div style={{ font: '500 10px/1.5 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginBottom: '1rem' }}>
+                  Reason · {refundReason.trim()}
+                </div>
+                <div className="modal-actions">
+                  <button className="btn btn-secondary" onClick={() => setShowRefundConfirm(false)} disabled={refundSaving}>Go back</button>
+                  <button className="btn btn-primary" onClick={submitRefund} disabled={refundSaving}>
+                    {refundSaving ? 'Refunding…' : 'Confirm refund'}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
-          {showCollectCardChoice && balanceInfo && (
-            <CardMethodChoiceModal
+          {showCollectCardModal && balanceInfo && (
+            <RofPayCardModal
               amount={parseFloat(collectAmount)}
-              terminalConnected={terminalStatus === 'connected'}
-              onTap={() => {
-                setShowCollectCardChoice(false);
-                if (terminalStatus !== 'connected') {
-                  const confirmed = window.confirm('Terminal not connected. Connect now?');
-                  if (confirmed) connectReader();
-                  return;
-                }
-                setShowCollectTapModal(true);
-              }}
-              onManual={() => { setShowCollectCardChoice(false); setShowCollectManualCard(true); }}
-              onCancel={() => setShowCollectCardChoice(false)}
-            />
-          )}
-          {showCollectManualCard && balanceInfo && (
-            <ManualCardEntryModal
-              amount={parseFloat(collectAmount)}
-              onSuccess={(piId) => { setShowCollectManualCard(false); collectPayment('card', piId); }}
-              onCancel={() => setShowCollectManualCard(false)}
+              customerName={order.customer_name}
+              customerEmail={order.customer_email}
+              orderNumber={order.order_number}
+              tenderIdx={payments.filter(p => parseFloat(p.amount) > 0).length + 1}
+              tenderCount={payments.filter(p => parseFloat(p.amount) > 0).length + 1}
+              onSuccess={(piId) => { setShowCollectCardModal(false); collectPayment('card', piId); }}
+              onCancel={() => setShowCollectCardModal(false)}
+              terminalRef={terminalRef}
+              terminalStatus={terminalStatus}
+              connectReader={connectReader}
             />
           )}
           {docPreview && (docPreview.type === 'po'

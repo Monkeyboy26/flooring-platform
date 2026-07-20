@@ -7612,6 +7612,70 @@ app.post('/api/admin/orders/:id/refund', staffAuth, requireRole('admin', 'manage
   }
 });
 
+// Admin per-tender refund — method-aware (Stripe tenders refund at Stripe;
+// cash/check tenders are ledger reversals — adjust the physical drawer
+// manually). No time window; use for anything older than the reps' 24-hour
+// counter-refund window. refundPaymentTender is defined near the rep endpoint.
+app.post('/api/admin/orders/:id/payments/:paymentId/refund', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, paymentId } = req.params;
+    const { amount, reason } = req.body || {};
+
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = orderResult.rows[0];
+
+    const payResult = await pool.query(
+      `SELECT * FROM order_payments WHERE id = $1 AND order_id = $2
+        AND payment_type IN ('charge', 'additional_charge') AND status = 'completed' AND amount > 0`,
+      [paymentId, id]
+    );
+    if (!payResult.rows.length) return res.status(404).json({ error: 'Refundable payment not found on this order' });
+    const payment = payResult.rows[0];
+
+    const remaining = await tenderRemainingRefundable(pool, payment);
+    if (remaining <= 0) return res.status(400).json({ error: 'This payment has already been fully refunded' });
+
+    const refundAmount = amount != null ? parseFloat(parseFloat(amount).toFixed(2)) : remaining;
+    if (isNaN(refundAmount) || refundAmount <= 0) return res.status(400).json({ error: 'Invalid refund amount' });
+    if (refundAmount > remaining + 0.005) {
+      return res.status(400).json({ error: `Refund amount exceeds this tender's remaining refundable ($${remaining.toFixed(2)})` });
+    }
+
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+
+    await client.query('BEGIN');
+    const { method } = await refundPaymentTender(client, {
+      order, payment, refundAmount, reason: (reason || '').trim() || null,
+      initiatedBy: req.staff.id, initiatedByName: staffName, refundedByStaffId: req.staff.id,
+    });
+    await client.query('COMMIT');
+
+    // Notify assigned rep, same as the whole-order refund path
+    if (order.sales_rep_id) {
+      setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'refund_issued',
+        `Refund issued on ${order.order_number}`,
+        `${staffName} refunded $${refundAmount.toFixed(2)} (${method})${reason ? ' — ' + reason : ''}`,
+        'order', id));
+    }
+
+    const balanceInfo = await recalculateBalance(pool, id);
+    const payments = await pool.query('SELECT * FROM order_payments WHERE order_id = $1 ORDER BY created_at', [id]);
+    const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    res.json({ success: true, order: updatedOrder.rows[0], payments: payments.rows, balance: balanceInfo });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    if (err.type && String(err.type).startsWith('Stripe')) {
+      return res.status(400).json({ error: 'Stripe refund failed: ' + err.message });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // Add item to existing order (admin)
 // Supports two modes:
 //   SKU mode: { sku_id, num_boxes, sqft_needed? }
@@ -15103,6 +15167,154 @@ app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// ==================== Per-tender refunds ====================
+// Method-aware refund of a single order_payments tender. Stripe-backed tenders
+// refund at Stripe against the tender's own payment intent; cash and check
+// tenders are ledger-only reversals. Caller wraps in a transaction via
+// `client` and handles method-specific side effects (e.g. cash drawer payout).
+async function refundPaymentTender(client, { order, payment, refundAmount, reason, initiatedBy, initiatedByName, refundedByStaffId }) {
+  const method = payment.payment_method || (payment.stripe_payment_intent_id ? 'card' : 'offline');
+
+  let stripeRefundId = null;
+  if (payment.stripe_payment_intent_id) {
+    const refund = await stripe.refunds.create({
+      payment_intent: payment.stripe_payment_intent_id,
+      amount: Math.round(refundAmount * 100),
+    });
+    stripeRefundId = refund.id;
+  }
+
+  const base = method === 'cash' ? 'Cash refund'
+    : method === 'check' ? 'Check refund — #' + (payment.check_number || '?')
+    : payment.stripe_payment_intent_id ? 'Card refund'
+    : 'Refund';
+  const description = base + (reason ? ' — ' + reason : '');
+
+  const row = await client.query(`
+    INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, stripe_refund_id,
+      description, initiated_by, initiated_by_name, status, payment_method, check_number, refund_of_payment_id)
+    VALUES ($1, 'refund', $2, $3, $4, $5, $6, $7, 'completed', $8, $9, $10) RETURNING *
+  `, [order.id, (-refundAmount).toFixed(2), payment.stripe_payment_intent_id || null, stripeRefundId,
+      description, initiatedBy, initiatedByName, method, payment.check_number || null, payment.id]);
+  await syncOrderPaymentToInvoice(row.rows[0].id, order.id, client);
+
+  // refunded_by is FK'd to staff_accounts, so rep-issued refunds leave it null
+  await client.query(`
+    UPDATE orders SET amount_paid = amount_paid - $1,
+      refund_amount = COALESCE(refund_amount, 0) + $1,
+      refunded_at = NOW(),
+      refunded_by = COALESCE($2, refunded_by),
+      stripe_refund_id = COALESCE($3, stripe_refund_id)
+    WHERE id = $4
+  `, [refundAmount.toFixed(2), refundedByStaffId || null, stripeRefundId, order.id]);
+
+  await logOrderActivity(client, order.id, 'refund_issued', initiatedBy, initiatedByName,
+    { amount: refundAmount.toFixed(2), reason: reason || null, is_full: false, method });
+
+  return { refundRow: row.rows[0], stripeRefundId, method };
+}
+
+// Remaining refundable on a single tender (its amount minus prior linked refunds)
+async function tenderRemainingRefundable(db, payment) {
+  const refunded = await db.query(
+    "SELECT COALESCE(SUM(ABS(amount)), 0) AS total FROM order_payments WHERE refund_of_payment_id = $1 AND payment_type = 'refund' AND status = 'completed'",
+    [payment.id]
+  );
+  return parseFloat((parseFloat(payment.amount) - parseFloat(refunded.rows[0].total)).toFixed(2));
+}
+
+// Rep counter refund — per-tender, method-aware. Limited to the rep's own
+// orders and to tenders collected in the last 24 hours; anything older goes
+// through the admin dashboard.
+app.post('/api/rep/orders/:id/payments/:paymentId/refund', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, paymentId } = req.params;
+    const { amount, reason } = req.body || {};
+    if (!reason || !reason.trim()) return res.status(400).json({ error: 'A refund reason is required' });
+
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = orderResult.rows[0];
+
+    const payResult = await pool.query(
+      `SELECT * FROM order_payments WHERE id = $1 AND order_id = $2
+        AND payment_type IN ('charge', 'additional_charge') AND status = 'completed' AND amount > 0`,
+      [paymentId, id]
+    );
+    if (!payResult.rows.length) return res.status(404).json({ error: 'Refundable payment not found on this order' });
+    const payment = payResult.rows[0];
+
+    if (Date.now() - new Date(payment.created_at).getTime() > 24 * 60 * 60 * 1000) {
+      return res.status(403).json({ error: 'Counter refunds are limited to payments collected in the last 24 hours. Ask a manager to refund this from the admin dashboard.' });
+    }
+
+    const remaining = await tenderRemainingRefundable(pool, payment);
+    if (remaining <= 0) return res.status(400).json({ error: 'This payment has already been fully refunded' });
+
+    const refundAmount = amount != null ? parseFloat(parseFloat(amount).toFixed(2)) : remaining;
+    if (isNaN(refundAmount) || refundAmount <= 0) return res.status(400).json({ error: 'Invalid refund amount' });
+    if (refundAmount > remaining + 0.005) {
+      return res.status(400).json({ error: `Refund amount exceeds this tender's remaining refundable ($${remaining.toFixed(2)})` });
+    }
+
+    const method = payment.payment_method || (payment.stripe_payment_intent_id ? 'card' : 'offline');
+    if (method === 'card' && !payment.stripe_payment_intent_id) {
+      return res.status(400).json({ error: 'This card payment has no Stripe reference — ask a manager to refund it' });
+    }
+
+    // Cash refunds come out of the rep's open drawer
+    let drawer = null;
+    if (method === 'cash') {
+      const drawerResult = await pool.query(
+        "SELECT * FROM cash_drawers WHERE rep_id = $1 AND status = 'open' ORDER BY opened_at DESC LIMIT 1",
+        [req.rep.id]
+      );
+      if (!drawerResult.rows.length) return res.status(400).json({ error: 'Open a cash drawer before issuing a cash refund' });
+      drawer = drawerResult.rows[0];
+      if (parseFloat(drawer.expected_balance) < refundAmount) {
+        return res.status(400).json({ error: `Not enough cash in the drawer (expected balance $${parseFloat(drawer.expected_balance).toFixed(2)})` });
+      }
+    }
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+
+    await client.query('BEGIN');
+    await refundPaymentTender(client, {
+      order, payment, refundAmount, reason: reason.trim(),
+      initiatedBy: req.rep.id, initiatedByName: repName,
+    });
+
+    if (drawer) {
+      await client.query(
+        'INSERT INTO cash_drawer_transactions (drawer_id, order_id, type, amount, description) VALUES ($1, $2, $3, $4, $5)',
+        [drawer.id, id, 'refund', refundAmount.toFixed(2), 'Cash refund — ' + order.order_number]
+      );
+      await client.query('UPDATE cash_drawers SET expected_balance = expected_balance - $1 WHERE id = $2', [refundAmount, drawer.id]);
+    }
+
+    await client.query('COMMIT');
+
+    const balanceInfo = await recalculateBalance(pool, id);
+    const payments = await pool.query('SELECT * FROM order_payments WHERE order_id = $1 ORDER BY created_at', [id]);
+    const updatedOrder = await pool.query(`
+      SELECT o.*, sr.first_name || ' ' || sr.last_name as rep_name
+      FROM orders o LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+      WHERE o.id = $1
+    `, [id]);
+    res.json({ success: true, order: updatedOrder.rows[0], payments: payments.rows, balance: balanceInfo });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    if (err.type && String(err.type).startsWith('Stripe')) {
+      return res.status(400).json({ error: 'Stripe refund failed: ' + err.message });
+    }
+    res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }

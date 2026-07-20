@@ -805,10 +805,14 @@ CREATE TABLE IF NOT EXISTS order_payments (
     initiated_by UUID,
     initiated_by_name TEXT,
     status VARCHAR(20) DEFAULT 'completed',
+    check_number VARCHAR(50),
+    payment_method VARCHAR(20),
+    refund_of_payment_id UUID REFERENCES order_payments(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_order_payments_order ON order_payments(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_payments_refund_of ON order_payments(refund_of_payment_id);
 
 CREATE TABLE IF NOT EXISTS payment_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
