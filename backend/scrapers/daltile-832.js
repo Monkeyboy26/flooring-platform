@@ -23,6 +23,8 @@ import {
   upsertSkuAttribute, upsertPackaging, upsertPricing,
   upsertMediaAsset, isLifestyleUrl,
 } from './base.js';
+import { generate997 } from '../services/ediGenerator.js';
+import { createFtpConnection, uploadFile } from '../services/ediFtp.js';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -690,6 +692,77 @@ function makeInternalSku(vendorSku, productName) {
 // Main run() — called by the scraper framework
 // ---------------------------------------------------------------------------
 
+/**
+ * Send a 997 Functional Acknowledgment back to the trading partner for each
+ * received file. Uploads to the partner's inbox over FTP and records each ack
+ * in edi_transactions. Fully guarded — never throws into the caller.
+ */
+async function sendAcknowledgments(pool, job, source, vendorId, ediConfig, importedFiles) {
+  const inboxDir = ediConfig.inbox_dir || (source.config || {}).ack_dir || '/Inbox';
+  await appendLog(pool, job.id, `\nSending 997 acknowledgments to ${ediConfig.ftp_host}${inboxDir} ...`);
+
+  let ftp = null;
+  let sent = 0;
+  try {
+    ftp = await createFtpConnection({
+      ftp_host: ediConfig.ftp_host,
+      ftp_port: ediConfig.ftp_port || 21,
+      ftp_user: ediConfig.ftp_user,
+      ftp_pass: ediConfig.ftp_pass,
+      ftp_secure: ediConfig.ftp_secure || false,
+    });
+
+    for (const file of importedFiles) {
+      let acks;
+      try {
+        acks = await generate997(pool, vendorId, ediConfig, file.raw, file.remoteName);
+      } catch (err) {
+        await appendLog(pool, job.id, `  997 build failed for ${file.remoteName}: ${err.message}`);
+        continue;
+      }
+      if (!acks.length) {
+        await appendLog(pool, job.id, `  ${file.remoteName}: no functional group (GS) found — no 997 to send`);
+        continue;
+      }
+
+      for (const ack of acks) {
+        const txn = await pool.query(
+          `INSERT INTO edi_transactions
+             (vendor_id, document_type, direction, filename, interchange_control_number, status, raw_content)
+           VALUES ($1, '997', 'outbound', $2, $3, 'pending', $4)
+           RETURNING id`,
+          [vendorId, ack.filename, ack.icn, ack.content]
+        );
+        const txnId = txn.rows[0].id;
+        try {
+          await uploadFile(ftp, `${inboxDir}/${ack.filename}`, ack.content);
+          await pool.query(
+            `UPDATE edi_transactions SET status = 'sent', processed_at = CURRENT_TIMESTAMP WHERE id = $1`,
+            [txnId]
+          );
+          sent++;
+          const g = ack.ackGroup;
+          await appendLog(pool, job.id,
+            `  997 sent for ${file.remoteName} → ${inboxDir}/${ack.filename} `
+            + `(acks group ${g.groupCode || '?'} #${g.groupControlNumber || '?'}, ${g.transactionSets.length} txn set(s))`);
+        } catch (err) {
+          await pool.query(
+            `UPDATE edi_transactions SET status = 'error', error_message = $2 WHERE id = $1`,
+            [txnId, err.message]
+          );
+          await appendLog(pool, job.id, `  997 upload FAILED for ${file.remoteName}: ${err.message}`);
+        }
+      }
+    }
+    await appendLog(pool, job.id, `997 acknowledgments: ${sent} sent`);
+  } catch (err) {
+    await addJobError(pool, job.id, `997 acknowledgment phase error: ${err.message}`);
+    await appendLog(pool, job.id, `997 acknowledgment phase error (import still succeeded): ${err.message}`);
+  } finally {
+    try { if (ftp) ftp.close(); } catch { /* ignore */ }
+  }
+}
+
 export async function run(pool, job, source) {
   const ftpConfig = getFtpConfig(source);
   let processedFiles = (source.config || {}).processed_files || [];
@@ -749,11 +822,15 @@ export async function run(pool, job, source) {
   if (downloadedFiles.length === 0) return;
 
   // ── Step 3: Resolve vendor and categories ──
-  const vendorResult = await pool.query('SELECT id FROM vendors WHERE code = $1', [VENDOR_CODE]);
+  const vendorResult = await pool.query('SELECT id, edi_config FROM vendors WHERE code = $1', [VENDOR_CODE]);
   if (!vendorResult.rows.length) {
     throw new Error(`Vendor with code "${VENDOR_CODE}" not found. Create the vendor record first.`);
   }
   const vendorId = vendorResult.rows[0].id;
+  const vendorEdiConfig = vendorResult.rows[0].edi_config;
+
+  // Received files to acknowledge with a 997 after a successful import (see Step 6).
+  const importedForAck = [];
 
   const catCache = {};
   const catResult = await pool.query('SELECT id, slug FROM categories');
@@ -778,6 +855,9 @@ export async function run(pool, job, source) {
     const raw = fs.readFileSync(file.localPath, 'utf-8');
     const catalog = parse832(raw);
     await appendLog(pool, job.id, `  Parsed ${catalog.items.length} items from ${catalog.summary.segment_count} segments`);
+
+    // A successfully parsed file is a received interchange we should acknowledge.
+    importedForAck.push({ remoteName: file.remoteName, raw });
 
     if (catalog.items.length === 0) {
       await appendLog(pool, job.id, '  No items found — skipping file.');
@@ -1003,6 +1083,16 @@ export async function run(pool, job, source) {
 
   if (totalDeactivated > 0) {
     await appendLog(pool, job.id, `Deactivated ${totalDeactivated} SKUs not found in latest 832 (per-collection)`);
+  }
+
+  // ── Step 6: Send 997 functional acknowledgments back to Daltile ──
+  // Confirms to the trading partner that we received + accepted each catalog.
+  // Non-fatal: an ack failure must never fail the import that already succeeded.
+  const send997 = (source.config || {}).send_997 !== false;
+  if (send997 && vendorEdiConfig && vendorEdiConfig.enabled && importedForAck.length) {
+    await sendAcknowledgments(pool, job, source, vendorId, vendorEdiConfig, importedForAck);
+  } else if (importedForAck.length && !send997) {
+    await appendLog(pool, job.id, '997 acknowledgments disabled via config (send_997=false) — skipping.');
   }
 
   // Log final stats
