@@ -69,7 +69,7 @@ docker compose up -d          # Start all services
 docker compose down           # Stop all services
 docker compose restart api    # Restart backend after code changes
 docker compose logs -f api    # Tail API logs
-docker exec -it flooring-platform-db-1 psql -U postgres -d flooring_pim  # DB shell
+docker exec -it flooring-db psql -U postgres -d flooring_pim  # DB shell
 ```
 
 ---
