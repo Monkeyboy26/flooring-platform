@@ -9654,7 +9654,7 @@
 
               {/* Category */}
               <RailSection id="category" title="Category" count={category ? 1 : 0}>
-                <div style={{ display: 'grid', gap: 7 }}>
+                <div style={{ display: 'grid', gap: 7, maxHeight: 240, overflowY: 'auto' }}>
                   {flatCats.map(c => <CheckRow key={c.slug} label={c.name} on={category === c.slug} onToggle={() => { setCategory(category === c.slug ? '' : c.slug); setPage(1); }} />)}
                   {flatCats.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Loading...</span>}
                 </div>
