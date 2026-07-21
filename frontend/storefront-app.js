@@ -5439,7 +5439,7 @@
         }
       }
       const showAttrSizes = attrSizeItems.length > 0;
-      if (colorItems.length <= 1 && collectionSiblings.length > 0) {
+      if (colorItems.length <= 1 && collectionSiblings.length > 0 && !showSizePills) {
         const nonAccSiblings = collectionSiblings.filter((s) => s.variant_type !== "accessory");
         if (nonAccSiblings.length > 0) {
           colorItems = [

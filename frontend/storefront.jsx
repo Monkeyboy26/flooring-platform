@@ -7704,8 +7704,10 @@
                 }
                 const showAttrSizes = attrSizeItems.length > 0;
 
-                // If same-product siblings have 0-1 colors, use collection siblings as color options
-                if (colorItems.length <= 1 && collectionSiblings.length > 0) {
+                // If same-product siblings have 0-1 colors, use collection siblings as color options.
+                // Skip when those collection siblings are already the Size options (e.g. JMV vanities
+                // where widths are separate products) — otherwise sizes render as fake color swatches.
+                if (colorItems.length <= 1 && collectionSiblings.length > 0 && !showSizePills) {
                   // Exclude accessory/trim siblings from color variant display
                   const nonAccSiblings = collectionSiblings.filter(s => s.variant_type !== 'accessory');
                   if (nonAccSiblings.length > 0) {
