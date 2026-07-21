@@ -102,7 +102,10 @@ const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 200, standardHeaders
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many login attempts, please try again later' } });
 const checkoutLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
 const searchLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
-const registrationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many registration attempts, please try again later' } });
+// Only counts successful account creations (skipFailedRequests) so validation
+// errors and duplicate-email retries don't lock a legitimate applicant out, and
+// caps genuine new accounts per IP/hour (shared office/showroom IPs need headroom).
+const registrationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 15, skipFailedRequests: true, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many registration attempts, please try again later' } });
 
 app.use(globalLimiter);
 app.use('/api/staff/login', authLimiter);
