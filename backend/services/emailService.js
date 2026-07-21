@@ -6,10 +6,6 @@ import { generateOrderStatusUpdateHTML } from '../templates/orderStatusUpdate.js
 import { generateTradeApprovalHTML } from '../templates/tradeApproval.js';
 import { generateTradeDenialHTML } from '../templates/tradeDenial.js';
 import { generateTierPromotionHTML } from '../templates/tierPromotion.js';
-import { generateRenewalReminderHTML } from '../templates/renewalReminder.js';
-import { generateSubscriptionWarningHTML } from '../templates/subscriptionWarning.js';
-import { generateSubscriptionLapsedHTML } from '../templates/subscriptionLapsed.js';
-import { generateSubscriptionDeactivatedHTML } from '../templates/subscriptionDeactivated.js';
 import { generateInstallationInquiryStaffHTML } from '../templates/installationInquiryStaff.js';
 import { generateInstallationInquiryConfirmationHTML } from '../templates/installationInquiryConfirmation.js';
 import { generatePasswordResetHTML } from '../templates/passwordReset.js';
@@ -269,94 +265,6 @@ export async function send2FACode(email, code) {
     console.log(`[Email] 2FA code sent to ${email}`);
   } catch (err) {
     console.error(`[Email] Failed to send 2FA code to ${email}:`, err.message);
-  }
-}
-
-/**
- * Send renewal reminder email (30 days before expiry).
- */
-export async function sendRenewalReminder(customer) {
-  if (!transporter) {
-    console.log(`[Email] Skipping renewal reminder for ${customer.email} — SMTP not configured`);
-    return;
-  }
-  try {
-    const html = generateRenewalReminderHTML(customer);
-    await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
-      to: customer.email,
-      subject: 'Trade Membership Renewal Reminder',
-      html
-    });
-    console.log(`[Email] Renewal reminder sent to ${customer.email}`);
-  } catch (err) {
-    console.error(`[Email] Failed to send renewal reminder to ${customer.email}:`, err.message);
-  }
-}
-
-/**
- * Send subscription warning email (payment failed, grace period started).
- */
-export async function sendSubscriptionWarning(customer) {
-  if (!transporter) {
-    console.log(`[Email] Skipping subscription warning for ${customer.email} — SMTP not configured`);
-    return;
-  }
-  try {
-    const html = generateSubscriptionWarningHTML(customer);
-    await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
-      to: customer.email,
-      subject: 'Action Required — Trade Membership Payment Issue',
-      html
-    });
-    console.log(`[Email] Subscription warning sent to ${customer.email}`);
-  } catch (err) {
-    console.error(`[Email] Failed to send subscription warning to ${customer.email}:`, err.message);
-  }
-}
-
-/**
- * Send subscription lapsed email (membership suspended).
- */
-export async function sendSubscriptionLapsed(customer) {
-  if (!transporter) {
-    console.log(`[Email] Skipping subscription lapsed for ${customer.email} — SMTP not configured`);
-    return;
-  }
-  try {
-    const html = generateSubscriptionLapsedHTML(customer);
-    await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
-      to: customer.email,
-      subject: 'Trade Membership Suspended',
-      html
-    });
-    console.log(`[Email] Subscription lapsed sent to ${customer.email}`);
-  } catch (err) {
-    console.error(`[Email] Failed to send subscription lapsed to ${customer.email}:`, err.message);
-  }
-}
-
-/**
- * Send subscription deactivated email (grace period expired).
- */
-export async function sendSubscriptionDeactivated(customer) {
-  if (!transporter) {
-    console.log(`[Email] Skipping subscription deactivated for ${customer.email} — SMTP not configured`);
-    return;
-  }
-  try {
-    const html = generateSubscriptionDeactivatedHTML(customer);
-    await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
-      to: customer.email,
-      subject: 'Trade Membership Deactivated',
-      html
-    });
-    console.log(`[Email] Subscription deactivated sent to ${customer.email}`);
-  } catch (err) {
-    console.error(`[Email] Failed to send subscription deactivated to ${customer.email}:`, err.message);
   }
 }
 

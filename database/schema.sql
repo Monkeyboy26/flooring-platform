@@ -544,17 +544,22 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP;
 -- ==================== Trade Application Enhancements ====================
 
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS business_type VARCHAR(50);
+-- stripe_customer_id is used for card-on-file order payments (not the removed trade subscription)
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
-ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
-ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(30) DEFAULT 'none';
-ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMP;
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS denial_reason TEXT;
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES staff_accounts(id);
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
+-- total_spend caches the customer's trailing 365-day product spend (drives the tier)
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS total_spend DECIMAL(12,2) DEFAULT 0;
-ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS tier_locked_until TIMESTAMP;
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS assigned_rep_id UUID REFERENCES staff_accounts(id);
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;
+
+-- Removed the $99/year trade subscription — tiers are now purely spend-based.
+-- Drop the subscription columns from existing databases (stripe_customer_id is kept for order payments).
+ALTER TABLE trade_customers DROP COLUMN IF EXISTS stripe_subscription_id;
+ALTER TABLE trade_customers DROP COLUMN IF EXISTS subscription_status;
+ALTER TABLE trade_customers DROP COLUMN IF EXISTS subscription_expires_at;
+ALTER TABLE trade_customers DROP COLUMN IF EXISTS tier_locked_until;
 
 CREATE TABLE trade_documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -580,6 +585,9 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS trade_customer_id UUID REFERENCES tr
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS po_number TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_tax_exempt BOOLEAN DEFAULT false;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS project_id UUID;
+
+-- Supports the trailing 365-day trade spend rollup (recomputeTradeTier)
+CREATE INDEX IF NOT EXISTS idx_orders_trade_recent ON orders(trade_customer_id, created_at);
 
 -- ==================== Quotes Trade Enhancement ====================
 

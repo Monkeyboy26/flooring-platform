@@ -431,9 +431,10 @@ INSERT INTO media_assets (product_id, sku_id, asset_type, url, sort_order) VALUE
 ON CONFLICT DO NOTHING;
 
 -- Margin Tiers for Trade Pricing
+-- Spend brackets (trailing 365-day product spend): Silver $0–$12,500, Gold $12,501–$25,000, Platinum $25,000+
 INSERT INTO margin_tiers (name, discount_percent, spend_threshold, tier_level) VALUES
 ('Silver', 10.00, 0, 0),
-('Gold', 15.00, 12500, 1),
+('Gold', 15.00, 12501, 1),
 ('Platinum', 20.00, 25000, 2);
 
 -- ==================== Extended Seed Data ====================

@@ -16,12 +16,14 @@ export function generateTradeApprovalHTML(customer) {
     <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;font-weight:400;color:#1c1917;margin:0 0 16px;">Welcome to the Trade Program!</h2>
     <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">Dear ${esc(customer.contact_name)},</p>
     <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">We're pleased to inform you that your trade application for <strong>${esc(customer.company_name)}</strong> has been approved.</p>
-    <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">You now have access to exclusive trade pricing, dedicated account support, and all the benefits of our trade program.</p>
+    <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">You now have access to exclusive trade pricing, dedicated account support, and all the benefits of our trade program — with no membership fee.</p>
+    <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">You'll start at our <strong>Silver</strong> tier (10% off). Your tier is based purely on what you spend with us over a rolling 12-month period — reach $12,500 for <strong>Gold</strong> (15% off) and $25,000 for <strong>Platinum</strong> (20% off). You'll move up automatically as you order.</p>
     <div style="background:#f5f5f4;padding:20px;margin:24px 0;">
       <p style="margin:0 0 8px;font-weight:500;color:#1c1917;">What's Next:</p>
       <ul style="color:#57534e;line-height:1.8;margin:0;padding-left:20px;">
         <li>Log in to your account to see trade pricing</li>
         <li>Browse our full catalog with your exclusive discount</li>
+        <li>Track your tier progress from your trade dashboard</li>
         <li>Your assigned rep will reach out shortly</li>
       </ul>
     </div>

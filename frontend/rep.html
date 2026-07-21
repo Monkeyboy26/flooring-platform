@@ -7639,8 +7639,8 @@
                       </div>
                     </div>
                     <div style={{ marginBottom: '0.75rem' }}>
-                      <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Subscription</div>
-                      <div>{(customer.subscription_status || 'none') + (customer.subscription_expires_at ? ' (expires ' + new Date(customer.subscription_expires_at).toLocaleDateString() + ')' : '')}</div>
+                      <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' }}>Spend (last 12 mo)</div>
+                      <div>${parseFloat(customer.total_spend || 0).toLocaleString()}</div>
                     </div>
                     {customer.rep_name && (
                       <div style={{ marginBottom: '0.75rem' }}>
@@ -8696,12 +8696,12 @@
       const calcMax = +(retail * 1.4).toFixed(2) || 100;
       const clampPrice = (v) => Math.max(calcMin, Math.min(calcMax, +v.toFixed(2)));
 
-      // Trade tier pricing
+      // Trade tier pricing preview — mirrors the spend-based Silver/Gold/Platinum tiers
       const tiers = retail > 0 ? [
         { label: 'Retail', mult: 1.00 },
-        { label: 'Trade', mult: 0.85 },
-        { label: 'Contractor', mult: 0.78 },
-        { label: 'Builder', mult: 0.72 },
+        { label: 'Silver', mult: 0.90 },
+        { label: 'Gold', mult: 0.85 },
+        { label: 'Platinum', mult: 0.80 },
       ].map(t => ({ ...t, price: retail * t.mult, margin: cost > 0 ? ((retail * t.mult - cost) / (retail * t.mult)) * 100 : 0 })) : [];
 
       return ReactDOM.createPortal(

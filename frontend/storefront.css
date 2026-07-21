@@ -1956,7 +1956,8 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .trade-step h3 { font-family: var(--font-heading); font-size: 1.125rem; font-weight: 400; margin-bottom: 0.5rem; }
 .trade-step p { font-size: 0.8125rem; color: var(--stone-600); line-height: 1.6; }
 .trade-tiers { max-width: var(--max-width); margin: 0 auto; padding: 4rem 3rem; }
-.trade-tiers h2 { font-family: var(--font-heading); font-size: 2.25rem; font-weight: 300; text-align: center; margin-bottom: 3rem; }
+.trade-tiers h2 { font-family: var(--font-heading); font-size: 2.25rem; font-weight: 300; text-align: center; margin-bottom: 1rem; }
+.trade-tiers-subhead { max-width: 640px; margin: 0 auto 3rem; text-align: center; color: var(--stone-500); line-height: 1.6; }
 .trade-tiers-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
 .tier-card { background: var(--warm-bg); border: 1px solid var(--stone-200); padding: 2.5rem 2rem; text-align: center; transition: all var(--transition-base); }
 .tier-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }

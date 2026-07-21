@@ -12436,12 +12436,6 @@
         loadTab('favorites');
       };
 
-      const cancelMembership = async () => {
-        if (!confirm('Cancel your trade membership? You will retain access until your current period ends.')) return;
-        await fetch(API + '/api/trade/cancel-membership', { method: 'POST', headers: authHeaders });
-        loadTab('account');
-      };
-
       const deleteProject = async (id) => {
         if (!confirm('Delete this project?')) return;
         await fetch(API + '/api/trade/projects/' + id, { method: 'DELETE', headers: authHeaders });
@@ -12562,14 +12556,14 @@
                     <div className="trade-stat-card" style={{ background: 'linear-gradient(135deg, #fffbf0 0%, white 100%)' }}>
                       <label>Tier</label><div className="value">{dashData.tier_name || 'Silver'}</div>
                     </div>
+                    <div className="trade-stat-card" style={{ background: 'linear-gradient(135deg, #fffbf0 0%, white 100%)' }}>
+                      <label>Your Discount</label><div className="value">{parseFloat(dashData.discount_percent || 0).toFixed(0)}%</div>
+                    </div>
                     <div className="trade-stat-card" style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, white 100%)' }}>
-                      <label>Total Spend</label><div className="value">${parseFloat(dashData.total_spend || 0).toLocaleString()}</div>
+                      <label>Spend (last 12 mo)</label><div className="value">${parseFloat(dashData.total_spend || 0).toLocaleString()}</div>
                     </div>
                     <div className="trade-stat-card" style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, white 100%)' }}>
                       <label>Orders</label><div className="value">{dashData.order_count || 0}</div>
-                    </div>
-                    <div className="trade-stat-card" style={{ background: 'linear-gradient(135deg, #faf5ff 0%, white 100%)' }}>
-                      <label>Membership</label><div className="value" style={{ fontSize: '1.25rem' }}>{dashData.subscription_status === 'active' ? 'Active' : dashData.subscription_status || 'Pending'}</div>
                     </div>
                   </div>
                   {dashData.next_tier_name && (
@@ -12926,18 +12920,18 @@
                       )}
                     </div>
                     <div className="trade-card">
-                      <h3>Membership</h3>
+                      <h3>Trade Tier</h3>
                       <div style={{ fontSize: '0.875rem', lineHeight: 2 }}>
                         <div>Tier: <span className="trade-tier-badge">{account.tier_name || 'Silver'}</span></div>
-                        <div>Status: {membership && membership.subscription_status === 'active' ? 'Active' : membership ? membership.subscription_status : 'Pending'}</div>
-                        {membership && membership.subscription_expires_at && <div>Renews: {new Date(membership.subscription_expires_at).toLocaleDateString()}</div>}
-                        <div>Total Spend: ${parseFloat(account.total_spend || 0).toLocaleString()}</div>
+                        <div>Discount: {parseFloat(account.discount_percent || 0).toFixed(0)}% off</div>
+                        <div>Spend (last 12 months): ${parseFloat(account.total_spend || 0).toLocaleString()}</div>
+                        {membership && membership.next_tier && membership.amount_to_next_tier != null && (
+                          <div>${parseFloat(membership.amount_to_next_tier).toLocaleString()} more to reach <strong>{membership.next_tier.name}</strong> ({parseFloat(membership.next_tier.discount_percent).toFixed(0)}% off)</div>
+                        )}
                       </div>
-                      {membership && membership.subscription_status === 'active' && (
-                        <button onClick={cancelMembership} style={{ marginTop: '1rem', background: 'none', border: '1px solid #dc2626', color: '#dc2626', padding: '0.5rem 1rem', fontSize: '0.8125rem', cursor: 'pointer' }}>
-                          Cancel Membership
-                        </button>
-                      )}
+                      <p style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: '0.75rem', lineHeight: 1.5 }}>
+                        Your tier is based on your product spend over the trailing 12 months and updates automatically.
+                      </p>
                     </div>
                   </div>
                   {rep && (
@@ -13318,9 +13312,6 @@
       const [docs, setDocs] = useState({ ein: null, resale_cert: null, business_card: null });
       const [docUploads, setDocUploads] = useState({});
       const [uploading, setUploading] = useState('');
-      const [setupIntentSecret, setSetupIntentSecret] = useState(null);
-      const cardRef = useRef(null);
-      const cardMounted = useRef(false);
 
       const handleLogin = async (e) => {
         e.preventDefault();
@@ -13383,70 +13374,24 @@
         setUploading('');
       };
 
-      const goStep3 = async () => {
+      const handleFullRegister = async () => {
         if (!docUploads.ein || !docUploads.resale_cert || !docUploads.business_card) {
           setError('EIN certificate, Resale Certificate, and Business Card are required.'); return;
         }
         setError(''); setLoading(true);
         try {
-          const resp = await fetch(API + '/api/trade/register/setup-intent', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-          });
-          const data = await resp.json();
-          if (!resp.ok) { setError(data.error); setLoading(false); return; }
-          setSetupIntentSecret(data.client_secret);
-          setStep(3);
-        } catch (err) {
-          setError('Network error. Please try again.');
-        }
-        setLoading(false);
-      };
-
-      useEffect(() => {
-        let timerId = null;
-        if (step === 3 && !cardMounted.current && setupIntentSecret && stripeInstance) {
-          timerId = setTimeout(() => {
-            const el = document.getElementById('trade-card-element');
-            if (!el) return;
-            const elements = stripeInstance.elements();
-            const card = elements.create('card', {
-              style: { base: { fontFamily: "'Inter', sans-serif", fontSize: '15px', color: '#292524', '::placeholder': { color: '#57534e' } } }
-            });
-            card.mount('#trade-card-element');
-            cardRef.current = card;
-            cardMounted.current = true;
-          }, 100);
-        }
-        return () => {
-          if (timerId) clearTimeout(timerId);
-          if (cardMounted.current && cardRef.current) {
-            cardRef.current.unmount();
-            cardMounted.current = false;
-          }
-        };
-      }, [step, setupIntentSecret]);
-
-      const handleFullRegister = async () => {
-        setError(''); setLoading(true);
-        try {
-          const { error: stripeError, setupIntent } = await stripeInstance.confirmCardSetup(setupIntentSecret, {
-            payment_method: { card: cardRef.current, billing_details: { name: contactName, email } }
-          });
-          if (stripeError) { setError(stripeError.message); setLoading(false); return; }
           const docIds = Object.values(docUploads).map(d => d.id);
           const resp = await fetch(API + '/api/trade/register/enhanced', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               email, password, company_name: companyName, contact_name: contactName, phone,
               business_type: businessType, address_line1: addressLine1, city, state: addrState, zip,
-              contractor_license: contractorLicense || null, document_ids: docIds,
-              stripe_setup_intent_id: setupIntent.id
+              contractor_license: contractorLicense || null, document_ids: docIds
             })
           });
           const data = await resp.json();
           if (!resp.ok) { setError(data.error); setLoading(false); return; }
-          setStep(4);
+          setStep(3);
           setSuccess(data.message || 'Application submitted! We will review your application and email you once approved.');
         } catch (err) {
           setError('Registration failed. Please try again.');
@@ -13454,7 +13399,7 @@
         setLoading(false);
       };
 
-      const stepLabels = ['Company', 'Documents', 'Payment', 'Done'];
+      const stepLabels = ['Company', 'Documents', 'Done'];
       const docLabel = (type) => ({ ein: 'EIN Certificate *', resale_cert: 'Resale Certificate *', business_card: 'Business Card *' }[type] || type);
 
       return (
@@ -13462,7 +13407,7 @@
           <div className="trade-modal" onClick={e => e.stopPropagation()} style={mode === 'register' ? { maxWidth: '480px' } : {}}>
             <button className="trade-modal-close" onClick={onClose}>&times;</button>
             <h2 style={{ fontFamily: 'var(--font-heading)', marginBottom: '1.5rem' }}>
-              {mode === 'login' ? 'Trade Login' : step === 4 ? 'Application Submitted' : 'Trade Registration'}
+              {mode === 'login' ? 'Trade Login' : step === 3 ? 'Application Submitted' : 'Trade Registration'}
             </h2>
 
             {error && <div className="trade-msg trade-msg-error">{error}</div>}
@@ -13479,7 +13424,7 @@
                   Don't have an account? <a href="#" onClick={e => { e.preventDefault(); setMode('register'); setError(''); setSuccess(''); }}>Apply for Trade</a>
                 </div>
               </form>
-            ) : step === 4 ? (
+            ) : step === 3 ? (
               <div style={{ textAlign: 'center', padding: '1rem 0' }}>
                 <p style={{ color: 'var(--stone-600)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
                   Your application is under review. You'll receive an email once approved.
@@ -13489,7 +13434,7 @@
             ) : (
               <>
                 <div className="trade-steps-indicator">
-                  {stepLabels.slice(0, 3).map((s, i) => (
+                  {stepLabels.slice(0, 2).map((s, i) => (
                     <div key={s} className={'trade-step-dot' + (step === i + 1 ? ' active' : step > i + 1 ? ' done' : '')}>{s}</div>
                   ))}
                 </div>
@@ -13567,21 +13512,6 @@
                     </div>
                     <div className="trade-btn-row">
                       <button type="button" className="trade-btn-secondary" onClick={() => setStep(1)}>Back</button>
-                      <button className="btn" onClick={goStep3} disabled={loading}>{loading ? 'Setting up...' : 'Continue'}</button>
-                    </div>
-                  </div>
-                )}
-
-                {step === 3 && (
-                  <div>
-                    <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '1rem', lineHeight: 1.5 }}>
-                      Add a payment method for your $99/year trade membership. You won't be charged until approved.
-                    </p>
-                    <div style={{ border: '1px solid var(--stone-300)', padding: '1rem', marginBottom: '1rem' }}>
-                      <div id="trade-card-element"></div>
-                    </div>
-                    <div className="trade-btn-row">
-                      <button type="button" className="trade-btn-secondary" onClick={() => setStep(2)}>Back</button>
                       <button className="btn" onClick={handleFullRegister} disabled={loading}>{loading ? 'Submitting...' : 'Submit Application'}</button>
                     </div>
                   </div>
@@ -14467,12 +14397,13 @@
           </div>
 
           <div className="trade-tiers">
-            <h2>Membership Tiers</h2>
+            <h2>Pricing Tiers</h2>
+            <p className="trade-tiers-subhead">No membership fee. Your discount is based on what you spend with us over a rolling 12-month period — you move up automatically as you order.</p>
             <div className="trade-tiers-grid">
               <div className="tier-card">
                 <div className="tier-name">Silver</div>
                 <div className="tier-discount">10%</div>
-                <div className="tier-threshold">Entry tier</div>
+                <div className="tier-threshold">$0 – $12,500</div>
                 <ul>
                   <li>Trade pricing on all products</li>
                   <li>Dedicated sales rep</li>
@@ -14482,7 +14413,7 @@
               <div className="tier-card featured">
                 <div className="tier-name">Gold</div>
                 <div className="tier-discount">15%</div>
-                <div className="tier-threshold">$25,000+ annual</div>
+                <div className="tier-threshold">$12,501 – $25,000</div>
                 <ul>
                   <li>Everything in Silver</li>
                   <li>Priority fulfillment</li>
@@ -14492,7 +14423,7 @@
               <div className="tier-card">
                 <div className="tier-name">Platinum</div>
                 <div className="tier-discount">20%</div>
-                <div className="tier-threshold">$75,000+ annual</div>
+                <div className="tier-threshold">$25,000+</div>
                 <ul>
                   <li>Everything in Gold</li>
                   <li>Custom quotes</li>

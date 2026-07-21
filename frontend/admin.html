@@ -7137,6 +7137,7 @@
       const [editTier, setEditTier] = useState(null);
       const [name, setName] = useState('');
       const [discountPercent, setDiscountPercent] = useState('');
+      const [spendThreshold, setSpendThreshold] = useState('');
       const [saving, setSaving] = useState(false);
 
       const fetchTiers = () => {
@@ -7151,6 +7152,7 @@
         setEditTier(null);
         setName('');
         setDiscountPercent('');
+        setSpendThreshold('');
         setShowForm(true);
       };
 
@@ -7158,21 +7160,23 @@
         setEditTier(tier);
         setName(tier.name);
         setDiscountPercent(tier.discount_percent);
+        setSpendThreshold(tier.spend_threshold != null ? tier.spend_threshold : '');
         setShowForm(true);
       };
 
       const handleSave = async () => {
         setSaving(true);
         try {
+          const payload = { name, discount_percent: parseFloat(discountPercent), spend_threshold: parseFloat(spendThreshold) || 0 };
           if (editTier) {
             await adminFetch('/api/admin/margin-tiers/' + editTier.id, {
               method: 'PUT',
-              body: JSON.stringify({ name, discount_percent: parseFloat(discountPercent) })
+              body: JSON.stringify(payload)
             });
           } else {
             await adminFetch('/api/admin/margin-tiers', {
               method: 'POST',
-              body: JSON.stringify({ name, discount_percent: parseFloat(discountPercent) })
+              body: JSON.stringify(payload)
             });
           }
           setShowForm(false);
@@ -7213,6 +7217,10 @@
                   <label>Discount %</label>
                   <input type="number" step="0.01" min="0" max="100" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} placeholder="e.g. 10" />
                 </div>
+                <div className="form-group" style={{ flex: 1 }}>
+                  <label>Spend Threshold ($, trailing 12 mo)</label>
+                  <input type="number" step="1" min="0" value={spendThreshold} onChange={e => setSpendThreshold(e.target.value)} placeholder="e.g. 12500" />
+                </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button className="btn btn-primary" onClick={handleSave} disabled={saving || !name || !discountPercent}>
                     {saving ? 'Saving...' : 'Save'}
@@ -7229,6 +7237,7 @@
               <tr>
                 <th>Tier Name</th>
                 <th>Discount</th>
+                <th>Spend Threshold</th>
                 <th>Customers</th>
                 <th>Example ($10.00 retail)</th>
                 <th>Actions</th>
@@ -7236,11 +7245,12 @@
             </thead>
             <tbody>
               {tiers.length === 0 ? (
-                <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No margin tiers yet</td></tr>
+                <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--stone-400)' }}>No margin tiers yet</td></tr>
               ) : tiers.map(t => (
                 <tr key={t.id}>
                   <td><strong>{t.name}</strong></td>
                   <td>{parseFloat(t.discount_percent || 0).toFixed(1)}%</td>
+                  <td>${parseFloat(t.spend_threshold || 0).toLocaleString()}+</td>
                   <td>{t.customer_count}</td>
                   <td>${(10 * (1 - parseFloat(t.discount_percent || 0) / 100)).toFixed(2)}</td>
                   <td>
@@ -7306,7 +7316,7 @@
       };
 
       const approveCustomer = async (id) => {
-        if (!confirm('Approve this trade customer? A $99/year Stripe subscription will be created.')) return;
+        if (!confirm('Approve this trade customer? They will start at the Silver tier with spend-based pricing.')) return;
         setActionLoading(true);
         try {
           await adminFetch('/api/admin/trade-customers/' + id + '/approve', { method: 'POST' });
@@ -7471,15 +7481,9 @@
                               ))}
                             </div>
                           )}
-                          {c.subscription_status && (
-                            <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
-                              <strong>Subscription:</strong> {c.subscription_status}
-                              {c.subscription_expires_at && <span> — expires {new Date(c.subscription_expires_at).toLocaleDateString()}</span>}
-                            </div>
-                          )}
                           {c.total_spend !== undefined && (
-                            <div style={{ marginTop: '0.5rem', fontSize: '0.8125rem' }}>
-                              <strong>Total Spend:</strong> ${parseFloat(c.total_spend || 0).toLocaleString()}
+                            <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
+                              <strong>Spend (last 12 mo):</strong> ${parseFloat(c.total_spend || 0).toLocaleString()}
                             </div>
                           )}
                           <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
@@ -7497,7 +7501,7 @@
                               <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>Actions</h4>
                               <div style={{ marginBottom: '1rem' }}>
                                 <button className="btn btn-primary btn-sm" onClick={() => approveCustomer(c.id)} disabled={actionLoading} style={{ marginRight: '0.5rem' }}>
-                                  {actionLoading ? 'Processing...' : 'Approve & Create Subscription'}
+                                  {actionLoading ? 'Processing...' : 'Approve'}
                                 </button>
                               </div>
                               <div>
@@ -8402,8 +8406,8 @@
                   )
                 ),
                 React.createElement('div', { style: { marginBottom: '0.75rem' } },
-                  React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Subscription'),
-                  React.createElement('div', null, (customer.subscription_status || 'none') + (customer.subscription_expires_at ? ' (expires ' + new Date(customer.subscription_expires_at).toLocaleDateString() + ')' : ''))
+                  React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Spend (last 12 mo)'),
+                  React.createElement('div', null, '$' + parseFloat(customer.total_spend || 0).toLocaleString())
                 ),
                 customer.rep_name && React.createElement('div', { style: { marginBottom: '0.75rem' } },
                   React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Assigned Rep'),

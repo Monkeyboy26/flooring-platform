@@ -8,7 +8,7 @@ import XLSX from 'xlsx';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendRenewalReminder, sendSubscriptionWarning, sendSubscriptionLapsed, sendSubscriptionDeactivated, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -5070,15 +5070,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       sampleRequest.items = resolvedSampleItems;
     }
 
-    // Trade customer: increment spend and check tier promotion
+    // Trade customer: recompute tier from trailing 365-day spend
     if (tradeCustomerId) {
-      await client.query(
-        'UPDATE trade_customers SET total_spend = total_spend + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-        [total, tradeCustomerId]
-      );
-      const promotion = await checkTierPromotion(tradeCustomerId, client);
-      if (promotion) {
-        console.log(`[Trade] Customer ${tradeCustomerId} promoted to ${promotion.name}`);
+      const tierChange = await recomputeTradeTier(tradeCustomerId, client);
+      if (tierChange) {
+        console.log(`[Trade] Customer ${tradeCustomerId} ${tierChange.promoted ? 'promoted' : 'demoted'} to ${tierChange.name}`);
       }
 
       // Auto-assign rep if unassigned
@@ -10508,21 +10504,6 @@ app.get('/api/trade/me', tradeAuth, async (req, res) => {
 
 // ==================== Trade Registration Enhancements (Phase 2) ====================
 
-// Create Stripe SetupIntent for payment collection during registration
-app.post('/api/trade/register/setup-intent', async (req, res) => {
-  try {
-    const { email } = req.body;
-    const customer = await stripe.customers.create({ email });
-    const setupIntent = await stripe.setupIntents.create({
-      customer: customer.id,
-      payment_method_types: ['card']
-    });
-    res.json({ client_secret: setupIntent.client_secret, stripe_customer_id: customer.id });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Upload document during registration
 app.post('/api/trade/register/upload', docUpload.single('document'), async (req, res) => {
   try {
@@ -10550,13 +10531,19 @@ app.post('/api/trade/register/upload', docUpload.single('document'), async (req,
   }
 });
 
-// Enhanced registration with business type, documents, and Stripe
+// Enhanced registration with business type and documents
 app.post('/api/trade/register/enhanced', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { email, password, company_name, contact_name, phone, business_type, document_ids, stripe_customer_id, address_line1, city, state, zip, contractor_license } = req.body;
-    if (!email || !password || !company_name || !contact_name) {
-      return res.status(400).json({ error: 'Email, password, company name, and contact name are required' });
+    const { email, password, company_name, contact_name, phone, business_type, document_ids, address_line1, city, state, zip, contractor_license } = req.body;
+    if (!email || !password || !company_name || !contact_name || !phone) {
+      return res.status(400).json({ error: 'Email, password, company name, contact name, and phone number are required' });
+    }
+    if (contact_name.trim().split(/\s+/).length < 2) {
+      return res.status(400).json({ error: 'Contact first and last name are required' });
+    }
+    if (!isValidEmailAddr(email)) {
+      return res.status(400).json({ error: 'A valid email address is required' });
     }
     const pwError = validatePassword(password);
     if (pwError) return res.status(400).json({ error: pwError });
@@ -10568,9 +10555,9 @@ app.post('/api/trade/register/enhanced', async (req, res) => {
 
     const { hash, salt } = await hashPassword(password);
     const result = await client.query(
-      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, stripe_customer_id, address_line1, city, state, zip, contractor_license)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-      [email.toLowerCase().trim(), hash, salt, company_name.trim(), contact_name.trim(), phone || null, business_type || null, stripe_customer_id || null, address_line1.trim(), city.trim(), state.trim().toUpperCase(), zip.trim(), contractor_license || null]
+      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+      [email.toLowerCase().trim(), hash, salt, company_name.trim(), contact_name.trim(), phone || null, business_type || null, address_line1.trim(), city.trim(), state.trim().toUpperCase(), zip.trim(), contractor_license || null]
     );
 
     const customerId = result.rows[0].id;
@@ -10612,7 +10599,7 @@ app.get('/api/admin/trade-customers/:id/documents', staffAuth, requireRole('admi
   }
 });
 
-// Admin: approve trade customer (creates Stripe subscription)
+// Admin: approve trade customer (grants access; tier is spend-based, starts at Silver)
 app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
   const client = await pool.connect();
   try {
@@ -10627,27 +10614,11 @@ app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin
 
     await client.query('BEGIN');
 
-    // If no tier specified, find Silver tier
+    // If no tier specified, start at Silver (lowest tier)
     let tierId = margin_tier_id;
     if (!tierId) {
       const silver = await client.query("SELECT id FROM margin_tiers WHERE tier_level = 0 ORDER BY tier_level LIMIT 1");
       if (silver.rows.length) tierId = silver.rows[0].id;
-    }
-
-    // Create Stripe subscription if customer has stripe_customer_id
-    let subscriptionId = null;
-    let subscriptionExpiry = null;
-    if (tc.stripe_customer_id) {
-      try {
-        const subscription = await stripe.subscriptions.create({
-          customer: tc.stripe_customer_id,
-          items: [{ price_data: { currency: 'usd', product_data: { name: 'Roma Flooring Trade Membership' }, recurring: { interval: 'year' }, unit_amount: 9900 } }],
-        });
-        subscriptionId = subscription.id;
-        subscriptionExpiry = new Date(subscription.current_period_end * 1000);
-      } catch (stripeErr) {
-        console.error('Stripe subscription creation failed:', stripeErr.message);
-      }
     }
 
     const staffId = req.staff ? req.staff.id : null;
@@ -10656,14 +10627,11 @@ app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin
       UPDATE trade_customers SET
         status = 'approved',
         margin_tier_id = COALESCE($1, margin_tier_id),
-        stripe_subscription_id = $2,
-        subscription_status = $3,
-        subscription_expires_at = $4,
-        approved_by = $5,
+        approved_by = $2,
         approved_at = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $6
-    `, [tierId, subscriptionId, subscriptionId ? 'active' : 'none', subscriptionExpiry, staffId, id]);
+      WHERE id = $3
+    `, [tierId, staffId, id]);
 
     await client.query('COMMIT');
 
@@ -10705,16 +10673,7 @@ app.post('/api/admin/trade-customers/:id/deny', staffAuth, requireRole('admin', 
 
     if (!result.rows.length) return res.status(404).json({ error: 'Customer not found' });
 
-    // Clean up Stripe payment method if exists
     const tc = result.rows[0];
-    if (tc.stripe_customer_id) {
-      try {
-        const paymentMethods = await stripe.paymentMethods.list({ customer: tc.stripe_customer_id, type: 'card' });
-        for (const pm of paymentMethods.data) {
-          await stripe.paymentMethods.detach(pm.id);
-        }
-      } catch {}
-    }
 
     // Kill sessions
     await pool.query('DELETE FROM trade_sessions WHERE trade_customer_id = $1', [id]);
@@ -10734,117 +10693,97 @@ app.post('/api/admin/trade-customers/:id/deny', staffAuth, requireRole('admin', 
   }
 });
 
-// ==================== Tier Progression (Phase 3) ====================
+// ==================== Tier Progression (spend-based) ====================
 
-async function checkTierPromotion(tradeCustomerId, client) {
+// Recompute a trade customer's tier from their trailing 365-day product spend.
+// Tiers move BOTH directions: members promote as they spend and demote as old
+// orders age past the rolling window. Spend = order subtotal on non-cancelled
+// orders in the last 365 days. `total_spend` is a cache of that rolling figure.
+async function recomputeTradeTier(tradeCustomerId, client) {
   const db = client || pool;
-  const cust = await db.query('SELECT id, total_spend, margin_tier_id FROM trade_customers WHERE id = $1', [tradeCustomerId]);
+  const cust = await db.query('SELECT id, margin_tier_id FROM trade_customers WHERE id = $1', [tradeCustomerId]);
   if (!cust.rows.length) return null;
 
-  const spend = parseFloat(cust.rows[0].total_spend) || 0;
   const currentTierId = cust.rows[0].margin_tier_id;
 
-  // Get current tier level
+  // Trailing 365-day product spend (subtotal excludes shipping/tax/samples)
+  const spendRes = await db.query(
+    `SELECT COALESCE(SUM(subtotal), 0) AS spend FROM orders
+     WHERE trade_customer_id = $1
+       AND status NOT IN ('cancelled', 'refunded', 'failed')
+       AND created_at >= NOW() - INTERVAL '365 days'`,
+    [tradeCustomerId]
+  );
+  const spend = parseFloat(spendRes.rows[0].spend) || 0;
+
+  // Cache the rolling spend for dashboards/admin
+  await db.query(
+    'UPDATE trade_customers SET total_spend = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+    [spend, tradeCustomerId]
+  );
+
+  // Current tier level
   let currentLevel = -1;
   if (currentTierId) {
     const ct = await db.query('SELECT tier_level FROM margin_tiers WHERE id = $1', [currentTierId]);
     if (ct.rows.length) currentLevel = ct.rows[0].tier_level;
   }
 
-  // Find the highest qualifying tier (never demote)
+  // Highest tier the customer now qualifies for (handles promotion AND demotion)
   const tiers = await db.query(
-    'SELECT id, name, tier_level, spend_threshold FROM margin_tiers WHERE is_active = true AND spend_threshold <= $1 AND tier_level > $2 ORDER BY tier_level DESC LIMIT 1',
-    [spend, currentLevel]
+    'SELECT id, name, tier_level, spend_threshold FROM margin_tiers WHERE is_active = true AND spend_threshold <= $1 ORDER BY tier_level DESC LIMIT 1',
+    [spend]
+  );
+  const targetTier = tiers.rows[0] || null;
+  if (!targetTier || targetTier.id === currentTierId) return null; // no change
+
+  await db.query(
+    'UPDATE trade_customers SET margin_tier_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+    [targetTier.id, tradeCustomerId]
   );
 
-  if (tiers.rows.length) {
-    const newTier = tiers.rows[0];
-    await db.query(
-      'UPDATE trade_customers SET margin_tier_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [newTier.id, tradeCustomerId]
-    );
-    // Send tier promotion email
+  const promoted = targetTier.tier_level > currentLevel;
+  if (promoted) {
+    // Congratulate on promotion; demotions are applied silently.
     const custData = await db.query('SELECT email, contact_name, company_name FROM trade_customers WHERE id = $1', [tradeCustomerId]);
     if (custData.rows.length) {
-      setImmediate(() => sendTierPromotion(custData.rows[0], newTier.name));
+      setImmediate(() => sendTierPromotion(custData.rows[0], targetTier.name));
     }
-    // Audit log
-    try { await logAudit(null, 'trade.tier_promotion', 'trade_customer', tradeCustomerId, { new_tier: newTier.name, spend: spend }); } catch (_) {}
-    return newTier;
   }
-  return null;
+  try {
+    await logAudit(null, promoted ? 'trade.tier_promotion' : 'trade.tier_demotion', 'trade_customer', tradeCustomerId, { new_tier: targetTier.name, spend });
+  } catch (_) {}
+  return { ...targetTier, promoted };
 }
 
-// PUT /api/trade/payment-method — update Stripe payment method
-app.put('/api/trade/payment-method', tradeAuth, async (req, res) => {
-  try {
-    const { payment_method_id } = req.body;
-    if (!payment_method_id) return res.status(400).json({ error: 'payment_method_id required' });
-
-    const cust = await pool.query('SELECT stripe_customer_id, stripe_subscription_id FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
-    const stripeCustomerId = cust.rows[0]?.stripe_customer_id;
-    if (!stripeCustomerId) return res.status(400).json({ error: 'No Stripe customer on file' });
-
-    // Attach the new payment method to the customer
-    await stripe.paymentMethods.attach(payment_method_id, { customer: stripeCustomerId });
-
-    // Set as default payment method
-    await stripe.customers.update(stripeCustomerId, {
-      invoice_settings: { default_payment_method: payment_method_id }
-    });
-
-    // If subscription exists, update its default payment method too
-    const subId = cust.rows[0]?.stripe_subscription_id;
-    if (subId) {
-      await stripe.subscriptions.update(subId, { default_payment_method: payment_method_id });
-    }
-
-    res.json({ success: true, message: 'Payment method updated' });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Trade membership endpoints
+// Trade membership: current spend-based tier + progress to next tier
 app.get('/api/trade/membership', tradeAuth, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT tc.total_spend, tc.subscription_status, tc.subscription_expires_at,
-        tc.stripe_subscription_id, mt.name as tier_name, mt.discount_percent, mt.tier_level,
-        mt.spend_threshold
+      SELECT tc.total_spend, tc.margin_tier_id, mt.name as tier_name, mt.discount_percent,
+        mt.tier_level, mt.spend_threshold
       FROM trade_customers tc
       LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
       WHERE tc.id = $1
     `, [req.tradeCustomer.id]);
 
-    // Get next tier info
+    const membership = result.rows[0] || null;
+
+    // Next tier up (if any)
     const nextTier = await pool.query(
       'SELECT name, spend_threshold, discount_percent FROM margin_tiers WHERE is_active = true AND tier_level > COALESCE((SELECT tier_level FROM margin_tiers WHERE id = $1), -1) ORDER BY tier_level LIMIT 1',
-      [result.rows[0] ? result.rows[0].margin_tier_id : null]
+      [membership ? membership.margin_tier_id : null]
     );
 
+    const next = nextTier.rows[0] || null;
+    const spend = membership ? parseFloat(membership.total_spend) || 0 : 0;
+    const amountToNextTier = next ? Math.max(0, parseFloat(next.spend_threshold) - spend) : null;
+
     res.json({
-      membership: result.rows[0],
-      next_tier: nextTier.rows[0] || null
+      membership,
+      next_tier: next,
+      amount_to_next_tier: amountToNextTier
     });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/trade/cancel-membership', tradeAuth, async (req, res) => {
-  try {
-    const cust = await pool.query('SELECT stripe_subscription_id FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
-    const subId = cust.rows[0]?.stripe_subscription_id;
-
-    if (subId) {
-      await stripe.subscriptions.update(subId, { cancel_at_period_end: true });
-      await pool.query(
-        "UPDATE trade_customers SET subscription_status = 'cancelling', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-        [req.tradeCustomer.id]
-      );
-    }
-    res.json({ success: true, message: 'Membership will end at the current billing period' });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -10865,7 +10804,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       }
     } else {
       // Unverified webhooks can forge payment settlements (mark ACH/bank-transfer
-      // orders paid, activate subscriptions). Never process them in production.
+      // orders paid). Never process them in production.
       if (process.env.NODE_ENV === 'production') {
         console.error('STRIPE_WEBHOOK_SECRET not set — rejecting webhook (signature verification is required in production)');
         return res.status(500).json({ error: 'Webhook verification not configured' });
@@ -10874,39 +10813,6 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     }
     switch (event.type) {
-      case 'invoice.payment_succeeded': {
-        const sub = event.data.object.subscription;
-        if (sub) {
-          await pool.query(
-            "UPDATE trade_customers SET subscription_status = 'active', subscription_expires_at = to_timestamp($1), updated_at = CURRENT_TIMESTAMP WHERE stripe_subscription_id = $2",
-            [event.data.object.period_end, sub]
-          );
-        }
-        break;
-      }
-      case 'invoice.payment_failed': {
-        const sub = event.data.object.subscription;
-        if (sub) {
-          await pool.query(
-            "UPDATE trade_customers SET subscription_status = 'past_due', updated_at = CURRENT_TIMESTAMP WHERE stripe_subscription_id = $1",
-            [sub]
-          );
-          // Send lapsed notification
-          const pastDueCust = await pool.query('SELECT id, email, contact_name, company_name FROM trade_customers WHERE stripe_subscription_id = $1', [sub]);
-          if (pastDueCust.rows.length) {
-            setImmediate(() => sendSubscriptionLapsed(pastDueCust.rows[0]));
-          }
-        }
-        break;
-      }
-      case 'customer.subscription.deleted': {
-        const subId = event.data.object.id;
-        await pool.query(
-          "UPDATE trade_customers SET subscription_status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE stripe_subscription_id = $1",
-          [subId]
-        );
-        break;
-      }
       case 'checkout.session.completed': {
         const session = event.data.object;
         // Handle sample shipping payment
@@ -11153,7 +11059,7 @@ app.get('/api/staff/my-customers', staffAuth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT tc.id, tc.company_name, tc.contact_name, tc.email, tc.phone,
-        tc.status, tc.total_spend, tc.subscription_status,
+        tc.status, tc.total_spend,
         mt.name as tier_name, mt.discount_percent
       FROM trade_customers tc
       LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
@@ -11247,7 +11153,7 @@ app.get('/api/trade/dashboard', tradeAuth, async (req, res) => {
     `, [id]);
 
     const membership = await pool.query(`
-      SELECT tc.total_spend, tc.subscription_status, tc.subscription_expires_at,
+      SELECT tc.total_spend,
         mt.name as tier_name, mt.discount_percent, mt.tier_level
       FROM trade_customers tc LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
       WHERE tc.id = $1
@@ -11263,9 +11169,9 @@ app.get('/api/trade/dashboard', tradeAuth, async (req, res) => {
 
     res.json({
       tier_name: mem.tier_name || 'Silver',
+      discount_percent: parseFloat(mem.discount_percent || 0),
       total_spend: parseFloat(mem.total_spend || 0),
       order_count: stats.rows[0].total_orders,
-      subscription_status: mem.subscription_status,
       next_tier_name: nt ? nt.name : null,
       next_tier_threshold: nt ? parseFloat(nt.spend_threshold) : null,
       recent_orders: recentOrders.rows,
@@ -11485,7 +11391,7 @@ app.get('/api/trade/account', tradeAuth, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT tc.id, tc.email, tc.company_name, tc.contact_name, tc.phone, tc.business_type,
-        tc.status, tc.total_spend, tc.subscription_status, tc.subscription_expires_at,
+        tc.status, tc.total_spend,
         mt.name as tier_name, mt.discount_percent
       FROM trade_customers tc
       LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
@@ -11625,13 +11531,9 @@ app.post('/api/trade/bulk-order/confirm', tradeAuth, async (req, res) => {
           item.num_boxes, item.unit_price, item.subtotal]);
     }
 
-    // Increment trade spend + check tier
-    await client.query(
-      'UPDATE trade_customers SET total_spend = total_spend + $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [total, req.tradeCustomer.id]
-    );
-    const promotion = await checkTierPromotion(req.tradeCustomer.id, client);
-    if (promotion) console.log(`[Trade] Bulk order promoted ${req.tradeCustomer.id} to ${promotion.name}`);
+    // Recompute trade tier from trailing 365-day spend
+    const tierChange = await recomputeTradeTier(req.tradeCustomer.id, client);
+    if (tierChange) console.log(`[Trade] Bulk order ${tierChange.promoted ? 'promoted' : 'demoted'} ${req.tradeCustomer.id} to ${tierChange.name}`);
 
     await client.query('COMMIT');
     res.json({ order: { ...order, items } });
@@ -19660,7 +19562,7 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
       const cResult = await pool.query(`
         SELECT tc.id, tc.email, tc.company_name, tc.contact_name, tc.contact_name as name,
           tc.phone, tc.status, tc.notes, tc.created_at, tc.updated_at, tc.business_type,
-          tc.subscription_status, tc.subscription_expires_at, tc.total_spend,
+          tc.total_spend,
           tc.address_line1, tc.city, tc.state, tc.zip, tc.contractor_license,
           mt.name as tier_name, mt.discount_percent,
           sa.first_name || ' ' || sa.last_name as rep_name
@@ -21601,11 +21503,11 @@ app.get('/api/admin/margin-tiers', staffAuth, requireRole('admin', 'manager'), a
 
 app.post('/api/admin/margin-tiers', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { name, discount_percent } = req.body;
+    const { name, discount_percent, spend_threshold } = req.body;
     if (!name || discount_percent == null) return res.status(400).json({ error: 'Name and discount_percent are required' });
     const result = await pool.query(
-      'INSERT INTO margin_tiers (name, discount_percent) VALUES ($1, $2) RETURNING *',
-      [name.trim(), discount_percent]
+      'INSERT INTO margin_tiers (name, discount_percent, spend_threshold) VALUES ($1, $2, $3) RETURNING *',
+      [name.trim(), discount_percent, spend_threshold || 0]
     );
     res.json({ tier: result.rows[0] });
   } catch (err) {
@@ -21616,11 +21518,11 @@ app.post('/api/admin/margin-tiers', staffAuth, requireRole('admin', 'manager'), 
 
 app.put('/api/admin/margin-tiers/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { name, discount_percent, is_active } = req.body;
+    const { name, discount_percent, is_active, spend_threshold } = req.body;
     const result = await pool.query(
       `UPDATE margin_tiers SET name = COALESCE($1, name), discount_percent = COALESCE($2, discount_percent),
-       is_active = COALESCE($3, is_active), updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *`,
-      [name, discount_percent, is_active, req.params.id]
+       is_active = COALESCE($3, is_active), spend_threshold = COALESCE($4, spend_threshold), updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *`,
+      [name, discount_percent, is_active, spend_threshold, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Tier not found' });
     res.json({ tier: result.rows[0] });
@@ -21858,7 +21760,7 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
       const cResult = await pool.query(`
         SELECT tc.id, tc.email, tc.company_name, tc.contact_name, tc.contact_name as name,
           tc.phone, tc.status, tc.notes, tc.created_at, tc.updated_at, tc.business_type,
-          tc.subscription_status, tc.subscription_expires_at, tc.total_spend,
+          tc.total_spend,
           tc.address_line1, tc.city, tc.state, tc.zip, tc.contractor_license,
           mt.name as tier_name, mt.discount_percent,
           sa.first_name || ' ' || sa.last_name as rep_name
@@ -23495,73 +23397,33 @@ cron.schedule('0 5 * * *', async () => {
   }
 });
 
-// ==================== Membership Lifecycle Cron Jobs ====================
+// ==================== Trade Tier Cron Jobs ====================
 
 // Run daily at 6 AM UTC
 cron.schedule('0 6 * * *', async () => {
-  console.log('[Cron] Running membership lifecycle checks...');
+  console.log('[Cron] Running daily trade tier recompute...');
   try {
-    // 1) 30-day renewal reminders — active subscriptions expiring within 30 days
-    const renewals = await pool.query(`
-      SELECT id, email, contact_name, company_name, subscription_expires_at
-      FROM trade_customers
-      WHERE subscription_status = 'active'
-        AND subscription_expires_at IS NOT NULL
-        AND subscription_expires_at BETWEEN CURRENT_TIMESTAMP AND CURRENT_TIMESTAMP + INTERVAL '30 days'
-        AND subscription_expires_at > CURRENT_TIMESTAMP + INTERVAL '29 days'
-    `);
-    for (const c of renewals.rows) {
-      const daysLeft = Math.ceil((new Date(c.subscription_expires_at) - Date.now()) / (1000 * 60 * 60 * 24));
-      await sendRenewalReminder({ ...c, days_until_expiry: daysLeft });
-      console.log(`[Cron] Renewal reminder sent to ${c.email} (${daysLeft} days left)`);
-    }
-
-    // 2) 15-day lapse warning — past_due subscriptions (payment failed 15+ days ago)
-    const warnings = await pool.query(`
-      SELECT id, email, contact_name, company_name
-      FROM trade_customers
-      WHERE subscription_status = 'past_due'
-        AND subscription_expires_at IS NOT NULL
-        AND subscription_expires_at < CURRENT_TIMESTAMP - INTERVAL '15 days'
-        AND subscription_expires_at > CURRENT_TIMESTAMP - INTERVAL '16 days'
-    `);
-    for (const c of warnings.rows) {
-      await sendSubscriptionWarning(c);
-      console.log(`[Cron] Subscription warning sent to ${c.email}`);
-    }
-
-    // 3) 30-day grace expiry — past_due for 30+ days → deactivate
-    const expired = await pool.query(`
-      SELECT id, email, contact_name, company_name, stripe_subscription_id
-      FROM trade_customers
-      WHERE subscription_status = 'past_due'
-        AND subscription_expires_at IS NOT NULL
-        AND subscription_expires_at < CURRENT_TIMESTAMP - INTERVAL '30 days'
-    `);
-    for (const c of expired.rows) {
-      // Cancel the Stripe subscription if still active
-      if (c.stripe_subscription_id) {
-        try { await stripe.subscriptions.cancel(c.stripe_subscription_id); } catch (_) {}
+    // Recompute every approved trade customer's tier from their trailing 365-day
+    // spend. Order placement recomputes on the way up; this nightly pass is what
+    // applies DEMOTIONS as old orders age out of the rolling window.
+    const members = await pool.query("SELECT id FROM trade_customers WHERE status = 'approved'");
+    let changed = 0;
+    for (const m of members.rows) {
+      try {
+        const tierChange = await recomputeTradeTier(m.id);
+        if (tierChange) changed++;
+      } catch (e) {
+        console.error(`[Cron] Tier recompute failed for ${m.id}:`, e.message);
       }
-      // Deactivate: set status to rejected, clear subscription
-      await pool.query(`
-        UPDATE trade_customers
-        SET subscription_status = 'cancelled', status = 'rejected', updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-      `, [c.id]);
-      await sendSubscriptionDeactivated(c);
-      await logAudit(null, 'trade.membership_deactivated', 'trade_customer', c.id, { reason: 'grace_period_expired' });
-      console.log(`[Cron] Membership deactivated for ${c.email} (grace period expired)`);
     }
+    console.log(`[Cron] Trade tier recompute complete — ${changed}/${members.rows.length} tiers changed`);
 
-    // 4) Cleanup expired staff sessions and 2FA codes
+    // Cleanup expired staff sessions and 2FA codes
     await pool.query("DELETE FROM staff_sessions WHERE expires_at < CURRENT_TIMESTAMP");
     await pool.query("DELETE FROM staff_2fa_codes WHERE expires_at < CURRENT_TIMESTAMP");
     console.log('[Cron] Cleaned up expired sessions and 2FA codes');
-
-    console.log('[Cron] Membership lifecycle checks complete');
   } catch (err) {
-    console.error('[Cron] Membership lifecycle error:', err.message);
+    console.error('[Cron] Daily trade tier cron error:', err.message);
   }
 });
 
@@ -23968,7 +23830,7 @@ cron.schedule('0 3 * * 0', async () => {
   }
 }, { timezone: 'America/Los_Angeles' });
 
-// Auto-task cron: stuck deals + trade renewal reminders (8 AM Pacific daily)
+// Auto-task cron: stuck deals (8 AM Pacific daily)
 cron.schedule('0 8 * * *', async () => {
   console.log('[AutoTask] Running daily auto-task generation...');
   try {
@@ -23995,35 +23857,6 @@ cron.schedule('0 8 * * *', async () => {
       if (created) stuckCount++;
     }
     console.log(`[AutoTask] Created ${stuckCount} stuck-deal tasks from ${stuckDeals.rows.length} candidates`);
-
-    // B. Trade subscriptions expiring within 30 days
-    const expiringTrade = await pool.query(`
-      SELECT tc.id, tc.company_name, tc.contact_name, tc.email, tc.phone,
-        tc.subscription_expires_at, tc.assigned_rep_id
-      FROM trade_customers tc
-      WHERE tc.subscription_status = 'active'
-        AND tc.subscription_expires_at BETWEEN NOW() AND NOW() + INTERVAL '30 days'
-    `);
-    let renewalCount = 0;
-    for (const tc of expiringTrade.rows) {
-      let repId = tc.assigned_rep_id;
-      if (!repId) {
-        const fallback = await pool.query('SELECT id FROM sales_reps WHERE is_active = true ORDER BY created_at LIMIT 1');
-        repId = fallback.rows.length ? fallback.rows[0].id : null;
-      }
-      if (!repId) continue;
-      const daysUntil = Math.floor((new Date(tc.subscription_expires_at).getTime() - Date.now()) / 86400000);
-      const dueDate = new Date(new Date(tc.subscription_expires_at).getTime() - 14 * 86400000).toISOString().split('T')[0];
-      const created = await createAutoTask(pool, repId, 'trade_renewal', tc.id,
-        `Renewal reminder — ${tc.company_name}`, {
-          priority: daysUntil <= 7 ? 'high' : 'medium',
-          due_date: dueDate,
-          description: `Trade membership expires in ${daysUntil} days (${new Date(tc.subscription_expires_at).toLocaleDateString()})`,
-          customer_name: tc.contact_name, customer_email: tc.email, customer_phone: tc.phone
-        });
-      if (created) renewalCount++;
-    }
-    console.log(`[AutoTask] Created ${renewalCount} renewal tasks from ${expiringTrade.rows.length} candidates`);
   } catch (err) {
     console.error('[AutoTask] Daily auto-task cron error:', err.message);
   }
@@ -24656,10 +24489,6 @@ import { generatePasswordResetHTML } from './templates/passwordReset.js';
 import { generateTradeApprovalHTML } from './templates/tradeApproval.js';
 import { generateTradeDenialHTML } from './templates/tradeDenial.js';
 import { generateTierPromotionHTML } from './templates/tierPromotion.js';
-import { generateRenewalReminderHTML } from './templates/renewalReminder.js';
-import { generateSubscriptionWarningHTML } from './templates/subscriptionWarning.js';
-import { generateSubscriptionLapsedHTML } from './templates/subscriptionLapsed.js';
-import { generateSubscriptionDeactivatedHTML } from './templates/subscriptionDeactivated.js';
 import { generateInstallationInquiryStaffHTML } from './templates/installationInquiryStaff.js';
 import { generateInstallationInquiryConfirmationHTML } from './templates/installationInquiryConfirmation.js';
 import { generateVisitRecapHTML } from './templates/visitRecap.js';
@@ -24726,27 +24555,6 @@ const EMAIL_PREVIEW_TEMPLATES = {
   tierPromotion: () => generateTierPromotionHTML({
     contact_name: 'Michael Torres',
     tierName: 'Gold'
-  }),
-
-  renewalReminder: () => generateRenewalReminderHTML({
-    contact_name: 'Lisa Wang',
-    company_name: 'Wang & Associates Design',
-    days_until_expiry: 14
-  }),
-
-  subscriptionWarning: () => generateSubscriptionWarningHTML({
-    contact_name: 'Robert Kim',
-    company_name: 'Kim Contractors Inc.'
-  }),
-
-  subscriptionLapsed: () => generateSubscriptionLapsedHTML({
-    contact_name: 'Robert Kim',
-    company_name: 'Kim Contractors Inc.'
-  }),
-
-  subscriptionDeactivated: () => generateSubscriptionDeactivatedHTML({
-    contact_name: 'Robert Kim',
-    company_name: 'Kim Contractors Inc.'
   }),
 
   installationInquiryStaff: () => generateInstallationInquiryStaffHTML({
