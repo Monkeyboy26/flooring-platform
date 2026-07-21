@@ -3385,9 +3385,19 @@
 
         // Dynamic SEO for filtered browse views
         if (view === 'browse' && selectedCategory) {
-          const catObj = categories.find(c => c.slug === selectedCategory);
+          // categories is a nested tree — search top level + children for the real name
+          const rootCat = categories.find(c => c.slug === selectedCategory || (c.children || []).some(ch => ch.slug === selectedCategory));
+          const catObj = rootCat && rootCat.slug === selectedCategory ? rootCat : (rootCat && (rootCat.children || []).find(ch => ch.slug === selectedCategory)) || null;
           const catName = catObj ? catObj.name : selectedCategory.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-          updateSEO({ title: catName + ' Flooring | Roma Flooring Designs', description: 'Browse premium ' + catName.toLowerCase() + ' flooring products at Roma Flooring Designs.', url: SITE_URL + '/shop?category=' + encodeURIComponent(selectedCategory) });
+          // Only append the "Flooring" keyword for categories under a flooring root —
+          // hardware, bath, kitchen, countertops, lighting etc. are not flooring.
+          const FLOORING_ROOTS = ['tile', 'luxury-vinyl', 'hardwood', 'carpet', 'laminate-flooring'];
+          const isFlooring = rootCat ? FLOORING_ROOTS.includes(rootCat.slug) : false;
+          const title = (isFlooring ? catName + ' Flooring' : catName) + ' | Roma Flooring Designs';
+          const description = isFlooring
+            ? 'Browse premium ' + catName.toLowerCase() + ' flooring products at Roma Flooring Designs.'
+            : 'Shop ' + catName.toLowerCase() + ' at Roma Flooring Designs.';
+          updateSEO({ title, description, url: SITE_URL + '/shop?category=' + encodeURIComponent(selectedCategory) });
         } else if (view === 'browse' && selectedCollection) {
           const collName = selectedCollection.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
           updateSEO({ title: collName + ' | Roma Flooring Designs', description: 'Explore the ' + collName + ' collection at Roma Flooring Designs.', url: SITE_URL + '/collections/' + encodeURIComponent(selectedCollection) });
@@ -5758,7 +5768,7 @@
       const isGroupCollapsed = (slug) => {
         if (collapsed[slug] !== undefined) return collapsed[slug];
         if (filters[slug] && filters[slug].length > 0) return false;
-        if (prioritySlugs.includes(slug)) return false;
+        if (prioritySlugs.includes(slug) || primarySlugSet.has(slug)) return false;
         if (slug === 'color') return false;
         return true;
       };
@@ -5817,9 +5827,19 @@
         return 0;
       });
 
-      // Split into primary (shown above "More Filters") and secondary (inside "More Filters")
-      const primaryFacets = sortedFacets.filter(g => primarySlugs.includes(g.slug));
-      const secondaryFacets = sortedFacets.filter(g => !primarySlugs.includes(g.slug));
+      // Split into primary (shown above "More Filters") and secondary (inside "More Filters").
+      // primarySlugs is flooring-centric (material/finish/size/application); for non-flooring
+      // categories (hardware, lighting, vanity, sinks…) those facets are often absent, which
+      // would leave the primary section empty and bury every real filter under "More Filters".
+      // Top the primary set up to PRIMARY_MIN groups from the next most-relevant available
+      // facets. Flooring categories that already have all preferred facets are unaffected.
+      const PRIMARY_MIN = 4;
+      const facetHasValues = (g) => g.values && g.values.length > 0;
+      const preferredPrimary = sortedFacets.filter(g => primarySlugs.includes(g.slug) && facetHasValues(g));
+      const primaryFill = sortedFacets.filter(g => !primarySlugs.includes(g.slug) && !bottomSlugs.includes(g.slug) && facetHasValues(g));
+      const primaryFacets = [...preferredPrimary, ...primaryFill].slice(0, Math.max(PRIMARY_MIN, preferredPrimary.length));
+      const primarySlugSet = new Set(primaryFacets.map(g => g.slug));
+      const secondaryFacets = sortedFacets.filter(g => !primarySlugSet.has(g.slug));
 
       // Auto-expand "More Filters" if any contained facet has active selections
       const hasActiveSecondary = secondaryFacets.some(g => (filters[g.slug] || []).length > 0);

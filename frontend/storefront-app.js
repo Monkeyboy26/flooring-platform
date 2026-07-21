@@ -2791,9 +2791,14 @@
         about: { title: "About Us | Roma Flooring Designs", description: "A family flooring house in Anaheim, California \u2014 hardwood, stone, tile, and cabinetry since 2010. Visit our showroom on State College Blvd.", url: SITE_URL + "/about" }
       };
       if (view === "browse" && selectedCategory) {
-        const catObj = categories.find((c) => c.slug === selectedCategory);
+        const rootCat = categories.find((c) => c.slug === selectedCategory || (c.children || []).some((ch) => ch.slug === selectedCategory));
+        const catObj = rootCat && rootCat.slug === selectedCategory ? rootCat : rootCat && (rootCat.children || []).find((ch) => ch.slug === selectedCategory) || null;
         const catName = catObj ? catObj.name : selectedCategory.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-        updateSEO({ title: catName + " Flooring | Roma Flooring Designs", description: "Browse premium " + catName.toLowerCase() + " flooring products at Roma Flooring Designs.", url: SITE_URL + "/shop?category=" + encodeURIComponent(selectedCategory) });
+        const FLOORING_ROOTS = ["tile", "luxury-vinyl", "hardwood", "carpet", "laminate-flooring"];
+        const isFlooring = rootCat ? FLOORING_ROOTS.includes(rootCat.slug) : false;
+        const title = (isFlooring ? catName + " Flooring" : catName) + " | Roma Flooring Designs";
+        const description = isFlooring ? "Browse premium " + catName.toLowerCase() + " flooring products at Roma Flooring Designs." : "Shop " + catName.toLowerCase() + " at Roma Flooring Designs.";
+        updateSEO({ title, description, url: SITE_URL + "/shop?category=" + encodeURIComponent(selectedCategory) });
       } else if (view === "browse" && selectedCollection) {
         const collName = selectedCollection.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
         updateSEO({ title: collName + " | Roma Flooring Designs", description: "Explore the " + collName + " collection at Roma Flooring Designs.", url: SITE_URL + "/collections/" + encodeURIComponent(selectedCollection) });
@@ -4166,7 +4171,7 @@
     const isGroupCollapsed = (slug) => {
       if (collapsed[slug] !== void 0) return collapsed[slug];
       if (filters[slug] && filters[slug].length > 0) return false;
-      if (prioritySlugs.includes(slug)) return false;
+      if (prioritySlugs.includes(slug) || primarySlugSet.has(slug)) return false;
       if (slug === "color") return false;
       return true;
     };
@@ -4217,8 +4222,13 @@
       if (bBot !== -1) return -1;
       return 0;
     });
-    const primaryFacets = sortedFacets.filter((g) => primarySlugs.includes(g.slug));
-    const secondaryFacets = sortedFacets.filter((g) => !primarySlugs.includes(g.slug));
+    const PRIMARY_MIN = 4;
+    const facetHasValues = (g) => g.values && g.values.length > 0;
+    const preferredPrimary = sortedFacets.filter((g) => primarySlugs.includes(g.slug) && facetHasValues(g));
+    const primaryFill = sortedFacets.filter((g) => !primarySlugs.includes(g.slug) && !bottomSlugs.includes(g.slug) && facetHasValues(g));
+    const primaryFacets = [...preferredPrimary, ...primaryFill].slice(0, Math.max(PRIMARY_MIN, preferredPrimary.length));
+    const primarySlugSet = new Set(primaryFacets.map((g) => g.slug));
+    const secondaryFacets = sortedFacets.filter((g) => !primarySlugSet.has(g.slug));
     const hasActiveSecondary = secondaryFacets.some((g) => (filters[g.slug] || []).length > 0);
     const showMoreFilters = moreFiltersOpen || hasActiveSecondary;
     const roomTags = (tagFacets || []).filter((t) => t.category === "Room");
