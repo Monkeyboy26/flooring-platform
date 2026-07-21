@@ -9646,7 +9646,7 @@
 
               {/* Vendor */}
               <RailSection id="vendor" title="Vendor" count={vendor ? 1 : 0}>
-                <div style={{ display: 'grid', gap: 7 }}>
+                <div style={{ display: 'grid', gap: 7, maxHeight: 240, overflowY: 'auto' }}>
                   {vendors.map(v => <CheckRow key={v.id} label={v.name} on={String(vendor) === String(v.id)} onToggle={() => { setVendor(String(vendor) === String(v.id) ? '' : String(v.id)); setPage(1); }} />)}
                   {vendors.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Loading...</span>}
                 </div>
