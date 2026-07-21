@@ -41,7 +41,7 @@ export function getDocumentBaseCSS() {
     .header {
       display: flex; justify-content: space-between; align-items: flex-start;
       padding-bottom: 1.25rem; margin-bottom: 1.5rem;
-      border-bottom: 2px solid #c8a97e;
+      border-bottom: 2px solid #a87935;
     }
     .header-left { display: flex; align-items: center; gap: 14px; }
     .header-logo { width: 52px; height: 52px; object-fit: contain; }
@@ -69,7 +69,7 @@ export function getDocumentBaseCSS() {
     .doc-banner .meta-group { }
     .meta-label {
       font-size: 0.5625rem; text-transform: uppercase; letter-spacing: 0.12em;
-      color: #a8a29e; font-weight: 500; margin: 0 0 1px;
+      color: #a87935; font-weight: 500; margin: 0 0 1px;
     }
     .meta-value {
       font-size: 0.9375rem; font-weight: 600; color: #1c1917; margin: 0;
@@ -88,7 +88,7 @@ export function getDocumentBaseCSS() {
     }
     .info-card h3 {
       font-size: 0.5625rem; text-transform: uppercase; letter-spacing: 0.12em;
-      color: #a8a29e; font-weight: 500; margin: 0 0 0.4rem;
+      color: #a87935; font-weight: 500; margin: 0 0 0.4rem;
     }
     .info-card p {
       margin: 0; font-size: 0.8125rem; color: #44403c; line-height: 1.6;
@@ -143,7 +143,11 @@ export function getDocumentBaseCSS() {
       font-size: 0.9375rem; font-weight: 600; color: #1c1917;
     }
     .totals-line.balance-due {
-      font-weight: 600; color: #b91c1c;
+      border-top: 1px solid #ecdcc0; margin-top: 0.35rem; padding-top: 0.5rem;
+      font-weight: 700; font-size: 0.9375rem; color: #1c1917;
+    }
+    .totals-line.balance-due span:first-child {
+      color: #a87935; font-weight: 600;
     }
     .totals-line.paid-full {
       font-weight: 500; color: #16a34a;
@@ -153,7 +157,7 @@ export function getDocumentBaseCSS() {
     /* ---- Section Headers ---- */
     .section-title {
       font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.08em; color: #78716c;
+      letter-spacing: 0.12em; color: #a87935;
       margin: 1.75rem 0 0.625rem; padding-bottom: 0.375rem;
       border-bottom: 1px solid #e7e5e4;
     }
@@ -165,7 +169,7 @@ export function getDocumentBaseCSS() {
     }
     .notes-block h4 {
       font-size: 0.5625rem; text-transform: uppercase; letter-spacing: 0.12em;
-      color: #a8a29e; font-weight: 500; margin: 0 0 0.4rem;
+      color: #a87935; font-weight: 500; margin: 0 0 0.4rem;
     }
     .notes-block p, .notes-block div {
       margin: 0; font-size: 0.8125rem; color: #44403c; line-height: 1.6;
@@ -195,7 +199,7 @@ export function getDocumentBaseCSS() {
     /* ---- Footer ---- */
     .doc-footer {
       margin-top: 2.5rem; padding-top: 0.875rem;
-      border-top: 2px solid #c8a97e;
+      border-top: 2px solid #a87935;
       display: flex; justify-content: space-between; align-items: flex-end;
     }
     .doc-footer-left {
@@ -207,7 +211,7 @@ export function getDocumentBaseCSS() {
     .doc-footer-brand {
       font-family: 'Cormorant Garamond', Georgia, serif;
       font-size: 0.875rem; font-weight: 400; letter-spacing: 0.08em;
-      color: #c8a97e; margin: 0;
+      color: #a87935; margin: 0;
     }
     .doc-footer-sub {
       font-size: 0.5625rem; color: #a8a29e; margin: 2px 0 0;
@@ -227,7 +231,7 @@ export function getDocumentBaseCSS() {
 
     /* Legacy compat */
     .info-block { margin-bottom: 1.5rem; padding: 0.875rem 1rem; background: #faf8f6; border: 1px solid #e7e5e4; }
-    .info-block h3 { font-size: 0.5625rem; text-transform: uppercase; letter-spacing: 0.12em; color: #a8a29e; font-weight: 500; margin: 0 0 0.4rem; }
+    .info-block h3 { font-size: 0.5625rem; text-transform: uppercase; letter-spacing: 0.12em; color: #a87935; font-weight: 500; margin: 0 0 0.4rem; }
     .info-columns { display: flex; gap: 1.5rem; margin-bottom: 1.5rem; }
     .info-columns .info-block { flex: 1; }
   `;
@@ -780,6 +784,208 @@ ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'v
 </html>`;
 }
 
+// Shared order invoice document — same editorial system as generateQuoteHtml
+// (letterhead, greeting band with status stamp, three info cards, swatch-led
+// line items, terms + totals columns), adapted for an invoice: Bill To / Ship
+// To, an Amount Paid line, and an emphasized Balance Due. `o` is the order row;
+// items may carry primary_image (swatch), vendor_sku / vendor_name / collection.
+export function generateOrderInvoiceDoc(o, items) {
+  const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const issued = longDate(o.created_at);
+  const isPickup = o.delivery_method === 'pickup';
+  const orderNumber = o.order_number || 'RD-' + String(o.id).substring(0, 8).toUpperCase();
+
+  const total = parseFloat(o.total || 0);
+  const amountPaid = parseFloat(o.amount_paid || 0);
+  const balanceDue = parseFloat((total - amountPaid).toFixed(2));
+  const hasBalance = balanceDue > 0.01;
+
+  const statusLabel = hasBalance ? 'Balance Due' : 'Paid';
+  const stampText = hasBalance ? 'Balance Due' : 'Paid in full';
+  const stampColor = hasBalance ? 'var(--accent)' : '#3f7a4f';
+
+  const customerFirst = (o.customer_name || '').trim().split(/\s+/)[0] || 'Hello';
+  const greeting = hasBalance
+    ? `${customerFirst} — here's your invoice for order ${orderNumber}, issued ${issued}. A balance of <span style="color:var(--ink);font-weight:500;">${money(balanceDue)}</span> remains — payment details are below.`
+    : `${customerFirst} — here's your invoice for order ${orderNumber}, issued ${issued}. This order is <span style="color:var(--ink);font-weight:500;">paid in full</span>. Thank you.`;
+
+  const SWATCH_FALLBACKS = [
+    'linear-gradient(135deg,#caa97f,#7a5635)',
+    'linear-gradient(135deg,#ebe7df,#a8a59e)',
+    'linear-gradient(135deg,#e7e3db,#b0aca4)',
+    'linear-gradient(135deg,#a89074,#5e4a36)',
+  ];
+
+  const rowsHtml = items.map((i, idx) => {
+    const isUnit = i.sell_by === 'unit';
+    const qty = i.num_boxes || i.quantity || 1;
+    const name = i.product_name || i.collection || '—';
+    const suffix = [...new Set([i.color, i.variant_name].filter(Boolean))].filter(v => v !== name).join(' · ');
+    const skuLine = [...new Set([
+      i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
+      i.collection && i.collection !== name ? i.collection : null,
+      i.vendor_name
+    ].filter(Boolean))].join(' · ');
+    const sqft = parseFloat(i.sqft_needed || 0);
+    const perBox = !isUnit && sqft > 0 && qty > 0 ? sqft / qty : null;
+    const isFree = i.is_sample && parseFloat(i.subtotal || 0) === 0;
+    const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
+    const swatchSrc = i.primary_image
+      ? `http://localhost:${process.env.PORT || 3001}/api/img?url=${encodeURIComponent(i.primary_image)}&w=64&f=jpeg`
+      : null;
+    const swatch = swatchSrc
+      ? `<div class="swatch" style="background:${gradient};overflow:hidden;"><img src="${swatchSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
+      : `<div class="swatch" style="background:${gradient};"></div>`;
+    return `<div class="grid-row keep" style="padding:12px 0;${idx < items.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+      ${swatch}
+      <div>
+        <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${name}${suffix ? ` <span style="color:var(--muted);font-weight:400;">· ${suffix}</span>` : ''}</div>
+        ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
+        ${i.is_sample ? `<div style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.12em;color:var(--muted);margin-top:4px;text-transform:uppercase;">Sample</div>` : ''}
+      </div>
+      <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
+      <div class="num">${qty}<div class="numsub">${isUnit ? (qty === 1 ? 'unit' : 'units') : (qty === 1 ? 'box' : 'boxes')}</div></div>
+      <div class="num">${isFree ? 'Free' : money(i.unit_price) + (isUnit ? '/ea' : '/sf')}</div>
+      <div class="line-total">${isFree ? 'Free' : money(i.subtotal)}</div>
+    </div>`;
+  }).join('');
+
+  const shipAddress = [
+    o.shipping_address_line1,
+    o.shipping_address_line2,
+    o.shipping_city ? `${o.shipping_city}, ${o.shipping_state || ''} ${o.shipping_zip || ''}` : null
+  ].filter(Boolean).join('<br />');
+
+  const deliveryCard = isPickup
+    ? `<div>
+        <div class="mono" style="margin-bottom:8px;">Ship to</div>
+        <div style="font:500 11px/1.2 var(--sans);">Showroom pickup</div>
+        <div class="small" style="margin-top:4px;">1440 S. State College Blvd Suite 6M<br />Anaheim, CA 92806</div>
+        <div style="margin-top:8px;padding:6px 10px;background:var(--warm);font:500 9px/1.4 ui-monospace,monospace;letter-spacing:0.14em;text-transform:uppercase;display:inline-block;">● Anaheim showroom</div>
+      </div>`
+    : `<div>
+        <div class="mono" style="margin-bottom:8px;">Ship to</div>
+        <div style="font:500 11px/1.2 var(--sans);">${o.customer_name || 'Local delivery'}</div>
+        <div class="small" style="margin-top:4px;">${shipAddress || 'Address to be confirmed'}</div>
+      </div>`;
+
+  const accountCard = `<div>
+      <div class="mono" style="margin-bottom:8px;">Roma account</div>
+      <div style="font:500 11px/1.2 var(--sans);">${o.customer_name || ''}${o.company_name ? ' · Trade Pro' : ''}</div>
+      <div class="small" style="margin-top:4px;">${o.company_name ? o.company_name + '<br />' : ''}${o.rep_name ? `<span style="color:var(--muted);">Your rep</span><br />${o.rep_name}${o.rep_email ? '<br />' + o.rep_email : ''}<br />(714) 999-0009` : '(714) 999-0009'}</div>
+    </div>`;
+
+  const totalsRows = [
+    `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Subtotal · materials</span><span>${money(o.subtotal)}</span></div>`,
+    parseFloat(o.discount_amount || 0) > 0
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Discount${o.promo_code ? ' · ' + o.promo_code : ''}</span><span style="color:var(--accent);">−${money(o.discount_amount)}</span></div>` : '',
+    parseFloat(o.shipping || 0) > 0
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Shipping${o.shipping_method ? ' · ' + (o.shipping_method === 'ltl_freight' ? 'LTL Freight' : 'Parcel') : ''}</span><span>${money(o.shipping)}</span></div>` : '',
+    parseFloat(o.sample_shipping || 0) > 0
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Sample shipping</span><span>${money(o.sample_shipping)}</span></div>` : '',
+    parseFloat(o.tax_amount || 0) > 0
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Sales tax</span><span>${money(o.tax_amount)}</span></div>` : '',
+  ].filter(Boolean).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+:root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
+*{box-sizing:border-box}
+body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
+@media screen{body{padding:48px 56px;max-width:816px;margin:0 auto}}
+.mono{font:500 9px/1 ui-monospace,monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted)}
+.small{font:400 10px/1.5 var(--sans);color:#1c1917cc}
+.grid-row{display:grid;grid-template-columns:32px 1fr 86px 70px 80px 84px;gap:12px;align-items:flex-start}
+.swatch{width:32px;height:32px;border:0.5px solid #1c191733}
+.num{text-align:right;font:400 11px/1.2 var(--sans)}
+.numsub{font:400 9px/1.4 var(--sans);color:var(--muted);margin-top:2px}
+.line-total{text-align:right;font:500 12px/1.2 var(--serif)}
+.keep{break-inside:avoid;orphans:3;widows:3}
+</style>
+</head>
+<body>
+
+<div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
+<div>
+<div style="font:300 36px/1 var(--serif);letter-spacing:-0.014em;">Roma</div>
+<div class="mono" style="font-size:8px;letter-spacing:0.22em;margin-top:4px;">Flooring · Surfaces · Anaheim</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+</div>
+<div style="text-align:right;min-width:220px;">
+<div class="mono" style="letter-spacing:0.22em;">Invoice</div>
+<div style="font:300 32px/1 var(--serif);letter-spacing:-0.014em;margin-top:6px;">${orderNumber}</div>
+<div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
+<span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
+${o.po_number ? `<span style="color:var(--muted);">PO ref</span><span style="text-align:right;">${o.po_number}</span>` : ''}
+<span style="color:var(--muted);">Status</span><span class="mono" style="color:${stampColor};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
+</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:8px;border-bottom:1px solid #1c191711;align-items:center;">
+<div style="font:500 9px/1.4 var(--sans);letter-spacing:0.06em;color:#1c1917cc;">
+${greeting}
+</div>
+<div style="padding:8px 14px;border:1.5px solid ${stampColor};color:${stampColor};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</div>
+</div>
+
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 22px;border-bottom:1px solid #1c191722;">
+<div>
+<div class="mono" style="margin-bottom:8px;">Bill to</div>
+<div style="font:500 11px/1.2 var(--sans);">${o.customer_name || ''}</div>
+<div class="small" style="margin-top:4px;">${[o.customer_email, o.phone].filter(Boolean).join('<br />')}</div>
+</div>
+${deliveryCard}
+${accountCard}
+</div>
+
+<div style="padding-top:18px;">
+<div class="grid-row" style="padding-bottom:10px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
+<span></span><span>Description</span><span style="text-align:right;">Coverage</span><span style="text-align:right;">Qty</span><span style="text-align:right;">Unit</span><span style="text-align:right;">Line total</span>
+</div>
+${rowsHtml}
+</div>
+
+<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
+<div style="padding-top:4px;" class="small">
+${o.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;white-space:pre-wrap;">${o.notes}</div>` : ''}
+<div class="mono" style="margin-bottom:8px;">How to pay</div>
+<div style="margin-bottom:10px;">
+<span style="color:var(--muted);">Online</span>&nbsp;&nbsp;<span style="color:var(--ink);">romaflooringdesigns.com/account — pay under Account · Orders</span><br />
+<span style="color:var(--muted);">Showroom</span>&nbsp;&nbsp;<span style="color:var(--ink);">(714) 999-0009 · 1440 S. State College Blvd #6M, Anaheim</span><br />
+<span style="color:var(--muted);">Email</span>&nbsp;&nbsp;<span style="color:var(--ink);">Reply to your invoice email${o.rep_email ? ' or write ' + o.rep_email : ''}</span>
+</div>
+<div class="mono" style="margin-bottom:8px;margin-top:14px;">Terms</div>
+<div>Payment is due on receipt unless otherwise agreed. Natural stone and wood vary by lot — final selections are approved at the showroom or from delivered samples. Subject to California sales tax. Roma Flooring Designs · License #830966.</div>
+</div>
+<div>
+${totalsRows}
+<div style="margin-top:8px;padding-top:8px;border-top:1.5px solid var(--ink);display:flex;justify-content:space-between;align-items:baseline;">
+<span class="mono" style="color:var(--ink);letter-spacing:0.18em;">Total · USD</span>
+<span style="font:300 28px/1 var(--serif);letter-spacing:-0.012em;">${money(total)}</span>
+</div>
+<div style="display:flex;justify-content:space-between;padding:8px 0 0;font:400 10px/1.4 var(--sans);"><span style="color:var(--muted);">Amount paid</span><span>${amountPaid > 0 ? '−' + money(amountPaid) : money(0)}</span></div>
+<div style="margin-top:6px;padding-top:8px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:baseline;">
+<span class="mono" style="color:${stampColor};letter-spacing:0.18em;">Balance due</span>
+<span style="font:400 22px/1 var(--serif);letter-spacing:-0.012em;color:var(--ink);">${money(hasBalance ? balanceDue : 0)}</span>
+</div>
+</div>
+</div>
+
+<div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
+<span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Invoice ${orderNumber}</span>
+</div>
+
+</body>
+</html>`;
+}
+
 // Showroom sample labels — Avery 5163 sheet layout (2"×4" labels, 2 columns × 5 rows,
 // 10 per US Letter page). Each label states the product/collection name, this tile's
 // color/variant, a compact "also available" summary (colors/sizes + accessories), and a
@@ -860,7 +1066,7 @@ export function generateLabelSheetHtml(labels) {
   .l-eyebrow { font-size: 6.5pt; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #a87935; }
   .l-title { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 600; font-size: 18.5pt; line-height: 1.0; letter-spacing: 0.004em; color: #1c1917; margin-top: 2px; max-height: 0.55in; overflow: hidden; }
   .l-variant { font-size: 9.5pt; font-weight: 500; color: #57534e; margin-top: 4px; }
-  .l-rule { width: 64%; height: 1px; background: linear-gradient(90deg, #c8a97e, rgba(200,169,126,0.25) 70%, transparent); margin: 7px 0 5px; }
+  .l-rule { width: 64%; height: 1px; background: linear-gradient(90deg, #a87935, rgba(200,169,126,0.25) 70%, transparent); margin: 7px 0 5px; }
   .l-availk { font-size: 6.3pt; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: #a87935; margin-bottom: 2px; }
   .l-availv { font-size: 7pt; line-height: 1.32; color: #57534e; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .l-availacc { color: #8a817a; margin-top: 1px; }

@@ -65,10 +65,10 @@ export function generateSampleRequestVendorHTML(data) {
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
   body { font-family: 'Inter', Arial, sans-serif; margin: 0; padding: 2rem; color: #1c1917; font-size: 13px; line-height: 1.5; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid #c8a97e; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid #a87935; }
   .company { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.75rem; font-weight: 300; margin-bottom: 0.25rem; }
   .company-info { font-size: 0.75rem; color: #57534e; line-height: 1.6; }
-  .doc-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.5rem; font-weight: 400; color: #c8a97e; }
+  .doc-title { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 1.5rem; font-weight: 400; color: #a87935; }
   .info-columns { display: flex; gap: 2rem; margin-bottom: 1.5rem; }
   .info-block { flex: 1; padding: 1rem; background: #fafaf9; border: 1px solid #e7e5e4; }
   .info-block h3 { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.1em; color: #78716c; margin: 0 0 0.5rem; }
