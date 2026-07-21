@@ -19,6 +19,8 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { Client: FtpClient } = require('basic-ftp');
+const { pickPrimaryImage } = require('./daltile-image-rank.cjs');
+const { resolveMosaicPattern } = require('./daltile-mosaic-pattern.cjs');
 
 import fs from 'fs';
 import path from 'path';
@@ -812,7 +814,19 @@ async function processProduct(pool, ctx) {
       skuSize = skuSize.split(',')[0].trim();
     }
     const variantParts = [skuSize, sku.finish, sku.designPattern, sku.shape].filter(Boolean);
-    const variantName = variantParts.join(', ') || colorName;
+    let variantName = variantParts.join(', ') || colorName;
+
+    // State the mosaic layout (Brick Joint, Penny Round, …) when Coveo left
+    // designPattern blank — decoded from the vendor_sku shape code. Shared with
+    // the one-time enrichment script so imports and backfills agree.
+    const mosaicPattern = resolveMosaicPattern({
+      vendorSku: coveoSku,
+      imageUrl: sku.productImageUrl,
+      currentName: variantName,
+      productType: sku.productType,
+      productName,
+    });
+    if (mosaicPattern) variantName = `${variantName}, ${mosaicPattern}`;
 
     // Determine sell_by
     let sellBy = isTrim ? 'unit' : 'box';
@@ -867,12 +881,18 @@ async function processProduct(pool, ctx) {
       return url;
     };
 
-    if (sku.productImageUrl) {
-      const imgUrl = cleanImageUrl(sku.productImageUrl);
+    // Primary: prefer the authoritative product render; fall back to the swatch
+    // when it is missing/placeholder so the SKU still gets an image (never store
+    // a placeholder). Shared with the reconcile script so imports stay consistent.
+    const primaryUrl = pickPrimaryImage({
+      productImageUrl: sku.productImageUrl,
+      swatchUrl: sku.swatchUrl,
+    });
+    if (primaryUrl) {
       await upsertMediaAsset(pool, {
         product_id: productId, sku_id: skuId,
-        asset_type: 'primary', url: imgUrl,
-        original_url: sku.productImageUrl, sort_order: 0,
+        asset_type: 'primary', url: primaryUrl,
+        original_url: primaryUrl, sort_order: 0,
       });
       stats.imagesSet++;
     }
@@ -906,6 +926,7 @@ async function processProduct(pool, ctx) {
       ['country', sku.country],
       ['shade_variation', sku.shadeVariation],
       ['thickness', sku.thickness],
+      ['pattern', sku.designPattern || mosaicPattern],
     ];
     for (const [slug, value] of attrPairs) {
       if (value) {

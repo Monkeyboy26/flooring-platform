@@ -25,7 +25,8 @@ import { calculateSalesTax, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } fro
 import { recalculateBalance, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { createCustomerHelpers } from './lib/customerHelpers.js';
-import { generatePDF, generatePDFBuffer, generatePOHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
+import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
+import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
 import createCartRoutes from './routes/cart.js';
@@ -34,6 +35,9 @@ import createAnalyticsRoutes from './routes/analytics.js';
 
 const { staffAuth, repAuth, tradeAuth, optionalTradeAuth, customerAuth, optionalCustomerAuth, requireRole, hashPassword, verifyPassword, validatePassword, hashToken, logAudit } = createAuthMiddleware(pool);
 const { findOrCreateCustomer } = createCustomerHelpers(hashPassword, sendWelcomeSetPassword);
+
+// Shared email-format check for all customer entry endpoints
+const isValidEmailAddr = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || '').trim());
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '');
 const easypost = process.env.EASYPOST_API_KEY ? new EasyPostClient(process.env.EASYPOST_API_KEY) : null;
@@ -160,7 +164,11 @@ app.get('/api/img', imgLimiter, async (req, res) => {
     if (!['avif', 'webp', 'jpeg', 'png'].includes(fmt)) fmt = 'jpeg';
     if (fmt === 'avif') q = Math.min(q, 65);
 
-    const cacheKey = crypto.createHash('sha256').update(`${url}|${w}|${h || ''}|${q}|${fmt}`).digest('hex');
+    // fit=cover crops to exactly w×h (email thumbnails); default keeps the
+    // original contain behavior. Only cover changes the key, so the existing
+    // disk cache stays valid.
+    const fitMode = req.query.fit === 'cover' ? 'cover' : 'inside';
+    const cacheKey = crypto.createHash('sha256').update(`${url}|${w}|${h || ''}|${q}|${fmt}${fitMode === 'cover' ? '|cover' : ''}`).digest('hex');
     const ext = fmt === 'jpeg' ? 'jpg' : fmt;
     const cachePath = path.join(IMG_CACHE_DIR, `${cacheKey}.${ext}`);
 
@@ -213,7 +221,7 @@ app.get('/api/img', imgLimiter, async (req, res) => {
           console.warn(`[img] Blocked bad image (hash ${inputHash}): ${url}`);
           return null;
         }
-        const resizeOpts = { width: w, fit: 'inside', withoutEnlargement: true };
+        const resizeOpts = { width: w, fit: fitMode, withoutEnlargement: fitMode === 'inside' };
         if (h) resizeOpts.height = h;
         let pipeline = sharp(inputBuffer).resize(resizeOpts);
         if (fmt === 'avif') pipeline = pipeline.avif({ quality: q, effort: 4 });
@@ -4699,6 +4707,15 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     if (!session_id || !payment_intent_id || !customer_name || !customer_email) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+    if (customer_name.trim().split(/\s+/).length < 2) {
+      return res.status(400).json({ error: 'First and last name are required' });
+    }
+    if (!isValidEmailAddr(customer_email)) {
+      return res.status(400).json({ error: 'A valid email address is required' });
+    }
+    if (!phone || !String(phone).trim()) {
+      return res.status(400).json({ error: 'Phone number is required' });
+    }
 
     const isPickup = delivery_method === 'pickup';
 
@@ -5912,6 +5929,145 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// ==================== Showroom Sample Labels ====================
+// Public storefront base for the QR code target. Domain still points at the legacy
+// WordPress site pre-deploy, so QR links won't resolve until the storefront is live —
+// override with PUBLIC_SITE_URL to test against a reachable host.
+const LABEL_SITE_BASE = (process.env.PUBLIC_SITE_URL || process.env.SITE_URL || 'https://www.romaflooringdesigns.com').replace(/\/+$/, '');
+const MAX_LABELS = 200;
+
+// Expand product IDs to their labelable SKUs (active, non-sample, non-accessory) — so
+// clicking a product in the admin prints one label per color/variant.
+async function expandProductIdsToSkuIds(productIds) {
+  if (!productIds.length) return [];
+  const { rows } = await pool.query(`
+    SELECT id FROM skus
+    WHERE product_id = ANY($1::uuid[]) AND status = 'active' AND is_sample = false
+      AND COALESCE(variant_type, '') <> 'accessory'
+    ORDER BY variant_name
+  `, [productIds]);
+  return rows.map(r => r.id);
+}
+
+// One row per SKU with the label fields: name/collection/vendor, this SKU's color/variant,
+// product-wide color & size counts, and the product's accessory labels (same-product
+// accessory SKUs + any sku_accessories companions).
+async function getLabelData(skuIds) {
+  if (!skuIds.length) return [];
+  const { rows } = await pool.query(`
+    SELECT
+      s.id AS sku_id, s.internal_sku, s.variant_name, s.product_id,
+      p.name AS product_name, p.collection,
+      v.name AS vendor_name,
+      (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+         WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) AS color,
+      (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+         WHERE sa.sku_id = s.id AND a.slug = 'size' LIMIT 1) AS size,
+      (SELECT COUNT(DISTINCT sa.value)
+         FROM skus s2 JOIN sku_attributes sa ON sa.sku_id = s2.id
+         JOIN attributes a ON a.id = sa.attribute_id AND a.slug = 'color'
+         WHERE s2.product_id = s.product_id AND s2.status = 'active' AND s2.is_sample = false
+           AND COALESCE(s2.variant_type, '') <> 'accessory') AS colors_count,
+      (SELECT COUNT(DISTINCT sa.value)
+         FROM skus s2 JOIN sku_attributes sa ON sa.sku_id = s2.id
+         JOIN attributes a ON a.id = sa.attribute_id AND a.slug = 'size'
+         WHERE s2.product_id = s.product_id AND s2.status = 'active' AND s2.is_sample = false
+           AND COALESCE(s2.variant_type, '') <> 'accessory') AS sizes_count,
+      (SELECT ARRAY_AGG(DISTINCT sa.value ORDER BY sa.value)
+         FROM skus s2 JOIN sku_attributes sa ON sa.sku_id = s2.id
+         JOIN attributes a ON a.id = sa.attribute_id AND a.slug = 'color'
+         WHERE s2.product_id = s.product_id AND s2.status = 'active' AND s2.is_sample = false
+           AND COALESCE(s2.variant_type, '') <> 'accessory') AS colors,
+      (SELECT ARRAY_AGG(DISTINCT sa.value ORDER BY sa.value)
+         FROM skus s2 JOIN sku_attributes sa ON sa.sku_id = s2.id
+         JOIN attributes a ON a.id = sa.attribute_id AND a.slug = 'size'
+         WHERE s2.product_id = s.product_id AND s2.status = 'active' AND s2.is_sample = false
+           AND COALESCE(s2.variant_type, '') <> 'accessory') AS sizes,
+      (SELECT ARRAY_AGG(DISTINCT lbl) FROM (
+         SELECT COALESCE(NULLIF(s3.accessory_label, ''), s3.variant_name, p3.name) AS lbl
+           FROM skus s3 JOIN products p3 ON p3.id = s3.product_id
+          WHERE s3.product_id = s.product_id AND s3.status = 'active'
+            AND COALESCE(s3.variant_type, '') = 'accessory'
+         UNION
+         SELECT COALESCE(NULLIF(acc.accessory_label, ''), acc.variant_name, pacc.name) AS lbl
+           FROM sku_accessories sax
+           JOIN skus par ON par.id = sax.parent_sku_id AND par.product_id = s.product_id
+           JOIN skus acc ON acc.id = sax.accessory_sku_id AND acc.status = 'active'
+           JOIN products pacc ON pacc.id = acc.product_id
+       ) accs WHERE lbl IS NOT NULL AND lbl <> '') AS accessories
+    FROM skus s
+    JOIN products p ON p.id = s.product_id
+    LEFT JOIN vendors v ON v.id = p.vendor_id
+    WHERE s.id = ANY($1::uuid[])
+    ORDER BY p.name, s.variant_name
+  `, [skuIds]);
+  return rows;
+}
+
+// Build the label objects (with QR data URIs) that generateLabelSheetHtml expects.
+async function buildLabels(rows) {
+  return Promise.all(rows.map(async (r) => {
+    const url = `${LABEL_SITE_BASE}/shop/sku/${r.sku_id}`;
+    const qrDataUri = await QRCode.toDataURL(url, { margin: 0, width: 220 });
+    // Identify this specific tile by color + size (deduped); fall back to the raw
+    // variant_name. This keeps same-color/different-size SKUs distinguishable.
+    const variantLabel = [...new Set([r.color, r.size].filter(Boolean))].join(' · ')
+      || r.variant_name || '';
+    return {
+      productName: r.product_name,
+      collection: r.collection,
+      variantLabel,
+      vendorName: r.vendor_name,
+      colorsCount: parseInt(r.colors_count || 0, 10),
+      sizesCount: parseInt(r.sizes_count || 0, 10),
+      colors: r.colors || [],
+      sizes: r.sizes || [],
+      accessories: r.accessories || [],
+      internalSku: r.internal_sku,
+      qrDataUri
+    };
+  }));
+}
+
+// Shared label handlers — mounted under both /api/admin (staff) and /api/rep (sales reps).
+const LABEL_ZERO_MARGIN = { margin: { top: '0', bottom: '0', left: '0', right: '0' } };
+
+// Single SKU label (prints top-left of one Avery 5163 sheet).
+async function respondWithSingleLabel(req, res) {
+  try {
+    const rows = await getLabelData([req.params.skuId]);
+    if (!rows.length) return res.status(404).json({ error: 'SKU not found' });
+    const html = generateLabelSheetHtml(await buildLabels(rows));
+    await generatePDF(html, `label-${rows[0].internal_sku || 'sku'}.pdf`, req, res, LABEL_ZERO_MARGIN);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// Batch label sheet — accepts ?skuIds=a,b,c and/or ?productIds=x,y (products expand to
+// their labelable SKUs). Supports ?preview=true (generatePDF returns raw HTML).
+async function respondWithLabelSheet(req, res) {
+  try {
+    let skuIds = String(req.query.skuIds || '').split(',').map(s => s.trim()).filter(Boolean);
+    const productIds = String(req.query.productIds || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (productIds.length) skuIds = skuIds.concat(await expandProductIdsToSkuIds(productIds));
+    skuIds = [...new Set(skuIds)];
+    if (!skuIds.length) return res.status(400).json({ error: 'No SKUs to label. Provide skuIds or productIds.' });
+    if (skuIds.length > MAX_LABELS) return res.status(400).json({ error: `Too many labels (${skuIds.length}); max ${MAX_LABELS}. Narrow your selection.` });
+    const rows = await getLabelData(skuIds);
+    if (!rows.length) return res.status(404).json({ error: 'No matching SKUs found' });
+    const html = generateLabelSheetHtml(await buildLabels(rows));
+    await generatePDF(html, 'roma-labels.pdf', req, res, LABEL_ZERO_MARGIN);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+app.get('/api/admin/skus/:skuId/label', staffAuth, requireRole('admin', 'manager'), respondWithSingleLabel);
+app.get('/api/admin/labels', staffAuth, requireRole('admin', 'manager'), respondWithLabelSheet);
+app.get('/api/rep/skus/:skuId/label', repAuth, respondWithSingleLabel);
+app.get('/api/rep/labels', repAuth, respondWithLabelSheet);
 
 // Bulk update product status
 app.patch('/api/admin/products/bulk/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
@@ -8142,34 +8298,39 @@ app.post('/api/admin/orders/:id/payment-request', staffAuth, requireRole('admin'
     const amountDue = balanceInfo.balance;
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
 
-    // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      customer_email: o.customer_email,
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: { name: `Balance Due — Order ${o.order_number}` },
-          unit_amount: Math.round(amountDue * 100)
-        },
-        quantity: 1
-      }],
-      metadata: { order_id: id, type: 'payment_request' },
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
-      expires_at: Math.floor(Date.now() / 1000) + 72 * 3600
-    });
-
+    // Insert the request row first so its id can ride in the session's
+    // create-time metadata (this SDK version has no sessions.update).
     const prResult = await pool.query(`
-      INSERT INTO payment_requests (order_id, amount, stripe_checkout_session_id, stripe_checkout_url, sent_to_email, sent_by, sent_by_name, message, expires_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
-    `, [id, amountDue.toFixed(2), session.id, session.url, o.customer_email, req.staff.id, staffName, message || null,
-        new Date(Date.now() + 72 * 3600 * 1000)]);
+      INSERT INTO payment_requests (order_id, amount, sent_to_email, sent_by, sent_by_name, message, expires_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+    `, [id, amountDue.toFixed(2), o.customer_email, req.staff.id, staffName, message || null,
+        new Date(Date.now() + 24 * 3600 * 1000)]);
 
-    // Update metadata with payment_request_id
-    await stripe.checkout.sessions.update(session.id, {
-      metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' }
-    });
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        customer_email: o.customer_email,
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `Balance Due — Order ${o.order_number}` },
+            unit_amount: Math.round(amountDue * 100)
+          },
+          quantity: 1
+        }],
+        metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
+        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
+        // Stripe caps Checkout Session expiry at 24h (72h here made session creation fail)
+        expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+      });
+    } catch (stripeErr) {
+      await pool.query('DELETE FROM payment_requests WHERE id = $1', [prResult.rows[0].id]);
+      throw stripeErr;
+    }
+    await pool.query('UPDATE payment_requests SET stripe_checkout_session_id = $1, stripe_checkout_url = $2 WHERE id = $3',
+      [session.id, session.url, prResult.rows[0].id]);
 
     await logOrderActivity(pool, id, 'payment_request_sent', req.staff.id, staffName,
       { amount: amountDue.toFixed(2), sent_to: o.customer_email });
@@ -10247,8 +10408,14 @@ app.put('/api/admin/staff/:id/password', staffAuth, requireRole('admin', 'manage
 app.post('/api/trade/register', async (req, res) => {
   try {
     const { email, password, company_name, contact_name, phone } = req.body;
-    if (!email || !password || !company_name || !contact_name) {
-      return res.status(400).json({ error: 'Email, password, company name, and contact name are required' });
+    if (!email || !password || !company_name || !contact_name || !phone) {
+      return res.status(400).json({ error: 'Email, password, company name, contact name, and phone number are required' });
+    }
+    if (contact_name.trim().split(/\s+/).length < 2) {
+      return res.status(400).json({ error: 'Contact first and last name are required' });
+    }
+    if (!isValidEmailAddr(email)) {
+      return res.status(400).json({ error: 'A valid email address is required' });
     }
     const pwError = validatePassword(password);
     if (pwError) return res.status(400).json({ error: pwError });
@@ -11494,7 +11661,9 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
     const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const items = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
@@ -11581,6 +11750,129 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
   }
 });
 
+// Customer accepts a quote from the storefront account and pays via Stripe
+// Checkout. Converts the quote to a pending order (mirrors the trade accept)
+// and opens a payment-request checkout session — the existing webhook marks
+// the payment, ledger, invoice, and rep notification on completion.
+app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const quoteRes = await client.query("SELECT * FROM quotes WHERE id = $1 AND customer_id = $2 AND status != 'draft'", [req.params.id, req.customer.id]);
+    if (!quoteRes.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const q = quoteRes.rows[0];
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    const createPaySession = async (order, amount) => {
+      // Insert the request row first so its id can ride in the session's
+      // create-time metadata (this SDK version has no sessions.update).
+      const prResult = await pool.query(`
+        INSERT INTO payment_requests (order_id, amount, sent_to_email, sent_by_name, expires_at)
+        VALUES ($1, $2, $3, 'Storefront checkout', $4) RETURNING *
+      `, [order.id, amount.toFixed(2), order.customer_email, new Date(Date.now() + 24 * 3600 * 1000)]);
+      let session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          customer_email: order.customer_email,
+          line_items: [{
+            price_data: {
+              currency: 'usd',
+              product_data: { name: `Order ${order.order_number} — Quote ${q.quote_number}` },
+              unit_amount: Math.round(amount * 100)
+            },
+            quantity: 1
+          }],
+          metadata: { order_id: order.id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+          success_url: `${frontendUrl}/account/orders?payment=success`,
+          cancel_url: `${frontendUrl}/account/quotes?payment=cancelled`,
+          // Stripe caps Checkout Session expiry at 24h; re-entry mints a new one
+          expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+        });
+      } catch (stripeErr) {
+        await pool.query('DELETE FROM payment_requests WHERE id = $1', [prResult.rows[0].id]);
+        throw stripeErr;
+      }
+      await pool.query('UPDATE payment_requests SET stripe_checkout_session_id = $1, stripe_checkout_url = $2 WHERE id = $3',
+        [session.id, session.url, prResult.rows[0].id]);
+      return session.url;
+    };
+
+    // Re-entry: quote already became an order — resume payment on its balance
+    if (q.status === 'converted' && q.converted_order_id) {
+      const orderRes = await pool.query('SELECT * FROM orders WHERE id = $1', [q.converted_order_id]);
+      if (!orderRes.rows.length) return res.status(400).json({ error: 'Quote already converted' });
+      const order = orderRes.rows[0];
+      const pending = await pool.query(
+        "SELECT * FROM payment_requests WHERE order_id = $1 AND status = 'pending' AND stripe_checkout_url IS NOT NULL AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at DESC LIMIT 1",
+        [order.id]);
+      if (pending.rows.length) return res.json({ checkout_url: pending.rows[0].stripe_checkout_url, order_id: order.id });
+      const balanceInfo = await recalculateBalance(pool, order.id);
+      if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') {
+        return res.status(400).json({ error: 'This quote has already been paid' });
+      }
+      const url = await createPaySession(order, balanceInfo.balance);
+      return res.json({ checkout_url: url, order_id: order.id });
+    }
+
+    if (q.expires_at && new Date(q.expires_at) < new Date()) {
+      return res.status(400).json({ error: "This quote has expired — call (714) 999-0009 and we'll refresh the pricing" });
+    }
+    const qItems = await client.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [q.id]);
+    if (!qItems.rows.length) return res.status(400).json({ error: 'Quote has no items' });
+
+    await client.query('BEGIN');
+    const orderNumber = await getNextOrderNumber();
+    const orderResult = await client.query(`
+      INSERT INTO orders (order_number, customer_email, customer_name, phone,
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
+        subtotal, shipping, total, status, sales_rep_id, payment_method, quote_id, delivery_method,
+        promo_code_id, promo_code, discount_amount, amount_paid, customer_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', $13, 'stripe', $14, $15, $16, $17, $18, 0, $19) RETURNING *
+    `, [orderNumber, q.customer_email, q.customer_name, q.phone,
+        q.shipping_address_line1, q.shipping_address_line2, q.shipping_city, q.shipping_state, q.shipping_zip,
+        q.subtotal, q.shipping || 0, q.total, q.sales_rep_id, q.id, q.delivery_method || 'shipping',
+        q.promo_code_id || null, q.promo_code || null, q.discount_amount || 0, req.customer.id]);
+    const order = orderResult.rows[0];
+
+    for (const item of qItems.rows) {
+      await client.query(`
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.description,
+          item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample]);
+    }
+
+    await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
+    await logQuoteEvent(client, q.id, 'accepted', {
+      body: 'Accepted in storefront account',
+      meta: { source: 'storefront' },
+      actor: 'customer', actorName: q.customer_name
+    });
+    await logQuoteEvent(client, q.id, 'converted', {
+      body: 'Converted to order ' + orderNumber + ' · $' + parseFloat(q.total || 0).toFixed(2),
+      meta: { order_id: order.id, order_number: orderNumber, source: 'storefront' },
+      actor: 'customer', actorName: q.customer_name
+    });
+    await client.query('COMMIT');
+
+    if (q.sales_rep_id) {
+      setImmediate(() => createRepNotification(pool, q.sales_rep_id, 'quote_accepted',
+        `Quote ${q.quote_number} accepted online`,
+        `${q.customer_name} accepted ${q.quote_number} ($${parseFloat(q.total || 0).toFixed(2)}) and headed to payment`,
+        'quote', q.id));
+    }
+
+    const url = await createPaySession(order, parseFloat(q.total || 0));
+    res.json({ checkout_url: url, order_id: order.id, order_number: orderNumber });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (e) { /* no open transaction */ }
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // Trade showroom visits
 app.get('/api/trade/visits', tradeAuth, async (req, res) => {
   try {
@@ -11609,12 +11901,18 @@ app.get('/api/trade/visits/:id', tradeAuth, async (req, res) => {
 // Quote PDF download
 app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
   try {
-    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
+    const quote = await pool.query(`
+      SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
+      FROM quotes q LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      WHERE q.id = $1 AND q.trade_customer_id = $2
+    `, [req.params.id, req.tradeCustomer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const q = quote.rows[0];
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sa_c.value as color,
-        v.name as vendor_name, sk.vendor_sku, p.collection as current_collection
+        v.name as vendor_name, sk.vendor_sku, p.collection as current_collection,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
       LEFT JOIN skus sk ON sk.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(sk.product_id, qi.product_id)
@@ -11626,55 +11924,12 @@ app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
     const customer = await pool.query('SELECT * FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
     const c = customer.rows[0] || {};
 
-    const isExpired = q.expires_at && new Date(q.expires_at) < new Date();
-    const expiryStr = q.expires_at ? new Date(q.expires_at).toLocaleDateString() : 'N/A';
-
-    const html = `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
-      <div class="page">
-        ${getDocumentHeader('Quote')}
-        <div class="doc-banner">
-          <div class="doc-banner-left">
-            <div class="meta-group"><p class="meta-label">Quote</p><p class="meta-value">${q.quote_number || 'Q-' + q.id.substring(0, 8).toUpperCase()}</p></div>
-            <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(q.created_at).toLocaleDateString()}</p></div>
-            <div class="meta-group"><p class="meta-label">Valid Until</p><p class="meta-value-sm">${expiryStr}</p></div>
-          </div>
-          <div>${isExpired ? '<span class="badge badge-expired">Expired</span>' : '<span class="badge badge-valid">Valid</span>'}</div>
-        </div>
-        <div class="info-row">
-          <div class="info-card">
-            <h3>Prepared For</h3>
-            <p><strong>${c.company_name || q.customer_name || ''}</strong><br/>
-            ${c.contact_name || q.customer_name || ''}<br/>
-            ${q.customer_email || c.email || ''}
-            ${q.phone ? '<br/>' + q.phone : ''}
-            ${q.shipping_address_line1 ? '<br/>' + q.shipping_address_line1 : ''}
-            ${q.shipping_address_line2 ? '<br/>' + q.shipping_address_line2 : ''}
-            ${q.shipping_city ? '<br/>' + q.shipping_city + ', ' + (q.shipping_state || '') + ' ' + (q.shipping_zip || '') : ''}</p>
-          </div>
-        </div>
-        <table>
-          <thead><tr><th>Description</th><th class="text-right">Qty</th><th class="text-right">Unit Price</th><th class="text-right">Subtotal</th></tr></thead>
-          <tbody>
-            ${items.rows.map(i => {
-              const isUnit = i.sell_by === 'unit';
-              const qty = i.num_boxes || i.quantity || 1;
-              return `<tr>
-              <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
-              <td class="text-right">${qty}${isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')}</td>
-              <td class="text-right">$${parseFloat(i.unit_price || 0).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
-              <td class="text-right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
-            </tr>`; }).join('')}
-          </tbody>
-        </table>
-        <div class="totals-wrapper"><div class="totals-box">
-          <div class="totals-line"><span>Subtotal</span><span>$${parseFloat(q.subtotal || 0).toFixed(2)}</span></div>
-          ${parseFloat(q.shipping || 0) > 0 ? `<div class="totals-line"><span>Shipping</span><span>$${parseFloat(q.shipping).toFixed(2)}</span></div>` : ''}
-          ${parseFloat(q.tax || 0) > 0 ? `<div class="totals-line"><span>Tax</span><span>$${parseFloat(q.tax).toFixed(2)}</span></div>` : ''}
-          <div class="totals-line grand-total"><span>Total</span><span>$${parseFloat(q.total || 0).toFixed(2)}</span></div>
-        </div></div>
-        ${getDocumentFooter('<p>This quote is valid for 14 days from the date of issue. Prices are subject to change after expiry.</p>')}
-      </div>
-    </body></html>`;
+    const html = generateQuoteHtml({
+      ...q,
+      company_name: c.company_name || null,
+      customer_name: q.customer_name || c.contact_name || '',
+      customer_email: q.customer_email || c.email || ''
+    }, items.rows);
 
     await generatePDF(html, `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`, req, res);
   } catch (err) {
@@ -12549,25 +12804,25 @@ app.post('/api/rep/visits', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { customer_name, customer_email, customer_phone, message, items } = req.body;
-    if (!customer_name) return res.status(400).json({ error: 'Customer name is required' });
+    if (!customer_name || customer_name.trim().split(/\s+/).length < 2) {
+      return res.status(400).json({ error: 'Customer first and last name are required' });
+    }
+    if (!isValidEmailAddr(customer_email)) return res.status(400).json({ error: 'A valid customer email is required' });
     if (!items || !items.length) return res.status(400).json({ error: 'At least one product is required' });
 
     await client.query('BEGIN');
     const token = crypto.randomBytes(16).toString('hex');
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
 
-    // Auto-create customer if email provided
-    let customerId = null;
-    if (customer_email) {
-      const nameParts = (customer_name || '').split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
-      const { customer: cust } = await findOrCreateCustomer(client, {
-        email: customer_email, firstName, lastName,
-        phone: customer_phone, repId: req.rep.id, createdVia: 'visit'
-      });
-      customerId = cust.id;
-    }
+    // Auto-create customer (phone is optional for visits)
+    const nameParts = customer_name.trim().split(/\s+/);
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ');
+    const { customer: cust } = await findOrCreateCustomer(client, {
+      email: customer_email, firstName, lastName,
+      phone: customer_phone, repId: req.rep.id, createdVia: 'visit'
+    });
+    const customerId = cust.id;
 
     const visitRes = await client.query(`
       INSERT INTO showroom_visits (token, rep_id, customer_name, customer_email, customer_phone, message, status, expires_at, customer_id)
@@ -12697,8 +12952,14 @@ app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
     if (visitRes.rows[0].status !== 'draft') return res.status(400).json({ error: 'Can only edit draft visits' });
 
-    await client.query('BEGIN');
     const { customer_name, customer_email, customer_phone, message, items } = req.body;
+    if (customer_name !== undefined && (!customer_name || customer_name.trim().split(/\s+/).length < 2)) {
+      return res.status(400).json({ error: 'Customer first and last name are required' });
+    }
+    if (customer_email !== undefined && !isValidEmailAddr(customer_email)) {
+      return res.status(400).json({ error: 'A valid customer email is required' });
+    }
+    await client.query('BEGIN');
 
     // Update visit info
     const fields = [];
@@ -12870,10 +13131,48 @@ app.get('/api/visit-recap/:token', async (req, res) => {
         customer_name: visit.customer_name,
         message: visit.message,
         rep_name: visit.rep_name,
-        created_at: visit.created_at
+        created_at: visit.created_at,
+        quote_requested: !!visit.quote_requested_at
       },
       items: itemsRes.rows
     });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/visit-recap/:token/quote-request', async (req, res) => {
+  try {
+    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE token = $1', [req.params.token]);
+    if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
+
+    const visit = visitRes.rows[0];
+    if (visit.status === 'draft') return res.status(404).json({ error: 'Visit not found' });
+    if (visit.expires_at && new Date(visit.expires_at) < new Date()) {
+      return res.status(410).json({ error: 'This visit recap has expired' });
+    }
+    if (visit.quote_requested_at) return res.json({ success: true, already_requested: true });
+
+    const message = typeof req.body?.message === 'string' ? req.body.message.trim().substring(0, 1000) : null;
+    await pool.query(
+      'UPDATE showroom_visits SET quote_requested_at = NOW(), quote_request_message = $2 WHERE id = $1',
+      [visit.id, message || null]
+    );
+
+    setImmediate(() => {
+      createRepNotification(pool, visit.rep_id, 'visit_quote_request',
+        `${visit.customer_name} asked for a quote from their visit recap`,
+        message || null, 'visit', visit.id)
+        .catch(err => console.error('[Notify] visit_quote_request error:', err.message));
+      createAutoTask(pool, visit.rep_id, 'visit_quote_request', visit.id,
+        `Send ${visit.customer_name} a quote — showroom visit`, {
+          description: message ? `Customer note: "${message}"` : 'Requested from the visit recap page.',
+          priority: 'high',
+          customer_name: visit.customer_name, customer_email: visit.customer_email, customer_phone: visit.customer_phone
+        }).catch(err => console.error('[AutoTask] visit_quote_request error:', err.message));
+    });
+
+    res.json({ success: true });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -12900,9 +13199,13 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes, items } = req.body;
-    if (!customer_name) return res.status(400).json({ error: 'Customer name is required' });
-    if (!customer_email) return res.status(400).json({ error: 'Customer email is required' });
-    if (!customer_phone) return res.status(400).json({ error: 'Customer phone is required' });
+    if (!customer_name || customer_name.trim().split(/\s+/).length < 2) {
+      return res.status(400).json({ error: 'Customer first and last name are required' });
+    }
+    if (!isValidEmailAddr(customer_email)) return res.status(400).json({ error: 'A valid customer email is required' });
+    if (!customer_phone || customer_phone.replace(/\D/g, '').length !== 10) {
+      return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
+    }
     const dm = delivery_method === 'pickup' ? 'pickup' : 'shipping';
     if (dm === 'shipping') {
       if (!shipping_address_line1) return res.status(400).json({ error: 'Shipping address is required' });
@@ -13103,6 +13406,15 @@ app.put('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
     if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only edit requests in requested status' });
 
     const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes } = req.body;
+    if (customer_name !== undefined && (!customer_name || customer_name.trim().split(/\s+/).length < 2)) {
+      return res.status(400).json({ error: 'Customer first and last name are required' });
+    }
+    if (customer_email !== undefined && !isValidEmailAddr(customer_email)) {
+      return res.status(400).json({ error: 'A valid customer email is required' });
+    }
+    if (customer_phone !== undefined && (!customer_phone || customer_phone.replace(/\D/g, '').length !== 10)) {
+      return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
+    }
     const fields = [];
     const vals = [];
     let idx = 1;
@@ -13949,6 +14261,12 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
 
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Customer name and email are required' });
+    }
+    if (customer_name.trim().split(/\s+/).length < 2) {
+      return res.status(400).json({ error: 'Customer first and last name are required' });
+    }
+    if (!isValidEmailAddr(customer_email)) {
+      return res.status(400).json({ error: 'A valid customer email is required' });
     }
     if (!phone || phone.replace(/\D/g, '').length !== 10) {
       return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
@@ -17242,6 +17560,12 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Customer name and email are required' });
     }
+    if (customer_name.trim().split(/\s+/).length < 2) {
+      return res.status(400).json({ error: 'Customer first and last name are required' });
+    }
+    if (!isValidEmailAddr(customer_email)) {
+      return res.status(400).json({ error: 'A valid customer email is required' });
+    }
     if (!phone || phone.replace(/\D/g, '').length !== 10) {
       return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
     }
@@ -17398,7 +17722,38 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE qi.quote_id = $1 ORDER BY qi.id
     `, [id]);
-    res.json({ quote: quote.rows[0], items: items.rows });
+
+    // Rehydrate the linked customer (same shape as /api/rep/customers/search)
+    // so the workspace can restore the selected-customer banner after reload.
+    const q = quote.rows[0];
+    let customer = null;
+    if (q.customer_email) {
+      const trade = await pool.query(`
+        SELECT tc.id, tc.contact_name as name, tc.email, tc.phone,
+          tc.address_line1, NULL as address_line2, tc.city, tc.state, tc.zip,
+          'trade' as type, tc.company_name,
+          COALESCE(mt.discount_percent, 0) as discount_percent, mt.name as tier_name,
+          (SELECT COUNT(*)::int FROM orders o WHERE o.trade_customer_id = tc.id) as order_count,
+          COALESCE(tc.total_spend, 0) as lifetime_value
+        FROM trade_customers tc
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        WHERE LOWER(tc.email) = LOWER($1)
+      `, [q.customer_email]);
+      customer = trade.rows[0] || null;
+    }
+    if (!customer && q.customer_id) {
+      const retail = await pool.query(`
+        SELECT c.id, COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '') as name,
+          c.email, c.phone, c.address_line1, c.address_line2, c.city, c.state, c.zip,
+          'retail' as type,
+          (SELECT COUNT(*)::int FROM orders o WHERE o.customer_id = c.id) as order_count,
+          (SELECT COALESCE(SUM(o.total), 0) FROM orders o WHERE o.customer_id = c.id) as lifetime_value
+        FROM customers c WHERE c.id = $1
+      `, [q.customer_id]);
+      customer = retail.rows[0] || null;
+    }
+
+    res.json({ quote: q, items: items.rows, customer });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -17410,6 +17765,12 @@ app.put('/api/rep/quotes/:id', repAuth, async (req, res) => {
     const { customer_name, customer_email, phone, shipping_address_line1, shipping_address_line2,
             shipping_city, shipping_state, shipping_zip, notes, shipping, delivery_method, promo_code } = req.body;
 
+    if (customer_name !== undefined && (!customer_name || customer_name.trim().split(/\s+/).length < 2)) {
+      return res.status(400).json({ error: 'Customer first and last name are required' });
+    }
+    if (customer_email !== undefined && !isValidEmailAddr(customer_email)) {
+      return res.status(400).json({ error: 'A valid customer email is required' });
+    }
     if (phone !== undefined && (!phone || phone.replace(/\D/g, '').length !== 10)) {
       return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
     }
@@ -17651,15 +18012,19 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'Quote cannot be sent in current status' });
     }
 
-    // Mark as sent
+    // Mark as sent — validity runs 10 days from send (resends refresh it)
+    const quoteExpiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
     await pool.query(
-      "UPDATE quotes SET status = 'sent', updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [id]
+      "UPDATE quotes SET status = 'sent', expires_at = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [id, quoteExpiresAt]
     );
+    q.expires_at = quoteExpiresAt;
 
     // Fetch quote items for the email
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
@@ -17678,7 +18043,26 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
       rep_last_name: req.rep.last_name,
       rep_email: req.rep.email
     };
-    const emailResult = await sendQuoteSent(emailData);
+
+    // Attach the branded quote PDF (same document as the rep/customer PDF
+    // endpoints). If rendering fails, send the email without it.
+    let attachments;
+    try {
+      const pdfBuffer = await generatePDFBuffer(generateQuoteHtml({
+        ...q,
+        rep_name: [req.rep.first_name, req.rep.last_name].filter(Boolean).join(' '),
+        rep_email: req.rep.email
+      }, quoteItems.rows));
+      attachments = [{
+        filename: `Roma-Quote-${q.quote_number || String(q.id).substring(0, 8)}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      }];
+    } catch (pdfErr) {
+      console.error('[Email] Quote PDF attachment failed — sending without it:', pdfErr.message);
+    }
+
+    const emailResult = await sendQuoteSent(emailData, { attachments });
     const emailed = emailResult && emailResult.sent;
 
     const wasRevision = q.status === 'sent';
@@ -17729,7 +18113,9 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
 
     const q = quote.rows[0];
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
@@ -17752,7 +18138,7 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
 
     res.json({
       html,
-      subject: `Your Custom Quote — ${q.quote_number}`,
+      subject: `Your Roma quote ${q.quote_number} — ready when you are`,
       to: q.customer_email,
       reply_to: req.rep.email
     });
@@ -18092,12 +18478,18 @@ app.post('/api/rep/quotes/:id/status', repAuth, async (req, res) => {
 // Quote PDF for the rep workspace (mirrors the trade-portal quote PDF)
 app.get('/api/rep/quotes/:id/pdf', repAuth, async (req, res) => {
   try {
-    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1', [req.params.id]);
+    const quote = await pool.query(`
+      SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
+      FROM quotes q LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      WHERE q.id = $1
+    `, [req.params.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const q = quote.rows[0];
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sa_c.value as color,
-        v.name as vendor_name, sk.vendor_sku, p.collection as current_collection
+        v.name as vendor_name, sk.vendor_sku, p.collection as current_collection,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
       LEFT JOIN skus sk ON sk.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(sk.product_id, qi.product_id)
@@ -18107,54 +18499,7 @@ app.get('/api/rep/quotes/:id/pdf', repAuth, async (req, res) => {
       WHERE qi.quote_id = $1 ORDER BY qi.id
     `, [req.params.id]);
 
-    const isExpired = q.expires_at && new Date(q.expires_at) < new Date();
-    const expiryStr = q.expires_at ? new Date(q.expires_at).toLocaleDateString() : 'N/A';
-
-    const html = `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
-      <div class="page">
-        ${getDocumentHeader('Quote')}
-        <div class="doc-banner">
-          <div class="doc-banner-left">
-            <div class="meta-group"><p class="meta-label">Quote</p><p class="meta-value">${q.quote_number || 'Q-' + q.id.substring(0, 8).toUpperCase()}</p></div>
-            <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(q.created_at).toLocaleDateString()}</p></div>
-            <div class="meta-group"><p class="meta-label">Valid Until</p><p class="meta-value-sm">${expiryStr}</p></div>
-          </div>
-          <div>${isExpired ? '<span class="badge badge-expired">Expired</span>' : '<span class="badge badge-valid">Valid</span>'}</div>
-        </div>
-        <div class="info-row">
-          <div class="info-card">
-            <h3>Prepared For</h3>
-            <p><strong>${q.customer_name || ''}</strong><br/>
-            ${q.customer_email || ''}
-            ${q.phone ? '<br/>' + q.phone : ''}
-            ${q.shipping_address_line1 ? '<br/>' + q.shipping_address_line1 : ''}
-            ${q.shipping_address_line2 ? '<br/>' + q.shipping_address_line2 : ''}
-            ${q.shipping_city ? '<br/>' + q.shipping_city + ', ' + (q.shipping_state || '') + ' ' + (q.shipping_zip || '') : ''}</p>
-          </div>
-        </div>
-        <table>
-          <thead><tr><th>Description</th><th class="text-right">Qty</th><th class="text-right">Unit Price</th><th class="text-right">Subtotal</th></tr></thead>
-          <tbody>
-            ${items.rows.map(i => {
-              const isUnit = i.sell_by === 'unit';
-              const qty = i.num_boxes || i.quantity || 1;
-              return `<tr>
-              <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
-              <td class="text-right">${qty}${isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')}</td>
-              <td class="text-right">$${parseFloat(i.unit_price || 0).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
-              <td class="text-right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
-            </tr>`; }).join('')}
-          </tbody>
-        </table>
-        <div class="totals-wrapper"><div class="totals-box">
-          <div class="totals-line"><span>Subtotal</span><span>$${parseFloat(q.subtotal || 0).toFixed(2)}</span></div>
-          ${parseFloat(q.discount_amount || 0) > 0 ? `<div class="totals-line"><span>Discount${q.promo_code ? ' (' + q.promo_code + ')' : ''}</span><span>-$${parseFloat(q.discount_amount).toFixed(2)}</span></div>` : ''}
-          ${parseFloat(q.shipping || 0) > 0 ? `<div class="totals-line"><span>Shipping</span><span>$${parseFloat(q.shipping).toFixed(2)}</span></div>` : ''}
-          <div class="totals-line grand-total"><span>Total</span><span>$${parseFloat(q.total || 0).toFixed(2)}</span></div>
-        </div></div>
-        ${getDocumentFooter('<p>This quote is valid for 14 days from the date of issue. Prices are subject to change after expiry.</p>')}
-      </div>
-    </body></html>`;
+    const html = generateQuoteHtml(q, items.rows);
 
     await generatePDF(html, `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`, req, res);
   } catch (err) {
@@ -18240,6 +18585,15 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Customer name and email are required' });
     }
+    if (customer_name.trim().split(/\s+/).length < 2) {
+      return res.status(400).json({ error: 'Customer first and last name are required' });
+    }
+    if (!isValidEmailAddr(customer_email)) {
+      return res.status(400).json({ error: 'A valid customer email is required' });
+    }
+    if (!phone || phone.replace(/\D/g, '').length !== 10) {
+      return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
+    }
 
     const estimateNumber = await getNextEstimateNumber();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -18302,7 +18656,38 @@ app.get('/api/rep/estimates/:id', repAuth, async (req, res) => {
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
     `, [id]);
-    res.json({ estimate: estimate.rows[0], items: items.rows });
+
+    // Rehydrate the linked customer (same shape as /api/rep/customers/search)
+    // so the workspace can restore the selected-customer banner after reload.
+    const e = estimate.rows[0];
+    let customer = null;
+    if (e.customer_email) {
+      const trade = await pool.query(`
+        SELECT tc.id, tc.contact_name as name, tc.email, tc.phone,
+          tc.address_line1, NULL as address_line2, tc.city, tc.state, tc.zip,
+          'trade' as type, tc.company_name,
+          COALESCE(mt.discount_percent, 0) as discount_percent, mt.name as tier_name,
+          (SELECT COUNT(*)::int FROM orders o WHERE o.trade_customer_id = tc.id) as order_count,
+          COALESCE(tc.total_spend, 0) as lifetime_value
+        FROM trade_customers tc
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        WHERE LOWER(tc.email) = LOWER($1)
+      `, [e.customer_email]);
+      customer = trade.rows[0] || null;
+    }
+    if (!customer && e.customer_id) {
+      const retail = await pool.query(`
+        SELECT c.id, COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '') as name,
+          c.email, c.phone, c.address_line1, c.address_line2, c.city, c.state, c.zip,
+          'retail' as type,
+          (SELECT COUNT(*)::int FROM orders o WHERE o.customer_id = c.id) as order_count,
+          (SELECT COALESCE(SUM(o.total), 0) FROM orders o WHERE o.customer_id = c.id) as lifetime_value
+        FROM customers c WHERE c.id = $1
+      `, [e.customer_id]);
+      customer = retail.rows[0] || null;
+    }
+
+    res.json({ estimate: e, items: items.rows, customer });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -18317,6 +18702,16 @@ app.put('/api/rep/estimates/:id', repAuth, async (req, res) => {
             project_address_line1, project_address_line2,
             project_city, project_state, project_zip,
             notes, internal_notes, tax_rate } = req.body;
+
+    if (customer_name !== undefined && (!customer_name || customer_name.trim().split(/\s+/).length < 2)) {
+      return res.status(400).json({ error: 'Customer first and last name are required' });
+    }
+    if (customer_email !== undefined && !isValidEmailAddr(customer_email)) {
+      return res.status(400).json({ error: 'A valid customer email is required' });
+    }
+    if (phone !== undefined && (!phone || phone.replace(/\D/g, '').length !== 10)) {
+      return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
+    }
 
     // Check status
     const existing = await client.query('SELECT status FROM estimates WHERE id = $1', [id]);
@@ -19129,12 +19524,14 @@ app.get('/api/rep/customers', repAuth, async (req, res) => {
       queries.push(pool.query(`
         SELECT c.id, c.first_name || ' ' || c.last_name as name, c.email, c.phone,
           'retail' as customer_type, c.created_at,
+          c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as assigned_rep_name,
           COUNT(o.id)::int as order_count,
           COALESCE(SUM(o.total), 0) as total_spent,
           MAX(o.created_at) as last_order_date
         FROM customers c
+        LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
         LEFT JOIN orders o ON o.customer_id = c.id
-        GROUP BY c.id
+        GROUP BY c.id, sr.first_name, sr.last_name
       `));
     }
 
@@ -19241,9 +19638,12 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
 
     if (type === 'retail') {
       const cResult = await pool.query(`
-        SELECT id, first_name, last_name, first_name || ' ' || last_name as name, email, phone,
-          address_line1, address_line2, city, state, zip, created_at
-        FROM customers WHERE id = $1
+        SELECT c.id, c.first_name, c.last_name, c.first_name || ' ' || c.last_name as name, c.email, c.phone,
+          c.address_line1, c.address_line2, c.city, c.state, c.zip, c.created_at, c.created_via,
+          c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as rep_name
+        FROM customers c
+        LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
+        WHERE c.id = $1
       `, [refId]);
       if (!cResult.rows.length) return res.status(404).json({ error: 'Customer not found' });
       customer = cResult.rows[0];
@@ -21322,12 +21722,14 @@ app.get('/api/admin/customers', staffAuth, requireRole('admin', 'manager', 'sale
       queries.push(pool.query(`
         SELECT c.id, c.first_name || ' ' || c.last_name as name, c.email, c.phone,
           'retail' as customer_type, c.created_at,
+          c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as assigned_rep_name,
           COUNT(o.id)::int as order_count,
           COALESCE(SUM(o.total), 0) as total_spent,
           MAX(o.created_at) as last_order_date
         FROM customers c
+        LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
         LEFT JOIN orders o ON o.customer_id = c.id
-        GROUP BY c.id
+        GROUP BY c.id, sr.first_name, sr.last_name
       `));
     }
 
@@ -21434,9 +21836,12 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
 
     if (type === 'retail') {
       const cResult = await pool.query(`
-        SELECT id, first_name, last_name, first_name || ' ' || last_name as name, email, phone,
-          address_line1, address_line2, city, state, zip, created_at
-        FROM customers WHERE id = $1
+        SELECT c.id, c.first_name, c.last_name, c.first_name || ' ' || c.last_name as name, c.email, c.phone,
+          c.address_line1, c.address_line2, c.city, c.state, c.zip, c.created_at, c.created_via,
+          c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as rep_name
+        FROM customers c
+        LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
+        WHERE c.id = $1
       `, [refId]);
       if (!cResult.rows.length) return res.status(404).json({ error: 'Customer not found' });
       customer = cResult.rows[0];

@@ -2792,6 +2792,18 @@
           goInstallation();
           return;
         }
+        if (path === '/trade') {
+          goTrade();
+          return;
+        }
+        if (path === '/trade/dashboard') {
+          goTradeDashboard();
+          return;
+        }
+        if (path === '/trade/bulk-order') {
+          goBulkOrder();
+          return;
+        }
         if (path === '/inspiration') {
           goInspiration();
           return;
@@ -2808,6 +2820,14 @@
           const viewName = path.slice(1);
           setView(viewName);
           history.pushState({ view: viewName }, '', path);
+          window.scrollTo(0, 0);
+          return;
+        }
+        if (path.startsWith('/visit/')) {
+          const token = path.replace('/visit/', '').split('?')[0];
+          setVisitRecapToken(token);
+          setView('visit-recap');
+          history.pushState({ view: 'visit-recap', token }, '', path);
           window.scrollTo(0, 0);
           return;
         }
@@ -10858,6 +10878,11 @@
       const [expandedQuote, setExpandedQuote] = useState(null);
       const [quoteDetail, setQuoteDetail] = useState(null);
 
+      // Estimates state (rep-prepared project estimates)
+      const [estimates, setEstimates] = useState([]);
+      const [expandedEstimate, setExpandedEstimate] = useState(null);
+      const [estimateDetail, setEstimateDetail] = useState(null);
+
       // Visits state
       const [visits, setVisits] = useState([]);
       const [loadingVisits, setLoadingVisits] = useState(true);
@@ -10930,6 +10955,10 @@
           .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => { setVisits(data.visits || []); setLoadingVisits(false); })
           .catch(() => setLoadingVisits(false));
+        fetch(API + '/api/customer/estimates', { headers: authHeaders })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(data => setEstimates(data.estimates || []))
+          .catch(() => {});
       }, []);
 
       const refreshSamples = () => {
@@ -10997,6 +11026,34 @@
           const data = await resp.json();
           setVisitDetail(data);
         } catch(e) { setVisitDetail(null); }
+      };
+
+      const [acceptingQuote, setAcceptingQuote] = useState(null);
+      const acceptAndPay = async (quoteId) => {
+        setAcceptingQuote(quoteId);
+        try {
+          const resp = await fetch(API + '/api/customer/quotes/' + quoteId + '/accept-pay', { method: 'POST', headers });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.checkout_url) {
+            alert(data.error || 'Could not start checkout — please try again.');
+            setAcceptingQuote(null);
+            return;
+          }
+          window.location.href = data.checkout_url;
+        } catch (e) {
+          alert('Could not start checkout — please try again.');
+          setAcceptingQuote(null);
+        }
+      };
+
+      const viewEstimateDetail = async (estId) => {
+        if (expandedEstimate === estId) { setExpandedEstimate(null); setEstimateDetail(null); return; }
+        setExpandedEstimate(estId);
+        try {
+          const resp = await fetch(API + '/api/customer/estimates/' + estId, { headers: authHeaders });
+          const data = await resp.json();
+          setEstimateDetail(data);
+        } catch(e) { setEstimateDetail(null); }
       };
 
       const saveProfile = async () => {
@@ -11086,7 +11143,7 @@
       const NAV_SECTIONS = [
         { id: 'overview', label: 'Overview', meta: 'Snapshot' },
         { id: 'orders', label: 'Orders', meta: loadingOrders ? '…' : orders.length + ' lifetime' + (activeOrders.length ? ' · ' + activeOrders.length + ' active' : '') },
-        { id: 'quotes', label: 'Quotes', meta: loadingQuotes ? '…' : (quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : 'None yet') },
+        { id: 'quotes', label: 'Quotes', meta: loadingQuotes ? '…' : ((quotes.length + estimates.length) ? [quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : null, estimates.length ? estimates.length + (estimates.length === 1 ? ' estimate' : ' estimates') : null].filter(Boolean).join(' · ') : 'None yet') },
         { id: 'samples', label: 'Samples', meta: loadingSamples ? '…' : (sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? ' box' : ' boxes') + ' · ' + swatchCount + ' swatches' : 'None yet') },
         { id: 'visits', label: 'Visits', meta: loadingVisits ? '…' : (visits.length ? visits.length + (visits.length === 1 ? ' showroom visit' : ' showroom visits') : 'None yet') },
         { id: 'wishlist', label: 'Wishlist', meta: (wishlist || []).length ? wishlist.length + (wishlist.length === 1 ? ' item saved' : ' items saved') : 'Nothing saved yet' },
@@ -11620,8 +11677,15 @@
                                   </div>
                                 )}
                                 {q.expires_at && q.status === 'sent' && new Date(q.expires_at) > new Date() && (
-                                  <div style={{ background: 'rgba(216,205,182,0.35)', border: '0.5px solid rgba(168,121,53,0.3)', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#7a5a1e', borderRadius: 4 }}>
-                                    Pricing held until <strong>{fmtDate(q.expires_at)}</strong> — call (714) 999-0009 or reply to your quote email to accept.
+                                  <div style={{ background: 'rgba(216,205,182,0.35)', border: '0.5px solid rgba(168,121,53,0.3)', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#7a5a1e', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                                    <span>Pricing held until <strong>{fmtDate(q.expires_at)}</strong> — check out below, or call (714) 999-0009 with questions.</span>
+                                  </div>
+                                )}
+                                {['sent', 'accepted'].includes(q.status) && !q.converted_order_id && !(q.expires_at && new Date(q.expires_at) < new Date()) && (
+                                  <div style={{ marginBottom: '1rem' }}>
+                                    <button className="acct-btn" onClick={() => acceptAndPay(q.id)} disabled={acceptingQuote === q.id}>
+                                      {acceptingQuote === q.id ? 'Preparing secure checkout…' : 'Accept & pay ' + fmtMoney(q.total)}
+                                    </button>
                                   </div>
                                 )}
                                 <div style={{ marginBottom: '1rem' }}>
@@ -11645,7 +11709,19 @@
                                     </div>
                                   ))}
                                 </div>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1.5rem', fontSize: '0.8125rem', paddingTop: '0.25rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1.5rem', fontSize: '0.8125rem', paddingTop: '0.25rem' }}>
+                                  <a style={{ color: 'var(--gold)', fontWeight: 500, cursor: 'pointer', textDecoration: 'underline' }}
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        const r = await fetch(API + '/api/customer/quotes/' + q.id + '/pdf', { headers: authHeaders });
+                                        if (!r.ok) throw new Error('failed');
+                                        const blob = await r.blob();
+                                        const url = URL.createObjectURL(blob);
+                                        window.open(url, '_blank');
+                                        setTimeout(() => URL.revokeObjectURL(url), 60000);
+                                      } catch(err) { alert('Could not load the PDF — please try again.'); }
+                                    }}>Download PDF</a>
                                   {parseFloat(q.shipping || 0) > 0 && (
                                     <span style={{ color: 'var(--stone-600)' }}>Shipping {fmtMoney(q.shipping)}</span>
                                   )}
@@ -11656,6 +11732,84 @@
                                     &ldquo;{q.notes}&rdquo;
                                   </div>
                                 )}
+                              </div>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {estimates.length > 0 && (
+                  <div style={{ marginTop: '2rem' }}>
+                    <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Project Estimates</div>
+                    <div className="acct-col-headers" style={quoteGrid}>
+                      <span>Estimate</span><span>Detail</span><span>Status</span><span style={{ textAlign: 'right' }}>Total</span><span />
+                    </div>
+                    <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
+                      {estimates.map(est => {
+                        const em = est.status === 'converted'
+                          ? { label: 'Became an order', color: '#166534' }
+                          : (est.expires_at && new Date(est.expires_at) < new Date())
+                            ? { label: 'Expired', color: '#8a7e68' }
+                            : { label: 'Prepared for you', color: '#a87935' };
+                        return (
+                          <React.Fragment key={est.id}>
+                            <div className="acct-order-row" style={quoteGrid} onClick={() => viewEstimateDetail(est.id)}>
+                              <div>
+                                <div className="acct-order-num">{est.estimate_number}</div>
+                                <div className="acct-order-date">{fmtDate(est.created_at)}</div>
+                              </div>
+                              <div className="acct-order-detail">
+                                {[est.project_name, est.item_count + (est.item_count === 1 ? ' item' : ' items'), est.rep_name ? 'Prepared by ' + est.rep_name : null].filter(Boolean).join(' · ')}
+                              </div>
+                              <div className="acct-order-status" style={{ color: em.color }}>&#9679; {em.label}</div>
+                              <div className="acct-order-total">{fmtMoney(est.total)}</div>
+                              <span className="acct-order-action">{expandedEstimate === est.id ? 'Close ×' : 'Open →'}</span>
+                            </div>
+                            {expandedEstimate === est.id && estimateDetail && (
+                              <div className="acct-order-expanded">
+                                {(() => {
+                                  const mats = estimateDetail.items.filter(i => i.item_type === 'material');
+                                  const labor = estimateDetail.items.filter(i => i.item_type === 'labor');
+                                  const line = (item) => (
+                                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', padding: '0.5rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name || item.description || 'Item'}</span>
+                                        {item.collection && <span style={{ color: 'var(--warm-muted)', marginLeft: '0.5rem', fontSize: '0.75rem' }}>{item.collection}</span>}
+                                      </div>
+                                      <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                                    </div>
+                                  );
+                                  return (
+                                    <div>
+                                      {mats.length > 0 && (
+                                        <div style={{ marginBottom: '1rem' }}>
+                                          <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Materials</div>
+                                          {mats.map(line)}
+                                        </div>
+                                      )}
+                                      {labor.length > 0 && (
+                                        <div style={{ marginBottom: '1rem' }}>
+                                          <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Labor &amp; Services</div>
+                                          {labor.map(line)}
+                                        </div>
+                                      )}
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1.5rem', fontSize: '0.8125rem', paddingTop: '0.25rem' }}>
+                                        {parseFloat(est.tax_amount || 0) > 0 && (
+                                          <span style={{ color: 'var(--stone-600)' }}>Tax {fmtMoney(est.tax_amount)}</span>
+                                        )}
+                                        <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>Total {fmtMoney(est.total)}</span>
+                                      </div>
+                                      {est.notes && (
+                                        <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(216,205,182,0.25)', borderLeft: '3px solid var(--gold)', fontSize: '0.8125rem', color: 'var(--stone-700, #44403c)', fontStyle: 'italic', fontFamily: 'var(--font-heading)' }}>
+                                          &ldquo;{est.notes}&rdquo;
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             )}
                           </React.Fragment>
@@ -13203,6 +13357,7 @@
         if (!companyName || !contactName || !email || !password || !businessType || !phone || !addressLine1 || !city || !addrState || !zip) {
           setError('Please fill in all required fields.'); return;
         }
+        if (contactName.trim().split(/\s+/).length < 2) { setError('Please enter the contact’s first and last name.'); return; }
         if (!emailValid) { setError('Please enter a valid email address.'); return; }
         if (phone.replace(/\D/g, '').length < 10) { setError('Please enter a valid 10-digit phone number.'); return; }
         if (!passwordValid) { setError('Password must be at least 8 characters with one uppercase letter and one number.'); return; }
@@ -13635,21 +13790,30 @@
       const [firstName, setFirstName] = useState("");
       const [lastName, setLastName] = useState("");
       const [email, setEmail] = useState("");
+      const [phone, setPhone] = useState("");
       const [password, setPassword] = useState("");
       const [newsletter, setNewsletter] = useState(false);
       const [error, setError] = useState("");
       const [loading, setLoading] = useState(false);
       const { handleGoogleCredential, googleError, googleLoading } = useGoogleAuth(onLogin);
+      const formatPhone = (val) => {
+        const digits = val.replace(/\D/g, "").slice(0, 10);
+        let fmt = ""; if (digits.length > 0) fmt = "(" + digits.slice(0, 3);
+        if (digits.length >= 3) fmt += ") "; if (digits.length > 3) fmt += digits.slice(3, 6);
+        if (digits.length >= 6) fmt += "-" + digits.slice(6);
+        return fmt;
+      };
       const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+        if (phone.replace(/\D/g, "").length < 10) { setError("Enter a valid 10-digit phone number."); return; }
         if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) { setError("Password must be at least 8 characters with 1 uppercase letter and 1 number."); return; }
         setLoading(true);
         try {
           const res = await fetch(API + "/api/customer/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, newsletter })
+            body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, phone, newsletter })
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || data.error) { setError(data.error || "Registration failed."); setLoading(false); return; }
@@ -13713,6 +13877,10 @@
             /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
               /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Email"),
               /* @__PURE__ */ React.createElement("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "you@example.com", required: true, autoComplete: "email" })
+            ),
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+              /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Phone"),
+              /* @__PURE__ */ React.createElement("input", { type: "tel", value: phone, onChange: (e) => setPhone(formatPhone(e.target.value)), placeholder: "(555) 123-4567", required: true, autoComplete: "tel" })
             ),
             /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
               /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Password"),
@@ -14465,6 +14633,10 @@
       const [data, setData] = useState(null);
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null);
+      const [quoteNote, setQuoteNote] = useState('');
+      const [quoteState, setQuoteState] = useState('idle');
+      const [quoteError, setQuoteError] = useState('');
+      const quoteCardRef = useRef(null);
 
       useEffect(() => {
         fetch(API + '/api/visit-recap/' + token)
@@ -14473,9 +14645,36 @@
             if (!r.ok) throw new Error('not_found');
             return r.json();
           })
-          .then(d => { setData(d); setLoading(false); })
+          .then(d => {
+            setData(d);
+            if (d.visit && d.visit.quote_requested) setQuoteState('sent');
+            setLoading(false);
+          })
           .catch(err => { setError(err.message); setLoading(false); });
       }, [token]);
+
+      useEffect(() => {
+        if (!data) return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('ask') === 'quote' && quoteCardRef.current) {
+          setTimeout(() => quoteCardRef.current && quoteCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+        }
+      }, [data]);
+
+      const requestQuote = async () => {
+        setQuoteState('sending'); setQuoteError('');
+        try {
+          const resp = await fetch(API + '/api/visit-recap/' + token + '/quote-request', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: quoteNote.trim() || undefined })
+          });
+          if (!resp.ok) throw new Error('failed');
+          setQuoteState('sent');
+        } catch (e) {
+          setQuoteState('idle');
+          setQuoteError('Something went wrong — please try again or call us at (714) 999-0009.');
+        }
+      };
 
       if (loading) return (
         <div style={{ maxWidth: 800, margin: '4rem auto', padding: '0 1.5rem', textAlign: 'center' }}>
@@ -14497,6 +14696,7 @@
 
       const { visit, items } = data;
       const visitDate = new Date(visit.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const repFirst = (visit.rep_name || '').trim().split(/\s+/)[0] || 'your rep';
 
       return (
         <div style={{ maxWidth: 900, margin: '0 auto', padding: '3rem 1.5rem' }}>
@@ -14525,6 +14725,41 @@
                 )}
               </div>
             ))}
+          </div>
+          <div ref={quoteCardRef} className="vr-quote-card" style={{ maxWidth: 600, margin: '0 auto 3rem', background: 'var(--stone-900)', padding: '2.5rem 2.5rem 2.25rem', textAlign: 'center' }}>
+            {quoteState === 'sent' ? (
+              <div>
+                <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--gold-light)', marginBottom: '1rem' }}>Request received</div>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.875rem', fontWeight: 400, letterSpacing: '-0.01em', margin: '0 0 0.75rem', color: '#ece5d8' }}>{repFirst} is on it.</h3>
+                <p style={{ margin: 0, color: 'rgba(236,229,216,0.65)', fontSize: '0.9375rem', lineHeight: 1.65, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
+                  Your request went straight to {repFirst}, who will follow up with pricing shortly. Need it sooner? Call (714) 999-0009.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--gold-light)', marginBottom: '1rem' }}>Next step</div>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.875rem', fontWeight: 400, letterSpacing: '-0.01em', margin: '0 0 0.75rem', color: '#ece5d8' }}>Want exact numbers?</h3>
+                <p style={{ margin: '0 0 1.75rem', color: 'rgba(236,229,216,0.65)', fontSize: '0.9375rem', lineHeight: 1.65, maxWidth: 420, marginLeft: 'auto', marginRight: 'auto' }}>
+                  Ask {repFirst} to price out everything from your visit — quantities, delivery, and samples included.
+                </p>
+                <textarea
+                  className="checkout-input"
+                  rows={2}
+                  style={{ resize: 'none', marginBottom: '1.5rem', textAlign: 'center' }}
+                  placeholder={'Anything ' + repFirst + ' should know? Rooms, square footage, timing… (optional)'}
+                  value={quoteNote}
+                  onChange={e => setQuoteNote(e.target.value)}
+                  maxLength={1000}
+                />
+                {quoteError && <p style={{ color: '#fca5a5', fontSize: '0.875rem', margin: '0 0 1rem' }}>{quoteError}</p>}
+                <button className="btn" style={{ display: 'block', width: '100%', padding: '1.125rem' }} onClick={requestQuote} disabled={quoteState === 'sending'}>
+                  {quoteState === 'sending' ? 'Sending…' : 'Ask ' + repFirst + ' for a quote'}
+                </button>
+                <p style={{ margin: '0.875rem 0 0', color: 'rgba(236,229,216,0.45)', fontSize: '0.8125rem' }}>
+                  Goes straight to {repFirst} — no forms, no phone tag.
+                </p>
+              </div>
+            )}
           </div>
           <div style={{ textAlign: 'center', paddingTop: '2rem', borderTop: '1px solid var(--stone-200)' }}>
             <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Questions? Contact us at (714) 999-0009</p>

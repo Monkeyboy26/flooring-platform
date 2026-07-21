@@ -1,141 +1,178 @@
-import { LOGO_URL } from './_config.js';
-
+// Quote email — "Quote Email.html" design from the Roma Claude Design project,
+// rebuilt on the shared Brass Charcoal shell (_shell.js).
+// Design fictions adapted to real data: the "saved cart" framing becomes the
+// rep-prepared quote, the mocked trade-discount/free-shipping totals become
+// the quote's real subtotal/promo/shipping, the fictional PM signature is the
+// actual sales rep, and the no-login resume link is the real account CTA.
+//
 // opts.tracking adds an open-tracking pixel — only set when actually emailing,
 // never for the rep-facing preview (the preview iframe would log a fake open).
+import { emailShell, heroSection, ctaButton, warmCard, section, T, SERIF, SANS, MONO, esc, emailImage } from './_shell.js';
+
+// Dev previews pass display strings like '3,450.00' — strip commas first.
+const num = (v) => parseFloat(String(v ?? 0).replace(/,/g, '')) || 0;
+const money = (v) => '$' + num(v).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Storefront PDP link — mirrors the SPA's /shop/sku/:skuId/:slug route
+// (slug is cosmetic; the router keys on the SKU id).
+function pdpUrl(item) {
+  if (!item.sku_id) return null;
+  const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
+  const slug = String(item.product_name || 'product').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return `${siteUrl}/shop/sku/${item.sku_id}/${slug}`;
+}
+
+function itemRow(item, isLast) {
+  const rowBorder = isLast ? '' : `border-bottom:1px solid ${T.border};`;
+  const name = esc(item.product_name || item.collection || 'Product');
+  const link = pdpUrl(item);
+  const topLine = [item.collection && item.collection !== item.product_name ? item.collection : null, item.vendor_name]
+    .filter(Boolean).map(esc).join(' &middot; ');
+  const subLine = [...new Set([item.color, item.variant_name].filter(Boolean))]
+    .filter(v => v !== item.product_name).map(esc).join(' &middot; ');
+  const isUnit = item.sell_by === 'unit';
+  const qty = item.num_boxes || item.quantity || 1;
+  const sqft = num(item.sqft_needed);
+  const qtyLine = item.is_sample
+    ? 'Sample'
+    : isUnit
+      ? `${qty} ea`
+      : `${qty} ${qty === 1 ? 'box' : 'boxes'}${sqft ? ' &middot; ' + sqft.toFixed(1) + ' sf' : ''}`;
+  const isFree = item.is_sample && num(item.subtotal) === 0;
+  const thumbInner = item.primary_image
+    ? `<img src="${esc(emailImage(item.primary_image, 72, 72))}" alt="${name}" width="72" style="display:block;width:72px;height:auto;" />`
+    : `<div style="width:72px;height:72px;background:${T.warm};border:1px solid ${T.border};"></div>`;
+  const thumb = link ? `<a href="${esc(link)}" target="_blank" style="text-decoration:none;">${thumbInner}</a>` : thumbInner;
+  const nameHtml = link
+    ? `<a href="${esc(link)}" target="_blank" style="color:${T.ink};text-decoration:none;">${name}</a>`
+    : name;
+
+  return `<tr>
+    <td width="72" valign="middle" style="padding:16px 16px 16px 0;${rowBorder}">${thumb}</td>
+    <td valign="middle" style="padding:16px 0;${rowBorder}">
+      ${topLine ? `<p style="margin:0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">${topLine}</p>` : ''}
+      <p style="margin:${topLine ? '4px' : '0'} 0 0;font-family:${SERIF};font-size:18px;line-height:1.2;letter-spacing:-0.012em;color:${T.ink};">${nameHtml}</p>
+      ${subLine ? `<p style="margin:2px 0 0;font-family:${SANS};font-size:12px;line-height:1.4;color:${T.soft};">${subLine}</p>` : ''}
+      <p style="margin:6px 0 0;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">${qtyLine}</p>
+    </td>
+    <td valign="middle" align="right" style="padding:16px 0 16px 12px;${rowBorder}white-space:nowrap;">
+      <p style="margin:0;font-family:${SERIF};font-size:22px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};">${isFree ? 'Free' : money(item.subtotal)}</p>
+    </td>
+  </tr>`;
+}
+
 export function generateQuoteSentHTML(quoteData, opts = {}) {
   const {
-    id, quote_number, customer_name, customer_email,
-    subtotal, shipping, total,
+    id, quote_number, customer_name,
+    subtotal, shipping, discount_amount, promo_code, total,
+    created_at, expires_at,
     rep_first_name, rep_last_name, rep_email,
     items = []
   } = quoteData;
 
   const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
+  const firstName = (customer_name || '').trim().split(/\s+/)[0] || 'there';
+  const repName = [rep_first_name, rep_last_name].filter(Boolean).join(' ') || 'our showroom team';
+  const repInitials = [rep_first_name, rep_last_name].filter(Boolean).map(n => n[0]).join('').toUpperCase() || 'R';
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const issued = longDate(created_at) || 'today';
+  const validUntil = longDate(expires_at);
+
   const trackingPixel = (opts.tracking && id)
-    ? `<img src="${siteUrl}/api/quotes/${id}/open.gif" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`
+    ? section(`<img src="${siteUrl}/api/quotes/${id}/open.gif" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`, '0')
     : '';
 
-  const itemRows = items.map(item => {
-    const name = esc(item.product_name || 'Product');
-    const collection = item.collection ? esc(item.collection) : '';
-    const description = item.description ? esc(item.description) : '';
-    const qty = `${item.quantity || item.num_boxes || 1}`;
-    const price = `$${parseFloat(item.subtotal || item.unit_price || 0).toFixed(2)}`;
+  // Items block — header strip, then rows
+  const itemsBlock = section(`
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-bottom:1px solid ${T.border};">
+      <tr>
+        <td style="padding-bottom:12px;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.muted};">In your quote</td>
+        <td align="right" style="padding-bottom:12px;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.muted};">${items.length} item${items.length === 1 ? '' : 's'}</td>
+      </tr>
+    </table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${items.map((it, i) => itemRow(it, i === items.length - 1)).join('')}
+    </table>
+  `, '8px 40px 24px');
 
-    return `<tr>
-      <td style="padding:12px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;">
-        ${name}
-        ${collection ? `<br><span style="color:#78716c;font-size:12px;">${collection}</span>` : ''}
-        ${description ? `<br><span style="color:#78716c;font-size:12px;">${description}</span>` : ''}
+  // Totals — warm card with the big serif total
+  const totalsRows = [
+    ['Materials', money(subtotal), T.ink],
+    num(discount_amount) > 0 ? [`Discount${promo_code ? ' &middot; ' + esc(promo_code) : ''}`, '&minus;' + money(discount_amount), T.accent] : null,
+    num(shipping) > 0 ? ['Shipping', money(shipping), T.ink] : null,
+  ].filter(Boolean);
+  const totalsBlock = section(warmCard(`
+    ${totalsRows.map(([k, v, col]) => `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td style="padding:6px 0;font-family:${SANS};font-size:13px;color:${T.soft};">${k}</td>
+        <td align="right" style="padding:6px 0;font-family:${SANS};font-size:13px;color:${col};">${v}</td>
+      </tr></table>`).join('')}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;border-top:1px solid ${T.border};"><tr>
+      <td style="padding-top:12px;font-family:${SANS};font-size:12px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">Quote total</td>
+      <td align="right" style="padding-top:12px;font-family:${SERIF};font-size:32px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};">${money(total)}</td>
+    </tr></table>
+  `, '20px 22px'), '0 40px 8px');
+
+  // "While you decide" — two secondary cards
+  const whileYouDecide = section(`
+    <p style="margin:0 0 18px;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.accent};text-align:center;">While you decide</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td width="49%" valign="top" style="border:1px solid ${T.border};">
+        <a href="${siteUrl}/design-services" target="_blank" style="display:block;padding:20px 22px;text-decoration:none;">
+          <p style="margin:0;font-family:${SERIF};font-size:16px;line-height:1.2;letter-spacing:-0.01em;color:${T.ink};">Talk to a designer</p>
+          <p style="margin:6px 0 0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">Free consultation</p>
+        </a>
       </td>
-      <td style="padding:12px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;text-align:center;">${qty}</td>
-      <td style="padding:12px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;text-align:right;">${price}</td>
-    </tr>`;
-  }).join('');
+      <td width="2%"></td>
+      <td width="49%" valign="top" style="border:1px solid ${T.border};">
+        <a href="tel:+17149990009" style="display:block;padding:20px 22px;text-decoration:none;">
+          <p style="margin:0;font-family:${SERIF};font-size:16px;line-height:1.2;letter-spacing:-0.01em;color:${T.ink};">Schedule an in-home measure</p>
+          <p style="margin:6px 0 0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">Orange County &middot; (714) 999-0009</p>
+        </a>
+      </td>
+    </tr></table>
+  `, '28px 40px 24px');
 
-  const repName = [rep_first_name, rep_last_name].filter(Boolean).join(' ') || 'Your Sales Representative';
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;500&display=swap');</style>
-</head>
-<body style="margin:0;padding:0;background-color:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;">
-<tr><td align="center" style="padding:40px 20px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
-
-  <!-- Header -->
-  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto;width:140px;height:140px;" />
-  </td></tr>
-
-  <!-- Title -->
-  <tr><td style="padding:40px 40px 20px;">
-    <h1 style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:600;color:#292524;">Your Custom Quote</h1>
-    <p style="margin:12px 0 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;line-height:1.6;">
-      Hi ${esc(customer_name)},<br><br>
-      ${esc(repName)} has prepared a custom quote for you. Please review the details below.
+  // Signature — reply note + the actual rep
+  const signature = section(`
+    <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};">
+      Hit reply with any questions — these go straight to ${esc(repName)} at our Anaheim showroom, not a bot.
     </p>
-  </td></tr>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:18px;"><tr>
+      <td width="40" valign="middle">
+        <div style="width:40px;height:40px;border-radius:50%;background:${T.warm};border:1px solid ${T.border};text-align:center;font-family:${SERIF};font-size:16px;line-height:40px;color:${T.ink};">${esc(repInitials)}</div>
+      </td>
+      <td valign="middle" style="padding-left:14px;">
+        <p style="margin:0;font-family:${SERIF};font-size:16px;line-height:1.1;letter-spacing:-0.008em;color:${T.ink};">${esc(repName)}</p>
+        <p style="margin:4px 0 0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:${T.muted};">Your sales rep &middot; Roma Flooring</p>
+      </td>
+    </tr></table>
+  `, '0 40px 36px');
 
-  <!-- Quote Number -->
-  <tr><td style="padding:0 40px 24px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding:12px 16px;background:#fafaf9;border:1px solid #e7e5e4;">
-          <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">Quote Number</p>
-          <p style="margin:4px 0 0;font-family:Inter,Arial,sans-serif;font-size:14px;font-weight:500;color:#292524;">${esc(quote_number)}</p>
-        </td>
-      </tr>
-    </table>
-  </td></tr>
+  const content = `
+    ${heroSection({
+      eyebrow: `Your quote &middot; ${esc(quote_number || '')}`,
+      headline: `Your quote, <em style="color:${T.accent};">ready</em>.`,
+      body: `Hi ${esc(firstName)} &mdash; here&rsquo;s the quote ${esc(repName)} prepared for you on ${issued}.` +
+        (validUntil ? ` Pricing is locked in through <span style="color:${T.ink};font-weight:500;">${validUntil}</span>.` : ' Pricing is locked in for 10 days.'),
+      chip: validUntil ? `&#9201; Valid until ${validUntil}` : null
+    })}
+    ${itemsBlock}
+    ${totalsBlock}
+    ${ctaButton({
+      href: `${siteUrl}/account/quotes`,
+      label: 'Accept &amp; pay online &rarr;',
+      note: `Sign in to your Roma account to review and check out securely &middot; or reply to this email`
+    })}
+    ${whileYouDecide}
+    ${signature}
+    ${trackingPixel}
+  `;
 
-  <!-- Items -->
-  <tr><td style="padding:0 40px 24px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;">Item</td>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;text-align:center;">Qty</td>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;text-align:right;">Price</td>
-      </tr>
-      ${itemRows}
-    </table>
-  </td></tr>
-
-  <!-- Totals -->
-  <tr><td style="padding:0 40px 32px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;">Subtotal</td>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;text-align:right;">$${parseFloat(subtotal || 0).toFixed(2)}</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;">Shipping</td>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;text-align:right;">${parseFloat(shipping || 0) > 0 ? '$' + parseFloat(shipping).toFixed(2) : 'TBD'}</td>
-      </tr>
-      <tr>
-        <td style="padding:12px 0 0;font-family:Inter,Arial,sans-serif;font-size:16px;font-weight:500;color:#292524;border-top:2px solid #292524;">Total</td>
-        <td style="padding:12px 0 0;font-family:Inter,Arial,sans-serif;font-size:16px;font-weight:500;color:#292524;border-top:2px solid #292524;text-align:right;">$${parseFloat(total || 0).toFixed(2)}</td>
-      </tr>
-    </table>
-  </td></tr>
-
-  <!-- Rep Contact -->
-  <tr><td style="padding:0 40px 32px;">
-    <div style="padding:20px;background:#fafaf9;border:1px solid #e7e5e4;">
-      <p style="margin:0 0 4px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">Your Sales Representative</p>
-      <p style="margin:0 0 4px;font-family:Inter,Arial,sans-serif;font-size:14px;font-weight:500;color:#292524;">${esc(repName)}</p>
-      <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;">
-        <a href="mailto:${esc(rep_email)}" style="color:#c9a668;">${esc(rep_email)}</a>
-      </p>
-    </div>
-  </td></tr>
-
-  <!-- CTA -->
-  <tr><td style="padding:0 40px 40px;text-align:center;">
-    <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;line-height:1.6;">
-      To proceed with this quote, simply reply to this email. We look forward to working with you.
-    </p>
-  </td></tr>
-
-  <!-- Footer -->
-  <tr><td style="padding:24px 40px;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;letter-spacing:2px;color:#a8a29e;">ROMA FLOORING DESIGNS</p>
-    <p style="margin:8px 0 0;font-family:Inter,Arial,sans-serif;font-size:11px;color:#a8a29e;">Curated flooring &amp; surfaces for refined spaces</p>
-  </td></tr>
-
-</table>
-</td></tr>
-</table>
-${trackingPixel}
-</body>
-</html>`;
-}
-
-function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return emailShell({
+    title: `Your Roma quote — ${quote_number || ''}`,
+    preheader: `Hi ${firstName} — ${items.length} item${items.length === 1 ? '' : 's'}, ${money(total)} total.` +
+      (validUntil ? ` Pricing locked until ${validUntil}.` : ''),
+    content
+  });
 }

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
+import { generateQuoteHtml } from '../lib/documents.js';
 
 export default function createCustomerRoutes(ctx) {
   const router = Router();
@@ -15,13 +16,19 @@ export default function createCustomerRoutes(ctx) {
   router.post('/api/customer/register', async (req, res) => {
     try {
       let { email, password, first_name, last_name, phone, newsletter } = req.body;
-      if (!email || !password || !first_name || !last_name) {
-        return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
+      if (!email || !password || !first_name || !last_name || !phone) {
+        return res.status(400).json({ error: 'Email, password, first name, last name, and phone number are required' });
       }
       email = String(email).trim().slice(0, 255);
       first_name = String(first_name).trim().slice(0, 100);
       last_name = String(last_name).trim().slice(0, 100);
-      if (phone) phone = String(phone).trim().slice(0, 30);
+      phone = String(phone).trim().slice(0, 30);
+      if (!first_name || !last_name) {
+        return res.status(400).json({ error: 'First and last name are required' });
+      }
+      if (phone.replace(/\D/g, '').length < 10) {
+        return res.status(400).json({ error: 'Enter a valid 10-digit phone number' });
+      }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ error: 'Invalid email address' });
       }
@@ -752,11 +759,40 @@ export default function createCustomerRoutes(ctx) {
     }
   });
 
+  // Branded quote PDF — same shared document as the rep and trade endpoints
+  router.get('/api/customer/quotes/:id/pdf', customerAuth, async (req, res) => {
+    try {
+      const quote = await pool.query(`
+        SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
+        FROM quotes q LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+        WHERE q.id = $1 AND q.customer_id = $2 AND q.status != 'draft'
+      `, [req.params.id, req.customer.id]);
+      if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+      const q = quote.rows[0];
+      const items = await pool.query(`
+        SELECT qi.*, sk.variant_name, sa_c.value as color, v.name as vendor_name, sk.vendor_sku,
+          (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+           ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
+        FROM quote_items qi
+        LEFT JOIN skus sk ON sk.id = qi.sku_id
+        LEFT JOIN products p ON p.id = COALESCE(sk.product_id, qi.product_id)
+        LEFT JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+          AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+        WHERE qi.quote_id = $1 ORDER BY qi.id
+      `, [req.params.id]);
+      const html = generateQuoteHtml(q, items.rows);
+      await generatePDF(html, `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`, req, res);
+    } catch (err) {
+      console.error(err); res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   router.get('/api/customer/visits', customerAuth, async (req, res) => {
     try {
       const result = await pool.query(`
         SELECT sv.*, (SELECT COUNT(*)::int FROM showroom_visit_items WHERE visit_id = sv.id) as item_count
-        FROM showroom_visits sv WHERE sv.customer_id = $1 AND sv.status = 'sent'
+        FROM showroom_visits sv WHERE sv.customer_id = $1 AND sv.status IN ('sent', 'opened', 'carted')
         ORDER BY sv.created_at DESC
       `, [req.customer.id]);
       res.json({ visits: result.rows });
@@ -767,10 +803,57 @@ export default function createCustomerRoutes(ctx) {
 
   router.get('/api/customer/visits/:id', customerAuth, async (req, res) => {
     try {
-      const visit = await pool.query('SELECT * FROM showroom_visits WHERE id = $1 AND customer_id = $2 AND status = \'sent\'', [req.params.id, req.customer.id]);
+      const visit = await pool.query("SELECT * FROM showroom_visits WHERE id = $1 AND customer_id = $2 AND status IN ('sent', 'opened', 'carted')", [req.params.id, req.customer.id]);
       if (!visit.rows.length) return res.status(404).json({ error: 'Visit not found' });
       const items = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order, id', [req.params.id]);
       res.json({ visit: visit.rows[0], items: items.rows });
+    } catch (err) {
+      console.error(err); res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // ==================== Customer Estimates ====================
+  // Rep-entered estimates, visible once sent (drafts stay internal).
+  // internal_notes is deliberately excluded.
+
+  router.get('/api/customer/estimates', customerAuth, async (req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT e.id, e.estimate_number, e.customer_name, e.project_name,
+          e.project_address_line1, e.project_city, e.project_state,
+          e.materials_subtotal, e.labor_subtotal, e.subtotal, e.tax_amount, e.total,
+          e.notes, e.status, e.expires_at, e.sent_at, e.created_at,
+          (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count,
+          sr.first_name || ' ' || sr.last_name as rep_name
+        FROM estimates e
+        LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+        WHERE e.customer_id = $1 AND e.status != 'draft'
+        ORDER BY e.created_at DESC
+      `, [req.customer.id]);
+      res.json({ estimates: result.rows });
+    } catch (err) {
+      console.error(err); res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  router.get('/api/customer/estimates/:id', customerAuth, async (req, res) => {
+    try {
+      const est = await pool.query(`
+        SELECT e.id, e.estimate_number, e.customer_name, e.customer_email, e.phone, e.project_name,
+          e.project_address_line1, e.project_address_line2, e.project_city, e.project_state, e.project_zip,
+          e.materials_subtotal, e.labor_subtotal, e.subtotal, e.tax_rate, e.tax_amount, e.total,
+          e.notes, e.status, e.expires_at, e.sent_at, e.created_at,
+          sr.first_name || ' ' || sr.last_name as rep_name
+        FROM estimates e
+        LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+        WHERE e.id = $1 AND e.customer_id = $2 AND e.status != 'draft'
+      `, [req.params.id, req.customer.id]);
+      if (!est.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+      const items = await pool.query(
+        'SELECT * FROM estimate_items WHERE estimate_id = $1 ORDER BY sort_order, created_at',
+        [req.params.id]
+      );
+      res.json({ estimate: est.rows[0], items: items.rows });
     } catch (err) {
       console.error(err); res.status(500).json({ error: 'Internal server error' });
     }

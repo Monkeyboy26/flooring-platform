@@ -57,6 +57,11 @@ services:
       PORT: 3001
       NODE_ENV: ${NODE_ENV:-development}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      # Public site URL used inside emails (thumbnails, tracking pixel, CTAs) —
+      # must be reachable from customers' inboxes, so it defaults to the live domain
+      SITE_URL: ${SITE_URL:-https://www.romaflooringdesigns.com}
+      # In-app redirect base (Stripe return URLs, claim links) — localhost for dev
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}

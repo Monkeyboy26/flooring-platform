@@ -6407,6 +6407,14 @@
 
     const isValidEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
     const isValidPhone = (v) => v.replace(/\D/g, '').length === 10;
+    // Auto-format US phone as (555) 123-4567 while typing
+    const formatPhone = (val) => {
+      const digits = val.replace(/\D/g, '').slice(0, 10);
+      let fmt = ''; if (digits.length > 0) fmt = '(' + digits.slice(0, 3);
+      if (digits.length >= 3) fmt += ') '; if (digits.length > 3) fmt += digits.slice(3, 6);
+      if (digits.length >= 6) fmt += '-' + digits.slice(6);
+      return fmt;
+    };
 
     // ========== Notification type metadata ==========
     // Categories group backend notification types for the inbox filter chips.
@@ -6421,7 +6429,7 @@
       { key: 'samples', label: 'Samples', tone: '#8a7e68', glyph: '⌗',
         types: ['sample_request_created', 'sample_request_shipped'] },
       { key: 'inquiries', label: 'Inquiries', tone: '#8a5c74', glyph: '⌂',
-        types: ['installation_inquiry'] },
+        types: ['installation_inquiry', 'visit_quote_request'] },
     ];
     const notifCategoryFor = (type) =>
       NOTIF_CATEGORIES.find(c => c.types.includes(type)) || { key: 'other', label: 'Update', tone: '#8a7e68', glyph: '◉' };
@@ -6433,6 +6441,7 @@
       if (n.entity_type === 'quote') return { view: 'quote-edit', label: 'Quote' };
       if (n.entity_type === 'sample_request') return { view: 'sample-detail', label: 'Samples' };
       if (n.entity_type === 'purchase_order') return { view: 'purchase-order-detail', label: 'PO' };
+      if (n.entity_type === 'visit') return { view: 'visit-detail', label: 'Visit' };
       return null;
     };
     const notifDayGroup = (dateStr) => {
@@ -7383,7 +7392,9 @@
                     </div>
                     <div>
                       <div className="cl-tag" style={{ marginTop: 0 }}>{c.customer_type || 'retail'}</div>
-                      {c.city && <div className="cl-specialty">{c.city}</div>}
+                      {c.assigned_rep_name
+                        ? <div className="cl-specialty" style={{ color: '#a87935' }}>{c.assigned_rep_name}</div>
+                        : (c.city && <div className="cl-specialty">{c.city}</div>)}
                     </div>
                     <span className="cl-ltv">${(parseFloat(c.total_spent) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                     <span className="cl-orders">{c.order_count}</span>
@@ -7545,6 +7556,9 @@
               <button className="btn btn-secondary btn-sm" onClick={() => navigate('customers')}>{'\u2190'} Back</button>
               <h1>{customer.name || customer.email}</h1>
               {typeBadge(customer.customer_type)}
+              {customer.rep_name && (
+                <span className="cl-tag" style={{ color: '#a87935', marginTop: 0 }}>Rep \u00b7 {customer.rep_name}</span>
+              )}
             </div>
           </div>
 
@@ -8714,10 +8728,17 @@
                 <div style={mono(TH.accent)}>Quick view · spec + economics</div>
                 {activeSku.sku_id && <div style={{ ...mono(TH.muted), marginTop: 7 }}>SKU {activeSku.sku_id}</div>}
               </div>
-              <button onClick={onClose} style={{
-                width: 30, height: 30, border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent',
-                color: TH.ink, cursor: 'pointer', font: '400 15px/1 var(--roma-sans)', flexShrink: 0,
-              }}>&times;</button>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                {productId && <button onClick={() => repOpenDoc('/api/rep/labels?productIds=' + productId, true).catch(err => alert(err.message || 'Failed to generate labels'))}
+                  title="Print showroom sample labels (one per color)" style={{
+                  height: 30, padding: '0 12px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent',
+                  color: TH.ink, cursor: 'pointer', font: '500 12px/1 var(--roma-sans)',
+                }}>Labels</button>}
+                <button onClick={onClose} style={{
+                  width: 30, height: 30, border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent',
+                  color: TH.ink, cursor: 'pointer', font: '400 15px/1 var(--roma-sans)',
+                }}>&times;</button>
+              </div>
             </div>
 
             {/* Scrollable body */}
@@ -9749,6 +9770,7 @@
                           {[
                             { l: 'View', primary: true, act: () => setQuickView({ id: p.id, skuId: p.sku_id }) },
                             { l: 'Add', primary: false, act: () => openAddTo(p, variantText) },
+                            { l: 'Labels', primary: false, act: () => repOpenDoc('/api/rep/labels?productIds=' + p.id, true).catch(err => alert(err.message || 'Failed to generate labels')) },
                           ].map(b => (
                             <a key={b.l} onClick={e => { e.stopPropagation(); b.act(); }} style={{
                               flex: 1, minWidth: 0, padding: '6px 4px', textAlign: 'center',
@@ -9874,6 +9896,7 @@
                             </div>
                           )}
                           <div onClick={e => e.stopPropagation()} style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
+                            <a onClick={() => repOpenDoc('/api/rep/labels?productIds=' + p.id, true).catch(err => alert(err.message || 'Failed to generate labels'))} style={{ padding: '6px 10px', background: 'transparent', color: TH.ink, border: '0.5px solid ' + TH.ink + '33', font: '500 10px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>Labels</a>
                             <a onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{ padding: '6px 10px', background: TH.ink, color: TH.paper, font: '500 10px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>View</a>
                           </div>
                         </div>
@@ -11439,7 +11462,7 @@
               <div className="rof-field">
                 <label>Phone *</label>
                 <input type="text" value={data.newCustomerPhone || ''}
-                  onChange={e => { setData(d => ({ ...d, newCustomerPhone: e.target.value })); if (phoneError) setPhoneError(''); }}
+                  onChange={e => { const v = formatPhone(e.target.value); setData(d => ({ ...d, newCustomerPhone: v })); if (phoneError) setPhoneError(''); }}
                   onBlur={() => {
                     if (data.newCustomerPhone && !isValidPhone(data.newCustomerPhone)) setPhoneError('Enter a valid 10-digit phone');
                     else setPhoneError('');
@@ -11452,6 +11475,201 @@
             </div>
           )}
         </WizRepCard>
+      );
+    }
+
+    // --- RepCustomerEntry — gold-standard customer entry (mirrors the order flow) ---
+    // Search Existing / + New Customer mode toggle, debounced search, selected-
+    // customer summary card with Change, duplicate-match warning, and inline
+    // email/phone validation with auto-formatting. The parent owns the three
+    // field values plus the selected record; visits pass requirePhone={false}.
+    function RepCustomerEntry({ selected, onSelect, onClear, name, email, phone, onName, onEmail, onPhone, requirePhone }) {
+      const [mode, setMode] = useState('search');
+      const [search, setSearch] = useState('');
+      const [results, setResults] = useState([]);
+      const [searching, setSearching] = useState(false);
+      const [emailError, setEmailError] = useState('');
+      const [phoneError, setPhoneError] = useState('');
+      const [match, setMatch] = useState(null);
+      const timer = useRef(null);
+
+      const doSearch = (q) => {
+        setSearch(q);
+        if (timer.current) clearTimeout(timer.current);
+        if (q.trim().length < 2) { setResults([]); setSearching(false); return; }
+        setSearching(true);
+        timer.current = setTimeout(async () => {
+          try {
+            const d = await repFetch('/api/rep/customers/search?q=' + encodeURIComponent(q.trim()));
+            setResults(d.results || []);
+          } catch (e) { setResults([]); }
+          setSearching(false);
+        }, 300);
+      };
+
+      const pick = (c) => {
+        onSelect(c);
+        setSearch(''); setResults([]); setMatch(null); setEmailError(''); setPhoneError('');
+      };
+
+      const checkMatch = async (val) => {
+        if (selected) return;
+        if (!val || val.trim().length < 3) { setMatch(null); return; }
+        try {
+          const r = await repFetch('/api/rep/customers/search?q=' + encodeURIComponent(val));
+          setMatch(r.results && r.results.length > 0 ? r.results[0] : null);
+        } catch (e) { setMatch(null); }
+      };
+
+      if (selected) {
+        const c = selected;
+        const initials = (c.name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        const missingEmail = !c.email;
+        const missingPhone = requirePhone && !c.phone;
+        return (
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ border: '0.5px solid rgba(28,25,23,0.13)', background: '#ece5d8', padding: '0.875rem 1rem', display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+              <div style={{ width: 44, height: 44, background: '#d8cdb6', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 17px/1 "Cormorant Garamond", serif', color: '#1c1917', flexShrink: 0 }}>{initials}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ font: '400 17px/1.2 "Cormorant Garamond", serif', color: '#1c1917' }}>{c.name}{c.company_name ? ' — ' + c.company_name : ''}</div>
+                <div style={{ font: '400 12.5px/1.5 Inter, sans-serif', color: 'rgba(28,25,23,0.7)' }}>
+                  {[email || c.email, phone || c.phone].filter(Boolean).join(' · ') || 'No contact info on file'}
+                </div>
+              </div>
+              <span className={'rof-search-tag ' + (c.type === 'trade' ? 'trade' : c.type === 'order' ? 'order' : 'new')}>
+                {c.type === 'order' ? 'prev order' : (c.type || 'customer')}
+              </span>
+              <button className="rof-card-action" onClick={() => { onClear(); setMode('search'); }}>Change</button>
+            </div>
+            {(missingEmail || missingPhone) && (
+              <div className="rof-field-row" style={{ marginTop: '0.75rem' }}>
+                {missingEmail && (
+                  <div className="rof-field">
+                    <label>Email * <span style={{ textTransform: 'none', letterSpacing: 0, color: '#a87935' }}>— not on file, please add</span></label>
+                    <input type="email" value={email || ''}
+                      onChange={e => { onEmail(e.target.value); if (emailError) setEmailError(''); }}
+                      onBlur={() => setEmailError(email && !isValidEmail(email) ? 'Enter a valid email' : '')}
+                      placeholder="email@example.com"
+                      style={emailError ? { borderColor: 'var(--red)' } : {}} />
+                    {emailError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{emailError}</div>}
+                  </div>
+                )}
+                {missingPhone && (
+                  <div className="rof-field">
+                    <label>Phone * <span style={{ textTransform: 'none', letterSpacing: 0, color: '#a87935' }}>— not on file, please add</span></label>
+                    <input type="text" value={phone || ''}
+                      onChange={e => { onPhone(formatPhone(e.target.value)); if (phoneError) setPhoneError(''); }}
+                      onBlur={() => setPhoneError(phone && !isValidPhone(phone) ? 'Enter a valid 10-digit phone' : '')}
+                      placeholder="(555) 123-4567"
+                      style={phoneError ? { borderColor: 'var(--red)' } : {}} />
+                    {phoneError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{phoneError}</div>}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      return (
+        <div style={{ marginBottom: '1rem' }}>
+          {/* Mode toggle */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+            <button className={'rof-btn-light' + (mode === 'search' ? ' primary' : '')}
+              onClick={() => { setMode('search'); setMatch(null); }}
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.5625rem' }}>
+              Search Existing
+            </button>
+            <button className={'rof-btn-light' + (mode === 'new' ? ' primary' : '')}
+              onClick={() => { setMode('new'); setResults([]); setSearch(''); }}
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.5625rem' }}>
+              + New Customer
+            </button>
+          </div>
+
+          {/* Search mode */}
+          {mode === 'search' && (
+            <div className="rof-search-wrap">
+              <div className="rof-field">
+                <label>Search</label>
+                <input type="text" value={search} onChange={e => doSearch(e.target.value)}
+                  placeholder="Name, email, or phone..." />
+              </div>
+              {searching && !results.length && (
+                <div style={{ fontSize: '0.75rem', color: '#8a7e68', marginTop: '-0.5rem', marginBottom: '0.5rem' }}>Searching...</div>
+              )}
+              {!searching && search.trim().length >= 2 && results.length === 0 && (
+                <div style={{ fontSize: '0.75rem', color: '#8a7e68', marginTop: '-0.5rem', marginBottom: '0.5rem' }}>No customers found</div>
+              )}
+              {results.length > 0 && (
+                <div className="rof-search-results">
+                  {results.map((c, i) => (
+                    <div key={c.id || i} className="rof-search-item" onMouseDown={e => { e.preventDefault(); pick(c); }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className="rof-search-item-name">{c.name}{c.company_name ? ' — ' + c.company_name : ''}</div>
+                        <div className="rof-search-item-sub">{c.email}{c.phone ? ' · ' + c.phone : ''}</div>
+                      </div>
+                      <span className={'rof-search-tag ' + (c.type === 'trade' ? 'trade' : c.type === 'order' ? 'order' : 'new')}>
+                        {c.type === 'order' ? 'prev order' : c.type}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Duplicate match warning */}
+          {mode === 'new' && match && (
+            <div className="rof-alert error" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ flex: 1 }}>
+                Customer already exists: <strong>{match.name}</strong> ({match.email})
+              </div>
+              <button className="rof-btn-light" onClick={() => { pick(match); setMode('search'); }}
+                style={{ padding: '0.25rem 0.5rem', fontSize: '0.5rem', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                Use this customer
+              </button>
+            </div>
+          )}
+
+          {/* New customer form */}
+          {mode === 'new' && (
+            <div>
+              <div className="rof-field-row">
+                <div className="rof-field">
+                  <label>Full Name *</label>
+                  <input type="text" value={name || ''}
+                    onChange={e => onName(e.target.value)}
+                    placeholder="First and last name" />
+                </div>
+                <div className="rof-field">
+                  <label>Email *</label>
+                  <input type="email" value={email || ''}
+                    onChange={e => { onEmail(e.target.value); if (emailError) setEmailError(''); }}
+                    onBlur={() => {
+                      setEmailError(email && !isValidEmail(email) ? 'Enter a valid email' : '');
+                      checkMatch(email);
+                    }}
+                    placeholder="email@example.com"
+                    style={emailError ? { borderColor: 'var(--red)' } : {}} />
+                  {emailError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{emailError}</div>}
+                </div>
+              </div>
+              <div className="rof-field">
+                <label>{requirePhone ? 'Phone *' : 'Phone'}</label>
+                <input type="text" value={phone || ''}
+                  onChange={e => { onPhone(formatPhone(e.target.value)); if (phoneError) setPhoneError(''); }}
+                  onBlur={() => {
+                    setPhoneError(phone && !isValidPhone(phone) ? 'Enter a valid 10-digit phone' : '');
+                    checkMatch(phone);
+                  }}
+                  placeholder="(555) 123-4567"
+                  style={phoneError ? { borderColor: 'var(--red)' } : {}} />
+                {phoneError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{phoneError}</div>}
+              </div>
+            </div>
+          )}
+        </div>
       );
     }
 
@@ -13838,7 +14056,7 @@
       // Validation
       const step1Valid = !!(
         (data.customer && data.customer.name && data.customer.email) ||
-        (data.newCustomerName && data.newCustomerEmail && isValidEmail(data.newCustomerEmail) && data.newCustomerPhone && isValidPhone(data.newCustomerPhone))
+        (data.newCustomerName && data.newCustomerName.trim().split(/\s+/).length >= 2 && data.newCustomerEmail && isValidEmail(data.newCustomerEmail) && data.newCustomerPhone && isValidPhone(data.newCustomerPhone))
       ) && (data.items || []).length > 0 && (
         data.deliveryMethod === 'pickup' ||
         (data.shippingAddress && data.shippingAddress.line1 && data.shippingAddress.city && data.shippingAddress.state && data.shippingAddress.zip)
@@ -14280,7 +14498,7 @@
         createOrderWithPI(null);
       };
 
-      const canCreate = form.customer_name && form.customer_email && isValidEmail(form.customer_email) && items.length > 0 &&
+      const canCreate = form.customer_name && form.customer_name.trim().split(/\s+/).length >= 2 && form.customer_email && isValidEmail(form.customer_email) && items.length > 0 &&
         form.phone && isValidPhone(form.phone) && !customerMatch &&
         (form.delivery_method === 'pickup' || (form.shipping_line1 && form.shipping_city && form.shipping_state && form.shipping_zip)) &&
         (form.payment_method !== 'cash' || cashDrawerOpen) &&
@@ -14407,7 +14625,8 @@
                 <label>Phone *</label>
                 <input type="text" value={form.phone}
                   onChange={e => {
-                    setForm(f => ({ ...f, phone: e.target.value }));
+                    const v = formatPhone(e.target.value);
+                    setForm(f => ({ ...f, phone: v }));
                     if (phoneError) setPhoneError('');
                   }}
                   onBlur={() => {
@@ -15230,6 +15449,7 @@
 
     // ========== RepSampleRequestCreateView ==========
     function RepSampleRequestCreateView({ navigate }) {
+      const [pickedCustomer, setPickedCustomer] = useState(null);
       const [customerName, setCustomerName] = useState('');
       const [customerEmail, setCustomerEmail] = useState('');
       const [customerPhone, setCustomerPhone] = useState('');
@@ -15319,9 +15539,9 @@
       const removeItem = (key) => setItems(prev => prev.filter(i => i._key !== key));
 
       const submitRequest = async () => {
-        if (!customerName.trim()) return alert('Customer name is required');
-        if (!customerEmail.trim()) return alert('Customer email is required');
-        if (!customerPhone.trim()) return alert('Customer phone is required');
+        if (customerName.trim().split(/\s+/).length < 2) return alert('Customer first and last name are required');
+        if (!customerEmail.trim() || !isValidEmail(customerEmail.trim())) return alert('A valid customer email is required');
+        if (!customerPhone.trim() || !isValidPhone(customerPhone)) return alert('A valid 10-digit customer phone is required');
         if (deliveryMethod === 'shipping') {
           if (!addrLine1.trim()) return alert('Shipping address is required');
           if (!addrCity.trim()) return alert('City is required');
@@ -15409,20 +15629,26 @@
                   </div>
                 </div>
                 <div className="rod-card-body-padded">
-                  <div className="resp-grid-3" style={{ gap: 14 }}>
-                    <div>
-                      <label style={scLabel}>Name *</label>
-                      <input style={scField} value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Full name" required />
-                    </div>
-                    <div>
-                      <label style={scLabel}>Email *</label>
-                      <input style={scField} type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="customer@email.com" required />
-                    </div>
-                    <div>
-                      <label style={scLabel}>Phone *</label>
-                      <input style={scField} value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="(555) 123-4567" required />
-                    </div>
-                  </div>
+                  <RepCustomerEntry
+                    selected={pickedCustomer}
+                    onSelect={c => {
+                      setPickedCustomer(c);
+                      setCustomerName(c.name || '');
+                      setCustomerEmail(c.email || '');
+                      setCustomerPhone(c.phone || '');
+                      if (c.address_line1) {
+                        setAddrLine1(c.address_line1);
+                        setAddrLine2(c.address_line2 || '');
+                        setAddrCity(c.city || '');
+                        setAddrState(c.state || '');
+                        setAddrZip(c.zip || '');
+                      }
+                    }}
+                    onClear={() => { setPickedCustomer(null); setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); }}
+                    name={customerName} email={customerEmail} phone={customerPhone}
+                    onName={setCustomerName} onEmail={setCustomerEmail} onPhone={setCustomerPhone}
+                    requirePhone={true}
+                  />
                 </div>
               </div>
 
@@ -16857,6 +17083,7 @@
 
     // ========== RepVisitBuilderView ==========
     function RepVisitBuilderView({ navigate }) {
+      const [pickedCustomer, setPickedCustomer] = useState(null);
       const [customerName, setCustomerName] = useState('');
       const [customerEmail, setCustomerEmail] = useState('');
       const [customerPhone, setCustomerPhone] = useState('');
@@ -16963,14 +17190,15 @@
       };
 
       const saveVisit = async (andSend) => {
-        if (!customerName.trim()) return alert('Customer name is required');
+        if (customerName.trim().split(/\s+/).length < 2) return alert('Customer first and last name are required');
+        if (!customerEmail.trim() || !isValidEmail(customerEmail.trim())) return alert('A valid customer email is required');
+        if (customerPhone.trim() && !isValidPhone(customerPhone)) return alert('Enter a valid 10-digit phone or leave it blank');
         if (!items.length) return alert('Add at least one product');
-        if (andSend && !customerEmail.trim()) return alert('Customer email is required to send');
         setSaving(true);
         try {
           const body = {
             customer_name: customerName.trim(),
-            customer_email: customerEmail.trim() || null,
+            customer_email: customerEmail.trim(),
             customer_phone: customerPhone.trim() || null,
             message: message.trim() || null,
             items: items.map(i => ({
@@ -16994,13 +17222,13 @@
         setSaving(false);
       };
 
-      const canSave = !!customerName.trim() && items.length > 0;
-      const canSend = canSave && !!customerEmail.trim();
+      const canSave = customerName.trim().split(/\s+/).length >= 2 && !!customerEmail.trim() && isValidEmail(customerEmail.trim()) && items.length > 0;
+      const canSend = canSave;
       const initials = (customerName.trim() || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
       const checklist = [
-        { label: 'Customer name', done: !!customerName.trim(), meta: customerName.trim() ? '' : 'Required' },
-        { label: 'Email address', done: !!customerEmail.trim(), meta: customerEmail.trim() ? '' : 'Required to send' },
+        { label: 'Customer name', done: customerName.trim().split(/\s+/).length >= 2, meta: customerName.trim().split(/\s+/).length >= 2 ? '' : 'First and last name required' },
+        { label: 'Email address', done: !!customerEmail.trim() && isValidEmail(customerEmail.trim()), meta: customerEmail.trim() && isValidEmail(customerEmail.trim()) ? '' : 'Required' },
         { label: 'Products added', done: items.length > 0, meta: items.length > 0 ? items.length + ' item' + (items.length !== 1 ? 's' : '') : 'Search or add below' },
         { label: 'Personal message', done: !!message.trim(), meta: message.trim() ? '' : 'Optional' },
       ];
@@ -17071,20 +17299,19 @@
             <div className="qw-main">
 
               <WizRepCard title="Customer">
-                <div className="rof-field-row-3">
-                  <div className="rof-field">
-                    <label>Customer Name *</label>
-                    <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Full name" />
-                  </div>
-                  <div className="rof-field">
-                    <label>Email</label>
-                    <input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="customer@email.com" />
-                  </div>
-                  <div className="rof-field">
-                    <label>Phone</label>
-                    <input value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="(555) 123-4567" />
-                  </div>
-                </div>
+                <RepCustomerEntry
+                  selected={pickedCustomer}
+                  onSelect={c => {
+                    setPickedCustomer(c);
+                    setCustomerName(c.name || '');
+                    setCustomerEmail(c.email || '');
+                    setCustomerPhone(c.phone || '');
+                  }}
+                  onClear={() => { setPickedCustomer(null); setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); }}
+                  name={customerName} email={customerEmail} phone={customerPhone}
+                  onName={setCustomerName} onEmail={setCustomerEmail} onPhone={setCustomerPhone}
+                  requirePhone={false}
+                />
                 <div className="rof-field" style={{ marginBottom: 0 }}>
                   <label>Personal Message</label>
                   <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Thanks for visiting! Here are the materials we discussed..." rows="3" />
@@ -17297,6 +17524,7 @@
         { label: 'Created', at: visit.created_at },
         { label: 'Sent', at: visit.sent_at },
         { label: 'Opened', at: visit.opened_at },
+        ...(visit.quote_requested_at ? [{ label: 'Quote requested', at: visit.quote_requested_at }] : []),
         { label: 'Carted', at: visit.items_carted_at },
       ];
       const firstPending = timeline.findIndex(t => !t.at);
@@ -17469,11 +17697,17 @@
                 </div>
               )}
 
-              {(visit.status === 'opened' || visit.status === 'carted') && (
+              {(visit.quote_requested_at || visit.status === 'opened' || visit.status === 'carted') && (
                 <div className="qw-convert-card">
-                  <div className="qw-convert-label">{visit.status === 'carted' ? 'Customer carted items' : 'Customer is engaged'}</div>
+                  <div className="qw-convert-label">
+                    {visit.quote_requested_at ? 'Customer asked for a quote'
+                      : visit.status === 'carted' ? 'Customer carted items' : 'Customer is engaged'}
+                  </div>
                   <div className="qw-convert-copy">
-                    {visit.status === 'carted'
+                    {visit.quote_requested_at
+                      ? 'They requested a quote from the recap ' + (fmtDT(visit.quote_requested_at) || '') + '.'
+                        + (visit.quote_request_message ? ' “' + visit.quote_request_message + '”' : '')
+                      : visit.status === 'carted'
                       ? 'They added items from this recap to their cart — a great time to follow up with a quote.'
                       : 'They opened the recap ' + (fmtDT(visit.opened_at) || '') + '. Consider following up while it’s fresh.'}
                   </div>
@@ -18135,6 +18369,84 @@
                 padding: '8px 12px', background: 'transparent', color: '#fff', border: '0.5px solid #4a4744',
                 cursor: 'pointer', font: "500 12px/1 'Inter', system-ui, sans-serif", letterSpacing: '0.04em',
               }}>{'\u2715'}</button>
+            </div>
+          </div>
+          {/* Page area */}
+          <div style={{
+            display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
+            padding: '28px 0', overflow: 'auto',
+          }}>
+            <div style={{
+              width: 816, height: 1056, flexShrink: 0,
+              boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+            }}>
+              <iframe ref={iframeRef} src={url} sandbox="allow-same-origin" style={{ width: '100%', height: '100%', border: 'none' }} />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== RepPdfViewer — generic full-screen document viewer ==========
+    // Same chrome as PODocumentViewer (dark canvas, toolbar) without the
+    // PO-specific send action. Used by quotes and estimates.
+    function RepPdfViewer({ url, filename, downloadPath, onClose }) {
+      const iframeRef = React.useRef(null);
+      useEffect(() => {
+        return () => { if (url && url.startsWith('blob:')) URL.revokeObjectURL(url); };
+      }, [url]);
+      useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+      }, [onClose]);
+
+      const handleDownload = () => {
+        repOpenDoc(downloadPath, true).catch(() => alert('Failed to download PDF'));
+      };
+      const handlePrint = () => {
+        try { iframeRef.current.contentWindow.print(); } catch(e) { window.open(url, '_blank'); }
+      };
+
+      return (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 10000,
+          display: 'grid', gridTemplateRows: 'auto 1fr',
+          background: '#3a3835',
+        }}>
+          {/* Toolbar */}
+          <div style={{
+            background: '#22201e', color: '#fff',
+            padding: '12px 20px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            borderBottom: '1px solid #000',
+          }}>
+            <span style={{
+              font: "400 14px/1 'Inter', system-ui, sans-serif", color: '#fff',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{
+                width: 22, height: 26, border: '0.5px solid #c7c2b8',
+                background: '#fff', color: '#22201e',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                font: "500 9px/26px 'Inter', system-ui, sans-serif",
+              }}>{'📄'}</span>
+              {filename}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={handleDownload} title="Download" style={{
+                padding: '8px 12px', background: '#a87935', color: '#fff', border: 'none',
+                cursor: 'pointer', font: "500 12px/1 'Inter', system-ui, sans-serif", letterSpacing: '0.04em',
+              }}>{'⤓'} Download</button>
+              <button onClick={handlePrint} title="Print" style={{
+                padding: '8px 12px', background: 'transparent', color: '#fff', border: '0.5px solid #4a4744',
+                cursor: 'pointer', font: "500 12px/1 'Inter', system-ui, sans-serif", letterSpacing: '0.04em',
+              }}>{'⎙'} Print</button>
+              <button onClick={onClose} title="Close" style={{
+                padding: '8px 12px', background: 'transparent', color: '#fff', border: '0.5px solid #4a4744',
+                cursor: 'pointer', font: "500 12px/1 'Inter', system-ui, sans-serif", letterSpacing: '0.04em',
+              }}>{'✕'}</button>
             </div>
           </div>
           {/* Page area */}
@@ -20204,7 +20516,13 @@
                 discount_amount: parseFloat(data.quote.discount_amount || 0)
               });
             }
-            setCustomerMode('new');
+            // Restore the selected-customer banner for the quote's linked customer
+            if (data.customer) {
+              setSelectedCustomer(data.customer);
+              setCustomerMode('search');
+            } else {
+              setCustomerMode('new');
+            }
             setLoading(false);
           })
           .catch(() => setLoading(false));
@@ -20695,9 +21013,13 @@
         setSaving(false);
       };
 
-      const openPdf = () => {
+      const [pdfViewer, setPdfViewer] = useState(null);
+      const openPdf = async () => {
         if (!editId) return;
-        repOpenDoc('/api/rep/quotes/' + editId + '/pdf?preview=true', true).catch(() => alert('Failed to load PDF'));
+        try {
+          const url = await repOpenDoc('/api/rep/quotes/' + editId + '/pdf?preview=true');
+          setPdfViewer({ url, filename: (quote && quote.quote_number ? quote.quote_number : 'quote') + '.pdf' });
+        } catch (e) { alert('Failed to load PDF'); }
       };
 
       // Bulk add from the "Browse catalog" popup — converts catalog rows,
@@ -20865,10 +21187,10 @@
       const displayTotal = (quote ? parseFloat(quote.total) : calcSubtotal) - (promoResult && !quote ? promoResult.discount_amount : 0);
       const initials = (form.customer_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
       const canConvert = editId && quote && ['draft', 'sent', 'accepted'].includes(quote.status);
-      const saveDisabled = saving || !form.customer_name || !form.customer_email || !isValidEmail(form.customer_email) || !form.phone || !isValidPhone(form.phone) || !!customerMatch;
+      const saveDisabled = saving || !form.customer_name || form.customer_name.trim().split(/\s+/).length < 2 || !form.customer_email || !isValidEmail(form.customer_email) || !form.phone || !isValidPhone(form.phone) || !!customerMatch;
 
       // Draft checklist — guides quote creation in the rail
-      const customerDone = !!form.customer_name && isValidEmail(form.customer_email) && isValidPhone(form.phone) && !customerMatch;
+      const customerDone = !!form.customer_name && form.customer_name.trim().split(/\s+/).length >= 2 && isValidEmail(form.customer_email) && isValidPhone(form.phone) && !customerMatch;
       const deliveryDone = form.delivery_method === 'pickup' || !!(form.shipping_address_line1 && form.shipping_city && form.shipping_zip);
       const linesDone = quoteItems.length > 0;
       const checklist = [
@@ -21119,7 +21441,8 @@
                         <label>Phone *</label>
                         <input type="text" value={form.phone}
                           onChange={e => {
-                            setForm(f => ({ ...f, phone: e.target.value }));
+                            const v = formatPhone(e.target.value);
+                            setForm(f => ({ ...f, phone: v }));
                             if (phoneError) setPhoneError('');
                           }}
                           onBlur={() => {
@@ -21826,6 +22149,16 @@
             />
           )}
 
+          {/* Quote PDF viewer */}
+          {pdfViewer && (
+            <RepPdfViewer
+              url={pdfViewer.url}
+              filename={pdfViewer.filename}
+              downloadPath={'/api/rep/quotes/' + editId + '/pdf'}
+              onClose={() => setPdfViewer(null)}
+            />
+          )}
+
           {/* Email Preview Modal */}
           {showPreview && (
             <div className="modal-overlay" onClick={() => setShowPreview(false)}>
@@ -22273,6 +22606,7 @@
       const [previewMeta, setPreviewMeta] = useState(null);
       const [previewLoading, setPreviewLoading] = useState(false);
       const [sendFeedback, setSendFeedback] = useState(null);
+      const [pdfViewer, setPdfViewer] = useState(null);
 
       // Conversion modals
       const [showConvertQuoteModal, setShowConvertQuoteModal] = useState(false);
@@ -22311,7 +22645,13 @@
               notes: data.estimate.notes || '',
               internal_notes: data.estimate.internal_notes || ''
             });
-            setCustomerMode('new');
+            // Restore the selected-customer banner for the estimate's linked customer
+            if (data.customer) {
+              setSelectedCustomer(data.customer);
+              setCustomerMode('search');
+            } else {
+              setCustomerMode('new');
+            }
             setLoading(false);
           })
           .catch(() => setLoading(false));
@@ -22369,7 +22709,9 @@
 
       // Save or create estimate
       const saveEstimate = async () => {
-        if (!form.customer_name || !form.customer_email) return alert('Customer name and email are required.');
+        if (!form.customer_name || form.customer_name.trim().split(/\s+/).length < 2) return alert('Customer first and last name are required.');
+        if (!form.customer_email || !isValidEmail(form.customer_email)) return alert('A valid customer email is required.');
+        if (!form.phone || !isValidPhone(form.phone)) return alert('A valid 10-digit phone number is required.');
         setSaving(true);
         try {
           if (editId && estimate) {
@@ -22776,8 +23118,19 @@
               )}
               {estimate && (
                 <button className="ol-header-btn" onClick={async () => {
-                  try { const url = await repOpenDoc('/api/rep/estimates/' + estimate.id + '/pdf?preview=true'); window.open(url, '_blank'); setTimeout(() => URL.revokeObjectURL(url), 60000); } catch(e) { alert('Failed to load PDF'); }
+                  try {
+                    const url = await repOpenDoc('/api/rep/estimates/' + estimate.id + '/pdf?preview=true');
+                    setPdfViewer({ url, filename: (estimate.estimate_number || 'estimate') + '.pdf' });
+                  } catch(e) { alert('Failed to load PDF'); }
                 }}>Preview PDF</button>
+              )}
+              {pdfViewer && (
+                <RepPdfViewer
+                  url={pdfViewer.url}
+                  filename={pdfViewer.filename}
+                  downloadPath={'/api/rep/estimates/' + estimate.id + '/pdf'}
+                  onClose={() => setPdfViewer(null)}
+                />
               )}
               {estimate && !isReadonly && (
                 <button className="ol-header-btn" onClick={loadPreview} disabled={previewLoading}>
@@ -22956,9 +23309,9 @@
                     </div>
                     <div className="rof-field-row">
                       <div className="rof-field" style={{ marginBottom: 0 }}>
-                        <label>Phone</label>
+                        <label>Phone *</label>
                         <input type="tel" value={form.phone} disabled={isReadonly}
-                          onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                          onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))}
                           onBlur={() => checkCustomerMatch('phone')}
                           placeholder="(555) 123-4567" />
                       </div>

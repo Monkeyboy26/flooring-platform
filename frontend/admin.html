@@ -1968,6 +1968,14 @@
 
       const clearSelection = () => { setSelected(new Set()); setBulkCategory(''); };
 
+      // Open a showroom-label PDF (one 2"x4" Avery 5163 label per color) in a new tab.
+      const printLabels = (productIds) => {
+        const ids = (Array.isArray(productIds) ? productIds : [productIds]).filter(Boolean);
+        if (!ids.length) return;
+        staffOpenDoc('/api/admin/labels?productIds=' + ids.join(','), true)
+          .catch(err => alert(err.message || 'Failed to generate labels'));
+      };
+
       const searchTimerRef = useRef(null);
 
       const buildQuery = (offset = 0) => {
@@ -2182,6 +2190,7 @@
               </select>
               <button className="btn btn-secondary btn-sm" onClick={bulkSetCategory}>Apply</button>
               <button className="btn btn-secondary btn-sm" onClick={openBulkTagModal}>Tags</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => printLabels(Array.from(selected))}>Print Labels</button>
               <button className="btn btn-danger btn-sm" onClick={bulkDelete}>Delete</button>
             </div>
           )}
@@ -2294,6 +2303,7 @@
                   <td><span className={'badge badge-' + (p.status || 'draft')}>{p.status || 'draft'}</span></td>
                   <td className="actions">
                     <button className="btn btn-secondary btn-sm" onClick={() => navigate('product-edit', p.id)}>Edit</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => printLabels(p.id)} title="Print showroom sample labels (one per color)">Labels</button>
                     <button className="btn btn-danger btn-sm" onClick={() => setDeleteTarget(p)}>Delete</button>
                   </td>
                 </tr>

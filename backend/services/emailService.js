@@ -114,7 +114,7 @@ export async function sendOrderConfirmation(orderData) {
 /**
  * Send quote email to customer.
  */
-export async function sendQuoteSent(quoteData) {
+export async function sendQuoteSent(quoteData, opts = {}) {
   if (!transporter) {
     console.log(`[Email] Skipping quote email for ${quoteData.quote_number} — SMTP not configured`);
     return { sent: false };
@@ -125,8 +125,9 @@ export async function sendQuoteSent(quoteData) {
       from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
       to: quoteData.customer_email,
       replyTo: quoteData.rep_email,
-      subject: `Your Custom Quote — ${quoteData.quote_number}`,
-      html
+      subject: `Your Roma quote ${quoteData.quote_number} — ready when you are`,
+      html,
+      ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {})
     });
     console.log(`[Email] Quote email sent to ${quoteData.customer_email} for ${quoteData.quote_number}`);
     return { sent: true };

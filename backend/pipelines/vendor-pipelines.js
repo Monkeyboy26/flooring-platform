@@ -40,11 +40,18 @@ const PIPELINES = {
 
   daltile: {
     label: 'Daltile',
-    description: 'Build Coveo product map, run unified import (Coveo + EDI 832), attach accessories',
+    description: 'Build Coveo product map, run unified import (Coveo + EDI 832), attach accessories, reconcile images',
     steps: [
       { type: 'script',  path: 'scripts/build-daltile-product-map.cjs', label: 'Build Daltile Product Map (Coveo)' },
       { type: 'scraper', sourceKey: 'daltile-unified', label: 'Daltile Unified Import (Coveo + EDI)' },
       { type: 'script',  path: 'scripts/attach-daltile-accessories.cjs', label: 'Attach Daltile Accessories' },
+      { type: 'script',  path: 'scripts/daltile-reconcile-images.cjs', label: 'Reconcile SKU Images vs Map' },
+      // Must run AFTER the reconcile: solid-color field tiles prefer a clean
+      // swatch over a wrong-size/bevel render, which the reconcile would upgrade.
+      { type: 'script',  path: 'scripts/daltile-fix-colorwheel-images.cjs', label: 'Fix Color Wheel Solid-Color Images' },
+      // Repair any primary image that doesn't resolve on Scene7 (the map lists
+      // unpublished URLs the importer writes blind). Liveness-validated.
+      { type: 'script',  path: 'scripts/daltile-fix-broken-images.cjs', label: 'Repair Dead Primary Images (catalog-wide)' },
     ]
   },
 

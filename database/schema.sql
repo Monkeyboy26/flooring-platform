@@ -723,6 +723,8 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE;
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
 ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
 ALTER TABLE showroom_visits ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
+ALTER TABLE showroom_visits ADD COLUMN IF NOT EXISTS quote_requested_at TIMESTAMP;
+ALTER TABLE showroom_visits ADD COLUMN IF NOT EXISTS quote_request_message TEXT;
 
 -- ==================== Promo Codes ====================
 

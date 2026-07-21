@@ -30,6 +30,19 @@ export function esc(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Email-safe image URL. Absolute vendor-CDN URLs pass through untouched —
+// they are publicly fetchable from any inbox, and until the platform is live
+// on the public domain (romaflooringdesigns.com currently points at the old
+// WordPress site) our /api/img proxy is NOT reachable from mail clients.
+// Relative /uploads paths can only ever work through the proxy, so those are
+// routed via SITE_URL (working once deployed). Pass display px; 2x retina.
+export function emailImage(url, w, h) {
+  if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
+  const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
+  return `${siteUrl}/api/img?url=${encodeURIComponent(url)}&w=${w * 2}${h ? '&h=' + h * 2 + '&fit=cover' : ''}&f=jpeg&q=80`;
+}
+
 // Small mono uppercase label used above sections.
 export function sectionLabel(text, color = T.accent) {
   return `<p style="margin:0 0 14px;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${color};">${text}</p>`;

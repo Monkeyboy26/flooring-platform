@@ -1,4 +1,4 @@
-import { emailShell, heroSection, section, ctaButton, money, T, SERIF, SANS, MONO, esc } from './_shell.js';
+import { emailShell, heroSection, section, ctaButton, money, T, SERIF, SANS, MONO, esc, emailImage } from './_shell.js';
 
 const PT_DATE = { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' };
 
@@ -27,7 +27,7 @@ export function generateVisitRecapHTML(visitData) {
       : '';
     const rowBorder = i < items.length - 1 ? `border-bottom:1px solid ${T.hairline};` : '';
     const thumb = item.primary_image
-      ? `<img src="${esc(item.primary_image)}" alt="${name}" width="72" height="56" style="display:block;width:72px;height:56px;object-fit:cover;" />`
+      ? `<img src="${esc(emailImage(item.primary_image, 72, 56))}" alt="${name}" width="72" style="display:block;width:72px;height:auto;" />`
       : `<div style="width:72px;height:56px;background:${T.warm};border:1px solid ${T.border};"></div>`;
 
     return `<tr>
@@ -61,8 +61,9 @@ export function generateVisitRecapHTML(visitData) {
       </tr>
     </table>`;
 
+  const quoteUrl = recap_url ? `${recap_url}${recap_url.includes('?') ? '&' : '?'}ask=quote` : `mailto:${rep_email || 'Sales@romaflooringdesigns.com'}`;
   const secondaryCta = `
-    <a href="mailto:${esc(rep_email || 'Sales@romaflooringdesigns.com')}" target="_blank" style="display:block;padding:16px 28px;border:1px solid ${T.ink};color:${T.ink};font-family:${SANS};font-size:13px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;text-decoration:none;text-align:center;">Ask ${repFirst} for a quote</a>`;
+    <a href="${esc(quoteUrl)}" target="_blank" style="display:block;padding:16px 28px;border:1px solid ${T.ink};color:${T.ink};font-family:${SANS};font-size:13px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;text-decoration:none;text-align:center;">Ask ${repFirst} for a quote</a>`;
 
   const messageSection = message ? section(`
     <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.65;color:${T.body};">&ldquo;${esc(message)}&rdquo;</p>`, '0 40px 8px') : '';

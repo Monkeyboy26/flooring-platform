@@ -1923,6 +1923,13 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 textarea.checkout-input { border: 0.5px solid rgba(28,25,23,0.2); padding: 0.75rem; font-family: var(--font-body); font-size: 0.875rem; resize: vertical; }
 .checkout-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
+/* Visit recap — dark quote-request card */
+.vr-quote-card textarea.checkout-input { border-color: rgba(236,229,216,0.3); color: #ece5d8; }
+.vr-quote-card textarea.checkout-input:focus { border-color: var(--gold-light); }
+.vr-quote-card textarea.checkout-input::placeholder { color: rgba(236,229,216,0.45); }
+.vr-quote-card .btn { background: #ece5d8; color: var(--stone-900); }
+.vr-quote-card .btn:hover { background: var(--gold-light); color: var(--stone-900); }
+
 /* Note */
 .note { background: #fef3c7; border-left: 3px solid #f59e0b; padding: 1rem; margin: 1.5rem 0; font-size: 0.875rem; line-height: 1.6; }
 

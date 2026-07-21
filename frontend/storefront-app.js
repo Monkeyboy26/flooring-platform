@@ -2228,6 +2228,18 @@
         goInstallation();
         return;
       }
+      if (path === "/trade") {
+        goTrade();
+        return;
+      }
+      if (path === "/trade/dashboard") {
+        goTradeDashboard();
+        return;
+      }
+      if (path === "/trade/bulk-order") {
+        goBulkOrder();
+        return;
+      }
       if (path === "/inspiration") {
         goInspiration();
         return;
@@ -2244,6 +2256,14 @@
         const viewName = path.slice(1);
         setView(viewName);
         history.pushState({ view: viewName }, "", path);
+        window.scrollTo(0, 0);
+        return;
+      }
+      if (path.startsWith("/visit/")) {
+        const token = path.replace("/visit/", "").split("?")[0];
+        setVisitRecapToken(token);
+        setView("visit-recap");
+        history.pushState({ view: "visit-recap", token }, "", path);
         window.scrollTo(0, 0);
         return;
       }
@@ -7267,6 +7287,9 @@
     const [loadingQuotes, setLoadingQuotes] = useState(true);
     const [expandedQuote, setExpandedQuote] = useState(null);
     const [quoteDetail, setQuoteDetail] = useState(null);
+    const [estimates, setEstimates] = useState([]);
+    const [expandedEstimate, setExpandedEstimate] = useState(null);
+    const [estimateDetail, setEstimateDetail] = useState(null);
     const [visits, setVisits] = useState([]);
     const [loadingVisits, setLoadingVisits] = useState(true);
     const [expandedVisit, setExpandedVisit] = useState(null);
@@ -7347,6 +7370,11 @@
         setVisits(data.visits || []);
         setLoadingVisits(false);
       }).catch(() => setLoadingVisits(false));
+      fetch(API + "/api/customer/estimates", { headers: authHeaders }).then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      }).then((data) => setEstimates(data.estimates || [])).catch(() => {
+      });
     }, []);
     const refreshSamples = () => {
       fetch(API + "/api/customer/sample-requests", { headers: authHeaders }).then((r) => {
@@ -7434,6 +7462,38 @@
         setVisitDetail(data);
       } catch (e) {
         setVisitDetail(null);
+      }
+    };
+    const [acceptingQuote, setAcceptingQuote] = useState(null);
+    const acceptAndPay = async (quoteId) => {
+      setAcceptingQuote(quoteId);
+      try {
+        const resp = await fetch(API + "/api/customer/quotes/" + quoteId + "/accept-pay", { method: "POST", headers });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.checkout_url) {
+          alert(data.error || "Could not start checkout \u2014 please try again.");
+          setAcceptingQuote(null);
+          return;
+        }
+        window.location.href = data.checkout_url;
+      } catch (e) {
+        alert("Could not start checkout \u2014 please try again.");
+        setAcceptingQuote(null);
+      }
+    };
+    const viewEstimateDetail = async (estId) => {
+      if (expandedEstimate === estId) {
+        setExpandedEstimate(null);
+        setEstimateDetail(null);
+        return;
+      }
+      setExpandedEstimate(estId);
+      try {
+        const resp = await fetch(API + "/api/customer/estimates/" + estId, { headers: authHeaders });
+        const data = await resp.json();
+        setEstimateDetail(data);
+      } catch (e) {
+        setEstimateDetail(null);
       }
     };
     const saveProfile = async () => {
@@ -7595,7 +7655,7 @@
     const NAV_SECTIONS = [
       { id: "overview", label: "Overview", meta: "Snapshot" },
       { id: "orders", label: "Orders", meta: loadingOrders ? "\u2026" : orders.length + " lifetime" + (activeOrders.length ? " \xB7 " + activeOrders.length + " active" : "") },
-      { id: "quotes", label: "Quotes", meta: loadingQuotes ? "\u2026" : quotes.length ? quotes.length + (quotes.length === 1 ? " quote" : " quotes") : "None yet" },
+      { id: "quotes", label: "Quotes", meta: loadingQuotes ? "\u2026" : quotes.length + estimates.length ? [quotes.length ? quotes.length + (quotes.length === 1 ? " quote" : " quotes") : null, estimates.length ? estimates.length + (estimates.length === 1 ? " estimate" : " estimates") : null].filter(Boolean).join(" \xB7 ") : "None yet" },
       { id: "samples", label: "Samples", meta: loadingSamples ? "\u2026" : sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? " box" : " boxes") + " \xB7 " + swatchCount + " swatches" : "None yet" },
       { id: "visits", label: "Visits", meta: loadingVisits ? "\u2026" : visits.length ? visits.length + (visits.length === 1 ? " showroom visit" : " showroom visits") : "None yet" },
       { id: "wishlist", label: "Wishlist", meta: (wishlist || []).length ? wishlist.length + (wishlist.length === 1 ? " item saved" : " items saved") : "Nothing saved yet" },
@@ -7771,7 +7831,34 @@
       };
       return /* @__PURE__ */ React.createElement("div", null, loadingQuotes ? /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.875rem" } }, "Loading quotes...") : quotes.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section", style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", marginBottom: "0.375rem" } }, "No quotes yet."), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.8125rem", margin: 0 } }, "When our team prepares pricing for you \u2014 in the showroom or over the phone \u2014 it lands here.")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-col-headers", style: quoteGrid }, /* @__PURE__ */ React.createElement("span", null, "Quote"), /* @__PURE__ */ React.createElement("span", null, "Detail"), /* @__PURE__ */ React.createElement("span", null, "Status"), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right" } }, "Total"), /* @__PURE__ */ React.createElement("span", null)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-table", style: { borderTop: "none", borderRadius: "0 0 6px 6px" } }, quotes.map((q) => {
         const qm = quoteMeta(q);
-        return /* @__PURE__ */ React.createElement(React.Fragment, { key: q.id }, /* @__PURE__ */ React.createElement("div", { className: "acct-order-row", style: quoteGrid, onClick: () => viewQuoteDetail(q.id) }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-order-num" }, q.quote_number), /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, fmtDate(q.created_at))), /* @__PURE__ */ React.createElement("div", { className: "acct-order-detail" }, quoteDetailText(q)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-status", style: { color: qm.color } }, "\u25CF ", qm.label), /* @__PURE__ */ React.createElement("div", { className: "acct-order-total" }, fmtMoney(q.total)), /* @__PURE__ */ React.createElement("span", { className: "acct-order-action" }, expandedQuote === q.id ? "Close \xD7" : "Open \u2192")), expandedQuote === q.id && quoteDetail && /* @__PURE__ */ React.createElement("div", { className: "acct-order-expanded" }, q.converted_order_id && /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "0.5px solid #bbf7d0", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem", color: "#166534", borderRadius: 4 } }, "This quote became an order \u2014 find it under ", /* @__PURE__ */ React.createElement("a", { style: { fontWeight: 600, textDecoration: "underline", cursor: "pointer" }, onClick: () => setSection("orders") }, "Orders"), "."), q.expires_at && q.status === "sent" && new Date(q.expires_at) > /* @__PURE__ */ new Date() && /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(216,205,182,0.35)", border: "0.5px solid rgba(168,121,53,0.3)", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem", color: "#7a5a1e", borderRadius: 4 } }, "Pricing held until ", /* @__PURE__ */ React.createElement("strong", null, fmtDate(q.expires_at)), " \u2014 call (714) 999-0009 or reply to your quote email to accept."), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-sub", style: { marginBottom: "0.5rem" } }, "Materials"), quoteDetail.items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "1rem", padding: "0.5rem 0", borderBottom: "0.5px solid rgba(28,25,23,0.08)", fontSize: "0.8125rem" } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--font-heading)", fontSize: "0.9375rem", color: "var(--stone-800)" } }, item.product_name || "Product"), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)", marginLeft: "0.5rem", fontSize: "0.75rem" } }, item.collection ? item.collection + " \xB7 " : "", item.sell_by === "unit" ? "x" + item.num_boxes : "x" + item.num_boxes + " box" + (item.num_boxes !== 1 ? "es" : ""), item.is_sample ? " \xB7 sample" : "")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", whiteSpace: "nowrap" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)", fontSize: "0.75rem", marginRight: "0.75rem" } }, "$", parseFloat(item.unit_price || 0).toFixed(2), item.sell_by === "unit" ? "/ea" : "/sqft"), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500, fontVariantNumeric: "tabular-nums" } }, "$", parseFloat(item.subtotal || 0).toFixed(2)))))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "1.5rem", fontSize: "0.8125rem", paddingTop: "0.25rem" } }, parseFloat(q.shipping || 0) > 0 && /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-600)" } }, "Shipping ", fmtMoney(q.shipping)), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, fontVariantNumeric: "tabular-nums" } }, "Total ", fmtMoney(q.total))), q.notes && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1rem", padding: "0.75rem 1rem", background: "rgba(216,205,182,0.25)", borderLeft: "3px solid var(--gold)", fontSize: "0.8125rem", color: "var(--stone-700, #44403c)", fontStyle: "italic", fontFamily: "var(--font-heading)" } }, "\u201C", q.notes, "\u201D")));
+        return /* @__PURE__ */ React.createElement(React.Fragment, { key: q.id }, /* @__PURE__ */ React.createElement("div", { className: "acct-order-row", style: quoteGrid, onClick: () => viewQuoteDetail(q.id) }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-order-num" }, q.quote_number), /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, fmtDate(q.created_at))), /* @__PURE__ */ React.createElement("div", { className: "acct-order-detail" }, quoteDetailText(q)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-status", style: { color: qm.color } }, "\u25CF ", qm.label), /* @__PURE__ */ React.createElement("div", { className: "acct-order-total" }, fmtMoney(q.total)), /* @__PURE__ */ React.createElement("span", { className: "acct-order-action" }, expandedQuote === q.id ? "Close \xD7" : "Open \u2192")), expandedQuote === q.id && quoteDetail && /* @__PURE__ */ React.createElement("div", { className: "acct-order-expanded" }, q.converted_order_id && /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "0.5px solid #bbf7d0", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem", color: "#166534", borderRadius: 4 } }, "This quote became an order \u2014 find it under ", /* @__PURE__ */ React.createElement("a", { style: { fontWeight: 600, textDecoration: "underline", cursor: "pointer" }, onClick: () => setSection("orders") }, "Orders"), "."), q.expires_at && q.status === "sent" && new Date(q.expires_at) > /* @__PURE__ */ new Date() && /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(216,205,182,0.35)", border: "0.5px solid rgba(168,121,53,0.3)", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem", color: "#7a5a1e", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", null, "Pricing held until ", /* @__PURE__ */ React.createElement("strong", null, fmtDate(q.expires_at)), " \u2014 check out below, or call (714) 999-0009 with questions.")), ["sent", "accepted"].includes(q.status) && !q.converted_order_id && !(q.expires_at && new Date(q.expires_at) < /* @__PURE__ */ new Date()) && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: () => acceptAndPay(q.id), disabled: acceptingQuote === q.id }, acceptingQuote === q.id ? "Preparing secure checkout\u2026" : "Accept & pay " + fmtMoney(q.total))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-sub", style: { marginBottom: "0.5rem" } }, "Materials"), quoteDetail.items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "1rem", padding: "0.5rem 0", borderBottom: "0.5px solid rgba(28,25,23,0.08)", fontSize: "0.8125rem" } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--font-heading)", fontSize: "0.9375rem", color: "var(--stone-800)" } }, item.product_name || "Product"), /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)", marginLeft: "0.5rem", fontSize: "0.75rem" } }, item.collection ? item.collection + " \xB7 " : "", item.sell_by === "unit" ? "x" + item.num_boxes : "x" + item.num_boxes + " box" + (item.num_boxes !== 1 ? "es" : ""), item.is_sample ? " \xB7 sample" : "")), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", whiteSpace: "nowrap" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)", fontSize: "0.75rem", marginRight: "0.75rem" } }, "$", parseFloat(item.unit_price || 0).toFixed(2), item.sell_by === "unit" ? "/ea" : "/sqft"), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500, fontVariantNumeric: "tabular-nums" } }, "$", parseFloat(item.subtotal || 0).toFixed(2)))))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "1.5rem", fontSize: "0.8125rem", paddingTop: "0.25rem" } }, /* @__PURE__ */ React.createElement(
+          "a",
+          {
+            style: { color: "var(--gold)", fontWeight: 500, cursor: "pointer", textDecoration: "underline" },
+            onClick: async (e) => {
+              e.stopPropagation();
+              try {
+                const r = await fetch(API + "/api/customer/quotes/" + q.id + "/pdf", { headers: authHeaders });
+                if (!r.ok) throw new Error("failed");
+                const blob = await r.blob();
+                const url = URL.createObjectURL(blob);
+                window.open(url, "_blank");
+                setTimeout(() => URL.revokeObjectURL(url), 6e4);
+              } catch (err) {
+                alert("Could not load the PDF \u2014 please try again.");
+              }
+            }
+          },
+          "Download PDF"
+        ), parseFloat(q.shipping || 0) > 0 && /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-600)" } }, "Shipping ", fmtMoney(q.shipping)), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, fontVariantNumeric: "tabular-nums" } }, "Total ", fmtMoney(q.total))), q.notes && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1rem", padding: "0.75rem 1rem", background: "rgba(216,205,182,0.25)", borderLeft: "3px solid var(--gold)", fontSize: "0.8125rem", color: "var(--stone-700, #44403c)", fontStyle: "italic", fontFamily: "var(--font-heading)" } }, "\u201C", q.notes, "\u201D")));
+      }))), estimates.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "2rem" } }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-sub", style: { marginBottom: "0.5rem" } }, "Project Estimates"), /* @__PURE__ */ React.createElement("div", { className: "acct-col-headers", style: quoteGrid }, /* @__PURE__ */ React.createElement("span", null, "Estimate"), /* @__PURE__ */ React.createElement("span", null, "Detail"), /* @__PURE__ */ React.createElement("span", null, "Status"), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right" } }, "Total"), /* @__PURE__ */ React.createElement("span", null)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-table", style: { borderTop: "none", borderRadius: "0 0 6px 6px" } }, estimates.map((est) => {
+        const em = est.status === "converted" ? { label: "Became an order", color: "#166534" } : est.expires_at && new Date(est.expires_at) < /* @__PURE__ */ new Date() ? { label: "Expired", color: "#8a7e68" } : { label: "Prepared for you", color: "#a87935" };
+        return /* @__PURE__ */ React.createElement(React.Fragment, { key: est.id }, /* @__PURE__ */ React.createElement("div", { className: "acct-order-row", style: quoteGrid, onClick: () => viewEstimateDetail(est.id) }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-order-num" }, est.estimate_number), /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, fmtDate(est.created_at))), /* @__PURE__ */ React.createElement("div", { className: "acct-order-detail" }, [est.project_name, est.item_count + (est.item_count === 1 ? " item" : " items"), est.rep_name ? "Prepared by " + est.rep_name : null].filter(Boolean).join(" \xB7 ")), /* @__PURE__ */ React.createElement("div", { className: "acct-order-status", style: { color: em.color } }, "\u25CF ", em.label), /* @__PURE__ */ React.createElement("div", { className: "acct-order-total" }, fmtMoney(est.total)), /* @__PURE__ */ React.createElement("span", { className: "acct-order-action" }, expandedEstimate === est.id ? "Close \xD7" : "Open \u2192")), expandedEstimate === est.id && estimateDetail && /* @__PURE__ */ React.createElement("div", { className: "acct-order-expanded" }, (() => {
+          const mats = estimateDetail.items.filter((i) => i.item_type === "material");
+          const labor = estimateDetail.items.filter((i) => i.item_type === "labor");
+          const line = (item) => /* @__PURE__ */ React.createElement("div", { key: item.id, style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "1rem", padding: "0.5rem 0", borderBottom: "0.5px solid rgba(28,25,23,0.08)", fontSize: "0.8125rem" } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--font-heading)", fontSize: "0.9375rem", color: "var(--stone-800)" } }, item.product_name || item.description || "Item"), item.collection && /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)", marginLeft: "0.5rem", fontSize: "0.75rem" } }, item.collection)), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" } }, "$", parseFloat(item.subtotal || 0).toFixed(2)));
+          return /* @__PURE__ */ React.createElement("div", null, mats.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-sub", style: { marginBottom: "0.5rem" } }, "Materials"), mats.map(line)), labor.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-sub", style: { marginBottom: "0.5rem" } }, "Labor & Services"), labor.map(line)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "1.5rem", fontSize: "0.8125rem", paddingTop: "0.25rem" } }, parseFloat(est.tax_amount || 0) > 0 && /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-600)" } }, "Tax ", fmtMoney(est.tax_amount)), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, fontVariantNumeric: "tabular-nums" } }, "Total ", fmtMoney(est.total))), est.notes && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1rem", padding: "0.75rem 1rem", background: "rgba(216,205,182,0.25)", borderLeft: "3px solid var(--gold)", fontSize: "0.8125rem", color: "var(--stone-700, #44403c)", fontStyle: "italic", fontFamily: "var(--font-heading)" } }, "\u201C", est.notes, "\u201D"));
+        })()));
       }))));
     })(), section === "samples" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "1rem", marginBottom: "1.5rem", flexWrap: "wrap", alignItems: "center" } }, /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: goBrowse }, "Browse products for samples"), sampleRequests.filter((sr) => sr.status === "requested").length > 0 && /* @__PURE__ */ React.createElement("span", { className: "acct-order-status", style: { color: "#a87935" } }, "\u25CF ", sampleRequests.filter((sr) => sr.status === "requested").length, " open request", sampleRequests.filter((sr) => sr.status === "requested").length !== 1 ? "s" : "")), loadingSamples ? /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.875rem" } }, "Loading samples...") : sampleRequests.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section", style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", marginBottom: "0.375rem" } }, "No sample requests yet."), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.8125rem", marginBottom: "1.25rem" } }, 'Use the "Request Free Sample" button on any product page, or contact our team for assistance.'), /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: goBrowse }, "Browse products")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-col-headers", style: { gridTemplateColumns: "150px 1fr 190px 110px 80px" } }, /* @__PURE__ */ React.createElement("span", null, "Box"), /* @__PURE__ */ React.createElement("span", null, "Swatches"), /* @__PURE__ */ React.createElement("span", null, "Detail"), /* @__PURE__ */ React.createElement("span", null, "Status"), /* @__PURE__ */ React.createElement("span", null)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-table", style: { borderTop: "none", borderRadius: "0 0 6px 6px" } }, sampleRequests.map((sr) => {
       const isOpen = sr.status === "requested";
@@ -8550,6 +8637,10 @@
         setError("Please fill in all required fields.");
         return;
       }
+      if (contactName.trim().split(/\s+/).length < 2) {
+        setError("Please enter the contact\u2019s first and last name.");
+        return;
+      }
       if (!emailValid) {
         setError("Please enter a valid email address.");
         return;
@@ -8962,14 +9053,28 @@
     const [firstName, setFirstName] = useState("");
     const [lastName, setLastName] = useState("");
     const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
     const [password, setPassword] = useState("");
     const [newsletter, setNewsletter] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const { handleGoogleCredential, googleError, googleLoading } = useGoogleAuth(onLogin);
+    const formatPhone = (val) => {
+      const digits = val.replace(/\D/g, "").slice(0, 10);
+      let fmt = "";
+      if (digits.length > 0) fmt = "(" + digits.slice(0, 3);
+      if (digits.length >= 3) fmt += ") ";
+      if (digits.length > 3) fmt += digits.slice(3, 6);
+      if (digits.length >= 6) fmt += "-" + digits.slice(6);
+      return fmt;
+    };
     const handleSubmit = async (e) => {
       e.preventDefault();
       setError("");
+      if (phone.replace(/\D/g, "").length < 10) {
+        setError("Enter a valid 10-digit phone number.");
+        return;
+      }
       if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
         setError("Password must be at least 8 characters with 1 uppercase letter and 1 number.");
         return;
@@ -8979,7 +9084,7 @@
         const res = await fetch(API + "/api/customer/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, newsletter })
+          body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, phone, newsletter })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || data.error) {
@@ -9082,6 +9187,12 @@
             { className: "auth-field" },
             /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Email"),
             /* @__PURE__ */ React.createElement("input", { type: "email", value: email, onChange: (e) => setEmail(e.target.value), placeholder: "you@example.com", required: true, autoComplete: "email" })
+          ),
+          /* @__PURE__ */ React.createElement(
+            "div",
+            { className: "auth-field" },
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Phone"),
+            /* @__PURE__ */ React.createElement("input", { type: "tel", value: phone, onChange: (e) => setPhone(formatPhone(e.target.value)), placeholder: "(555) 123-4567", required: true, autoComplete: "tel" })
           ),
           /* @__PURE__ */ React.createElement(
             "div",
@@ -9485,6 +9596,10 @@
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [quoteNote, setQuoteNote] = useState("");
+    const [quoteState, setQuoteState] = useState("idle");
+    const [quoteError, setQuoteError] = useState("");
+    const quoteCardRef = useRef(null);
     useEffect(() => {
       fetch(API + "/api/visit-recap/" + token).then((r) => {
         if (r.status === 410) throw new Error("expired");
@@ -9492,16 +9607,41 @@
         return r.json();
       }).then((d) => {
         setData(d);
+        if (d.visit && d.visit.quote_requested) setQuoteState("sent");
         setLoading(false);
       }).catch((err) => {
         setError(err.message);
         setLoading(false);
       });
     }, [token]);
+    useEffect(() => {
+      if (!data) return;
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("ask") === "quote" && quoteCardRef.current) {
+        setTimeout(() => quoteCardRef.current && quoteCardRef.current.scrollIntoView({ behavior: "smooth", block: "center" }), 300);
+      }
+    }, [data]);
+    const requestQuote = async () => {
+      setQuoteState("sending");
+      setQuoteError("");
+      try {
+        const resp = await fetch(API + "/api/visit-recap/" + token + "/quote-request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: quoteNote.trim() || void 0 })
+        });
+        if (!resp.ok) throw new Error("failed");
+        setQuoteState("sent");
+      } catch (e) {
+        setQuoteState("idle");
+        setQuoteError("Something went wrong \u2014 please try again or call us at (714) 999-0009.");
+      }
+    };
     if (loading) return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 800, margin: "4rem auto", padding: "0 1.5rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)" } }, "Loading your visit recap..."));
     if (error) return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 800, margin: "4rem auto", padding: "0 1.5rem", textAlign: "center" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontSize: "2rem", fontWeight: 400, marginBottom: "1rem" } }, error === "expired" ? "Recap Expired" : "Not Found"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1rem" } }, error === "expired" ? "This visit recap has expired." : "This recap could not be found."), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-400)", fontSize: "0.875rem", marginTop: "1.5rem" } }, "Questions? Contact us at (714) 999-0009"));
     const { visit, items } = data;
     const visitDate = new Date(visit.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const repFirst = (visit.rep_name || "").trim().split(/\s+/)[0] || "your rep";
     return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 900, margin: "0 auto", padding: "3rem 1.5rem" } }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginBottom: "3rem" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontSize: "2.5rem", fontWeight: 400, marginBottom: "0.5rem" } }, "Your Showroom Visit"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "0.9375rem" } }, "Prepared by ", visit.rep_name, " \xB7 ", visitDate)), visit.message && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "0 auto 3rem", padding: "1.5rem 2rem", background: "var(--stone-50)", borderLeft: "3px solid var(--gold)" } }, /* @__PURE__ */ React.createElement("p", { style: { margin: 0, fontSize: "0.9375rem", color: "var(--stone-600)", fontStyle: "italic", lineHeight: 1.6 } }, visit.message)), /* @__PURE__ */ React.createElement("div", { className: "sku-grid", style: { marginBottom: "3rem" } }, items.map((item, idx) => /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -9514,7 +9654,18 @@
       /* @__PURE__ */ React.createElement("div", { className: "sku-card-name" }, fullProductName(item)),
       /* @__PURE__ */ React.createElement("div", { className: "sku-card-price" }, skuListPrice(item) ? "$" + displayPrice(item, skuListPrice(item)).toFixed(2) + priceSuffix(item) : ""),
       item.rep_note && /* @__PURE__ */ React.createElement("p", { style: { margin: "0.5rem 0 0", fontSize: "0.8125rem", fontStyle: "italic", color: "var(--stone-400)", lineHeight: 1.4 } }, '"', item.rep_note, '"')
-    ))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", paddingTop: "2rem", borderTop: "1px solid var(--stone-200)" } }, /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "0.875rem", marginBottom: "0.25rem" } }, "Questions? Contact us at (714) 999-0009"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-400)", fontSize: "0.8125rem" } }, "Roma Flooring Designs \xB7 1440 S. State College Blvd Suite 6M, Anaheim, CA 92806")));
+    ))), /* @__PURE__ */ React.createElement("div", { ref: quoteCardRef, className: "vr-quote-card", style: { maxWidth: 600, margin: "0 auto 3rem", background: "var(--stone-900)", padding: "2.5rem 2.5rem 2.25rem", textAlign: "center" } }, quoteState === "sent" ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--gold-light)", marginBottom: "1rem" } }, "Request received"), /* @__PURE__ */ React.createElement("h3", { style: { fontFamily: "var(--font-heading)", fontSize: "1.875rem", fontWeight: 400, letterSpacing: "-0.01em", margin: "0 0 0.75rem", color: "#ece5d8" } }, repFirst, " is on it."), /* @__PURE__ */ React.createElement("p", { style: { margin: 0, color: "rgba(236,229,216,0.65)", fontSize: "0.9375rem", lineHeight: 1.65, maxWidth: 420, marginLeft: "auto", marginRight: "auto" } }, "Your request went straight to ", repFirst, ", who will follow up with pricing shortly. Need it sooner? Call (714) 999-0009.")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.22em", textTransform: "uppercase", color: "var(--gold-light)", marginBottom: "1rem" } }, "Next step"), /* @__PURE__ */ React.createElement("h3", { style: { fontFamily: "var(--font-heading)", fontSize: "1.875rem", fontWeight: 400, letterSpacing: "-0.01em", margin: "0 0 0.75rem", color: "#ece5d8" } }, "Want exact numbers?"), /* @__PURE__ */ React.createElement("p", { style: { margin: "0 0 1.75rem", color: "rgba(236,229,216,0.65)", fontSize: "0.9375rem", lineHeight: 1.65, maxWidth: 420, marginLeft: "auto", marginRight: "auto" } }, "Ask ", repFirst, " to price out everything from your visit \u2014 quantities, delivery, and samples included."), /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        className: "checkout-input",
+        rows: 2,
+        style: { resize: "none", marginBottom: "1.5rem", textAlign: "center" },
+        placeholder: "Anything " + repFirst + " should know? Rooms, square footage, timing\u2026 (optional)",
+        value: quoteNote,
+        onChange: (e) => setQuoteNote(e.target.value),
+        maxLength: 1e3
+      }
+    ), quoteError && /* @__PURE__ */ React.createElement("p", { style: { color: "#fca5a5", fontSize: "0.875rem", margin: "0 0 1rem" } }, quoteError), /* @__PURE__ */ React.createElement("button", { className: "btn", style: { display: "block", width: "100%", padding: "1.125rem" }, onClick: requestQuote, disabled: quoteState === "sending" }, quoteState === "sending" ? "Sending\u2026" : "Ask " + repFirst + " for a quote"), /* @__PURE__ */ React.createElement("p", { style: { margin: "0.875rem 0 0", color: "rgba(236,229,216,0.45)", fontSize: "0.8125rem" } }, "Goes straight to ", repFirst, " \u2014 no forms, no phone tag."))), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", paddingTop: "2rem", borderTop: "1px solid var(--stone-200)" } }, /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "0.875rem", marginBottom: "0.25rem" } }, "Questions? Contact us at (714) 999-0009"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-400)", fontSize: "0.8125rem" } }, "Roma Flooring Designs \xB7 1440 S. State College Blvd Suite 6M, Anaheim, CA 92806")));
   }
   function ResetPasswordPage({ goHome, openLogin, onLogin }) {
     const [newPassword, setNewPassword] = useState("");
