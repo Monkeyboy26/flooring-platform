@@ -9586,15 +9586,19 @@
   }
   function TapInput({ theme, label, type = "text", value, onChange, onBlur, placeholder, mono, required, invalid, maxLength, textarea, autoComplete, style, error, hint, valid }) {
     const { ink, accent, muted } = theme;
+    const [reveal, setReveal] = useState(false);
+    const isPw = type === "password";
+    const effType = isPw && reveal ? "text" : type;
     const bad = !!(error || invalid);
     const lineColor = bad ? "#c0392b" : valid ? "#3f7a52" : ink + "33";
-    const base = { border: "none", borderBottom: `0.5px solid ${lineColor}`, background: "transparent", padding: "7px 0", font: mono ? "400 14px/1.4 ui-monospace, monospace" : "400 16px/1.35 var(--roma-serif)", color: ink, outline: "none", borderRadius: 0, width: "100%", boxSizing: "border-box", ...style };
+    const rightPad = isPw ? 48 : valid && !bad ? 18 : 0;
+    const base = { border: "none", borderBottom: `0.5px solid ${lineColor}`, background: "transparent", padding: "7px 0", font: mono ? "400 14px/1.4 ui-monospace, monospace" : "400 16px/1.35 var(--roma-serif)", color: ink, outline: "none", borderRadius: 0, width: "100%", boxSizing: "border-box", ...style, paddingRight: rightPad };
     return /* @__PURE__ */ React.createElement("label", { style: { display: "grid", gap: 7 } }, /* @__PURE__ */ React.createElement(TapMicro, { theme }, label, required && /* @__PURE__ */ React.createElement("span", { style: { color: accent } }, " *")), textarea ? /* @__PURE__ */ React.createElement("textarea", { value, onChange, onBlur, placeholder, rows: 3, style: { ...base, resize: "vertical", font: "400 15px/1.5 var(--roma-sans)" }, onFocus: (e) => e.target.style.borderBottomColor = accent, onBlurCapture: (e) => {
       e.target.style.borderBottomColor = lineColor;
     } }) : /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement(
       "input",
       {
-        type,
+        type: effType,
         value,
         onChange,
         onBlur,
@@ -9607,7 +9611,7 @@
           e.target.style.borderBottomColor = lineColor;
         }
       }
-    ), valid && !bad && /* @__PURE__ */ React.createElement("span", { style: { position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", color: "#3f7a52", font: "600 14px/1 var(--roma-sans)", pointerEvents: "none" } }, "\u2713")), (error || hint) && /* @__PURE__ */ React.createElement("div", { style: { font: "400 11px/1.4 var(--roma-sans)", color: error ? "#c0392b" : muted } }, error || hint));
+    ), isPw ? /* @__PURE__ */ React.createElement("button", { type: "button", onMouseDown: (e) => e.preventDefault(), onClick: () => setReveal((r) => !r), "aria-label": reveal ? "Hide password" : "Show password", style: { position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: muted, font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.12em", textTransform: "uppercase", padding: "4px 0" } }, reveal ? "Hide" : "Show") : valid && !bad && /* @__PURE__ */ React.createElement("span", { style: { position: "absolute", right: 0, top: "50%", transform: "translateY(-50%)", color: "#3f7a52", font: "600 14px/1 var(--roma-sans)", pointerEvents: "none" } }, "\u2713")), (error || hint) && /* @__PURE__ */ React.createElement("div", { style: { font: "400 11px/1.4 var(--roma-sans)", color: error ? "#c0392b" : muted } }, error || hint));
   }
   function TapSelect({ theme, label, value, onChange, onBlur, required, error, children }) {
     const { ink, accent, muted } = theme;
