@@ -10546,7 +10546,7 @@ app.post('/api/trade/register/upload', docUpload.single('document'), async (req,
 app.post('/api/trade/register/enhanced', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { email, password, company_name, contact_name, phone, business_type, document_ids, address_line1, city, state, zip, contractor_license } = req.body;
+    const { email, password, company_name, contact_name, phone, business_type, document_ids, address_line1, city, state, zip, contractor_license, ein } = req.body;
     if (!email || !password || !company_name || !contact_name || !phone) {
       return res.status(400).json({ error: 'Email, password, company name, contact name, and phone number are required' });
     }
@@ -10566,9 +10566,9 @@ app.post('/api/trade/register/enhanced', async (req, res) => {
 
     const { hash, salt } = await hashPassword(password);
     const result = await client.query(
-      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
-      [email.toLowerCase().trim(), hash, salt, company_name.trim(), contact_name.trim(), phone || null, business_type || null, address_line1.trim(), city.trim(), state.trim().toUpperCase(), zip.trim(), contractor_license || null]
+      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license, ein)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+      [email.toLowerCase().trim(), hash, salt, company_name.trim(), contact_name.trim(), phone || null, business_type || null, address_line1.trim(), city.trim(), state.trim().toUpperCase(), zip.trim(), contractor_license || null, ein || null]
     );
 
     const customerId = result.rows[0].id;

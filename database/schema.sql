@@ -467,6 +467,8 @@ CREATE TABLE trade_customers (
     company_name TEXT NOT NULL,
     contact_name TEXT NOT NULL,
     phone TEXT,
+    ein TEXT,
+    contractor_license TEXT,
     status VARCHAR(20) DEFAULT 'pending',
     margin_tier_id UUID REFERENCES margin_tiers(id),
     notes TEXT,

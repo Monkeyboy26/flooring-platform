@@ -14750,6 +14750,7 @@
       const [confirmPassword, setConfirmPassword] = useState('');
       const [companyName, setCompanyName] = useState('');
       const [businessType, setBusinessType] = useState('');
+      const [ein, setEin] = useState('');
       const [contractorLicense, setContractorLicense] = useState('');
       const [addressLine1, setAddressLine1] = useState('');
       const [city, setCity] = useState('');
@@ -14791,14 +14792,14 @@
 
       const handleSubmit = async () => {
         setError('');
-        if (!firstName.trim() || !lastName.trim() || !email || !phone || !password || !companyName.trim() || !businessType || !addressLine1.trim() || !city.trim() || !addrState.trim() || !zip.trim()) {
+        if (!firstName.trim() || !lastName.trim() || !email || !phone || !password || !companyName.trim() || !businessType || !ein.trim() || !addressLine1.trim() || !city.trim() || !addrState.trim() || !zip.trim()) {
           setError('Please fill in all required fields.'); return;
         }
         if (!emailValid) { setError('Please enter a valid email address.'); return; }
         if (phone.replace(/\D/g, '').length < 10) { setError('Please enter a valid 10-digit phone number.'); return; }
         if (!passwordValid) { setError('Password must be at least 8 characters with one uppercase letter and one number.'); return; }
         if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
-        if (!docUploads.ein || !docUploads.resale_cert) { setError('An EIN document and resale certificate are both required.'); return; }
+        if (!docUploads.business_card) { setError('A photo of your business card is required.'); return; }
         setLoading(true);
         try {
           const docIds = Object.values(docUploads).map(d => d.id);
@@ -14807,7 +14808,7 @@
             body: JSON.stringify({
               email, password, company_name: companyName, contact_name: `${firstName.trim()} ${lastName.trim()}`,
               phone, business_type: businessType, address_line1: addressLine1, city, state: addrState, zip,
-              contractor_license: contractorLicense || null, document_ids: docIds
+              ein: ein.trim() || null, contractor_license: contractorLicense.trim() || null, document_ids: docIds
             })
           });
           const data = await resp.json();
@@ -14860,9 +14861,9 @@
                 <h2 style={{ font: '300 40px/1.05 var(--roma-serif)', letterSpacing: '-0.016em', margin: 0, color: ink }}>Have these <em style={{ color: accent }}>three</em> ready.</h2>
               </div>
               {[
-                ['01 · Credential', 'A license or membership number — CSLB, ASID, IIDA, CCIDC, AIA, or RESA. Sole proprietors: a portfolio of real projects works too.'],
-                ['02 · Resale certificate', 'Your CDTFA seller’s permit. With it on file we don’t charge tax on materials you resell.'],
-                ['03 · EIN document', 'Your federal EIN letter (or SSN-based sole-prop equivalent) so we can verify the business.'],
+                ['01 · Business card', 'A clear photo of your business card — required. It’s the fastest way for a rep to confirm who you are.'],
+                ['02 · EIN & license #', 'Your federal EIN, plus a contractor or credential number (CSLB, ASID, IIDA…) if you carry one.'],
+                ['03 · Resale certificate', 'Optional — your CDTFA seller’s permit sets up tax-free buying on materials you resell.'],
               ].map(([t, b]) => (
                 <div key={t} style={{ padding: '18px 22px', background: warm, border: `0.5px solid ${ink}18` }}>
                   <TapMicro theme={theme} color={ink} style={{ marginBottom: 8 }}>{t}</TapMicro>
@@ -14925,7 +14926,10 @@
                       <option value="other">Other</option>
                     </TapSelect>
                   </TapRow>
-                  <TapInput theme={theme} label="License / membership # (optional)" mono value={contractorLicense} onChange={e => setContractorLicense(e.target.value)} placeholder="CSLB numbers clear fastest — usually within 4 hours" />
+                  <TapRow>
+                    <TapInput theme={theme} label="EIN (federal tax ID)" required mono value={ein} onChange={e => setEin(e.target.value)} placeholder="12-3456789" />
+                    <TapInput theme={theme} label="Contractor license # (optional)" mono value={contractorLicense} onChange={e => setContractorLicense(e.target.value)} placeholder="CSLB # — clears fastest" />
+                  </TapRow>
                   <TapInput theme={theme} label="Street address" required value={addressLine1} onChange={e => setAddressLine1(e.target.value)} autoComplete="address-line1" />
                   <TapRow cols="2fr 1fr 1fr">
                     <TapInput theme={theme} label="City" required value={city} onChange={e => setCity(e.target.value)} autoComplete="address-level2" />
@@ -14934,10 +14938,11 @@
                   </TapRow>
                 </TapSection>
 
-                <TapSection theme={theme} num="03" title="Verification" sub="Two documents let a rep confirm your business and set up tax-exempt buying. Upload a PDF or a clear photo.">
-                  <TapDropzone theme={theme} label="EIN document · required" docType="ein" upload={docUploads.ein} uploading={uploading} onFile={handleDocUpload} />
-                  <TapDropzone theme={theme} label="Resale certificate (CDTFA) · required" docType="resale_cert" upload={docUploads.resale_cert} uploading={uploading} onFile={handleDocUpload} />
-                  <TapDropzone theme={theme} label="Contractor / business license · optional" docType="business_license" upload={docUploads.business_license} uploading={uploading} onFile={handleDocUpload} />
+                <TapSection theme={theme} num="03" title="Verification" sub="A photo of your business card is required; the rest are optional and just speed up review. Upload a PDF or a clear photo.">
+                  <TapDropzone theme={theme} label="Business card · photo · required" docType="business_card" upload={docUploads.business_card} uploading={uploading} onFile={handleDocUpload} />
+                  <TapDropzone theme={theme} label="Resale certificate (CDTFA) · optional" docType="resale_cert" upload={docUploads.resale_cert} uploading={uploading} onFile={handleDocUpload} />
+                  <TapDropzone theme={theme} label="EIN letter · optional" docType="ein" upload={docUploads.ein} uploading={uploading} onFile={handleDocUpload} />
+                  <TapDropzone theme={theme} label="Contractor license · optional" docType="contractor_license" upload={docUploads.contractor_license} uploading={uploading} onFile={handleDocUpload} />
                 </TapSection>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 24 }}>
