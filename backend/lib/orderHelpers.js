@@ -104,9 +104,12 @@ export async function syncOrderPaymentToInvoice(orderPaymentId, orderId, queryab
     );
     if (existing.rows.length) return;
 
-    // Get payment details
+    // Get payment details. order_payments has no reference_number column — derive
+    // the AR receipt reference from whichever Stripe/check identifier is present.
     const opRes = await queryable.query(
-      'SELECT amount, payment_method, reference_number FROM order_payments WHERE id = $1',
+      `SELECT amount, payment_method,
+              COALESCE(stripe_payment_intent_id, stripe_checkout_session_id, check_number) AS reference_number
+       FROM order_payments WHERE id = $1`,
       [orderPaymentId]
     );
     if (!opRes.rows.length) return;

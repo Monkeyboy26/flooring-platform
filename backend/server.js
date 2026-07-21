@@ -25,7 +25,7 @@ import { calculateSalesTax, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } fro
 import { recalculateBalance, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { createCustomerHelpers } from './lib/customerHelpers.js';
-import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
+import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateOrderInvoiceDoc, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -8354,8 +8354,31 @@ app.post('/api/admin/orders/:id/payment-request', staffAuth, requireRole('admin'
         'order', id));
     }
 
-    // Send email
-    setImmediate(() => sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null }));
+    // Send email — richer payment request with line items + attached invoice PDF.
+    // Built off the response path; PDF failures degrade to a no-attachment send.
+    const paymentRequestRow = prResult.rows[0];
+    setImmediate(async () => {
+      let items = [];
+      let pdfBuffer = null;
+      try {
+        const itemsResult = await pool.query(`
+          SELECT oi.*, p.sqft_per_box
+          FROM order_items oi LEFT JOIN packaging p ON p.sku_id = oi.sku_id
+          WHERE oi.order_id = $1 ORDER BY oi.id
+        `, [id]);
+        items = itemsResult.rows;
+      } catch (itemsErr) {
+        console.error(`[Admin] Payment request: failed to load items for ${o.order_number}:`, itemsErr.message);
+      }
+      try {
+        const invoiceResult = await generateOrderInvoiceHtml(id);
+        if (invoiceResult) pdfBuffer = await generatePDFBuffer(invoiceResult.html);
+      } catch (pdfErr) {
+        console.error(`[Admin] Payment request: PDF generation failed for ${o.order_number}, sending without attachment:`, pdfErr.message);
+      }
+      sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null,
+        items, pdf_buffer: pdfBuffer, expires_at: paymentRequestRow.expires_at });
+    });
 
     res.json({ payment_request: prResult.rows[0], checkout_url: session.url });
   } catch (err) {
@@ -10844,42 +10867,86 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           const { order_id, payment_request_id } = session.metadata;
           const paidAmount = (session.amount_total || 0) / 100;
 
-          // Mark payment request as paid
-          if (payment_request_id) {
-            await pool.query(
-              "UPDATE payment_requests SET status = 'paid', paid_at = NOW() WHERE id = $1",
-              [payment_request_id]
-            );
+          // Idempotency guard: Stripe may redeliver this event (retries, at-least-once
+          // delivery). Process the settlement exactly once inside a transaction —
+          // (1) atomically claim the payment_request (only the first delivery flips it
+          // to 'paid'), and (2) rely on the unique index on stripe_checkout_session_id
+          // so the ledger insert no-ops on a duplicate. If neither records new work,
+          // we skip the balance bump, email, invoice, and rep notification.
+          const client = await pool.connect();
+          let opId = null;
+          try {
+            await client.query('BEGIN');
+
+            let claimed = true;
+            if (payment_request_id) {
+              const claim = await client.query(
+                "UPDATE payment_requests SET status = 'paid', paid_at = NOW() WHERE id = $1 AND status <> 'paid' RETURNING id",
+                [payment_request_id]
+              );
+              claimed = claim.rows.length > 0;
+            }
+
+            if (claimed) {
+              const ins = await client.query(`
+                INSERT INTO order_payments (order_id, payment_type, amount, stripe_checkout_session_id, description, status)
+                VALUES ($1, 'additional_charge', $2, $3, 'Additional payment via checkout', 'completed')
+                ON CONFLICT (stripe_checkout_session_id) WHERE stripe_checkout_session_id IS NOT NULL DO NOTHING
+                RETURNING id
+              `, [order_id, paidAmount.toFixed(2), session.id]);
+
+              if (ins.rows.length) {
+                opId = ins.rows[0].id;
+                await client.query(
+                  'UPDATE orders SET amount_paid = amount_paid + $1 WHERE id = $2',
+                  [paidAmount.toFixed(2), order_id]
+                );
+                await logOrderActivity(client, order_id, 'payment_received', null, 'System',
+                  { method: 'payment_request', amount: paidAmount.toFixed(2), stripe_session_id: session.id });
+              }
+            }
+
+            await client.query('COMMIT');
+          } catch (txErr) {
+            await client.query('ROLLBACK');
+            throw txErr;
+          } finally {
+            client.release();
           }
 
-          // Record additional charge in ledger
-          const addChargeOpRes = await pool.query(`
-            INSERT INTO order_payments (order_id, payment_type, amount, stripe_checkout_session_id, description, status)
-            VALUES ($1, 'additional_charge', $2, $3, 'Additional payment via checkout', 'completed') RETURNING id
-          `, [order_id, paidAmount.toFixed(2), session.id]);
-          await syncOrderPaymentToInvoice(addChargeOpRes.rows[0].id, order_id, pool);
+          if (opId) {
+            // Post-commit side effects — invoice sync, emails, and notifications
+            // run only when this delivery actually recorded the payment.
+            await syncOrderPaymentToInvoice(opId, order_id, pool);
 
-          // Update amount_paid
-          await pool.query(
-            'UPDATE orders SET amount_paid = amount_paid + $1 WHERE id = $2',
-            [paidAmount.toFixed(2), order_id]
-          );
-
-          // Send confirmation email
-          const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [order_id]);
-          if (orderResult.rows.length) {
-            setImmediate(() => sendPaymentReceived(orderResult.rows[0], paidAmount));
-
-            // Auto-generate invoice on payment completion
-            setImmediate(() => autoGenerateAndSendInvoice(order_id));
-
-            // Notify assigned rep about payment received
-            if (orderResult.rows[0].sales_rep_id) {
-              setImmediate(() => createRepNotification(pool, orderResult.rows[0].sales_rep_id, 'payment_received',
-                'Payment received for ' + orderResult.rows[0].order_number,
-                '$' + paidAmount.toFixed(2) + ' payment received for order ' + orderResult.rows[0].order_number,
-                'order', order_id));
+            const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [order_id]);
+            if (orderResult.rows.length) {
+              const paidOrder = orderResult.rows[0];
+              // Confirmation email carries the updated invoice PDF, which now
+              // reflects the payment (balance due $0 / paid-in-full). PDF render
+              // is heavy (Puppeteer) and degrades gracefully to a no-attachment send.
+              setImmediate(async () => {
+                let pdfBuffer = null;
+                try {
+                  const invoiceResult = await generateOrderInvoiceHtml(order_id);
+                  if (invoiceResult) pdfBuffer = await generatePDFBuffer(invoiceResult.html);
+                } catch (pdfErr) {
+                  console.error(`[Webhook] Payment received: invoice PDF failed for ${paidOrder.order_number}, sending without attachment:`, pdfErr.message);
+                }
+                sendPaymentReceived(paidOrder, paidAmount, pdfBuffer);
+              });
+              // Create the invoice record but don't email — the Payment Received
+              // email above already reaches the customer with the invoice PDF.
+              setImmediate(() => autoGenerateAndSendInvoice(order_id, { sendEmail: false }));
+              if (paidOrder.sales_rep_id) {
+                setImmediate(() => createRepNotification(pool, paidOrder.sales_rep_id, 'payment_received',
+                  'Payment received for ' + paidOrder.order_number,
+                  '$' + paidAmount.toFixed(2) + ' payment received for order ' + paidOrder.order_number,
+                  'order', order_id));
+              }
             }
+          } else {
+            console.log(`[Webhook] Duplicate payment_request completion (order ${order_id}, session ${session.id}) — already processed, skipping`);
           }
         }
         break;
@@ -12089,80 +12156,28 @@ async function generateOrderPackingSlipHtml(orderId) {
 }
 
 async function generateOrderInvoiceHtml(orderId) {
-  const order = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+  const order = await pool.query(`
+    SELECT o.*, sr.first_name || ' ' || sr.last_name AS rep_name, sr.email AS rep_email
+    FROM orders o
+    LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+    WHERE o.id = $1
+  `, [orderId]);
   if (!order.rows.length) return null;
   const items = await pool.query(`
-    SELECT oi.*, p.sqft_per_box, sk.variant_name, sa_c.value as color
+    SELECT oi.*, p.sqft_per_box, sk.variant_name, sk.vendor_sku,
+      sa_c.value as color, v.name as vendor_name,
+      (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) AS primary_image
     FROM order_items oi
     LEFT JOIN packaging p ON p.sku_id = oi.sku_id
     LEFT JOIN skus sk ON sk.id = oi.sku_id
+    LEFT JOIN products pr ON pr.id = COALESCE(sk.product_id, oi.product_id)
+    LEFT JOIN vendors v ON v.id = pr.vendor_id
     LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
       AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
     WHERE oi.order_id = $1 ORDER BY oi.id
   `, [orderId]);
   const o = order.rows[0];
-  const isPickup = o.delivery_method === 'pickup';
-  const total = parseFloat(o.total || 0);
-  const amountPaid = parseFloat(o.amount_paid || 0);
-  const balanceDue = parseFloat((total - amountPaid).toFixed(2));
-  const taxAmount = parseFloat(o.tax_amount || 0);
-
-  const shipTo = isPickup
-    ? `<p><strong>Roma Flooring Designs</strong><br/>1440 S. State College Blvd., Suite 6M<br/>Anaheim, CA 92806</p>`
-    : `<p><strong>${o.customer_name}</strong><br/>${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br/>' + o.shipping_address_line2 : ''}<br/>${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}</p>`;
-
-  return { html: `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
-    <div class="page">
-      ${getDocumentHeader('Invoice')}
-      <div class="doc-banner">
-        <div class="doc-banner-left">
-          <div class="meta-group"><p class="meta-label">Invoice</p><p class="meta-value">${o.order_number}</p></div>
-          <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(o.created_at).toLocaleDateString()}</p></div>
-          ${o.po_number ? `<div class="meta-group"><p class="meta-label">PO Ref</p><p class="meta-value-sm">${o.po_number}</p></div>` : ''}
-        </div>
-        <div>
-          ${balanceDue > 0.01 ? '<span class="badge badge-pending">Balance Due</span>' : '<span class="badge badge-paid">Paid</span>'}
-        </div>
-      </div>
-      <div class="info-row">
-        <div class="info-card"><h3>Bill To</h3><p><strong>${o.customer_name}</strong><br/>${o.customer_email}${o.phone ? '<br/>' + o.phone : ''}</p></div>
-        <div class="info-card"><h3>${isPickup ? 'Store Pickup' : 'Ship To'}</h3>${shipTo}</div>
-      </div>
-      <table>
-        <thead><tr><th>Description</th><th class="text-right">SqFt</th><th class="text-right">Qty</th><th class="text-right">Unit Price</th><th class="text-right">Subtotal</th></tr></thead>
-        <tbody>
-          ${items.rows.map(i => {
-            const isUnit = i.sell_by === 'unit';
-            return `<tr>
-              <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}${i.is_sample ? ' <span class="text-muted text-small">(Sample)</span>' : ''}</td>
-              <td class="text-right">${isUnit ? '\u2014' : (i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(1) : '\u2014')}</td>
-              <td class="text-right">${i.num_boxes}${isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')}</td>
-              <td class="text-right">${i.is_sample ? '<span class="text-muted">$0.00</span>' : (i.unit_price ? '$' + parseFloat(i.unit_price).toFixed(2) + (isUnit ? '/ea' : '/sf') : '\u2014')}</td>
-              <td class="text-right">${i.is_sample ? '<span class="text-muted">$0.00</span>' : '$' + parseFloat(i.subtotal || 0).toFixed(2)}</td>
-            </tr>`;}).join('')}
-        </tbody>
-      </table>
-      <div class="totals-wrapper"><div class="totals-box">
-        <div class="totals-line"><span>Subtotal</span><span>$${parseFloat(o.subtotal || 0).toFixed(2)}</span></div>
-        ${parseFloat(o.shipping || 0) > 0 ? `<div class="totals-line"><span>Shipping${o.shipping_method ? ' (' + (o.shipping_method === 'ltl_freight' ? 'LTL Freight' : 'Parcel') + ')' : ''}</span><span>$${parseFloat(o.shipping).toFixed(2)}</span></div>` : ''}
-        ${isPickup ? '<div class="totals-line"><span>Shipping (Store Pickup)</span><span class="discount">FREE</span></div>' : ''}
-        ${parseFloat(o.sample_shipping || 0) > 0 ? `<div class="totals-line"><span>Sample Shipping</span><span>$${parseFloat(o.sample_shipping).toFixed(2)}</span></div>` : ''}
-        ${parseFloat(o.discount_amount || 0) > 0 ? `<div class="totals-line"><span>Discount${o.promo_code ? ' (' + o.promo_code + ')' : ''}</span><span class="discount">-$${parseFloat(o.discount_amount).toFixed(2)}</span></div>` : ''}
-        ${taxAmount > 0 ? `<div class="totals-line"><span>Tax</span><span>$${taxAmount.toFixed(2)}</span></div>` : ''}
-        <div class="totals-line grand-total"><span>Total</span><span>$${total.toFixed(2)}</span></div>
-        <div class="totals-line"><span>Amount Paid</span><span>$${amountPaid.toFixed(2)}</span></div>
-        ${balanceDue > 0.01 ? `<div class="totals-line balance-due"><span>Balance Due</span><span>$${balanceDue.toFixed(2)}</span></div>` : `<div class="totals-line paid-full"><span>Balance Due</span><span>$0.00</span></div>`}
-      </div></div>
-      ${o.payment_method || o.stripe_payment_intent_id ? `
-        <div class="notes-block">
-          <h4>Payment Information</h4>
-          ${o.payment_method ? '<div>Method: ' + (o.payment_method === 'stripe' ? 'Payment Request' : o.payment_method.charAt(0).toUpperCase() + o.payment_method.slice(1)) + '</div>' : ''}
-          ${o.stripe_payment_intent_id ? '<div class="text-muted text-small">Ref: ' + o.stripe_payment_intent_id + '</div>' : ''}
-        </div>
-      ` : ''}
-      ${getDocumentFooter('<p>Thank you for your business.</p>')}
-    </div>
-  </body></html>`, filename: `invoice-${o.order_number}.pdf` };
+  return { html: generateOrderInvoiceDoc(o, items.rows), filename: `invoice-${o.order_number}.pdf` };
 }
 
 async function generateSampleRequestConfirmationHtml(sampleRequestId) {
@@ -12264,33 +12279,40 @@ app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
 
     if (balanceDue > 0) {
-      const session = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        customer_email: o.customer_email,
-        line_items: [{
-          price_data: {
-            currency: 'usd',
-            product_data: { name: `Balance Due — Order ${o.order_number}` },
-            unit_amount: Math.round(balanceDue * 100)
-          },
-          quantity: 1
-        }],
-        metadata: { order_id: id, type: 'payment_request' },
-        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
-        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
-        expires_at: Math.floor(Date.now() / 1000) + 72 * 3600
-      });
+      // Insert the request row first so its id can ride in the session's
+      // create-time metadata (this SDK version has no sessions.update).
+      const prResult = await pool.query(`
+        INSERT INTO payment_requests (order_id, amount, sent_to_email, sent_by, sent_by_name, message, expires_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+      `, [id, balanceDue.toFixed(2), o.customer_email, req.staff.id, staffName, message || null, new Date(Date.now() + 24 * 3600 * 1000)]);
+
+      let session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          customer_email: o.customer_email,
+          line_items: [{
+            price_data: {
+              currency: 'usd',
+              product_data: { name: `Balance Due — Order ${o.order_number}` },
+              unit_amount: Math.round(balanceDue * 100)
+            },
+            quantity: 1
+          }],
+          metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+          success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
+          cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
+          expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+        });
+      } catch (stripeErr) {
+        await pool.query('DELETE FROM payment_requests WHERE id = $1', [prResult.rows[0].id]);
+        throw stripeErr;
+      }
 
       checkoutUrl = session.url;
 
-      const prResult = await pool.query(`
-        INSERT INTO payment_requests (order_id, amount, stripe_checkout_session_id, stripe_checkout_url, sent_to_email, sent_by, sent_by_name, message, expires_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
-      `, [id, balanceDue.toFixed(2), session.id, session.url, o.customer_email, req.staff.id, staffName, message || null, new Date(Date.now() + 72 * 3600 * 1000)]);
-
-      await stripe.checkout.sessions.update(session.id, {
-        metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' }
-      });
+      await pool.query('UPDATE payment_requests SET stripe_checkout_session_id = $1, stripe_checkout_url = $2 WHERE id = $3',
+        [session.id, session.url, prResult.rows[0].id]);
 
       await logOrderActivity(pool, id, 'payment_request_sent', req.staff.id, staffName,
         { amount: balanceDue.toFixed(2), sent_to: o.customer_email, via: 'invoice_email' });
@@ -13241,7 +13263,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
           metadata: { sample_request_id: sample_request.id, type: 'sample_shipping' },
           success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?sample=${sample_request.id}&payment=success`,
           cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?sample=${sample_request.id}&payment=cancelled`,
-          expires_at: Math.floor(Date.now() / 1000) + 72 * 3600
+          expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
         });
         // Persist Stripe session ID on sample request
         await pool.query('UPDATE sample_requests SET stripe_checkout_session_id = $1 WHERE id = $2', [session.id, sample_request.id]);
@@ -15398,32 +15420,38 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
     const amountDue = balanceInfo.balance;
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      customer_email: o.customer_email,
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: { name: `Balance Due — Order ${o.order_number}` },
-          unit_amount: Math.round(amountDue * 100)
-        },
-        quantity: 1
-      }],
-      metadata: { order_id: id, type: 'payment_request' },
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
-      cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
-      expires_at: Math.floor(Date.now() / 1000) + 72 * 3600
-    });
-
+    // Insert the request row first so its id can ride in the session's
+    // create-time metadata (this SDK version has no sessions.update).
     const prResult = await pool.query(`
-      INSERT INTO payment_requests (order_id, amount, stripe_checkout_session_id, stripe_checkout_url, sent_to_email, sent_by, sent_by_name, message, expires_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
-    `, [id, amountDue.toFixed(2), session.id, session.url, o.customer_email, req.rep.id, repName, message || null,
-        new Date(Date.now() + 72 * 3600 * 1000)]);
+      INSERT INTO payment_requests (order_id, amount, sent_to_email, sent_by, sent_by_name, message, expires_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+    `, [id, amountDue.toFixed(2), o.customer_email, req.rep.id, repName, message || null,
+        new Date(Date.now() + 24 * 3600 * 1000)]);
 
-    await stripe.checkout.sessions.update(session.id, {
-      metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' }
-    });
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        customer_email: o.customer_email,
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `Balance Due — Order ${o.order_number}` },
+            unit_amount: Math.round(amountDue * 100)
+          },
+          quantity: 1
+        }],
+        metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
+        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
+        expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+      });
+    } catch (stripeErr) {
+      await pool.query('DELETE FROM payment_requests WHERE id = $1', [prResult.rows[0].id]);
+      throw stripeErr;
+    }
+    await pool.query('UPDATE payment_requests SET stripe_checkout_session_id = $1, stripe_checkout_url = $2 WHERE id = $3',
+      [session.id, session.url, prResult.rows[0].id]);
 
     await logOrderActivity(pool, id, 'payment_request_sent', req.rep.id, repName,
       { amount: amountDue.toFixed(2), sent_to: o.customer_email });
@@ -15436,7 +15464,32 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
         'order', id));
     }
 
-    setImmediate(() => sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null }));
+    // Build the richer payment email off the response path: fetch line items and
+    // render the same invoice PDF the send-invoice flow attaches. PDF generation
+    // is heavy (Puppeteer), so failures degrade gracefully to a no-attachment send.
+    const paymentRequestRow = prResult.rows[0];
+    setImmediate(async () => {
+      let items = [];
+      let pdfBuffer = null;
+      try {
+        const itemsResult = await pool.query(`
+          SELECT oi.*, p.sqft_per_box
+          FROM order_items oi LEFT JOIN packaging p ON p.sku_id = oi.sku_id
+          WHERE oi.order_id = $1 ORDER BY oi.id
+        `, [id]);
+        items = itemsResult.rows;
+      } catch (itemsErr) {
+        console.error(`[Rep] Payment request: failed to load items for ${o.order_number}:`, itemsErr.message);
+      }
+      try {
+        const invoiceResult = await generateOrderInvoiceHtml(id);
+        if (invoiceResult) pdfBuffer = await generatePDFBuffer(invoiceResult.html);
+      } catch (pdfErr) {
+        console.error(`[Rep] Payment request: PDF generation failed for ${o.order_number}, sending without attachment:`, pdfErr.message);
+      }
+      sendPaymentRequest({ order: o, amount: amountDue, checkout_url: session.url, message: message || null,
+        items, pdf_buffer: pdfBuffer, expires_at: paymentRequestRow.expires_at });
+    });
 
     res.json({ payment_request: prResult.rows[0], checkout_url: session.url });
   } catch (err) {
@@ -16590,33 +16643,40 @@ app.post('/api/rep/orders/:id/send-invoice', repAuth, async (req, res) => {
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
 
     if (balanceDue > 0) {
-      const session = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        customer_email: o.customer_email,
-        line_items: [{
-          price_data: {
-            currency: 'usd',
-            product_data: { name: `Balance Due — Order ${o.order_number}` },
-            unit_amount: Math.round(balanceDue * 100)
-          },
-          quantity: 1
-        }],
-        metadata: { order_id: id, type: 'payment_request' },
-        success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
-        cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
-        expires_at: Math.floor(Date.now() / 1000) + 72 * 3600
-      });
+      // Insert the request row first so its id can ride in the session's
+      // create-time metadata (this SDK version has no sessions.update).
+      const prResult = await pool.query(`
+        INSERT INTO payment_requests (order_id, amount, sent_to_email, sent_by, sent_by_name, message, expires_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+      `, [id, balanceDue.toFixed(2), o.customer_email, req.rep.id, repName, message || null, new Date(Date.now() + 24 * 3600 * 1000)]);
+
+      let session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          customer_email: o.customer_email,
+          line_items: [{
+            price_data: {
+              currency: 'usd',
+              product_data: { name: `Balance Due — Order ${o.order_number}` },
+              unit_amount: Math.round(balanceDue * 100)
+            },
+            quantity: 1
+          }],
+          metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+          success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
+          cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
+          expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+        });
+      } catch (stripeErr) {
+        await pool.query('DELETE FROM payment_requests WHERE id = $1', [prResult.rows[0].id]);
+        throw stripeErr;
+      }
 
       checkoutUrl = session.url;
 
-      const prResult = await pool.query(`
-        INSERT INTO payment_requests (order_id, amount, stripe_checkout_session_id, stripe_checkout_url, sent_to_email, sent_by, sent_by_name, message, expires_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
-      `, [id, balanceDue.toFixed(2), session.id, session.url, o.customer_email, req.rep.id, repName, message || null, new Date(Date.now() + 72 * 3600 * 1000)]);
-
-      await stripe.checkout.sessions.update(session.id, {
-        metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' }
-      });
+      await pool.query('UPDATE payment_requests SET stripe_checkout_session_id = $1, stripe_checkout_url = $2 WHERE id = $3',
+        [session.id, session.url, prResult.rows[0].id]);
 
       await logOrderActivity(pool, id, 'payment_request_sent', req.rep.id, repName,
         { amount: balanceDue.toFixed(2), sent_to: o.customer_email, via: 'invoice_email' });
@@ -22109,11 +22169,15 @@ app.get('/api/admin/accounting/expenses/:id/receipt-url', staffAuth, requireRole
 
 // --- Invoices (AR) ---
 async function getNextInvoiceNumber() {
-  const result = await pool.query("SELECT invoice_number FROM invoices ORDER BY created_at DESC LIMIT 1");
-  if (!result.rows.length) return 'INV-0001';
-  const last = result.rows[0].invoice_number;
-  const num = parseInt(last.replace(/\D/g, '')) || 0;
-  return 'INV-' + String(num + 1).padStart(4, '0');
+  // Take MAX of the numeric portion of canonically-formatted invoice numbers,
+  // not the most-recently-created row. This is resilient to out-of-order
+  // creation and ignores stray non-canonical numbers (e.g. manual/imported
+  // ones) that would otherwise poison a "last row + 1" scheme and collide.
+  const result = await pool.query(
+    "SELECT COALESCE(MAX((substring(invoice_number FROM '^INV-([0-9]+)$'))::int), 0) AS maxnum FROM invoices WHERE invoice_number ~ '^INV-[0-9]+$'"
+  );
+  const next = (result.rows[0].maxnum || 0) + 1;
+  return 'INV-' + String(next).padStart(4, '0');
 }
 
 function calculateDueDate(issueDate, terms) {
@@ -22128,7 +22192,7 @@ function calculateDueDate(issueDate, terms) {
 }
 
 // Auto-generate and send invoice for an order (idempotent)
-async function autoGenerateAndSendInvoice(orderId) {
+async function autoGenerateAndSendInvoice(orderId, { sendEmail = true } = {}) {
   try {
     // Check if invoice already exists for this order
     const existing = await pool.query('SELECT id, invoice_number FROM invoices WHERE order_id = $1 AND status != $2', [orderId, 'void']);
@@ -22199,14 +22263,17 @@ async function autoGenerateAndSendInvoice(orderId) {
       }
     }
 
-    // Send invoice email with PDF
-    const items = await pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [invoice.id]);
-    try {
-      await sendInvoiceSent({ ...invoice, items: items.rows });
-    } catch (e) { console.log('[AutoInvoice] Email send skipped:', e.message); }
-
-    await pool.query('UPDATE invoices SET sent_at = CURRENT_TIMESTAMP WHERE id = $1', [invoice.id]);
-    console.log(`[AutoInvoice] Generated and sent ${invoice_number} for order ${o.order_number}`);
+    // Send invoice email — skipped when the caller already notifies the customer
+    // (e.g. the payment webhook's "Payment Received" email carries the invoice PDF),
+    // so we don't double-email. The invoice record is still created either way.
+    if (sendEmail) {
+      const items = await pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [invoice.id]);
+      try {
+        await sendInvoiceSent({ ...invoice, items: items.rows });
+      } catch (e) { console.log('[AutoInvoice] Email send skipped:', e.message); }
+      await pool.query('UPDATE invoices SET sent_at = CURRENT_TIMESTAMP WHERE id = $1', [invoice.id]);
+    }
+    console.log(`[AutoInvoice] Generated ${invoice_number} for order ${o.order_number}${sendEmail ? ' (emailed)' : ' (no email)'}`);
   } catch (err) {
     console.error('[AutoInvoice] Error for order', orderId, ':', err.message);
   }

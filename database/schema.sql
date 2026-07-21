@@ -844,6 +844,11 @@ CREATE TABLE IF NOT EXISTS order_payments (
 
 CREATE INDEX IF NOT EXISTS idx_order_payments_order ON order_payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_order_payments_refund_of ON order_payments(refund_of_payment_id);
+-- Idempotency key: a Stripe checkout session settles exactly once. Guards the
+-- payment_request webhook (which Stripe may redeliver) against double-recording.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_order_payments_stripe_session
+  ON order_payments(stripe_checkout_session_id)
+  WHERE stripe_checkout_session_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS payment_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
