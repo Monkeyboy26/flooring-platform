@@ -255,6 +255,14 @@ app.get('/api/img', imgLimiter, async (req, res) => {
 
 // S3, uploads, auth — extracted to lib/ modules
 
+// Trade discount is capped on retail_locked SKUs (e.g. Home-Depot-matched LVP):
+// those are already at HD's competitive floor, so tiers get at most this % off.
+const HD_LOCKED_DISCOUNT_CAP = 10;
+function effTradeDiscount(discountPercent, retailLocked) {
+  const d = parseFloat(discountPercent) || 0;
+  return retailLocked ? Math.min(d, HD_LOCKED_DISCOUNT_CAP) : d;
+}
+
 app.get('/api/products', optionalTradeAuth, async (req, res) => {
   try {
     const { category } = req.query;
@@ -263,6 +271,9 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
         (SELECT pr.retail_price FROM pricing pr
          JOIN skus s ON s.id = pr.sku_id
          WHERE s.product_id = p.id LIMIT 1) as price,
+        (SELECT pr.retail_locked FROM pricing pr
+         JOIN skus s ON s.id = pr.sku_id
+         WHERE s.product_id = p.id LIMIT 1) as retail_locked,
         (SELECT ma.url FROM media_assets ma
          WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id IS NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1) as primary_image,
@@ -376,7 +387,7 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
           const retail = parseFloat(p.price);
           return {
             ...p,
-            trade_price: (retail * (1 - req.tradeCustomer.discount_percent / 100)).toFixed(2),
+            trade_price: (retail * (1 - effTradeDiscount(req.tradeCustomer.discount_percent, p.retail_locked) / 100)).toFixed(2),
             trade_tier: req.tradeCustomer.tier_name
           };
         }
@@ -405,7 +416,7 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
 
     const skusResult = await pool.query(`
       SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs,
-        pr.cost, pr.retail_price, pr.price_basis,
+        pr.cost, pr.retail_price, pr.retail_locked, pr.price_basis,
         inv.qty_on_hand, inv.qty_in_transit, inv.fresh_until,
         CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END as qty_on_hand_sqft,
         CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_in_transit, 0) * pk.sqft_per_box) END as qty_in_transit_sqft,
@@ -433,7 +444,7 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
           const retail = parseFloat(s.retail_price);
           return {
             ...s,
-            trade_price: (retail * (1 - req.tradeCustomer.discount_percent / 100)).toFixed(2),
+            trade_price: (retail * (1 - effTradeDiscount(req.tradeCustomer.discount_percent, s.retail_locked) / 100)).toFixed(2),
             trade_tier: req.tradeCustomer.tier_name
           };
         }
@@ -737,7 +748,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
-        pr.retail_price, pr.price_basis, pr.cut_price,
+        pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
         COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
@@ -810,7 +821,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
-        pr.retail_price, pr.price_basis, pr.cut_price,
+        pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
         COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
@@ -892,7 +903,7 @@ app.get('/api/storefront/featured', async (req, res) => {
             COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
             COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
             c.name as category_name, c.slug as category_slug,
-            pr.retail_price, pr.price_basis, pr.cut_price,
+            pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
             COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
@@ -2009,7 +2020,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
-        pr.retail_price, pr.price_basis, pr.cut_price,
+        pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
         COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) as primary_image,
@@ -2108,7 +2119,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
           const retail = parseFloat(s.retail_price);
           return {
             ...s,
-            trade_price: (retail * (1 - req.tradeCustomer.discount_percent / 100)).toFixed(2)
+            trade_price: (retail * (1 - effTradeDiscount(req.tradeCustomer.discount_percent, s.retail_locked) / 100)).toFixed(2)
           };
         }
         return s;
@@ -2320,7 +2331,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         COALESCE(br.name, v.name) as brand_name, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
-        pr.retail_price, pr.cost, pr.price_basis,
+        pr.retail_price, pr.retail_locked, pr.cost, pr.price_basis,
         pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft,
         pr.sale_price, pr.sale_ends_at,
         pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class,
@@ -2407,7 +2418,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     // Trade pricing
     if (req.tradeCustomer && req.tradeCustomer.discount_percent > 0 && sku.retail_price) {
       const retail = parseFloat(sku.retail_price);
-      sku.trade_price = (retail * (1 - req.tradeCustomer.discount_percent / 100)).toFixed(2);
+      sku.trade_price = (retail * (1 - effTradeDiscount(req.tradeCustomer.discount_percent, sku.retail_locked) / 100)).toFixed(2);
       sku.trade_tier = req.tradeCustomer.tier_name;
     }
 
@@ -6430,7 +6441,7 @@ app.get('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', '
     const { productId } = req.params;
     const result = await pool.query(`
       SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
-        pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
+        pr.cost, pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -6501,7 +6512,7 @@ app.post('/api/admin/products/:productId/skus', staffAuth, requireRole('admin', 
     // Return full SKU with joins
     const full = await pool.query(`
       SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
-        pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
+        pr.cost, pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -6573,7 +6584,7 @@ app.put('/api/admin/skus/:id', staffAuth, requireRole('admin', 'manager'), async
 
     const full = await pool.query(`
       SELECT s.*, pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs, pk.freight_class, pk.boxes_per_pallet, COALESCE(pk.sqft_per_pallet, pk.sqft_per_box * pk.boxes_per_pallet) as sqft_per_pallet, pk.weight_per_pallet_lbs, pk.roll_width_ft, pk.roll_length_ft,
-        pr.cost, pr.retail_price, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
+        pr.cost, pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price, pr.roll_price, pr.cut_cost, pr.roll_cost, pr.roll_min_sqft
       FROM skus s
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -11460,7 +11471,7 @@ app.post('/api/trade/bulk-order', tradeAuth, async (req, res) => {
       const skuCode = item.sku || item.sku_code;
       const sku = await pool.query(`
         SELECT s.id, s.vendor_sku, s.internal_sku, p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
-          pr.retail_price, pk.sqft_per_box, s.sell_by
+          pr.retail_price, pr.retail_locked, pk.sqft_per_box, s.sell_by
         FROM skus s
         JOIN products p ON p.id = s.product_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
@@ -11477,9 +11488,9 @@ app.post('/api/trade/bulk-order', tradeAuth, async (req, res) => {
       const qty = parseInt(item.qty || item.quantity) || 1;
       let price = parseFloat(s.retail_price) || 0;
 
-      // Apply trade discount
+      // Apply trade discount (capped on HD-locked SKUs)
       if (req.tradeCustomer.discount_percent > 0) {
-        price = price * (1 - req.tradeCustomer.discount_percent / 100);
+        price = price * (1 - effTradeDiscount(req.tradeCustomer.discount_percent, s.retail_locked) / 100);
       }
 
       validated.push({
@@ -14222,7 +14233,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         const skuResult = await client.query(`
           SELECT s.id as sku_id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.is_sample,
             COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
-            pr.retail_price, pr.cost, pr.price_basis,
+            pr.retail_price, pr.retail_locked, pr.cost, pr.price_basis,
             pk.sqft_per_box
           FROM skus s
           JOIN products p ON p.id = s.product_id
