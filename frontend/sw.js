@@ -1,10 +1,10 @@
-const CACHE_NAME = 'roma-v135';
+const CACHE_NAME = 'roma-v136';
 const IMAGE_CACHE = 'roma-images-v9';
 const IMAGE_CACHE_LIMIT = 2000;
 const SHELL_ASSETS = [
   '/storefront.html',
   '/storefront.css?v=91',
-  '/storefront-app.js?v=326',
+  '/storefront-app.js?v=327',
   '/favicon.svg',
   '/manifest.json'
 ];

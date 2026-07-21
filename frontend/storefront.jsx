@@ -14674,30 +14674,37 @@
       return <div style={{ font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: color || theme.muted, ...style }}>{children}</div>;
     }
 
-    function TapInput({ theme, label, type = 'text', value, onChange, onBlur, placeholder, mono, required, invalid, maxLength, textarea, autoComplete, style }) {
-      const { ink, accent } = theme;
-      const base = { border: 'none', borderBottom: `0.5px solid ${invalid ? '#c0392b' : ink + '33'}`, background: 'transparent', padding: '7px 0', font: mono ? '400 14px/1.4 ui-monospace, monospace' : '400 16px/1.35 var(--roma-serif)', color: ink, outline: 'none', borderRadius: 0, width: '100%', boxSizing: 'border-box', ...style };
+    function TapInput({ theme, label, type = 'text', value, onChange, onBlur, placeholder, mono, required, invalid, maxLength, textarea, autoComplete, style, error, hint, valid }) {
+      const { ink, accent, muted } = theme;
+      const bad = !!(error || invalid);
+      const lineColor = bad ? '#c0392b' : valid ? '#3f7a52' : ink + '33';
+      const base = { border: 'none', borderBottom: `0.5px solid ${lineColor}`, background: 'transparent', padding: '7px 0', font: mono ? '400 14px/1.4 ui-monospace, monospace' : '400 16px/1.35 var(--roma-serif)', color: ink, outline: 'none', borderRadius: 0, width: '100%', boxSizing: 'border-box', ...style };
       return (
-        <label style={{ display: 'grid', gap: 8 }}>
+        <label style={{ display: 'grid', gap: 7 }}>
           <TapMicro theme={theme}>{label}{required && <span style={{ color: accent }}> *</span>}</TapMicro>
           {textarea ? (
-            <textarea value={value} onChange={onChange} onBlur={onBlur} placeholder={placeholder} rows={3} style={{ ...base, resize: 'vertical', font: '400 15px/1.5 var(--roma-sans)' }} onFocus={e => e.target.style.borderBottomColor = accent} />
+            <textarea value={value} onChange={onChange} onBlur={onBlur} placeholder={placeholder} rows={3} style={{ ...base, resize: 'vertical', font: '400 15px/1.5 var(--roma-sans)' }} onFocus={e => e.target.style.borderBottomColor = accent} onBlurCapture={e => { e.target.style.borderBottomColor = lineColor; }} />
           ) : (
-            <input type={type} value={value} onChange={onChange} onBlur={onBlur} placeholder={placeholder} maxLength={maxLength} autoComplete={autoComplete} style={base}
-              onFocus={e => e.target.style.borderBottomColor = accent} onBlurCapture={e => { if (!invalid) e.target.style.borderBottomColor = ink + '33'; }} />
+            <div style={{ position: 'relative' }}>
+              <input type={type} value={value} onChange={onChange} onBlur={onBlur} placeholder={placeholder} maxLength={maxLength} autoComplete={autoComplete} style={base}
+                onFocus={e => e.target.style.borderBottomColor = accent} onBlurCapture={e => { e.target.style.borderBottomColor = lineColor; }} />
+              {valid && !bad && <span style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', color: '#3f7a52', font: '600 14px/1 var(--roma-sans)', pointerEvents: 'none' }}>✓</span>}
+            </div>
           )}
+          {(error || hint) && <div style={{ font: '400 11px/1.4 var(--roma-sans)', color: error ? '#c0392b' : muted }}>{error || hint}</div>}
         </label>
       );
     }
 
-    function TapSelect({ theme, label, value, onChange, required, children }) {
-      const { ink, accent } = theme;
+    function TapSelect({ theme, label, value, onChange, onBlur, required, error, children }) {
+      const { ink, accent, muted } = theme;
       return (
-        <label style={{ display: 'grid', gap: 8 }}>
+        <label style={{ display: 'grid', gap: 7 }}>
           <TapMicro theme={theme}>{label}{required && <span style={{ color: accent }}> *</span>}</TapMicro>
-          <select value={value} onChange={onChange} style={{ border: 'none', borderBottom: `0.5px solid ${ink}33`, background: 'transparent', padding: '7px 0', font: '400 16px/1.35 var(--roma-serif)', color: value ? ink : `${ink}55`, outline: 'none', borderRadius: 0, width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}>
+          <select value={value} onChange={onChange} onBlur={onBlur} style={{ border: 'none', borderBottom: `0.5px solid ${error ? '#c0392b' : ink + '33'}`, background: 'transparent', padding: '7px 0', font: '400 16px/1.35 var(--roma-serif)', color: value ? ink : `${ink}55`, outline: 'none', borderRadius: 0, width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}>
             {children}
           </select>
+          {error && <div style={{ font: '400 11px/1.4 var(--roma-sans)', color: '#c0392b' }}>{error}</div>}
         </label>
       );
     }
@@ -14720,21 +14727,29 @@
       return <div data-tv2-grid style={{ display: 'grid', gridTemplateColumns: cols || '1fr 1fr', gap: '22px 32px' }}>{children}</div>;
     }
 
-    function TapDropzone({ theme, label, docType, upload, uploading, onFile }) {
-      const { ink, accent, muted } = theme;
+    function TapDropzone({ theme, label, docType, upload, uploading, onFile, onRemove }) {
+      const { ink, muted } = theme;
       const done = !!upload;
+      const busy = uploading === docType;
+      const success = '#3f7a52';
       return (
-        <div style={{ padding: '18px 20px', border: `0.5px dashed ${done ? accent : ink + '44'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
-          <div>
-            <div style={{ font: '400 14px/1.3 var(--roma-sans)', color: ink }}>{label}</div>
-            <TapMicro theme={theme} color={done ? accent : muted} style={{ marginTop: 4, textTransform: 'none', letterSpacing: '0.04em' }}>
-              {uploading === docType ? 'Uploading…' : done ? `✓ ${upload.file_name}` : 'PDF or photo · 10 MB max'}
-            </TapMicro>
+        <div style={{ padding: '16px 20px', border: `0.5px ${done ? 'solid' : 'dashed'} ${done ? success : ink + '44'}`, background: done ? '#3f7a520d' : 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <span style={{ width: 26, height: 26, borderRadius: '50%', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${done ? success : busy ? ink + '55' : ink + '33'}`, background: done ? success : 'transparent', color: done ? '#fff' : muted, font: '600 13px/1 var(--roma-sans)' }}>{busy ? '…' : done ? '✓' : '+'}</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ font: '400 14px/1.3 var(--roma-sans)', color: ink }}>{label}</div>
+              <TapMicro theme={theme} color={done ? success : muted} style={{ marginTop: 4, textTransform: 'none', letterSpacing: '0.04em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 320 }}>
+                {busy ? 'Uploading…' : done ? `Uploaded · ${upload.file_name}` : 'PDF or photo · 10 MB max'}
+              </TapMicro>
+            </div>
           </div>
-          <label style={{ padding: '10px 18px', border: `0.5px solid ${ink}66`, font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            {done ? 'Replace' : 'Browse'}
-            <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) onFile(docType, e.target.files[0]); e.target.value = ''; }} />
-          </label>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flex: 'none' }}>
+            {done && onRemove && <button type="button" onClick={() => onRemove(docType)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', padding: 0 }}>Remove</button>}
+            <label style={{ padding: '10px 18px', border: `0.5px solid ${ink}66`, font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              {done ? 'Replace' : 'Browse'}
+              <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) onFile(docType, e.target.files[0]); e.target.value = ''; }} />
+            </label>
+          </div>
         </div>
       );
     }
@@ -14761,12 +14776,17 @@
       const [error, setError] = useState('');
       const [loading, setLoading] = useState(false);
       const [submitted, setSubmitted] = useState(false);
-      const [emailTouched, setEmailTouched] = useState(false);
+      const [touched, setTouched] = useState({});
+      const touch = (k) => setTouched(t => (t[k] ? t : { ...t, [k]: true }));
 
       useEffect(() => { window.scrollTo(0, 0); }, [submitted]);
 
       const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
       const passwordValid = password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password);
+      const phoneValid = phone.replace(/\D/g, '').length === 10;
+      const einValid = ein.replace(/\D/g, '').length === 9;
+      const zipValid = /^\d{5}(-\d{4})?$/.test(zip);
+      const stateValid = /^[A-Z]{2}$/.test(addrState);
       const formatPhone = (val) => {
         const d = val.replace(/\D/g, '').slice(0, 10);
         if (!d) return '';
@@ -14774,8 +14794,16 @@
         if (d.length <= 6) return '(' + d.slice(0, 3) + ') ' + d.slice(3);
         return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
       };
+      const formatEin = (val) => {
+        const d = val.replace(/\D/g, '').slice(0, 9);
+        return d.length <= 2 ? d : d.slice(0, 2) + '-' + d.slice(2);
+      };
+      // "Required" only after the field has been touched and left empty
+      const reqErr = (k, v) => touched[k] && !String(v || '').trim() ? 'Required' : '';
+      const removeDoc = (docType) => setDocUploads(prev => { const n = { ...prev }; delete n[docType]; return n; });
 
       const handleDocUpload = async (docType, file) => {
+        if (file.size > 10 * 1024 * 1024) { setError('That file is over 10 MB — please upload a smaller PDF or photo.'); return; }
         setUploading(docType); setError('');
         try {
           const fd = new FormData();
@@ -14792,13 +14820,18 @@
 
       const handleSubmit = async () => {
         setError('');
-        if (!firstName.trim() || !lastName.trim() || !email || !phone || !password || !companyName.trim() || !businessType || !ein.trim() || !addressLine1.trim() || !city.trim() || !addrState.trim() || !zip.trim()) {
-          setError('Please fill in all required fields.'); return;
+        // Reveal every field's inline validation so the user can see exactly what's off
+        setTouched({ firstName: true, lastName: true, email: true, phone: true, password: true, confirmPassword: true, companyName: true, businessType: true, ein: true, addressLine1: true, city: true, state: true, zip: true });
+        if (!firstName.trim() || !lastName.trim() || !email || !phone || !password || !confirmPassword || !companyName.trim() || !businessType || !ein.trim() || !addressLine1.trim() || !city.trim() || !addrState.trim() || !zip.trim()) {
+          setError('Please fill in all the required fields highlighted below.'); return;
         }
         if (!emailValid) { setError('Please enter a valid email address.'); return; }
-        if (phone.replace(/\D/g, '').length < 10) { setError('Please enter a valid 10-digit phone number.'); return; }
+        if (!phoneValid) { setError('Please enter a valid 10-digit phone number.'); return; }
         if (!passwordValid) { setError('Password must be at least 8 characters with one uppercase letter and one number.'); return; }
         if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
+        if (!einValid) { setError('Please enter a valid 9-digit EIN (XX-XXXXXXX).'); return; }
+        if (!stateValid) { setError('Please enter a 2-letter state code.'); return; }
+        if (!zipValid) { setError('Please enter a valid ZIP code.'); return; }
         if (!docUploads.business_card) { setError('A photo of your business card is required.'); return; }
         setLoading(true);
         try {
@@ -14900,23 +14933,23 @@
 
                 <TapSection theme={theme} num="01" title="About you">
                   <TapRow>
-                    <TapInput theme={theme} label="First name" required value={firstName} onChange={e => setFirstName(e.target.value)} autoComplete="given-name" />
-                    <TapInput theme={theme} label="Last name" required value={lastName} onChange={e => setLastName(e.target.value)} autoComplete="family-name" />
+                    <TapInput theme={theme} label="First name" required value={firstName} onChange={e => setFirstName(e.target.value)} onBlur={() => touch('firstName')} error={reqErr('firstName', firstName)} autoComplete="given-name" />
+                    <TapInput theme={theme} label="Last name" required value={lastName} onChange={e => setLastName(e.target.value)} onBlur={() => touch('lastName')} error={reqErr('lastName', lastName)} autoComplete="family-name" />
                   </TapRow>
                   <TapRow>
-                    <TapInput theme={theme} label="Business email" required mono value={email} onChange={e => setEmail(e.target.value)} onBlur={() => setEmailTouched(true)} invalid={emailTouched && !!email && !emailValid} autoComplete="email" placeholder="you@studio.com" />
-                    <TapInput theme={theme} label="Phone" required mono value={phone} onChange={e => setPhone(formatPhone(e.target.value))} autoComplete="tel" placeholder="(949) 555-0148" />
+                    <TapInput theme={theme} label="Business email" required mono value={email} onChange={e => setEmail(e.target.value)} onBlur={() => touch('email')} valid={emailValid} error={touched.email && !!email && !emailValid ? 'Enter a valid email address' : reqErr('email', email)} autoComplete="email" placeholder="you@studio.com" />
+                    <TapInput theme={theme} label="Phone" required mono value={phone} onChange={e => setPhone(formatPhone(e.target.value))} onBlur={() => touch('phone')} valid={phoneValid} error={touched.phone && !!phone && !phoneValid ? 'Enter a 10-digit phone number' : reqErr('phone', phone)} autoComplete="tel" placeholder="(949) 555-0148" />
                   </TapRow>
                   <TapRow>
-                    <TapInput theme={theme} label="Password" required type="password" mono value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" placeholder="8+ chars, 1 capital, 1 number" />
-                    <TapInput theme={theme} label="Confirm password" required type="password" mono value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" />
+                    <TapInput theme={theme} label="Password" required type="password" mono value={password} onChange={e => setPassword(e.target.value)} onBlur={() => touch('password')} valid={passwordValid} error={touched.password && !!password && !passwordValid ? 'At least 8 characters, one capital, one number' : reqErr('password', password)} hint={!password ? '8+ characters, one capital, one number' : ''} autoComplete="new-password" placeholder="••••••••" />
+                    <TapInput theme={theme} label="Confirm password" required type="password" mono value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} onBlur={() => touch('confirmPassword')} valid={!!confirmPassword && confirmPassword === password} error={touched.confirmPassword && !!confirmPassword && confirmPassword !== password ? 'Passwords don’t match' : reqErr('confirmPassword', confirmPassword)} autoComplete="new-password" placeholder="••••••••" />
                   </TapRow>
                 </TapSection>
 
                 <TapSection theme={theme} num="02" title="Your business" sub="This is what your rep verifies — the closer it matches your paperwork, the faster the approval.">
                   <TapRow cols="1.5fr 1fr">
-                    <TapInput theme={theme} label="Firm name" required value={companyName} onChange={e => setCompanyName(e.target.value)} autoComplete="organization" />
-                    <TapSelect theme={theme} label="Trade type" required value={businessType} onChange={e => setBusinessType(e.target.value)}>
+                    <TapInput theme={theme} label="Firm name" required value={companyName} onChange={e => setCompanyName(e.target.value)} onBlur={() => touch('companyName')} error={reqErr('companyName', companyName)} autoComplete="organization" />
+                    <TapSelect theme={theme} label="Trade type" required value={businessType} onChange={e => setBusinessType(e.target.value)} onBlur={() => touch('businessType')} error={reqErr('businessType', businessType)}>
                       <option value="">Select…</option>
                       <option value="contractor">General contractor</option>
                       <option value="interior_designer">Interior designer</option>
@@ -14927,21 +14960,21 @@
                     </TapSelect>
                   </TapRow>
                   <TapRow>
-                    <TapInput theme={theme} label="EIN (federal tax ID)" required mono value={ein} onChange={e => setEin(e.target.value)} placeholder="12-3456789" />
+                    <TapInput theme={theme} label="EIN (federal tax ID)" required mono value={ein} onChange={e => setEin(formatEin(e.target.value))} onBlur={() => touch('ein')} valid={einValid} error={touched.ein && !!ein && !einValid ? 'An EIN is 9 digits (XX-XXXXXXX)' : reqErr('ein', ein)} placeholder="12-3456789" />
                     <TapInput theme={theme} label="Contractor license # (optional)" mono value={contractorLicense} onChange={e => setContractorLicense(e.target.value)} placeholder="CSLB # — clears fastest" />
                   </TapRow>
-                  <TapInput theme={theme} label="Street address" required value={addressLine1} onChange={e => setAddressLine1(e.target.value)} autoComplete="address-line1" />
+                  <TapInput theme={theme} label="Street address" required value={addressLine1} onChange={e => setAddressLine1(e.target.value)} onBlur={() => touch('addressLine1')} error={reqErr('addressLine1', addressLine1)} autoComplete="address-line1" />
                   <TapRow cols="2fr 1fr 1fr">
-                    <TapInput theme={theme} label="City" required value={city} onChange={e => setCity(e.target.value)} autoComplete="address-level2" />
-                    <TapInput theme={theme} label="State" required value={addrState} onChange={e => setAddrState(e.target.value.toUpperCase())} maxLength={2} autoComplete="address-level1" placeholder="CA" />
-                    <TapInput theme={theme} label="Zip" required mono value={zip} onChange={e => setZip(e.target.value)} maxLength={10} autoComplete="postal-code" placeholder="92806" />
+                    <TapInput theme={theme} label="City" required value={city} onChange={e => setCity(e.target.value)} onBlur={() => touch('city')} error={reqErr('city', city)} autoComplete="address-level2" />
+                    <TapInput theme={theme} label="State" required value={addrState} onChange={e => setAddrState(e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase())} onBlur={() => touch('state')} valid={stateValid} error={touched.state && !!addrState && !stateValid ? '2-letter code' : reqErr('state', addrState)} maxLength={2} autoComplete="address-level1" placeholder="CA" />
+                    <TapInput theme={theme} label="Zip" required mono value={zip} onChange={e => setZip(e.target.value.replace(/[^\d-]/g, '').slice(0, 10))} onBlur={() => touch('zip')} valid={zipValid} error={touched.zip && !!zip && !zipValid ? '5-digit ZIP' : reqErr('zip', zip)} maxLength={10} autoComplete="postal-code" placeholder="92806" />
                   </TapRow>
                 </TapSection>
 
                 <TapSection theme={theme} num="03" title="Verification" sub="A photo of your business card is required; the rest are optional and just speed up review. Upload a PDF or a clear photo.">
-                  <TapDropzone theme={theme} label="Business card · photo · required" docType="business_card" upload={docUploads.business_card} uploading={uploading} onFile={handleDocUpload} />
-                  <TapDropzone theme={theme} label="Resale certificate (CDTFA) · optional" docType="resale_cert" upload={docUploads.resale_cert} uploading={uploading} onFile={handleDocUpload} />
-                  <TapDropzone theme={theme} label="Contractor license · optional" docType="contractor_license" upload={docUploads.contractor_license} uploading={uploading} onFile={handleDocUpload} />
+                  <TapDropzone theme={theme} label="Business card · photo · required" docType="business_card" upload={docUploads.business_card} uploading={uploading} onFile={handleDocUpload} onRemove={removeDoc} />
+                  <TapDropzone theme={theme} label="Resale certificate (CDTFA) · optional" docType="resale_cert" upload={docUploads.resale_cert} uploading={uploading} onFile={handleDocUpload} onRemove={removeDoc} />
+                  <TapDropzone theme={theme} label="Contractor license · optional" docType="contractor_license" upload={docUploads.contractor_license} uploading={uploading} onFile={handleDocUpload} onRemove={removeDoc} />
                 </TapSection>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 24 }}>
