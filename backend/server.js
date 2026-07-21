@@ -114,8 +114,9 @@ app.use('/api/customer/reset-password', authLimiter);
 app.use('/api/customer/forgot-password', authLimiter);
 app.use('/api/checkout', checkoutLimiter);
 app.use('/api/storefront/search/suggest', searchLimiter);
-app.use('/api/trade/register', registrationLimiter);
-app.use('/api/trade/register/upload', registrationLimiter);
+// Note: the trade registration limiter is applied per-route on the account-creating
+// endpoints (POST /api/trade/register and /register/enhanced) — NOT here as a path
+// prefix, which would also throttle /register/upload and cap document uploads.
 
 // ==================== Image Resize Proxy ====================
 const imgLimiter = rateLimit({ windowMs: 60 * 1000, max: 1000, standardHeaders: true, legacyHeaders: false });
@@ -10412,7 +10413,7 @@ app.put('/api/admin/staff/:id/password', staffAuth, requireRole('admin', 'manage
 
 // ==================== Trade Auth Endpoints ====================
 
-app.post('/api/trade/register', async (req, res) => {
+app.post('/api/trade/register', registrationLimiter, async (req, res) => {
   try {
     const { email, password, company_name, contact_name, phone } = req.body;
     if (!email || !password || !company_name || !contact_name || !phone) {
@@ -10543,7 +10544,7 @@ app.post('/api/trade/register/upload', docUpload.single('document'), async (req,
 });
 
 // Enhanced registration with business type and documents
-app.post('/api/trade/register/enhanced', async (req, res) => {
+app.post('/api/trade/register/enhanced', registrationLimiter, async (req, res) => {
   const client = await pool.connect();
   try {
     const { email, password, company_name, contact_name, phone, business_type, document_ids, address_line1, city, state, zip, contractor_license, ein } = req.body;
