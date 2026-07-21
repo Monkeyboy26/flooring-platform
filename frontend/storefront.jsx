@@ -14941,7 +14941,6 @@
                 <TapSection theme={theme} num="03" title="Verification" sub="A photo of your business card is required; the rest are optional and just speed up review. Upload a PDF or a clear photo.">
                   <TapDropzone theme={theme} label="Business card · photo · required" docType="business_card" upload={docUploads.business_card} uploading={uploading} onFile={handleDocUpload} />
                   <TapDropzone theme={theme} label="Resale certificate (CDTFA) · optional" docType="resale_cert" upload={docUploads.resale_cert} uploading={uploading} onFile={handleDocUpload} />
-                  <TapDropzone theme={theme} label="EIN letter · optional" docType="ein" upload={docUploads.ein} uploading={uploading} onFile={handleDocUpload} />
                   <TapDropzone theme={theme} label="Contractor license · optional" docType="contractor_license" upload={docUploads.contractor_license} uploading={uploading} onFile={handleDocUpload} />
                 </TapSection>
 
