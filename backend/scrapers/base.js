@@ -519,7 +519,9 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
     VALUES ($1, COALESCE($2, 0::numeric), COALESCE($3, 0::numeric), $4, $5, $6, $7, $8, $9, $10)
     ON CONFLICT (sku_id) DO UPDATE SET
       cost = COALESCE($2, pricing.cost),
-      retail_price = COALESCE($3, pricing.retail_price),
+      -- retail_locked rows (e.g. Home-Depot-matched prices) keep their retail no
+      -- matter what a scrape sends, so rescrapes can't overwrite a manual price.
+      retail_price = CASE WHEN pricing.retail_locked THEN pricing.retail_price ELSE COALESCE($3, pricing.retail_price) END,
       price_basis = COALESCE($4, pricing.price_basis),
       cut_price = COALESCE($5, pricing.cut_price),
       roll_price = COALESCE($6, pricing.roll_price),

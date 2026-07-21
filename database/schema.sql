@@ -122,6 +122,9 @@ CREATE TABLE pricing (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pricing_sale ON pricing(sale_price) WHERE sale_price IS NOT NULL;
+-- retail_locked freezes a manually-set retail (e.g. Home-Depot-matched prices) so
+-- scrapes/imports and the keystone guard in scrapers/base.js can't overwrite it.
+ALTER TABLE pricing ADD COLUMN IF NOT EXISTS retail_locked BOOLEAN DEFAULT false;
 
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
