@@ -16,6 +16,8 @@ html { scroll-behavior: smooth; overflow-x: clip; }
   --cream-warm: #f8f5f0; --cream-cool: #f5f5f2;
   --font-heading: 'Cormorant Garamond', Georgia, serif;
   --font-body: 'Inter', system-ui, sans-serif;
+  --roma-serif: 'Cormorant Garamond', Georgia, serif;
+  --roma-sans: 'Inter', system-ui, sans-serif;
   --color-rose: #e11d48;
   --color-rose-dark: #a04438;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
@@ -3377,4 +3379,23 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .about-visit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; }
 @media (max-width: 720px) {
   .about-visit-grid { grid-template-columns: 1fr; gap: 36px; }
+}
+
+/* ===== Trade v2 (landing + application) ===== */
+/* The page is built with inline styles ported from the Claude Design mockup;
+   these rules only add mobile fallbacks that inline styles can't express. */
+.tv2-page select { appearance: none; -webkit-appearance: none; background-image: none; }
+.tv2-page a { transition: color 0.15s, opacity 0.15s; }
+.tv2-page a:hover { color: var(--gold); }
+.tv2-page button:hover:not(:disabled) { opacity: 0.9; }
+@media (max-width: 1100px) {
+  .tv2-page section { padding-left: 40px !important; padding-right: 40px !important; }
+  .tv2-page [data-tv2-grid] { grid-template-columns: 1fr 1fr !important; }
+  .tv2-page [data-tv2-2col] { grid-template-columns: 1fr !important; gap: 40px !important; }
+}
+@media (max-width: 720px) {
+  .tv2-page section { padding-left: 22px !important; padding-right: 22px !important; padding-top: 44px !important; padding-bottom: 44px !important; }
+  .tv2-page [data-tv2-grid], .tv2-page [data-tv2-2col] { grid-template-columns: 1fr !important; gap: 14px !important; }
+  .tv2-page h1 { font-size: clamp(40px, 13vw, 84px) !important; }
+  .tv2-page h2 { font-size: clamp(30px, 8vw, 52px) !important; }
 }

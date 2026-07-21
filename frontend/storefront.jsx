@@ -2719,6 +2719,12 @@
         window.scrollTo(0, 0);
       };
 
+      const goTradeApply = () => {
+        setView('trade-apply');
+        history.pushState({ view: 'trade-apply' }, '', '/trade/apply');
+        window.scrollTo(0, 0);
+      };
+
       const goInstallation = () => {
         setView('installation');
         history.pushState({ view: 'installation' }, '', '/installation');
@@ -2790,6 +2796,10 @@
         }
         if (path === '/installation') {
           goInstallation();
+          return;
+        }
+        if (path === '/trade/apply') {
+          goTradeApply();
           return;
         }
         if (path === '/trade') {
@@ -3213,6 +3223,8 @@
           setView('browse');
           fetchSkus({ coll: slug, activeFilters: {}, tags: [] });
           fetchFacets({ coll: slug, activeFilters: {}, tags: [] });
+        } else if (path === '/trade/apply') {
+          setView('trade-apply');
         } else if (path === '/trade' && !path.startsWith('/trade/')) {
           setView('trade');
         } else if (path === '/trade/dashboard' || path === '/shop/trade') {
@@ -3325,7 +3337,8 @@
               const parts = p.replace('/shop/sku/', '').split('/');
               setSelectedSkuId(parts[0]);
               setView('detail');
-            } else if (p === '/trade') { setView('trade'); }
+            } else if (p === '/trade/apply') { setView('trade-apply'); }
+            else if (p === '/trade') { setView('trade'); }
             else if (p === '/trade/dashboard') { setView('trade-dashboard'); }
             else if (p === '/sale') { setView('sale'); }
             else if (p === '/cabinets') { setView('cabinets'); }
@@ -3609,7 +3622,19 @@
           )}
 
           {view === 'trade' && (
-            <TradePage goTradeDashboard={goTradeDashboard} onApplyClick={() => { setTradeModalMode('register'); setShowTradeModal(true); }} tradeCustomer={tradeCustomer} />
+            <TradePage goHome={goHome} goTradeApply={goTradeApply} goTradeDashboard={goTradeDashboard} onLogin={() => { setTradeModalMode('login'); setShowTradeModal(true); }} tradeCustomer={tradeCustomer} />
+          )}
+
+          {view === 'trade-apply' && (
+            tradeCustomer ? (
+              <div style={{ maxWidth: 600, margin: '4rem auto', textAlign: 'center', padding: '0 2rem' }}>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, marginBottom: '1rem' }}>You're already a Roma trade pro</h2>
+                <p style={{ color: 'var(--stone-600)', marginBottom: '1.5rem' }}>Your account is active — head to your dashboard.</p>
+                <button className="btn" onClick={goTradeDashboard}>Go to Dashboard</button>
+              </div>
+            ) : (
+              <TradeApplyPage goHome={goHome} goTrade={goTrade} onLogin={() => { setTradeModalMode('login'); setShowTradeModal(true); }} />
+            )
           )}
 
           {view === 'trade-dashboard' && (
@@ -14361,112 +14386,582 @@
 
     // ==================== Trade Landing Page ====================
 
-    function TradePage({ goTradeDashboard, onApplyClick, tradeCustomer }) {
+    // ==================== Trade v2 — landing + application ====================
+    // Ported from Claude Design "Trade v2.html". Invented stats/testimonials from
+    // the mockup were dropped; copy is adapted to real facts (10/15/20 spend-based
+    // tiers, no net terms, dedicated rep, tax-exempt w/ resale cert). Header/footer
+    // come from the app shell, so page components render neither.
+    const TV2 = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
+
+    function Tv2Micro({ theme, children, color, style }) {
+      return <div style={{ font: '500 11px/1.4 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: color || theme.muted, ...style }}>{children}</div>;
+    }
+
+    function Tv2SectionHead({ theme, num, eyebrow, headline, sub, action, onAction }) {
+      const { ink, accent, muted } = theme;
       return (
-        <div className="trade-page">
-          <div className="trade-hero">
-            <h1>Trade Program</h1>
-            <p>Exclusive pricing, dedicated support, and streamlined ordering for industry professionals.</p>
-            {tradeCustomer ? (
-              <button className="btn btn-gold" onClick={goTradeDashboard}>Go to Dashboard</button>
-            ) : (
-              <button className="btn btn-gold" onClick={onApplyClick}>Apply Now</button>
-            )}
+        <div style={{ marginBottom: 40 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 24 }}>
+            <div style={{ display: 'flex', gap: 16, alignItems: 'baseline' }}>
+              {num && <span style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.18em', color: accent }}>{num}</span>}
+              <div>
+                {eyebrow && <Tv2Micro theme={theme} color={muted} style={{ marginBottom: 14 }}>{eyebrow}</Tv2Micro>}
+                <h2 style={{ font: '300 52px/1 var(--roma-serif)', letterSpacing: '-0.02em', margin: 0, color: ink }}>{headline}</h2>
+              </div>
+            </div>
+            {action && <a onClick={onAction} style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: ink, cursor: 'pointer', textDecoration: 'none', borderBottom: `1px solid ${ink}`, paddingBottom: 4, whiteSpace: 'nowrap' }}>{action}</a>}
           </div>
+          {sub && <p style={{ font: '400 15px/1.6 var(--roma-sans)', color: `${ink}b3`, margin: '18px 0 0 27px', maxWidth: 800 }}>{sub}</p>}
+        </div>
+      );
+    }
 
-          <div className="trade-benefits">
-            <h2>Why Join?</h2>
-            <div className="trade-benefits-grid">
-              <div className="benefit-card">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                <h3>Trade Pricing</h3>
-                <p>Access exclusive wholesale pricing on our full catalog of premium flooring and surfaces.</p>
-              </div>
-              <div className="benefit-card">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <h3>Dedicated Rep</h3>
-                <p>Work with a dedicated sales representative who understands your business needs.</p>
-              </div>
-              <div className="benefit-card">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-                <h3>Bulk Ordering</h3>
-                <p>Streamlined bulk ordering with SKU-based entry and project tracking.</p>
+    function Tv2Hero({ theme, tradeCustomer, onApply, onDashboard, onLogin, goHome }) {
+      const { ink, paper, accent, muted } = theme;
+      return (
+        <section style={{ padding: '40px 80px 64px', borderBottom: `0.5px solid ${ink}18` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30, flexWrap: 'wrap', gap: 12 }}>
+            <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: muted, display: 'flex', gap: 14, alignItems: 'center' }}>
+              <a onClick={goHome} style={{ color: muted, textDecoration: 'none', cursor: 'pointer' }}>Home</a>
+              <span style={{ width: 14, height: 1, background: `${ink}33` }} />
+              <span style={{ color: ink }}>Trade</span>
+            </div>
+            {!tradeCustomer && <a onClick={onLogin} style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: ink, cursor: 'pointer', textDecoration: 'none' }}>Already a Roma pro? Sign in →</a>}
+          </div>
+          <div data-tv2-2col style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 80, alignItems: 'end' }}>
+            <div>
+              <Tv2Micro theme={theme} color={accent} style={{ marginBottom: 22, letterSpacing: '0.2em' }}>For designers, contractors, builders</Tv2Micro>
+              <h1 style={{ font: '300 clamp(52px, 8vw, 112px)/0.9 var(--roma-serif)', letterSpacing: '-0.024em', margin: 0, color: ink }}>
+                One yard.<br />One rep.<br /><em style={{ color: accent }}>Trade pricing</em>.
+              </h1>
+            </div>
+            <div style={{ paddingBottom: 14 }}>
+              <p style={{ font: '400 17px/1.55 var(--roma-sans)', color: `${ink}cc`, margin: 0, maxWidth: 460 }}>
+                The trade program for Orange County's design and build community. Pricing that's a
+                contracted margin baked into every line — not a coupon code — from a family-owned
+                Anaheim showroom, with one dedicated rep on every order you place.
+              </p>
+              <div style={{ marginTop: 28, display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+                {tradeCustomer ? (
+                  <a onClick={onDashboard} style={{ padding: '16px 28px', background: ink, color: paper, textDecoration: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 13px/1 var(--roma-sans)' }}>Go to your dashboard →</a>
+                ) : (
+                  <a onClick={onApply} style={{ padding: '16px 28px', background: ink, color: paper, textDecoration: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 13px/1 var(--roma-sans)' }}>Apply for a trade account →</a>
+                )}
+                <a href="tel:+17149990009" style={{ padding: '16px 0 8px', color: ink, cursor: 'pointer', textDecoration: 'none', borderBottom: `1px solid ${ink}`, textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 13px/1 var(--roma-sans)' }}>Talk to a rep · (714) 999-0009 →</a>
               </div>
             </div>
           </div>
+        </section>
+      );
+    }
 
-          <div className="trade-how-it-works">
-            <h2>How It Works</h2>
-            <div className="trade-steps">
-              <div className="trade-step">
-                <div className="step-number">1</div>
-                <h3>Apply Online</h3>
-                <p>Submit your business credentials and verification documents.</p>
+    function Tv2Stats({ theme }) {
+      const { ink, muted } = theme;
+      const stats = [
+        { v: '10–20%', l: 'Contracted trade margin', s: 'Tiered by annual spend' },
+        { v: '$0', l: 'Membership fee', s: 'Free to apply and join' },
+        { v: '2 days', l: 'Typical approval', s: '4 hours with a CSLB #' },
+        { v: 'Since 2010', l: 'Family-owned in Anaheim', s: 'License #830966' },
+        { v: '3 ways', l: 'To pay every order', s: 'Card · ACH · Klarna' },
+      ];
+      return (
+        <section style={{ borderBottom: `0.5px solid ${ink}22`, padding: '36px 80px' }}>
+          <div data-tv2-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)' }}>
+            {stats.map((s, i) => (
+              <div key={s.l} style={{ padding: '0 24px', borderLeft: i === 0 ? 'none' : `0.5px solid ${ink}11`, display: 'grid', gap: 6 }}>
+                <div style={{ font: '400 40px/1 var(--roma-serif)', letterSpacing: '-0.012em', color: ink }}>{s.v}</div>
+                <div style={{ font: '500 11px/1.2 var(--roma-sans)', letterSpacing: '0.06em', color: ink }}>{s.l}</div>
+                <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: muted }}>{s.s}</div>
               </div>
-              <div className="trade-step">
-                <div className="step-number">2</div>
-                <h3>Get Approved</h3>
-                <p>Our team reviews your application within 1-2 business days.</p>
-              </div>
-              <div className="trade-step">
-                <div className="step-number">3</div>
-                <h3>Start Saving</h3>
-                <p>Access trade pricing, bulk orders, and your dedicated dashboard.</p>
-              </div>
-            </div>
+            ))}
           </div>
+        </section>
+      );
+    }
 
-          <div className="trade-tiers">
-            <h2>Pricing Tiers</h2>
-            <p className="trade-tiers-subhead">No membership fee. Your discount is based on what you spend with us over a rolling 12-month period — you move up automatically as you order.</p>
-            <div className="trade-tiers-grid">
-              <div className="tier-card">
-                <div className="tier-name">Silver</div>
-                <div className="tier-discount">12.5%</div>
-                <div className="tier-threshold">$0 – $12,500</div>
-                <ul>
-                  <li>Trade pricing on all products</li>
-                  <li>Dedicated sales rep</li>
-                  <li>Project tracking</li>
-                </ul>
+    function Tv2Tiers({ theme }) {
+      const { ink, accent, muted, warm } = theme;
+      const tiers = [
+        { name: 'Silver', pct: '10%', spend: 'On approval', note: 'Every new trade account starts here — the margin applies from your very first order.', perks: ['Trade pricing on every SKU', 'A dedicated Roma rep', 'Bulk order + branded quotes'] },
+        { name: 'Gold', pct: '15%', spend: '$12,500+ / yr', note: 'Where most working studios land within their first year of ordering with us.', perks: ['Everything in Silver', 'Priority fulfillment', 'Automatic — no reapplying'], hot: true },
+        { name: 'Platinum', pct: '20%', spend: '$25,000+ / yr', note: 'Design-build firms and builders running several concurrent jobs at once.', perks: ['Everything in Gold', 'Custom quotes', 'Job-site delivery'] },
+      ];
+      return (
+        <section style={{ padding: '80px 80px' }}>
+          <Tv2SectionHead theme={theme} num="01" eyebrow="How pricing works" headline={<>A margin, not a <em>coupon</em>.</>} sub="Your discount is contracted into your account and applied to every line — it survives sales, promos, and clearance, and sale prices stack on top. Tiers step up automatically with your trailing 12-month spend." />
+          <div data-tv2-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+            {tiers.map(t => (
+              <div key={t.name} style={{ border: `0.5px solid ${t.hot ? accent : ink + '22'}`, background: t.hot ? '#fff' : 'transparent', padding: '32px 30px 28px', display: 'grid', gap: 14, alignContent: 'start' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <Tv2Micro theme={theme} color={t.hot ? accent : muted}>{t.name}</Tv2Micro>
+                  <Tv2Micro theme={theme}>{t.spend}</Tv2Micro>
+                </div>
+                <div style={{ font: '300 72px/1 var(--roma-serif)', letterSpacing: '-0.02em', color: t.hot ? accent : ink }}>{t.pct}<span style={{ font: '400 20px/1 var(--roma-serif)', color: muted }}> off list</span></div>
+                <p style={{ font: '400 13px/1.55 var(--roma-sans)', color: `${ink}b3`, margin: 0 }}>{t.note}</p>
+                <div style={{ borderTop: `0.5px solid ${ink}18`, paddingTop: 14, display: 'grid', gap: 8 }}>
+                  {t.perks.map(p => (
+                    <div key={p} style={{ display: 'flex', gap: 10, font: '400 13px/1.4 var(--roma-sans)', color: ink }}>
+                      <span style={{ color: accent }}>✓</span>{p}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="tier-card featured">
-                <div className="tier-name">Gold</div>
-                <div className="tier-discount">18.75%</div>
-                <div className="tier-threshold">$12,501 – $25,000</div>
-                <ul>
-                  <li>Everything in Silver</li>
-                  <li>Priority fulfillment</li>
-                  <li>Extended payment terms</li>
-                </ul>
-              </div>
-              <div className="tier-card">
-                <div className="tier-name">Platinum</div>
-                <div className="tier-discount">21.875%</div>
-                <div className="tier-threshold">$25,000+</div>
-                <ul>
-                  <li>Everything in Gold</li>
-                  <li>Custom quotes</li>
-                  <li>Job site delivery</li>
-                </ul>
-              </div>
-            </div>
+            ))}
           </div>
+          <div style={{ marginTop: 14, padding: '16px 22px', background: warm, border: `0.5px solid ${ink}18`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ font: '400 13px/1.5 var(--roma-sans)', color: `${ink}cc`, maxWidth: 760 }}>
+              <strong style={{ fontWeight: 500 }}>On payment:</strong> Roma doesn't run net terms. Every order is paid before shipment — card, ACH, or Klarna — which is exactly why the margin can live in the price instead of in a collections department.
+            </div>
+            <Tv2Micro theme={theme}>Card · ACH · Klarna</Tv2Micro>
+          </div>
+        </section>
+      );
+    }
 
-          <div className="trade-cta-section">
-            <h2>Ready to Get Started?</h2>
-            <p>Join hundreds of contractors, designers, and builders who trust Roma Flooring Designs.</p>
-            <div className="trade-cta-buttons">
+    function Tv2Benefits({ theme }) {
+      const { ink, accent, muted } = theme;
+      const benefits = [
+        { n: '01', t: 'Trade pricing, baked in', b: 'A contracted 10–20% on every SKU that survives sales, promos, and clearance — sale prices stack on top, and you see both deductions on the line.', detail: 'All categories' },
+        { n: '02', t: 'A dedicated rep', b: 'One assigned Roma rep for your account — reachable by phone and email, and attached to every order and quote you place.', detail: 'Phone + email' },
+        { n: '03', t: 'Bulk & quick order', b: 'Enter SKU and quantity line by line and drop a whole job into the cart at once — built for repeat buyers restocking known material.', detail: 'SKU + qty entry' },
+        { n: '04', t: 'Branded quotes', b: 'Build a cart into a branded PDF quote that holds for 14 days, then convert it to an order in one click when the client signs off.', detail: '14-day hold' },
+        { n: '05', t: 'Project tracking', b: 'Group orders under named projects with client and address, assigned at checkout or retroactively, so every job keeps its own ledger.', detail: 'Per-job history' },
+        { n: '06', t: 'Tax-exempt buying', b: 'With your resale certificate on file, materials you buy for resale are billed without sales tax — set up once during approval.', detail: 'Resale cert on file' },
+      ];
+      return (
+        <section style={{ padding: '0 80px 80px' }}>
+          <Tv2SectionHead theme={theme} num="02" eyebrow="What you get" headline={<>The <em>trade</em> stack.</>} sub="The things a Roma trade pro reaches for every week — spec, order, quote, close — built around how OC firms actually run jobs." />
+          <div data-tv2-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+            {benefits.map(b => (
+              <div key={b.n} style={{ border: `0.5px solid ${ink}22`, padding: '32px 30px 28px', display: 'grid', gap: 14, alignContent: 'start' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: accent }}>{b.n}</span>
+                  <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: muted }}>{b.detail}</span>
+                </div>
+                <h3 style={{ font: '300 28px/1.05 var(--roma-serif)', letterSpacing: '-0.014em', color: ink, margin: 0 }}>{b.t}</h3>
+                <p style={{ font: '400 14px/1.55 var(--roma-sans)', color: `${ink}b3`, margin: 0 }}>{b.b}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    function Tv2Eligibility({ theme }) {
+      const { ink, muted, warm } = theme;
+      const groups = [
+        { t: 'Interior designers', s: 'ASID / IIDA / CCIDC or portfolio' },
+        { t: 'General contractors', s: 'CSLB license · any class' },
+        { t: 'Architects', s: 'AIA + active project' },
+        { t: 'Custom home builders', s: 'CSLB B / B-2 + EIN' },
+        { t: 'Tile + flooring installers', s: 'Resale cert + license' },
+        { t: 'Design-build firms', s: 'Combined licenses + EIN' },
+        { t: 'Property managers', s: 'Portfolio + resale cert' },
+        { t: 'Retailers + stagers', s: 'Resale cert + EIN' },
+      ];
+      return (
+        <section style={{ background: warm, padding: '80px 80px' }}>
+          <Tv2SectionHead theme={theme} num="03" eyebrow="Who qualifies" headline={<>If you put materials in <em>other people's</em> houses, you qualify.</>} sub="Open to anyone in the design and build trades with active licensing, a trade-society membership, or a verifiable project history. A resale certificate gets materials tax-free for resale." />
+          <div data-tv2-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+            {groups.map(g => (
+              <div key={g.t} style={{ background: '#fff', border: `0.5px solid ${ink}22`, padding: '22px 22px', display: 'grid', gap: 8 }}>
+                <div style={{ font: '400 22px/1 var(--roma-serif)', letterSpacing: '-0.012em', color: ink }}>✓ {g.t}</div>
+                <div style={{ font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: muted }}>{g.s}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    function Tv2HowItWorks({ theme }) {
+      const { ink, paper } = theme;
+      const steps = [
+        { n: '01', t: 'Apply in minutes', b: 'A short form, your credential number, and your EIN and resale certificate. No DUNS lookup, no four-page intake.' },
+        { n: '02', t: 'A human verifies', b: 'A Roma rep — not a robot — checks your license or membership and resale cert. Two business days; four hours with a CSLB #.' },
+        { n: '03', t: 'Meet your rep', b: 'Your approval email carries your tier and your dedicated rep’s direct line.' },
+        { n: '04', t: 'First order', b: 'Trade pricing applies from line one. Your rep can walk the first quote with you.' },
+      ];
+      return (
+        <section style={{ padding: '80px 80px' }}>
+          <Tv2SectionHead theme={theme} num="04" eyebrow="How it works" headline={<>Apply Monday, <em>spec</em> Wednesday.</>} />
+          <div data-tv2-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+            {steps.map((s, i) => (
+              <div key={s.n} style={{ padding: '28px 28px 24px', borderLeft: `0.5px solid ${ink}22`, borderTop: `0.5px solid ${ink}22`, borderBottom: `0.5px solid ${ink}22`, borderRight: i === 3 ? `0.5px solid ${ink}22` : 'none', display: 'grid', gap: 12, alignContent: 'start' }}>
+                <div style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', background: i === 0 ? ink : 'transparent', border: `0.5px solid ${ink}`, color: i === 0 ? paper : ink, font: '500 12px/1 ui-monospace, monospace' }}>{s.n}</div>
+                <h3 style={{ font: '300 26px/1.1 var(--roma-serif)', letterSpacing: '-0.012em', color: ink, margin: '6px 0 0' }}>{s.t}</h3>
+                <p style={{ font: '400 13px/1.55 var(--roma-sans)', color: `${ink}b3`, margin: 0 }}>{s.b}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    function Tv2Faqs({ theme }) {
+      const { ink, accent } = theme;
+      const faqs = [
+        { q: 'How long does approval take?', a: 'Two business days in most cases. With a CSLB # or trade-society membership we can often clear you within four hours.' },
+        { q: 'What if I’m an individual designer, not a firm?', a: 'Apply as a sole proprietor. We verify your membership (ASID / IIDA / CCIDC) or a portfolio of real projects, plus your resale certificate.' },
+        { q: 'Does Roma offer Net-30 or other terms?', a: 'No — every order is paid in full before shipment. We accept card, ACH, and Klarna, and you can keep a default payment method on file.' },
+        { q: 'Does the discount stack with sales?', a: 'Yes. Trade pricing is a contracted margin, so sale prices apply on top of it. You see both deductions on the line item.' },
+        { q: 'How do the tiers move?', a: 'Automatically, on your trailing 12-month spend — 10% to start, 15% past $12,500, 20% past $25,000. Nothing to reapply for.' },
+        { q: 'Do you ship outside Orange County?', a: 'Anywhere in California by LTL freight, with the trade margin still in effect. Ask your rep about accounts further out.' },
+      ];
+      return (
+        <section style={{ padding: '80px 80px 60px' }}>
+          <Tv2SectionHead theme={theme} num="05" eyebrow="Common questions" headline={<>Six things we hear most.</>} />
+          <div data-tv2-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0 60px' }}>
+            {faqs.map((f, i) => (
+              <div key={f.q} style={{ padding: '22px 0', borderBottom: `0.5px solid ${ink}22`, display: 'grid', gridTemplateColumns: '36px 1fr', gap: 18 }}>
+                <span style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.18em', color: accent }}>{String(i + 1).padStart(2, '0')}</span>
+                <div>
+                  <h4 style={{ font: '300 22px/1.2 var(--roma-serif)', letterSpacing: '-0.012em', color: ink, margin: 0 }}>{f.q}</h4>
+                  <p style={{ font: '400 14px/1.55 var(--roma-sans)', color: `${ink}b3`, margin: '10px 0 0' }}>{f.a}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    function Tv2CtaBand({ theme, onApply, onDashboard, tradeCustomer }) {
+      const { ink, paper, accent, warm } = theme;
+      return (
+        <section style={{ padding: '0 80px 100px' }}>
+          <div data-tv2-2col style={{ background: warm, border: `0.5px solid ${ink}22`, padding: '56px 60px', display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 60, alignItems: 'center' }}>
+            <div>
+              <Tv2Micro theme={theme} color={accent} style={{ marginBottom: 14 }}>● Apply · a few minutes · reviewed by a human</Tv2Micro>
+              <h2 style={{ font: '300 clamp(38px, 5vw, 56px)/1 var(--roma-serif)', letterSpacing: '-0.02em', margin: 0, color: ink }}>A short form. <em style={{ color: accent }}>Two business days.</em></h2>
+              <p style={{ font: '400 15px/1.6 var(--roma-sans)', color: `${ink}b3`, margin: '16px 0 0', maxWidth: 560 }}>
+                Have your license or membership number, EIN, and resale certificate handy. Apply today
+                and we'll usually confirm within two business days — sooner with a CSLB #.
+              </p>
+            </div>
+            <div style={{ display: 'grid', gap: 12, justifyItems: 'start' }}>
               {tradeCustomer ? (
-                <button className="btn btn-gold" onClick={goTradeDashboard}>Go to Dashboard</button>
+                <a onClick={onDashboard} style={{ padding: '18px 32px', background: ink, color: paper, textDecoration: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 13px/1 var(--roma-sans)' }}>Go to your dashboard →</a>
               ) : (
-                <>
-                  <button className="btn btn-gold" onClick={onApplyClick}>Apply Now</button>
-                  <button className="btn btn-secondary" style={{ borderColor: 'rgba(255,255,255,0.3)', color: 'white' }} onClick={onApplyClick}>Sign In</button>
-                </>
+                <a onClick={onApply} style={{ padding: '18px 32px', background: ink, color: paper, textDecoration: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 13px/1 var(--roma-sans)' }}>Start the application →</a>
               )}
+              <Tv2Micro theme={theme}>Or call (714) 999-0009</Tv2Micro>
             </div>
           </div>
+        </section>
+      );
+    }
+
+    function TradePage({ goHome, goTradeApply, goTradeDashboard, onLogin, tradeCustomer }) {
+      const theme = TV2;
+      return (
+        <div className="tv2-page" style={{ background: theme.paper, color: theme.ink, fontFamily: 'var(--roma-sans)' }}>
+          <Tv2Hero theme={theme} tradeCustomer={tradeCustomer} onApply={goTradeApply} onDashboard={goTradeDashboard} onLogin={onLogin} goHome={goHome} />
+          <Tv2Stats theme={theme} />
+          <Tv2Tiers theme={theme} />
+          <Tv2Benefits theme={theme} />
+          <Tv2Eligibility theme={theme} />
+          <Tv2HowItWorks theme={theme} />
+          <Tv2Faqs theme={theme} />
+          <Tv2CtaBand theme={theme} onApply={goTradeApply} onDashboard={goTradeDashboard} tradeCustomer={tradeCustomer} />
+        </div>
+      );
+    }
+
+    // ---- Trade v2 · application page (/trade/apply) ----
+
+    function TapMicro({ theme, children, color, style }) {
+      return <div style={{ font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: color || theme.muted, ...style }}>{children}</div>;
+    }
+
+    function TapInput({ theme, label, type = 'text', value, onChange, onBlur, placeholder, mono, required, invalid, maxLength, textarea, autoComplete, style }) {
+      const { ink, accent } = theme;
+      const base = { border: 'none', borderBottom: `0.5px solid ${invalid ? '#c0392b' : ink + '33'}`, background: 'transparent', padding: '7px 0', font: mono ? '400 14px/1.4 ui-monospace, monospace' : '400 16px/1.35 var(--roma-serif)', color: ink, outline: 'none', borderRadius: 0, width: '100%', boxSizing: 'border-box', ...style };
+      return (
+        <label style={{ display: 'grid', gap: 8 }}>
+          <TapMicro theme={theme}>{label}{required && <span style={{ color: accent }}> *</span>}</TapMicro>
+          {textarea ? (
+            <textarea value={value} onChange={onChange} onBlur={onBlur} placeholder={placeholder} rows={3} style={{ ...base, resize: 'vertical', font: '400 15px/1.5 var(--roma-sans)' }} onFocus={e => e.target.style.borderBottomColor = accent} />
+          ) : (
+            <input type={type} value={value} onChange={onChange} onBlur={onBlur} placeholder={placeholder} maxLength={maxLength} autoComplete={autoComplete} style={base}
+              onFocus={e => e.target.style.borderBottomColor = accent} onBlurCapture={e => { if (!invalid) e.target.style.borderBottomColor = ink + '33'; }} />
+          )}
+        </label>
+      );
+    }
+
+    function TapSelect({ theme, label, value, onChange, required, children }) {
+      const { ink, accent } = theme;
+      return (
+        <label style={{ display: 'grid', gap: 8 }}>
+          <TapMicro theme={theme}>{label}{required && <span style={{ color: accent }}> *</span>}</TapMicro>
+          <select value={value} onChange={onChange} style={{ border: 'none', borderBottom: `0.5px solid ${ink}33`, background: 'transparent', padding: '7px 0', font: '400 16px/1.35 var(--roma-serif)', color: value ? ink : `${ink}55`, outline: 'none', borderRadius: 0, width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}>
+            {children}
+          </select>
+        </label>
+      );
+    }
+
+    function TapSection({ theme, num, title, sub, children }) {
+      const { ink, accent, muted } = theme;
+      return (
+        <div style={{ paddingBottom: 32, marginBottom: 32, borderBottom: `0.5px solid ${ink}18` }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'baseline', marginBottom: 6 }}>
+            <span style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.18em', color: accent }}>{num}</span>
+            <h3 style={{ font: '300 28px/1.1 var(--roma-serif)', letterSpacing: '-0.014em', color: ink, margin: 0 }}>{title}</h3>
+          </div>
+          {sub && <p style={{ font: '400 13px/1.5 var(--roma-sans)', color: muted, margin: '4px 0 0 27px' }}>{sub}</p>}
+          <div style={{ marginTop: 22, display: 'grid', gap: 22 }}>{children}</div>
+        </div>
+      );
+    }
+
+    function TapRow({ children, cols }) {
+      return <div data-tv2-grid style={{ display: 'grid', gridTemplateColumns: cols || '1fr 1fr', gap: '22px 32px' }}>{children}</div>;
+    }
+
+    function TapDropzone({ theme, label, docType, upload, uploading, onFile }) {
+      const { ink, accent, muted } = theme;
+      const done = !!upload;
+      return (
+        <div style={{ padding: '18px 20px', border: `0.5px dashed ${done ? accent : ink + '44'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+          <div>
+            <div style={{ font: '400 14px/1.3 var(--roma-sans)', color: ink }}>{label}</div>
+            <TapMicro theme={theme} color={done ? accent : muted} style={{ marginTop: 4, textTransform: 'none', letterSpacing: '0.04em' }}>
+              {uploading === docType ? 'Uploading…' : done ? `✓ ${upload.file_name}` : 'PDF or photo · 10 MB max'}
+            </TapMicro>
+          </div>
+          <label style={{ padding: '10px 18px', border: `0.5px solid ${ink}66`, font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', color: ink, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            {done ? 'Replace' : 'Browse'}
+            <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={e => { if (e.target.files[0]) onFile(docType, e.target.files[0]); e.target.value = ''; }} />
+          </label>
+        </div>
+      );
+    }
+
+    function TradeApplyPage({ goHome, goTrade, onLogin }) {
+      const theme = TV2;
+      const { ink, paper, accent, muted, warm } = theme;
+      const [firstName, setFirstName] = useState('');
+      const [lastName, setLastName] = useState('');
+      const [email, setEmail] = useState('');
+      const [phone, setPhone] = useState('');
+      const [password, setPassword] = useState('');
+      const [confirmPassword, setConfirmPassword] = useState('');
+      const [companyName, setCompanyName] = useState('');
+      const [businessType, setBusinessType] = useState('');
+      const [contractorLicense, setContractorLicense] = useState('');
+      const [addressLine1, setAddressLine1] = useState('');
+      const [city, setCity] = useState('');
+      const [addrState, setAddrState] = useState('');
+      const [zip, setZip] = useState('');
+      const [docUploads, setDocUploads] = useState({});
+      const [uploading, setUploading] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [submitted, setSubmitted] = useState(false);
+      const [emailTouched, setEmailTouched] = useState(false);
+
+      useEffect(() => { window.scrollTo(0, 0); }, [submitted]);
+
+      const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      const passwordValid = password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password);
+      const formatPhone = (val) => {
+        const d = val.replace(/\D/g, '').slice(0, 10);
+        if (!d) return '';
+        if (d.length <= 3) return '(' + d;
+        if (d.length <= 6) return '(' + d.slice(0, 3) + ') ' + d.slice(3);
+        return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+      };
+
+      const handleDocUpload = async (docType, file) => {
+        setUploading(docType); setError('');
+        try {
+          const fd = new FormData();
+          fd.append('document', file);
+          fd.append('doc_type', docType);
+          if (email) fd.append('email', email);
+          const resp = await fetch(API + '/api/trade/register/upload', { method: 'POST', body: fd });
+          if (!resp.ok) { const ed = await resp.json().catch(() => ({})); setError(ed.error || 'Upload failed'); setUploading(''); return; }
+          const data = await resp.json();
+          setDocUploads(prev => ({ ...prev, [docType]: { id: data.document_id, file_name: file.name } }));
+        } catch (err) { setError('Upload failed. Please try again.'); }
+        setUploading('');
+      };
+
+      const handleSubmit = async () => {
+        setError('');
+        if (!firstName.trim() || !lastName.trim() || !email || !phone || !password || !companyName.trim() || !businessType || !addressLine1.trim() || !city.trim() || !addrState.trim() || !zip.trim()) {
+          setError('Please fill in all required fields.'); return;
+        }
+        if (!emailValid) { setError('Please enter a valid email address.'); return; }
+        if (phone.replace(/\D/g, '').length < 10) { setError('Please enter a valid 10-digit phone number.'); return; }
+        if (!passwordValid) { setError('Password must be at least 8 characters with one uppercase letter and one number.'); return; }
+        if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
+        if (!docUploads.ein || !docUploads.resale_cert) { setError('An EIN document and resale certificate are both required.'); return; }
+        setLoading(true);
+        try {
+          const docIds = Object.values(docUploads).map(d => d.id);
+          const resp = await fetch(API + '/api/trade/register/enhanced', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email, password, company_name: companyName, contact_name: `${firstName.trim()} ${lastName.trim()}`,
+              phone, business_type: businessType, address_line1: addressLine1, city, state: addrState, zip,
+              contractor_license: contractorLicense || null, document_ids: docIds
+            })
+          });
+          const data = await resp.json();
+          if (!resp.ok) { setError(data.error || 'Something went wrong. Please try again.'); setLoading(false); return; }
+          setSubmitted(true);
+        } catch (err) { setError('Network error. Please try again.'); }
+        setLoading(false);
+      };
+
+      const afterSteps = [
+        { t: 'Right now', b: 'A confirmation email lands in your inbox so you know we have your application.' },
+        { t: 'Within 2 business days', b: 'A rep verifies your credential and resale cert. We only reach out if something doesn’t match.' },
+        { t: 'On approval', b: 'Your tier, your dedicated rep’s direct line, and your trade dashboard all unlock in one email.' },
+      ];
+
+      return (
+        <div className="tv2-page" style={{ background: paper, color: ink, fontFamily: 'var(--roma-sans)' }}>
+          {/* Hero */}
+          <section style={{ padding: '40px 80px 48px', borderBottom: `0.5px solid ${ink}18` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30, flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: muted, display: 'flex', gap: 14, alignItems: 'center' }}>
+                <a onClick={goHome} style={{ color: muted, textDecoration: 'none', cursor: 'pointer' }}>Home</a>
+                <span style={{ width: 14, height: 1, background: `${ink}33` }} />
+                <a onClick={goTrade} style={{ color: muted, textDecoration: 'none', cursor: 'pointer' }}>Trade</a>
+                <span style={{ width: 14, height: 1, background: `${ink}33` }} />
+                <span style={{ color: ink }}>Apply</span>
+              </div>
+              <a onClick={onLogin} style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: ink, cursor: 'pointer', textDecoration: 'none' }}>Already a Roma pro? Sign in →</a>
+            </div>
+            <div data-tv2-2col style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 80, alignItems: 'end' }}>
+              <div>
+                <TapMicro theme={theme} color={accent} style={{ marginBottom: 18, letterSpacing: '0.2em', fontSize: 11 }}>● Trade application · a few minutes</TapMicro>
+                <h1 style={{ font: '300 clamp(44px, 6vw, 84px)/0.95 var(--roma-serif)', letterSpacing: '-0.022em', margin: 0, color: ink }}>
+                  A short form between you and <em style={{ color: accent }}>trade pricing</em>.
+                </h1>
+              </div>
+              <p style={{ font: '400 16px/1.6 var(--roma-sans)', color: `${ink}b3`, margin: '0 0 8px', maxWidth: 420 }}>
+                Every application is read by a Roma rep, not a robot. Two business days in most cases —
+                four hours if you carry a CSLB number.
+              </p>
+            </div>
+          </section>
+
+          {/* Body */}
+          <section data-tv2-2col style={{ padding: '64px 80px', display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 80, alignItems: 'start' }}>
+            {/* Sidebar */}
+            <div style={{ display: 'grid', gap: 24 }}>
+              <div>
+                <TapMicro theme={theme} color={accent} style={{ marginBottom: 12 }}>Before you start</TapMicro>
+                <h2 style={{ font: '300 40px/1.05 var(--roma-serif)', letterSpacing: '-0.016em', margin: 0, color: ink }}>Have these <em style={{ color: accent }}>three</em> ready.</h2>
+              </div>
+              {[
+                ['01 · Credential', 'A license or membership number — CSLB, ASID, IIDA, CCIDC, AIA, or RESA. Sole proprietors: a portfolio of real projects works too.'],
+                ['02 · Resale certificate', 'Your CDTFA seller’s permit. With it on file we don’t charge tax on materials you resell.'],
+                ['03 · EIN document', 'Your federal EIN letter (or SSN-based sole-prop equivalent) so we can verify the business.'],
+              ].map(([t, b]) => (
+                <div key={t} style={{ padding: '18px 22px', background: warm, border: `0.5px solid ${ink}18` }}>
+                  <TapMicro theme={theme} color={ink} style={{ marginBottom: 8 }}>{t}</TapMicro>
+                  <div style={{ font: '400 13px/1.55 var(--roma-sans)', color: `${ink}b3` }}>{b}</div>
+                </div>
+              ))}
+              <div style={{ padding: '18px 22px', border: `0.5px solid ${accent}55` }}>
+                <TapMicro theme={theme} color={accent} style={{ marginBottom: 8 }}>What you get on approval</TapMicro>
+                <div style={{ font: '400 13px/1.6 var(--roma-sans)', color: ink }}>
+                  Your tier (starts at 10% off list, contracted), your dedicated rep’s direct line, and
+                  your trade dashboard for orders, quotes, and projects.
+                </div>
+              </div>
+              <TapMicro theme={theme}>Questions? Call (714) 999-0009</TapMicro>
+            </div>
+
+            {/* Form / success */}
+            {submitted ? (
+              <div style={{ background: '#fff', border: `0.5px solid ${ink}22`, padding: '48px 44px', display: 'grid', gap: 18 }}>
+                <TapMicro theme={theme} color={accent}>● Application received</TapMicro>
+                <h2 style={{ font: '300 44px/1.05 var(--roma-serif)', letterSpacing: '-0.016em', margin: 0, color: ink }}>Thanks — it’s with a rep now.</h2>
+                <p style={{ font: '400 15px/1.6 var(--roma-sans)', color: `${ink}b3`, margin: 0, maxWidth: 520 }}>
+                  Your trade application is under review. We’ll email <strong style={{ color: ink }}>{email}</strong> once it’s approved —
+                  usually within two business days, and often sooner with a CSLB number.
+                </p>
+                <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
+                  <a onClick={goHome} style={{ padding: '14px 26px', background: ink, color: paper, textDecoration: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 12px/1 var(--roma-sans)' }}>Back to home →</a>
+                  <a onClick={onLogin} style={{ padding: '14px 0 6px', color: ink, cursor: 'pointer', textDecoration: 'none', borderBottom: `1px solid ${ink}`, textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 12px/1 var(--roma-sans)' }}>Trade sign in →</a>
+                </div>
+              </div>
+            ) : (
+              <div style={{ background: '#fff', border: `0.5px solid ${ink}22`, padding: '40px 44px' }}>
+                {error && <div style={{ marginBottom: 24, padding: '12px 16px', background: '#c0392b12', border: '0.5px solid #c0392b55', font: '400 13px/1.5 var(--roma-sans)', color: '#8a2a1e' }}>{error}</div>}
+
+                <TapSection theme={theme} num="01" title="About you">
+                  <TapRow>
+                    <TapInput theme={theme} label="First name" required value={firstName} onChange={e => setFirstName(e.target.value)} autoComplete="given-name" />
+                    <TapInput theme={theme} label="Last name" required value={lastName} onChange={e => setLastName(e.target.value)} autoComplete="family-name" />
+                  </TapRow>
+                  <TapRow>
+                    <TapInput theme={theme} label="Business email" required mono value={email} onChange={e => setEmail(e.target.value)} onBlur={() => setEmailTouched(true)} invalid={emailTouched && !!email && !emailValid} autoComplete="email" placeholder="you@studio.com" />
+                    <TapInput theme={theme} label="Phone" required mono value={phone} onChange={e => setPhone(formatPhone(e.target.value))} autoComplete="tel" placeholder="(949) 555-0148" />
+                  </TapRow>
+                  <TapRow>
+                    <TapInput theme={theme} label="Password" required type="password" mono value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password" placeholder="8+ chars, 1 capital, 1 number" />
+                    <TapInput theme={theme} label="Confirm password" required type="password" mono value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} autoComplete="new-password" />
+                  </TapRow>
+                </TapSection>
+
+                <TapSection theme={theme} num="02" title="Your business" sub="This is what your rep verifies — the closer it matches your paperwork, the faster the approval.">
+                  <TapRow cols="1.5fr 1fr">
+                    <TapInput theme={theme} label="Firm name" required value={companyName} onChange={e => setCompanyName(e.target.value)} autoComplete="organization" />
+                    <TapSelect theme={theme} label="Trade type" required value={businessType} onChange={e => setBusinessType(e.target.value)}>
+                      <option value="">Select…</option>
+                      <option value="contractor">General contractor</option>
+                      <option value="interior_designer">Interior designer</option>
+                      <option value="architect">Architect</option>
+                      <option value="builder">Builder / developer</option>
+                      <option value="retailer">Flooring retailer</option>
+                      <option value="other">Other</option>
+                    </TapSelect>
+                  </TapRow>
+                  <TapInput theme={theme} label="License / membership # (optional)" mono value={contractorLicense} onChange={e => setContractorLicense(e.target.value)} placeholder="CSLB numbers clear fastest — usually within 4 hours" />
+                  <TapInput theme={theme} label="Street address" required value={addressLine1} onChange={e => setAddressLine1(e.target.value)} autoComplete="address-line1" />
+                  <TapRow cols="2fr 1fr 1fr">
+                    <TapInput theme={theme} label="City" required value={city} onChange={e => setCity(e.target.value)} autoComplete="address-level2" />
+                    <TapInput theme={theme} label="State" required value={addrState} onChange={e => setAddrState(e.target.value.toUpperCase())} maxLength={2} autoComplete="address-level1" placeholder="CA" />
+                    <TapInput theme={theme} label="Zip" required mono value={zip} onChange={e => setZip(e.target.value)} maxLength={10} autoComplete="postal-code" placeholder="92806" />
+                  </TapRow>
+                </TapSection>
+
+                <TapSection theme={theme} num="03" title="Verification" sub="Two documents let a rep confirm your business and set up tax-exempt buying. Upload a PDF or a clear photo.">
+                  <TapDropzone theme={theme} label="EIN document · required" docType="ein" upload={docUploads.ein} uploading={uploading} onFile={handleDocUpload} />
+                  <TapDropzone theme={theme} label="Resale certificate (CDTFA) · required" docType="resale_cert" upload={docUploads.resale_cert} uploading={uploading} onFile={handleDocUpload} />
+                  <TapDropzone theme={theme} label="Contractor / business license · optional" docType="business_license" upload={docUploads.business_license} uploading={uploading} onFile={handleDocUpload} />
+                </TapSection>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 24 }}>
+                  <button onClick={handleSubmit} disabled={loading} style={{ padding: '16px 32px', background: ink, color: paper, border: 'none', font: '500 12px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.6 : 1 }}>{loading ? 'Submitting…' : 'Submit application →'}</button>
+                </div>
+                <TapMicro theme={theme} style={{ marginTop: 14, textAlign: 'right' }}>Reviewed by a human · no credit pull · nothing is charged</TapMicro>
+              </div>
+            )}
+          </section>
+
+          {/* After you submit */}
+          <section style={{ padding: '0 80px 100px' }}>
+            <div data-tv2-2col style={{ borderTop: `0.5px solid ${ink}22`, paddingTop: 48, display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 60 }}>
+              <h2 style={{ font: '300 44px/1.05 var(--roma-serif)', letterSpacing: '-0.016em', margin: 0, color: ink }}>What happens <em style={{ color: accent }}>after</em> you submit.</h2>
+              <div data-tv2-grid style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+                {afterSteps.map((s, i) => (
+                  <div key={s.t} style={{ padding: '24px 24px', background: i === 2 ? warm : 'transparent', border: `0.5px solid ${ink}22`, display: 'grid', gap: 10, alignContent: 'start' }}>
+                    <TapMicro theme={theme} color={accent}>{s.t}</TapMicro>
+                    <div style={{ font: '400 14px/1.55 var(--roma-sans)', color: `${ink}cc` }}>{s.b}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
         </div>
       );
     }

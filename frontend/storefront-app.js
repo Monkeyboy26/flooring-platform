@@ -2158,6 +2158,11 @@
       history.pushState({ view: "bulk-order" }, "", "/trade/bulk-order");
       window.scrollTo(0, 0);
     };
+    const goTradeApply = () => {
+      setView("trade-apply");
+      history.pushState({ view: "trade-apply" }, "", "/trade/apply");
+      window.scrollTo(0, 0);
+    };
     const goInstallation = () => {
       setView("installation");
       history.pushState({ view: "installation" }, "", "/installation");
@@ -2226,6 +2231,10 @@
       }
       if (path === "/installation") {
         goInstallation();
+        return;
+      }
+      if (path === "/trade/apply") {
+        goTradeApply();
         return;
       }
       if (path === "/trade") {
@@ -2621,6 +2630,8 @@
         setView("browse");
         fetchSkus({ coll: slug, activeFilters: {}, tags: [] });
         fetchFacets({ coll: slug, activeFilters: {}, tags: [] });
+      } else if (path === "/trade/apply") {
+        setView("trade-apply");
       } else if (path === "/trade" && !path.startsWith("/trade/")) {
         setView("trade");
       } else if (path === "/trade/dashboard" || path === "/shop/trade") {
@@ -2728,6 +2739,8 @@
             const parts = p.replace("/shop/sku/", "").split("/");
             setSelectedSkuId(parts[0]);
             setView("detail");
+          } else if (p === "/trade/apply") {
+            setView("trade-apply");
           } else if (p === "/trade") {
             setView("trade");
           } else if (p === "/trade/dashboard") {
@@ -3046,10 +3059,13 @@
         goHome,
         onLogout: handleCustomerLogout
       }
-    ) : /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "Sign In Required"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Please sign in to view your account."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => navigate("/signin") }, "Sign In"))), view === "wishlist" && /* @__PURE__ */ React.createElement(WishlistPage, { wishlist, toggleWishlist: toggleWishlist2, onSkuClick: goSkuDetail, goBrowse, recentlyViewed, goHome }), view === "collections" && /* @__PURE__ */ React.createElement(CollectionsPage, { onCollectionClick: handleCollectionClick, goHome }), view === "trade" && /* @__PURE__ */ React.createElement(TradePage, { goTradeDashboard, onApplyClick: () => {
-      setTradeModalMode("register");
+    ) : /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "Sign In Required"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Please sign in to view your account."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => navigate("/signin") }, "Sign In"))), view === "wishlist" && /* @__PURE__ */ React.createElement(WishlistPage, { wishlist, toggleWishlist: toggleWishlist2, onSkuClick: goSkuDetail, goBrowse, recentlyViewed, goHome }), view === "collections" && /* @__PURE__ */ React.createElement(CollectionsPage, { onCollectionClick: handleCollectionClick, goHome }), view === "trade" && /* @__PURE__ */ React.createElement(TradePage, { goHome, goTradeApply, goTradeDashboard, onLogin: () => {
+      setTradeModalMode("login");
       setShowTradeModal(true);
-    }, tradeCustomer }), view === "trade-dashboard" && (tradeCustomer ? /* @__PURE__ */ React.createElement(TradeDashboard, { tradeCustomer, tradeToken, addToCart, goBrowse, setTradeCustomer, handleTradeLogout, goBulkOrder, showToast }) : /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "Trade Login Required"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Please sign in with your trade account to access the dashboard."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => {
+    }, tradeCustomer }), view === "trade-apply" && (tradeCustomer ? /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "You're already a Roma trade pro"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Your account is active \u2014 head to your dashboard."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goTradeDashboard }, "Go to Dashboard")) : /* @__PURE__ */ React.createElement(TradeApplyPage, { goHome, goTrade, onLogin: () => {
+      setTradeModalMode("login");
+      setShowTradeModal(true);
+    } })), view === "trade-dashboard" && (tradeCustomer ? /* @__PURE__ */ React.createElement(TradeDashboard, { tradeCustomer, tradeToken, addToCart, goBrowse, setTradeCustomer, handleTradeLogout, goBulkOrder, showToast }) : /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "4rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, marginBottom: "1rem" } }, "Trade Login Required"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", marginBottom: "1.5rem" } }, "Please sign in with your trade account to access the dashboard."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: () => {
       setTradeModalMode("login");
       setShowTradeModal(true);
     } }, "Trade Sign In"))), view === "bulk-order" && /* @__PURE__ */ React.createElement(BulkOrderPage, { tradeToken, addToCart, goTradeDashboard, showToast }), view === "visit-recap" && visitRecapToken && /* @__PURE__ */ React.createElement(VisitRecapPage, { token: visitRecapToken, onSkuClick: goSkuDetail }), view === "reset-password" && /* @__PURE__ */ React.createElement(ResetPasswordPage, { goHome, onLogin: handleCustomerLogin, openLogin: () => navigate("/signin") }), view === "set-password" && /* @__PURE__ */ React.createElement(SetPasswordPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signin" && /* @__PURE__ */ React.createElement(SignInFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signup" && /* @__PURE__ */ React.createElement(SignUpFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "forgot-password" && /* @__PURE__ */ React.createElement(ForgotPasswordFullPage, { goHome, navigate }), view === "installation" && /* @__PURE__ */ React.createElement(InstallationPage, { onRequestQuote: () => {
@@ -9477,8 +9493,262 @@
     ];
     return /* @__PURE__ */ React.createElement("div", { className: "inspiration-page" }, /* @__PURE__ */ React.createElement("div", { className: "inspo-hero" }, /* @__PURE__ */ React.createElement("h1", null, "Find Your Inspiration"), /* @__PURE__ */ React.createElement("p", null, "Explore room ideas, design tips, and curated styles to help you envision the perfect floor for every space in your home."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: goBrowse }, "Browse All Products")), /* @__PURE__ */ React.createElement("div", { className: "inspo-section" }, /* @__PURE__ */ React.createElement("h2", null, "Browse by Room"), /* @__PURE__ */ React.createElement("p", { className: "inspo-section-sub" }, "Select a room to explore flooring options tailored to that space."), /* @__PURE__ */ React.createElement("div", { className: "inspo-rooms-grid" }, rooms.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.slug, className: "inspo-room-card", style: { background: r.gradient }, onClick: () => navigate("/shop?room=" + r.slug) }, /* @__PURE__ */ React.createElement("div", { className: "inspo-room-icon" }, r.icon), /* @__PURE__ */ React.createElement("h3", null, r.name), /* @__PURE__ */ React.createElement("p", null, r.desc))))), /* @__PURE__ */ React.createElement("div", { className: "inspo-tips" }, /* @__PURE__ */ React.createElement("h2", null, "Design Tips"), /* @__PURE__ */ React.createElement("p", { className: "inspo-section-sub" }, "Expert guidance to help you choose with confidence."), /* @__PURE__ */ React.createElement("div", { className: "inspo-tips-grid" }, tips.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.title, className: "inspo-tip-card" }, /* @__PURE__ */ React.createElement("div", { className: "inspo-tip-icon" }, t.icon), /* @__PURE__ */ React.createElement("h3", null, t.title), /* @__PURE__ */ React.createElement("p", null, t.text))))), /* @__PURE__ */ React.createElement("div", { className: "inspo-section" }, /* @__PURE__ */ React.createElement("h2", null, "Popular Styles"), /* @__PURE__ */ React.createElement("p", { className: "inspo-section-sub" }, "Shop curated collections inspired by trending design aesthetics."), /* @__PURE__ */ React.createElement("div", { className: "inspo-styles-grid" }, styles.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.slug, className: "inspo-style-card", style: { background: s.gradient }, onClick: () => navigate("/shop?collection=" + s.slug) }, /* @__PURE__ */ React.createElement("div", { className: "inspo-style-icon" }, s.icon), /* @__PURE__ */ React.createElement("h3", null, s.name), /* @__PURE__ */ React.createElement("p", null, s.desc))))), /* @__PURE__ */ React.createElement("div", { className: "inspo-cta-band" }, /* @__PURE__ */ React.createElement("h2", null, "Ready to Transform Your Space?"), /* @__PURE__ */ React.createElement("p", null, "Explore our full catalog or request free samples to see and feel the difference."), /* @__PURE__ */ React.createElement("div", { className: "inspo-cta-buttons" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: goBrowse }, "Browse All Products"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", style: { borderColor: "rgba(255,255,255,0.3)", color: "white" }, onClick: () => navigate("/shop?sort=newest") }, "Order Free Samples"))));
   }
-  function TradePage({ goTradeDashboard, onApplyClick, tradeCustomer }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "trade-page" }, /* @__PURE__ */ React.createElement("div", { className: "trade-hero" }, /* @__PURE__ */ React.createElement("h1", null, "Trade Program"), /* @__PURE__ */ React.createElement("p", null, "Exclusive pricing, dedicated support, and streamlined ordering for industry professionals."), tradeCustomer ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: goTradeDashboard }, "Go to Dashboard") : /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onApplyClick }, "Apply Now")), /* @__PURE__ */ React.createElement("div", { className: "trade-benefits" }, /* @__PURE__ */ React.createElement("h2", null, "Why Join?"), /* @__PURE__ */ React.createElement("div", { className: "trade-benefits-grid" }, /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" })), /* @__PURE__ */ React.createElement("h3", null, "Trade Pricing"), /* @__PURE__ */ React.createElement("p", null, "Access exclusive wholesale pricing on our full catalog of premium flooring and surfaces.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "7", r: "4" })), /* @__PURE__ */ React.createElement("h3", null, "Dedicated Rep"), /* @__PURE__ */ React.createElement("p", null, "Work with a dedicated sales representative who understands your business needs.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "1", y: "3", width: "15", height: "13" }), /* @__PURE__ */ React.createElement("polygon", { points: "16 8 20 8 23 11 23 16 16 16 16 8" }), /* @__PURE__ */ React.createElement("circle", { cx: "5.5", cy: "18.5", r: "2.5" }), /* @__PURE__ */ React.createElement("circle", { cx: "18.5", cy: "18.5", r: "2.5" })), /* @__PURE__ */ React.createElement("h3", null, "Bulk Ordering"), /* @__PURE__ */ React.createElement("p", null, "Streamlined bulk ordering with SKU-based entry and project tracking.")))), /* @__PURE__ */ React.createElement("div", { className: "trade-how-it-works" }, /* @__PURE__ */ React.createElement("h2", null, "How It Works"), /* @__PURE__ */ React.createElement("div", { className: "trade-steps" }, /* @__PURE__ */ React.createElement("div", { className: "trade-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "1"), /* @__PURE__ */ React.createElement("h3", null, "Apply Online"), /* @__PURE__ */ React.createElement("p", null, "Submit your business credentials and verification documents.")), /* @__PURE__ */ React.createElement("div", { className: "trade-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "2"), /* @__PURE__ */ React.createElement("h3", null, "Get Approved"), /* @__PURE__ */ React.createElement("p", null, "Our team reviews your application within 1-2 business days.")), /* @__PURE__ */ React.createElement("div", { className: "trade-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "3"), /* @__PURE__ */ React.createElement("h3", null, "Start Saving"), /* @__PURE__ */ React.createElement("p", null, "Access trade pricing, bulk orders, and your dedicated dashboard.")))), /* @__PURE__ */ React.createElement("div", { className: "trade-tiers" }, /* @__PURE__ */ React.createElement("h2", null, "Pricing Tiers"), /* @__PURE__ */ React.createElement("p", { className: "trade-tiers-subhead" }, "No membership fee. Your discount is based on what you spend with us over a rolling 12-month period \u2014 you move up automatically as you order."), /* @__PURE__ */ React.createElement("div", { className: "trade-tiers-grid" }, /* @__PURE__ */ React.createElement("div", { className: "tier-card" }, /* @__PURE__ */ React.createElement("div", { className: "tier-name" }, "Silver"), /* @__PURE__ */ React.createElement("div", { className: "tier-discount" }, "12.5%"), /* @__PURE__ */ React.createElement("div", { className: "tier-threshold" }, "$0 \u2013 $12,500"), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Trade pricing on all products"), /* @__PURE__ */ React.createElement("li", null, "Dedicated sales rep"), /* @__PURE__ */ React.createElement("li", null, "Project tracking"))), /* @__PURE__ */ React.createElement("div", { className: "tier-card featured" }, /* @__PURE__ */ React.createElement("div", { className: "tier-name" }, "Gold"), /* @__PURE__ */ React.createElement("div", { className: "tier-discount" }, "18.75%"), /* @__PURE__ */ React.createElement("div", { className: "tier-threshold" }, "$12,501 \u2013 $25,000"), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Everything in Silver"), /* @__PURE__ */ React.createElement("li", null, "Priority fulfillment"), /* @__PURE__ */ React.createElement("li", null, "Extended payment terms"))), /* @__PURE__ */ React.createElement("div", { className: "tier-card" }, /* @__PURE__ */ React.createElement("div", { className: "tier-name" }, "Platinum"), /* @__PURE__ */ React.createElement("div", { className: "tier-discount" }, "21.875%"), /* @__PURE__ */ React.createElement("div", { className: "tier-threshold" }, "$25,000+"), /* @__PURE__ */ React.createElement("ul", null, /* @__PURE__ */ React.createElement("li", null, "Everything in Gold"), /* @__PURE__ */ React.createElement("li", null, "Custom quotes"), /* @__PURE__ */ React.createElement("li", null, "Job site delivery"))))), /* @__PURE__ */ React.createElement("div", { className: "trade-cta-section" }, /* @__PURE__ */ React.createElement("h2", null, "Ready to Get Started?"), /* @__PURE__ */ React.createElement("p", null, "Join hundreds of contractors, designers, and builders who trust Roma Flooring Designs."), /* @__PURE__ */ React.createElement("div", { className: "trade-cta-buttons" }, tradeCustomer ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: goTradeDashboard }, "Go to Dashboard") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onApplyClick }, "Apply Now"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-secondary", style: { borderColor: "rgba(255,255,255,0.3)", color: "white" }, onClick: onApplyClick }, "Sign In")))));
+  const TV2 = { ink: "#1c1917", paper: "#ece5d8", accent: "#a87935", muted: "#8a7e68", warm: "#d8cdb6" };
+  function Tv2Micro({ theme, children, color, style }) {
+    return /* @__PURE__ */ React.createElement("div", { style: { font: "500 11px/1.4 ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", color: color || theme.muted, ...style } }, children);
+  }
+  function Tv2SectionHead({ theme, num, eyebrow, headline, sub, action, onAction }) {
+    const { ink, accent, muted } = theme;
+    return /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 40 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 16, alignItems: "baseline" } }, num && /* @__PURE__ */ React.createElement("span", { style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.18em", color: accent } }, num), /* @__PURE__ */ React.createElement("div", null, eyebrow && /* @__PURE__ */ React.createElement(Tv2Micro, { theme, color: muted, style: { marginBottom: 14 } }, eyebrow), /* @__PURE__ */ React.createElement("h2", { style: { font: "300 52px/1 var(--roma-serif)", letterSpacing: "-0.02em", margin: 0, color: ink } }, headline))), action && /* @__PURE__ */ React.createElement("a", { onClick: onAction, style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: ink, cursor: "pointer", textDecoration: "none", borderBottom: `1px solid ${ink}`, paddingBottom: 4, whiteSpace: "nowrap" } }, action)), sub && /* @__PURE__ */ React.createElement("p", { style: { font: "400 15px/1.6 var(--roma-sans)", color: `${ink}b3`, margin: "18px 0 0 27px", maxWidth: 800 } }, sub));
+  }
+  function Tv2Hero({ theme, tradeCustomer, onApply, onDashboard, onLogin, goHome }) {
+    const { ink, paper, accent, muted } = theme;
+    return /* @__PURE__ */ React.createElement("section", { style: { padding: "40px 80px 64px", borderBottom: `0.5px solid ${ink}18` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 30, flexWrap: "wrap", gap: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.18em", textTransform: "uppercase", color: muted, display: "flex", gap: 14, alignItems: "center" } }, /* @__PURE__ */ React.createElement("a", { onClick: goHome, style: { color: muted, textDecoration: "none", cursor: "pointer" } }, "Home"), /* @__PURE__ */ React.createElement("span", { style: { width: 14, height: 1, background: `${ink}33` } }), /* @__PURE__ */ React.createElement("span", { style: { color: ink } }, "Trade")), !tradeCustomer && /* @__PURE__ */ React.createElement("a", { onClick: onLogin, style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", color: ink, cursor: "pointer", textDecoration: "none" } }, "Already a Roma pro? Sign in \u2192")), /* @__PURE__ */ React.createElement("div", { "data-tv2-2col": true, style: { display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 80, alignItems: "end" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Tv2Micro, { theme, color: accent, style: { marginBottom: 22, letterSpacing: "0.2em" } }, "For designers, contractors, builders"), /* @__PURE__ */ React.createElement("h1", { style: { font: "300 clamp(52px, 8vw, 112px)/0.9 var(--roma-serif)", letterSpacing: "-0.024em", margin: 0, color: ink } }, "One yard.", /* @__PURE__ */ React.createElement("br", null), "One rep.", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, "Trade pricing"), ".")), /* @__PURE__ */ React.createElement("div", { style: { paddingBottom: 14 } }, /* @__PURE__ */ React.createElement("p", { style: { font: "400 17px/1.55 var(--roma-sans)", color: `${ink}cc`, margin: 0, maxWidth: 460 } }, "The trade program for Orange County's design and build community. Pricing that's a contracted margin baked into every line \u2014 not a coupon code \u2014 from a family-owned Anaheim showroom, with one dedicated rep on every order you place."), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 28, display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" } }, tradeCustomer ? /* @__PURE__ */ React.createElement("a", { onClick: onDashboard, style: { padding: "16px 28px", background: ink, color: paper, textDecoration: "none", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.1em", font: "500 13px/1 var(--roma-sans)" } }, "Go to your dashboard \u2192") : /* @__PURE__ */ React.createElement("a", { onClick: onApply, style: { padding: "16px 28px", background: ink, color: paper, textDecoration: "none", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.1em", font: "500 13px/1 var(--roma-sans)" } }, "Apply for a trade account \u2192"), /* @__PURE__ */ React.createElement("a", { href: "tel:+17149990009", style: { padding: "16px 0 8px", color: ink, cursor: "pointer", textDecoration: "none", borderBottom: `1px solid ${ink}`, textTransform: "uppercase", letterSpacing: "0.1em", font: "500 13px/1 var(--roma-sans)" } }, "Talk to a rep \xB7 (714) 999-0009 \u2192")))));
+  }
+  function Tv2Stats({ theme }) {
+    const { ink, muted } = theme;
+    const stats = [
+      { v: "10\u201320%", l: "Contracted trade margin", s: "Tiered by annual spend" },
+      { v: "$0", l: "Membership fee", s: "Free to apply and join" },
+      { v: "2 days", l: "Typical approval", s: "4 hours with a CSLB #" },
+      { v: "Since 2010", l: "Family-owned in Anaheim", s: "License #830966" },
+      { v: "3 ways", l: "To pay every order", s: "Card \xB7 ACH \xB7 Klarna" }
+    ];
+    return /* @__PURE__ */ React.createElement("section", { style: { borderBottom: `0.5px solid ${ink}22`, padding: "36px 80px" } }, /* @__PURE__ */ React.createElement("div", { "data-tv2-grid": true, style: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)" } }, stats.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: s.l, style: { padding: "0 24px", borderLeft: i === 0 ? "none" : `0.5px solid ${ink}11`, display: "grid", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { font: "400 40px/1 var(--roma-serif)", letterSpacing: "-0.012em", color: ink } }, s.v), /* @__PURE__ */ React.createElement("div", { style: { font: "500 11px/1.2 var(--roma-sans)", letterSpacing: "0.06em", color: ink } }, s.l), /* @__PURE__ */ React.createElement("div", { style: { font: "400 12px/1.3 var(--roma-sans)", color: muted } }, s.s)))));
+  }
+  function Tv2Tiers({ theme }) {
+    const { ink, accent, muted, warm } = theme;
+    const tiers = [
+      { name: "Silver", pct: "10%", spend: "On approval", note: "Every new trade account starts here \u2014 the margin applies from your very first order.", perks: ["Trade pricing on every SKU", "A dedicated Roma rep", "Bulk order + branded quotes"] },
+      { name: "Gold", pct: "15%", spend: "$12,500+ / yr", note: "Where most working studios land within their first year of ordering with us.", perks: ["Everything in Silver", "Priority fulfillment", "Automatic \u2014 no reapplying"], hot: true },
+      { name: "Platinum", pct: "20%", spend: "$25,000+ / yr", note: "Design-build firms and builders running several concurrent jobs at once.", perks: ["Everything in Gold", "Custom quotes", "Job-site delivery"] }
+    ];
+    return /* @__PURE__ */ React.createElement("section", { style: { padding: "80px 80px" } }, /* @__PURE__ */ React.createElement(Tv2SectionHead, { theme, num: "01", eyebrow: "How pricing works", headline: /* @__PURE__ */ React.createElement(React.Fragment, null, "A margin, not a ", /* @__PURE__ */ React.createElement("em", null, "coupon"), "."), sub: "Your discount is contracted into your account and applied to every line \u2014 it survives sales, promos, and clearance, and sale prices stack on top. Tiers step up automatically with your trailing 12-month spend." }), /* @__PURE__ */ React.createElement("div", { "data-tv2-grid": true, style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 } }, tiers.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.name, style: { border: `0.5px solid ${t.hot ? accent : ink + "22"}`, background: t.hot ? "#fff" : "transparent", padding: "32px 30px 28px", display: "grid", gap: 14, alignContent: "start" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline" } }, /* @__PURE__ */ React.createElement(Tv2Micro, { theme, color: t.hot ? accent : muted }, t.name), /* @__PURE__ */ React.createElement(Tv2Micro, { theme }, t.spend)), /* @__PURE__ */ React.createElement("div", { style: { font: "300 72px/1 var(--roma-serif)", letterSpacing: "-0.02em", color: t.hot ? accent : ink } }, t.pct, /* @__PURE__ */ React.createElement("span", { style: { font: "400 20px/1 var(--roma-serif)", color: muted } }, " off list")), /* @__PURE__ */ React.createElement("p", { style: { font: "400 13px/1.55 var(--roma-sans)", color: `${ink}b3`, margin: 0 } }, t.note), /* @__PURE__ */ React.createElement("div", { style: { borderTop: `0.5px solid ${ink}18`, paddingTop: 14, display: "grid", gap: 8 } }, t.perks.map((p) => /* @__PURE__ */ React.createElement("div", { key: p, style: { display: "flex", gap: 10, font: "400 13px/1.4 var(--roma-sans)", color: ink } }, /* @__PURE__ */ React.createElement("span", { style: { color: accent } }, "\u2713"), p)))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, padding: "16px 22px", background: warm, border: `0.5px solid ${ink}18`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { font: "400 13px/1.5 var(--roma-sans)", color: `${ink}cc`, maxWidth: 760 } }, /* @__PURE__ */ React.createElement("strong", { style: { fontWeight: 500 } }, "On payment:"), " Roma doesn't run net terms. Every order is paid before shipment \u2014 card, ACH, or Klarna \u2014 which is exactly why the margin can live in the price instead of in a collections department."), /* @__PURE__ */ React.createElement(Tv2Micro, { theme }, "Card \xB7 ACH \xB7 Klarna")));
+  }
+  function Tv2Benefits({ theme }) {
+    const { ink, accent, muted } = theme;
+    const benefits = [
+      { n: "01", t: "Trade pricing, baked in", b: "A contracted 10\u201320% on every SKU that survives sales, promos, and clearance \u2014 sale prices stack on top, and you see both deductions on the line.", detail: "All categories" },
+      { n: "02", t: "A dedicated rep", b: "One assigned Roma rep for your account \u2014 reachable by phone and email, and attached to every order and quote you place.", detail: "Phone + email" },
+      { n: "03", t: "Bulk & quick order", b: "Enter SKU and quantity line by line and drop a whole job into the cart at once \u2014 built for repeat buyers restocking known material.", detail: "SKU + qty entry" },
+      { n: "04", t: "Branded quotes", b: "Build a cart into a branded PDF quote that holds for 14 days, then convert it to an order in one click when the client signs off.", detail: "14-day hold" },
+      { n: "05", t: "Project tracking", b: "Group orders under named projects with client and address, assigned at checkout or retroactively, so every job keeps its own ledger.", detail: "Per-job history" },
+      { n: "06", t: "Tax-exempt buying", b: "With your resale certificate on file, materials you buy for resale are billed without sales tax \u2014 set up once during approval.", detail: "Resale cert on file" }
+    ];
+    return /* @__PURE__ */ React.createElement("section", { style: { padding: "0 80px 80px" } }, /* @__PURE__ */ React.createElement(Tv2SectionHead, { theme, num: "02", eyebrow: "What you get", headline: /* @__PURE__ */ React.createElement(React.Fragment, null, "The ", /* @__PURE__ */ React.createElement("em", null, "trade"), " stack."), sub: "The things a Roma trade pro reaches for every week \u2014 spec, order, quote, close \u2014 built around how OC firms actually run jobs." }), /* @__PURE__ */ React.createElement("div", { "data-tv2-grid": true, style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 } }, benefits.map((b) => /* @__PURE__ */ React.createElement("div", { key: b.n, style: { border: `0.5px solid ${ink}22`, padding: "32px 30px 28px", display: "grid", gap: 14, alignContent: "start" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline" } }, /* @__PURE__ */ React.createElement("span", { style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.2em", textTransform: "uppercase", color: accent } }, b.n), /* @__PURE__ */ React.createElement("span", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: muted } }, b.detail)), /* @__PURE__ */ React.createElement("h3", { style: { font: "300 28px/1.05 var(--roma-serif)", letterSpacing: "-0.014em", color: ink, margin: 0 } }, b.t), /* @__PURE__ */ React.createElement("p", { style: { font: "400 14px/1.55 var(--roma-sans)", color: `${ink}b3`, margin: 0 } }, b.b)))));
+  }
+  function Tv2Eligibility({ theme }) {
+    const { ink, muted, warm } = theme;
+    const groups = [
+      { t: "Interior designers", s: "ASID / IIDA / CCIDC or portfolio" },
+      { t: "General contractors", s: "CSLB license \xB7 any class" },
+      { t: "Architects", s: "AIA + active project" },
+      { t: "Custom home builders", s: "CSLB B / B-2 + EIN" },
+      { t: "Tile + flooring installers", s: "Resale cert + license" },
+      { t: "Design-build firms", s: "Combined licenses + EIN" },
+      { t: "Property managers", s: "Portfolio + resale cert" },
+      { t: "Retailers + stagers", s: "Resale cert + EIN" }
+    ];
+    return /* @__PURE__ */ React.createElement("section", { style: { background: warm, padding: "80px 80px" } }, /* @__PURE__ */ React.createElement(Tv2SectionHead, { theme, num: "03", eyebrow: "Who qualifies", headline: /* @__PURE__ */ React.createElement(React.Fragment, null, "If you put materials in ", /* @__PURE__ */ React.createElement("em", null, "other people's"), " houses, you qualify."), sub: "Open to anyone in the design and build trades with active licensing, a trade-society membership, or a verifiable project history. A resale certificate gets materials tax-free for resale." }), /* @__PURE__ */ React.createElement("div", { "data-tv2-grid": true, style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 } }, groups.map((g) => /* @__PURE__ */ React.createElement("div", { key: g.t, style: { background: "#fff", border: `0.5px solid ${ink}22`, padding: "22px 22px", display: "grid", gap: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { font: "400 22px/1 var(--roma-serif)", letterSpacing: "-0.012em", color: ink } }, "\u2713 ", g.t), /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1.4 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: muted } }, g.s)))));
+  }
+  function Tv2HowItWorks({ theme }) {
+    const { ink, paper } = theme;
+    const steps = [
+      { n: "01", t: "Apply in minutes", b: "A short form, your credential number, and your EIN and resale certificate. No DUNS lookup, no four-page intake." },
+      { n: "02", t: "A human verifies", b: "A Roma rep \u2014 not a robot \u2014 checks your license or membership and resale cert. Two business days; four hours with a CSLB #." },
+      { n: "03", t: "Meet your rep", b: "Your approval email carries your tier and your dedicated rep\u2019s direct line." },
+      { n: "04", t: "First order", b: "Trade pricing applies from line one. Your rep can walk the first quote with you." }
+    ];
+    return /* @__PURE__ */ React.createElement("section", { style: { padding: "80px 80px" } }, /* @__PURE__ */ React.createElement(Tv2SectionHead, { theme, num: "04", eyebrow: "How it works", headline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Apply Monday, ", /* @__PURE__ */ React.createElement("em", null, "spec"), " Wednesday.") }), /* @__PURE__ */ React.createElement("div", { "data-tv2-grid": true, style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)" } }, steps.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: s.n, style: { padding: "28px 28px 24px", borderLeft: `0.5px solid ${ink}22`, borderTop: `0.5px solid ${ink}22`, borderBottom: `0.5px solid ${ink}22`, borderRight: i === 3 ? `0.5px solid ${ink}22` : "none", display: "grid", gap: 12, alignContent: "start" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 34, height: 34, display: "flex", alignItems: "center", justifyContent: "center", background: i === 0 ? ink : "transparent", border: `0.5px solid ${ink}`, color: i === 0 ? paper : ink, font: "500 12px/1 ui-monospace, monospace" } }, s.n), /* @__PURE__ */ React.createElement("h3", { style: { font: "300 26px/1.1 var(--roma-serif)", letterSpacing: "-0.012em", color: ink, margin: "6px 0 0" } }, s.t), /* @__PURE__ */ React.createElement("p", { style: { font: "400 13px/1.55 var(--roma-sans)", color: `${ink}b3`, margin: 0 } }, s.b)))));
+  }
+  function Tv2Faqs({ theme }) {
+    const { ink, accent } = theme;
+    const faqs = [
+      { q: "How long does approval take?", a: "Two business days in most cases. With a CSLB # or trade-society membership we can often clear you within four hours." },
+      { q: "What if I\u2019m an individual designer, not a firm?", a: "Apply as a sole proprietor. We verify your membership (ASID / IIDA / CCIDC) or a portfolio of real projects, plus your resale certificate." },
+      { q: "Does Roma offer Net-30 or other terms?", a: "No \u2014 every order is paid in full before shipment. We accept card, ACH, and Klarna, and you can keep a default payment method on file." },
+      { q: "Does the discount stack with sales?", a: "Yes. Trade pricing is a contracted margin, so sale prices apply on top of it. You see both deductions on the line item." },
+      { q: "How do the tiers move?", a: "Automatically, on your trailing 12-month spend \u2014 10% to start, 15% past $12,500, 20% past $25,000. Nothing to reapply for." },
+      { q: "Do you ship outside Orange County?", a: "Anywhere in California by LTL freight, with the trade margin still in effect. Ask your rep about accounts further out." }
+    ];
+    return /* @__PURE__ */ React.createElement("section", { style: { padding: "80px 80px 60px" } }, /* @__PURE__ */ React.createElement(Tv2SectionHead, { theme, num: "05", eyebrow: "Common questions", headline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Six things we hear most.") }), /* @__PURE__ */ React.createElement("div", { "data-tv2-grid": true, style: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "0 60px" } }, faqs.map((f, i) => /* @__PURE__ */ React.createElement("div", { key: f.q, style: { padding: "22px 0", borderBottom: `0.5px solid ${ink}22`, display: "grid", gridTemplateColumns: "36px 1fr", gap: 18 } }, /* @__PURE__ */ React.createElement("span", { style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.18em", color: accent } }, String(i + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h4", { style: { font: "300 22px/1.2 var(--roma-serif)", letterSpacing: "-0.012em", color: ink, margin: 0 } }, f.q), /* @__PURE__ */ React.createElement("p", { style: { font: "400 14px/1.55 var(--roma-sans)", color: `${ink}b3`, margin: "10px 0 0" } }, f.a))))));
+  }
+  function Tv2CtaBand({ theme, onApply, onDashboard, tradeCustomer }) {
+    const { ink, paper, accent, warm } = theme;
+    return /* @__PURE__ */ React.createElement("section", { style: { padding: "0 80px 100px" } }, /* @__PURE__ */ React.createElement("div", { "data-tv2-2col": true, style: { background: warm, border: `0.5px solid ${ink}22`, padding: "56px 60px", display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 60, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Tv2Micro, { theme, color: accent, style: { marginBottom: 14 } }, "\u25CF Apply \xB7 a few minutes \xB7 reviewed by a human"), /* @__PURE__ */ React.createElement("h2", { style: { font: "300 clamp(38px, 5vw, 56px)/1 var(--roma-serif)", letterSpacing: "-0.02em", margin: 0, color: ink } }, "A short form. ", /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, "Two business days.")), /* @__PURE__ */ React.createElement("p", { style: { font: "400 15px/1.6 var(--roma-sans)", color: `${ink}b3`, margin: "16px 0 0", maxWidth: 560 } }, "Have your license or membership number, EIN, and resale certificate handy. Apply today and we'll usually confirm within two business days \u2014 sooner with a CSLB #.")), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 12, justifyItems: "start" } }, tradeCustomer ? /* @__PURE__ */ React.createElement("a", { onClick: onDashboard, style: { padding: "18px 32px", background: ink, color: paper, textDecoration: "none", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.1em", font: "500 13px/1 var(--roma-sans)" } }, "Go to your dashboard \u2192") : /* @__PURE__ */ React.createElement("a", { onClick: onApply, style: { padding: "18px 32px", background: ink, color: paper, textDecoration: "none", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.1em", font: "500 13px/1 var(--roma-sans)" } }, "Start the application \u2192"), /* @__PURE__ */ React.createElement(Tv2Micro, { theme }, "Or call (714) 999-0009"))));
+  }
+  function TradePage({ goHome, goTradeApply, goTradeDashboard, onLogin, tradeCustomer }) {
+    const theme = TV2;
+    return /* @__PURE__ */ React.createElement("div", { className: "tv2-page", style: { background: theme.paper, color: theme.ink, fontFamily: "var(--roma-sans)" } }, /* @__PURE__ */ React.createElement(Tv2Hero, { theme, tradeCustomer, onApply: goTradeApply, onDashboard: goTradeDashboard, onLogin, goHome }), /* @__PURE__ */ React.createElement(Tv2Stats, { theme }), /* @__PURE__ */ React.createElement(Tv2Tiers, { theme }), /* @__PURE__ */ React.createElement(Tv2Benefits, { theme }), /* @__PURE__ */ React.createElement(Tv2Eligibility, { theme }), /* @__PURE__ */ React.createElement(Tv2HowItWorks, { theme }), /* @__PURE__ */ React.createElement(Tv2Faqs, { theme }), /* @__PURE__ */ React.createElement(Tv2CtaBand, { theme, onApply: goTradeApply, onDashboard: goTradeDashboard, tradeCustomer }));
+  }
+  function TapMicro({ theme, children, color, style }) {
+    return /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1.4 ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", color: color || theme.muted, ...style } }, children);
+  }
+  function TapInput({ theme, label, type = "text", value, onChange, onBlur, placeholder, mono, required, invalid, maxLength, textarea, autoComplete, style }) {
+    const { ink, accent } = theme;
+    const base = { border: "none", borderBottom: `0.5px solid ${invalid ? "#c0392b" : ink + "33"}`, background: "transparent", padding: "7px 0", font: mono ? "400 14px/1.4 ui-monospace, monospace" : "400 16px/1.35 var(--roma-serif)", color: ink, outline: "none", borderRadius: 0, width: "100%", boxSizing: "border-box", ...style };
+    return /* @__PURE__ */ React.createElement("label", { style: { display: "grid", gap: 8 } }, /* @__PURE__ */ React.createElement(TapMicro, { theme }, label, required && /* @__PURE__ */ React.createElement("span", { style: { color: accent } }, " *")), textarea ? /* @__PURE__ */ React.createElement("textarea", { value, onChange, onBlur, placeholder, rows: 3, style: { ...base, resize: "vertical", font: "400 15px/1.5 var(--roma-sans)" }, onFocus: (e) => e.target.style.borderBottomColor = accent }) : /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type,
+        value,
+        onChange,
+        onBlur,
+        placeholder,
+        maxLength,
+        autoComplete,
+        style: base,
+        onFocus: (e) => e.target.style.borderBottomColor = accent,
+        onBlurCapture: (e) => {
+          if (!invalid) e.target.style.borderBottomColor = ink + "33";
+        }
+      }
+    ));
+  }
+  function TapSelect({ theme, label, value, onChange, required, children }) {
+    const { ink, accent } = theme;
+    return /* @__PURE__ */ React.createElement("label", { style: { display: "grid", gap: 8 } }, /* @__PURE__ */ React.createElement(TapMicro, { theme }, label, required && /* @__PURE__ */ React.createElement("span", { style: { color: accent } }, " *")), /* @__PURE__ */ React.createElement("select", { value, onChange, style: { border: "none", borderBottom: `0.5px solid ${ink}33`, background: "transparent", padding: "7px 0", font: "400 16px/1.35 var(--roma-serif)", color: value ? ink : `${ink}55`, outline: "none", borderRadius: 0, width: "100%", boxSizing: "border-box", cursor: "pointer" } }, children));
+  }
+  function TapSection({ theme, num, title, sub, children }) {
+    const { ink, accent, muted } = theme;
+    return /* @__PURE__ */ React.createElement("div", { style: { paddingBottom: 32, marginBottom: 32, borderBottom: `0.5px solid ${ink}18` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 16, alignItems: "baseline", marginBottom: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.18em", color: accent } }, num), /* @__PURE__ */ React.createElement("h3", { style: { font: "300 28px/1.1 var(--roma-serif)", letterSpacing: "-0.014em", color: ink, margin: 0 } }, title)), sub && /* @__PURE__ */ React.createElement("p", { style: { font: "400 13px/1.5 var(--roma-sans)", color: muted, margin: "4px 0 0 27px" } }, sub), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 22, display: "grid", gap: 22 } }, children));
+  }
+  function TapRow({ children, cols }) {
+    return /* @__PURE__ */ React.createElement("div", { "data-tv2-grid": true, style: { display: "grid", gridTemplateColumns: cols || "1fr 1fr", gap: "22px 32px" } }, children);
+  }
+  function TapDropzone({ theme, label, docType, upload, uploading, onFile }) {
+    const { ink, accent, muted } = theme;
+    const done = !!upload;
+    return /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 20px", border: `0.5px dashed ${done ? accent : ink + "44"}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "400 14px/1.3 var(--roma-sans)", color: ink } }, label), /* @__PURE__ */ React.createElement(TapMicro, { theme, color: done ? accent : muted, style: { marginTop: 4, textTransform: "none", letterSpacing: "0.04em" } }, uploading === docType ? "Uploading\u2026" : done ? `\u2713 ${upload.file_name}` : "PDF or photo \xB7 10 MB max")), /* @__PURE__ */ React.createElement("label", { style: { padding: "10px 18px", border: `0.5px solid ${ink}66`, font: "500 11px/1 var(--roma-sans)", letterSpacing: "0.1em", textTransform: "uppercase", color: ink, cursor: "pointer", whiteSpace: "nowrap" } }, done ? "Replace" : "Browse", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "image/*,application/pdf", style: { display: "none" }, onChange: (e) => {
+      if (e.target.files[0]) onFile(docType, e.target.files[0]);
+      e.target.value = "";
+    } })));
+  }
+  function TradeApplyPage({ goHome, goTrade, onLogin }) {
+    const theme = TV2;
+    const { ink, paper, accent, muted, warm } = theme;
+    const [firstName, setFirstName] = useState("");
+    const [lastName, setLastName] = useState("");
+    const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [companyName, setCompanyName] = useState("");
+    const [businessType, setBusinessType] = useState("");
+    const [contractorLicense, setContractorLicense] = useState("");
+    const [addressLine1, setAddressLine1] = useState("");
+    const [city, setCity] = useState("");
+    const [addrState, setAddrState] = useState("");
+    const [zip, setZip] = useState("");
+    const [docUploads, setDocUploads] = useState({});
+    const [uploading, setUploading] = useState("");
+    const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+    const [emailTouched, setEmailTouched] = useState(false);
+    useEffect(() => {
+      window.scrollTo(0, 0);
+    }, [submitted]);
+    const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const passwordValid = password.length >= 8 && /[A-Z]/.test(password) && /[0-9]/.test(password);
+    const formatPhone = (val) => {
+      const d = val.replace(/\D/g, "").slice(0, 10);
+      if (!d) return "";
+      if (d.length <= 3) return "(" + d;
+      if (d.length <= 6) return "(" + d.slice(0, 3) + ") " + d.slice(3);
+      return "(" + d.slice(0, 3) + ") " + d.slice(3, 6) + "-" + d.slice(6);
+    };
+    const handleDocUpload = async (docType, file) => {
+      setUploading(docType);
+      setError("");
+      try {
+        const fd = new FormData();
+        fd.append("document", file);
+        fd.append("doc_type", docType);
+        if (email) fd.append("email", email);
+        const resp = await fetch(API + "/api/trade/register/upload", { method: "POST", body: fd });
+        if (!resp.ok) {
+          const ed = await resp.json().catch(() => ({}));
+          setError(ed.error || "Upload failed");
+          setUploading("");
+          return;
+        }
+        const data = await resp.json();
+        setDocUploads((prev) => ({ ...prev, [docType]: { id: data.document_id, file_name: file.name } }));
+      } catch (err) {
+        setError("Upload failed. Please try again.");
+      }
+      setUploading("");
+    };
+    const handleSubmit = async () => {
+      setError("");
+      if (!firstName.trim() || !lastName.trim() || !email || !phone || !password || !companyName.trim() || !businessType || !addressLine1.trim() || !city.trim() || !addrState.trim() || !zip.trim()) {
+        setError("Please fill in all required fields.");
+        return;
+      }
+      if (!emailValid) {
+        setError("Please enter a valid email address.");
+        return;
+      }
+      if (phone.replace(/\D/g, "").length < 10) {
+        setError("Please enter a valid 10-digit phone number.");
+        return;
+      }
+      if (!passwordValid) {
+        setError("Password must be at least 8 characters with one uppercase letter and one number.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+      if (!docUploads.ein || !docUploads.resale_cert) {
+        setError("An EIN document and resale certificate are both required.");
+        return;
+      }
+      setLoading(true);
+      try {
+        const docIds = Object.values(docUploads).map((d) => d.id);
+        const resp = await fetch(API + "/api/trade/register/enhanced", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email,
+            password,
+            company_name: companyName,
+            contact_name: `${firstName.trim()} ${lastName.trim()}`,
+            phone,
+            business_type: businessType,
+            address_line1: addressLine1,
+            city,
+            state: addrState,
+            zip,
+            contractor_license: contractorLicense || null,
+            document_ids: docIds
+          })
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          setError(data.error || "Something went wrong. Please try again.");
+          setLoading(false);
+          return;
+        }
+        setSubmitted(true);
+      } catch (err) {
+        setError("Network error. Please try again.");
+      }
+      setLoading(false);
+    };
+    const afterSteps = [
+      { t: "Right now", b: "A confirmation email lands in your inbox so you know we have your application." },
+      { t: "Within 2 business days", b: "A rep verifies your credential and resale cert. We only reach out if something doesn\u2019t match." },
+      { t: "On approval", b: "Your tier, your dedicated rep\u2019s direct line, and your trade dashboard all unlock in one email." }
+    ];
+    return /* @__PURE__ */ React.createElement("div", { className: "tv2-page", style: { background: paper, color: ink, fontFamily: "var(--roma-sans)" } }, /* @__PURE__ */ React.createElement("section", { style: { padding: "40px 80px 48px", borderBottom: `0.5px solid ${ink}18` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 30, flexWrap: "wrap", gap: 12 } }, /* @__PURE__ */ React.createElement("div", { style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.18em", textTransform: "uppercase", color: muted, display: "flex", gap: 14, alignItems: "center" } }, /* @__PURE__ */ React.createElement("a", { onClick: goHome, style: { color: muted, textDecoration: "none", cursor: "pointer" } }, "Home"), /* @__PURE__ */ React.createElement("span", { style: { width: 14, height: 1, background: `${ink}33` } }), /* @__PURE__ */ React.createElement("a", { onClick: goTrade, style: { color: muted, textDecoration: "none", cursor: "pointer" } }, "Trade"), /* @__PURE__ */ React.createElement("span", { style: { width: 14, height: 1, background: `${ink}33` } }), /* @__PURE__ */ React.createElement("span", { style: { color: ink } }, "Apply")), /* @__PURE__ */ React.createElement("a", { onClick: onLogin, style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", color: ink, cursor: "pointer", textDecoration: "none" } }, "Already a Roma pro? Sign in \u2192")), /* @__PURE__ */ React.createElement("div", { "data-tv2-2col": true, style: { display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 80, alignItems: "end" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(TapMicro, { theme, color: accent, style: { marginBottom: 18, letterSpacing: "0.2em", fontSize: 11 } }, "\u25CF Trade application \xB7 a few minutes"), /* @__PURE__ */ React.createElement("h1", { style: { font: "300 clamp(44px, 6vw, 84px)/0.95 var(--roma-serif)", letterSpacing: "-0.022em", margin: 0, color: ink } }, "A short form between you and ", /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, "trade pricing"), ".")), /* @__PURE__ */ React.createElement("p", { style: { font: "400 16px/1.6 var(--roma-sans)", color: `${ink}b3`, margin: "0 0 8px", maxWidth: 420 } }, "Every application is read by a Roma rep, not a robot. Two business days in most cases \u2014 four hours if you carry a CSLB number."))), /* @__PURE__ */ React.createElement("section", { "data-tv2-2col": true, style: { padding: "64px 80px", display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 80, alignItems: "start" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 24 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(TapMicro, { theme, color: accent, style: { marginBottom: 12 } }, "Before you start"), /* @__PURE__ */ React.createElement("h2", { style: { font: "300 40px/1.05 var(--roma-serif)", letterSpacing: "-0.016em", margin: 0, color: ink } }, "Have these ", /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, "three"), " ready.")), [
+      ["01 \xB7 Credential", "A license or membership number \u2014 CSLB, ASID, IIDA, CCIDC, AIA, or RESA. Sole proprietors: a portfolio of real projects works too."],
+      ["02 \xB7 Resale certificate", "Your CDTFA seller\u2019s permit. With it on file we don\u2019t charge tax on materials you resell."],
+      ["03 \xB7 EIN document", "Your federal EIN letter (or SSN-based sole-prop equivalent) so we can verify the business."]
+    ].map(([t, b]) => /* @__PURE__ */ React.createElement("div", { key: t, style: { padding: "18px 22px", background: warm, border: `0.5px solid ${ink}18` } }, /* @__PURE__ */ React.createElement(TapMicro, { theme, color: ink, style: { marginBottom: 8 } }, t), /* @__PURE__ */ React.createElement("div", { style: { font: "400 13px/1.55 var(--roma-sans)", color: `${ink}b3` } }, b))), /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 22px", border: `0.5px solid ${accent}55` } }, /* @__PURE__ */ React.createElement(TapMicro, { theme, color: accent, style: { marginBottom: 8 } }, "What you get on approval"), /* @__PURE__ */ React.createElement("div", { style: { font: "400 13px/1.6 var(--roma-sans)", color: ink } }, "Your tier (starts at 10% off list, contracted), your dedicated rep\u2019s direct line, and your trade dashboard for orders, quotes, and projects.")), /* @__PURE__ */ React.createElement(TapMicro, { theme }, "Questions? Call (714) 999-0009")), submitted ? /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: `0.5px solid ${ink}22`, padding: "48px 44px", display: "grid", gap: 18 } }, /* @__PURE__ */ React.createElement(TapMicro, { theme, color: accent }, "\u25CF Application received"), /* @__PURE__ */ React.createElement("h2", { style: { font: "300 44px/1.05 var(--roma-serif)", letterSpacing: "-0.016em", margin: 0, color: ink } }, "Thanks \u2014 it\u2019s with a rep now."), /* @__PURE__ */ React.createElement("p", { style: { font: "400 15px/1.6 var(--roma-sans)", color: `${ink}b3`, margin: 0, maxWidth: 520 } }, "Your trade application is under review. We\u2019ll email ", /* @__PURE__ */ React.createElement("strong", { style: { color: ink } }, email), " once it\u2019s approved \u2014 usually within two business days, and often sooner with a CSLB number."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 14, marginTop: 6, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("a", { onClick: goHome, style: { padding: "14px 26px", background: ink, color: paper, textDecoration: "none", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.1em", font: "500 12px/1 var(--roma-sans)" } }, "Back to home \u2192"), /* @__PURE__ */ React.createElement("a", { onClick: onLogin, style: { padding: "14px 0 6px", color: ink, cursor: "pointer", textDecoration: "none", borderBottom: `1px solid ${ink}`, textTransform: "uppercase", letterSpacing: "0.1em", font: "500 12px/1 var(--roma-sans)" } }, "Trade sign in \u2192"))) : /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: `0.5px solid ${ink}22`, padding: "40px 44px" } }, error && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 24, padding: "12px 16px", background: "#c0392b12", border: "0.5px solid #c0392b55", font: "400 13px/1.5 var(--roma-sans)", color: "#8a2a1e" } }, error), /* @__PURE__ */ React.createElement(TapSection, { theme, num: "01", title: "About you" }, /* @__PURE__ */ React.createElement(TapRow, null, /* @__PURE__ */ React.createElement(TapInput, { theme, label: "First name", required: true, value: firstName, onChange: (e) => setFirstName(e.target.value), autoComplete: "given-name" }), /* @__PURE__ */ React.createElement(TapInput, { theme, label: "Last name", required: true, value: lastName, onChange: (e) => setLastName(e.target.value), autoComplete: "family-name" })), /* @__PURE__ */ React.createElement(TapRow, null, /* @__PURE__ */ React.createElement(TapInput, { theme, label: "Business email", required: true, mono: true, value: email, onChange: (e) => setEmail(e.target.value), onBlur: () => setEmailTouched(true), invalid: emailTouched && !!email && !emailValid, autoComplete: "email", placeholder: "you@studio.com" }), /* @__PURE__ */ React.createElement(TapInput, { theme, label: "Phone", required: true, mono: true, value: phone, onChange: (e) => setPhone(formatPhone(e.target.value)), autoComplete: "tel", placeholder: "(949) 555-0148" })), /* @__PURE__ */ React.createElement(TapRow, null, /* @__PURE__ */ React.createElement(TapInput, { theme, label: "Password", required: true, type: "password", mono: true, value: password, onChange: (e) => setPassword(e.target.value), autoComplete: "new-password", placeholder: "8+ chars, 1 capital, 1 number" }), /* @__PURE__ */ React.createElement(TapInput, { theme, label: "Confirm password", required: true, type: "password", mono: true, value: confirmPassword, onChange: (e) => setConfirmPassword(e.target.value), autoComplete: "new-password" }))), /* @__PURE__ */ React.createElement(TapSection, { theme, num: "02", title: "Your business", sub: "This is what your rep verifies \u2014 the closer it matches your paperwork, the faster the approval." }, /* @__PURE__ */ React.createElement(TapRow, { cols: "1.5fr 1fr" }, /* @__PURE__ */ React.createElement(TapInput, { theme, label: "Firm name", required: true, value: companyName, onChange: (e) => setCompanyName(e.target.value), autoComplete: "organization" }), /* @__PURE__ */ React.createElement(TapSelect, { theme, label: "Trade type", required: true, value: businessType, onChange: (e) => setBusinessType(e.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Select\u2026"), /* @__PURE__ */ React.createElement("option", { value: "contractor" }, "General contractor"), /* @__PURE__ */ React.createElement("option", { value: "interior_designer" }, "Interior designer"), /* @__PURE__ */ React.createElement("option", { value: "architect" }, "Architect"), /* @__PURE__ */ React.createElement("option", { value: "builder" }, "Builder / developer"), /* @__PURE__ */ React.createElement("option", { value: "retailer" }, "Flooring retailer"), /* @__PURE__ */ React.createElement("option", { value: "other" }, "Other"))), /* @__PURE__ */ React.createElement(TapInput, { theme, label: "License / membership # (optional)", mono: true, value: contractorLicense, onChange: (e) => setContractorLicense(e.target.value), placeholder: "CSLB numbers clear fastest \u2014 usually within 4 hours" }), /* @__PURE__ */ React.createElement(TapInput, { theme, label: "Street address", required: true, value: addressLine1, onChange: (e) => setAddressLine1(e.target.value), autoComplete: "address-line1" }), /* @__PURE__ */ React.createElement(TapRow, { cols: "2fr 1fr 1fr" }, /* @__PURE__ */ React.createElement(TapInput, { theme, label: "City", required: true, value: city, onChange: (e) => setCity(e.target.value), autoComplete: "address-level2" }), /* @__PURE__ */ React.createElement(TapInput, { theme, label: "State", required: true, value: addrState, onChange: (e) => setAddrState(e.target.value.toUpperCase()), maxLength: 2, autoComplete: "address-level1", placeholder: "CA" }), /* @__PURE__ */ React.createElement(TapInput, { theme, label: "Zip", required: true, mono: true, value: zip, onChange: (e) => setZip(e.target.value), maxLength: 10, autoComplete: "postal-code", placeholder: "92806" }))), /* @__PURE__ */ React.createElement(TapSection, { theme, num: "03", title: "Verification", sub: "Two documents let a rep confirm your business and set up tax-exempt buying. Upload a PDF or a clear photo." }, /* @__PURE__ */ React.createElement(TapDropzone, { theme, label: "EIN document \xB7 required", docType: "ein", upload: docUploads.ein, uploading, onFile: handleDocUpload }), /* @__PURE__ */ React.createElement(TapDropzone, { theme, label: "Resale certificate (CDTFA) \xB7 required", docType: "resale_cert", upload: docUploads.resale_cert, uploading, onFile: handleDocUpload }), /* @__PURE__ */ React.createElement(TapDropzone, { theme, label: "Contractor / business license \xB7 optional", docType: "business_license", upload: docUploads.business_license, uploading, onFile: handleDocUpload })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 24 } }, /* @__PURE__ */ React.createElement("button", { onClick: handleSubmit, disabled: loading, style: { padding: "16px 32px", background: ink, color: paper, border: "none", font: "500 12px/1 var(--roma-sans)", letterSpacing: "0.1em", textTransform: "uppercase", cursor: loading ? "default" : "pointer", opacity: loading ? 0.6 : 1 } }, loading ? "Submitting\u2026" : "Submit application \u2192")), /* @__PURE__ */ React.createElement(TapMicro, { theme, style: { marginTop: 14, textAlign: "right" } }, "Reviewed by a human \xB7 no credit pull \xB7 nothing is charged"))), /* @__PURE__ */ React.createElement("section", { style: { padding: "0 80px 100px" } }, /* @__PURE__ */ React.createElement("div", { "data-tv2-2col": true, style: { borderTop: `0.5px solid ${ink}22`, paddingTop: 48, display: "grid", gridTemplateColumns: "1fr 2fr", gap: 60 } }, /* @__PURE__ */ React.createElement("h2", { style: { font: "300 44px/1.05 var(--roma-serif)", letterSpacing: "-0.016em", margin: 0, color: ink } }, "What happens ", /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, "after"), " you submit."), /* @__PURE__ */ React.createElement("div", { "data-tv2-grid": true, style: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 } }, afterSteps.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: s.t, style: { padding: "24px 24px", background: i === 2 ? warm : "transparent", border: `0.5px solid ${ink}22`, display: "grid", gap: 10, alignContent: "start" } }, /* @__PURE__ */ React.createElement(TapMicro, { theme, color: accent }, s.t), /* @__PURE__ */ React.createElement("div", { style: { font: "400 14px/1.55 var(--roma-sans)", color: `${ink}cc` } }, s.b)))))));
   }
   function BulkOrderPage({ tradeToken, addToCart, goTradeDashboard, showToast }) {
     const [rows, setRows] = useState([{ sku_code: "", quantity: "" }]);
