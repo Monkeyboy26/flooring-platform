@@ -450,7 +450,7 @@ CREATE INDEX idx_purchase_order_items_order_item ON purchase_order_items(order_i
 CREATE TABLE margin_tiers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL UNIQUE,
-    discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0,
+    discount_percent DECIMAL(6,3) NOT NULL DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -578,6 +578,8 @@ CREATE INDEX idx_trade_documents_customer ON trade_documents(trade_customer_id);
 
 ALTER TABLE margin_tiers ADD COLUMN IF NOT EXISTS spend_threshold DECIMAL(12,2) DEFAULT 0;
 ALTER TABLE margin_tiers ADD COLUMN IF NOT EXISTS tier_level INTEGER DEFAULT 0;
+-- Widened so tier discounts like 21.875% store exactly (DECIMAL(5,2) would round to 21.88)
+ALTER TABLE margin_tiers ALTER COLUMN discount_percent TYPE DECIMAL(6,3);
 
 -- ==================== Orders Trade Enhancements ====================
 

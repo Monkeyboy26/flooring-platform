@@ -8699,9 +8699,9 @@
       // Trade tier pricing preview — mirrors the spend-based Silver/Gold/Platinum tiers
       const tiers = retail > 0 ? [
         { label: 'Retail', mult: 1.00 },
-        { label: 'Silver', mult: 0.90 },
-        { label: 'Gold', mult: 0.85 },
-        { label: 'Platinum', mult: 0.80 },
+        { label: 'Silver', mult: 0.875 },
+        { label: 'Gold', mult: 0.8125 },
+        { label: 'Platinum', mult: 0.78125 },
       ].map(t => ({ ...t, price: retail * t.mult, margin: cost > 0 ? ((retail * t.mult - cost) / (retail * t.mult)) * 100 : 0 })) : [];
 
       return ReactDOM.createPortal(

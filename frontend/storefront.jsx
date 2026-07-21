@@ -14402,7 +14402,7 @@
             <div className="trade-tiers-grid">
               <div className="tier-card">
                 <div className="tier-name">Silver</div>
-                <div className="tier-discount">10%</div>
+                <div className="tier-discount">12.5%</div>
                 <div className="tier-threshold">$0 – $12,500</div>
                 <ul>
                   <li>Trade pricing on all products</li>
@@ -14412,7 +14412,7 @@
               </div>
               <div className="tier-card featured">
                 <div className="tier-name">Gold</div>
-                <div className="tier-discount">15%</div>
+                <div className="tier-discount">18.75%</div>
                 <div className="tier-threshold">$12,501 – $25,000</div>
                 <ul>
                   <li>Everything in Silver</li>
@@ -14422,7 +14422,7 @@
               </div>
               <div className="tier-card">
                 <div className="tier-name">Platinum</div>
-                <div className="tier-discount">20%</div>
+                <div className="tier-discount">21.875%</div>
                 <div className="tier-threshold">$25,000+</div>
                 <ul>
                   <li>Everything in Gold</li>
