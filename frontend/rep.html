@@ -9332,7 +9332,7 @@
       const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
       const fmtMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const marginCol = (pct) => pct >= 30 ? '#3a7a4e' : pct >= 15 ? '#a87935' : '#c54731';
-      const unitLabel = (sell_by) => sell_by === 'box' ? '/sqft' : sell_by === 'unit' ? '/ea' : '';
+      const unitLabel = (sell_by) => sell_by === 'box' ? '/sqft' : sell_by === 'roll' ? '/sqyd' : sell_by === 'unit' ? '/ea' : '/ea';
       // Variant suffix for card titles; hides noise ("Standard"/"Default", or echoes of the product name)
       const skuVariantText = (p) => {
         const t = p.variant_type === 'accessory' ? (p.accessory_label || p.variant_name) : p.variant_name;
@@ -9372,7 +9372,7 @@
       const searchTimer = useRef(null);
 
       // FilterRail collapsible state
-      const [railSections, setRailSections] = useState({ category: false, vendor: false, price: false, stock: false, accessories: false, collection: false });
+      const [railSections, setRailSections] = useState({ category: false, vendor: false, price: false, stock: false, accessories: false, collection: false, attributes: true });
       const toggleRailSection = (key) => setRailSections(s => ({ ...s, [key]: !s[key] }));
 
       useEffect(() => {
@@ -9384,8 +9384,19 @@
       useEffect(() => {
         fetch(API + '/api/categories').then(r => r.json()).then(d => setCategories(d.categories || [])).catch(() => {});
         repFetch('/api/rep/vendors').then(d => setVendors(d.vendors || [])).catch(() => {});
-        repFetch('/api/rep/filterable-attributes').then(d => setFilterableAttrs(d.attributes || [])).catch(() => {});
       }, []);
+
+      // Attribute filters adapt to the selected category. The full catalog spans flooring,
+      // hardware, lighting, vanities and more, so a global attribute list is meaningless —
+      // only load (and show) attribute filters once a category is chosen. Reset any stale
+      // attribute selections when the category changes since they differ per category.
+      useEffect(() => {
+        setAttrFilters({});
+        if (!category) { setFilterableAttrs([]); return; }
+        repFetch('/api/rep/filterable-attributes?category=' + encodeURIComponent(category))
+          .then(d => setFilterableAttrs(d.attributes || []))
+          .catch(() => setFilterableAttrs([]));
+      }, [category]);
 
       useEffect(() => {
         const url = vendor ? API + '/api/collections?vendor=' + vendor : API + '/api/collections';
@@ -9648,6 +9659,26 @@
                   {flatCats.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Loading...</span>}
                 </div>
               </RailSection>
+
+              {/* Attributes — adapt to the selected category */}
+              {category && filterableAttrs.length > 0 && (
+                <RailSection id="attributes" title="Attributes" count={Object.values(attrFilters).filter(Boolean).length}>
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {filterableAttrs.map(attr => (
+                      <div key={attr.slug} style={{ display: 'grid', gap: 4 }}>
+                        <span style={{ font: '500 10px/1 var(--roma-sans)', letterSpacing: '0.08em', textTransform: 'uppercase', color: TH.muted }}>{attr.name}</span>
+                        <select value={attrFilters[attr.slug] || ''} onChange={e => { const v = e.target.value; setAttrFilters(prev => ({ ...prev, [attr.slug]: v })); setPage(1); }} style={{
+                          width: '100%', padding: '7px 8px', background: 'transparent', cursor: 'pointer',
+                          border: '0.5px solid ' + TH.ink + '33', color: TH.ink, font: '400 12px/1 var(--roma-sans)',
+                        }}>
+                          <option value="">Any</option>
+                          {(attr.values || []).map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </RailSection>
+              )}
 
               {/* Price bands */}
               <RailSection id="price" title="Price" count={(minPrice || maxPrice) ? 1 : 0}>

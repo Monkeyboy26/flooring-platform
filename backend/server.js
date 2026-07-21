@@ -16381,15 +16381,33 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
 // Filterable attributes for rep catalog
 app.get('/api/rep/filterable-attributes', repAuth, async (req, res) => {
   try {
+    const { category } = req.query;
+    // Scope the attribute list + values to a category (and its children) when given,
+    // so reps browsing hardware/lighting/vanities see those categories' real filters
+    // instead of the whole flooring-centric attribute set. Attributes with only one
+    // distinct value are dropped — a single-option filter is not useful.
+    const params = [];
+    let catJoin = '';
+    let catWhere = '';
+    if (category) {
+      params.push(category);
+      catJoin = `
+        JOIN skus s ON s.id = sa.sku_id
+        JOIN products p ON p.id = s.product_id AND p.status = 'active'
+        LEFT JOIN categories c ON c.id = p.category_id`;
+      catWhere = `AND (c.slug = $1 OR c.parent_id IN (SELECT id FROM categories WHERE slug = $1))`;
+    }
     const attrs = await pool.query(`
       SELECT a.id, a.slug, a.name,
         ARRAY_AGG(DISTINCT sa.value ORDER BY sa.value) FILTER (WHERE sa.value IS NOT NULL AND sa.value != '') AS values
       FROM attributes a
       JOIN sku_attributes sa ON sa.attribute_id = a.id
-      WHERE a.is_filterable = true
+      ${catJoin}
+      WHERE a.is_filterable = true ${catWhere}
       GROUP BY a.id, a.slug, a.name
+      HAVING COUNT(DISTINCT sa.value) FILTER (WHERE sa.value IS NOT NULL AND sa.value != '') > 1
       ORDER BY a.name
-    `);
+    `, params);
     res.json({ attributes: attrs.rows });
   } catch (err) {
     console.error(err); res.json({ attributes: [] });
