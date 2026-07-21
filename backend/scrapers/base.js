@@ -492,6 +492,25 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   }
 
   const { cost, retail_price, price_basis, cut_price, roll_price, cut_cost, roll_cost, roll_min_sqft, map_price } = cleaned;
+
+  // Keystone reprice guard (2026-07): the store lowered its standard markup from
+  // 2x to 1.6x cost. Scrapers/imports still hand us retail = ~2x cost (the old
+  // keystone), which would revert the one-time reprice on every rescrape. Rewrite
+  // any incoming retail that sits at ~2x its cost to 1.6x cost (nickel-rounded).
+  // Feeds priced at another ratio (MSRP, MAP, 2.5x, etc.) pass through untouched.
+  // Mirrors database/migrations/2026-07-20-reprice-2x-to-1.6x.sql (band 1.95–2.05).
+  const applyKeystone = (c, r) => {
+    const cn = c != null ? Number(c) : null;
+    const rn = r != null ? Number(r) : null;
+    if (cn && rn && cn > 0 && rn / cn >= 1.95 && rn / cn <= 2.05) {
+      return Math.round(cn * 1.6 / 0.05) * 0.05;
+    }
+    return r;
+  };
+  const retailAdj = applyKeystone(cost, retail_price);
+  const cutAdj = applyKeystone(cut_cost, cut_price);
+  const rollAdj = applyKeystone(roll_cost, roll_price);
+
   // INSERT uses COALESCE($N, 0) for NOT NULL columns so partial upserts
   // (e.g. cost-only) don't violate constraints on new rows.
   // UPDATE uses COALESCE($N, pricing.col) so NULL params preserve existing values.
@@ -508,7 +527,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
       roll_cost = COALESCE($8, pricing.roll_cost),
       roll_min_sqft = COALESCE($9, pricing.roll_min_sqft),
       map_price = COALESCE($10, pricing.map_price)
-  `, [sku_id, cost != null ? cost : null, retail_price != null ? retail_price : null, price_basis || 'per_sqft', cut_price || null, roll_price || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null]);
+  `, [sku_id, cost != null ? cost : null, retailAdj != null ? retailAdj : null, price_basis || 'per_sqft', cutAdj || null, rollAdj || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null]);
 }
 
 /**
