@@ -217,8 +217,8 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    // Pricing — cost is what Roma pays; retail marked up ~2x
-    const retailPrice = +(item.cost * 2.0).toFixed(2);
+    // Pricing — cost is what Roma pays; retail marked up 1.6x (rounded to nickel)
+    const retailPrice = +(Math.round(item.cost * 1.6 / 0.05) * 0.05).toFixed(2);
     await upsertPricing(sku.id, { cost: item.cost, retail_price: retailPrice });
 
     // Packaging
@@ -258,7 +258,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    const retailPrice = +(m.cost * 2.0).toFixed(2);
+    const retailPrice = +(Math.round(m.cost * 1.6 / 0.05) * 0.05).toFixed(2);
     await upsertPricingUnit(sku.id, { cost: m.cost, retail_price: retailPrice });
 
     console.log(`  ${sku.is_new ? '+' : '~'} SPC ${m.name} / ${internalSku}`);
@@ -289,7 +289,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    const retailPrice = +(item.cost * 2.0).toFixed(2);
+    const retailPrice = +(Math.round(item.cost * 1.6 / 0.05) * 0.05).toFixed(2);
     await upsertPricing(sku.id, { cost: item.cost, retail_price: retailPrice });
 
     await upsertPackaging(sku.id, { sqft_per_box: item.sqft, boxes_per_pallet: item.boxes_pallet });
@@ -327,7 +327,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    const retailPrice = +(m.cost * 2.0).toFixed(2);
+    const retailPrice = +(Math.round(m.cost * 1.6 / 0.05) * 0.05).toFixed(2);
     await upsertPricingUnit(sku.id, { cost: m.cost, retail_price: retailPrice });
 
     console.log(`  ${sku.is_new ? '+' : '~'} ENG ${m.name} / ${internalSku}`);

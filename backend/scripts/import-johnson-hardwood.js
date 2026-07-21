@@ -10,7 +10,7 @@
  *   2. SPC / Rigid Core Vinyl (4 series, ~47 SKUs)
  *   3. High Performance Flooring (2 series, ~24 SKUs)
  *
- * Pricing: "Preferred" = dealer cost. Retail = cost × 2.0 markup.
+ * Pricing: "Preferred" = dealer cost. Retail = cost × 1.6 markup.
  * All products sold per sqft.
  *
  * Usage: docker compose exec api node scripts/import-johnson-hardwood.js
@@ -541,10 +541,10 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      // Pricing: cost = Preferred, retail = cost × 2.0
+      // Pricing: cost = Preferred, retail = cost × 1.6 (rounded to nickel)
       await upsertPricing(sku.id, {
         cost,
-        retail_price: (cost * 2.0).toFixed(2),
+        retail_price: (Math.round(cost * 1.6 / 0.05) * 0.05).toFixed(2),
         price_basis: 'per_sqft',
       });
 

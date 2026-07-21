@@ -915,7 +915,7 @@ async function upsertSku(client, { productId, vendorSku, variantName, sellBy, va
 }
 
 async function upsertPricing(client, skuId, cost, priceBasis) {
-  const retail = (cost * 2.0).toFixed(2);
+  const retail = (Math.round(cost * 1.6 / 0.05) * 0.05).toFixed(2);
   await client.query(`
     INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
     VALUES ($1, $2, $3, $4)

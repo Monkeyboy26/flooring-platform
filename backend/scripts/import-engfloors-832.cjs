@@ -1683,13 +1683,13 @@ async function importToDatabase(catalog) {
         stats.skus_created++;
       }
 
-      // Upsert pricing — 2× markup like Shaw when retail = cost
+      // Upsert pricing — 1.6× keystone markup when retail = cost
       if (item.cost || item.retail_price) {
         const priceBasis = sellBy === 'roll' ? 'per_sqyd' : sellBy === 'box' ? 'per_sqft' : 'per_unit';
         const cost = item.cost || 0;
         const retail = (item.retail_price && item.retail_price !== item.cost)
           ? item.retail_price
-          : Math.round(cost * 2 * 100) / 100;
+          : Math.round(cost * 1.6 / 0.05) * 0.05;
         const cutPrice = item.cut_price || null;
         const cutCost = item.cut_cost || null;
         await pool.query(`

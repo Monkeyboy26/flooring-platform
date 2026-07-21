@@ -708,9 +708,9 @@ async function main() {
         if (sku.is_new) skusCreated++;
         else skusUpdated++;
 
-        // Pricing: cost = listed price, retail = cost × 2
+        // Pricing: cost = listed price, retail = cost × 1.6 (rounded to nickel)
         const cost = pricePerSqft;
-        const retail = parseFloat((cost * 2).toFixed(2));
+        const retail = parseFloat((Math.round(cost * 1.6 / 0.05) * 0.05).toFixed(2));
         await upsertPricing(sku.id, cost, retail, 'per_sqft');
 
         // Packaging
@@ -735,8 +735,8 @@ async function main() {
           });
           if (accSku.is_new) accessoriesCreated++;
 
-          // Accessory pricing: cost = listed price, retail = cost × 2
-          await upsertPricing(accSku.id, accCost, accCost * 2, 'per_unit');
+          // Accessory pricing: cost = listed price, retail = cost × 1.6 (rounded to nickel)
+          await upsertPricing(accSku.id, accCost, Math.round(accCost * 1.6 / 0.05) * 0.05, 'per_unit');
         }
       }
     }

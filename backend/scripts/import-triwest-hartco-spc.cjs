@@ -202,7 +202,7 @@ async function upsertSku(productId, vendorSku, internalSku, variantName, sellBy,
 }
 
 async function upsertPricing(skuId, cost, priceBasis) {
-  const retail = Math.round(cost * 2 * 100) / 100;
+  const retail = Math.round(cost * 1.6 / 0.05) * 0.05;
   await pool.query(`
     INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
     VALUES ($1, $2, $3, $4)

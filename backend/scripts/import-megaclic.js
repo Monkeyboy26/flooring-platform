@@ -29,7 +29,7 @@ const CAT = {
   sundries: '650e8400-e29b-41d4-a716-446655440110', // Installation & Sundries
 };
 
-const MARKUP = 2.0;
+const MARKUP = 1.6;
 const IMG = 'https://www.megaclicfloors.com/wp-content/uploads';
 
 // ============ MOLDING ACCESSORIES BY PRODUCT TYPE ============
@@ -437,7 +437,7 @@ async function main() {
         if (sku.is_new) skusCreated++;
         else skusUpdated++;
 
-        // Pricing: cost = PDF price, retail = cost x 2
+        // Pricing: cost = PDF price, retail = cost x 1.6
         const cost = costPerSqft;
         const retail = parseFloat((cost * MARKUP).toFixed(2));
         await upsertPricing(sku.id, cost, retail, 'per_sqft');

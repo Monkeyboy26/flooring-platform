@@ -591,7 +591,7 @@ async function updatePricing(sku, rollPriceRaw, cutPriceRaw, um, back) {
     // CUT PRICE = vendor cut cost per SY (may include cut surcharge)
     // Convert to per-sqft for base cost/retail (1 SY = 9 SF)
     cost = rollPriceRaw / 9;                // vendor cost per sqft
-    retailPrice = cost * 2;                 // retail per sqft (2× markup)
+    retailPrice = Math.round(cost * 1.6 / 0.05) * 0.05;  // retail per sqft (1.6× markup, nickel)
     priceBasis = 'per_sqft';
 
     // Per-SY fields for carpet-specific pricing

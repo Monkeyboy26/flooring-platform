@@ -340,7 +340,7 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      const retailPrice = +(costPerSqft * 2.0).toFixed(2);
+      const retailPrice = +(Math.round(costPerSqft * 1.6 / 0.05) * 0.05).toFixed(2);
       await upsertPricing(sku.id, { cost: costPerSqft, retail_price: retailPrice, price_basis: priceBasis });
 
       // Packaging: sqft per sheet/set
@@ -379,7 +379,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    const retailPrice = +(cost * 2.0).toFixed(2);
+    const retailPrice = +(Math.round(cost * 1.6 / 0.05) * 0.05).toFixed(2);
     await upsertPricing(sku.id, { cost, retail_price: retailPrice, price_basis: 'per_unit' });
     await setAttr(sku.id, 'brand', 'Fujiwa');
 
@@ -435,7 +435,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    const retailPrice = +(cost * 2.0).toFixed(2);
+    const retailPrice = +(Math.round(cost * 1.6 / 0.05) * 0.05).toFixed(2);
     await upsertPricing(sku.id, { cost, retail_price: retailPrice, price_basis: 'per_unit' });
     await setAttr(sku.id, 'brand', 'Fujiwa');
 
@@ -465,7 +465,7 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      const retailPrice = +(cost * 2.0).toFixed(2);
+      const retailPrice = +(Math.round(cost * 1.6 / 0.05) * 0.05).toFixed(2);
       await upsertPricing(sku.id, { cost, retail_price: retailPrice, price_basis: 'per_unit' });
 
       await setAttr(sku.id, 'size', size);

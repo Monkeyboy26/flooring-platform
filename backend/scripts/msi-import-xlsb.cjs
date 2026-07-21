@@ -184,9 +184,9 @@ async function upsertSkuRow(productId, vendorSku, internalSku, variantName, vari
 
 async function upsertPricing(skuId, cost, retailPrice, mapPrice) {
   if (DRY_RUN) return;
-  // retail_price is NOT NULL — if missing, derive from cost with 2x markup
+  // retail_price is NOT NULL — if missing, derive from cost with 1.6x markup (rounded to nickel)
   const c = parseFloat(cost) || 0;
-  const r = parseFloat(retailPrice) || (c * 2) || 0;
+  const r = parseFloat(retailPrice) || (Math.round(c * 1.6 / 0.05) * 0.05) || 0;
   await pool.query(`
     INSERT INTO pricing (sku_id, cost, retail_price, map_price, created_at)
     VALUES ($1, $2, $3, $4, NOW())

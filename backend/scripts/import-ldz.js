@@ -10,7 +10,7 @@
  *   Laminate: Revolution 10mm (7.6x47.8), Earthline 12mm (9.2x60)
  *   Accessories: Wall Base, Mouldings, Stair Nose, Stair Tread, Underlayment
  *
- * Pricing: dealer cost from PDF, retail = cost x 2.0, MAP from PDF
+ * Pricing: dealer cost from PDF, retail = cost x 1.6, MAP from PDF
  * Images: scraped from ldzflooring.com product pages at import time
  *
  * Usage: docker compose exec api node scripts/import-ldz.js
@@ -42,7 +42,7 @@ const ATTR = {
   plankLength: '3410336d-25b5-49b7-9fa0-ecb467f93b77',
 };
 
-const MARKUP = 2.0;
+const MARKUP = 1.6;
 
 // ─── Collection definitions from PDF ───
 // Each size group: { size, sizeLabel, sfPerBox, pcsPerBox, boxesPerPallet, cost, map, colors: { colorName: vendorSku } }

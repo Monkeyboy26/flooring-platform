@@ -12,7 +12,7 @@
  *
  * Pricing strategy:
  *   - cost = Pallet Price (volume wholesale)
- *   - retail = Job Pack Price * 2.0 markup
+ *   - retail = Job Pack Price * 1.6 markup (rounded to nickel)
  *   - Most tiles sold per sqft, mosaics/decor per piece/sheet
  *
  * Usage: docker compose exec api node scripts/import-alaska-tile.js
@@ -272,10 +272,10 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      // cost = pallet price, retail = job pack * 2.0
+      // cost = pallet price, retail = job pack * 1.6 (rounded to nickel)
       await upsertPricing(sku.id, {
         cost: palletPrice,
-        retail_price: (jobPackPrice * 2.0).toFixed(2),
+        retail_price: (Math.round(jobPackPrice * 1.6 / 0.05) * 0.05).toFixed(2),
         price_basis: priceBasis,
       });
 
@@ -311,7 +311,7 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      await upsertPricing(sku.id, { cost: 2.99, retail_price: (3.29 * 2.0).toFixed(2), price_basis: 'per_sqft' });
+      await upsertPricing(sku.id, { cost: 2.99, retail_price: (Math.round(3.29 * 1.6 / 0.05) * 0.05).toFixed(2), price_basis: 'per_sqft' });
       await upsertPackaging(sku.id, { sqft_per_box: sz.sqftPerBox, pieces_per_box: sz.pcsPerBox, boxes_per_pallet: sz.boxesPerPallet });
 
       await setAttr(sku.id, 'material', 'Porcelain');
@@ -343,7 +343,7 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      await upsertPricing(sku.id, { cost: 2.99, retail_price: (3.29 * 2.0).toFixed(2), price_basis: 'per_sqft' });
+      await upsertPricing(sku.id, { cost: 2.99, retail_price: (Math.round(3.29 * 1.6 / 0.05) * 0.05).toFixed(2), price_basis: 'per_sqft' });
       await upsertPackaging(sku.id, { sqft_per_box: sz.sqftPerBox, pieces_per_box: sz.pcsPerBox, boxes_per_pallet: sz.boxesPerPallet });
 
       await setAttr(sku.id, 'material', 'Porcelain');
@@ -375,7 +375,7 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      await upsertPricing(sku.id, { cost: 2.99, retail_price: (3.29 * 2.0).toFixed(2), price_basis: 'per_sqft' });
+      await upsertPricing(sku.id, { cost: 2.99, retail_price: (Math.round(3.29 * 1.6 / 0.05) * 0.05).toFixed(2), price_basis: 'per_sqft' });
       await upsertPackaging(sku.id, { sqft_per_box: sz.sqftPerBox, pieces_per_box: sz.pcsPerBox, boxes_per_pallet: sz.boxesPerPallet });
 
       await setAttr(sku.id, 'material', 'Porcelain');
@@ -406,7 +406,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    await upsertPricing(sku.id, { cost: 2.99, retail_price: (3.29 * 2.0).toFixed(2), price_basis: 'per_sqft' });
+    await upsertPricing(sku.id, { cost: 2.99, retail_price: (Math.round(3.29 * 1.6 / 0.05) * 0.05).toFixed(2), price_basis: 'per_sqft' });
     await upsertPackaging(sku.id, { sqft_per_box: 16, pieces_per_box: 2, boxes_per_pallet: 34 });
 
     await setAttr(sku.id, 'material', 'Porcelain');
@@ -440,7 +440,7 @@ async function main() {
 
     // Essence Crest: $2.99 pallet / $3.49 job pack; regular: $2.99 / $3.29
     const jobPack = isCrest ? 3.49 : 3.29;
-    await upsertPricing(sku.id, { cost: 2.99, retail_price: (jobPack * 2.0).toFixed(2), price_basis: 'per_sqft' });
+    await upsertPricing(sku.id, { cost: 2.99, retail_price: (Math.round(jobPack * 1.6 / 0.05) * 0.05).toFixed(2), price_basis: 'per_sqft' });
     await upsertPackaging(sku.id, { sqft_per_box: 16, pieces_per_box: 2, boxes_per_pallet: 34 });
 
     await setAttr(sku.id, 'material', 'Porcelain');
@@ -471,7 +471,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    await upsertPricing(sku.id, { cost: 2.99, retail_price: (3.29 * 2.0).toFixed(2), price_basis: 'per_sqft' });
+    await upsertPricing(sku.id, { cost: 2.99, retail_price: (Math.round(3.29 * 1.6 / 0.05) * 0.05).toFixed(2), price_basis: 'per_sqft' });
     await upsertPackaging(sku.id, { sqft_per_box: 16, pieces_per_box: 2, boxes_per_pallet: 34 });
 
     await setAttr(sku.id, 'material', 'Porcelain');
@@ -502,7 +502,7 @@ async function main() {
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
     // $90/box pallet price = $5.625/sqft; $100/box job pack = $6.25/sqft
-    await upsertPricing(sku.id, { cost: 5.63, retail_price: (6.25 * 2.0).toFixed(2), price_basis: 'per_sqft' });
+    await upsertPricing(sku.id, { cost: 5.63, retail_price: (Math.round(6.25 * 1.6 / 0.05) * 0.05).toFixed(2), price_basis: 'per_sqft' });
     await upsertPackaging(sku.id, { sqft_per_box: 16, pieces_per_box: 2, boxes_per_pallet: 34 });
 
     await setAttr(sku.id, 'material', 'Porcelain');
@@ -540,7 +540,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    await upsertPricing(sku.id, { cost: palletPrice, retail_price: (jobPackPrice * 2.0).toFixed(2), price_basis: 'per_unit' });
+    await upsertPricing(sku.id, { cost: palletPrice, retail_price: (Math.round(jobPackPrice * 1.6 / 0.05) * 0.05).toFixed(2), price_basis: 'per_unit' });
     await setAttr(sku.id, 'material', 'Porcelain');
     await setAttr(sku.id, 'size', size);
     await setAttr(sku.id, 'collection', 'Decor');
@@ -565,7 +565,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    await upsertPricing(sku.id, { cost: palletPrice, retail_price: (jobPackPrice * 2.0).toFixed(2), price_basis: 'per_unit' });
+    await upsertPricing(sku.id, { cost: palletPrice, retail_price: (Math.round(jobPackPrice * 1.6 / 0.05) * 0.05).toFixed(2), price_basis: 'per_unit' });
     await setAttr(sku.id, 'material', 'Porcelain');
     await setAttr(sku.id, 'finish', 'Matte');
     await setAttr(sku.id, 'size', size);
@@ -592,7 +592,7 @@ async function main() {
     });
     if (sku.is_new) skusCreated++; else skusUpdated++;
 
-    await upsertPricing(sku.id, { cost: palletPrice, retail_price: (jobPackPrice * 2.0).toFixed(2), price_basis: 'per_unit' });
+    await upsertPricing(sku.id, { cost: palletPrice, retail_price: (Math.round(jobPackPrice * 1.6 / 0.05) * 0.05).toFixed(2), price_basis: 'per_unit' });
     await setAttr(sku.id, 'material', 'Porcelain');
     await setAttr(sku.id, 'size', shape);
     await setAttr(sku.id, 'collection', 'Mosaic');

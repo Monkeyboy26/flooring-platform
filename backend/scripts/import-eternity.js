@@ -18,7 +18,7 @@ const pool = new pg.Pool({
   port: 5432, database: 'flooring_pim', user: 'postgres', password: 'postgres',
 });
 
-const MARKUP = 2.0;
+const MARKUP = 1.6;
 
 // Category IDs from seed.sql
 const CAT = {

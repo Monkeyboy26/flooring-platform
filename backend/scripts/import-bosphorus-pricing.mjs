@@ -15,7 +15,7 @@ const pool = new pg.Pool({
 });
 
 const VENDOR_ID = '2687294d-fff3-49bf-8165-db0cbd3bbd54';
-const RETAIL_MARKUP = 2.0; // retail_price = cost × 2
+const RETAIL_MARKUP = 1.6; // retail_price = cost × 1.6
 
 // ── Collection name aliases: PDF name (lowered) → DB name (lowered) ──
 const COLLECTION_ALIASES = {

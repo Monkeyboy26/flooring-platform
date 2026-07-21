@@ -786,7 +786,7 @@ async function importPricing(pool, items) {
       [sellBy, dbRow.sku_id]
     );
 
-    const retailPrice = +(item.price * 2).toFixed(2); // default 2x markup
+    const retailPrice = +(Math.round(item.price * 1.6 / 0.05) * 0.05).toFixed(2); // default 1.6x markup
     await pool.query(`
       INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
       VALUES ($1, $2, $3, $4)

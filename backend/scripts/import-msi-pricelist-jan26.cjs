@@ -176,11 +176,11 @@ async function run() {
     matched++;
     const skuId = lookup.skuId;
 
-    // Determine retail price: use retail from file, else 2x cost
+    // Determine retail price: use retail from file, else 1.6x cost (rounded to nickel)
     const costVal = parseFloat(entry.cost) || 0;
     let retailVal = parseFloat(entry.retail) || 0;
     if (retailVal <= 0 && costVal > 0) {
-      retailVal = Math.round(costVal * 2 * 100) / 100;
+      retailVal = Math.round(costVal * 1.6 / 0.05) * 0.05;
     }
 
     // Upsert pricing

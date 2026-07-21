@@ -35,7 +35,7 @@ const CAT = {
   sundries:  '650e8400-e29b-41d4-a716-446655440110',
 };
 
-const MARKUP = 2.0;
+const MARKUP = 1.6;
 const BRAND_MAP = { 'LGC': 'Lungarno', 'COMT': 'CommodiTile' };
 
 // ==================== CATEGORY DETERMINATION ====================

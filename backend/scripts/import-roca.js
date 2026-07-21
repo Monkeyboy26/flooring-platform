@@ -5,7 +5,7 @@
  * Both "2026 PRICING" and "2026 SPECIAL ORDER PRICING" sheets.
  *
  * Tile vendor — porcelain, ceramic, mosaics, natural stone, slabs, pavers.
- * Prices are dealer/wholesale cost (F.O.B. warehouse). Retail = cost × 2.
+ * Prices are dealer/wholesale cost (F.O.B. warehouse). Retail = cost × 1.6.
  *
  * Product grouping: collection + color = product.
  * Different sizes/finishes within the same color = different SKUs.
@@ -48,7 +48,7 @@ const ATTR = {
   shape:    '6af46612-5e54-4019-9972-13a3f0b4cb63',
 };
 
-const MARKUP = 2.0;
+const MARKUP = 1.6;
 
 // ─── Category mapping from material string + SKU type ───
 function getCategoryId(material, collectionName, skuType) {

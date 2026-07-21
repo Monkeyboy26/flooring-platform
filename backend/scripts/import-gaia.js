@@ -4,7 +4,7 @@
  * Source: Gaia Q-3-2025 Price List (Revised 05/20/2025) + website catalog
  * Three product lines: eTERRA (SPC), Nearwood (Laminate/Engineered/Hybrid)
  *
- * Prices are dealer/wholesale cost. Retail = cost × 2.
+ * Prices are dealer/wholesale cost. Retail = cost × 1.6.
  *
  * Usage: docker compose exec api node scripts/import-gaia.js
  */
@@ -26,7 +26,7 @@ const ATTR = {
   size:    'd50e8400-e29b-41d4-a716-446655440004',
 };
 
-const MARKUP = 2.0;
+const MARKUP = 1.6;
 
 // Accessory types and their prices per series
 // [endcap, overlapNosing, quarterRound, reducer, stairNose, tMolding]

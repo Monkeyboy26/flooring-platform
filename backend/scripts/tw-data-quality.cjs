@@ -135,10 +135,10 @@ async function phase1_fixRetailPricing() {
   }
 
   if (!DRY_RUN) {
-    // Apply 2x cost markup (same as import-triwest-832.cjs)
+    // Apply 1.6x cost markup, rounded to nickel (same as import-triwest-832.cjs)
     const result = await pool.query(`
       UPDATE pricing SET
-        retail_price = ROUND(cost * 2, 2)
+        retail_price = ROUND(cost * 1.6 / 0.05) * 0.05
       WHERE sku_id IN (
         SELECT s.id FROM skus s
         JOIN products p ON p.id = s.product_id

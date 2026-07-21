@@ -746,7 +746,7 @@ function formatSize(width, thickness) {
 function getRetail(mapKey, cost) {
   // MAP is a minimum advertised price (a floor), not the selling price —
   // using it as retail directly gave 12-49% margins on 333 SKUs (fixed 2026-07-16).
-  const keystone = cost * 2.0;
+  const keystone = Math.round(cost * 1.6 / 0.05) * 0.05;
   if (mapKey && MAP[mapKey]) return Math.max(keystone, MAP[mapKey]);
   return keystone;
 }
@@ -830,7 +830,7 @@ async function processFlooring(client, vendorId, collections, accTypes, defaultA
 
         const accInternal = 'MANN-' + catNum;
         const accCost = accPrices[i];
-        const accRetail = (accCost * 2.0).toFixed(2);
+        const accRetail = (Math.round(accCost * 1.6 / 0.05) * 0.05).toFixed(2);
 
         const accRes = await client.query(`
           INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type, status)
@@ -892,7 +892,7 @@ async function processSundries(client, vendorId, stats) {
       INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
       VALUES ($1, $2, $3, 'unit')
       ON CONFLICT (sku_id) DO UPDATE SET cost = EXCLUDED.cost, retail_price = EXCLUDED.retail_price
-    `, [skuId, costUnit.toFixed(2), (costUnit * 2.0).toFixed(2)]);
+    `, [skuId, costUnit.toFixed(2), (Math.round(costUnit * 1.6 / 0.05) * 0.05).toFixed(2)]);
     stats.pricing++;
 
     // Coverage attribute

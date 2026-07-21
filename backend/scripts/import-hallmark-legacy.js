@@ -6,7 +6,7 @@
  *
  * 15 collections: 14 hardwood + 1 SPC (Courtier)
  * Prices are dealer cost from Big D Supply.
- * Retail = cost × 2 (standard hardwood markup, adjustable in admin).
+ * Retail = cost × 1.6 (keystone markup, adjustable in admin).
  *
  * Usage: docker compose exec api node scripts/import-hallmark.js
  */
@@ -37,7 +37,7 @@ const ATTR = {
 const ACC_PRICES = { reducer: 74.00, stairNose: 109.00, threshold: 74.00, tMold: 74.00 };
 
 // Retail markup multiplier (cost × MARKUP = retail)
-const MARKUP = 2.0;
+const MARKUP = 1.6;
 
 // ── Collection definitions ──
 // Each collection: { name, cat, desc, size, colors: [[species, color, sku, sfCtn, boxPlt, lbsCtn, costSqft], ...] }

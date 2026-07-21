@@ -135,7 +135,7 @@ async function upsertPricing(skuId, cost) {
       cost = EXCLUDED.cost,
       retail_price = EXCLUDED.retail_price,
       price_basis = 'per_unit'
-  `, [skuId, cost, (cost * 2.0).toFixed(2)]);
+  `, [skuId, cost, (Math.round(cost * 1.6 / 0.05) * 0.05).toFixed(2)]);
 }
 
 // ==================== Main ====================

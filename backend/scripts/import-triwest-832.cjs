@@ -1002,15 +1002,15 @@ async function importToDatabase(allItems) {
         stats.skus_created++;
       }
 
-      // Upsert pricing — use MAP as retail when available, else 2× markup
+      // Upsert pricing — use MAP as retail when available, else 1.6× markup
       if (item.cost || item.retail_price || item.map_price) {
         const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
         const cost = item.cost || 0;
         const mapVal = item.map_price || null;
-        // Prefer MAP as retail, then explicit retail, then 2× cost fallback
+        // Prefer MAP as retail, then explicit retail, then 1.6× cost fallback
         const retail = mapVal
           || ((item.retail_price && item.retail_price !== item.cost) ? item.retail_price : null)
-          || Math.round(cost * 2 * 100) / 100;
+          || Math.round(cost * 1.6 / 0.05) * 0.05;
         await pool.query(`
           INSERT INTO pricing (sku_id, cost, retail_price, map_price, price_basis)
           VALUES ($1, $2, $3, $4, $5)
