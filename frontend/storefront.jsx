@@ -12277,41 +12277,6 @@
                 {pwSaving ? 'Updating...' : 'Update Password'}
               </button>
               </div>
-
-              <div className="acct-profile-section">
-              <h3 className="acct-profile-title">Store credit</h3>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 300, color: 'var(--stone-900)' }}>
-                  ${storeCredit.balance.toFixed(2)}
-                </span>
-                <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>available</span>
-              </div>
-              {storeCredit.balance > 0 && (
-                <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: storeCredit.entries.length ? '1rem' : 0 }}>
-                  Apply your credit at checkout to reduce your card charge.
-                </p>
-              )}
-              {storeCredit.entries.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {storeCredit.entries.slice(0, 8).map((e, i) => {
-                    const amt = parseFloat(e.amount || 0);
-                    return (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', fontSize: '0.8125rem', borderBottom: '0.5px solid var(--stone-200)', paddingBottom: '0.4rem' }}>
-                        <span style={{ color: 'var(--stone-700)' }}>
-                          {e.reason || (amt < 0 ? 'Applied to order' : 'Credit')}{e.order_number ? ' · ' + e.order_number : ''}
-                        </span>
-                        <span style={{ color: amt < 0 ? 'var(--stone-500)' : '#4a7c3e', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                          {amt < 0 ? '−$' + Math.abs(amt).toFixed(2) : '+$' + amt.toFixed(2)}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {storeCredit.balance === 0 && storeCredit.entries.length === 0 && (
-                <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', margin: 0 }}>You don't have any store credit yet.</p>
-              )}
-              </div>
             </div>
           )}
 
@@ -12428,6 +12393,43 @@
               <div className="acct-profile-section">
                 <h3 className="acct-profile-title">Payment methods</h3>
                 <PaymentMethodsSection customerToken={customerToken} customer={customer} onCardsChange={setCards} />
+              </div>
+
+              <div className="acct-profile-section">
+                <h3 className="acct-profile-title">Store credit</h3>
+                <div className="acct-credit-hero">
+                  <p className="acct-credit-eyebrow">Available balance</p>
+                  <div className="acct-credit-balance">
+                    ${Math.floor(storeCredit.balance)}<span className="cents">.{Math.round((storeCredit.balance - Math.floor(storeCredit.balance)) * 100).toString().padStart(2, '0')}</span>
+                  </div>
+                  <p className="acct-credit-caption">
+                    {storeCredit.balance > 0
+                      ? 'Applied automatically at checkout to reduce your card charge.'
+                      : 'Credit from returns or refunds will appear here.'}
+                  </p>
+                </div>
+                {storeCredit.entries.length > 0 && (
+                  <div>
+                    <p className="acct-credit-history-label">Recent activity</p>
+                    {storeCredit.entries.slice(0, 8).map((e, i) => {
+                      const amt = parseFloat(e.amount || 0);
+                      const d = e.created_at ? new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                      return (
+                        <div key={i} className="acct-credit-row">
+                          <div>
+                            <div className="acct-credit-reason">
+                              {e.reason || (amt < 0 ? 'Applied to order' : 'Credit')}{e.order_number ? ' · ' + e.order_number : ''}
+                            </div>
+                            {d && <div className="acct-credit-date">{d}</div>}
+                          </div>
+                          <div className={'acct-credit-amt ' + (amt < 0 ? 'neg' : 'pos')}>
+                            {amt < 0 ? '−$' + Math.abs(amt).toFixed(2) : '+$' + amt.toFixed(2)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

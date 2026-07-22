@@ -3216,6 +3216,21 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .acct-payment-badge { padding: 0.375rem 0.5rem; background: var(--stone-800); color: var(--warm-bg); font-family: var(--font-body); font-size: 0.5625rem; font-weight: 600; letter-spacing: 0.06em; text-align: center; border-radius: 3px; }
 .acct-profile-section { background: var(--warm-bg); border: 0.5px solid rgba(28,25,23,0.1); padding: 1.75rem 2rem; border-radius: 6px; }
 .acct-profile-title { font-family: var(--font-heading); font-size: 1.25rem; font-weight: 300; letter-spacing: -0.012em; color: var(--stone-800); margin: 0 0 1.25rem; }
+/* Store credit */
+.acct-credit-hero { position: relative; overflow: hidden; border-radius: 8px; padding: 1.6rem 1.75rem; margin-bottom: 1.5rem; background: linear-gradient(135deg, #26221f 0%, #1c1917 60%); box-shadow: 0 10px 28px -14px rgba(28,25,23,0.55); }
+.acct-credit-hero::after { content: ''; position: absolute; right: -50px; top: -50px; width: 190px; height: 190px; border-radius: 50%; background: radial-gradient(circle, rgba(201,166,104,0.22), transparent 68%); pointer-events: none; }
+.acct-credit-eyebrow { position: relative; z-index: 1; font-size: 0.6875rem; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; color: var(--gold-light); margin: 0; }
+.acct-credit-balance { position: relative; z-index: 1; font-family: var(--font-heading); font-weight: 300; font-size: 3rem; line-height: 1; letter-spacing: -0.02em; color: #fff; margin: 0.4rem 0 0; }
+.acct-credit-balance .cents { font-size: 1.6rem; color: rgba(255,255,255,0.6); margin-left: 0.15rem; }
+.acct-credit-caption { position: relative; z-index: 1; font-size: 0.8125rem; color: rgba(236,229,216,0.62); margin: 0.6rem 0 0; }
+.acct-credit-history-label { font-size: 0.6875rem; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; color: var(--stone-400); margin: 0 0 0.25rem; }
+.acct-credit-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.8rem 0; border-bottom: 0.5px solid rgba(28,25,23,0.1); }
+.acct-credit-row:last-child { border-bottom: none; }
+.acct-credit-reason { font-size: 0.875rem; color: var(--stone-800); line-height: 1.3; }
+.acct-credit-date { font-size: 0.6875rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--stone-400); margin-top: 0.2rem; }
+.acct-credit-amt { font-family: var(--font-heading); font-size: 1.15rem; white-space: nowrap; }
+.acct-credit-amt.pos { color: var(--sage); }
+.acct-credit-amt.neg { color: var(--stone-500); }
 .acct-profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.875rem; }
 .acct-input { width: 100%; padding: 0.625rem 0.75rem; border: 0.5px solid rgba(28,25,23,0.15); background: transparent; font-family: var(--font-body); font-size: 0.8125rem; color: var(--stone-800); outline: none; transition: border-color 0.15s; border-radius: 4px; }
 .acct-input:focus { border-color: var(--gold); }
