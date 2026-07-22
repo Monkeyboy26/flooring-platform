@@ -3851,7 +3851,7 @@
       const [statusGroup, setStatusGroup] = useState('open');
       const [myOrders, setMyOrders] = useState(false);
 
-      const openStatuses = ['pending', 'confirmed', 'shipped'];
+      const openStatuses = ['pending', 'confirmed', 'ready_for_pickup', 'shipped'];
       const closedStatuses = ['delivered', 'cancelled', 'refunded'];
 
       const load = () => {
@@ -3866,7 +3866,9 @@
       const isRepOrManager = staffData && (staffData.role === 'sales_rep' || staffData.role === 'manager');
 
       const filtered = orders.filter(o => {
-        const inGroup = statusGroup === 'open' ? openStatuses.includes(o.status) : closedStatuses.includes(o.status);
+        const inGroup = statusGroup === 'open' ? openStatuses.includes(o.status)
+          : statusGroup === 'pickup' ? o.status === 'ready_for_pickup'
+          : closedStatuses.includes(o.status);
         if (!inGroup) return false;
         if (myOrders && staffData) return o.sales_rep_id === staffData.id;
         return true;
@@ -3881,6 +3883,9 @@
           </div>
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center' }}>
             <button className={statusGroup === 'open' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setStatusGroup('open')}>Open</button>
+            <button className={statusGroup === 'pickup' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setStatusGroup('pickup')}>
+              Ready for Pickup{orders.filter(o => o.status === 'ready_for_pickup').length > 0 ? ' (' + orders.filter(o => o.status === 'ready_for_pickup').length + ')' : ''}
+            </button>
             <button className={statusGroup === 'closed' ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'} onClick={() => setStatusGroup('closed')}>Closed</button>
             {isRepOrManager && (
               <label style={{ marginLeft: '1rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8125rem', color: 'var(--stone-600)', cursor: 'pointer' }}>
@@ -3922,7 +3927,7 @@
                         : <span className="badge badge-active">Parcel</span>
                     }
                   </td>
-                  <td><span className={'badge badge-' + o.status}>{o.delivery_method === 'pickup' && o.status === 'shipped' ? 'ready' : o.delivery_method === 'pickup' && o.status === 'delivered' ? 'picked up' : o.status}</span></td>
+                  <td><span className={'badge badge-' + o.status}>{o.status === 'ready_for_pickup' ? 'ready for pickup' : (o.delivery_method === 'pickup' && o.status === 'shipped') ? 'ready' : (o.delivery_method === 'pickup' && o.status === 'delivered') ? 'picked up' : o.status}</span></td>
                   <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.rep_name || '\u2014'}</td>
                   <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{new Date(o.created_at).toLocaleDateString()}</td>
                   <td className="actions">
@@ -4548,8 +4553,16 @@
       if (loading) return <div className="loading">Loading order...</div>;
       if (!order) return <div className="loading">Order not found</div>;
 
-      const statusFlow = { pending: 'confirmed', confirmed: 'shipped', shipped: 'delivered' };
-      const reverseFlow = { confirmed: 'pending', shipped: 'confirmed', delivered: 'shipped', cancelled: 'pending' };
+      // Pickup orders move Confirmed → Ready for Pickup → Picked Up (the real
+      // ready_for_pickup status, which fires the "your order is ready" email);
+      // shipping orders keep Confirmed → Shipped → Delivered.
+      const isPickupOrder = order.delivery_method === 'pickup';
+      const statusFlow = isPickupOrder
+        ? { pending: 'confirmed', confirmed: 'ready_for_pickup', ready_for_pickup: 'delivered' }
+        : { pending: 'confirmed', confirmed: 'shipped', shipped: 'delivered' };
+      const reverseFlow = isPickupOrder
+        ? { confirmed: 'pending', ready_for_pickup: 'confirmed', delivered: 'ready_for_pickup', cancelled: 'pending' }
+        : { confirmed: 'pending', shipped: 'confirmed', delivered: 'shipped', cancelled: 'pending' };
       const nextStatus = statusFlow[order.status];
       const prevStatus = reverseFlow[order.status];
       const canCancel = order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'refunded';
@@ -4567,9 +4580,11 @@
 
           {(() => {
             const isPickup = order.delivery_method === 'pickup';
-            const steps = ['pending', 'confirmed', 'shipped', 'delivered'];
+            const steps = isPickup
+              ? ['pending', 'confirmed', 'ready_for_pickup', 'delivered']
+              : ['pending', 'confirmed', 'shipped', 'delivered'];
             const stepLabels = isPickup
-              ? { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Ready for Pickup', delivered: 'Picked Up' }
+              ? { pending: 'Pending', confirmed: 'Confirmed', ready_for_pickup: 'Ready for Pickup', delivered: 'Picked Up' }
               : { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered' };
             const stepTimestamps = {
               pending: order.created_at,

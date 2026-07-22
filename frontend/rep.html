@@ -18179,7 +18179,7 @@
       // Saved view definitions — filter the loaded orders client-side
       const viewFilters = {
         'needs-me': o => ['pending'].includes(o.status) || (o.amount_paid && parseFloat(o.amount_paid) === 0 && o.status !== 'cancelled'),
-        'fulfillment': o => ['confirmed', 'shipped'].includes(o.status),
+        'fulfillment': o => ['confirmed', 'ready_for_pickup', 'shipped'].includes(o.status),
         'awaiting-pay': o => o.status !== 'cancelled' && o.status !== 'delivered' && (!o.amount_paid || parseFloat(o.amount_paid) < parseFloat(o.total)),
         'delivered': o => o.status === 'delivered',
         'mine': () => true,
@@ -18347,7 +18347,8 @@
               {pageOrders.map(o => {
                 const pay = getPayStatus(o);
                 const isSel = selected.has(o.id);
-                const statusLabel = o.delivery_method === 'pickup' && o.status === 'shipped' ? 'Ready for pickup'
+                const statusLabel = o.status === 'ready_for_pickup' ? 'Ready for pickup'
+                  : o.delivery_method === 'pickup' && o.status === 'shipped' ? 'Ready for pickup'
                   : o.delivery_method === 'pickup' && o.status === 'delivered' ? 'Picked up'
                   : o.status === 'pending' ? 'Pending'
                   : o.status === 'confirmed' ? 'Confirmed'
@@ -18358,7 +18359,8 @@
                 // Build descriptive step text
                 const stepText = o.status === 'pending' && pay === 'unpaid' ? 'Awaiting payment'
                   : o.status === 'pending' ? 'Awaiting confirmation'
-                  : o.status === 'confirmed' ? (o.delivery_method === 'pickup' ? 'Ready for pickup' : 'Processing')
+                  : o.status === 'ready_for_pickup' ? 'Customer notified'
+                  : o.status === 'confirmed' ? (o.delivery_method === 'pickup' ? 'Awaiting stock' : 'Processing')
                   : o.status === 'shipped' ? (o.delivery_method === 'pickup' ? 'Customer notified' : o.shipping_method === 'ltl_freight' ? 'LTL freight' : 'Parcel shipping')
                   : o.status === 'delivered' ? 'Closed'
                   : o.status === 'cancelled' ? 'Cancelled'
@@ -19024,9 +19026,14 @@
 
       const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sqft' : 'boxes';
       const isPickup = order.delivery_method === 'pickup';
-      const statusFlow = { pending: 'confirmed', confirmed: 'shipped', shipped: 'delivered' };
+      // Pickup orders advance Confirmed → Ready for Pickup → Picked Up (real
+      // ready_for_pickup status + "your order is ready" email); shipping keeps
+      // Confirmed → Shipped → Delivered.
+      const statusFlow = isPickup
+        ? { pending: 'confirmed', confirmed: 'ready_for_pickup', ready_for_pickup: 'delivered' }
+        : { pending: 'confirmed', confirmed: 'shipped', shipped: 'delivered' };
       const statusLabels = isPickup
-        ? { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Ready for Pickup', delivered: 'Picked Up', cancelled: 'Cancelled', refunded: 'Refunded' }
+        ? { pending: 'Pending', confirmed: 'Confirmed', ready_for_pickup: 'Ready for Pickup', shipped: 'Ready for Pickup', delivered: 'Picked Up', cancelled: 'Cancelled', refunded: 'Refunded' }
         : { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled', refunded: 'Refunded' };
       const nextStatus = statusFlow[order.status];
       const canCancel = order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'refunded';
@@ -19083,6 +19090,7 @@
       const headChip = order.status === 'cancelled' ? { tone: 'hot', label: 'Cancelled' }
         : order.status === 'refunded' ? { tone: 'hot', label: 'Refunded' }
         : isDeliveredOrder ? { tone: 'done', label: isPickup ? 'Closed · Picked up' : 'Closed · Delivered' }
+        : order.status === 'ready_for_pickup' ? { tone: 'live', label: 'Ready for pickup' }
         : order.status === 'shipped' ? { tone: 'live', label: isPickup ? 'Ready for pickup' : 'Shipped · In transit' }
         : order.status === 'confirmed' ? { tone: 'live', label: 'Processed · In fulfillment' }
         : { tone: 'soft', label: 'Pending' };
@@ -19151,7 +19159,7 @@
               {paidDone && ['confirmed', 'shipped', 'ready_for_pickup'].includes(order.status) && (
                 <button className="rov-hbtn" onClick={() => navigate('change-order', order.id)}>Change order</button>
               )}
-              {['shipped', 'delivered'].includes(order.status) && (
+              {['shipped', 'delivered', 'ready_for_pickup'].includes(order.status) && (
                 <button className="rov-hbtn" onClick={() => navigate('return-flow', order.id)}>Start return</button>
               )}
               {!showCancelForm && canCancel && (
