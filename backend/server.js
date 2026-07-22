@@ -8125,6 +8125,10 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
 
       const isCarpet = sku.price_basis === 'per_sqyd';
       unitPrice = parseFloat(sku.retail_price || 0);
+      // Allow an explicit price override (e.g. change-order add-line editing).
+      if (unit_price != null && unit_price !== '' && !isNaN(parseFloat(unit_price)) && parseFloat(unit_price) >= 0) {
+        unitPrice = parseFloat(unit_price);
+      }
       sqftPerBox = parseFloat(sku.sqft_per_box || 1);
       isPerSqft = sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft';
 
@@ -8179,12 +8183,12 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       const isCarpet = sku.price_basis === 'per_sqyd';
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
-          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11)
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, cost)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11, $12)
         RETURNING id
       `, [id, sku.product_id, sku_id, storedProductName, sku.collection, storedDescription,
           sqft_needed || computedSqft || null, isCarpet ? 1 : num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-          isCarpet ? 'roll' : (sku.sell_by || null)]);
+          isCarpet ? 'roll' : (sku.sell_by || null), customCost != null ? customCost.toFixed(2) : null]);
       newItemId = insertResult.rows[0].id;
     } else {
       const isCustomCarpet = customSellBy === 'roll';
@@ -15384,6 +15388,10 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
 
       const isCarpet = sku.price_basis === 'per_sqyd';
       unitPrice = parseFloat(sku.retail_price || 0);
+      // Allow an explicit price override (e.g. change-order add-line editing).
+      if (unit_price != null && unit_price !== '' && !isNaN(parseFloat(unit_price)) && parseFloat(unit_price) >= 0) {
+        unitPrice = parseFloat(unit_price);
+      }
       sqftPerBox = parseFloat(sku.sqft_per_box || 1);
       isPerSqft = sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft';
 
@@ -15436,12 +15444,12 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       const isCarpet = sku.price_basis === 'per_sqyd';
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
-          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11)
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, cost)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11, $12)
         RETURNING id
       `, [id, sku.product_id, sku_id, storedProductName, sku.collection, storedDescription,
           sqft_needed || computedSqft || null, isCarpet ? 1 : num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-          isCarpet ? 'roll' : (sku.sell_by || null)]);
+          isCarpet ? 'roll' : (sku.sell_by || null), customCost != null ? customCost.toFixed(2) : null]);
       newItemId = insertResult.rows[0].id;
     } else {
       const isCustomCarpet = customSellBy === 'roll';

@@ -20793,49 +20793,67 @@
         setPriceDraft(p => ({ ...p, [it.id]: '' }));
       };
 
-      // Convert RofCatalogModal selections into staged 'add' diffs.
+      // Convert RofCatalogModal selections into staged 'add' diffs. Each add
+      // line keeps its editable qty / unit price / cost; the payload + subtotal
+      // are derived on the fly (buildAddPayload / addLineSubtotal) so the rep can
+      // tweak all three before committing.
       const addFromCatalog = ({ lines, accessories, customs }) => {
         const staged = [];
         for (const { item: p, qty } of lines) {
           const sellBy = p.sell_by || 'box';
           const isUnit = sellBy === 'unit' || sellBy === 'piece';
           const isCarpet = p.price_basis === 'per_sqyd';
+          const perSqft = p.price_basis === 'per_sqft' || p.price_basis === 'sqft';
           const spb = parseFloat(p.sqft_per_box || 0);
-          let payload;
-          if (isUnit) payload = { sku_id: p.sku_id, num_boxes: qty };
-          else if (isCarpet) payload = { sku_id: p.sku_id, sqft_needed: spb > 0 ? spb * qty : 9 * qty, num_boxes: 1 };
-          else if (spb > 0) payload = { sku_id: p.sku_id, num_boxes: qty, sqft_needed: spb * qty };
-          else payload = { sku_id: p.sku_id, num_boxes: qty };
-          const unit = parseFloat(p.unit_price || p.price || 0);
-          staged.push({ key: genKey(), type: 'add', name: (p.collection || p.product_name || 'Item') + (p.color ? ' ' + p.color : ''), addPayload: payload, estSubtotal: unit * qty, vendorName: p.vendor_name || 'Roma' });
+          const mult = isUnit ? 1 : isCarpet ? (spb > 0 ? spb / 9 : 1) : (perSqft && spb > 0 ? spb : 1);
+          staged.push({ key: genKey(), type: 'add', name: (p.display_name || p.name || p.collection || p.product_name || 'Item') + (p.color ? ' ' + p.color : ''),
+            vendorName: p.vendor_name || 'Roma', isCustom: false, skuId: p.sku_id, sellBy, isCarpet, spb, mult,
+            qty, unitPrice: parseFloat(p.unit_price || p.price || 0), cost: null });
         }
         for (const { acc, qty } of accessories) {
-          const unit = parseFloat(acc.unit_price || acc.price || 0);
-          staged.push({ key: genKey(), type: 'add', name: (acc.product_name || 'Accessory') + (acc.color ? ' ' + acc.color : ''), addPayload: { sku_id: acc.sku_id, num_boxes: qty }, estSubtotal: unit * qty, vendorName: acc.vendor_name || 'Roma' });
+          staged.push({ key: genKey(), type: 'add', name: (acc.product_name || 'Accessory') + (acc.color ? ' ' + acc.color : ''),
+            vendorName: acc.vendor_name || 'Roma', isCustom: false, skuId: acc.sku_id, sellBy: acc.sell_by || 'unit', isCarpet: false, spb: 0, mult: 1,
+            qty, unitPrice: parseFloat(acc.unit_price || acc.price || 0), cost: null });
         }
         for (const c of customs) {
-          staged.push({
-            key: genKey(), type: 'add', name: c.product_name || 'Custom item',
-            addPayload: {
-              product_name: c.product_name, unit_price: c.unit_price, vendor_id: c.vendor_id || undefined,
-              custom_vendor: c.vendor_id ? undefined : (c.custom_vendor || undefined),
-              custom_vendor_email: c.vendor_id ? undefined : (c.custom_vendor_email || undefined),
-              cost: c.cost || undefined, description: c.description || null, sell_by: c.sell_by, num_boxes: c.num_boxes
-            },
-            estSubtotal: (parseFloat(c.unit_price) || 0) * (parseInt(c.num_boxes, 10) || 1),
-            vendorName: c.custom_vendor || 'Custom'
-          });
+          const sellBy = c.sell_by || 'box';
+          staged.push({ key: genKey(), type: 'add', name: c.product_name || 'Custom item',
+            vendorName: c.custom_vendor || 'Custom', isCustom: true, product_name: c.product_name,
+            vendor_id: c.vendor_id || null, custom_vendor: c.custom_vendor || null, custom_vendor_email: c.custom_vendor_email || null,
+            description: c.description || null, sellBy, isCarpet: sellBy === 'roll', spb: 0, mult: sellBy === 'roll' ? (1 / 9) : 1,
+            qty: parseInt(c.num_boxes, 10) || 1, unitPrice: parseFloat(c.unit_price) || 0, cost: c.cost != null ? parseFloat(c.cost) : null });
         }
         setDiffs(prev => [...prev, ...staged]);
         setCatalogOpen(false);
       };
+
+      // Derived helpers for editable 'add' lines.
+      const numOr = (v, dflt) => { const n = parseFloat(v); return isNaN(n) ? dflt : n; };
+      const addLineSubtotal = (d) => numOr(d.unitPrice, 0) * Math.max(0, parseInt(d.qty, 10) || 0) * (d.mult || 1);
+      const buildAddPayload = (d) => {
+        const qty = Math.max(1, parseInt(d.qty, 10) || 1);
+        const price = numOr(d.unitPrice, 0);
+        const cost = (d.cost === '' || d.cost == null) ? null : numOr(d.cost, null);
+        if (d.isCustom) {
+          return { product_name: d.product_name, unit_price: price, vendor_id: d.vendor_id || undefined,
+            custom_vendor: d.vendor_id ? undefined : (d.custom_vendor || undefined),
+            custom_vendor_email: d.vendor_id ? undefined : (d.custom_vendor_email || undefined),
+            cost: cost != null ? cost : undefined, description: d.description || null, sell_by: d.sellBy, num_boxes: qty };
+        }
+        const base = { sku_id: d.skuId, num_boxes: qty, unit_price: price };
+        if (cost != null) base.cost = cost;
+        if (d.isCarpet) { base.sqft_needed = d.spb > 0 ? d.spb * qty : 9 * qty; base.num_boxes = 1; }
+        else if (d.spb > 0) base.sqft_needed = d.spb * qty;
+        return base;
+      };
+      const updateAddDiff = (key, patch) => setDiffs(prev => prev.map(d => (d.key === key && d.type === 'add') ? { ...d, ...patch } : d));
 
       // Net change across all staged diffs
       const netChange = diffs.reduce((sum, d) => {
         if (d.type === 'remove') return sum - d.wasSubtotal;
         if (d.type === 'qty') return sum + (d.newQty * d.unitPrice - d.wasSubtotal);
         if (d.type === 'price') return sum + (d.newPrice * d.qty - d.wasSubtotal);
-        if (d.type === 'add') return sum + d.estSubtotal;
+        if (d.type === 'add') return sum + addLineSubtotal(d);
         return sum;
       }, 0);
 
@@ -20857,7 +20875,7 @@
             await repFetch('/api/rep/orders/' + editId + '/add-item', { method: 'POST', body: JSON.stringify(d.addPayload) });
           }
           for (const d of diffs.filter(x => x.type === 'add')) {
-            await repFetch('/api/rep/orders/' + editId + '/add-item', { method: 'POST', body: JSON.stringify(d.addPayload) });
+            await repFetch('/api/rep/orders/' + editId + '/add-item', { method: 'POST', body: JSON.stringify(buildAddPayload(d)) });
           }
           let last = null;
           for (const d of diffs.filter(x => x.type === 'remove')) {
@@ -21031,13 +21049,37 @@
                       if (d.type === 'remove') { was = '$' + d.wasSubtotal.toFixed(2); now = 'Removed'; delta = -d.wasSubtotal; poImpact = 'PO line cancelled'; }
                       if (d.type === 'qty') { was = d.wasQty + ' × $' + d.unitPrice.toFixed(2); now = d.newQty + ' × $' + d.unitPrice.toFixed(2); delta = d.newQty * d.unitPrice - d.wasSubtotal; poImpact = 'PO qty updated'; }
                       if (d.type === 'price') { was = '$' + d.wasPrice.toFixed(2) + ' ea'; now = '$' + d.newPrice.toFixed(2) + ' ea'; delta = d.newPrice * d.qty - d.wasSubtotal; poImpact = 'Price only · PO cost unchanged'; }
-                      if (d.type === 'add') { was = '—'; now = '$' + d.estSubtotal.toFixed(2); delta = d.estSubtotal; poImpact = 'New PO line'; }
+                      if (d.type === 'add') { was = '—'; delta = addLineSubtotal(d); poImpact = 'New PO line'; }
+                      const coBox = { display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)', padding: '3px 6px' };
+                      const coBoxLbl = { font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginRight: 4 };
+                      const coBoxInput = (w) => ({ width: w, border: 'none', outline: 'none', background: 'transparent', textAlign: 'right', font: "400 13px/1 'Inter', sans-serif", color: 'var(--rod-ink)' });
                       return (
                         <div key={d.key} style={{ padding: '12px 0', display: 'grid', gridTemplateColumns: '90px 1fr auto 24px', gap: 12, alignItems: 'center', borderBottom: i < diffs.length - 1 ? '0.5px solid rgba(28,25,23,0.07)' : 'none' }}>
                           <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: d.type === 'remove' ? 'var(--rod-red)' : d.type === 'add' ? 'var(--rod-green)' : 'var(--rod-accent)' }}>● {d.type}</span>
                           <div>
                             <div style={{ font: "400 13px/1.3 'Inter', sans-serif", color: 'var(--rod-ink)' }}>{d.name}</div>
-                            <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>{was} → {now} · {poImpact}</div>
+                            {d.type === 'add' ? (
+                              <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <div style={coBox}>
+                                  <span style={coBoxLbl}>Qty</span>
+                                  <input type="number" min="1" value={d.qty} onChange={e => updateAddDiff(d.key, { qty: e.target.value })} style={coBoxInput(40)} />
+                                </div>
+                                <div style={coBox}>
+                                  <span style={coBoxLbl}>Price</span>
+                                  <span style={{ color: 'var(--rod-muted)', fontSize: 11, marginRight: 2 }}>$</span>
+                                  <input type="text" inputMode="decimal" value={d.unitPrice} onChange={e => { const v = e.target.value; if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) updateAddDiff(d.key, { unitPrice: v }); }} style={coBoxInput(56)} />
+                                </div>
+                                {showCost && (
+                                  <div style={coBox}>
+                                    <span style={coBoxLbl}>Cost</span>
+                                    <span style={{ color: 'var(--rod-muted)', fontSize: 11, marginRight: 2 }}>$</span>
+                                    <input type="text" inputMode="decimal" placeholder="—" value={d.cost == null ? '' : d.cost} onChange={e => { const v = e.target.value; if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) updateAddDiff(d.key, { cost: v }); }} style={coBoxInput(56)} />
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>{was} → {now} · {poImpact}</div>
+                            )}
                           </div>
                           <span style={{ font: "400 15px/1 'Cormorant Garamond', serif", color: delta < 0 ? 'var(--rod-red)' : 'var(--rod-green)', textAlign: 'right' }}>{delta < 0 ? '−' : '+'}${Math.abs(delta).toFixed(2)}</span>
                           <button onClick={() => dropDiff(d.key)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--rod-muted)', font: "400 14px/1 'Inter', sans-serif" }}>×</button>
