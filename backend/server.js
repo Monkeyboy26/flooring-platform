@@ -22,7 +22,7 @@ import sharp from 'sharp';
 import { pool } from './db.js';
 import { createAuthMiddleware } from './lib/auth.js';
 import { calculateSalesTax, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
-import { recalculateBalance, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
+import { recalculateBalance, logOrderActivity, recalculateCommission, recalcFulfillment, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { createCustomerHelpers } from './lib/customerHelpers.js';
 import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
@@ -7572,13 +7572,55 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
   }
 });
 
+// Fire the post-transition side-effects when a shipment advances an order to
+// 'shipped' or 'delivered'. Mirrors the inline effects in the status endpoints
+// so shipment-driven transitions behave identically. Fire-and-forget; call after
+// COMMIT. `order` must be the fresh order row (post-update).
+function fireOrderTransitionEffects(order, toStatus, actorRepId) {
+  const id = order.id;
+  setImmediate(() => recalculateCommission(pool, id));
+  if (['shipped', 'delivered', 'cancelled'].includes(toStatus)) {
+    setImmediate(() => sendOrderStatusUpdate(order, toStatus));
+  }
+  if (toStatus === 'shipped') {
+    setImmediate(() => autoGenerateAndSendInvoice(id));
+    if (order.tracking_number) {
+      setImmediate(() => pollEasyPostTracking(id, order.tracking_number, order.shipping_carrier));
+    }
+  }
+  if (order.sales_rep_id) {
+    setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'order_status_changed',
+      'Order ' + order.order_number + ' → ' + toStatus,
+      'Fulfillment advanced the order to ' + toStatus, 'order', id));
+  }
+  if (toStatus === 'delivered') {
+    const assignRepId = order.sales_rep_id || actorRepId;
+    setImmediate(async () => {
+      try {
+        let repId = assignRepId;
+        if (!repId) {
+          const fallback = await pool.query('SELECT id FROM sales_reps WHERE is_active = true ORDER BY created_at LIMIT 1');
+          repId = fallback.rows.length ? fallback.rows[0].id : null;
+        }
+        if (repId) {
+          await createAutoTask(pool, repId, 'order_delivered', id,
+            `Post-delivery follow-up — ${order.customer_name} (${order.order_number})`, {
+              priority: 'low', customer_name: order.customer_name,
+              customer_email: order.customer_email, customer_phone: order.customer_phone,
+              linked_order_id: id });
+        }
+      } catch (err) { console.error('[AutoTask] order_delivered (shipment) error:', err.message); }
+    });
+  }
+}
+
 // Update order status
 app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
     const { status, tracking_number, carrier, shipped_at } = req.body;
-    const validStatuses = ['pending', 'confirmed', 'ready_for_pickup', 'shipped', 'delivered', 'cancelled', 'refunded'];
+    const validStatuses = ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'shipped', 'delivered', 'cancelled', 'refunded'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status. Must be one of: ' + validStatuses.join(', ') });
     }
@@ -7635,14 +7677,14 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
       );
     } else {
       // When reverting to an earlier status, clear downstream timestamps
-      const statusOrder = ['pending', 'confirmed', 'shipped', 'delivered'];
+      const statusOrder = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
       const targetIdx = statusOrder.indexOf(status);
       const clearFields = [];
       const clearValues = [status, id];
       if (targetIdx >= 0) {
         if (targetIdx < 1) clearFields.push('confirmed_at = NULL');
-        if (targetIdx < 2) clearFields.push('shipped_at = NULL, tracking_number = NULL, shipping_carrier = NULL');
-        if (targetIdx < 3) clearFields.push('delivered_at = NULL');
+        if (targetIdx < 3) clearFields.push('shipped_at = NULL, tracking_number = NULL, shipping_carrier = NULL');
+        if (targetIdx < 4) clearFields.push('delivered_at = NULL');
       }
       const setClauses = ['status = $1'].concat(clearFields).join(', ');
       result = await client.query(
@@ -7750,6 +7792,320 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
   } finally {
     client.release();
   }
+});
+
+// ==================== Order Fulfillment / Shipments ====================
+// Shipments let a single order ship in multiple parts (split / partial
+// shipments + backorder visibility). Each mutation calls recalcFulfillment()
+// which rolls the shipment quantities up to orders.fulfillment_status and
+// auto-advances orders.status (confirmed -> processing -> shipped -> delivered).
+
+function shipErr(httpStatus, msg) { const e = new Error(msg); e.httpStatus = httpStatus; return e; }
+
+// Per-line fulfillment summary for an order (non-sample items). Distinguishes:
+//   allocated = boxes in any non-cancelled shipment (incl. still-packing) — caps
+//               what a NEW shipment can take, so we never double-allocate.
+//   shipped   = boxes in shipped/delivered shipments — drives fulfillment rollup.
+//   remaining = unallocated boxes (nothing left to put in a shipment).
+//   packing   = allocated but not yet shipped.
+//   backordered = unshipped boxes (packing + remaining) — what the customer is owed.
+async function getShipmentFulfillment(queryable, orderId) {
+  const items = await queryable.query(
+    `SELECT oi.id, oi.product_name, oi.collection, oi.description, oi.num_boxes,
+            oi.sqft_needed, oi.sell_by, oi.sku_id
+       FROM order_items oi
+      WHERE oi.order_id = $1 AND COALESCE(oi.is_sample, false) = false
+      ORDER BY oi.product_name`, [orderId]);
+  const agg = await queryable.query(
+    `SELECT si.order_item_id,
+            COALESCE(SUM(si.qty_boxes) FILTER (WHERE s.status <> 'cancelled'), 0)::int AS allocated,
+            COALESCE(SUM(si.qty_boxes) FILTER (WHERE s.status IN ('shipped','delivered')), 0)::int AS shipped
+       FROM shipment_items si JOIN shipments s ON s.id = si.shipment_id
+      WHERE s.order_id = $1
+      GROUP BY si.order_item_id`, [orderId]);
+  const byItem = {};
+  for (const r of agg.rows) byItem[r.order_item_id] = r;
+  return items.rows.map(it => {
+    const ordered = it.num_boxes || 0;
+    const a = byItem[it.id] || { allocated: 0, shipped: 0 };
+    const remaining = Math.max(0, ordered - a.allocated);
+    return {
+      order_item_id: it.id,
+      product_name: it.collection || it.product_name,
+      description: it.description,
+      sell_by: it.sell_by,
+      sku_id: it.sku_id,
+      ordered,
+      allocated: a.allocated,
+      shipped: a.shipped,
+      packing: Math.max(0, a.allocated - a.shipped),
+      remaining,
+      backordered: Math.max(0, ordered - a.shipped),
+      sqft_per_box: ordered > 0 && it.sqft_needed ? parseFloat(it.sqft_needed) / ordered : null,
+    };
+  });
+}
+
+// List shipments (with their line items) for an order.
+async function getShipmentsForOrder(queryable, orderId) {
+  const ships = await queryable.query(
+    'SELECT * FROM shipments WHERE order_id = $1 ORDER BY created_at', [orderId]);
+  if (!ships.rows.length) return [];
+  const items = await queryable.query(
+    `SELECT si.*, oi.product_name, oi.collection, oi.description
+       FROM shipment_items si JOIN order_items oi ON oi.id = si.order_item_id
+      WHERE si.shipment_id = ANY($1::uuid[])`,
+    [ships.rows.map(s => s.id)]);
+  const byShip = {};
+  for (const it of items.rows) (byShip[it.shipment_id] = byShip[it.shipment_id] || []).push(it);
+  return ships.rows.map(s => ({
+    ...s,
+    tracking_url: s.tracking_url || getTrackingUrl(s.carrier, s.tracking_number),
+    items: byShip[s.id] || [],
+  }));
+}
+
+// Core: create a shipment for an order from {order_item_id, qty_boxes} lines.
+// Optionally mark it shipped immediately. Validates against remaining qty.
+async function createShipmentCore(client, order, body, actor) {
+  const orderId = order.id;
+  const { items, delivery_method, carrier, service_level, tracking_number, notes,
+    package_count, total_weight_lbs, shipping_cost, mark_shipped, shipped_at } = body;
+
+  const fulfillment = await getShipmentFulfillment(client, orderId);
+  const fMap = {};
+  for (const f of fulfillment) fMap[f.order_item_id] = f;
+
+  const lines = [];
+  for (const raw of (items || [])) {
+    const f = fMap[raw.order_item_id];
+    if (!f) throw shipErr(400, 'Item not on this order: ' + raw.order_item_id);
+    const qty = parseInt(raw.qty_boxes, 10);
+    if (!qty || qty <= 0) continue;
+    if (qty > f.remaining) throw shipErr(400, `Cannot ship ${qty} of "${f.product_name}" — only ${f.remaining} remaining`);
+    const sqft = f.sqft_per_box ? parseFloat((f.sqft_per_box * qty).toFixed(2)) : null;
+    lines.push({ order_item_id: f.order_item_id, sku_id: f.sku_id, qty_boxes: qty, sqft });
+  }
+  if (!lines.length) throw shipErr(400, 'No shippable items selected');
+
+  const method = delivery_method || order.delivery_method || 'shipping';
+  const willShip = !!mark_shipped;
+  if (willShip && method === 'shipping' && !tracking_number) {
+    throw shipErr(400, 'Tracking number is required to ship a shipping shipment');
+  }
+
+  const cnt = await client.query('SELECT COUNT(*)::int AS c FROM shipments WHERE order_id = $1', [orderId]);
+  const shipmentNumber = `${order.order_number}-S${cnt.rows[0].c + 1}`;
+  const status = willShip ? 'shipped' : 'packing';
+  const shippedTs = willShip ? (shipped_at || new Date()) : null;
+  const trackingUrl = tracking_number ? getTrackingUrl(carrier, tracking_number) : null;
+
+  const ins = await client.query(
+    `INSERT INTO shipments (order_id, shipment_number, status, delivery_method, carrier, service_level,
+        tracking_number, tracking_url, package_count, total_weight_lbs, shipping_cost, notes,
+        shipped_at, created_by, created_by_name)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
+    [orderId, shipmentNumber, status, method, carrier || null, service_level || null,
+     tracking_number || null, trackingUrl, package_count || 1, total_weight_lbs || null,
+     shipping_cost || null, notes || null, shippedTs, actor.id || null, actor.name || null]);
+  const shipment = ins.rows[0];
+
+  for (const l of lines) {
+    await client.query(
+      `INSERT INTO shipment_items (shipment_id, order_item_id, sku_id, qty_boxes, sqft)
+       VALUES ($1,$2,$3,$4,$5)`, [shipment.id, l.order_item_id, l.sku_id, l.qty_boxes, l.sqft]);
+  }
+  if (willShip && tracking_number) {
+    await client.query(
+      'UPDATE orders SET tracking_number = $1, shipping_carrier = COALESCE($2, shipping_carrier) WHERE id = $3',
+      [tracking_number, carrier || null, orderId]);
+  }
+  return { shipment, lineCount: lines.length };
+}
+
+// After a shipment mutation: roll up fulfillment, fire transition side-effects.
+async function afterShipmentChange(client, orderId, actorRepId) {
+  const fx = await recalcFulfillment(client, orderId);
+  return fx;
+}
+function fireShipmentTransition(fx, orderId, actorRepId) {
+  if (fx && fx.statusChanged && ['shipped', 'delivered'].includes(fx.transitionedTo)) {
+    setImmediate(async () => {
+      try {
+        const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+        if (fresh.rows.length) fireOrderTransitionEffects(fresh.rows[0], fx.transitionedTo, actorRepId);
+      } catch (err) { console.error('[Shipment] transition effects error:', err.message); }
+    });
+  }
+}
+
+// GET shipments + fulfillment summary (any staff)
+app.get('/api/admin/orders/:id/shipments', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ord = await pool.query('SELECT id, fulfillment_status, status FROM orders WHERE id = $1', [id]);
+    if (!ord.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const [shipments, fulfillment] = await Promise.all([
+      getShipmentsForOrder(pool, id),
+      getShipmentFulfillment(pool, id),
+    ]);
+    res.json({
+      order_status: ord.rows[0].status,
+      fulfillment_status: ord.rows[0].fulfillment_status,
+      shipments,
+      fulfillment,
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// POST create a shipment (admin/manager)
+app.post('/api/admin/orders/:id/shipments', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    await client.query('BEGIN');
+    const ord = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [id]);
+    if (!ord.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const order = ord.rows[0];
+    if (['cancelled', 'refunded'].includes(order.status)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Cannot create shipments on a ' + order.status + ' order' });
+    }
+    const actor = { id: req.staff.id, name: req.staff.first_name + ' ' + req.staff.last_name };
+    const { shipment, lineCount } = await createShipmentCore(client, order, req.body, actor);
+    const fx = await afterShipmentChange(client, id, null);
+    await logOrderActivity(client, id, 'shipment_created', actor.id, actor.name,
+      { shipment_number: shipment.shipment_number, lines: lineCount, status: shipment.status,
+        ...(shipment.tracking_number ? { tracking_number: shipment.tracking_number, carrier: shipment.carrier } : {}) });
+    await client.query('COMMIT');
+    fireShipmentTransition(fx, id, null);
+    res.json({ shipment, fulfillment_status: fx && fx.fulfillment_status, order_status: fx && fx.status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
+// POST ship all remaining items in one shipment (admin/manager convenience)
+app.post('/api/admin/orders/:id/shipments/ship-remaining', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    await client.query('BEGIN');
+    const ord = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [id]);
+    if (!ord.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const order = ord.rows[0];
+    if (['cancelled', 'refunded'].includes(order.status)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Cannot ship a ' + order.status + ' order' });
+    }
+    const fulfillment = await getShipmentFulfillment(client, id);
+    const items = fulfillment.filter(f => f.remaining > 0).map(f => ({ order_item_id: f.order_item_id, qty_boxes: f.remaining }));
+    if (!items.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Nothing left to ship' }); }
+    const actor = { id: req.staff.id, name: req.staff.first_name + ' ' + req.staff.last_name };
+    const { shipment, lineCount } = await createShipmentCore(client, order,
+      { ...req.body, items, mark_shipped: true }, actor);
+    const fx = await afterShipmentChange(client, id, null);
+    await logOrderActivity(client, id, 'shipment_created', actor.id, actor.name,
+      { shipment_number: shipment.shipment_number, lines: lineCount, status: shipment.status, ship_all: true,
+        ...(shipment.tracking_number ? { tracking_number: shipment.tracking_number, carrier: shipment.carrier } : {}) });
+    await client.query('COMMIT');
+    fireShipmentTransition(fx, id, null);
+    res.json({ shipment, fulfillment_status: fx && fx.fulfillment_status, order_status: fx && fx.status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
+// PUT update / transition a shipment (admin/manager)
+app.put('/api/admin/orders/:id/shipments/:sid', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, sid } = req.params;
+    const { status, action, carrier, service_level, tracking_number, notes,
+      package_count, total_weight_lbs, shipping_cost, shipped_at, delivered_at } = req.body;
+    await client.query('BEGIN');
+    const shipRes = await client.query('SELECT * FROM shipments WHERE id = $1 AND order_id = $2 FOR UPDATE', [sid, id]);
+    if (!shipRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Shipment not found' }); }
+    const shipment = shipRes.rows[0];
+    if (shipment.status === 'cancelled') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Shipment is cancelled' }); }
+
+    const actionMap = { pack: 'packing', ship: 'shipped', deliver: 'delivered' };
+    let target = status || actionMap[action] || shipment.status;
+    if (!['packing', 'shipped', 'delivered'].includes(target)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Invalid shipment status' });
+    }
+
+    const newCarrier = carrier !== undefined ? carrier : shipment.carrier;
+    const newTracking = tracking_number !== undefined ? tracking_number : shipment.tracking_number;
+    if (target === 'shipped' && shipment.delivery_method === 'shipping' && !newTracking) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Tracking number is required to ship a shipping shipment' });
+    }
+
+    let newShippedAt = shipment.shipped_at;
+    let newDeliveredAt = shipment.delivered_at;
+    if (target === 'shipped') { if (!newShippedAt) newShippedAt = shipped_at || new Date(); newDeliveredAt = null; }
+    else if (target === 'delivered') { if (!newShippedAt) newShippedAt = new Date(); newDeliveredAt = delivered_at || new Date(); }
+    else { newShippedAt = null; newDeliveredAt = null; }
+    const trackingUrl = newTracking ? getTrackingUrl(newCarrier, newTracking) : null;
+
+    const upd = await client.query(
+      `UPDATE shipments SET status=$1, carrier=$2, service_level=$3, tracking_number=$4, tracking_url=$5,
+         notes=$6, package_count=$7, total_weight_lbs=$8, shipping_cost=$9, shipped_at=$10, delivered_at=$11,
+         updated_at=NOW() WHERE id=$12 RETURNING *`,
+      [target, newCarrier, service_level !== undefined ? service_level : shipment.service_level,
+       newTracking, trackingUrl, notes !== undefined ? notes : shipment.notes,
+       package_count !== undefined ? package_count : shipment.package_count,
+       total_weight_lbs !== undefined ? total_weight_lbs : shipment.total_weight_lbs,
+       shipping_cost !== undefined ? shipping_cost : shipment.shipping_cost,
+       newShippedAt, newDeliveredAt, sid]);
+
+    if (['shipped', 'delivered'].includes(target) && newTracking) {
+      await client.query(
+        'UPDATE orders SET tracking_number=$1, shipping_carrier=COALESCE($2, shipping_carrier) WHERE id=$3',
+        [newTracking, newCarrier || null, id]);
+    }
+
+    const actor = { id: req.staff.id, name: req.staff.first_name + ' ' + req.staff.last_name };
+    const fx = await afterShipmentChange(client, id, null);
+    await logOrderActivity(client, id, 'shipment_updated', actor.id, actor.name,
+      { shipment_number: shipment.shipment_number, from: shipment.status, to: target,
+        ...(newTracking ? { tracking_number: newTracking, carrier: newCarrier } : {}) });
+    await client.query('COMMIT');
+    fireShipmentTransition(fx, id, null);
+    res.json({ shipment: upd.rows[0], fulfillment_status: fx && fx.fulfillment_status, order_status: fx && fx.status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
+// POST cancel/void a shipment (admin/manager) — returns its qty to unshipped
+app.post('/api/admin/orders/:id/shipments/:sid/cancel', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, sid } = req.params;
+    await client.query('BEGIN');
+    const shipRes = await client.query('SELECT * FROM shipments WHERE id = $1 AND order_id = $2 FOR UPDATE', [sid, id]);
+    if (!shipRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Shipment not found' }); }
+    const shipment = shipRes.rows[0];
+    if (shipment.status === 'cancelled') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Already cancelled' }); }
+    await client.query("UPDATE shipments SET status='cancelled', updated_at=NOW() WHERE id=$1", [sid]);
+    const actor = { id: req.staff.id, name: req.staff.first_name + ' ' + req.staff.last_name };
+    const fx = await afterShipmentChange(client, id, null);
+    await logOrderActivity(client, id, 'shipment_cancelled', actor.id, actor.name,
+      { shipment_number: shipment.shipment_number });
+    await client.query('COMMIT');
+    res.json({ ok: true, fulfillment_status: fx && fx.fulfillment_status, order_status: fx && fx.status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
 });
 
 // Change delivery method on existing order (admin)
@@ -12010,7 +12366,7 @@ app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
 
 // ==================== Packing Slip & Invoice Helpers ====================
 
-async function generateOrderPackingSlipHtml(orderId) {
+async function generateOrderPackingSlipHtml(orderId, shipmentId = null) {
   const order = await pool.query(`
     SELECT o.*,
       sr.first_name || ' ' || sr.last_name as sales_rep_name
@@ -12037,6 +12393,35 @@ async function generateOrderPackingSlipHtml(orderId) {
   const o = order.rows[0];
   const isPickup = o.delivery_method === 'pickup';
 
+  // Fulfillment aggregates per line: shipped (shipped/delivered shipments) and
+  // allocated (any non-cancelled shipment). Used for real Shipped / B/O columns.
+  const aggRes = await pool.query(
+    `SELECT order_item_id,
+       COALESCE(SUM(qty_boxes) FILTER (WHERE s.status IN ('shipped','delivered')), 0)::int AS shipped,
+       COALESCE(SUM(qty_boxes) FILTER (WHERE s.status <> 'cancelled'), 0)::int AS allocated
+     FROM shipment_items si JOIN shipments s ON s.id = si.shipment_id
+     WHERE s.order_id = $1 GROUP BY order_item_id`, [orderId]);
+  const shippedMap = {}, allocMap = {};
+  for (const r of aggRes.rows) { shippedMap[r.order_item_id] = r.shipped; allocMap[r.order_item_id] = r.allocated; }
+  const hasShipments = aggRes.rows.length > 0;
+
+  // Per-shipment slip: scope to this shipment's lines and quantities.
+  let shipment = null, shipQtyMap = null;
+  if (shipmentId) {
+    const sres = await pool.query('SELECT * FROM shipments WHERE id = $1 AND order_id = $2', [shipmentId, orderId]);
+    if (!sres.rows.length) return null;
+    shipment = sres.rows[0];
+    shipQtyMap = {};
+    const sit = await pool.query('SELECT order_item_id, qty_boxes FROM shipment_items WHERE shipment_id = $1', [shipmentId]);
+    for (const r of sit.rows) shipQtyMap[r.order_item_id] = r.qty_boxes;
+  }
+  const renderRows = shipment ? items.rows.filter(i => shipQtyMap[i.id] != null) : items.rows;
+  // Per-row Shipped / B/O: for a per-shipment slip, Shipped = qty in THIS shipment;
+  // for an order slip, Shipped = total shipped so far. B/O = ordered − allocated
+  // (still owed). Legacy fallback (no shipments): Shipped = ordered, B/O = 0.
+  const rowShipped = (i) => shipment ? (shipQtyMap[i.id] || 0) : (hasShipments ? (shippedMap[i.id] || 0) : (i.num_boxes || 0));
+  const rowBackordered = (i) => hasShipments ? Math.max(0, (i.num_boxes || 0) - (allocMap[i.id] || 0)) : 0;
+
   // Design tokens (matching PO document)
   const ink = '#1c1917';
   const muted = '#8a7e68';
@@ -12051,9 +12436,11 @@ async function generateOrderPackingSlipHtml(orderId) {
     return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
-  const shipDate = fmtDate(o.shipped_at || o.created_at);
-  const psNumber = `PS-${o.order_number}`;
-  const deliveryLabel = isPickup ? 'Will Call / Pickup' : (o.shipping_method || 'Standard Shipping');
+  const shipDate = fmtDate((shipment && shipment.shipped_at) || o.shipped_at || o.created_at);
+  const psNumber = shipment ? `PS-${shipment.shipment_number}` : `PS-${o.order_number}`;
+  const slipCarrier = (shipment && shipment.carrier) || o.shipping_carrier;
+  const slipTracking = (shipment && shipment.tracking_number) || o.tracking_number;
+  const deliveryLabel = isPickup ? 'Will Call / Pickup' : ((shipment && shipment.service_level) || o.shipping_method || 'Standard Shipping');
 
   // Ship-to address
   const shipToName = isPickup ? 'Roma Flooring Designs' : (o.customer_name || '\u2014');
@@ -12069,11 +12456,12 @@ async function generateOrderPackingSlipHtml(orderId) {
   let totalWeight = 0;
   let totalCartons = 0;
   let hasWeight = false;
-  items.rows.forEach(i => {
-    totalUnits += (i.num_boxes || 0);
-    totalCartons += (i.num_boxes || 0);
+  renderRows.forEach(i => {
+    const qty = shipment ? (shipQtyMap[i.id] || 0) : (i.num_boxes || 0);
+    totalUnits += qty;
+    totalCartons += qty;
     if (i.weight_per_box_lbs) {
-      totalWeight += parseFloat(i.weight_per_box_lbs) * (i.num_boxes || 0);
+      totalWeight += parseFloat(i.weight_per_box_lbs) * qty;
       hasWeight = true;
     }
   });
@@ -12108,10 +12496,11 @@ async function generateOrderPackingSlipHtml(orderId) {
           <div style="margin-top:12px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 ${sans};text-align:left">
             <span style="color:${muted}">Order</span>
             <span style="color:${ink};text-align:right">${o.order_number}</span>
+            ${shipment ? `<span style="color:${muted}">Shipment</span><span style="color:${ink};text-align:right">${shipment.shipment_number}</span>` : ''}
             <span style="color:${muted}">Ship date</span>
             <span style="color:${ink};text-align:right">${shipDate}</span>
             ${o.po_number ? `<span style="color:${muted}">Customer PO</span><span style="color:${ink};text-align:right">${o.po_number}</span>` : ''}
-            ${o.tracking_number ? `<span style="color:${muted}">Tracking</span><span style="color:${ink};text-align:right;font:500 9px/1.4 ${mono};letter-spacing:0.04em">${o.tracking_number}</span>` : ''}
+            ${slipTracking ? `<span style="color:${muted}">Tracking</span><span style="color:${ink};text-align:right;font:500 9px/1.4 ${mono};letter-spacing:0.04em">${slipTracking}</span>` : ''}
           </div>
         </div>
       </div>
@@ -12141,7 +12530,7 @@ async function generateOrderPackingSlipHtml(orderId) {
         </div>
         <div>
           <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Delivery</div>
-          <div style="font:500 11px/1.2 ${sans};color:${ink}">${o.shipping_carrier || '\u2014'}</div>
+          <div style="font:500 11px/1.2 ${sans};color:${ink}">${slipCarrier || '\u2014'}</div>
           <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${deliveryLabel}</div>
           ${o.sales_rep_name ? `<div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:4px">Rep: ${o.sales_rep_name}</div>` : ''}
           ${isPickup ? `<div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Pickup &middot; Mon&ndash;Fri &middot; 7a&ndash;4p PT</div>` : ''}
@@ -12158,17 +12547,20 @@ async function generateOrderPackingSlipHtml(orderId) {
           <span style="text-align:right">B/O</span>
           <span style="text-align:right">Cartons</span>
         </div>
-        ${items.rows.map((i, idx) => {
+        ${renderRows.map((i, idx) => {
           const isUnit = i.sell_by === 'unit';
-          const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
-          const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
-          const itemWeight = i.weight_per_box_lbs ? (parseFloat(i.weight_per_box_lbs) * i.num_boxes).toFixed(1) : null;
+          const shipQty = rowShipped(i);
+          const boQty = rowBackordered(i);
+          const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : (i.sqft_needed && i.num_boxes ? parseFloat(i.sqft_needed) / i.num_boxes : null);
+          // Coverage reflects the boxes on THIS slip (shipped qty), not the whole order line.
+          const totalSqft = sqftPerBox ? sqftPerBox * shipQty : (i.sqft_needed && !shipment ? parseFloat(i.sqft_needed) : null);
+          const itemWeight = i.weight_per_box_lbs ? (parseFloat(i.weight_per_box_lbs) * shipQty).toFixed(1) : null;
           const swatchColor = swatchColors[idx % swatchColors.length];
           const desc = i.collection || i.product_name || '\u2014';
           const detail = [i.color, i.variant_name].filter(Boolean).join(' \u00b7 ');
           const skuCode = i.internal_sku || '';
           const catVendor = [i.category_name, i.vendor_name].filter(Boolean).join(' \u00b7 ');
-          const isLast = idx === items.rows.length - 1;
+          const isLast = idx === renderRows.length - 1;
           return `<div style="display:grid;grid-template-columns:32px 1fr 70px 60px 60px 44px 70px;gap:8px;padding:12px 0;border-bottom:${isLast ? 'none' : `1px solid ${ink}11`};align-items:flex-start">
             <div style="width:28px;height:28px;background:${swatchColor};flex-shrink:0;border:0.5px solid ${ink}22"></div>
             <div>
@@ -12179,10 +12571,10 @@ async function generateOrderPackingSlipHtml(orderId) {
             </div>
             <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink}">${isUnit ? '\u2014' : (totalSqft ? totalSqft.toFixed(1) + ' sqft' : '\u2014')}</div>
             <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink}">${i.num_boxes}</div>
-            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink}">${i.num_boxes}</div>
-            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${muted}">0</div>
+            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink}">${shipQty}</div>
+            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${boQty ? accent : muted}">${boQty}</div>
             <div style="text-align:right">
-              <div style="font:400 11px/1.2 ${serif};color:${ink}">${i.num_boxes}</div>
+              <div style="font:400 11px/1.2 ${serif};color:${ink}">${shipQty}</div>
               ${itemWeight ? `<div style="font:400 9px/1.4 ${sans};color:${muted};margin-top:2px">${itemWeight} lbs</div>` : ''}
             </div>
           </div>`;
@@ -12239,7 +12631,7 @@ async function generateOrderPackingSlipHtml(orderId) {
     </div>
   </body></html>`;
 
-  return { html, filename: `packing-slip-${o.order_number}.pdf` };
+  return { html, filename: `packing-slip-${shipment ? shipment.shipment_number : o.order_number}.pdf` };
 }
 
 async function generateOrderInvoiceHtml(orderId) {
@@ -12318,6 +12710,19 @@ app.get('/api/staff/orders/:id/packing-slip', staffDocAuth, async (req, res) => 
   try {
     const result = await generateOrderPackingSlipHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Per-shipment packing slip (scoped to one shipment's lines/quantities)
+app.get('/api/staff/shipments/:id/packing-slip', staffDocAuth, async (req, res) => {
+  try {
+    const s = await pool.query('SELECT order_id FROM shipments WHERE id = $1', [req.params.id]);
+    if (!s.rows.length) return res.status(404).json({ error: 'Shipment not found' });
+    const result = await generateOrderPackingSlipHtml(s.rows[0].order_id, req.params.id);
+    if (!result) return res.status(404).json({ error: 'Shipment not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -14765,7 +15170,7 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, tracking_number, carrier, shipped_at, cancel_reason } = req.body;
-    const validStatuses = ['pending', 'confirmed', 'ready_for_pickup', 'shipped', 'delivered', 'cancelled', 'refunded'];
+    const validStatuses = ['pending', 'confirmed', 'processing', 'ready_for_pickup', 'shipped', 'delivered', 'cancelled', 'refunded'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
@@ -17031,6 +17436,173 @@ app.get('/api/rep/orders/:id/activity', repAuth, async (req, res) => {
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ==================== Rep Fulfillment / Shipments ====================
+// Same shared helpers as the admin shipment endpoints; rep-scoped by ownership
+// (order.sales_rep_id = req.rep.id). Rep actor writes created_by_name only
+// (reps aren't in staff_accounts, so created_by has no matching FK target).
+
+function repActor(req) { return { id: req.rep.id, name: req.rep.first_name + ' ' + req.rep.last_name }; }
+
+app.get('/api/rep/orders/:id/shipments', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ord = await pool.query('SELECT id, fulfillment_status, status, sales_rep_id FROM orders WHERE id = $1', [id]);
+    if (!ord.rows.length || ord.rows[0].sales_rep_id !== req.rep.id) return res.status(404).json({ error: 'Order not found' });
+    const [shipments, fulfillment] = await Promise.all([
+      getShipmentsForOrder(pool, id),
+      getShipmentFulfillment(pool, id),
+    ]);
+    res.json({ order_status: ord.rows[0].status, fulfillment_status: ord.rows[0].fulfillment_status, shipments, fulfillment });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/rep/orders/:id/shipments', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    await client.query('BEGIN');
+    const ord = await client.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2 FOR UPDATE', [id, req.rep.id]);
+    if (!ord.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const order = ord.rows[0];
+    if (['cancelled', 'refunded'].includes(order.status)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Cannot create shipments on a ' + order.status + ' order' }); }
+    const actor = repActor(req);
+    const { shipment, lineCount } = await createShipmentCore(client, order, req.body, actor);
+    const fx = await afterShipmentChange(client, id, req.rep.id);
+    await logOrderActivity(client, id, 'shipment_created', actor.id, actor.name,
+      { shipment_number: shipment.shipment_number, lines: lineCount, status: shipment.status,
+        ...(shipment.tracking_number ? { tracking_number: shipment.tracking_number, carrier: shipment.carrier } : {}) });
+    await client.query('COMMIT');
+    fireShipmentTransition(fx, id, req.rep.id);
+    res.json({ shipment, fulfillment_status: fx && fx.fulfillment_status, order_status: fx && fx.status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
+app.post('/api/rep/orders/:id/shipments/ship-remaining', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    await client.query('BEGIN');
+    const ord = await client.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2 FOR UPDATE', [id, req.rep.id]);
+    if (!ord.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const order = ord.rows[0];
+    if (['cancelled', 'refunded'].includes(order.status)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Cannot ship a ' + order.status + ' order' }); }
+    const fulfillment = await getShipmentFulfillment(client, id);
+    const items = fulfillment.filter(f => f.remaining > 0).map(f => ({ order_item_id: f.order_item_id, qty_boxes: f.remaining }));
+    if (!items.length) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Nothing left to ship' }); }
+    const actor = repActor(req);
+    const { shipment, lineCount } = await createShipmentCore(client, order, { ...req.body, items, mark_shipped: true }, actor);
+    const fx = await afterShipmentChange(client, id, req.rep.id);
+    await logOrderActivity(client, id, 'shipment_created', actor.id, actor.name,
+      { shipment_number: shipment.shipment_number, lines: lineCount, status: shipment.status, ship_all: true,
+        ...(shipment.tracking_number ? { tracking_number: shipment.tracking_number, carrier: shipment.carrier } : {}) });
+    await client.query('COMMIT');
+    fireShipmentTransition(fx, id, req.rep.id);
+    res.json({ shipment, fulfillment_status: fx && fx.fulfillment_status, order_status: fx && fx.status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.httpStatus) return res.status(err.httpStatus).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
+app.put('/api/rep/orders/:id/shipments/:sid', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, sid } = req.params;
+    const { status, action, carrier, service_level, tracking_number, notes,
+      package_count, total_weight_lbs, shipping_cost, shipped_at, delivered_at } = req.body;
+    await client.query('BEGIN');
+    const own = await client.query('SELECT id FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    if (!own.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const shipRes = await client.query('SELECT * FROM shipments WHERE id = $1 AND order_id = $2 FOR UPDATE', [sid, id]);
+    if (!shipRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Shipment not found' }); }
+    const shipment = shipRes.rows[0];
+    if (shipment.status === 'cancelled') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Shipment is cancelled' }); }
+
+    const actionMap = { pack: 'packing', ship: 'shipped', deliver: 'delivered' };
+    let target = status || actionMap[action] || shipment.status;
+    if (!['packing', 'shipped', 'delivered'].includes(target)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid shipment status' }); }
+
+    const newCarrier = carrier !== undefined ? carrier : shipment.carrier;
+    const newTracking = tracking_number !== undefined ? tracking_number : shipment.tracking_number;
+    if (target === 'shipped' && shipment.delivery_method === 'shipping' && !newTracking) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Tracking number is required to ship a shipping shipment' }); }
+
+    let newShippedAt = shipment.shipped_at;
+    let newDeliveredAt = shipment.delivered_at;
+    if (target === 'shipped') { if (!newShippedAt) newShippedAt = shipped_at || new Date(); newDeliveredAt = null; }
+    else if (target === 'delivered') { if (!newShippedAt) newShippedAt = new Date(); newDeliveredAt = delivered_at || new Date(); }
+    else { newShippedAt = null; newDeliveredAt = null; }
+    const trackingUrl = newTracking ? getTrackingUrl(newCarrier, newTracking) : null;
+
+    const upd = await client.query(
+      `UPDATE shipments SET status=$1, carrier=$2, service_level=$3, tracking_number=$4, tracking_url=$5,
+         notes=$6, package_count=$7, total_weight_lbs=$8, shipping_cost=$9, shipped_at=$10, delivered_at=$11,
+         updated_at=NOW() WHERE id=$12 RETURNING *`,
+      [target, newCarrier, service_level !== undefined ? service_level : shipment.service_level,
+       newTracking, trackingUrl, notes !== undefined ? notes : shipment.notes,
+       package_count !== undefined ? package_count : shipment.package_count,
+       total_weight_lbs !== undefined ? total_weight_lbs : shipment.total_weight_lbs,
+       shipping_cost !== undefined ? shipping_cost : shipment.shipping_cost,
+       newShippedAt, newDeliveredAt, sid]);
+
+    if (['shipped', 'delivered'].includes(target) && newTracking) {
+      await client.query('UPDATE orders SET tracking_number=$1, shipping_carrier=COALESCE($2, shipping_carrier) WHERE id=$3', [newTracking, newCarrier || null, id]);
+    }
+
+    const actor = repActor(req);
+    const fx = await afterShipmentChange(client, id, req.rep.id);
+    await logOrderActivity(client, id, 'shipment_updated', actor.id, actor.name,
+      { shipment_number: shipment.shipment_number, from: shipment.status, to: target,
+        ...(newTracking ? { tracking_number: newTracking, carrier: newCarrier } : {}) });
+    await client.query('COMMIT');
+    fireShipmentTransition(fx, id, req.rep.id);
+    res.json({ shipment: upd.rows[0], fulfillment_status: fx && fx.fulfillment_status, order_status: fx && fx.status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
+app.post('/api/rep/orders/:id/shipments/:sid/cancel', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, sid } = req.params;
+    await client.query('BEGIN');
+    const own = await client.query('SELECT id FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    if (!own.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const shipRes = await client.query('SELECT * FROM shipments WHERE id = $1 AND order_id = $2 FOR UPDATE', [sid, id]);
+    if (!shipRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Shipment not found' }); }
+    const shipment = shipRes.rows[0];
+    if (shipment.status === 'cancelled') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Already cancelled' }); }
+    await client.query("UPDATE shipments SET status='cancelled', updated_at=NOW() WHERE id=$1", [sid]);
+    const actor = repActor(req);
+    const fx = await afterShipmentChange(client, id, req.rep.id);
+    await logOrderActivity(client, id, 'shipment_cancelled', actor.id, actor.name, { shipment_number: shipment.shipment_number });
+    await client.query('COMMIT');
+    res.json({ ok: true, fulfillment_status: fx && fx.fulfillment_status, order_status: fx && fx.status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
+// Rep per-shipment packing slip (ownership-scoped)
+app.get('/api/rep/shipments/:id/packing-slip', repAuth, async (req, res) => {
+  try {
+    const s = await pool.query(
+      `SELECT s.order_id FROM shipments s JOIN orders o ON o.id = s.order_id
+        WHERE s.id = $1 AND o.sales_rep_id = $2`, [req.params.id, req.rep.id]);
+    if (!s.rows.length) return res.status(404).json({ error: 'Shipment not found' });
+    const result = await generateOrderPackingSlipHtml(s.rows[0].order_id, req.params.id);
+    if (!result) return res.status(404).json({ error: 'Shipment not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // ==================== Order Documents ====================
