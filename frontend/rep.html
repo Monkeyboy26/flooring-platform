@@ -18179,7 +18179,7 @@
       // Saved view definitions — filter the loaded orders client-side
       const viewFilters = {
         'needs-me': o => ['pending'].includes(o.status) || (o.amount_paid && parseFloat(o.amount_paid) === 0 && o.status !== 'cancelled'),
-        'fulfillment': o => ['confirmed', 'processing', 'shipped'].includes(o.status),
+        'fulfillment': o => ['confirmed', 'shipped'].includes(o.status),
         'awaiting-pay': o => o.status !== 'cancelled' && o.status !== 'delivered' && (!o.amount_paid || parseFloat(o.amount_paid) < parseFloat(o.total)),
         'delivered': o => o.status === 'delivered',
         'mine': () => true,
@@ -18351,7 +18351,6 @@
                   : o.delivery_method === 'pickup' && o.status === 'delivered' ? 'Picked up'
                   : o.status === 'pending' ? 'Pending'
                   : o.status === 'confirmed' ? 'Confirmed'
-                  : o.status === 'processing' ? 'Processing'
                   : o.status === 'shipped' ? 'In transit'
                   : o.status === 'delivered' ? 'Delivered'
                   : o.status === 'cancelled' ? 'Cancelled'
@@ -18359,8 +18358,7 @@
                 // Build descriptive step text
                 const stepText = o.status === 'pending' && pay === 'unpaid' ? 'Awaiting payment'
                   : o.status === 'pending' ? 'Awaiting confirmation'
-                  : o.status === 'confirmed' ? (o.delivery_method === 'pickup' ? 'Ready for pickup' : 'Awaiting fulfillment')
-                  : o.status === 'processing' ? (o.delivery_method === 'pickup' ? 'Ready for pickup' : 'In fulfillment')
+                  : o.status === 'confirmed' ? (o.delivery_method === 'pickup' ? 'Ready for pickup' : 'Processing')
                   : o.status === 'shipped' ? (o.delivery_method === 'pickup' ? 'Customer notified' : o.shipping_method === 'ltl_freight' ? 'LTL freight' : 'Parcel shipping')
                   : o.status === 'delivered' ? 'Closed'
                   : o.status === 'cancelled' ? 'Cancelled'
@@ -18669,286 +18667,6 @@
           <span className="rov-row-label">{l}</span>
           <span className="rov-row-value" style={c ? { color: c } : {}}>{v}</span>
         </div>
-      );
-    }
-
-    // ========== RepFulfillmentPanel ==========
-    // Shipment management for shipping orders: per-line fulfillment summary,
-    // shipment list with pack/ship/deliver/cancel actions, and a builder to
-    // create split/partial shipments. Backed by /api/rep/orders/:id/shipments.
-    // Rep parity with the admin FulfillmentPanel (adapted to rod-* styling).
-    const REP_CARRIER_OPTIONS = ['UPS', 'FedEx', 'USPS', 'FedEx Freight', 'XPO Logistics', 'R+L Carriers', 'SAIA', 'Old Dominion', 'Other'];
-
-    function RepFulfillmentPanel({ editId, order, onOrderChange, setDocPreview }) {
-      const [data, setData] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [busy, setBusy] = useState(false);
-      const [err, setErr] = useState('');
-      const [building, setBuilding] = useState(false);
-      const [ship, setShip] = useState({ carrier: '', tracking_number: '', service_level: '', notes: '', mark_shipped: false });
-      const [qtys, setQtys] = useState({});
-
-      const load = async () => {
-        try {
-          const d = await repFetch('/api/rep/orders/' + editId + '/shipments');
-          setData(d);
-        } catch (e) { setErr(e.message || 'Failed to load shipments'); }
-        setLoading(false);
-      };
-      useEffect(() => { load(); }, [editId]);
-
-      const refreshAll = async () => { await load(); if (onOrderChange) await onOrderChange(); };
-
-      const openBuilder = () => {
-        const init = {};
-        (data.fulfillment || []).forEach(f => { if (f.remaining > 0) init[f.order_item_id] = f.remaining; });
-        setQtys(init);
-        setShip({ carrier: '', tracking_number: '', service_level: '', notes: '', mark_shipped: false });
-        setErr('');
-        setBuilding(true);
-      };
-
-      const submitShipment = async () => {
-        const itemsPayload = Object.entries(qtys)
-          .map(([order_item_id, q]) => ({ order_item_id, qty_boxes: parseInt(q, 10) || 0 }))
-          .filter(l => l.qty_boxes > 0);
-        if (!itemsPayload.length) { setErr('Select at least one item to ship'); return; }
-        if (ship.mark_shipped && !ship.tracking_number) { setErr('Tracking number is required to ship now'); return; }
-        setBusy(true); setErr('');
-        try {
-          await repFetch('/api/rep/orders/' + editId + '/shipments', {
-            method: 'POST',
-            body: JSON.stringify({ items: itemsPayload, carrier: ship.carrier || null,
-              tracking_number: ship.tracking_number || null, service_level: ship.service_level || null,
-              notes: ship.notes || null, mark_shipped: ship.mark_shipped })
-          });
-          setBuilding(false);
-          await refreshAll();
-        } catch (e) { setErr(e.message || 'Failed to create shipment'); }
-        setBusy(false);
-      };
-
-      const shipRemaining = async () => {
-        const carrier = prompt('Carrier for the shipment (e.g. FedEx):', 'FedEx');
-        if (carrier === null) return;
-        const tracking = prompt('Tracking number:');
-        if (!tracking) { alert('Tracking number is required.'); return; }
-        setBusy(true); setErr('');
-        try {
-          await repFetch('/api/rep/orders/' + editId + '/shipments/ship-remaining', {
-            method: 'POST', body: JSON.stringify({ carrier, tracking_number: tracking })
-          });
-          await refreshAll();
-        } catch (e) { setErr(e.message || 'Failed to ship remaining'); }
-        setBusy(false);
-      };
-
-      const transition = async (sid, action, shipment) => {
-        let body = { action };
-        if (action === 'ship' && shipment.delivery_method === 'shipping' && !shipment.tracking_number) {
-          const carrier = prompt('Carrier:', shipment.carrier || 'FedEx');
-          if (carrier === null) return;
-          const tracking = prompt('Tracking number:');
-          if (!tracking) { alert('Tracking number is required to ship.'); return; }
-          body.carrier = carrier; body.tracking_number = tracking;
-        }
-        setBusy(true); setErr('');
-        try {
-          await repFetch('/api/rep/orders/' + editId + '/shipments/' + sid, {
-            method: 'PUT', body: JSON.stringify(body)
-          });
-          await refreshAll();
-        } catch (e) { setErr(e.message || 'Action failed'); }
-        setBusy(false);
-      };
-
-      const cancelShipment = async (sid, num) => {
-        if (!confirm('Cancel shipment ' + num + '? Its boxes return to unshipped.')) return;
-        setBusy(true); setErr('');
-        try {
-          await repFetch('/api/rep/orders/' + editId + '/shipments/' + sid + '/cancel', { method: 'POST' });
-          await refreshAll();
-        } catch (e) { setErr(e.message || 'Failed to cancel'); }
-        setBusy(false);
-      };
-
-      const openShipDoc = async (sid, num) => {
-        try {
-          const url = await repOpenDoc('/api/rep/shipments/' + sid + '/packing-slip?preview=true');
-          setDocPreview({ url, title: 'Packing Slip ' + num });
-        } catch (e) { alert('Failed to load packing slip'); }
-      };
-
-      const shipChip = (s) => ({
-        packing: { bg: '#e0e7ff', fg: '#4f46e5' },
-        shipped: { bg: '#dbeafe', fg: '#2563eb' },
-        delivered: { bg: 'rgba(58,122,78,0.16)', fg: 'var(--rod-green)' },
-        cancelled: { bg: 'rgba(197,71,49,0.12)', fg: 'var(--rod-red)' },
-      }[s] || { bg: 'var(--rod-warm)', fg: 'var(--rod-muted)' });
-
-      if (loading) return (
-        <section className="rod-card"><div className="rod-card-header"><span className="rod-card-title">Shipments</span></div>
-          <div style={{ padding: '14px 20px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading shipments…</div></section>
-      );
-      if (!data) return (
-        <section className="rod-card"><div className="rod-card-header"><span className="rod-card-title">Shipments</span></div>
-          <div style={{ padding: '14px 20px', fontSize: '0.8125rem', color: 'var(--rod-red)' }}>{err || 'Unavailable'}</div></section>
-      );
-
-      const fulfillment = data.fulfillment || [];
-      const shipments = data.shipments || [];
-      const anyRemaining = fulfillment.some(f => f.remaining > 0);
-      const anyBackordered = fulfillment.some(f => f.backordered > 0);
-      const fs = data.fulfillment_status || order.fulfillment_status;
-      const fsChip = fs === 'fulfilled' ? { bg: 'rgba(58,122,78,0.16)', fg: 'var(--rod-green)', label: 'Fulfilled' }
-        : fs === 'partial' ? { bg: '#e0e7ff', fg: '#4f46e5', label: 'Partial' }
-        : { bg: 'var(--rod-warm)', fg: 'var(--rod-muted)', label: 'Unfulfilled' };
-      const th = { padding: '0.35rem 0.5rem', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-muted)' };
-      const td = { padding: '0.4rem 0.5rem', font: '400 13px/1.3 Inter, sans-serif', color: 'var(--rod-ink)' };
-
-      return (
-        <section className="rod-card">
-          <div className="rod-card-header">
-            <span className="rod-card-title">Shipments{' '}
-              <span style={{ background: fsChip.bg, color: fsChip.fg, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px', marginLeft: 6, verticalAlign: 'middle' }}>{fsChip.label}</span>
-            </span>
-            {anyRemaining && (
-              <div className="rod-card-actions">
-                <button className="rod-mini-btn" onClick={openBuilder} disabled={busy}>+ New shipment</button>
-                <button className="rod-mini-btn primary" onClick={shipRemaining} disabled={busy}>Ship all remaining</button>
-              </div>
-            )}
-          </div>
-          <div className="rod-card-body-padded">
-            {err && <div style={{ color: 'var(--rod-red)', fontSize: '0.8125rem', marginBottom: '0.5rem' }}>{err}</div>}
-
-            {/* Per-line fulfillment summary */}
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', borderBottom: '0.5px solid var(--rod-border)' }}>
-                    <th style={th}>Item</th>
-                    <th style={{ ...th, textAlign: 'right' }}>Ordered</th>
-                    <th style={{ ...th, textAlign: 'right' }}>Shipped</th>
-                    <th style={{ ...th, textAlign: 'right' }}>Packing</th>
-                    <th style={{ ...th, textAlign: 'right' }}>Backordered</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {fulfillment.map(f => (
-                    <tr key={f.order_item_id} style={{ borderBottom: '0.5px solid var(--rod-border)' }}>
-                      <td style={td}>
-                        <div style={{ fontWeight: 500 }}>{f.product_name}</div>
-                        {f.description && <div style={{ color: 'var(--rod-muted)', fontSize: '0.7rem' }}>{f.description}</div>}
-                      </td>
-                      <td style={{ ...td, textAlign: 'right' }}>{f.ordered}</td>
-                      <td style={{ ...td, textAlign: 'right', color: f.shipped ? 'var(--rod-green)' : 'var(--rod-muted)' }}>{f.shipped}</td>
-                      <td style={{ ...td, textAlign: 'right', color: f.packing ? '#4f46e5' : 'var(--rod-muted)' }}>{f.packing}</td>
-                      <td style={{ ...td, textAlign: 'right', color: f.backordered ? '#a87935' : 'var(--rod-muted)', fontWeight: f.backordered ? 600 : 400 }}>{f.backordered}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {anyBackordered && !shipments.length && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--rod-muted)', marginTop: '0.75rem' }}>No shipments yet. Create one to begin fulfillment.</div>
-            )}
-
-            {/* Shipment builder */}
-            {building && (
-              <div className="rod-inline-panel" style={{ marginTop: '1rem' }}>
-                <div className="rod-field-label" style={{ marginBottom: '0.75rem' }}>New Shipment</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0.75rem' }}>
-                  <thead>
-                    <tr style={{ textAlign: 'left' }}>
-                      <th style={th}>Item</th>
-                      <th style={{ ...th, textAlign: 'right' }}>Remaining</th>
-                      <th style={{ ...th, textAlign: 'right', width: 110 }}>Ship qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fulfillment.filter(f => f.remaining > 0).map(f => (
-                      <tr key={f.order_item_id}>
-                        <td style={td}>{f.product_name}</td>
-                        <td style={{ ...td, textAlign: 'right' }}>{f.remaining}</td>
-                        <td style={{ ...td, textAlign: 'right' }}>
-                          <input className="rod-input" type="number" min="0" max={f.remaining}
-                            value={qtys[f.order_item_id] ?? 0}
-                            onChange={e => setQtys({ ...qtys, [f.order_item_id]: Math.max(0, Math.min(f.remaining, parseInt(e.target.value, 10) || 0)) })}
-                            style={{ textAlign: 'right', padding: '0.25rem 0.4rem' }} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="resp-grid-3" style={{ gap: '0.75rem' }}>
-                  <div>
-                    <label className="rod-field-label">Carrier</label>
-                    <select className="rod-input" value={ship.carrier} onChange={e => setShip({ ...ship, carrier: e.target.value })}>
-                      <option value="">Select…</option>
-                      {REP_CARRIER_OPTIONS.map(c => <option key={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="rod-field-label">Tracking #{ship.mark_shipped ? ' *' : ''}</label>
-                    <input className="rod-input" type="text" value={ship.tracking_number} onChange={e => setShip({ ...ship, tracking_number: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="rod-field-label">Service level</label>
-                    <input className="rod-input" type="text" placeholder="Ground, LTL…" value={ship.service_level} onChange={e => setShip({ ...ship, service_level: e.target.value })} />
-                  </div>
-                </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', color: 'var(--rod-ink)', marginTop: '0.75rem' }}>
-                  <input type="checkbox" checked={ship.mark_shipped} onChange={e => setShip({ ...ship, mark_shipped: e.target.checked })} />
-                  Mark shipped now (otherwise created as "packing")
-                </label>
-                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
-                  <button className="rod-mini-btn primary" onClick={submitShipment} disabled={busy}>{busy ? 'Saving…' : 'Create shipment'}</button>
-                  <button className="rod-mini-btn" onClick={() => setBuilding(false)} disabled={busy}>Cancel</button>
-                </div>
-              </div>
-            )}
-
-            {/* Shipments list */}
-            {shipments.map(s => {
-              const chip = shipChip(s.status);
-              return (
-                <div key={s.id} style={{ border: '0.5px solid var(--rod-border)', padding: '0.75rem', marginTop: '0.75rem', opacity: s.status === 'cancelled' ? 0.6 : 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <strong style={{ fontSize: '0.8125rem' }}>{s.shipment_number}</strong>
-                      <span style={{ background: chip.bg, color: chip.fg, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px' }}>{s.status}</span>
-                      {s.delivery_method === 'pickup' && <span style={{ background: 'var(--rod-warm)', color: 'var(--rod-muted)', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '2px 6px' }}>pickup</span>}
-                    </div>
-                    {s.status !== 'cancelled' && (
-                      <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                        {s.status === 'packing' && <button className="rod-mini-btn primary" onClick={() => transition(s.id, 'ship', s)} disabled={busy}>Mark shipped</button>}
-                        {s.status === 'shipped' && <button className="rod-mini-btn primary" onClick={() => transition(s.id, 'deliver', s)} disabled={busy}>Mark delivered</button>}
-                        {s.status === 'delivered' && <button className="rod-mini-btn" onClick={() => transition(s.id, 'ship', s)} disabled={busy}>↩ Shipped</button>}
-                        <button className="rod-mini-btn" onClick={() => openShipDoc(s.id, s.shipment_number)}>Packing slip</button>
-                        <button className="rod-mini-btn danger" onClick={() => cancelShipment(s.id, s.shipment_number)} disabled={busy}>Cancel</button>
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: 'var(--rod-muted)' }}>
-                    {s.items.map(it => (it.collection || it.product_name) + ' ×' + it.qty_boxes).join(' · ')}
-                  </div>
-                  {(s.carrier || s.tracking_number) && (
-                    <div style={{ marginTop: '0.3rem', fontSize: '0.75rem', color: 'var(--rod-muted)' }}>
-                      {s.carrier && <span>{s.carrier}{s.service_level ? ' · ' + s.service_level : ''} · </span>}
-                      {s.tracking_number && (s.tracking_url
-                        ? <a href={s.tracking_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--rod-accent)' }}>{s.tracking_number} →</a>
-                        : <span>{s.tracking_number}</span>)}
-                      {s.shipped_at && <span> · shipped {new Date(s.shipped_at).toLocaleDateString()}</span>}
-                      {s.delivered_at && <span> · delivered {new Date(s.delivered_at).toLocaleDateString()}</span>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
       );
     }
 
@@ -19306,15 +19024,10 @@
 
       const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sqft' : 'boxes';
       const isPickup = order.delivery_method === 'pickup';
-      // Shipping orders are driven by the Shipments panel once confirmed — the only
-      // manual step is pending → confirmed; processing / shipped / delivered follow
-      // from shipment activity. Pickup keeps the original manual flow.
-      const statusFlow = isPickup
-        ? { pending: 'confirmed', confirmed: 'shipped', shipped: 'delivered' }
-        : { pending: 'confirmed' };
+      const statusFlow = { pending: 'confirmed', confirmed: 'shipped', shipped: 'delivered' };
       const statusLabels = isPickup
-        ? { pending: 'Pending', confirmed: 'Confirmed', processing: 'Processing', shipped: 'Ready for Pickup', delivered: 'Picked Up', cancelled: 'Cancelled', refunded: 'Refunded' }
-        : { pending: 'Pending', confirmed: 'Confirmed', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled', refunded: 'Refunded' };
+        ? { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Ready for Pickup', delivered: 'Picked Up', cancelled: 'Cancelled', refunded: 'Refunded' }
+        : { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled', refunded: 'Refunded' };
       const nextStatus = statusFlow[order.status];
       const canCancel = order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'refunded';
 
@@ -19332,7 +19045,7 @@
         : (orderTotal > 0 && amountPaid >= orderTotal);
       const sentPOCount = purchaseOrders.filter(po => po.status !== 'draft').length;
       const posDone = purchaseOrders.length > 0 && sentPOCount === purchaseOrders.length;
-      const inFulfillment = ['confirmed', 'processing', 'ready_for_pickup', 'shipped'].includes(order.status);
+      const inFulfillment = ['confirmed', 'ready_for_pickup', 'shipped'].includes(order.status);
       const isDeliveredOrder = order.status === 'delivered';
       const orderStages = [
         { label: 'Placed', done: true, meta: rodFmtDT(order.created_at) },
@@ -19343,9 +19056,7 @@
             ? sentPOCount + ' of ' + purchaseOrders.length + ' transmitted'
             : (order.status === 'pending' ? 'Generated on confirmation' : 'No POs') },
         { label: 'In fulfillment', done: isDeliveredOrder, meta:
-            order.fulfillment_status === 'fulfilled' ? (order.tracking_number ? (order.shipping_carrier ? order.shipping_carrier + ' · ' : '') + order.tracking_number : 'Shipped')
-            : order.fulfillment_status === 'partial' ? 'Partially shipped'
-            : order.tracking_number ? (order.shipping_carrier ? order.shipping_carrier + ' · ' : '') + order.tracking_number
+            order.tracking_number ? (order.shipping_carrier ? order.shipping_carrier + ' · ' : '') + order.tracking_number
             : isPickup ? 'Will-call · Anaheim' : inFulfillment ? 'Awaiting fulfillment' : 'Pending' },
         { label: isPickup ? 'Picked up' : 'Delivered', done: isDeliveredOrder, meta:
             isDeliveredOrder ? 'Complete' : 'Pending' },
@@ -19373,7 +19084,6 @@
         : order.status === 'refunded' ? { tone: 'hot', label: 'Refunded' }
         : isDeliveredOrder ? { tone: 'done', label: isPickup ? 'Closed · Picked up' : 'Closed · Delivered' }
         : order.status === 'shipped' ? { tone: 'live', label: isPickup ? 'Ready for pickup' : 'Shipped · In transit' }
-        : order.status === 'processing' ? { tone: 'live', label: 'Processing · In fulfillment' }
         : order.status === 'confirmed' ? { tone: 'live', label: 'Processed · In fulfillment' }
         : { tone: 'soft', label: 'Pending' };
       // Map each order line to the vendor PO that carries it
@@ -20075,11 +19785,6 @@
                   </div>
                 )}
               </RodCard>
-
-              {/* Shipments — split/partial fulfillment (shipping orders past pending) */}
-              {order.delivery_method === 'shipping' && !['pending', 'cancelled', 'refunded'].includes(order.status) && (
-                <RepFulfillmentPanel editId={editId} order={order} onOrderChange={load} setDocPreview={setDocPreview} />
-              )}
 
               {/* Activity */}
               <RodCard title={'Activity' + (orderActivity ? ' · ' + orderActivity.length : '')} action="Full log →" action2="+ Add note" onAction={loadOrderActivity} onAction2={() => setShowAddNote(true)}>
