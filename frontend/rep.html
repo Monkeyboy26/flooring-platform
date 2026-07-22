@@ -2883,146 +2883,7 @@
       color: var(--stone-500);
     }
 
-    /* ===== Rep Catalog Redesign (rc-) ===== */
-
-    /* Layout: single column (no sidebar) */
-    .rc-layout { min-height: 400px; }
-
-    /* Horizontal filter bar */
-    .rc-filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
-    .rc-filter-bar select { padding: 0.5rem 0.6rem; border: 1px solid var(--stone-300); border-radius: var(--radius-sm); font-size: 0.8125rem; font-family: 'Inter', sans-serif; background: white; color: var(--stone-700); cursor: pointer; min-width: 140px; }
-
-    /* Toolbar */
-    .rc-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; margin-bottom: 0.75rem; }
-    .rc-toolbar-search { flex: 1; min-width: 180px; position: relative; }
-    .rc-toolbar-search input { width: 100%; padding: 0.5rem 0.75rem 0.5rem 2rem; font-size: 0.8125rem; font-family: 'Inter', sans-serif; border: 1px solid var(--stone-300); border-radius: var(--radius-sm); background: white; transition: border-color var(--transition-fast), box-shadow var(--transition-fast); box-sizing: border-box; }
-    .rc-toolbar-search input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,166,104,0.1); }
-    .rc-toolbar-search .rc-search-icon { position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%); color: var(--stone-400); pointer-events: none; }
-    .rc-toolbar-search .rc-clear-search { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--stone-400); cursor: pointer; font-size: 1rem; line-height: 1; padding: 0; }
-    .rc-toolbar-search .rc-clear-search:hover { color: var(--stone-600); }
-    .rc-sort-select { padding: 0.5rem 0.6rem; border: 1px solid var(--stone-300); border-radius: var(--radius-sm); font-size: 0.8125rem; font-family: 'Inter', sans-serif; background: white; color: var(--stone-700); }
-    .rc-result-count { font-size: 0.8rem; color: var(--stone-500); white-space: nowrap; }
-    .rc-per-page { font-size: 0.75rem; color: var(--stone-500); white-space: nowrap; }
-    .rc-per-page select { padding: 0.25rem 0.4rem; border: 1px solid var(--stone-200); border-radius: 4px; font-size: 0.75rem; font-family: 'Inter', sans-serif; margin-left: 0.25rem; }
-
-    /* Active filter pills */
-    .rc-active-filters { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.75rem; align-items: center; }
-    .rc-fpill { display: inline-flex; align-items: center; gap: 0.35rem; background: var(--stone-800); padding: 0.25rem 0.6rem; font-size: 0.7rem; color: white; border-radius: 3px; }
-    .rc-fpill button { background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.5); font-size: 0.8rem; padding: 0; line-height: 1; transition: color 0.15s; }
-    .rc-fpill button:hover { color: white; }
-    .rc-clear-all { background: none; border: none; cursor: pointer; font-size: 0.7rem; color: var(--stone-500); text-decoration: underline; padding: 0; font-family: 'Inter', sans-serif; }
-    .rc-clear-all:hover { color: var(--stone-700); }
-
-    /* Grid */
-    .rc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
-    .rc-card { background: white; border: 1px solid var(--stone-200); border-radius: var(--radius-md); overflow: hidden; cursor: pointer; transition: box-shadow var(--transition-base), transform var(--transition-base); display: flex; flex-direction: column; }
-    .rc-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-3px); }
-    .rc-card-image { position: relative; aspect-ratio: 4/3; overflow: hidden; background: var(--stone-100); }
-    .rc-card-image img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; }
-    .rc-card:hover .rc-card-image img { transform: scale(1.04); }
-    .rc-card-image .rc-no-img { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--stone-400); font-size: 0.8rem; }
-    .rc-vendor-badge { position: absolute; top: 0.5rem; left: 0.5rem; background: rgba(28,25,23,0.7); color: white; padding: 0.125rem 0.45rem; border-radius: var(--radius-full); font-size: 0.6rem; font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; backdrop-filter: blur(4px); }
-    .rc-stock-dot { position: absolute; top: 0.5rem; right: 0.5rem; width: 10px; height: 10px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-    .rc-stock-dot.in_stock { background: #16a34a; }
-    .rc-stock-dot.low_stock { background: #f59e0b; }
-    .rc-stock-dot.out_of_stock { background: #dc2626; }
-    .rc-stock-dot.unknown { background: var(--stone-400); }
-    .rc-card-body { padding: 0.875rem; flex: 1; display: flex; flex-direction: column; }
-    .rc-card-name { font-size: 0.875rem; font-weight: 500; color: var(--stone-800); line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0.15rem; }
-    .rc-card-collection { font-size: 0.65rem; color: var(--stone-500); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.5rem; }
-    .rc-card-price-row { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-    .rc-card-retail { font-size: 0.9375rem; font-weight: 600; color: var(--stone-900); }
-    .rc-card-retail span { font-size: 0.7rem; font-weight: 400; color: var(--stone-500); }
-    .rc-card-cost { font-size: 0.75rem; color: var(--stone-500); }
-    .rc-margin-badge { display: inline-flex; align-items: center; padding: 0.1rem 0.4rem; border-radius: var(--radius-full); font-size: 0.675rem; font-weight: 600; }
-    .rc-margin-badge.high { background: #dcfce7; color: #15803d; }
-    .rc-margin-badge.mid { background: #fef9c3; color: #a16207; }
-    .rc-margin-badge.low { background: #fee2e2; color: #dc2626; }
-    .rc-card-info { display: flex; gap: 0.35rem; margin-bottom: 0.625rem; }
-    .rc-info-pill { font-size: 0.65rem; padding: 0.125rem 0.4rem; background: var(--stone-100); border-radius: var(--radius-full); color: var(--stone-500); }
-    .rc-card-actions { display: flex; gap: 0.4rem; margin-top: auto; padding-top: 0.5rem; border-top: 1px solid var(--stone-100); }
-    .rc-action-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.4rem 0.4rem; font-size: 0.725rem; font-weight: 500; font-family: 'Inter', sans-serif; border: 1px solid var(--stone-200); border-radius: var(--radius-sm); background: white; color: var(--stone-700); cursor: pointer; transition: all var(--transition-fast); white-space: nowrap; }
-    .rc-action-btn:hover { background: var(--stone-50); border-color: var(--stone-400); }
-    .rc-action-btn.primary { background: var(--stone-900); color: white; border-color: var(--stone-900); }
-    .rc-action-btn.primary:hover { background: var(--stone-700); }
-    .rc-action-icon { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--stone-200); border-radius: var(--radius-sm); background: white; color: var(--stone-500); cursor: pointer; transition: all var(--transition-fast); flex-shrink: 0; }
-    .rc-action-icon:hover { background: var(--stone-50); border-color: var(--stone-400); color: var(--stone-700); }
-
-    /* Quick View Modal */
-    .rc-qv-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    .rc-qv { background: white; max-width: 1000px; width: 100%; max-height: 90vh; overflow: hidden; display: grid; grid-template-columns: 1fr 1fr; border-radius: var(--radius-lg); box-shadow: 0 25px 50px rgba(0,0,0,0.25); animation: modal-enter 0.2s ease-out; position: relative; }
-    .rc-qv-close { position: absolute; top: 0.75rem; right: 0.75rem; background: white; border: none; font-size: 1.25rem; cursor: pointer; color: var(--stone-600); z-index: 2; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: var(--shadow-sm); transition: color var(--transition-fast); }
-    .rc-qv-close:hover { color: var(--stone-900); }
-    .rc-qv-gallery { background: var(--stone-50); display: flex; flex-direction: column; overflow: hidden; }
-    .rc-qv-main-img { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 300px; }
-    .rc-qv-main-img img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: pointer; padding: 1rem; }
-    .rc-qv-main-img .rc-no-img { color: var(--stone-400); font-size: 0.875rem; }
-    .rc-qv-thumbs { display: flex; gap: 0.5rem; padding: 0.75rem; overflow-x: auto; border-top: 1px solid var(--stone-200); }
-    .rc-qv-thumb { width: 52px; height: 52px; object-fit: cover; border-radius: 4px; border: 2px solid transparent; cursor: pointer; opacity: 0.6; transition: opacity 0.15s, border-color 0.15s; flex-shrink: 0; }
-    .rc-qv-thumb:hover, .rc-qv-thumb.active { opacity: 1; border-color: var(--stone-800); }
-    .rc-qv-info { padding: 1.5rem; overflow-y: auto; max-height: 90vh; display: flex; flex-direction: column; }
-    .rc-qv-vendor { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--stone-400); margin-bottom: 0.25rem; }
-    .rc-qv-title { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 300; color: var(--stone-900); margin-bottom: 0.15rem; line-height: 1.2; }
-    .rc-qv-meta { font-size: 0.8rem; color: var(--stone-500); margin-bottom: 0.75rem; }
-    .rc-qv-desc { font-size: 0.8rem; color: var(--stone-600); line-height: 1.5; margin-bottom: 1rem; }
-    .rc-pricing-card { background: var(--stone-50); border: 1px solid var(--stone-200); border-radius: var(--radius-sm); padding: 0.75rem; margin-bottom: 1rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
-    .rc-pricing-item label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--stone-400); display: block; margin-bottom: 0.1rem; }
-    .rc-pricing-item span { font-size: 0.9rem; font-weight: 600; color: var(--stone-800); }
-    .rc-section-title { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--stone-500); margin-bottom: 0.4rem; }
-    .rc-sku-table-wrap { max-height: 200px; overflow-y: auto; border: 1px solid var(--stone-200); border-radius: var(--radius-sm); margin-bottom: 1rem; }
-    .rc-sku-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-    .rc-sku-table th { text-align: left; padding: 0.35rem 0.5rem; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--stone-500); border-bottom: 1px solid var(--stone-200); background: var(--stone-50); position: sticky; top: 0; }
-    .rc-sku-table td { padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--stone-100); }
-    .rc-specs-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1rem; padding: 0.625rem; background: var(--stone-50); border-radius: var(--radius-sm); }
-    .rc-spec label { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--stone-400); display: block; }
-    .rc-spec span { font-size: 0.8rem; font-weight: 500; color: var(--stone-700); }
-    .rc-qv-actions { margin-top: auto; display: flex; flex-direction: column; gap: 0.4rem; }
-    .rc-qv-actions .rc-action-btn { padding: 0.6rem; justify-content: center; font-size: 0.8rem; }
-    .rc-qv-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.35); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 1001; font-size: 1rem; transition: background 0.15s; }
-    .rc-qv-nav:hover { background: rgba(0,0,0,0.55); }
-    .rc-qv-nav.prev { left: 0.5rem; }
-    .rc-qv-nav.next { right: 0.5rem; }
-
-    /* Variant pills */
-    .rc-variant-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
-    .rc-variant-pill { width: 48px; height: 48px; border-radius: 6px; border: 2px solid var(--stone-200); cursor: pointer; overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s; padding: 0; background: var(--stone-100); flex-shrink: 0; }
-    .rc-variant-pill img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .rc-variant-pill .rc-pill-init { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.55rem; font-weight: 600; color: var(--stone-500); text-transform: uppercase; line-height: 1.1; text-align: center; padding: 2px; }
-    .rc-variant-pill:hover { border-color: var(--stone-400); }
-    .rc-variant-pill.active { border-color: var(--stone-800); box-shadow: 0 0 0 1px var(--stone-800); }
-    .rc-variant-pill-label { font-size: 0.6rem; color: var(--stone-500); text-align: center; max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 0.15rem; }
-
-    /* Accessories */
-    .rc-accessories-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
-    .rc-accessory-card { display: flex; gap: 0.6rem; padding: 0.5rem; border: 1px solid var(--stone-200); border-radius: var(--radius-sm); background: var(--stone-50); align-items: center; }
-    .rc-accessory-card img { width: 44px; height: 44px; object-fit: cover; border-radius: 4px; flex-shrink: 0; background: white; }
-    .rc-accessory-info { flex: 1; min-width: 0; }
-    .rc-accessory-name { font-size: 0.75rem; font-weight: 500; color: var(--stone-800); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .rc-accessory-meta { font-size: 0.65rem; color: var(--stone-500); }
-    .rc-accessory-prices { text-align: right; flex-shrink: 0; }
-    .rc-accessory-prices .retail { font-size: 0.8rem; font-weight: 600; color: var(--stone-800); }
-    .rc-accessory-prices .cost { font-size: 0.65rem; color: var(--stone-500); }
-
-    /* Expandable section */
-    .rc-expandable-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; margin-bottom: 0.4rem; }
-    .rc-expandable-header:hover .rc-section-title { color: var(--stone-700); }
-    .rc-expand-arrow { font-size: 0.7rem; color: var(--stone-400); transition: transform 0.2s; }
-    .rc-expand-arrow.open { transform: rotate(180deg); }
-
-    /* Simplified table */
-    .rc-table-wrap { overflow-x: auto; }
-    .rc-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-    .rc-table th { text-align: left; padding: 0.5rem 0.75rem; font-size: 0.675rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--stone-500); border-bottom: 2px solid var(--stone-200); background: var(--stone-50); cursor: pointer; user-select: none; white-space: nowrap; transition: color 0.15s; }
-    .rc-table th:hover { color: var(--stone-800); }
-    .rc-table th .rc-sort-arrow { font-size: 0.5rem; margin-left: 0.2rem; vertical-align: middle; }
-    .rc-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--stone-100); vertical-align: middle; }
-    .rc-table tr { cursor: pointer; transition: background 0.1s; }
-    .rc-table tr:hover { background: var(--stone-50); }
-    .rc-table-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; background: var(--stone-100); display: block; }
-    .rc-table-name { font-weight: 500; color: var(--stone-800); }
-    .rc-table-coll { font-size: 0.7rem; color: var(--stone-500); }
-    .rc-table-actions { display: flex; gap: 0.3rem; }
-    .rc-table-actions .rc-action-btn { font-size: 0.7rem; padding: 0.3rem 0.5rem; }
+    /* ===== Rep Catalog — pagination, animations, layout ===== */
 
     /* Smart pagination */
     .rc-pagination { display: flex; align-items: center; justify-content: center; gap: 0.4rem; margin-top: 1.5rem; padding: 1rem 0; }
@@ -3034,16 +2895,17 @@
     .rc-page-num.active { background: var(--stone-900); color: white; border-color: var(--stone-900); }
     .rc-page-ellipsis { width: 2rem; text-align: center; color: var(--stone-400); font-size: 0.8rem; }
 
-    /* Slide-over animations */
+    /* Slide-over animations (used by mobile nav drawer + modals) */
     @keyframes rcatFadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes rcatSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
-    /* Responsive: catalog filter rail + grid collapse */
-    @media (max-width: 1080px) {
-      .rc-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    /* Catalog layout: filter rail + content grid; collapses to a single column on mobile */
+    .rep-catalog-main { display: grid; grid-template-columns: 236px 1fr; gap: 28px; margin-top: 4px; }
+    @media (max-width: 900px) {
+      .rep-catalog-main { grid-template-columns: 1fr; gap: 18px; }
     }
 
-    /* ===== End Rep Catalog Redesign ===== */
+    /* ===== End Rep Catalog ===== */
 
     /* Product detail media */
     .product-media-grid {
@@ -3196,7 +3058,6 @@
       .stat-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
       .filter-bar input[type="text"] { min-width: 160px; }
       .resp-grid-5 { grid-template-columns: repeat(3, 1fr) !important; }
-      .rc-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
     }
 
     /* Primary Mobile */
@@ -3235,25 +3096,6 @@
       .catalog-filters { gap: 0.4rem; }
       .catalog-filters select, .catalog-filters-more select { width: 100%; }
       .catalog-filters-more { gap: 0.4rem; }
-
-      /* Rep catalog redesign mobile */
-      .rc-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
-      .rc-filter-bar select { min-width: unset; flex: 1; }
-      .rc-card-image { aspect-ratio: 1; }
-      .rc-card-body { padding: 0.625rem; }
-      .rc-card-name { font-size: 0.8rem; }
-      .rc-card-actions { flex-wrap: wrap; }
-      .rc-action-btn { font-size: 0.675rem; padding: 0.3rem 0.35rem; }
-      .rc-action-icon { width: 30px; height: 30px; }
-      .rc-qv { grid-template-columns: 1fr; max-width: 95vw; max-height: 95vh; }
-      .rc-qv-gallery { max-height: 40vh; }
-      .rc-qv-main-img { min-height: 200px; }
-      .rc-qv-info { padding: 1rem; }
-      .rc-qv-title { font-size: 1.25rem; }
-      .rc-specs-grid { grid-template-columns: repeat(2, 1fr); }
-      .rc-toolbar { flex-direction: column; align-items: stretch; gap: 0.5rem; }
-      .rc-toolbar-search { min-width: unset; }
-      .rc-qv-nav { display: none; }
 
       /* Media */
       .notification-dropdown { width: calc(100vw - 2rem); max-width: 400px; }
@@ -4473,12 +4315,14 @@
     /* Items row with material swatch */
     .rof-item-row {
       display: grid;
-      grid-template-columns: 36px 1fr auto auto auto auto;
+      grid-template-columns: 36px 1fr 84px 82px 104px 112px;
       gap: 0.75rem;
       align-items: center;
       padding: 0.625rem 0;
       border-bottom: 0.5px solid rgba(28,25,23,0.06);
     }
+    .rof-item-row.rof-nocost,
+    .rof-items-header.rof-nocost { grid-template-columns: 36px 1fr 84px 104px 112px; }
     .rof-item-swatch {
       width: 36px;
       height: 36px;
@@ -4505,7 +4349,7 @@
     }
     .rof-items-header {
       display: grid;
-      grid-template-columns: 36px 1fr auto auto auto auto;
+      grid-template-columns: 36px 1fr 84px 82px 104px 112px;
       gap: 0.75rem;
       padding: 0.375rem 0;
       border-bottom: 0.5px solid rgba(28,25,23,0.12);
@@ -5191,8 +5035,10 @@
       .rof-field-row { grid-template-columns: 1fr; }
       .rof-field-row-3 { grid-template-columns: 1fr; }
       .rof-next-grid { grid-template-columns: 1fr; }
-      .rof-item-row { grid-template-columns: 36px 1fr auto auto; }
-      .rof-items-header { grid-template-columns: 36px 1fr auto auto; }
+      .rof-item-row,
+      .rof-items-header { grid-template-columns: 36px 1fr 60px 60px 84px 76px; gap: 0.5rem; }
+      .rof-item-row.rof-nocost,
+      .rof-items-header.rof-nocost { grid-template-columns: 36px 1fr 60px 84px 76px; }
     }
     @media (max-width: 640px) {
       .rof-container { padding: 0.75rem; }
@@ -5213,8 +5059,10 @@
       .rof-pay-tile { padding: 0.75rem 0.375rem; }
       .rof-pay-tile-icon { font-size: 1.25rem; }
       .rof-pay-tile-label { font-size: 0.4375rem; }
-      .rof-item-row { grid-template-columns: 28px 1fr auto auto; gap: 0.4rem; padding: 0.4rem 0; }
-      .rof-items-header { grid-template-columns: 28px 1fr auto auto; gap: 0.4rem; }
+      .rof-item-row { grid-template-columns: 28px 1fr 48px 48px 64px 60px; gap: 0.4rem; padding: 0.4rem 0; }
+      .rof-items-header { grid-template-columns: 28px 1fr 48px 48px 64px 60px; gap: 0.4rem; }
+      .rof-item-row.rof-nocost,
+      .rof-items-header.rof-nocost { grid-template-columns: 28px 1fr 48px 64px 60px; }
       .rof-item-swatch { width: 28px; height: 28px; }
       .rof-item-swatch img { width: 28px !important; height: 28px !important; }
       .rof-item-name { font-size: 0.6875rem; }
@@ -7449,6 +7297,9 @@
       const [timeline, setTimeline] = useState([]);
       const [timelineLoading, setTimelineLoading] = useState(true);
       const [timelineFilter, setTimelineFilter] = useState('all');
+      const [creditOpen, setCreditOpen] = useState(false);
+      const [creditEntries, setCreditEntries] = useState(null);
+      const [creditLoading, setCreditLoading] = useState(false);
 
       // Parse the composite ID: retail_UUID, trade_UUID, guest_email
       const parseId = (compositeId) => {
@@ -7495,6 +7346,17 @@
             setAddingNote(false);
           })
           .catch(() => setAddingNote(false));
+      };
+
+      const toggleCredit = () => {
+        const next = !creditOpen;
+        setCreditOpen(next);
+        if (next && creditEntries === null && type && ref) {
+          setCreditLoading(true);
+          repFetch('/api/rep/store-credit?type=' + type + '&id=' + encodeURIComponent(ref))
+            .then(data => { setCreditEntries(data.entries || []); setCreditLoading(false); })
+            .catch(() => { setCreditEntries([]); setCreditLoading(false); });
+        }
       };
 
       const timelineConfig = {
@@ -7580,6 +7442,8 @@
                 (parseFloat(stats.open_balance) || 0) > 0 ? { background: '#fef2f2', borderColor: '#fecaca' } : null)}
               {statCard('Available Credit', '$' + (parseFloat(stats.available_credit) || 0).toFixed(2),
                 (parseFloat(stats.available_credit) || 0) > 0 ? { background: '#f0fdf4', borderColor: '#bbf7d0' } : null)}
+              {statCard('Store Credit', '$' + (parseFloat(stats.store_credit_balance) || 0).toFixed(2),
+                (parseFloat(stats.store_credit_balance) || 0) > 0 ? { background: '#eff6ff', borderColor: '#bfdbfe' } : null)}
               {statCard('Open Quotes', (stats.open_quotes_count || 0) + ' ($' + (parseFloat(stats.open_quotes_value) || 0).toFixed(2) + ')')}
               {statCard('Pending Payments', (stats.pending_payments_count || 0) + ' ($' + (parseFloat(stats.pending_payments_total) || 0).toFixed(2) + ')')}
               {customer.customer_type === 'trade'
@@ -7652,6 +7516,48 @@
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Store Credit */}
+          <div className="form-card" style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={toggleCredit}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+                Store Credit {'—'} <span style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500 }}>${(parseFloat(stats && stats.store_credit_balance) || 0).toFixed(2)}</span>
+              </h3>
+              <button className="btn btn-secondary btn-sm" type="button">{creditOpen ? 'Hide history' : 'Show history'}</button>
+            </div>
+            {creditOpen && (
+              <div style={{ marginTop: '1rem' }}>
+                {creditLoading ? (
+                  <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--stone-400)' }}>Loading history...</div>
+                ) : (creditEntries && creditEntries.length > 0) ? (
+                  <div className="table-scroll-wrapper"><table className="rep-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Reason</th>
+                        <th>Order #</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {creditEntries.map((e, i) => (
+                        <tr key={i}>
+                          <td>{e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'}</td>
+                          <td style={{ color: (parseFloat(e.amount) || 0) < 0 ? '#dc2626' : '#16a34a', fontWeight: 500 }}>
+                            {(parseFloat(e.amount) || 0) < 0 ? '−$' : '$'}{Math.abs(parseFloat(e.amount) || 0).toFixed(2)}
+                          </td>
+                          <td>{e.reason || '—'}</td>
+                          <td>{e.order_number || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table></div>
+                ) : (
+                  <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--stone-400)' }}>No store credit activity</div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Order History */}
@@ -8169,6 +8075,8 @@
               {view === 'purchase-orders' && <RepPurchaseOrdersListView navigate={navigate} />}
               {view === 'purchase-order-detail' && <RepPurchaseOrderDetailView navigate={navigate} editId={editId} />}
               {view === 'search-results' && <RepSearchResultsView navigate={navigate} initialQuery={searchQuery} onOpenPalette={() => setShowSearch(true)} />}
+              {view === 'return-flow' && <RepReturnFlowView navigate={navigate} editId={editId} showCost={showCost} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />}
+              {view === 'change-order' && <RepChangeOrderView navigate={navigate} editId={editId} showCost={showCost} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />}
             </div>
           </div>
           {showSearch && <GlobalSearchPalette
@@ -8670,9 +8578,16 @@
         const current = {
           sku_id: activeSku.sku_id, variant_name: activeSku.variant_name,
           primary_image: skuMedia.length > 0 ? skuMedia[0].url : null,
-          retail_price: activeSku.retail_price, cost: activeSku.cost, margin_pct: activeSku.margin_pct
+          retail_price: activeSku.retail_price, cost: activeSku.cost, margin_pct: activeSku.margin_pct,
+          stock_status: activeSku.stock_status, qty_on_hand: activeSku.qty_on_hand,
+          sqft_per_box: activeSku.sqft_per_box, sell_by: activeSku.sell_by
         };
-        return [current, ...siblings];
+        // Sort by variant name (matching the API's sibling order) with a sku_id
+        // tiebreak so the active variant keeps a stable slot instead of jumping to front
+        return [current, ...siblings].sort((a, b) =>
+          (a.variant_name || '').localeCompare(b.variant_name || '') ||
+          String(a.sku_id).localeCompare(String(b.sku_id))
+        );
       }, [activeSku.sku_id, siblings, skuMedia]);
 
       const displayMedia = skuMedia;
@@ -8784,18 +8699,30 @@
 
                     {/* Variant pills */}
                     {allVariants.length > 1 && <div>
-                      <div style={mono(TH.muted)}>Colors / Variants</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-                        {allVariants.map(v => <div key={v.sku_id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                          <button onClick={() => { if (v.sku_id !== activeSku.sku_id) loadSku(v.sku_id); }}
-                            style={{ width: 48, height: 48, padding: 0, cursor: 'pointer', overflow: 'hidden',
-                              border: v.sku_id === activeSku.sku_id ? '2px solid ' + TH.ink : '2px solid rgba(28,25,23,0.15)',
-                              background: 'var(--stone-100)', flexShrink: 0 }}>
-                            {v.primary_image ? <img src={optimizeImg(v.primary_image, 96)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                              : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', fontSize: '0.55rem', color: TH.muted }}>{(v.variant_name || '?').substring(0, 6)}</span>}
-                          </button>
-                          <span style={{ font: '400 10px/1 var(--roma-sans)', color: TH.muted, maxWidth: 48, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'center' }}>{v.variant_name || '\u2014'}</span>
-                        </div>)}
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <div style={mono(TH.muted)}>Colors / Variants</div>
+                        <div style={mono(TH.muted)}>{allVariants.length} options</div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(74px, 1fr))', gap: 10 }}>
+                        {allVariants.map(v => {
+                          const isActive = v.sku_id === activeSku.sku_id;
+                          const st = v.stock_status ? stockDisplay({ ...v, vendor_has_inventory: product.vendor_has_inventory }) : null;
+                          return (
+                            <button key={v.sku_id} onClick={() => { if (!isActive) loadSku(v.sku_id); }}
+                              title={[v.variant_name, st && st.l].filter(Boolean).join(' \u00b7 ')}
+                              style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 0, cursor: isActive ? 'default' : 'pointer', background: 'transparent', border: 'none', textAlign: 'left' }}>
+                              <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', overflow: 'hidden',
+                                  border: isActive ? '2px solid ' + TH.ink : '1px solid rgba(28,25,23,0.15)',
+                                  outline: isActive ? '2px solid ' + TH.ink : 'none', outlineOffset: 2,
+                                  background: 'var(--stone-100)' }}>
+                                {v.primary_image ? <img src={optimizeImg(v.primary_image, 120)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                  : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', font: '400 10px/1.2 var(--roma-sans)', color: TH.muted, textAlign: 'center', padding: 4 }}>{v.variant_name || '\u2014'}</span>}
+                                {st && <span title={st.l} style={{ position: 'absolute', top: 5, right: 5, width: 9, height: 9, borderRadius: '50%', background: st.c, boxShadow: '0 0 0 2px ' + TH.paper }} />}
+                              </div>
+                              <span style={{ font: (isActive ? '600' : '400') + ' 11px/1.25 var(--roma-sans)', color: isActive ? TH.ink : TH.muted, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{v.variant_name || '\u2014'}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>}
 
@@ -8936,13 +8863,24 @@
 
                     {/* Sourcing */}
                     <div>
-                      <h4 style={sectionTitle}>Sourcing &amp; lead time</h4>
+                      <h4 style={sectionTitle}>Sourcing &amp; availability</h4>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         {[
                           ['Vendor', product.brand_name || product.vendor_name || '\u2014'],
                           ['Collection', product.collection || '\u2014'],
-                          ['On hand', !activeSku.vendor_has_inventory ? 'Not tracked' : activeSku.qty_on_hand != null ? activeSku.qty_on_hand + (activeSku.sell_by === 'unit' ? ' units' : ' sqft') : '\u2014'],
-                          ['Lead time', !activeSku.vendor_has_inventory ? 'Call for availability' : activeSku.stock_status === 'out_of_stock' ? '3\u20134 wk' : activeSku.stock_status === 'low_stock' ? '1 wk reorder' : activeSku.stock_status === 'unknown' ? 'Check with vendor' : 'Stocked \u00B7 ships now'],
+                          ['On hand', (() => {
+                            const noData = !product.vendor_has_inventory && (activeSku.stock_status === 'unknown' || activeSku.stock_status === 'out_of_stock' || !activeSku.stock_status);
+                            if (noData) return 'Not tracked';
+                            return availableQty(activeSku) || '\u2014';
+                          })()],
+                          ['Availability', (() => {
+                            const noData = !product.vendor_has_inventory && (activeSku.stock_status === 'unknown' || activeSku.stock_status === 'out_of_stock' || !activeSku.stock_status);
+                            if (noData) return 'Confirm with vendor';
+                            if (activeSku.stock_status === 'in_stock') return 'Stocked \u00B7 ships now';
+                            if (activeSku.stock_status === 'low_stock') return 'Low \u00B7 confirm before quoting';
+                            if (activeSku.stock_status === 'out_of_stock') return 'Backordered \u00B7 confirm with vendor';
+                            return 'Confirm with vendor';
+                          })()],
                         ].map(([l, v]) => (
                           <div key={l} style={{ padding: '12px 14px', border: '0.5px solid rgba(28,25,23,0.06)' }}>
                             <div style={mono(TH.muted)}>{l}</div>
@@ -9326,6 +9264,163 @@
       );
     }
 
+    // ========== BulkAddToQuoteModal (route N selected SKUs into a new or existing quote) ==========
+    function BulkAddToQuoteModal({ items, navigate, onClose, onCommitted }) {
+      const TH = ADDTO_TH;
+      const monoLabel = (extra) => ({ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: TH.muted, ...(extra || {}) });
+      const [done, setDone] = useState(null); // { title, sub }
+      const [busy, setBusy] = useState(false);
+      const [err, setErr] = useState(null);
+      const [quoteSearch, setQuoteSearch] = useState('');
+      const [existingQuotes, setExistingQuotes] = useState([]);
+      const [quotesLoading, setQuotesLoading] = useState(true);
+      const quoteSearchTimer = useRef(null);
+      const quoteSearchCounter = useRef(0);
+      const goTimer = useRef(null);
+
+      const loadQuotes = (term) => {
+        setQuotesLoading(true);
+        const thisSearch = ++quoteSearchCounter.current;
+        const url = term ? '/api/rep/quotes?search=' + encodeURIComponent(term) : '/api/rep/quotes?status=draft';
+        repFetch(url)
+          .then(d => {
+            if (thisSearch !== quoteSearchCounter.current) return;
+            const editable = (d.quotes || []).filter(q => ['draft', 'sent'].includes(q.status));
+            setExistingQuotes(editable.slice(0, 6));
+            setQuotesLoading(false);
+          })
+          .catch(() => { if (thisSearch === quoteSearchCounter.current) setQuotesLoading(false); });
+      };
+
+      const onQuoteSearch = (v) => {
+        setQuoteSearch(v);
+        if (quoteSearchTimer.current) clearTimeout(quoteSearchTimer.current);
+        quoteSearchTimer.current = setTimeout(() => loadQuotes(v.trim()), 300);
+      };
+
+      useEffect(() => { loadQuotes(''); }, []);
+      useEffect(() => {
+        const onKey = (e) => { if (e.key === 'Escape' && !busy) onClose(); };
+        document.addEventListener('keydown', onKey);
+        return () => { document.removeEventListener('keydown', onKey); if (goTimer.current) clearTimeout(goTimer.current); };
+      }, [onClose, busy]);
+
+      // Fetch the full SKU shape for each selected item, stash the batch, then hand off.
+      const commit = async (quoteId, view, navId, title, sub) => {
+        if (busy || done) return;
+        setBusy(true); setErr(null);
+        try {
+          const skus = (await Promise.all(items.map(it =>
+            repFetch('/api/rep/skus/search?sku_id=' + it.sku_id).then(d => (d.results || [])[0]).catch(() => null)
+          ))).filter(Boolean);
+          if (!skus.length) { setBusy(false); setErr('Could not load the selected SKUs. Close and try again.'); return; }
+          stashPendingAdd('quote', skus[0], { skus, ...(quoteId ? { quoteId } : {}) });
+          setDone({ title, sub });
+          goTimer.current = setTimeout(() => { if (onCommitted) onCommitted(); onClose(); navigate(view, navId); }, 850);
+        } catch (e) { setBusy(false); setErr('Something went wrong. Try again.'); }
+      };
+
+      const q = quoteSearch.trim();
+      const total = items.reduce((s, it) => s + (it.price ? parseFloat(it.price) : 0), 0);
+      const preview = items.slice(0, 4);
+
+      return ReactDOM.createPortal(
+        <div onClick={() => { if (!busy) onClose(); }} style={{
+          position: 'fixed', inset: 0, zIndex: 1400, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: TH.ink + '5c', backdropFilter: 'blur(3px)', padding: 24, animation: 'rcatFadeIn .15s ease',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width: 460, maxWidth: '100%', maxHeight: '92vh', background: TH.paper, color: TH.ink,
+            border: '0.5px solid ' + TH.ink + '33', boxShadow: '0 30px 80px ' + TH.ink + '55',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden', animation: 'rofPop .22s cubic-bezier(.22,.61,.36,1)',
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px 13px', borderBottom: '0.5px solid ' + TH.ink + '1a', flexShrink: 0 }}>
+              <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: TH.accent }}>Add {items.length} item{items.length === 1 ? '' : 's'} to&hellip;</span>
+              <button onClick={() => { if (!busy) onClose(); }} style={{ width: 26, height: 26, border: '0.5px solid ' + TH.ink + '2e', background: 'transparent', color: TH.ink, cursor: 'pointer', font: '400 13px/1 var(--roma-sans)', padding: 0 }}>&#x2715;</button>
+            </div>
+
+            {done ? (
+              <div style={{ padding: '48px 30px 52px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div style={{ width: 46, height: 46, borderRadius: '50%', border: '1.5px solid ' + TH.accent, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, color: TH.accent, font: '400 22px/1 var(--roma-sans)', animation: 'rofPopCheck .3s ease' }}>&#x2713;</div>
+                <div style={{ font: '400 23px/1.15 var(--roma-serif)', letterSpacing: '-0.01em' }}>{done.title}</div>
+                <div style={{ font: '400 12.5px/1.4 var(--roma-sans)', color: TH.muted, marginTop: 2 }}>{done.sub}</div>
+              </div>
+            ) : (
+              <div style={{ overflowY: 'auto', flex: 1 }}>
+                {/* Selection summary strip */}
+                <div style={{ padding: '16px 22px', background: TH.warm, borderBottom: '0.5px solid ' + TH.ink + '1a' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: preview.length ? 12 : 0 }}>
+                    {preview.map(it => (
+                      <div key={it.sku_id} style={{ width: 42, height: 42, flexShrink: 0, border: '0.5px solid ' + TH.ink + '22', overflow: 'hidden', background: 'var(--stone-100)' }}>
+                        {it.primary_image ? <img src={optimizeImg(it.primary_image, 100)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : null}
+                      </div>
+                    ))}
+                    {items.length > preview.length && <div style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink + '99' }}>+{items.length - preview.length}</div>}
+                    <div style={{ flex: 1 }} />
+                    {total > 0 && <div style={{ textAlign: 'right' }}>
+                      <div style={{ font: '400 18px/1 var(--roma-serif)', color: TH.ink }}>{addtoMoney(total)}</div>
+                      <div style={{ ...monoLabel(), marginTop: 3 }}>Retail total</div>
+                    </div>}
+                  </div>
+                </div>
+
+                {err && <div style={{ padding: '12px 22px', font: '400 12px/1.4 var(--roma-sans)', color: '#c54731' }}>{err}</div>}
+
+                {/* New quote */}
+                <div style={{ padding: '20px 22px 8px' }}>
+                  <div style={{ ...monoLabel({ marginBottom: 11 }) }}>Create new</div>
+                  <AddToDestRow mark="quote" label="New quote" hint={'Start a quote with all ' + items.length + ' lines added'} primary disabled={busy}
+                    onClick={() => commit(null, 'quote-create', undefined, 'Added to a new quote', 'Opening the quote builder…')}
+                    image={preview[0] ? preview[0].primary_image : null} />
+                </div>
+
+                {/* Divider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 22px 6px' }}>
+                  <span style={{ flex: 1, height: 0.5, background: TH.ink + '22' }} />
+                  <span style={monoLabel()}>Or add to existing</span>
+                  <span style={{ flex: 1, height: 0.5, background: TH.ink + '22' }} />
+                </div>
+
+                {/* Search */}
+                <div style={{ padding: '8px 22px 0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid ' + TH.ink + '33', background: TH.paper }}>
+                    <span style={{ padding: '0 10px', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&#x2315;</span>
+                    <input value={quoteSearch} onChange={e => onQuoteSearch(e.target.value)}
+                      placeholder="Search quotes — number, customer, email…"
+                      style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: '400 12.5px/1 var(--roma-sans)', color: TH.ink, padding: '10px 8px 10px 0' }} />
+                    {quoteSearch && <span onClick={() => onQuoteSearch('')} style={{ padding: '0 12px', cursor: 'pointer', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&times;</span>}
+                  </div>
+                </div>
+
+                {/* Quotes list */}
+                <div style={{ padding: '10px 22px 20px' }}>
+                  {!q && existingQuotes.length > 0 && <div style={{ font: '500 8.5px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: TH.muted, margin: '2px 2px 8px' }}>Recent · editable</div>}
+                  {quotesLoading ? (
+                    <div style={{ padding: '22px 12px', textAlign: 'center', font: '400 12.5px/1.5 var(--roma-sans)', color: TH.muted, border: '0.5px dashed ' + TH.ink + '2a' }}>Loading quotes&hellip;</div>
+                  ) : existingQuotes.length > 0 ? (
+                    <div style={{ border: '0.5px solid ' + TH.ink + '1f' }}>
+                      {existingQuotes.map(qt => (
+                        <AddToQuoteRow key={qt.id} q={qt} disabled={busy}
+                          onClick={() => commit(qt.id, 'quote-edit', qt.id,
+                            'Added to ' + qt.quote_number,
+                            qt.customer_name ? 'Opening ' + qt.customer_name + '’s quote…' : 'Opening the quote…')} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '22px 12px', textAlign: 'center', font: '400 12.5px/1.5 var(--roma-sans)', color: TH.muted, border: '0.5px dashed ' + TH.ink + '2a' }}>
+                      {q ? 'No editable quotes match “' + quoteSearch + '”.' : 'No draft quotes yet — search to find one.'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      );
+    }
+
     // ========== RepCatalogView ==========
     function RepCatalogView({ navigate, showCost, setShowCost }) {
       const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
@@ -9347,7 +9442,8 @@
       // --- State ---
       const [products, setProducts] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [search, setSearch] = useState('');
+      const [search, setSearch] = useState('');       // debounced query param sent to the API
+      const [searchInput, setSearchInput] = useState(''); // immediate value bound to the input
       const [category, setCategory] = useState('');
       const [vendor, setVendor] = useState('');
       const [collection, setCollection] = useState('');
@@ -9369,7 +9465,16 @@
       const [addTo, setAddTo] = useState(null); // { skuId, summary }
       const [includeAccessories, setIncludeAccessories] = useState(false);
       const [lightbox, setLightbox] = useState(null);
+      const [selected, setSelected] = useState({}); // { [sku_id]: product } — bulk selection, persists across pages/filters
+      const [bulkOpen, setBulkOpen] = useState(false);
       const searchTimer = useRef(null);
+
+      // Debounce the search field into the query param so we don't hit /api/rep/products on every keystroke.
+      useEffect(() => {
+        if (searchTimer.current) clearTimeout(searchTimer.current);
+        searchTimer.current = setTimeout(() => { setSearch(searchInput); setPage(1); }, 300);
+        return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+      }, [searchInput]);
 
       // FilterRail collapsible state
       const [railSections, setRailSections] = useState({ category: false, vendor: false, price: false, stock: false, accessories: false, collection: false, attributes: true });
@@ -9450,6 +9555,33 @@
         setCategory(''); setVendor(''); setCollection(''); setStockStatus('');
         setMinPrice(''); setMaxPrice(''); setIncludeAccessories(false); setAttrFilters({}); setPage(1);
       };
+
+      // --- Bulk selection ---
+      const selectedList = Object.values(selected);
+      const selectedCount = selectedList.length;
+      const isSelected = (id) => Object.prototype.hasOwnProperty.call(selected, id);
+      const toggleSelect = (p) => setSelected(prev => {
+        const next = { ...prev };
+        if (next[p.sku_id]) delete next[p.sku_id]; else next[p.sku_id] = p;
+        return next;
+      });
+      const selectPage = () => setSelected(prev => {
+        const next = { ...prev };
+        products.forEach(p => { next[p.sku_id] = p; });
+        return next;
+      });
+      const clearSelected = () => setSelected({});
+      const allPageSelected = products.length > 0 && products.every(p => isSelected(p.sku_id));
+
+      // Small square checkbox used across the three views
+      const SelectBox = ({ on, onToggle, size, style }) => (
+        <button onClick={e => { e.stopPropagation(); onToggle(); }} title={on ? 'Deselect' : 'Select'} style={{
+          width: size || 22, height: size || 22, borderRadius: 4, cursor: 'pointer', flexShrink: 0, padding: 0,
+          border: '1px solid ' + (on ? TH.accent : TH.ink + '55'), background: on ? TH.accent : TH.paper,
+          color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          font: '600 12px/1 var(--roma-sans)', boxShadow: '0 1px 3px ' + TH.ink + '22', ...(style || {}),
+        }}>{on ? '✓' : ''}</button>
+      );
 
       // Build active filter chips
       const chips = [];
@@ -9554,10 +9686,10 @@
             {/* Search */}
             <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid ' + TH.ink + '33', background: TH.paper, flex: 1, maxWidth: 440 }}>
               <span style={{ padding: '9px 12px', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&#x2315;</span>
-              <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-                placeholder="Search SKU, vendor, name, collection… ⌘K"
+              <input value={searchInput} onChange={e => setSearchInput(e.target.value)}
+                placeholder="Search SKU, vendor, name, collection…"
                 style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: '400 13px/1 var(--roma-sans)', color: TH.ink, padding: '9px 8px 9px 0' }} />
-              {search && <span onClick={() => { setSearch(''); setPage(1); }} style={{ padding: '0 12px', cursor: 'pointer', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&times;</span>}
+              {searchInput && <span onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }} style={{ padding: '0 12px', cursor: 'pointer', color: TH.muted, font: '400 14px/1 var(--roma-sans)' }}>&times;</span>}
             </div>
             {/* Right toolbar */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, font: '500 11px/1 var(--roma-sans)' }}>
@@ -9617,7 +9749,7 @@
           </div>}
 
           {/* ── Main: FilterRail + Content ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '236px 1fr', gap: 28, marginTop: 4 }}>
+          <div className="rep-catalog-main">
 
             {/* ── FilterRail sidebar ── */}
             <aside style={{ display: 'flex', flexDirection: 'column' }}>
@@ -9626,23 +9758,6 @@
                 <h3 style={{ font: '400 19px/1 var(--roma-serif)', color: TH.ink, margin: 0 }}>Filters</h3>
                 <span style={mono(TH.muted)}>{total} match{total === 1 ? '' : 'es'}</span>
               </div>
-
-              {/* Applied chips (in rail) */}
-              {chips.length > 0 && <div style={{ padding: '14px 0 4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 9 }}>
-                  <span style={mono(TH.muted)}>Applied &middot; {chips.length}</span>
-                  <a onClick={clearAllFilters} style={{ ...mono(TH.accent), color: TH.accent, cursor: 'pointer', textDecoration: 'none', borderBottom: '1px solid ' + TH.accent, paddingBottom: 1 }}>Clear all</a>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {chips.map(c => (
-                    <span key={c.key} onClick={c.clear} style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 8px',
-                      background: TH.accent + '1f', border: '0.5px solid ' + TH.accent + '66', cursor: 'pointer',
-                      font: '400 11px/1 var(--roma-sans)', color: TH.ink,
-                    }}>{c.label} <span style={{ color: TH.accent }}>&times;</span></span>
-                  ))}
-                </div>
-              </div>}
 
               {/* Vendor */}
               <RailSection id="vendor" title="Vendor" count={vendor ? 1 : 0}>
@@ -9731,8 +9846,6 @@
                   {collections.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Select a vendor first</span>}
                 </div>
               </RailSection>
-
-              <a onClick={clearAllFilters} style={{ ...mono(TH.accent), color: TH.accent, cursor: 'pointer', textDecoration: 'none', borderBottom: '1px solid ' + TH.accent, paddingBottom: 2, marginTop: 8 }}>Clear all &middot; reset</a>
             </aside>
 
             {/* ── Content area ── */}
@@ -9753,8 +9866,8 @@
                     const variantText = skuVariantText(p);
                     return (
                       <div key={p.sku_id} onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{
-                        background: TH.paper, border: quickView && quickView.skuId === p.sku_id ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
-                        boxShadow: quickView && quickView.skuId === p.sku_id ? '0 8px 24px ' + TH.ink + '1f' : 'none',
+                        background: TH.paper, border: (isSelected(p.sku_id) || (quickView && quickView.skuId === p.sku_id)) ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
+                        boxShadow: isSelected(p.sku_id) ? '0 0 0 1px ' + TH.accent : quickView && quickView.skuId === p.sku_id ? '0 8px 24px ' + TH.ink + '1f' : 'none',
                         display: 'flex', flexDirection: 'column', cursor: 'pointer', position: 'relative',
                         transition: 'border-color .12s, box-shadow .12s',
                       }}>
@@ -9763,18 +9876,18 @@
                           {p.primary_image
                             ? <img src={optimizeImg(p.primary_image, 500)} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: TH.muted, fontSize: '0.8rem' }}>No Image</div>}
-                          <div style={{ position: 'absolute', top: 10, left: 10, padding: '4px 8px', background: TH.paper, ...mono(sk.c), color: sk.c }}>{'\u25CF'} {sk.l}</div>
-                          {showCost && mPct > 0 && <div style={{ position: 'absolute', top: 10, right: 10, padding: '4px 8px', background: mc, ...mono('#fff'), color: '#fff' }}>{mPct.toFixed(0)}% margin</div>}
+                          <SelectBox on={isSelected(p.sku_id)} onToggle={() => toggleSelect(p)} style={{ position: 'absolute', top: 10, left: 10, zIndex: 2 }} />
+                          <div style={{ position: 'absolute', top: 10, right: 10, maxWidth: 'calc(100% - 56px)', padding: '4px 8px', background: TH.paper, ...mono(sk.c), color: sk.c, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{'\u25CF'} {sk.l}{sk.q ? ' \u00B7 ' + sk.q : ''}</div>
                         </div>
                         {/* Body */}
-                        <div style={{ padding: '12px 14px 8px', display: 'grid', gap: 4, flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, ...mono(TH.muted), fontSize: 9 }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.category_name || ''} {'\u00B7'} {p.brand_name || p.vendor_name || ''}</span>
+                        <div style={{ padding: '12px 14px 8px', display: 'grid', gap: 4, flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, ...mono(TH.muted), fontSize: 9, minWidth: 0 }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{p.category_name || ''} {'\u00B7'} {p.brand_name || p.vendor_name || ''}</span>
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0, maxWidth: '55%' }}>{p.vendor_sku || p.internal_sku || ''}</span>
                           </div>
-                          <div style={{ font: '400 16px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.name}{variantText ? ' \u00B7 ' + variantText : ''}</div>
-                          {(p.collection || p.variant_type === 'accessory' || p.accessory_count > 0) && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                            <span style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + '99' }}>{p.collection || ''}</span>
+                          <div style={{ font: '400 16px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em', minWidth: 0, overflowWrap: 'anywhere' }}>{p.name}{variantText ? ' \u00B7 ' + variantText : ''}</div>
+                          {(p.collection || p.variant_type === 'accessory' || p.accessory_count > 0) && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+                            <span style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + '99', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.collection || ''}</span>
                             {p.variant_type === 'accessory'
                               ? <span style={{ ...mono(TH.accent), fontSize: 9, flexShrink: 0 }}>Accessory</span>
                               : p.accessory_count > 0 ? <span style={{ ...mono(TH.accent), fontSize: 9, flexShrink: 0 }}>{'\u229E'} {p.accessory_count} accessor{p.accessory_count !== 1 ? 'ies' : 'y'}</span> : null}
@@ -9831,8 +9944,8 @@
                     const variantText = skuVariantText(p);
                     return (
                       <div key={p.sku_id} onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{
-                        background: TH.paper, border: quickView && quickView.skuId === p.sku_id ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
-                        boxShadow: quickView && quickView.skuId === p.sku_id ? '0 8px 24px ' + TH.ink + '1f' : 'none',
+                        background: TH.paper, border: (isSelected(p.sku_id) || (quickView && quickView.skuId === p.sku_id)) ? '1.5px solid ' + TH.accent : '0.5px solid ' + TH.ink + '22',
+                        boxShadow: isSelected(p.sku_id) ? '0 0 0 1px ' + TH.accent : quickView && quickView.skuId === p.sku_id ? '0 8px 24px ' + TH.ink + '1f' : 'none',
                         display: 'grid', gridTemplateColumns: '108px 1fr', cursor: 'pointer',
                         transition: 'border-color .12s, box-shadow .12s', minHeight: 132,
                       }}>
@@ -9840,6 +9953,7 @@
                           {p.primary_image
                             ? <img src={optimizeImg(p.primary_image, 250)} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                             : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: TH.muted, fontSize: '0.7rem' }}>No img</div>}
+                          <SelectBox on={isSelected(p.sku_id)} onToggle={() => toggleSelect(p)} size={20} style={{ position: 'absolute', top: 8, left: 8, zIndex: 2 }} />
                         </div>
                         <div style={{ padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
@@ -9868,21 +9982,23 @@
               /* Spec (table) view */
               (() => {
                 const cols = showCost
-                  ? '52px minmax(180px,1.6fr) 0.9fr 0.9fr 1.1fr 0.7fr 0.7fr 1.1fr 0.8fr'
-                  : '52px minmax(180px,1.7fr) 1fr 1fr 1.3fr 0.8fr 0.9fr';
+                  ? '34px 52px minmax(180px,1.6fr) 0.9fr 0.9fr 1.1fr 0.7fr 0.7fr 1.1fr 0.8fr'
+                  : '34px 52px minmax(180px,1.7fr) 1fr 1fr 1.3fr 0.8fr 0.9fr';
                 const heads = showCost
-                  ? [['', null], ['Product', 'name'], ['Vendor', null], ['Collection', null], ['Stock', null], ['Retail', 'price'], ['Cost', null], ['Margin', 'margin'], ['', null]]
-                  : [['', null], ['Product', 'name'], ['Vendor', null], ['Collection', null], ['Stock', null], ['Retail', 'price'], ['', null]];
+                  ? [['', null], ['', null], ['Product', 'name'], ['Vendor', null], ['Collection', null], ['Stock', null], ['Retail', 'price'], ['Cost', null], ['Margin', 'margin'], ['', null]]
+                  : [['', null], ['', null], ['Product', 'name'], ['Vendor', null], ['Collection', null], ['Stock', null], ['Retail', 'price'], ['', null]];
                 return (
                   <div style={{ border: '0.5px solid ' + TH.ink + '22', background: TH.paper }}>
                     {/* Head */}
                     <div style={{ display: 'grid', gridTemplateColumns: cols, gap: 12, padding: '11px 16px', background: TH.warm, borderBottom: '0.5px solid ' + TH.ink + '22', alignItems: 'center' }}>
                       {heads.map(([l, sortKey], i) => (
-                        <div key={i} onClick={() => sortKey && handleSort(sortKey)} style={{
-                          ...mono(TH.muted), cursor: sortKey ? 'pointer' : 'default',
-                          textAlign: i >= 5 && i < heads.length - 1 ? 'right' : 'left',
-                          color: sortKey && (sortBy === sortKey + '_asc' || sortBy === sortKey + '_desc') ? TH.ink : TH.muted,
-                        }}>{l}{sortKey && (sortBy === sortKey + '_desc' ? ' \u25BE' : sortBy === sortKey + '_asc' ? ' \u25B4' : ' \u21C5')}</div>
+                        i === 0
+                          ? <SelectBox key="selall" on={allPageSelected} size={18} onToggle={() => allPageSelected ? clearSelected() : selectPage()} />
+                          : <div key={i} onClick={() => sortKey && handleSort(sortKey)} style={{
+                              ...mono(TH.muted), cursor: sortKey ? 'pointer' : 'default',
+                              textAlign: i >= 6 && i < heads.length - 1 ? 'right' : 'left',
+                              color: sortKey && (sortBy === sortKey + '_asc' || sortBy === sortKey + '_desc') ? TH.ink : TH.muted,
+                            }}>{l}{sortKey && (sortBy === sortKey + '_desc' ? ' \u25BE' : sortBy === sortKey + '_asc' ? ' \u25B4' : ' \u21C5')}</div>
                       ))}
                     </div>
                     {/* Rows */}
@@ -9898,8 +10014,9 @@
                         <div key={p.sku_id} onClick={() => setQuickView({ id: p.id, skuId: p.sku_id })} style={{
                           display: 'grid', gridTemplateColumns: cols, gap: 12, padding: '12px 16px', alignItems: 'center',
                           borderBottom: ri < products.length - 1 ? '0.5px solid ' + TH.ink + '12' : 'none', cursor: 'pointer',
-                          background: quickView && quickView.skuId === p.sku_id ? TH.accent + '14' : 'transparent',
+                          background: isSelected(p.sku_id) ? TH.accent + '1f' : quickView && quickView.skuId === p.sku_id ? TH.accent + '14' : 'transparent',
                         }}>
+                          <SelectBox on={isSelected(p.sku_id)} size={18} onToggle={() => toggleSelect(p)} />
                           <div style={{ width: 52, height: 40, overflow: 'hidden', border: '0.5px solid ' + TH.ink + '1a', background: 'var(--stone-100)' }}>
                             {p.primary_image ? <img src={optimizeImg(p.primary_image, 100)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
                           </div>
@@ -9952,6 +10069,28 @@
 
           {/* Add to… chooser */}
           {addTo && <AddToTargetModal skuId={addTo.skuId} summary={addTo.summary} navigate={navigate} onClose={() => setAddTo(null)} />}
+
+          {/* ── Bulk selection action bar ── */}
+          {selectedCount > 0 && (
+            <div style={{
+              position: 'fixed', left: '50%', bottom: 24, transform: 'translateX(-50%)', zIndex: 1200,
+              display: 'flex', alignItems: 'center', gap: 16, padding: '11px 14px 11px 18px',
+              background: TH.ink, color: TH.paper, boxShadow: '0 12px 40px ' + TH.ink + '66',
+              maxWidth: 'calc(100vw - 32px)',
+            }}>
+              <span style={{ font: '400 15px/1 var(--roma-serif)', whiteSpace: 'nowrap' }}>{selectedCount} selected</span>
+              <span style={{ width: 1, height: 18, background: TH.paper + '33' }} />
+              <a onClick={selectPage} style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: TH.paper + 'cc', cursor: 'pointer', whiteSpace: 'nowrap' }}>Select page</a>
+              <a onClick={clearSelected} style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: TH.paper + 'cc', cursor: 'pointer', whiteSpace: 'nowrap' }}>Clear</a>
+              <button onClick={() => setBulkOpen(true)} style={{
+                padding: '9px 16px', background: TH.accent, color: '#fff', border: 'none', cursor: 'pointer',
+                font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase', whiteSpace: 'nowrap',
+              }}>Add {selectedCount} to quote &rarr;</button>
+            </div>
+          )}
+
+          {/* Bulk add-to-quote chooser */}
+          {bulkOpen && <BulkAddToQuoteModal items={selectedList} navigate={navigate} onClose={() => setBulkOpen(false)} onCommitted={clearSelected} />}
         </div>
       );
     }
@@ -12793,7 +12932,7 @@
 
             {/* Header row */}
             {items.length > 0 && (
-              <div className="rof-items-header">
+              <div className={'rof-items-header' + (showCost ? '' : ' rof-nocost')}>
                 <span></span>
                 <span>Product</span>
                 <span>Qty</span>
@@ -12805,7 +12944,7 @@
 
             {/* Item rows */}
             {items.map(item => (
-              <div key={item._key} className="rof-item-row">
+              <div key={item._key} className={'rof-item-row' + (showCost ? '' : ' rof-nocost')}>
                 <div className="rof-item-swatch">
                   {item.primary_image
                     ? <img src={optimizeImg(item.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover' }} loading="lazy" />
@@ -19006,8 +19145,14 @@
               {order.customer_email && (
                 <button className="rov-hbtn" onClick={() => { setInvoiceMessage(''); setShowSendInvoiceModal(true); }}>Resend invoice</button>
               )}
-              {['pending', 'confirmed'].includes(order.status) && (
+              {order.status === 'pending' && (
                 <button className="rov-hbtn" onClick={() => setCatalogOpen(true)}>Change order</button>
+              )}
+              {paidDone && ['confirmed', 'shipped', 'ready_for_pickup'].includes(order.status) && (
+                <button className="rov-hbtn" onClick={() => navigate('change-order', order.id)}>Change order</button>
+              )}
+              {['shipped', 'delivered'].includes(order.status) && (
+                <button className="rov-hbtn" onClick={() => navigate('return-flow', order.id)}>Start return</button>
               )}
               {!showCancelForm && canCancel && (
                 <button className="rov-hbtn danger" onClick={() => setShowCancelForm(true)} disabled={updating}>Cancel order</button>
@@ -20029,7 +20174,7 @@
           </div>
 
           {/* Browse catalog popup — same as the order flow */}
-          {catalogOpen && ['pending', 'confirmed'].includes(order.status) && (
+          {catalogOpen && order.status === 'pending' && (
             <RofCatalogModal
               data={{ customer: null, newCustomerName: order.customer_name }}
               showCost={showCost}
@@ -20169,6 +20314,995 @@
                 }}
               />
             : <DocumentPreviewModal url={docPreview.url} title={docPreview.title} onClose={() => setDocPreview(null)} />
+          )}
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // RepReturnFlowView — post-delivery returns / refunds / credit memos / RMAs
+    // 4-step wizard: 01 Return · 02 Refund · 03 Vendor RMAs · 04 Done
+    // Mirrors RepOrderWizard shell (rof-* classes) + rep-return-flow design.
+    // ════════════════════════════════════════════════════════════════════════
+    const RET_STEPS = [
+      { num: '01', label: 'Return', sub: 'Items · reason · condition', key: 'return' },
+      { num: '02', label: 'Refund', sub: 'Credit memo · tenders', key: 'refund' },
+      { num: '03', label: 'Vendor RMAs', sub: 'Restock vs return', key: 'rmas' },
+      { num: '04', label: 'Done', sub: 'Receipt · numbers', key: 'done' }
+    ];
+
+    const RET_REASONS = [
+      { id: 'preference', label: "Buyer's preference", restock: 20 },
+      { id: 'vendor_error', label: 'Wrong product · vendor error', restock: 0 },
+      { id: 'damaged', label: 'Damaged on arrival', restock: 0 },
+      { id: 'refused', label: 'Refused at delivery', restock: 0 },
+      { id: 'late', label: 'Late delivery', restock: 0 },
+      { id: 'other', label: 'Other', restock: 15 }
+    ];
+    const RET_CONDITIONS = [
+      { id: 'saleable', label: 'Saleable', col: 'var(--rod-green)' },
+      { id: 'damaged', label: 'Damaged', col: 'var(--rod-red)' },
+      { id: 'defective', label: 'Defective', col: 'var(--rod-red)' }
+    ];
+
+    // Shared step rail for the return flow (RofStepRail analogue)
+    function RetStepRail({ step, setStep }) {
+      return (
+        <div className="rof-rail">
+          {RET_STEPS.map((s, i) => {
+            const stepNum = i + 1;
+            const isActive = step === stepNum;
+            const isCompleted = step > stepNum;
+            const canJump = isCompleted;
+            return (
+              <div key={s.key}
+                className={'rof-rail-step' + (isActive ? ' active' : '') + (isCompleted ? ' completed' : '') + (!isActive && !isCompleted ? ' future' : '')}
+                onClick={() => canJump ? setStep(stepNum) : null}>
+                <span className="rof-rail-num">{isCompleted ? '✓' : s.num}</span>
+                <div className="rof-rail-text">
+                  <div className="rof-rail-label">{s.label}</div>
+                  <div className="rof-rail-sub">{s.sub}</div>
+                </div>
+                <span className="rof-rail-chev">{isCompleted ? '✓' : '›'}</span>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Sticky action bar for the return flow (RofActionBar analogue, coral accent)
+    function RetActionBar({ step, setStep, canContinue, onCommit, committing, navigate, refundTotal, rmaNumber, customerName, lineCount, unitCount }) {
+      if (step === 4) return null;
+      const labels = { 1: 'Continue to Refund', 2: 'Issue Refund', 3: 'Continue to Done' };
+      const nextLabel = labels[step] || 'Continue';
+      const context = [
+        customerName,
+        lineCount > 0 ? lineCount + ' line' + (lineCount !== 1 ? 's' : '') : null,
+        unitCount > 0 ? unitCount + ' unit' + (unitCount !== 1 ? 's' : '') : null
+      ].filter(Boolean).join(' · ');
+      const isCommitStep = step === 3;
+      return (
+        <div className="rof-action-bar">
+          <div className="rof-action-left">
+            <span>
+              <span style={{ display: 'block', font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.47)' }}>
+                {rmaNumber || 'New return'} {'·'} Step {step} of 4
+              </span>
+              <span className="rof-action-total" style={{ display: 'block', marginTop: 4 }}>
+                {'−'}${refundTotal.toFixed(2)}
+                <span style={{ font: '400 0.4375rem/1 ui-monospace, monospace', opacity: 0.5, marginLeft: '0.3rem' }}>REFUND</span>
+              </span>
+            </span>
+            {context && (
+              <span style={{ font: '500 9px/1.5 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.6)', marginLeft: '1rem' }}>
+                {context}
+              </span>
+            )}
+          </div>
+          <button className="rof-btn" onClick={() => navigate('orders')}>Save & Close</button>
+          {step > 1 && (
+            <button className="rof-btn" onClick={() => setStep(step - 1)}>Back</button>
+          )}
+          <button
+            className={'rof-btn ' + (isCommitStep ? '' : 'rof-btn-primary')}
+            style={isCommitStep && canContinue && !committing ? { background: '#c54731', borderColor: '#c54731', color: '#f5f0e8' } : undefined}
+            disabled={!canContinue || committing}
+            onClick={() => { if (isCommitStep) { onCommit(); } else { setStep(step + 1); } }}>
+            {committing ? 'Processing…' : nextLabel}
+          </button>
+        </div>
+      );
+    }
+
+    function RetSumRow({ l, v, c }) {
+      return (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '6px 0', borderBottom: '0.5px solid rgba(28,25,23,0.07)', font: "400 13px/1.3 'Inter', sans-serif" }}>
+          <span style={{ color: 'var(--rod-muted)' }}>{l}</span>
+          <span style={{ font: "400 14px/1 'Cormorant Garamond', serif", color: c || 'var(--rod-ink)' }}>{v}</span>
+        </div>
+      );
+    }
+
+    function RepReturnFlowView({ navigate, editId, showCost }) {
+      const [step, setStep] = useState(1);
+      const [loading, setLoading] = useState(true);
+      const [ctx, setCtx] = useState(null); // { order, items, tenders, tax_rate }
+      const [committing, setCommitting] = useState(false);
+      const [result, setResult] = useState(null); // commit response
+      const [error, setError] = useState('');
+
+      // Per-line editable state, keyed by order_item_id
+      const [lineState, setLineState] = useState({});
+      // Refund allocation: splits keyed by tender id + store credit
+      const [splits, setSplits] = useState({});
+      const [storeCredit, setStoreCredit] = useState('');
+      const [internalNote, setInternalNote] = useState('');
+      const [customerNote, setCustomerNote] = useState('');
+
+      useEffect(() => {
+        if (!editId) return;
+        repFetch('/api/rep/orders/' + editId + '/return-context')
+          .then(data => {
+            setCtx(data);
+            // Seed line state
+            const seed = {};
+            (data.items || []).forEach(it => {
+              const maxQty = (parseInt(it.num_boxes, 10) || 0) - (parseInt(it.already_returned, 10) || 0);
+              seed[it.id] = {
+                selected: false,
+                return_qty: maxQty > 0 ? maxQty : 0,
+                reason: '',
+                reason_id: '',
+                condition: 'saleable',
+                restock_pct: 0,
+                vendor_action: 'restock_local',
+                replacement_requested: false
+              };
+            });
+            setLineState(seed);
+            setLoading(false);
+          })
+          .catch(err => { setError(err.message || 'Failed to load return context'); setLoading(false); });
+      }, [editId]);
+
+      const items = (ctx && ctx.items) || [];
+      const tenders = (ctx && ctx.tenders) || [];
+      const taxRate = ctx ? (parseFloat(ctx.tax_rate) || 0) : 0;
+
+      const setLine = (id, patch) => setLineState(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+
+      const lineMax = (it) => Math.max(0, (parseInt(it.num_boxes, 10) || 0) - (parseInt(it.already_returned, 10) || 0));
+
+      // Per-line computed refund figures
+      const lineCalc = (it) => {
+        const st = lineState[it.id] || {};
+        const qty = st.selected ? (parseInt(st.return_qty, 10) || 0) : 0;
+        const gross = qty * (parseFloat(it.unit_price) || 0);
+        const isSaleable = st.condition === 'saleable';
+        const pct = isSaleable ? (parseFloat(st.restock_pct) || 0) : 0;
+        const restockFee = isSaleable ? gross * pct / 100 : 0;
+        const refundLine = gross - restockFee;
+        return { qty, gross, restockFee, refundLine };
+      };
+
+      const selectedItems = items.filter(it => lineState[it.id] && lineState[it.id].selected && lineCalc(it).qty > 0);
+
+      const totals = (() => {
+        let subtotal = 0, restock = 0, merch = 0, units = 0;
+        selectedItems.forEach(it => {
+          const c = lineCalc(it);
+          subtotal += c.gross; restock += c.restockFee; merch += c.refundLine; units += c.qty;
+        });
+        const taxRefund = merch * taxRate;
+        const refundTotal = merch + taxRefund;
+        return { subtotal, restock, merch, taxRefund, refundTotal, lineCount: selectedItems.length, units };
+      })();
+
+      const allocated = tenders.reduce((s, t) => s + (parseFloat(splits[t.id]) || 0), 0) + (parseFloat(storeCredit) || 0);
+      const remaining = totals.refundTotal - allocated;
+      const balanced = Math.abs(remaining) < 0.01;
+
+      const step1Valid = selectedItems.length > 0 && selectedItems.every(it => {
+        const st = lineState[it.id];
+        const c = lineCalc(it);
+        return c.qty > 0 && c.qty <= lineMax(it) && st.reason_id;
+      });
+      const step2Valid = balanced && totals.refundTotal > 0.005;
+      const canContinue = step === 1 ? step1Valid : step === 2 ? step2Valid : true;
+
+      const commit = async () => {
+        setCommitting(true);
+        setError('');
+        try {
+          const lines = selectedItems.map(it => {
+            const st = lineState[it.id];
+            const c = lineCalc(it);
+            return {
+              order_item_id: it.id,
+              return_qty: c.qty,
+              reason: st.reason || (RET_REASONS.find(r => r.id === st.reason_id) || {}).label || '',
+              reason_id: st.reason_id,
+              condition: st.condition,
+              restock_pct: st.condition === 'saleable' ? (parseFloat(st.restock_pct) || 0) : 0,
+              vendor_action: st.vendor_action,
+              vendor_id: it.line_vendor_id,
+              replacement_requested: !!st.replacement_requested
+            };
+          });
+          const refund_splits = tenders
+            .filter(t => (parseFloat(splits[t.id]) || 0) > 0)
+            .map(t => ({ payment_id: t.id, amount: parseFloat(splits[t.id]) }));
+          const body = {
+            lines,
+            refund_splits,
+            store_credit_amount: parseFloat(storeCredit) || 0,
+            customer_note: customerNote,
+            reason_summary: internalNote
+          };
+          const data = await repFetch('/api/rep/orders/' + editId + '/returns', { method: 'POST', body: JSON.stringify(body) });
+          setResult(data);
+          setStep(4);
+        } catch (err) {
+          setError(err.message || 'Failed to process return');
+        }
+        setCommitting(false);
+      };
+
+      const order = ctx && ctx.order;
+      const custName = order ? (order.customer_name || 'Customer') : '';
+      const custInitials = (custName || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+      const rmaNumber = result && result.return ? result.return.rma_number : null;
+
+      const retMaterialKind = (it) => {
+        const s = ((it.category_name || '') + ' ' + (it.variant_type || '')).toLowerCase();
+        if (/hardwood|wood/.test(s)) return 'wood';
+        if (/lvp|lvt|vinyl|spc/.test(s)) return 'lvp';
+        if (/laminate/.test(s)) return 'laminate';
+        if (/marble/.test(s)) return 'marble';
+        if (/tile|porcelain|ceramic|mosaic/.test(s)) return 'tile';
+        if (/stone|travertine|slate/.test(s)) return 'stone';
+        if (/quartz/.test(s)) return 'quartz';
+        if (/carpet/.test(s)) return 'carpet';
+        return 'tile';
+      };
+      const retTone = (name) => {
+        let h = 0;
+        for (let i = 0; i < (name || '').length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+        h = Math.abs(h);
+        const hue = 20 + (h % 30), satA = 20 + (h >> 4) % 25, litA = 60 + (h >> 8) % 18, litB = 35 + (h >> 12) % 15, litC = 14 + (h >> 16) % 12;
+        const hsl2hex = (hh, s, l) => { s /= 100; l /= 100; const a = s * Math.min(l, 1 - l); const f = n => { const k = (n + hh / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return '#' + [f(0), f(8), f(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join(''); };
+        return { a: hsl2hex(hue, satA, litA), b: hsl2hex(hue, satA + 5, litB), c: hsl2hex(hue, satA + 8, litC) };
+      };
+
+      if (loading) return <div className="loading">Loading return…</div>;
+      if (error && !ctx) return <div className="loading">{error}</div>;
+      if (!ctx) return <div className="loading">Return not available</div>;
+
+      return (
+        <div className="rof-container">
+          <div className="rof-breadcrumb">
+            <a onClick={() => navigate('dashboard')}>Workspace</a>
+            <span className="rof-bc-sep">/</span>
+            <a onClick={() => navigate('orders')}>Orders</a>
+            <span className="rof-bc-sep">/</span>
+            <a onClick={() => navigate('order-detail', editId)}>{order.order_number}</a>
+            <span className="rof-bc-sep">{'·'}</span>
+            <span className="rof-bc-current">Return</span>
+          </div>
+
+          <div className="qw-header" style={{ marginBottom: 16 }}>
+            <div>
+              <h1>Return {rmaNumber ? <em>{rmaNumber}</em> : <em>against {order.order_number}</em>}</h1>
+              <div className="qw-identity">
+                <div className="qw-avatar">{custInitials}</div>
+                <div>
+                  <div className="qw-cust-line">{custName}</div>
+                  <div className="qw-cust-sub">Order {order.order_number} · {order.customer_email || ''}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <RetStepRail step={step} setStep={setStep} />
+
+          {step <= 3 ? (
+            <div className="rof-body">
+              <div className="rof-main">
+                {step === 1 && (
+                  <div style={{ display: 'grid', gap: 16 }}>
+                    <WizRepCard title={"What's coming back?"} actions={<span className="rof-card-action" style={{ color: 'var(--rod-muted)' }}>{totals.lineCount} of {items.length} lines</span>}>
+                      <div style={{ display: 'grid', gap: 0 }}>
+                        {items.map((it, idx) => {
+                          const st = lineState[it.id] || {};
+                          const max = lineMax(it);
+                          const c = lineCalc(it);
+                          const disabled = max <= 0;
+                          return (
+                            <div key={it.id} style={{ padding: '14px 0', borderBottom: idx < items.length - 1 ? '0.5px solid rgba(28,25,23,0.07)' : 'none', opacity: disabled ? 0.5 : 1 }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: '22px 44px 1fr 90px 90px', gap: 12, alignItems: 'center' }}>
+                                <label style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}>
+                                  <span onClick={() => !disabled && setLine(it.id, { selected: !st.selected })} style={{ display: 'flex', width: 16, height: 16, border: '1px solid var(--rod-ink)', background: st.selected ? 'var(--rod-ink)' : 'transparent', alignItems: 'center', justifyContent: 'center', color: '#ece5d8', font: "500 10px/1 'Inter', sans-serif" }}>{st.selected ? '✓' : ''}</span>
+                                </label>
+                                <div style={{ height: 36, ...materialFace(retMaterialKind(it), retTone(it.product_name)) }} />
+                                <div>
+                                  <div style={{ font: "400 14px/1.3 'Cormorant Garamond', serif", color: 'var(--rod-ink)' }}>{it.product_name}</div>
+                                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>
+                                    {it.vendor_name || 'Roma'} · {it.num_boxes} box · {(parseInt(it.already_returned, 10) || 0) > 0 ? it.already_returned + ' returned' : 'none returned'}
+                                  </div>
+                                </div>
+                                {st.selected ? (
+                                  <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)', padding: '4px 8px' }}>
+                                    <input type="number" min="1" max={max} value={st.return_qty}
+                                      onChange={e => { let v = parseInt(e.target.value, 10) || 0; if (v > max) v = max; if (v < 0) v = 0; setLine(it.id, { return_qty: v }); }}
+                                      style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', textAlign: 'right', font: "400 14px/1 'Cormorant Garamond', serif", color: 'var(--rod-ink)' }} />
+                                    <span style={{ font: '500 9px/1 ui-monospace, monospace', color: 'var(--rod-muted)' }}>/{max}</span>
+                                  </div>
+                                ) : (
+                                  <span style={{ textAlign: 'right', font: '500 10px/1 ui-monospace, monospace', color: 'var(--rod-muted)' }}>0 / {max}</span>
+                                )}
+                                <span style={{ textAlign: 'right', font: "400 14px/1 'Cormorant Garamond', serif", color: st.selected ? 'var(--rod-red)' : 'var(--rod-muted)' }}>
+                                  {st.selected ? '−$' + c.refundLine.toFixed(2) : '$' + parseFloat(it.unit_price).toFixed(2)}
+                                </span>
+                              </div>
+
+                              {st.selected && (
+                                <div style={{ marginTop: 12, padding: '12px 14px', background: 'rgba(216,205,182,0.35)', display: 'grid', gap: 12 }}>
+                                  <div>
+                                    <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginBottom: 6 }}>Reason</div>
+                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                      {RET_REASONS.map(r => {
+                                        const on = st.reason_id === r.id;
+                                        return (
+                                          <span key={r.id} onClick={() => setLine(it.id, { reason_id: r.id, restock_pct: st.condition === 'saleable' ? r.restock : 0 })}
+                                            style={{ padding: '6px 10px', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', border: '0.5px solid ' + (on ? 'var(--rod-ink)' : 'rgba(28,25,23,0.2)'), background: on ? 'var(--rod-ink)' : 'transparent', color: on ? '#ece5d8' : 'var(--rod-muted)' }}>{r.label}</span>
+                                        );
+                                      })}
+                                    </div>
+                                    <input type="text" placeholder="Add detail (optional)" value={st.reason || ''} onChange={e => setLine(it.id, { reason: e.target.value })}
+                                      style={{ marginTop: 8, width: '100%', boxSizing: 'border-box', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', outline: 'none', font: "400 12px/1.3 'Inter', sans-serif", color: 'var(--rod-ink)' }} />
+                                  </div>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: 14 }}>
+                                    <div>
+                                      <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginBottom: 6 }}>Condition</div>
+                                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                        {RET_CONDITIONS.map(cd => {
+                                          const on = st.condition === cd.id;
+                                          return (
+                                            <span key={cd.id} onClick={() => setLine(it.id, { condition: cd.id, restock_pct: cd.id === 'saleable' ? st.restock_pct : 0 })}
+                                              style={{ padding: '6px 10px', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', border: '0.5px solid ' + (on ? cd.col : 'rgba(28,25,23,0.2)'), background: on ? cd.col : 'transparent', color: on ? '#ece5d8' : 'var(--rod-muted)' }}>{cd.label}</span>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginBottom: 6 }}>Restock %</div>
+                                      <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)', padding: '4px 8px', background: st.condition !== 'saleable' ? 'rgba(28,25,23,0.05)' : 'transparent' }}>
+                                        <input type="number" min="0" max="100" disabled={st.condition !== 'saleable'} value={st.condition === 'saleable' ? st.restock_pct : 0}
+                                          onChange={e => { let v = parseFloat(e.target.value); if (isNaN(v) || v < 0) v = 0; if (v > 100) v = 100; setLine(it.id, { restock_pct: v }); }}
+                                          style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', font: "400 14px/1 'Cormorant Garamond', serif", color: 'var(--rod-ink)' }} />
+                                        <span style={{ font: '500 9px/1 ui-monospace, monospace', color: 'var(--rod-muted)' }}>%</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 14, alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                      {[{ id: 'restock_local', l: 'Restock local' }, { id: 'return_to_vendor', l: 'Return to vendor' }].map(va => {
+                                        const on = st.vendor_action === va.id;
+                                        return (
+                                          <span key={va.id} onClick={() => setLine(it.id, { vendor_action: va.id })}
+                                            style={{ padding: '6px 10px', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', border: '0.5px solid ' + (on ? 'var(--rod-accent)' : 'rgba(28,25,23,0.2)'), background: on ? 'rgba(168,121,53,0.12)' : 'transparent', color: on ? 'var(--rod-accent)' : 'var(--rod-muted)' }}>{va.l}</span>
+                                        );
+                                      })}
+                                    </div>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}
+                                      onClick={() => setLine(it.id, { replacement_requested: !st.replacement_requested })}>
+                                      <span style={{ display: 'flex', width: 14, height: 14, border: '1px solid var(--rod-ink)', background: st.replacement_requested ? 'var(--rod-ink)' : 'transparent', alignItems: 'center', justifyContent: 'center', color: '#ece5d8', font: "500 9px/1 'Inter', sans-serif" }}>{st.replacement_requested ? '✓' : ''}</span>
+                                      Replacement
+                                    </label>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </WizRepCard>
+
+                    <WizRepCard title="Notes">
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <div>
+                          <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginBottom: 6 }}>Internal note</div>
+                          <textarea value={internalNote} onChange={e => setInternalNote(e.target.value)} rows={4}
+                            style={{ width: '100%', boxSizing: 'border-box', padding: 10, border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', outline: 'none', resize: 'vertical', font: "400 13px/1.5 'Inter', sans-serif", color: 'var(--rod-ink)' }} />
+                        </div>
+                        <div>
+                          <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-accent)', marginBottom: 6 }}>Customer note · prints on credit memo</div>
+                          <textarea value={customerNote} onChange={e => setCustomerNote(e.target.value)} rows={4}
+                            style={{ width: '100%', boxSizing: 'border-box', padding: 10, border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', outline: 'none', resize: 'vertical', font: "400 13px/1.5 'Inter', sans-serif", color: 'var(--rod-ink)' }} />
+                        </div>
+                      </div>
+                    </WizRepCard>
+                  </div>
+                )}
+
+                {step === 2 && (
+                  <div style={{ display: 'grid', gap: 16 }}>
+                    <WizRepCard title="Refund breakdown">
+                      <div style={{ display: 'grid', gap: 0 }}>
+                        <RetSumRow l="Items subtotal" v={'$' + totals.subtotal.toFixed(2)} />
+                        <RetSumRow l="Restocking fees" v={totals.restock ? '−$' + totals.restock.toFixed(2) : '—'} c={totals.restock ? 'var(--rod-red)' : 'var(--rod-muted)'} />
+                        <RetSumRow l="Merchandise refund" v={'$' + totals.merch.toFixed(2)} />
+                        <RetSumRow l={'Tax refund · ' + (taxRate * 100).toFixed(2) + '%'} v={'$' + totals.taxRefund.toFixed(2)} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 10 }}>
+                          <span style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>Refund total</span>
+                          <span style={{ font: "300 30px/1 'Cormorant Garamond', serif", color: 'var(--rod-red)', letterSpacing: '-0.014em' }}>{'−'}${totals.refundTotal.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </WizRepCard>
+
+                    <WizRepCard title="Where does the refund go?">
+                      <div style={{ display: 'grid', gap: 0 }}>
+                        {tenders.length === 0 && (
+                          <div style={{ padding: '10px 0', font: "400 13px/1.4 'Inter', sans-serif", color: 'var(--rod-muted)' }}>No refundable tenders on this order — allocate to store credit below.</div>
+                        )}
+                        {tenders.map((t, i) => {
+                          const refundable = parseFloat(t.refundable) || 0;
+                          const method = { card: 'Card', check: 'Check', cash: 'Cash', stripe: 'Payment Request', offline: 'Offline', ach: 'Check (ACH)' }[t.payment_method] || t.payment_method;
+                          return (
+                            <div key={t.id} style={{ padding: '14px 0', display: 'grid', gridTemplateColumns: '1.5fr 1fr 130px', gap: 14, alignItems: 'center', borderBottom: '0.5px solid rgba(28,25,23,0.07)' }}>
+                              <div>
+                                <div style={{ font: "400 14px/1.3 'Inter', sans-serif", color: 'var(--rod-ink)' }}>{method}{t.check_number ? ' #' + t.check_number : ''}</div>
+                                <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>Paid ${parseFloat(t.amount).toFixed(2)}</div>
+                              </div>
+                              <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase' }}>Refundable ${refundable.toFixed(2)}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)', padding: '4px 8px' }}>
+                                <span style={{ color: 'var(--rod-muted)', fontSize: 12 }}>$</span>
+                                <input type="number" min="0" max={refundable} step="0.01" value={splits[t.id] || ''} placeholder="0.00"
+                                  onChange={e => { let v = parseFloat(e.target.value); if (isNaN(v) || v < 0) { setSplits(p => ({ ...p, [t.id]: e.target.value === '' ? '' : 0 })); return; } if (v > refundable) v = refundable; setSplits(p => ({ ...p, [t.id]: v })); }}
+                                  style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', textAlign: 'right', font: "400 16px/1 'Cormorant Garamond', serif", color: 'var(--rod-red)' }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div style={{ padding: '14px 0', display: 'grid', gridTemplateColumns: '1.5fr 1fr 130px', gap: 14, alignItems: 'center' }}>
+                          <div>
+                            <div style={{ font: "400 14px/1.3 'Inter', sans-serif", color: 'var(--rod-ink)' }}>Store credit</div>
+                            <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>Applies to a future order</div>
+                          </div>
+                          <span />
+                          <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)', padding: '4px 8px' }}>
+                            <span style={{ color: 'var(--rod-muted)', fontSize: 12 }}>$</span>
+                            <input type="number" min="0" step="0.01" value={storeCredit} placeholder="0.00"
+                              onChange={e => { const v = parseFloat(e.target.value); setStoreCredit(e.target.value === '' ? '' : (isNaN(v) || v < 0 ? 0 : v)); }}
+                              style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', textAlign: 'right', font: "400 16px/1 'Cormorant Garamond', serif", color: 'var(--rod-accent)' }} />
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ padding: '16px 0 0', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, borderTop: '0.5px solid var(--rod-border)', marginTop: 4 }}>
+                        {[
+                          { l: 'Refund due', v: '$' + totals.refundTotal.toFixed(2), col: 'var(--rod-ink)' },
+                          { l: 'Allocated', v: '$' + allocated.toFixed(2), col: 'var(--rod-ink)' },
+                          { l: balanced ? '● Balanced' : remaining > 0 ? '● Remaining' : '● Over', v: '$' + Math.abs(remaining).toFixed(2), col: balanced ? 'var(--rod-green)' : 'var(--rod-red)' }
+                        ].map(m => (
+                          <div key={m.l}>
+                            <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: m.col, marginBottom: 6 }}>{m.l}</div>
+                            <div style={{ font: "300 26px/1 'Cormorant Garamond', serif", color: m.col === 'var(--rod-green)' ? 'var(--rod-ink)' : m.col, letterSpacing: '-0.014em' }}>{m.v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </WizRepCard>
+                    {error && <div style={{ padding: '10px 14px', background: '#fee2e2', color: '#991b1b', fontSize: 13 }}>{error}</div>}
+                  </div>
+                )}
+
+                {step === 3 && (
+                  <div style={{ display: 'grid', gap: 16 }}>
+                    <WizRepCard title="Vendor handling · recorded for your reference">
+                      <div style={{ padding: '0 0 10px', font: "400 13px/1.5 'Inter', sans-serif", color: 'rgba(28,25,23,0.8)' }}>
+                        Recorded for your reference — no automatic transmission. Toggle how each returned line is handled.
+                      </div>
+                      <div style={{ display: 'grid', gap: 0 }}>
+                        {selectedItems.map((it, i) => {
+                          const st = lineState[it.id];
+                          const c = lineCalc(it);
+                          return (
+                            <div key={it.id} style={{ padding: '14px 0', display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 14, alignItems: 'center', borderBottom: i < selectedItems.length - 1 ? '0.5px solid rgba(28,25,23,0.07)' : 'none' }}>
+                              <div style={{ height: 34, ...materialFace(retMaterialKind(it), retTone(it.product_name)) }} />
+                              <div>
+                                <div style={{ font: "400 14px/1.3 'Cormorant Garamond', serif", color: 'var(--rod-ink)' }}>{it.product_name}</div>
+                                <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>
+                                  {c.qty} box · {it.vendor_name || 'Roma'} · {st.condition}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                {[{ id: 'restock_local', l: 'Restock local' }, { id: 'return_to_vendor', l: 'Return to vendor' }].map(va => {
+                                  const on = st.vendor_action === va.id;
+                                  return (
+                                    <span key={va.id} onClick={() => setLine(it.id, { vendor_action: va.id })}
+                                      style={{ padding: '6px 10px', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', border: '0.5px solid ' + (on ? 'var(--rod-accent)' : 'rgba(28,25,23,0.2)'), background: on ? 'rgba(168,121,53,0.12)' : 'transparent', color: on ? 'var(--rod-accent)' : 'var(--rod-muted)' }}>{va.l}</span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgba(216,205,182,0.4)', font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase' }}>
+                        ● Recorded for your reference — no automatic transmission
+                      </div>
+                    </WizRepCard>
+                    {error && <div style={{ padding: '10px 14px', background: '#fee2e2', color: '#991b1b', fontSize: 13 }}>{error}</div>}
+                  </div>
+                )}
+              </div>
+
+              <div className="rof-sidebar">
+                <RodCard title="Return summary">
+                  <div className="rod-card-body-padded" style={{ display: 'grid', gap: 6 }}>
+                    <RetSumRow l={'Lines · ' + totals.lineCount} v={totals.units + ' units'} />
+                    <RetSumRow l="Items subtotal" v={'$' + totals.subtotal.toFixed(2)} />
+                    <RetSumRow l="Restock" v={totals.restock ? '−$' + totals.restock.toFixed(2) : '—'} c={totals.restock ? 'var(--rod-red)' : 'var(--rod-muted)'} />
+                    <RetSumRow l="Merch refund" v={'$' + totals.merch.toFixed(2)} />
+                    <RetSumRow l={'Tax · ' + (taxRate * 100).toFixed(2) + '%'} v={'$' + totals.taxRefund.toFixed(2)} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 8, borderTop: '0.5px solid var(--rod-border)' }}>
+                      <span style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>Refund</span>
+                      <span style={{ font: "300 28px/1 'Cormorant Garamond', serif", color: 'var(--rod-red)', letterSpacing: '-0.014em' }}>{'−'}${totals.refundTotal.toFixed(2)}</span>
+                    </div>
+                    <div style={{ marginTop: 6, padding: '8px 10px', textAlign: 'center', background: step >= 2 ? 'var(--rod-ink)' : 'var(--rod-warm)', color: step >= 2 ? '#ece5d8' : 'var(--rod-muted)', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                      ● {step === 1 ? 'Drafting return' : step === 2 ? 'Allocating refund' : 'Ready to commit'}
+                    </div>
+                  </div>
+                </RodCard>
+              </div>
+            </div>
+          ) : (
+            /* STEP 04 — Done */
+            <div style={{ display: 'grid', gap: 16 }}>
+              <div style={{ padding: '32px 28px', background: 'var(--rod-ink)', color: '#ece5d8', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center' }}>
+                <div>
+                  <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--rod-green)', marginBottom: 12 }}>● Refund issued · credit memo created</div>
+                  <h1 style={{ font: "300 42px/1 'Cormorant Garamond', serif", letterSpacing: '-0.018em', margin: 0, color: '#ece5d8' }}>
+                    <em style={{ fontStyle: 'normal', color: 'var(--rod-accent)' }}>{result && result.return ? result.return.rma_number : ''}</em> · the loop is closed.
+                  </h1>
+                  <div style={{ font: "400 14px/1.6 'Inter', sans-serif", color: 'rgba(236,229,216,0.8)', marginTop: 12, maxWidth: 560 }}>
+                    Credit memo {result && result.credit_memo ? result.credit_memo.credit_memo_number : ''} issued.
+                    {result && result.is_full ? ' This return closed the order.' : ''}
+                    {result && result.balance != null ? ' Remaining order balance $' + parseFloat(result.balance).toFixed(2) + '.' : ''}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(236,229,216,0.47)', marginBottom: 6 }}>Refunded</div>
+                  <div style={{ font: "300 52px/1 'Cormorant Garamond', serif", color: 'var(--rod-red)', letterSpacing: '-0.018em' }}>{'−'}${totals.refundTotal.toFixed(2)}</div>
+                </div>
+              </div>
+
+              <RodCard title="Return receipt">
+                <div className="rod-card-body-padded" style={{ display: 'grid', gap: 10 }}>
+                  <RetSumRow l="RMA number" v={result && result.return ? result.return.rma_number : '—'} />
+                  <RetSumRow l="Credit memo" v={result && result.credit_memo ? result.credit_memo.credit_memo_number : '—'} />
+                  <RetSumRow l="Refund total" v={'$' + totals.refundTotal.toFixed(2)} c="var(--rod-red)" />
+                  {result && result.balance != null && <RetSumRow l="Order balance" v={'$' + parseFloat(result.balance).toFixed(2)} />}
+                  <RetSumRow l="Closed order" v={result && result.is_full ? 'Yes · fully returned' : 'No · partial'} />
+                </div>
+                <div style={{ padding: '14px 20px', borderTop: '0.5px solid var(--rod-border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {result && result.return && (
+                    <button className="rov-hbtn" onClick={() => repOpenDoc('/api/rep/returns/' + result.return.id + '/credit-memo', true).catch(err => alert(err.message))}>View credit memo (PDF)</button>
+                  )}
+                  <button className="rov-hbtn" onClick={() => navigate('order-detail', editId)}>Back to order</button>
+                  <button className="rov-hbtn" onClick={() => navigate('dashboard')}>Dashboard</button>
+                </div>
+              </RodCard>
+            </div>
+          )}
+
+          <RetActionBar
+            step={step} setStep={setStep} canContinue={canContinue}
+            onCommit={commit} committing={committing} navigate={navigate}
+            refundTotal={totals.refundTotal} rmaNumber={rmaNumber}
+            customerName={custName} lineCount={totals.lineCount} unitCount={totals.units} />
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // RepChangeOrderView — single-page staged diff editor for paid, not-yet-
+    // delivered orders. Mirrors rep-change-order design (minus approvals).
+    // Stages edits locally, then applies them via add-item / delete / price
+    // endpoints on Commit; qty changes = remove + re-add.
+    // ════════════════════════════════════════════════════════════════════════
+    function RepChangeOrderView({ navigate, editId, showCost }) {
+      const [order, setOrder] = useState(null);
+      const [items, setItems] = useState([]);
+      const [balanceInfo, setBalanceInfo] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState('');
+      const [catalogOpen, setCatalogOpen] = useState(false);
+      const [committing, setCommitting] = useState(false);
+      const [committed, setCommitted] = useState(false);
+      const [newBalance, setNewBalance] = useState(null);
+
+      // Staged diffs. Each: { key, type, ... }
+      //  remove: { type:'remove', itemId, name, wasSubtotal }
+      //  qty:    { type:'qty', itemId, name, wasQty, newQty, unitPrice, wasSubtotal, addPayload }
+      //  price:  { type:'price', itemId, name, wasPrice, newPrice, qty, wasSubtotal }
+      //  add:    { type:'add', name, addPayload, estSubtotal, vendorName }
+      const [diffs, setDiffs] = useState([]);
+      const [priceDraft, setPriceDraft] = useState({}); // itemId -> string
+      const [qtyDraft, setQtyDraft] = useState({}); // itemId -> string
+
+      const load = useCallback(() => {
+        if (!editId) return;
+        repFetch('/api/rep/orders/' + editId)
+          .then(data => {
+            setOrder(data.order);
+            setItems(data.items || []);
+            setBalanceInfo(data.balance || null);
+            setLoading(false);
+          })
+          .catch(err => { setError(err.message || 'Failed to load order'); setLoading(false); });
+      }, [editId]);
+      useEffect(load, [load]);
+
+      const custName = order ? (order.customer_name || 'Customer') : '';
+      const custInitials = (custName || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+
+      // Diff helpers keyed by item so a line has at most one active diff of each kind
+      const removeDiff = (itemId) => diffs.find(d => d.itemId === itemId && d.type === 'remove');
+      const qtyDiff = (itemId) => diffs.find(d => d.itemId === itemId && d.type === 'qty');
+      const priceDiff = (itemId) => diffs.find(d => d.itemId === itemId && d.type === 'price');
+      const dropDiff = (key) => setDiffs(prev => prev.filter(d => d.key !== key));
+      const dropItemDiffs = (itemId, type) => setDiffs(prev => prev.filter(d => !(d.itemId === itemId && d.type === type)));
+
+      const genKey = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+      const itemQty = (it) => parseInt(it.num_boxes, 10) || 0;
+      const itemName = (it) => (it.collection || it.current_collection || it.product_name || '—') + (it.color ? ' ' + it.color : '');
+
+      // Rebuild the add-item payload for a SKU or custom line at a given qty.
+      const rebuildPayload = (it, qty) => {
+        const isCustom = !it.product_id;
+        if (isCustom) {
+          return {
+            product_name: it.product_name, unit_price: parseFloat(it.unit_price) || 0,
+            vendor_id: it.vendor_id || undefined,
+            description: it.description || null,
+            sell_by: it.sell_by || 'box', num_boxes: qty
+          };
+        }
+        const sellBy = it.sell_by || 'box';
+        const isUnit = sellBy === 'unit' || sellBy === 'piece';
+        const spb = parseFloat(it.sqft_per_box || 0);
+        const perBoxSqft = itemQty(it) > 0 && parseFloat(it.sqft_needed) > 0 ? (parseFloat(it.sqft_needed) / itemQty(it)) : (spb > 0 ? spb : 0);
+        if (isUnit) return { sku_id: it.sku_id, num_boxes: qty };
+        if (sellBy === 'roll') return { sku_id: it.sku_id, num_boxes: 1, sqft_needed: perBoxSqft > 0 ? perBoxSqft * qty : (parseFloat(it.sqft_needed) || 9) };
+        if (perBoxSqft > 0) return { sku_id: it.sku_id, num_boxes: qty, sqft_needed: perBoxSqft * qty };
+        return { sku_id: it.sku_id, num_boxes: qty };
+      };
+
+      const stageRemove = (it) => {
+        dropItemDiffs(it.id, 'qty'); dropItemDiffs(it.id, 'price');
+        setDiffs(prev => [...prev.filter(d => !(d.itemId === it.id && d.type === 'remove')),
+          { key: genKey(), type: 'remove', itemId: it.id, name: itemName(it), wasSubtotal: parseFloat(it.subtotal) || 0 }]);
+      };
+
+      const stageQty = (it) => {
+        const raw = qtyDraft[it.id];
+        const newQty = parseInt(raw, 10);
+        if (!newQty || newQty < 1 || newQty === itemQty(it)) { setQtyDraft(p => ({ ...p, [it.id]: '' })); return; }
+        const unitPrice = parseFloat(it.unit_price) || 0;
+        dropItemDiffs(it.id, 'qty');
+        setDiffs(prev => [...prev, {
+          key: genKey(), type: 'qty', itemId: it.id, name: itemName(it),
+          wasQty: itemQty(it), newQty, unitPrice,
+          wasSubtotal: parseFloat(it.subtotal) || 0,
+          addPayload: rebuildPayload(it, newQty)
+        }]);
+        setQtyDraft(p => ({ ...p, [it.id]: '' }));
+      };
+
+      const stagePrice = (it) => {
+        const raw = priceDraft[it.id];
+        const newPrice = parseFloat(raw);
+        if (isNaN(newPrice) || newPrice < 0 || newPrice === (parseFloat(it.unit_price) || 0)) { setPriceDraft(p => ({ ...p, [it.id]: '' })); return; }
+        dropItemDiffs(it.id, 'price');
+        setDiffs(prev => [...prev, {
+          key: genKey(), type: 'price', itemId: it.id, name: itemName(it),
+          wasPrice: parseFloat(it.unit_price) || 0, newPrice, qty: itemQty(it),
+          wasSubtotal: parseFloat(it.subtotal) || 0
+        }]);
+        setPriceDraft(p => ({ ...p, [it.id]: '' }));
+      };
+
+      // Convert RofCatalogModal selections into staged 'add' diffs.
+      const addFromCatalog = ({ lines, accessories, customs }) => {
+        const staged = [];
+        for (const { item: p, qty } of lines) {
+          const sellBy = p.sell_by || 'box';
+          const isUnit = sellBy === 'unit' || sellBy === 'piece';
+          const isCarpet = p.price_basis === 'per_sqyd';
+          const spb = parseFloat(p.sqft_per_box || 0);
+          let payload;
+          if (isUnit) payload = { sku_id: p.sku_id, num_boxes: qty };
+          else if (isCarpet) payload = { sku_id: p.sku_id, sqft_needed: spb > 0 ? spb * qty : 9 * qty, num_boxes: 1 };
+          else if (spb > 0) payload = { sku_id: p.sku_id, num_boxes: qty, sqft_needed: spb * qty };
+          else payload = { sku_id: p.sku_id, num_boxes: qty };
+          const unit = parseFloat(p.unit_price || p.price || 0);
+          staged.push({ key: genKey(), type: 'add', name: (p.collection || p.product_name || 'Item') + (p.color ? ' ' + p.color : ''), addPayload: payload, estSubtotal: unit * qty, vendorName: p.vendor_name || 'Roma' });
+        }
+        for (const { acc, qty } of accessories) {
+          const unit = parseFloat(acc.unit_price || acc.price || 0);
+          staged.push({ key: genKey(), type: 'add', name: (acc.product_name || 'Accessory') + (acc.color ? ' ' + acc.color : ''), addPayload: { sku_id: acc.sku_id, num_boxes: qty }, estSubtotal: unit * qty, vendorName: acc.vendor_name || 'Roma' });
+        }
+        for (const c of customs) {
+          staged.push({
+            key: genKey(), type: 'add', name: c.product_name || 'Custom item',
+            addPayload: {
+              product_name: c.product_name, unit_price: c.unit_price, vendor_id: c.vendor_id || undefined,
+              custom_vendor: c.vendor_id ? undefined : (c.custom_vendor || undefined),
+              custom_vendor_email: c.vendor_id ? undefined : (c.custom_vendor_email || undefined),
+              cost: c.cost || undefined, description: c.description || null, sell_by: c.sell_by, num_boxes: c.num_boxes
+            },
+            estSubtotal: (parseFloat(c.unit_price) || 0) * (parseInt(c.num_boxes, 10) || 1),
+            vendorName: c.custom_vendor || 'Custom'
+          });
+        }
+        setDiffs(prev => [...prev, ...staged]);
+        setCatalogOpen(false);
+      };
+
+      // Net change across all staged diffs
+      const netChange = diffs.reduce((sum, d) => {
+        if (d.type === 'remove') return sum - d.wasSubtotal;
+        if (d.type === 'qty') return sum + (d.newQty * d.unitPrice - d.wasSubtotal);
+        if (d.type === 'price') return sum + (d.newPrice * d.qty - d.wasSubtotal);
+        if (d.type === 'add') return sum + d.estSubtotal;
+        return sum;
+      }, 0);
+
+      const oldTotal = order ? parseFloat(order.total || 0) : 0;
+      // Approximate new total: net change is a subtotal delta; tax applies proportionally.
+      const taxFactor = order && parseFloat(order.subtotal || 0) > 0 ? (parseFloat(order.total || 0) / parseFloat(order.subtotal || 0)) : 1;
+      const estNewTotal = oldTotal + netChange * taxFactor;
+
+      const commit = async () => {
+        setCommitting(true);
+        setError('');
+        try {
+          // Order: price changes, adds, qty (remove+add), removes.
+          for (const d of diffs.filter(x => x.type === 'price')) {
+            await repFetch('/api/rep/orders/' + editId + '/items/' + d.itemId + '/price', { method: 'PUT', body: JSON.stringify({ unit_price: d.newPrice, reason: 'Change order' }) });
+          }
+          for (const d of diffs.filter(x => x.type === 'qty')) {
+            await repFetch('/api/rep/orders/' + editId + '/items/' + d.itemId, { method: 'DELETE' });
+            await repFetch('/api/rep/orders/' + editId + '/add-item', { method: 'POST', body: JSON.stringify(d.addPayload) });
+          }
+          for (const d of diffs.filter(x => x.type === 'add')) {
+            await repFetch('/api/rep/orders/' + editId + '/add-item', { method: 'POST', body: JSON.stringify(d.addPayload) });
+          }
+          let last = null;
+          for (const d of diffs.filter(x => x.type === 'remove')) {
+            last = await repFetch('/api/rep/orders/' + editId + '/items/' + d.itemId, { method: 'DELETE' });
+          }
+          // Re-fetch to get authoritative balance/items
+          const fresh = await repFetch('/api/rep/orders/' + editId);
+          setOrder(fresh.order);
+          setItems(fresh.items || []);
+          setBalanceInfo(fresh.balance || null);
+          setNewBalance(fresh.balance || null);
+          setDiffs([]);
+          setCommitted(true);
+        } catch (err) {
+          setError(err.message || 'Failed to apply changes');
+        }
+        setCommitting(false);
+      };
+
+      const changeMaterialKind = (it) => {
+        const s = ((it.category_name || '') + ' ' + (it.variant_type || '')).toLowerCase();
+        if (/hardwood|wood/.test(s)) return 'wood';
+        if (/lvp|lvt|vinyl|spc/.test(s)) return 'lvp';
+        if (/laminate/.test(s)) return 'laminate';
+        if (/marble/.test(s)) return 'marble';
+        if (/tile|porcelain|ceramic|mosaic/.test(s)) return 'tile';
+        if (/stone|travertine|slate/.test(s)) return 'stone';
+        if (/quartz/.test(s)) return 'quartz';
+        if (/carpet/.test(s)) return 'carpet';
+        return 'tile';
+      };
+      const changeTone = (name) => {
+        let h = 0;
+        for (let i = 0; i < (name || '').length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+        h = Math.abs(h);
+        const hue = 20 + (h % 30), satA = 20 + (h >> 4) % 25, litA = 60 + (h >> 8) % 18, litB = 35 + (h >> 12) % 15, litC = 14 + (h >> 16) % 12;
+        const hsl2hex = (hh, s, l) => { s /= 100; l /= 100; const a = s * Math.min(l, 1 - l); const f = n => { const k = (n + hh / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return '#' + [f(0), f(8), f(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join(''); };
+        return { a: hsl2hex(hue, satA, litA), b: hsl2hex(hue, satA + 5, litB), c: hsl2hex(hue, satA + 8, litC) };
+      };
+
+      if (loading) return <div className="loading">Loading order…</div>;
+      if (error && !order) return <div className="loading">{error}</div>;
+      if (!order) return <div className="loading">Order not found</div>;
+
+      const balanceAmt = (committed ? newBalance : balanceInfo) ? parseFloat((committed ? newBalance : balanceInfo).balance || 0) : 0;
+
+      return (
+        <div className="rof-container">
+          <div className="rof-breadcrumb">
+            <a onClick={() => navigate('dashboard')}>Workspace</a>
+            <span className="rof-bc-sep">/</span>
+            <a onClick={() => navigate('orders')}>Orders</a>
+            <span className="rof-bc-sep">/</span>
+            <a onClick={() => navigate('order-detail', editId)}>{order.order_number}</a>
+            <span className="rof-bc-sep">{'·'}</span>
+            <span className="rof-bc-current">Change order</span>
+          </div>
+
+          <div className="qw-header" style={{ marginBottom: 16 }}>
+            <div>
+              <h1>Change <em>{order.order_number}</em></h1>
+              <div className="qw-identity">
+                <div className="qw-avatar">{custInitials}</div>
+                <div>
+                  <div className="qw-cust-line">{custName}</div>
+                  <div className="qw-cust-sub">{order.status} · placed {order.customer_email || ''}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Risk banner */}
+          <div style={{ marginBottom: 16, padding: '12px 16px', background: 'rgba(168,121,53,0.1)', border: '0.5px solid rgba(168,121,53,0.4)', font: "400 13px/1.5 'Inter', sans-serif", color: 'var(--rod-ink)' }}>
+            <strong>This order is already paid.</strong> Staged edits recompute the balance — after committing you'll either collect the balance owed or refund the difference using the order's existing payment controls. Purchase orders are affected for SKU lines.
+          </div>
+
+          {committed ? (
+            <div style={{ display: 'grid', gap: 16 }}>
+              <div style={{ padding: '28px', background: 'var(--rod-ink)', color: '#ece5d8', display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'center' }}>
+                <div>
+                  <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--rod-green)', marginBottom: 12 }}>● Changes applied</div>
+                  <h1 style={{ font: "300 36px/1 'Cormorant Garamond', serif", letterSpacing: '-0.018em', margin: 0, color: '#ece5d8' }}>Order updated.</h1>
+                  <div style={{ font: "400 14px/1.6 'Inter', sans-serif", color: 'rgba(236,229,216,0.8)', marginTop: 12, maxWidth: 560 }}>
+                    New order total ${parseFloat(order.total || 0).toFixed(2)}.
+                    {balanceAmt > 0.005 ? ' There is a balance of $' + balanceAmt.toFixed(2) + ' owed.' : balanceAmt < -0.005 ? ' The customer overpaid by $' + Math.abs(balanceAmt).toFixed(2) + '.' : ' The order is balanced.'}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(236,229,216,0.47)', marginBottom: 6 }}>New total</div>
+                  <div style={{ font: "300 48px/1 'Cormorant Garamond', serif", color: '#ece5d8', letterSpacing: '-0.018em' }}>${parseFloat(order.total || 0).toFixed(2)}</div>
+                </div>
+              </div>
+              <RodCard title="Next step">
+                <div className="rod-card-body-padded" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {balanceAmt > 0.005 && (
+                    <button className="rov-hbtn" onClick={() => navigate('order-detail', editId)}>Collect balance (${balanceAmt.toFixed(2)}) →</button>
+                  )}
+                  {balanceAmt < -0.005 && (
+                    <button className="rov-hbtn" onClick={() => navigate('order-detail', editId)}>Refund difference (${Math.abs(balanceAmt).toFixed(2)}) →</button>
+                  )}
+                  <button className="rov-hbtn" onClick={() => navigate('order-detail', editId)}>Back to order</button>
+                </div>
+              </RodCard>
+            </div>
+          ) : (
+            <div className="rof-body">
+              <div className="rof-main" style={{ display: 'grid', gap: 16 }}>
+                {/* Current lines — stage edits */}
+                <RodCard title="Order lines" action="+ Add / swap item" onAction={() => setCatalogOpen(true)}>
+                  <div className="rod-card-body-padded" style={{ display: 'grid', gap: 0 }}>
+                    {items.length === 0 && <div style={{ font: "400 13px/1.4 'Inter', sans-serif", color: 'var(--rod-muted)' }}>No line items.</div>}
+                    {items.map((it, idx) => {
+                      const rd = removeDiff(it.id), qd = qtyDiff(it.id), pd = priceDiff(it.id);
+                      const staged = rd || qd || pd;
+                      return (
+                        <div key={it.id} style={{ padding: '14px 0', borderBottom: idx < items.length - 1 ? '0.5px solid rgba(28,25,23,0.07)' : 'none', opacity: rd ? 0.5 : 1 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: 12, alignItems: 'center' }}>
+                            <div style={{ height: 38, ...materialFace(changeMaterialKind(it), changeTone(it.product_name)), textDecoration: rd ? 'line-through' : 'none' }} />
+                            <div>
+                              <div style={{ font: "400 14px/1.3 'Cormorant Garamond', serif", color: 'var(--rod-ink)', textDecoration: rd ? 'line-through' : 'none' }}>{itemName(it)}</div>
+                              <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>
+                                {it.vendor_name || (!it.product_id ? 'Custom' : 'Roma')} · {itemQty(it)} {it.sell_by === 'unit' ? 'unit' : it.sell_by === 'piece' ? 'pc' : 'box'} · ${parseFloat(it.unit_price).toFixed(2)} ea · ${parseFloat(it.subtotal || 0).toFixed(2)}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                              {/* Qty */}
+                              <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)', padding: '3px 6px' }}>
+                                <span style={{ font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginRight: 4 }}>Qty</span>
+                                <input type="number" min="1" placeholder={String(itemQty(it))} value={qtyDraft[it.id] || ''}
+                                  onChange={e => setQtyDraft(p => ({ ...p, [it.id]: e.target.value }))}
+                                  onBlur={() => stageQty(it)}
+                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
+                                  disabled={!!rd}
+                                  style={{ width: 44, border: 'none', outline: 'none', background: 'transparent', textAlign: 'right', font: "400 13px/1 'Inter', sans-serif", color: 'var(--rod-ink)' }} />
+                              </div>
+                              {/* Price */}
+                              <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)', padding: '3px 6px' }}>
+                                <span style={{ color: 'var(--rod-muted)', fontSize: 11 }}>$</span>
+                                <input type="text" inputMode="decimal" placeholder={parseFloat(it.unit_price).toFixed(2)} value={priceDraft[it.id] || ''}
+                                  onChange={e => { const v = e.target.value; if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setPriceDraft(p => ({ ...p, [it.id]: v })); }}
+                                  onBlur={() => stagePrice(it)}
+                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
+                                  disabled={!!rd}
+                                  style={{ width: 56, border: 'none', outline: 'none', background: 'transparent', textAlign: 'right', font: "400 13px/1 'Inter', sans-serif", color: 'var(--rod-ink)' }} />
+                              </div>
+                              {rd ? (
+                                <button className="rod-mini-btn" style={{ padding: '5px 8px', fontSize: 10 }} onClick={() => dropDiff(rd.key)}>Undo</button>
+                              ) : (
+                                <button title="Remove line" onClick={() => stageRemove(it)}
+                                  style={{ padding: '4px 8px', border: '0.5px solid rgba(197,71,49,0.35)', background: 'transparent', color: 'var(--rod-red)', cursor: 'pointer', font: "400 12px/1 'Inter', sans-serif" }}>×</button>
+                              )}
+                            </div>
+                          </div>
+                          {staged && (
+                            <div style={{ marginTop: 6, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rod-accent)' }}>
+                              ● Staged: {rd ? 'remove' : qd ? 'qty ' + qd.wasQty + ' → ' + qd.newQty : 'price $' + pd.wasPrice.toFixed(2) + ' → $' + pd.newPrice.toFixed(2)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </RodCard>
+
+                {/* Modifications diff list */}
+                <RodCard title={'Modifications · ' + diffs.length}>
+                  <div className="rod-card-body-padded" style={{ display: 'grid', gap: 0 }}>
+                    {diffs.length === 0 && <div style={{ font: "400 13px/1.4 'Inter', sans-serif", color: 'var(--rod-muted)' }}>No changes staged yet. Edit qty/price, remove a line, or add an item above.</div>}
+                    {diffs.map((d, i) => {
+                      let was = '', now = '', delta = 0, poImpact = '';
+                      if (d.type === 'remove') { was = '$' + d.wasSubtotal.toFixed(2); now = 'Removed'; delta = -d.wasSubtotal; poImpact = 'PO line cancelled'; }
+                      if (d.type === 'qty') { was = d.wasQty + ' × $' + d.unitPrice.toFixed(2); now = d.newQty + ' × $' + d.unitPrice.toFixed(2); delta = d.newQty * d.unitPrice - d.wasSubtotal; poImpact = 'PO qty updated'; }
+                      if (d.type === 'price') { was = '$' + d.wasPrice.toFixed(2) + ' ea'; now = '$' + d.newPrice.toFixed(2) + ' ea'; delta = d.newPrice * d.qty - d.wasSubtotal; poImpact = 'Price only · PO cost unchanged'; }
+                      if (d.type === 'add') { was = '—'; now = '$' + d.estSubtotal.toFixed(2); delta = d.estSubtotal; poImpact = 'New PO line'; }
+                      return (
+                        <div key={d.key} style={{ padding: '12px 0', display: 'grid', gridTemplateColumns: '90px 1fr auto 24px', gap: 12, alignItems: 'center', borderBottom: i < diffs.length - 1 ? '0.5px solid rgba(28,25,23,0.07)' : 'none' }}>
+                          <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: d.type === 'remove' ? 'var(--rod-red)' : d.type === 'add' ? 'var(--rod-green)' : 'var(--rod-accent)' }}>● {d.type}</span>
+                          <div>
+                            <div style={{ font: "400 13px/1.3 'Inter', sans-serif", color: 'var(--rod-ink)' }}>{d.name}</div>
+                            <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>{was} → {now} · {poImpact}</div>
+                          </div>
+                          <span style={{ font: "400 15px/1 'Cormorant Garamond', serif", color: delta < 0 ? 'var(--rod-red)' : 'var(--rod-green)', textAlign: 'right' }}>{delta < 0 ? '−' : '+'}${Math.abs(delta).toFixed(2)}</span>
+                          <button onClick={() => dropDiff(d.key)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--rod-muted)', font: "400 14px/1 'Inter', sans-serif" }}>×</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </RodCard>
+                {error && <div style={{ padding: '10px 14px', background: '#fee2e2', color: '#991b1b', fontSize: 13 }}>{error}</div>}
+              </div>
+
+              <div className="rof-sidebar">
+                <RodCard title="Change summary">
+                  <div className="rod-card-body-padded" style={{ display: 'grid', gap: 6 }}>
+                    <RetSumRow l="Before · total" v={'$' + oldTotal.toFixed(2)} />
+                    <RetSumRow l="Net change" v={(netChange < 0 ? '−' : '+') + '$' + Math.abs(netChange).toFixed(2)} c={netChange < 0 ? 'var(--rod-red)' : 'var(--rod-green)'} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: 8, borderTop: '0.5px solid var(--rod-border)' }}>
+                      <span style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>After · est.</span>
+                      <span style={{ font: "300 28px/1 'Cormorant Garamond', serif", color: 'var(--rod-ink)', letterSpacing: '-0.014em' }}>${estNewTotal.toFixed(2)}</span>
+                    </div>
+                    <div style={{ marginTop: 4, font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.1em', color: 'var(--rod-muted)', textTransform: 'uppercase' }}>Tax recalculated on commit</div>
+                    <button className="rod-btn rod-btn-primary" disabled={diffs.length === 0 || committing}
+                      onClick={commit}
+                      style={{ marginTop: 10, padding: '12px 14px', background: diffs.length === 0 ? 'rgba(28,25,23,0.3)' : 'var(--rod-ink)', color: '#fff', border: 'none', cursor: diffs.length === 0 ? 'not-allowed' : 'pointer', font: "500 12px/1 'Inter', sans-serif", letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      {committing ? 'Applying…' : 'Commit change'}
+                    </button>
+                    <button onClick={() => navigate('order-detail', editId)}
+                      style={{ padding: '10px 14px', background: 'transparent', color: 'var(--rod-ink)', border: '0.5px solid rgba(28,25,23,0.2)', cursor: 'pointer', font: "500 11px/1 'Inter', sans-serif", letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      Cancel
+                    </button>
+                  </div>
+                </RodCard>
+              </div>
+            </div>
+          )}
+
+          {catalogOpen && (
+            <RofCatalogModal
+              data={{ customer: null, newCustomerName: order.customer_name }}
+              showCost={showCost}
+              contextLabel={'Change order · ' + order.order_number}
+              onClose={() => setCatalogOpen(false)}
+              onAdd={addFromCatalog}
+            />
           )}
         </div>
       );
@@ -20701,7 +21835,7 @@
             setQuote(qData.quote);
           }
         } else {
-          setQuoteItems(prev => [...prev, { ...newItem, _temp_id: Date.now(), vendor_cost: sku.vendor_cost || null }]);
+          setQuoteItems(prev => [...prev, { ...newItem, _temp_id: 'q' + Date.now() + '-' + (sku.sku_id || prev.length), vendor_cost: sku.vendor_cost || null }]);
         }
         } catch (err) { alert('Failed to add product: ' + (err.message || 'Unknown error')); }
       };
@@ -20710,19 +21844,25 @@
       // addProductToQuote expects the mapped search-result shape (price, not retail_price).
       useEffect(() => {
         const pending = consumePendingAdd('quote');
-        if (!pending || !pending.sku) return;
+        if (!pending) return;
+        // Bulk hand-off carries `skus` (array); single hand-off carries `sku`.
+        const list = (pending.skus && pending.skus.length) ? pending.skus : (pending.sku ? [pending.sku] : []);
+        if (!list.length) return;
         const targetId = pending.quoteId ? String(pending.quoteId) : null;
         if (targetId ? String(editId || '') === targetId : !editId) {
-          const r = pending.sku;
-          addProductToQuote({
-            sku_id: r.sku_id, product_id: r.product_id, product_name: r.product_name, collection: r.collection,
-            variant_name: r.variant_name, color: r.color, vendor_name: r.vendor_name,
-            vendor_sku: r.vendor_sku, internal_sku: r.internal_sku,
-            price: r.retail_price, sqft_per_box: r.sqft_per_box, sell_by: r.sell_by || 'box',
-            vendor_id: r.vendor_id, price_basis: r.price_basis || 'per_sqft',
-            cut_price: r.cut_price, roll_price: r.roll_price, roll_width_ft: r.roll_width_ft,
-            primary_image: r.primary_image || null, vendor_cost: r.vendor_cost || null,
-          });
+          (async () => {
+            for (const r of list) {
+              await addProductToQuote({
+                sku_id: r.sku_id, product_id: r.product_id, product_name: r.product_name, collection: r.collection,
+                variant_name: r.variant_name, color: r.color, vendor_name: r.vendor_name,
+                vendor_sku: r.vendor_sku, internal_sku: r.internal_sku,
+                price: r.retail_price, sqft_per_box: r.sqft_per_box, sell_by: r.sell_by || 'box',
+                vendor_id: r.vendor_id, price_basis: r.price_basis || 'per_sqft',
+                cut_price: r.cut_price, roll_price: r.roll_price, roll_width_ft: r.roll_width_ft,
+                primary_image: r.primary_image || null, vendor_cost: r.vendor_cost || null,
+              });
+            }
+          })();
         }
       }, []);
 
@@ -21735,7 +22875,7 @@
 
                 {/* Header row */}
                 {quoteItems.length > 0 && (
-                  <div className="rof-items-header">
+                  <div className={'rof-items-header' + (showCost ? '' : ' rof-nocost')}>
                     <span></span>
                     <span>Product</span>
                     <span>Qty</span>
@@ -21760,7 +22900,7 @@
                     (item.sell_by !== 'unit' && item.sell_by !== 'piece' && item.sqft_needed) ? parseFloat(item.sqft_needed).toFixed(1) + ' sqft' : null,
                   ].filter(Boolean).join(' · ');
                   return (
-                    <div key={item.id || item._temp_id || idx} className="rof-item-row">
+                    <div key={item.id || item._temp_id || idx} className={'rof-item-row' + (showCost ? '' : ' rof-nocost')}>
                       <div className="rof-item-swatch">
                         {item.primary_image
                           ? <img src={optimizeImg(item.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover' }} loading="lazy" />
@@ -23478,7 +24618,7 @@
                   )}
 
                   {materialItems.length > 0 && (
-                    <div className="rof-items-header">
+                    <div className={'rof-items-header' + (showCost ? '' : ' rof-nocost')}>
                       <span></span>
                       <span>Product</span>
                       <span>SqFt · Qty</span>
@@ -23512,7 +24652,7 @@
                       );
                     };
                     return (
-                      <div key={item.id} className="rof-item-row">
+                      <div key={item.id} className={'rof-item-row' + (showCost ? '' : ' rof-nocost')}>
                         <div className="rof-item-swatch">
                           {item.primary_image
                             ? <img src={optimizeImg(item.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover' }} loading="lazy" />

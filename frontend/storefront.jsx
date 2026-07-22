@@ -9594,6 +9594,8 @@
       const [saveCard, setSaveCard] = useState(true);
       const [savedCards, setSavedCards] = useState([]);
       const [selectedSavedPm, setSelectedSavedPm] = useState(null); // null = pay with a new card
+      const [storeCreditBalance, setStoreCreditBalance] = useState(0);
+      const [applyStoreCredit, setApplyStoreCredit] = useState(false);
       const prefilledRef = useRef(false);
       const [taxEstimate, setTaxEstimate] = useState({ rate: 0, amount: 0 });
       const [promoInfo, setPromoInfo] = useState(null);
@@ -9953,6 +9955,22 @@
           .catch(() => setSavedCards([]));
       }, [customerToken]);
 
+      // Load the customer's store-credit balance (retail account only)
+      useEffect(() => {
+        if (!customerToken) { setStoreCreditBalance(0); setApplyStoreCredit(false); return; }
+        fetch(API + '/api/customer/store-credit', { headers: { 'X-Customer-Token': customerToken } })
+          .then(r => r.ok ? r.json() : { balance: 0 })
+          .then(d => setStoreCreditBalance(parseFloat(d.balance || 0)))
+          .catch(() => setStoreCreditBalance(0));
+      }, [customerToken]);
+
+      // Amount store credit would cover of the current total, and the resulting
+      // card charge — display only; the server recomputes authoritatively.
+      const creditApplicable = applyStoreCredit && storeCreditBalance > 0
+        ? Math.min(storeCreditBalance, cartTotal) : 0;
+      const amountDue = Math.max(0, Math.round((cartTotal - creditApplicable) * 100) / 100);
+      const fullyCoveredByCredit = creditApplicable >= cartTotal - 0.001 && creditApplicable > 0;
+
       // Surface a Klarna-return error (set at the app level after redirect)
       useEffect(() => {
         if (klarnaError) { setError(klarnaError); if (clearKlarnaError) clearKlarnaError(); }
@@ -10025,11 +10043,14 @@
         if (!requireTermsAccepted()) return;
         setProcessing(true);
         try {
-          const usingSavedCard = !!(customerToken && selectedSavedPm);
+          const usingSavedCard = !!(customerToken && selectedSavedPm) && !fullyCoveredByCredit;
           const piBody = { session_id: sessionId, delivery_method: deliveryMethod, promo_code: appliedPromoCode || undefined };
           if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
           if (usingSavedCard) { piBody.saved_payment_method_id = selectedSavedPm; piBody.idempotency_key = getSavedCardNonce(); }
-          else if (customerToken && saveCard) piBody.save_card = true;
+          else if (customerToken && saveCard && !fullyCoveredByCredit) piBody.save_card = true;
+          // Opt-in store credit (authenticated customers only). Server applies it
+          // and returns a reduced charge, or fully_covered when it clears the total.
+          if (applyStoreCredit && customerToken && storeCreditBalance > 0) piBody.apply_store_credit = true;
           const piHeaders = { 'Content-Type': 'application/json' };
           if (customerToken) piHeaders['X-Customer-Token'] = customerToken;
           const piRes = await fetch(API + '/api/checkout/create-payment-intent', {
@@ -10040,6 +10061,39 @@
             if (usingSavedCard) resetSavedCardNonce();
             setError(piData.error); setProcessing(false);
             if (piData.out_of_stock_sku_ids) { setTimeout(() => { if (typeof goCart === 'function') goCart(); }, 3000); }
+            return;
+          }
+
+          // Store credit covered the whole order — no card charge. Place a
+          // zero-charge order; the server redeems the credit as the sole tender.
+          if (piData.fully_covered) {
+            const orderBody = {
+              session_id: sessionId, fully_covered: true,
+              store_credit_applied: piData.store_credit_applied,
+              customer_name: customerName, customer_email: customerEmail, phone,
+              delivery_method: deliveryMethod,
+              shipping: isPickup ? null : { line1, line2, city, state, zip },
+              residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
+              create_account: createAccount || undefined,
+              account_password: createAccount ? accountPassword : undefined,
+              notes: orderNotes || undefined,
+              measure_requested: measureRequested || undefined,
+              preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
+              preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined,
+              terms_accepted: true
+            };
+            const orderHeaders = { 'Content-Type': 'application/json' };
+            if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
+            if (customerToken) orderHeaders['X-Customer-Token'] = customerToken;
+            const orderRes = await fetch(API + '/api/checkout/place-order', {
+              method: 'POST', headers: orderHeaders, body: JSON.stringify(orderBody)
+            });
+            const orderData = await orderRes.json();
+            if (orderData.error) { setError(orderData.error); setProcessing(false); return; }
+            if (orderData.customer_token && orderData.customer && onCustomerLogin) {
+              onCustomerLogin(orderData.customer_token, orderData.customer);
+            }
+            handleOrderComplete({ order: orderData.order, sample_request: orderData.sample_request || null });
             return;
           }
 
@@ -10453,7 +10507,18 @@
                       <h3 className="co-step-title">Payment</h3>
                     </div>
                   </div>
-                  {walletAvailable && (
+                  {customerToken && storeCreditBalance > 0 && (
+                    <label className="co-save-card" style={{ marginBottom: '0.75rem' }}>
+                      <input type="checkbox" checked={applyStoreCredit} onChange={e => setApplyStoreCredit(e.target.checked)} />
+                      {' '}Apply store credit (${storeCreditBalance.toFixed(2)} available)
+                    </label>
+                  )}
+                  {fullyCoveredByCredit && (
+                    <div className="co-final-sale" style={{ background: '#f0f7ee', borderColor: '#cfe3c6' }}>
+                      Your store credit covers this order in full &mdash; no card required.
+                    </div>
+                  )}
+                  {walletAvailable && !fullyCoveredByCredit && (
                     <div className="co-express-section">
                       {walletMode === 'native' ? (
                         <div id="payment-request-button"></div>
@@ -10467,7 +10532,7 @@
                       <div className="co-divider">or pay with card</div>
                     </div>
                   )}
-                  {savedCards.length > 0 && (
+                  {savedCards.length > 0 && !fullyCoveredByCredit && (
                     <div className="co-saved-cards">
                       {savedCards.map(c => (
                         <label key={c.id} className={'co-saved-card' + (selectedSavedPm === c.id ? ' selected' : '')}>
@@ -10484,8 +10549,8 @@
                       </label>
                     </div>
                   )}
-                  {/* Card element stays mounted; hidden when paying with a card on file */}
-                  <div className="co-card-form" style={{ display: (savedCards.length > 0 && selectedSavedPm) ? 'none' : 'block' }}>
+                  {/* Card element stays mounted; hidden when paying with a card on file or fully covered by store credit */}
+                  <div className="co-card-form" style={{ display: (fullyCoveredByCredit || (savedCards.length > 0 && selectedSavedPm)) ? 'none' : 'block' }}>
                     <div className="co-stripe-wrap">
                       <div className="co-field-label">Card number</div>
                       <div id="card-element"></div>
@@ -10496,11 +10561,13 @@
                       </label>
                     ) : null}
                   </div>
-                  <div className="co-divider">or</div>
-                  <button type="button" className="co-klarna-btn" onClick={handleKlarnaPay} disabled={processing}>
-                    Pay with <span className="co-klarna-word">Klarna.</span>
-                  </button>
-                  <div className="co-klarna-note">Split into 4 interest-free payments. You'll finish on Klarna, then come right back.</div>
+                  {!fullyCoveredByCredit && <>
+                    <div className="co-divider">or</div>
+                    <button type="button" className="co-klarna-btn" onClick={handleKlarnaPay} disabled={processing}>
+                      Pay with <span className="co-klarna-word">Klarna.</span>
+                    </button>
+                    <div className="co-klarna-note">Split into 4 interest-free payments. You'll finish on Klarna, then come right back.</div>
+                  </>}
                 </div>
 
                 {/* Step 06 — Order notes */}
@@ -10537,7 +10604,7 @@
                 {termsError && <div className="co-terms-error-msg">Please check the box above to place your order.</div>}
                 <button type="submit" className="co-place-order" disabled={processing}>
                   {processing && <span className="co-spinner"></span>}
-                  {processing ? 'Processing...' : `Place Order \u2014 $${cartTotal.toFixed(2)}`}
+                  {processing ? 'Processing...' : `Place Order \u2014 $${(creditApplicable > 0 ? amountDue : cartTotal).toFixed(2)}`}
                 </button>
               </div>
 
@@ -10602,10 +10669,16 @@
                         <span className="value">Pickup &mdash; Free</span>
                       </div>
                     )}
+                    {creditApplicable > 0 && (
+                      <div className="co-summary-row">
+                        <span className="label">Store credit</span>
+                        <span className="value" style={{ color: '#4a7c3e' }}>&minus;${creditApplicable.toFixed(2)}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="co-summary-total">
-                    <span className="co-summary-total-label">Total</span>
-                    <span className="co-summary-total-amount">${cartTotal.toFixed(2)}</span>
+                    <span className="co-summary-total-label">{creditApplicable > 0 ? 'Amount due' : 'Total'}</span>
+                    <span className="co-summary-total-amount">${(creditApplicable > 0 ? amountDue : cartTotal).toFixed(2)}</span>
                   </div>
                 </div>
                 <a className="co-summary-edit-cart" href="#" onClick={e => { e.preventDefault(); goCart(); }}>&larr; Edit cart</a>
@@ -10962,11 +11035,16 @@
       const [wlSelected, setWlSelected] = useState([]);
       const [ordersTab, setOrdersTab] = useState('all');
       const [ordersSearch, setOrdersSearch] = useState('');
+      const [storeCredit, setStoreCredit] = useState({ balance: 0, entries: [] });
 
       useEffect(() => {
         fetch(API + '/api/customer/payment-methods', { headers: authHeaders })
           .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => setCards(data.cards || []))
+          .catch(() => {});
+        fetch(API + '/api/customer/store-credit', { headers: authHeaders })
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(data => setStoreCredit({ balance: parseFloat(data.balance || 0), entries: data.entries || [] }))
           .catch(() => {});
       }, []);
 
@@ -12198,6 +12276,41 @@
               <button className="acct-btn" onClick={changePassword} disabled={pwSaving}>
                 {pwSaving ? 'Updating...' : 'Update Password'}
               </button>
+              </div>
+
+              <div className="acct-profile-section">
+              <h3 className="acct-profile-title">Store credit</h3>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 300, color: 'var(--stone-900)' }}>
+                  ${storeCredit.balance.toFixed(2)}
+                </span>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>available</span>
+              </div>
+              {storeCredit.balance > 0 && (
+                <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: storeCredit.entries.length ? '1rem' : 0 }}>
+                  Apply your credit at checkout to reduce your card charge.
+                </p>
+              )}
+              {storeCredit.entries.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {storeCredit.entries.slice(0, 8).map((e, i) => {
+                    const amt = parseFloat(e.amount || 0);
+                    return (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', fontSize: '0.8125rem', borderBottom: '0.5px solid var(--stone-200)', paddingBottom: '0.4rem' }}>
+                        <span style={{ color: 'var(--stone-700)' }}>
+                          {e.reason || (amt < 0 ? 'Applied to order' : 'Credit')}{e.order_number ? ' · ' + e.order_number : ''}
+                        </span>
+                        <span style={{ color: amt < 0 ? 'var(--stone-500)' : '#4a7c3e', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                          {amt < 0 ? '−$' + Math.abs(amt).toFixed(2) : '+$' + amt.toFixed(2)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {storeCredit.balance === 0 && storeCredit.entries.length === 0 && (
+                <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', margin: 0 }}>You don't have any store credit yet.</p>
+              )}
               </div>
             </div>
           )}

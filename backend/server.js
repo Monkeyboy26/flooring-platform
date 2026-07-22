@@ -8,7 +8,7 @@ import XLSX from 'xlsx';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { sendOrderConfirmation, sendQuoteSent, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -22,10 +22,10 @@ import sharp from 'sharp';
 import { pool } from './db.js';
 import { createAuthMiddleware } from './lib/auth.js';
 import { calculateSalesTax, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
-import { recalculateBalance, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice } from './lib/orderHelpers.js';
+import { recalculateBalance, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { createCustomerHelpers } from './lib/customerHelpers.js';
-import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateOrderInvoiceDoc, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
+import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -33,7 +33,7 @@ import createCartRoutes from './routes/cart.js';
 import createCustomerRoutes from './routes/customer.js';
 import createAnalyticsRoutes from './routes/analytics.js';
 
-const { staffAuth, repAuth, tradeAuth, optionalTradeAuth, customerAuth, optionalCustomerAuth, requireRole, hashPassword, verifyPassword, validatePassword, hashToken, logAudit } = createAuthMiddleware(pool);
+const { staffAuth, staffDocAuth, repAuth, tradeAuth, optionalTradeAuth, customerAuth, optionalCustomerAuth, requireRole, hashPassword, verifyPassword, validatePassword, hashToken, logAudit } = createAuthMiddleware(pool);
 const { findOrCreateCustomer } = createCustomerHelpers(hashPassword, sendWelcomeSetPassword);
 
 // Shared email-format check for all customer entry endpoints
@@ -4215,11 +4215,34 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
 
     const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
 
+    // Store credit is OPT-IN and available only to authenticated customers.
+    // When apply_store_credit is absent, storeCreditApplied stays 0 and the
+    // checkout behaves byte-identically to before.
+    let storeCreditApplied = 0;
+    if (req.body.apply_store_credit && req.customer) {
+      try { storeCreditApplied = Math.max(0, Math.min(await getStoreCreditBalance(pool, { email: req.customer.email }), total)); }
+      catch (e) { storeCreditApplied = 0; }
+    }
+    storeCreditApplied = parseFloat(storeCreditApplied.toFixed(2));
+    let chargeTotal = parseFloat((total - storeCreditApplied).toFixed(2));
+
     if (total <= 0) {
       return res.status(400).json({ error: 'Order total must be greater than zero' });
     }
 
-    const totalCents = Math.round(total * 100);
+    // Fully covered by store credit: don't create a PaymentIntent — the client
+    // places a zero-charge order and redeemStoreCredit tenders the full total.
+    if (storeCreditApplied >= total - 0.001) {
+      return res.json({ fully_covered: true, store_credit_applied: parseFloat(total.toFixed(2)), amount: total, charge_total: 0,
+        shipping: shippingCost, shipping_method: shippingMethod, discount_amount: discountAmount, promo_code: promoCodeStr,
+        tax_rate: taxRate, tax_amount: taxAmount, stock_warnings: stockWarnings });
+    }
+
+    // Stripe's minimum charge is $0.50 — if a partial application would leave a
+    // sub-$0.50 card charge, trim the applied credit so exactly $0.50 remains.
+    if (chargeTotal > 0 && chargeTotal < 0.5) { storeCreditApplied = parseFloat((total - 0.5).toFixed(2)); chargeTotal = 0.5; }
+
+    const totalCents = Math.round(chargeTotal * 100);
 
     // Build shipping for Affirm (required for US transactions)
     const STORE_ADDRESS = { line1: '1440 S. State College Blvd., Suite 6M', city: 'Anaheim', state: 'CA', postal_code: '92806', country: 'US' };
@@ -4232,6 +4255,7 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
       currency: 'usd',
       payment_method_types: ['card', 'klarna'],
       shipping: piShipping,
+      metadata: { store_credit_applied: String(storeCreditApplied) },
     };
     // Paying with a saved card on file: charge it off-session and confirm
     // server-side, so the client can skip the card element entirely
@@ -4251,12 +4275,14 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
           amount: totalCents, currency: 'usd', customer: stripeCustomerId,
           payment_method: saved_payment_method_id, off_session: true, confirm: true,
           shipping: piShipping, description: 'Roma Flooring order',
+          metadata: { store_credit_applied: String(storeCreditApplied) },
         }, idemOpts);
         return res.json({
           clientSecret: savedPi.client_secret, paymentIntentId: savedPi.id, status: savedPi.status,
           amount: total, shipping: shippingCost, shipping_method: shippingMethod,
           discount_amount: discountAmount, promo_code: promoCodeStr,
           tax_rate: taxRate, tax_amount: taxAmount, stock_warnings: stockWarnings,
+          store_credit_applied: storeCreditApplied, charge_total: chargeTotal,
         });
       } catch (err) {
         // Off-session charge can require authentication (SCA) or be declined
@@ -4291,7 +4317,9 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
       promo_code: promoCodeStr,
       tax_rate: taxRate,
       tax_amount: taxAmount,
-      stock_warnings: stockWarnings
+      stock_warnings: stockWarnings,
+      store_credit_applied: storeCreditApplied,
+      charge_total: chargeTotal
     });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -4719,7 +4747,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     const customer_email = bodyEmail || (req.customer ? req.customer.email : '');
     const phone = bodyPhone || (req.customer ? req.customer.phone : '');
 
-    if (!session_id || !payment_intent_id || !customer_name || !customer_email) {
+    // Fully-covered mode: store credit paid the entire total, so there is no
+    // PaymentIntent. Only authenticated customers can reach this path.
+    const fullyCovered = !!req.body.fully_covered && !payment_intent_id && !!req.customer;
+
+    if (!session_id || (!payment_intent_id && !fullyCovered) || !customer_name || !customer_email) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     if (customer_name.trim().split(/\s+/).length < 2) {
@@ -4744,40 +4776,60 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // Verify payment succeeded. Bank transfer sits in requires_action until
     // funds arrive; Klarna authorizes to 'processing' before settling but
     // guarantees payment to the merchant, so we fulfill on authorization.
-    const isBankTransfer = reqPaymentMethod === 'bank_transfer';
-    const isKlarna = reqPaymentMethod === 'klarna';
-    const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
-    if (isBankTransfer) {
-      if (paymentIntent.status !== 'requires_action' && paymentIntent.status !== 'succeeded') {
-        return res.status(400).json({ error: 'Bank transfer payment intent is not in the expected state' });
-      }
-    } else if (isKlarna) {
-      if (paymentIntent.status !== 'succeeded' && paymentIntent.status !== 'processing') {
-        return res.status(400).json({ error: 'Klarna payment was not authorized' });
-      }
-    } else if (paymentIntent.status !== 'succeeded') {
-      return res.status(400).json({ error: 'Payment has not been completed' });
-    }
-
-    // Card brand/last4 for display on the confirmation and order history
+    // Fully-covered orders have no PaymentIntent — treat them as confirmed.
+    const isBankTransfer = !fullyCovered && reqPaymentMethod === 'bank_transfer';
+    const isKlarna = !fullyCovered && reqPaymentMethod === 'klarna';
+    let paymentIntent = null;
     let cardBrand = null, cardLast4 = null;
-    try {
-      const withCharge = await stripe.paymentIntents.retrieve(payment_intent_id, { expand: ['latest_charge'] });
-      const card = withCharge.latest_charge && withCharge.latest_charge.payment_method_details && withCharge.latest_charge.payment_method_details.card;
-      if (card) { cardBrand = card.brand || null; cardLast4 = card.last4 || null; }
-    } catch (e) { /* non-fatal — display only */ }
+    if (!fullyCovered) {
+      paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+      if (isBankTransfer) {
+        if (paymentIntent.status !== 'requires_action' && paymentIntent.status !== 'succeeded') {
+          return res.status(400).json({ error: 'Bank transfer payment intent is not in the expected state' });
+        }
+      } else if (isKlarna) {
+        if (paymentIntent.status !== 'succeeded' && paymentIntent.status !== 'processing') {
+          return res.status(400).json({ error: 'Klarna payment was not authorized' });
+        }
+      } else if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({ error: 'Payment has not been completed' });
+      }
+
+      // Card brand/last4 for display on the confirmation and order history
+      try {
+        const withCharge = await stripe.paymentIntents.retrieve(payment_intent_id, { expand: ['latest_charge'] });
+        const card = withCharge.latest_charge && withCharge.latest_charge.payment_method_details && withCharge.latest_charge.payment_method_details.card;
+        if (card) { cardBrand = card.brand || null; cardLast4 = card.last4 || null; }
+      } catch (e) { /* non-fatal — display only */ }
+    }
 
     // Idempotency: if this payment intent already produced an order, return
     // that order instead of creating a duplicate (double-submit or retry
     // after a dropped response)
-    const existingOrder = await pool.query('SELECT * FROM orders WHERE stripe_payment_intent_id = $1 LIMIT 1', [payment_intent_id]);
-    if (existingOrder.rows.length) {
-      const existingItems = await pool.query(`
-        SELECT oi.*,
-          (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
-        FROM order_items oi WHERE oi.order_id = $1
-      `, [existingOrder.rows[0].id]);
-      return res.json({ order: { ...existingOrder.rows[0], items: existingItems.rows }, sample_request: null, already_placed: true });
+    if (!fullyCovered) {
+      const existingOrder = await pool.query('SELECT * FROM orders WHERE stripe_payment_intent_id = $1 LIMIT 1', [payment_intent_id]);
+      if (existingOrder.rows.length) {
+        const existingItems = await pool.query(`
+          SELECT oi.*,
+            (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
+          FROM order_items oi WHERE oi.order_id = $1
+        `, [existingOrder.rows[0].id]);
+        return res.json({ order: { ...existingOrder.rows[0], items: existingItems.rows }, sample_request: null, already_placed: true });
+      }
+    } else {
+      // Fully-covered has no PI to key on. Guard double-submits by returning a
+      // recent order for the same cart session (within 10 minutes).
+      const recentOrder = await pool.query(
+        "SELECT * FROM orders WHERE session_id = $1 AND created_at > NOW() - INTERVAL '10 minutes' ORDER BY created_at DESC LIMIT 1",
+        [session_id]);
+      if (recentOrder.rows.length) {
+        const existingItems = await pool.query(`
+          SELECT oi.*,
+            (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
+          FROM order_items oi WHERE oi.order_id = $1
+        `, [recentOrder.rows[0].id]);
+        return res.json({ order: { ...recentOrder.rows[0], items: existingItems.rows }, sample_request: null, already_placed: true });
+      }
     }
 
     // Get cart items
@@ -4891,15 +4943,25 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
 
     const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
 
+    // Authoritative store-credit applied amount. Stripe path reads it from the
+    // PI metadata (set at intent creation); fully-covered redeems the full total.
+    const storeCreditApplied = fullyCovered
+      ? parseFloat(total.toFixed(2))
+      : parseFloat((paymentIntent.metadata && paymentIntent.metadata.store_credit_applied) || 0);
+
     // The intent was authorized for a specific amount — refuse to book an
-    // order whose recomputed total no longer matches (cart, promo, or
-    // shipping changed between payment and placement)
-    const expectedCents = Math.round(total * 100);
-    if (paymentIntent.amount !== expectedCents) {
-      console.error(`place-order amount mismatch: PI ${payment_intent_id} authorized ${paymentIntent.amount}c, order total ${expectedCents}c`);
-      return res.status(409).json({
-        error: 'Your payment was authorized for a different amount than the current order total (the cart may have changed). Please call (714) 999-0009 to complete this order — you have not been charged twice.',
-      });
+    // order whose recomputed charge no longer matches (cart, promo, or
+    // shipping changed between payment and placement). The PI covers only the
+    // REDUCED charge (total minus store credit), not the full total. Skipped
+    // entirely for fully-covered orders (no PaymentIntent).
+    if (!fullyCovered) {
+      const chargeCents = Math.round((total - storeCreditApplied) * 100);
+      if (paymentIntent.amount !== chargeCents) {
+        console.error(`place-order amount mismatch: PI ${payment_intent_id} authorized ${paymentIntent.amount}c, expected charge ${chargeCents}c`);
+        return res.status(409).json({
+          error: 'Your payment was authorized for a different amount than the current order total (the cart may have changed). Please call (714) 999-0009 to complete this order — you have not been charged twice.',
+        });
+      }
     }
 
     const tradeCustomerId = req.tradeCustomer ? req.tradeCustomer.id : null;
@@ -4910,7 +4972,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     await client.query('BEGIN');
 
     const orderStatus = isBankTransfer ? 'awaiting_payment' : 'confirmed';
-    const amountPaid = isBankTransfer ? '0.00' : total.toFixed(2);
+    // amount_paid here is the STRIPE-charged portion only. redeemStoreCredit()
+    // (called after the order exists) bumps it by storeCreditApplied so the
+    // final amount_paid equals total. Bank transfer stays 0 until funds land.
+    const amountPaid = isBankTransfer ? '0.00' : (total - storeCreditApplied).toFixed(2);
+    const orderPaymentIntentId = fullyCovered ? null : payment_intent_id;
     const bankInstructions = isBankTransfer ? (req.body.bank_instructions || null) : null;
     const bankExpiresAt = isBankTransfer ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null;
 
@@ -4930,7 +4996,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
         isPickup ? null : shipping.city, isPickup ? null : shipping.state, isPickup ? null : shipping.zip,
         productSubtotal.toFixed(2), shippingCost.toFixed(2), shippingMethod, sampleShipping.toFixed(2), total.toFixed(2),
-        payment_intent_id, isPickup ? 'pickup' : 'shipping', orderStatus,
+        orderPaymentIntentId, isPickup ? 'pickup' : 'shipping', orderStatus,
         tradeCustomerId, po_number || null, is_tax_exempt || false, project_id || null,
         selectedCarrier, selectedTransitDays, isResidential, isLiftgate, isFallback,
         existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), amountPaid,
@@ -4953,15 +5019,29 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
           item.sell_by || null, item.price_tier || null]);
     }
 
-    // Record initial charge in order_payments ledger
-    const paymentStatus = isBankTransfer ? 'pending' : 'completed';
-    const paymentDesc = isBankTransfer ? 'Bank transfer payment (awaiting funds)' : 'Original payment';
-    const opResult = await client.query(`
-      INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status)
-      VALUES ($1, 'charge', $2, $3, $4, $5) RETURNING id
-    `, [order.id, total.toFixed(2), payment_intent_id, paymentDesc, paymentStatus]);
-    if (!isBankTransfer) {
-      await syncOrderPaymentToInvoice(opResult.rows[0].id, order.id, client);
+    // Record the Stripe charge in the order_payments ledger for the ACTUAL
+    // charged amount (total minus store credit). When fully covered by store
+    // credit there was no card charge, so skip this row entirely — the
+    // store_credit tender inserted by redeemStoreCredit is the only tender.
+    const stripeChargeAmount = parseFloat((total - storeCreditApplied).toFixed(2));
+    if (!fullyCovered) {
+      const paymentStatus = isBankTransfer ? 'pending' : 'completed';
+      const paymentDesc = isBankTransfer ? 'Bank transfer payment (awaiting funds)' : 'Original payment';
+      const opResult = await client.query(`
+        INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status)
+        VALUES ($1, 'charge', $2, $3, $4, $5) RETURNING id
+      `, [order.id, stripeChargeAmount.toFixed(2), payment_intent_id, paymentDesc, paymentStatus]);
+      if (!isBankTransfer) {
+        await syncOrderPaymentToInvoice(opResult.rows[0].id, order.id, client);
+      }
+    }
+
+    // Redeem store credit (if any): inserts a negative ledger row + a
+    // store_credit order_payments tender and bumps orders.amount_paid by the
+    // applied amount. Re-validates balance and THROWS on insufficient credit,
+    // rolling back the whole transaction. Runs inside the order tx.
+    if (storeCreditApplied > 0 && req.customer) {
+      await redeemStoreCredit(client, { email: customer_email, amount: storeCreditApplied, order_id: order.id, staffName: 'Checkout' });
     }
 
     // Record promo code usage
@@ -5111,6 +5191,13 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
 
     // Clear cart
     await client.query('DELETE FROM cart_items WHERE session_id = $1', [session_id]);
+
+    // Refresh amount_paid so the response/email reflect the store-credit bump
+    // (redeemStoreCredit updated it directly on the row).
+    if (storeCreditApplied > 0) {
+      const refreshed = await client.query('SELECT amount_paid FROM orders WHERE id = $1', [order.id]);
+      if (refreshed.rows.length) order.amount_paid = refreshed.rows[0].amount_paid;
+    }
 
     await client.query('COMMIT');
 
@@ -7938,8 +8025,8 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
-    if (!['pending', 'confirmed'].includes(order.status)) {
-      return res.status(400).json({ error: 'Can only add items to pending or confirmed orders' });
+    if (['delivered', 'cancelled', 'refunded'].includes(order.status)) {
+      return res.status(400).json({ error: 'Cannot change items on a delivered, cancelled, or refunded order' });
     }
 
     let sku = null;
@@ -8200,8 +8287,8 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
-    if (!['pending', 'confirmed'].includes(order.status)) {
-      return res.status(400).json({ error: 'Can only remove items from pending or confirmed orders' });
+    if (['delivered', 'cancelled', 'refunded'].includes(order.status)) {
+      return res.status(400).json({ error: 'Cannot change items on a delivered, cancelled, or refunded order' });
     }
 
     const itemResult = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [itemId, id]);
@@ -12227,7 +12314,7 @@ async function generateSampleRequestConfirmationHtml(sampleRequestId) {
 // ==================== Packing Slip & Invoice Endpoints (Phase 7) ====================
 
 // Packing slip PDF
-app.get('/api/staff/orders/:id/packing-slip', staffAuth, async (req, res) => {
+app.get('/api/staff/orders/:id/packing-slip', staffDocAuth, async (req, res) => {
   try {
     const result = await generateOrderPackingSlipHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
@@ -12238,10 +12325,81 @@ app.get('/api/staff/orders/:id/packing-slip', staffAuth, async (req, res) => {
 });
 
 // Invoice PDF
-app.get('/api/staff/orders/:id/invoice', staffAuth, async (req, res) => {
+app.get('/api/staff/orders/:id/invoice', staffDocAuth, async (req, res) => {
   try {
     const result = await generateOrderInvoiceHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Load a return + its credit memo + returned lines and build the credit-memo PDF HTML.
+// repId (optional) restricts to returns whose order belongs to that sales rep.
+async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
+  const ret = await pool.query(`
+    SELECT r.*, o.order_number, o.trade_customer_id, o.sales_rep_id,
+      sr.first_name || ' ' || sr.last_name AS rep_name, sr.email AS rep_email,
+      tc.company_name
+    FROM returns r
+    JOIN orders o ON o.id = r.order_id
+    LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+    LEFT JOIN trade_customers tc ON tc.id = o.trade_customer_id
+    WHERE r.id = $1${repId ? ' AND o.sales_rep_id = $2' : ''}
+  `, repId ? [returnId, repId] : [returnId]);
+  if (!ret.rows.length) return null;
+  const r = ret.rows[0];
+
+  const cm = await pool.query('SELECT * FROM credit_memos WHERE id = $1', [r.credit_memo_id]);
+  if (!cm.rows.length) return null;
+  const memo = cm.rows[0];
+
+  const items = await pool.query(`
+    SELECT cmi.*, sk.variant_name, sk.vendor_sku, sa_c.value AS color, v.name AS vendor_name,
+      ri.reason, ri.condition,
+      (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) AS primary_image
+    FROM credit_memo_items cmi
+    LEFT JOIN order_items oi ON oi.id = cmi.order_item_id
+    LEFT JOIN skus sk ON sk.id = cmi.sku_id
+    LEFT JOIN products pr ON pr.id = COALESCE(sk.product_id, oi.product_id)
+    LEFT JOIN vendors v ON v.id = pr.vendor_id
+    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = cmi.sku_id
+      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+    LEFT JOIN return_items ri ON ri.return_id = $2 AND ri.order_item_id = cmi.order_item_id
+    WHERE cmi.credit_memo_id = $1 ORDER BY cmi.sort_order
+  `, [memo.id, r.id]);
+
+  const enriched = {
+    ...memo,
+    rma_number: r.rma_number,
+    order_number: r.order_number,
+    company_name: r.company_name,
+    rep_name: r.rep_name,
+    rep_email: r.rep_email,
+  };
+  return {
+    html: generateCreditMemoDoc(enriched, items.rows, { orderNumber: r.order_number }),
+    filename: `${memo.credit_memo_number}-credit-memo.pdf`,
+  };
+}
+
+// Credit memo PDF (rep) — only for returns on the rep's own orders.
+app.get('/api/rep/returns/:id/credit-memo', repAuth, async (req, res) => {
+  try {
+    const result = await generateCreditMemoHtml(req.params.id, { repId: req.rep.id });
+    if (!result) return res.status(404).json({ error: 'Credit memo not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Credit memo PDF (staff) — no rep-ownership restriction.
+app.get('/api/staff/returns/:id/credit-memo', staffDocAuth, async (req, res) => {
+  try {
+    const result = await generateCreditMemoHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Credit memo not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -13919,6 +14077,8 @@ app.get('/api/customer/payment-methods', customerAuth, async (req, res) => {
   }
 });
 
+// (store-credit balance/history endpoint lives in routes/customer.js)
+
 // Storefront account: start saving a new card (Stripe SetupIntent)
 app.post('/api/customer/payment-methods/setup-intent', customerAuth, async (req, res) => {
   try {
@@ -15039,8 +15199,8 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
-    if (!['pending', 'confirmed'].includes(order.status)) {
-      return res.status(400).json({ error: 'Can only add items to pending or confirmed orders' });
+    if (['delivered', 'cancelled', 'refunded'].includes(order.status)) {
+      return res.status(400).json({ error: 'Cannot change items on a delivered, cancelled, or refunded order' });
     }
 
     let sku = null;
@@ -15303,8 +15463,8 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
-    if (!['pending', 'confirmed'].includes(order.status)) {
-      return res.status(400).json({ error: 'Can only remove items from pending or confirmed orders' });
+    if (['delivered', 'cancelled', 'refunded'].includes(order.status)) {
+      return res.status(400).json({ error: 'Cannot change items on a delivered, cancelled, or refunded order' });
     }
 
     const itemResult = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [itemId, id]);
@@ -15757,6 +15917,337 @@ app.post('/api/rep/orders/:id/payments/:paymentId/refund', repAuth, async (req, 
     client.release();
   }
 });
+
+// ==================== Returns / RMA ====================
+
+// GET return context — order + eligible lines (with already-returned qty) + refundable tenders.
+app.get('/api/rep/orders/:id/return-context', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const oRes = await pool.query(
+      `SELECT o.*, sr.first_name || ' ' || sr.last_name AS rep_name
+       FROM orders o LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+       WHERE o.id = $1 AND o.sales_rep_id = $2`, [id, req.rep.id]);
+    if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = oRes.rows[0];
+
+    const itemsRes = await pool.query(`
+      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, oi.vendor_id AS line_vendor_id,
+        COALESCE((SELECT SUM(ri.return_qty) FROM return_items ri WHERE ri.order_item_id = oi.id), 0) AS already_returned
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      WHERE oi.order_id = $1 AND NOT oi.is_sample
+      ORDER BY oi.id
+    `, [id]);
+
+    const payRes = await pool.query(
+      `SELECT * FROM order_payments WHERE order_id = $1
+        AND payment_type IN ('charge','additional_charge') AND status = 'completed' AND amount > 0
+        ORDER BY created_at`, [id]);
+    const tenders = [];
+    for (const p of payRes.rows) {
+      const remaining = await tenderRemainingRefundable(pool, p);
+      if (remaining > 0.005) tenders.push({ ...p, refundable: remaining });
+    }
+
+    const subtotal = parseFloat(order.subtotal || 0);
+    const taxRate = subtotal > 0 ? parseFloat(order.tax_amount || 0) / subtotal : 0;
+    res.json({ order, items: itemsRes.rows, tenders, tax_rate: parseFloat(taxRate.toFixed(6)) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// POST process a return — creates RMA + credit memo, settles refund across
+// tenders and/or store credit, restocks saleable goods, records vendor actions.
+// Shared return processor — used by both the rep and admin endpoints. Runs the
+// full return inside the caller's transaction (caller owns BEGIN/COMMIT and the
+// credit-memo email). `actor` distinguishes rep (staffId null — reps aren't in
+// staff_accounts) from staff (real staff_accounts id, also sets refunded_by).
+// Throws Error on validation failure — callers map that to a 400.
+async function processReturn(client, { id, order, lines, refund_splits = [], store_credit_amount = 0, customer_note, reason_summary, actor }) {
+  if (!Array.isArray(lines) || !lines.length) throw new Error('At least one return line is required');
+  const { performerId, name: actorName, staffId: actorStaffId } = actor;
+
+  const subtotalOrder = parseFloat(order.subtotal || 0);
+  const taxRate = subtotalOrder > 0 ? parseFloat(order.tax_amount || 0) / subtotalOrder : 0;
+
+  const computed = [];
+  for (const l of lines) {
+    const oiRes = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [l.order_item_id, id]);
+    if (!oiRes.rows.length) throw new Error('Order item not found on this order');
+    const oi = oiRes.rows[0];
+    const priorRes = await client.query('SELECT COALESCE(SUM(return_qty),0) AS q FROM return_items WHERE order_item_id = $1', [l.order_item_id]);
+    const prior = parseFloat(priorRes.rows[0].q);
+    const orderedQty = parseFloat(oi.num_boxes || 0);
+    const returnQty = parseFloat(l.return_qty);
+    if (!(returnQty > 0)) throw new Error('Return quantity must be positive');
+    if (prior + returnQty > orderedQty + 0.001) {
+      throw new Error(`Cannot return ${returnQty} of "${oi.product_name}" — only ${(orderedQty - prior)} remain returnable`);
+    }
+    const unitPrice = parseFloat(oi.unit_price || 0);
+    const gross = parseFloat((returnQty * unitPrice).toFixed(2));
+    const condition = ['saleable', 'damaged', 'defective'].includes(l.condition) ? l.condition : 'saleable';
+    const restockPct = condition === 'saleable' ? Math.max(0, Math.min(100, parseFloat(l.restock_pct) || 0)) : 0;
+    const restockFee = parseFloat((gross * restockPct / 100).toFixed(2));
+    const refundLine = parseFloat((gross - restockFee).toFixed(2));
+    const vendorAction = l.vendor_action === 'return_to_vendor' ? 'return_to_vendor' : 'restock_local';
+    computed.push({ oi, orderedQty, prior, returnQty, unitPrice, gross, condition, restockPct, restockFee, refundLine,
+      vendorAction, vendorId: l.vendor_id || oi.vendor_id || null, replacement: !!l.replacement_requested,
+      reason: l.reason || null, reasonId: l.reason_id || null });
+  }
+
+  const subtotal = parseFloat(computed.reduce((s, c) => s + c.gross, 0).toFixed(2));
+  const restockTotal = parseFloat(computed.reduce((s, c) => s + c.restockFee, 0).toFixed(2));
+  const merchRefund = parseFloat(computed.reduce((s, c) => s + c.refundLine, 0).toFixed(2));
+  const taxRefund = parseFloat((merchRefund * taxRate).toFixed(2));
+  const refundTotal = parseFloat((merchRefund + taxRefund).toFixed(2));
+
+  const storeCredit = parseFloat(parseFloat(store_credit_amount || 0).toFixed(2));
+  const splitSum = parseFloat(refund_splits.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0).toFixed(2));
+  if (Math.abs(splitSum + storeCredit - refundTotal) > 0.02) {
+    throw new Error(`Settlement ($${(splitSum + storeCredit).toFixed(2)}) must equal the refund total ($${refundTotal.toFixed(2)})`);
+  }
+
+  const paymentsById = {};
+  for (const r of refund_splits) {
+    const amt = parseFloat(r.amount) || 0;
+    if (amt <= 0) continue;
+    const pRes = await client.query(
+      `SELECT * FROM order_payments WHERE id = $1 AND order_id = $2 AND payment_type IN ('charge','additional_charge') AND status = 'completed'`,
+      [r.payment_id, id]);
+    if (!pRes.rows.length) throw new Error('Refund tender not found on this order');
+    const remaining = await tenderRemainingRefundable(client, pRes.rows[0]);
+    if (amt > remaining + 0.005) throw new Error(`Refund exceeds tender remaining ($${remaining.toFixed(2)})`);
+    paymentsById[r.payment_id] = pRes.rows[0];
+  }
+
+  // Full return? every non-sample line fully returned counting prior returns + this return.
+  const allItemsRes = await client.query(`
+    SELECT oi.id, oi.num_boxes::numeric AS num_boxes,
+      COALESCE((SELECT SUM(ri.return_qty) FROM return_items ri WHERE ri.order_item_id = oi.id), 0) AS prior_returned
+    FROM order_items oi WHERE oi.order_id = $1 AND NOT oi.is_sample`, [id]);
+  const addNow = {};
+  for (const c of computed) addNow[c.oi.id] = (addNow[c.oi.id] || 0) + c.returnQty;
+  const isFull = allItemsRes.rows.length > 0 && allItemsRes.rows.every(it =>
+    (parseFloat(it.prior_returned) + (addNow[it.id] || 0)) + 0.001 >= parseFloat(it.num_boxes || 0));
+
+  const cmNumber = await getNextCreditMemoNumber(client);
+  const settlement = [
+    ...refund_splits.filter(r => (parseFloat(r.amount) || 0) > 0).map(r => {
+      const p = paymentsById[r.payment_id];
+      const method = p.payment_method || (p.stripe_payment_intent_id ? 'card' : 'offline');
+      return { method, label: method === 'card' ? 'Card refund' : method === 'check' ? 'Check #' + (p.check_number || '?') : method + ' refund', amount: parseFloat(parseFloat(r.amount).toFixed(2)) };
+    }),
+    ...(storeCredit > 0 ? [{ method: 'store_credit', label: 'Store credit', amount: storeCredit }] : []),
+  ];
+  const cmRes = await client.query(`
+    INSERT INTO credit_memos (credit_memo_number, order_id, customer_email, customer_name, trade_customer_id,
+      subtotal, restock_fee, discount_adjustment, tax_refund, total, settlement, status, created_by, created_by_name)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,0,$8,$9,$10,'issued',$11,$12) RETURNING *`,
+    [cmNumber, id, order.customer_email, order.customer_name, order.trade_customer_id || null,
+     subtotal.toFixed(2), restockTotal.toFixed(2), taxRefund.toFixed(2), refundTotal.toFixed(2),
+     JSON.stringify(settlement), actorStaffId || null, actorName]);
+  const creditMemo = cmRes.rows[0];
+
+  for (let i = 0; i < computed.length; i++) {
+    const c = computed[i];
+    await client.query(`
+      INSERT INTO credit_memo_items (credit_memo_id, order_item_id, sku_id, description, qty, unit_price, restock_pct, restock_fee, refund_line, sort_order)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [creditMemo.id, c.oi.id, c.oi.sku_id, c.oi.product_name, c.returnQty, c.unitPrice.toFixed(2), c.restockPct, c.restockFee.toFixed(2), c.refundLine.toFixed(2), i]);
+  }
+
+  const rmaNumber = await getNextRMANumber(client);
+  const retRes = await client.query(`
+    INSERT INTO returns (rma_number, order_id, credit_memo_id, customer_email, customer_name, status,
+      reason_summary, customer_note, restock_total, tax_refund, refund_total, is_partial, created_by, created_by_name)
+    VALUES ($1,$2,$3,$4,$5,'completed',$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+    [rmaNumber, id, creditMemo.id, order.customer_email, order.customer_name,
+     reason_summary || null, customer_note || null, restockTotal.toFixed(2), taxRefund.toFixed(2),
+     refundTotal.toFixed(2), !isFull, actorStaffId || null, actorName]);
+  const returnRow = retRes.rows[0];
+  await client.query('UPDATE credit_memos SET return_id = $1 WHERE id = $2', [returnRow.id, creditMemo.id]);
+
+  for (const c of computed) {
+    await client.query(`
+      INSERT INTO return_items (return_id, order_item_id, sku_id, product_name, return_qty, unit_price, reason, reason_id,
+        condition, restock_pct, restock_fee, refund_line, vendor_action, vendor_id, replacement_requested)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+      [returnRow.id, c.oi.id, c.oi.sku_id, c.oi.product_name, c.returnQty, c.unitPrice.toFixed(2), c.reason, c.reasonId,
+       c.condition, c.restockPct, c.restockFee.toFixed(2), c.refundLine.toFixed(2), c.vendorAction, c.vendorId, c.replacement]);
+  }
+
+  // Settle: refund tenders (admin refunds set orders.refunded_by; rep leaves it null)
+  for (const r of refund_splits) {
+    const amt = parseFloat(parseFloat(r.amount || 0).toFixed(2));
+    if (amt <= 0) continue;
+    await refundPaymentTender(client, {
+      order, payment: paymentsById[r.payment_id], refundAmount: amt,
+      reason: 'Return ' + rmaNumber, initiatedBy: performerId, initiatedByName: actorName,
+      refundedByStaffId: actorStaffId || null,
+    });
+  }
+  // Settle: store credit
+  if (storeCredit > 0) {
+    await grantStoreCredit(client, {
+      email: order.customer_email, trade_customer_id: order.trade_customer_id || null,
+      amount: storeCredit, reason: 'Return ' + rmaNumber, source_type: 'return', source_id: returnRow.id,
+      order_id: id, staffId: actorStaffId || null, staffName: actorName,
+    });
+  }
+
+  // Restock saleable/local-restock goods → ROMA-ANAHEIM warehouse.
+  for (const c of computed) {
+    if (c.oi.sku_id && c.condition === 'saleable' && c.vendorAction === 'restock_local') {
+      const deltaQty = Math.round(c.returnQty);
+      await client.query(`
+        INSERT INTO inventory_adjustments (sku_id, warehouse, delta_qty, reason, source_type, source_id, note, created_by, created_by_name)
+        VALUES ($1,'ROMA-ANAHEIM',$2,'restock_return','return',$3,$4,$5,$6)`,
+        [c.oi.sku_id, deltaQty, returnRow.id, 'Restock from ' + rmaNumber, actorStaffId || null, actorName]);
+      await client.query(`
+        INSERT INTO inventory_snapshots (sku_id, warehouse, qty_on_hand, snapshot_time)
+        VALUES ($1,'ROMA-ANAHEIM',$2,CURRENT_TIMESTAMP)
+        ON CONFLICT (sku_id, warehouse) DO UPDATE SET qty_on_hand = inventory_snapshots.qty_on_hand + EXCLUDED.qty_on_hand, snapshot_time = CURRENT_TIMESTAMP`,
+        [c.oi.sku_id, deltaQty]);
+    }
+  }
+
+  if (isFull) await client.query("UPDATE orders SET status = 'refunded' WHERE id = $1", [id]);
+
+  await logOrderActivity(client, id, 'return_processed', performerId, actorName,
+    { rma: rmaNumber, credit_memo: cmNumber, refund_total: refundTotal.toFixed(2),
+      store_credit: storeCredit.toFixed(2), is_full: isFull, lines: computed.length });
+
+  return { returnRow, creditMemo, computed, settlement, rmaNumber, cmNumber, refundTotal, storeCredit, isFull };
+}
+
+// Fire the credit-memo email after a return commits (non-blocking).
+async function emailCreditMemo({ order, creditMemo, computed, settlement, rmaNumber, actorName, actorEmail }) {
+  if (!order.customer_email) return;
+  try {
+    await sendCreditMemoIssued({
+      cm_number: creditMemo.credit_memo_number, rma_number: rmaNumber, order_number: order.order_number,
+      customer_name: order.customer_name, customer_email: order.customer_email, created_at: creditMemo.created_at,
+      subtotal: creditMemo.subtotal, restock_fee: creditMemo.restock_fee, discount_adjustment: creditMemo.discount_adjustment,
+      tax_refund: creditMemo.tax_refund, total: creditMemo.total, settlement,
+      rep_name: actorName, rep_email: actorEmail,
+      items: computed.map(c => ({ description: c.oi.product_name, qty: c.returnQty, unit_price: c.unitPrice,
+        restock_pct: c.restockPct, restock_fee: c.restockFee, refund_line: c.refundLine })),
+    });
+  } catch (mailErr) {
+    console.error('[Returns] Credit memo email failed for', rmaNumber, '-', mailErr.message);
+  }
+}
+
+app.post('/api/rep/orders/:id/returns', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { lines, refund_splits = [], store_credit_amount = 0, customer_note, reason_summary } = req.body || {};
+
+    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = oRes.rows[0];
+    if (!['shipped', 'delivered', 'ready_for_pickup'].includes(order.status)) {
+      return res.status(400).json({ error: 'Returns apply to shipped/delivered orders. For orders not yet fulfilled, use Change order.' });
+    }
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await client.query('BEGIN');
+    const result = await processReturn(client, {
+      id, order, lines, refund_splits, store_credit_amount, customer_note, reason_summary,
+      actor: { performerId: req.rep.id, name: repName, staffId: null },
+    });
+    await client.query('COMMIT');
+
+    await emailCreditMemo({ ...result, order, actorName: repName, actorEmail: req.rep.email });
+
+    const balanceInfo = await recalculateBalance(pool, id);
+    res.json({ success: true, return: result.returnRow, credit_memo: result.creditMemo, balance: balanceInfo, is_full: result.isFull });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err);
+    if (err.type && String(err.type).startsWith('Stripe')) return res.status(400).json({ error: 'Stripe refund failed: ' + err.message });
+    res.status(400).json({ error: err.message || 'Failed to process return' });
+  } finally {
+    client.release();
+  }
+});
+
+// --- Admin/staff return twins (no rep-ownership restriction; created_by = staff id) ---
+app.get('/api/staff/orders/:id/return-context', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = oRes.rows[0];
+    const itemsRes = await pool.query(`
+      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, oi.vendor_id AS line_vendor_id,
+        COALESCE((SELECT SUM(ri.return_qty) FROM return_items ri WHERE ri.order_item_id = oi.id), 0) AS already_returned
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      WHERE oi.order_id = $1 AND NOT oi.is_sample ORDER BY oi.id`, [id]);
+    const payRes = await pool.query(
+      `SELECT * FROM order_payments WHERE order_id = $1 AND payment_type IN ('charge','additional_charge') AND status = 'completed' AND amount > 0 ORDER BY created_at`, [id]);
+    const tenders = [];
+    for (const p of payRes.rows) {
+      const remaining = await tenderRemainingRefundable(pool, p);
+      if (remaining > 0.005) tenders.push({ ...p, refundable: remaining });
+    }
+    const subtotal = parseFloat(order.subtotal || 0);
+    const taxRate = subtotal > 0 ? parseFloat(order.tax_amount || 0) / subtotal : 0;
+    res.json({ order, items: itemsRes.rows, tenders, tax_rate: parseFloat(taxRate.toFixed(6)) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/staff/orders/:id/returns', staffAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { lines, refund_splits = [], store_credit_amount = 0, customer_note, reason_summary } = req.body || {};
+    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = oRes.rows[0];
+    if (!['shipped', 'delivered', 'ready_for_pickup'].includes(order.status)) {
+      return res.status(400).json({ error: 'Returns apply to shipped/delivered orders. For orders not yet fulfilled, use Change order.' });
+    }
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await client.query('BEGIN');
+    const result = await processReturn(client, {
+      id, order, lines, refund_splits, store_credit_amount, customer_note, reason_summary,
+      actor: { performerId: req.staff.id, name: staffName, staffId: req.staff.id },
+    });
+    await client.query('COMMIT');
+    await emailCreditMemo({ ...result, order, actorName: staffName, actorEmail: req.staff.email });
+    const balanceInfo = await recalculateBalance(pool, id);
+    res.json({ success: true, return: result.returnRow, credit_memo: result.creditMemo, balance: balanceInfo, is_full: result.isFull });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err);
+    if (err.type && String(err.type).startsWith('Stripe')) return res.status(400).json({ error: 'Stripe refund failed: ' + err.message });
+    res.status(400).json({ error: err.message || 'Failed to process return' });
+  } finally {
+    client.release();
+  }
+});
+
+// GET returns + credit memos for an order (staff) — for the admin order-detail view.
+app.get('/api/staff/orders/:id/returns', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const returnsRes = await pool.query(
+      `SELECT r.*, cm.credit_memo_number, cm.total AS cm_total, cm.settlement
+       FROM returns r LEFT JOIN credit_memos cm ON cm.id = r.credit_memo_id
+       WHERE r.order_id = $1 ORDER BY r.created_at DESC`, [id]);
+    res.json({ returns: returnsRes.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 
 // Vendors list for rep (used in custom item dropdown)
 app.get('/api/rep/vendors', repAuth, async (req, res) => {
@@ -19737,6 +20228,13 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
         return sum + (over > 0.01 ? over : 0);
       }, 0);
 
+    // Store credit — real redeemable ledger balance (distinct from per-order overpayment above)
+    let storeCreditBalance = 0;
+    try {
+      storeCreditBalance = await getStoreCreditBalance(pool,
+        type === 'trade' ? { trade_customer_id: refId } : { email: (customer && customer.email) || refId });
+    } catch (e) { /* ledger optional */ }
+
     // Quotes & payment requests — run in parallel
     const orderIds = orders.map(o => o.id);
 
@@ -19793,7 +20291,7 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
       stats: {
         total_orders: totalOrders, total_spent: totalSpent, avg_order_value: avgOrderValue,
         first_order_date: firstOrderDate, last_order_date: lastOrderDate,
-        open_balance: openBalance, available_credit: availableCredit,
+        open_balance: openBalance, available_credit: availableCredit, store_credit_balance: storeCreditBalance,
         open_quotes_count: openQuotesCount, open_quotes_value: openQuotesValue,
         pending_payments_count: pendingPaymentsCount, pending_payments_total: pendingPaymentsTotal
       }
@@ -19821,6 +20319,67 @@ app.post('/api/rep/customers/:id/notes', repAuth, async (req, res) => {
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ==================== Store Credit endpoints ====================
+
+// GET store-credit balance + ledger history for a customer (staff/admin).
+app.get('/api/staff/store-credit', staffAuth, async (req, res) => {
+  try {
+    const { type, id } = req.query;
+    if (!type || !id) return res.status(400).json({ error: 'type and id required' });
+    const ident = await resolveCreditIdentity(type, id);
+    if (!ident) return res.status(404).json({ error: 'Customer not found' });
+    const balance = await getStoreCreditBalance(pool, ident);
+    const scope = storeCreditScope(ident);
+    const rows = await pool.query(
+      `SELECT scl.*, o.order_number FROM store_credit_ledger scl
+       LEFT JOIN orders o ON o.id = scl.order_id
+       WHERE ${scope.col} ORDER BY scl.created_at DESC`, [scope.val]);
+    res.json({ balance, entries: rows.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// POST manual store-credit grant (admin/manager only).
+app.post('/api/staff/store-credit/grant', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { type, id, amount, reason } = req.body;
+    const amt = parseFloat(amount);
+    if (!type || !id || !(amt > 0)) return res.status(400).json({ error: 'type, id and a positive amount are required' });
+    const ident = await resolveCreditIdentity(type, id);
+    if (!ident) return res.status(404).json({ error: 'Customer not found' });
+    await client.query('BEGIN');
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    const entry = await grantStoreCredit(client, {
+      email: ident.email, trade_customer_id: ident.trade_customer_id,
+      amount: amt, reason: reason || 'Manual store credit', source_type: 'manual',
+      staffId: req.staff.id, staffName
+    });
+    await client.query('COMMIT');
+    const balance = await getStoreCreditBalance(pool, ident);
+    res.json({ entry, balance });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err); res.status(400).json({ error: err.message || 'Failed to grant store credit' });
+  } finally { client.release(); }
+});
+
+// GET store-credit balance + history for a customer (rep, read-only).
+app.get('/api/rep/store-credit', repAuth, async (req, res) => {
+  try {
+    const { type, id } = req.query;
+    if (!type || !id) return res.status(400).json({ error: 'type and id required' });
+    const ident = await resolveCreditIdentity(type, id);
+    if (!ident) return res.status(404).json({ error: 'Customer not found' });
+    const balance = await getStoreCreditBalance(pool, ident);
+    const scope = storeCreditScope(ident);
+    const rows = await pool.query(
+      `SELECT scl.*, o.order_number FROM store_credit_ledger scl
+       LEFT JOIN orders o ON o.id = scl.order_id
+       WHERE ${scope.col} ORDER BY scl.created_at DESC`, [scope.val]);
+    res.json({ balance, entries: rows.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // GET /api/rep/customers/:id/timeline — unified activity feed
@@ -21935,6 +22494,13 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
         return sum + (over > 0.01 ? over : 0);
       }, 0);
 
+    // Store credit — real redeemable ledger balance (distinct from per-order overpayment above)
+    let storeCreditBalance = 0;
+    try {
+      storeCreditBalance = await getStoreCreditBalance(pool,
+        type === 'trade' ? { trade_customer_id: refId } : { email: (customer && customer.email) || refId });
+    } catch (e) { /* ledger optional */ }
+
     // Quotes & payment requests — run in parallel
     const orderIds = orders.map(o => o.id);
 
@@ -21991,7 +22557,7 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
       stats: {
         total_orders: totalOrders, total_spent: totalSpent, avg_order_value: avgOrderValue,
         first_order_date: firstOrderDate, last_order_date: lastOrderDate,
-        open_balance: openBalance, available_credit: availableCredit,
+        open_balance: openBalance, available_credit: availableCredit, store_credit_balance: storeCreditBalance,
         open_quotes_count: openQuotesCount, open_quotes_value: openQuotesValue,
         pending_payments_count: pendingPaymentsCount, pending_payments_total: pendingPaymentsTotal
       }
@@ -22178,6 +22744,53 @@ async function getNextInvoiceNumber() {
   );
   const next = (result.rows[0].maxnum || 0) + 1;
   return 'INV-' + String(next).padStart(4, '0');
+}
+
+// --- Returns & Credit Memos numbering ---
+// Year-scoped, MAX-based (resilient to out-of-order creation, like invoices).
+// Format: RMA-2026-0001 / CM-2026-0001. Accepts an optional tx client so the
+// number is allocated inside the same transaction that inserts the row.
+async function getNextRMANumber(client) {
+  const q = client || pool;
+  const prefix = 'RMA-' + new Date().getFullYear() + '-';
+  const result = await q.query(
+    "SELECT COALESCE(MAX((substring(rma_number FROM $2))::int), 0) AS maxnum FROM returns WHERE rma_number ~ $1",
+    ['^' + prefix + '[0-9]+$', '^' + prefix + '([0-9]+)$']
+  );
+  return prefix + String((result.rows[0].maxnum || 0) + 1).padStart(4, '0');
+}
+
+async function getNextCreditMemoNumber(client) {
+  const q = client || pool;
+  const prefix = 'CM-' + new Date().getFullYear() + '-';
+  const result = await q.query(
+    "SELECT COALESCE(MAX((substring(credit_memo_number FROM $2))::int), 0) AS maxnum FROM credit_memos WHERE credit_memo_number ~ $1",
+    ['^' + prefix + '[0-9]+$', '^' + prefix + '([0-9]+)$']
+  );
+  return prefix + String((result.rows[0].maxnum || 0) + 1).padStart(4, '0');
+}
+
+// Resolve a customer's store-credit identity from the (type, refId) pair used by
+// the customer-detail endpoints. Returns { email, trade_customer_id, name } or null.
+async function resolveCreditIdentity(type, refId) {
+  if (type === 'trade') {
+    const r = await pool.query('SELECT email, contact_name FROM trade_customers WHERE id = $1', [refId]);
+    if (!r.rows.length) return null;
+    return { trade_customer_id: refId, email: r.rows[0].email, name: r.rows[0].contact_name };
+  }
+  if (type === 'retail') {
+    const r = await pool.query("SELECT email, first_name || ' ' || last_name AS name FROM customers WHERE id = $1", [refId]);
+    if (!r.rows.length) return null;
+    return { email: r.rows[0].email, name: r.rows[0].name };
+  }
+  return { email: refId, name: null }; // guest — refId is the email
+}
+
+// Build the WHERE clause + param that scopes the ledger to one customer identity.
+function storeCreditScope(ident) {
+  return ident.trade_customer_id
+    ? { col: 'trade_customer_id = $1', val: ident.trade_customer_id }
+    : { col: 'LOWER(customer_email) = LOWER($1) AND trade_customer_id IS NULL', val: ident.email };
 }
 
 function calculateDueDate(issueDate, terms) {
@@ -24594,6 +25207,7 @@ import { generateInstallationInquiryConfirmationHTML } from './templates/install
 import { generateVisitRecapHTML } from './templates/visitRecap.js';
 import { generateSampleRequestConfirmationHTML } from './templates/sampleRequestConfirmation.js';
 import { generateSampleRequestShippedHTML } from './templates/sampleRequestShipped.js';
+import { generateCreditMemoIssuedHTML } from './templates/creditMemoIssued.js';
 
 const EMAIL_PREVIEW_TEMPLATES = {
   orderConfirmation: () => generateOrderConfirmationHTML({
@@ -24737,6 +25351,49 @@ const EMAIL_PREVIEW_TEMPLATES = {
     tracking_number: '',
     items: [
       { product_name: 'Smoky Grey Porcelain', collection: 'Modern Edge', variant_name: '12x24 Matte', primary_image: '' },
+    ]
+  }),
+
+  'credit-memo': () => generateCreditMemoIssuedHTML({
+    cm_number: 'CM-2026-0001',
+    rma_number: 'RMA-2026-0001',
+    order_number: 'RD-10028',
+    customer_name: 'Maria Santos',
+    created_at: new Date().toISOString(),
+    subtotal: '1,240.00',
+    restock_fee: '124.00',
+    discount_adjustment: '0.00',
+    tax_refund: '86.55',
+    total: '1,202.55',
+    rep_name: 'Alex Rivera',
+    rep_email: 'alex@romaflooringdesigns.com',
+    settlement: [
+      { method: 'card', label: 'Card refund', amount: 1202.55 },
+    ],
+    items: [
+      { description: 'European White Oak · 7" Wide Plank Natural', qty: 8, unit_price: '89.00', restock_pct: 10, restock_fee: '71.20', refund_line: '640.80' },
+      { description: 'Calacatta Gold Marble Mosaic · 2" Hexagon', qty: 6, unit_price: '88.33', restock_pct: 10, restock_fee: '52.80', refund_line: '475.20' },
+    ]
+  }),
+
+  'credit-memo-storecredit': () => generateCreditMemoIssuedHTML({
+    cm_number: 'CM-2026-0002',
+    rma_number: 'RMA-2026-0002',
+    order_number: 'RD-10031',
+    customer_name: 'David Park',
+    created_at: new Date().toISOString(),
+    subtotal: '450.00',
+    restock_fee: '0.00',
+    discount_adjustment: '0.00',
+    tax_refund: '31.41',
+    total: '481.41',
+    rep_name: 'Alex Rivera',
+    rep_email: 'alex@romaflooringdesigns.com',
+    settlement: [
+      { method: 'store_credit', label: 'Store credit', amount: 481.41 },
+    ],
+    items: [
+      { description: 'Smoky Grey Porcelain · 12x24 Matte', qty: 5, unit_price: '90.00', restock_pct: 0, restock_fee: '0.00', refund_line: '450.00' },
     ]
   }),
 };

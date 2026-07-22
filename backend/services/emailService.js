@@ -23,6 +23,7 @@ import { generateEstimateSentHTML } from '../templates/estimateSent.js';
 import { generateProductShareHTML } from '../templates/productShare.js';
 import { generatePaymentRequestHTML } from '../templates/paymentRequest.js';
 import { generatePaymentReceivedHTML } from '../templates/paymentReceived.js';
+import { generateCreditMemoIssuedHTML } from '../templates/creditMemoIssued.js';
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -131,6 +132,34 @@ export async function sendQuoteSent(quoteData, opts = {}) {
     return { sent: true };
   } catch (err) {
     console.error(`[Email] Failed to send quote email for ${quoteData.quote_number}:`, err.message);
+    return { sent: false };
+  }
+}
+
+/**
+ * Send credit-memo email to customer after a return is processed.
+ */
+export async function sendCreditMemoIssued(data, opts = {}) {
+  if (!transporter) {
+    console.log(`[Email] Skipping credit memo email for ${data.cm_number} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateCreditMemoIssuedHTML(data);
+    const list = Array.isArray(data.settlement) ? data.settlement : [];
+    const hasRefund = list.some(s => s.method !== 'store_credit');
+    await deliver({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: data.customer_email,
+      replyTo: data.rep_email,
+      subject: `Credit memo ${data.cm_number} — your return is ${hasRefund ? 'refunded' : 'credited'}`,
+      html,
+      ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {})
+    });
+    console.log(`[Email] Credit memo email sent to ${data.customer_email} for ${data.cm_number}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send credit memo email for ${data.cm_number}:`, err.message);
     return { sent: false };
   }
 }

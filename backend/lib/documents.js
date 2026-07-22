@@ -986,6 +986,218 @@ ${totalsRows}
 </html>`;
 }
 
+// Shared credit memo document — a sibling of generateOrderInvoiceDoc built on the
+// same editorial system (letterhead, band + rotated stamp, three info cards,
+// swatch-led lines, terms + totals columns). Mirrors the "credit-memo.jsx" design
+// from the Roma Claude Design project, with the design's fictional branding
+// swapped for the real Roma facts (License #830966, Anaheim address, phone).
+// `memo` is a credit_memos row optionally enriched with rma_number / order_number
+// / rep_name / rep_email / company_name / customer_email / phone. `items` are
+// credit_memo_items rows (description, qty, unit_price, restock_pct, restock_fee,
+// refund_line) optionally carrying primary_image / color / variant_name / vendor_name.
+// opts may carry { orderNumber } to label the tax reversal.
+export function generateCreditMemoDoc(memo, items, opts = {}) {
+  const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const issued = longDate(memo.created_at);
+  const orderNumber = opts.orderNumber || memo.order_number || (memo.order_id ? 'RD-' + String(memo.order_id).substring(0, 8).toUpperCase() : '—');
+  const cmNumber = memo.credit_memo_number || 'CM-' + String(memo.id).substring(0, 8).toUpperCase();
+  const rma = memo.rma_number || null;
+
+  const subtotal = parseFloat(memo.subtotal || 0);      // merchandise returned (gross)
+  const restockFee = parseFloat(memo.restock_fee || 0);
+  const discountAdj = parseFloat(memo.discount_adjustment || 0);
+  const taxRefund = parseFloat(memo.tax_refund || 0);
+  const total = parseFloat(memo.total || 0);            // total credit (net refund)
+
+  const settlement = Array.isArray(memo.settlement)
+    ? memo.settlement
+    : (memo.settlement ? (() => { try { return JSON.parse(memo.settlement); } catch { return []; } })() : []);
+  // "Refund Issued" when any tender is a real refund (card/check/etc.); when the
+  // whole credit is store credit it's simply "Applied to Account".
+  const hasRefund = settlement.some(s => s.method !== 'store_credit');
+  const statusLabel = hasRefund ? 'Refund Issued' : 'Applied to Account';
+  const stampText = hasRefund ? 'Credit issued' : 'Applied to account';
+  const stampColor = '#3f7a4f';
+
+  const customerFirst = (memo.customer_name || '').trim().split(/\s+/)[0] || 'Hello';
+  const greeting = `${customerFirst} — this credit memo confirms the return on order ${orderNumber}${rma ? ` (${rma})` : ''}, issued ${issued}. ` +
+    (hasRefund
+      ? `A total credit of <span style="color:var(--ink);font-weight:500;">${money(total)}</span> has been refunded to your original payment — <span style="color:var(--ink);font-weight:500;">no balance due</span>.`
+      : `A total credit of <span style="color:var(--ink);font-weight:500;">${money(total)}</span> has been applied to your Roma account — <span style="color:var(--ink);font-weight:500;">no balance due</span>.`);
+
+  const SWATCH_FALLBACKS = [
+    'linear-gradient(135deg,#caa97f,#7a5635)',
+    'linear-gradient(135deg,#ebe7df,#a8a59e)',
+    'linear-gradient(135deg,#e7e3db,#b0aca4)',
+    'linear-gradient(135deg,#a89074,#5e4a36)',
+  ];
+
+  const rowsHtml = items.map((i, idx) => {
+    const qty = parseFloat(i.qty || 0) || 1;
+    const name = i.description || i.product_name || i.collection || '—';
+    const suffix = [...new Set([i.color, i.variant_name].filter(Boolean))].filter(v => v !== name).join(' · ');
+    const skuLine = [...new Set([
+      i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
+      i.collection && i.collection !== name ? i.collection : null,
+      i.vendor_name
+    ].filter(Boolean))].join(' · ');
+    const reasonLine = [i.reason, i.condition ? i.condition.charAt(0).toUpperCase() + i.condition.slice(1) : null]
+      .filter(Boolean).join(' · ');
+    const unitPrice = parseFloat(i.unit_price || 0);
+    const gross = parseFloat((qty * unitPrice).toFixed(2));
+    const restockFeeLine = parseFloat(i.restock_fee || 0);
+    const restockPct = parseFloat(i.restock_pct || 0);
+    const refundLine = parseFloat(i.refund_line != null ? i.refund_line : (gross - restockFeeLine));
+    const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
+    const swatchSrc = i.primary_image
+      ? `http://localhost:${process.env.PORT || 3001}/api/img?url=${encodeURIComponent(i.primary_image)}&w=64&f=jpeg`
+      : null;
+    const swatch = swatchSrc
+      ? `<div class="swatch" style="background:${gradient};overflow:hidden;"><img src="${swatchSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
+      : `<div class="swatch" style="background:${gradient};"></div>`;
+    const restockCell = restockFeeLine > 0.005
+      ? `−${money(restockFeeLine)}<div class="numsub">${restockPct}%</div>`
+      : `Waived`;
+    return `<div class="grid-row keep" style="padding:12px 0;${idx < items.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+      ${swatch}
+      <div>
+        <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${name}${suffix ? ` <span style="color:var(--muted);font-weight:400;">· ${suffix}</span>` : ''}</div>
+        ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
+        ${reasonLine ? `<div style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.1em;color:var(--muted);margin-top:4px;text-transform:uppercase;">${reasonLine}</div>` : ''}
+      </div>
+      <div class="num">${qty}<div class="numsub">${qty === 1 ? 'unit' : 'units'}</div></div>
+      <div class="num">${money(unitPrice)}<div class="numsub">${money(gross)} gross</div></div>
+      <div class="num" style="color:${restockFeeLine > 0.005 ? 'var(--ink)' : 'var(--muted)'};">${restockCell}</div>
+      <div class="line-total">${money(refundLine)}</div>
+    </div>`;
+  }).join('');
+
+  const appliedRows = settlement.length
+    ? settlement.map(s => {
+        const isCredit = s.method === 'store_credit';
+        return `<div style="display:flex;justify-content:space-between;padding:6px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;">
+          <span style="color:var(--muted);">${s.label || (isCredit ? 'Store credit' : 'Refund')}${isCredit ? ' · added to your account' : ''}</span>
+          <span style="color:${isCredit ? 'var(--ink)' : stampColor};">${money(s.amount)}</span>
+        </div>`;
+      }).join('')
+    : `<div style="font:400 10px/1.4 var(--sans);color:var(--muted);padding:6px 0;">Refunded to original payment method.</div>`;
+
+  const accountCard = `<div>
+      <div class="mono" style="margin-bottom:8px;">Roma account</div>
+      <div style="font:500 11px/1.2 var(--sans);">${memo.customer_name || ''}${memo.company_name ? ' · Trade Pro' : ''}</div>
+      <div class="small" style="margin-top:4px;">${memo.company_name ? memo.company_name + '<br />' : ''}${memo.rep_name ? `<span style="color:var(--muted);">Your rep</span><br />${memo.rep_name}${memo.rep_email ? '<br />' + memo.rep_email : ''}<br />(714) 999-0009` : '(714) 999-0009'}</div>
+    </div>`;
+
+  const totalsRows = [
+    `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Merchandise returned</span><span>${money(subtotal)}</span></div>`,
+    restockFee > 0.005
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Restocking fee</span><span style="color:var(--accent);">−${money(restockFee)}</span></div>` : '',
+    discountAdj > 0.005
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Discount adjustment</span><span style="color:var(--accent);">−${money(discountAdj)}</span></div>` : '',
+    taxRefund > 0.005
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Sales tax<br /><span style="font:400 9px/1.4 var(--sans);color:#1c191799;">Reversed on ${orderNumber}</span></span><span style="color:var(--accent);">${money(taxRefund)}</span></div>` : '',
+  ].filter(Boolean).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+:root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
+*{box-sizing:border-box}
+body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
+@media screen{body{padding:48px 56px;max-width:816px;margin:0 auto}}
+.mono{font:500 9px/1 ui-monospace,monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted)}
+.small{font:400 10px/1.5 var(--sans);color:#1c1917cc}
+.grid-row{display:grid;grid-template-columns:32px 1fr 70px 86px 80px 84px;gap:12px;align-items:flex-start}
+.swatch{width:32px;height:32px;border:0.5px solid #1c191733}
+.num{text-align:right;font:400 11px/1.2 var(--sans)}
+.numsub{font:400 9px/1.4 var(--sans);color:var(--muted);margin-top:2px}
+.line-total{text-align:right;font:500 12px/1.2 var(--serif)}
+.keep{break-inside:avoid;orphans:3;widows:3}
+</style>
+</head>
+<body>
+
+<div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
+<div>
+<div style="font:300 36px/1 var(--serif);letter-spacing:-0.014em;">Roma</div>
+<div class="mono" style="font-size:8px;letter-spacing:0.22em;margin-top:4px;">Flooring · Surfaces · Anaheim</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+</div>
+<div style="text-align:right;min-width:220px;">
+<div class="mono" style="letter-spacing:0.22em;">Credit Memo</div>
+<div style="font:300 32px/1 var(--serif);letter-spacing:-0.014em;margin-top:6px;">${cmNumber}</div>
+<div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
+<span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
+<span style="color:var(--muted);">Against invoice</span><span style="text-align:right;">${orderNumber}</span>
+${rma ? `<span style="color:var(--muted);">RMA</span><span style="text-align:right;">${rma}</span>` : ''}
+<span style="color:var(--muted);">Status</span><span class="mono" style="color:${stampColor};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
+</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:8px;border-bottom:1px solid #1c191711;align-items:center;">
+<div style="font:500 9px/1.4 var(--sans);letter-spacing:0.06em;color:#1c1917cc;">
+${greeting}
+</div>
+<div style="padding:8px 14px;border:1.5px solid ${stampColor};color:${stampColor};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</div>
+</div>
+
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 22px;border-bottom:1px solid #1c191722;">
+<div>
+<div class="mono" style="margin-bottom:8px;">Credit to</div>
+<div style="font:500 11px/1.2 var(--sans);">${memo.customer_name || ''}</div>
+<div class="small" style="margin-top:4px;">${[memo.customer_email, memo.phone].filter(Boolean).join('<br />')}</div>
+</div>
+<div>
+<div class="mono" style="margin-bottom:8px;">Return reference</div>
+<div style="font:500 11px/1.2 var(--sans);">${rma || 'Return'}</div>
+<div class="small" style="margin-top:4px;">Against order ${orderNumber}${memo.created_by_name ? `<br /><span style="color:var(--muted);">Processed by</span><br />${memo.created_by_name}` : ''}</div>
+</div>
+${accountCard}
+</div>
+
+<div style="padding-top:18px;">
+<div class="grid-row" style="padding-bottom:10px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
+<span></span><span>Returned item</span><span style="text-align:right;">Qty</span><span style="text-align:right;">Unit</span><span style="text-align:right;">Restock</span><span style="text-align:right;">Line credit</span>
+</div>
+${rowsHtml}
+</div>
+
+<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
+<div style="padding-top:4px;" class="small">
+<div class="mono" style="margin-bottom:8px;">Applied to</div>
+<div style="margin-bottom:14px;">
+${appliedRows}
+</div>
+<div class="mono" style="margin-bottom:8px;">Terms</div>
+<div>This credit memo confirms merchandise returned against ${orderNumber}. Refunds post to the original tender within 5–10 business days; store credit is available immediately on your Roma account. Natural stone and wood vary by lot. Subject to California sales tax. Roma Flooring Designs · License #830966.</div>
+</div>
+<div>
+${totalsRows}
+<div style="margin-top:8px;padding-top:8px;border-top:1.5px solid var(--ink);display:flex;justify-content:space-between;align-items:baseline;">
+<span class="mono" style="color:var(--ink);letter-spacing:0.18em;">Total credit · USD</span>
+<span style="font:300 28px/1 var(--serif);letter-spacing:-0.012em;">${money(total)}</span>
+</div>
+<div style="margin-top:6px;padding-top:8px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:baseline;">
+<span class="mono" style="color:${stampColor};letter-spacing:0.18em;">${hasRefund ? 'Refunded' : 'Applied'}</span>
+<span class="mono" style="color:${stampColor};letter-spacing:0.14em;">● No balance due</span>
+</div>
+</div>
+</div>
+
+<div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
+<span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Credit Memo ${cmNumber}</span>
+</div>
+
+</body>
+</html>`;
+}
+
 // Showroom sample labels — Avery 5163 sheet layout (2"×4" labels, 2 columns × 5 rows,
 // 10 per US Letter page). Each label states the product/collection name, this tile's
 // color/variant, a compact "also available" summary (colors/sizes + accessories), and a

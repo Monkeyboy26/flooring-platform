@@ -244,9 +244,29 @@ export function createAuthMiddleware(pool) {
     }
   }
 
+  // Like staffAuth but also accepts the token from a ?token= query param, for
+  // read-only document endpoints rendered in an <iframe> (which can't set headers).
+  async function staffDocAuth(req, res, next) {
+    const token = req.headers['x-staff-token'] || req.query.token;
+    if (!token) return res.status(401).json({ error: 'Authentication required' });
+    try {
+      const result = await pool.query(`
+        SELECT ss.id as session_id, sa.id, sa.email, sa.first_name, sa.last_name, sa.role, sa.is_active
+        FROM staff_sessions ss JOIN staff_accounts sa ON sa.id = ss.staff_id
+        WHERE ss.token = $1 AND ss.expires_at > CURRENT_TIMESTAMP`, [hashToken(token)]);
+      if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
+      if (!result.rows[0].is_active) return res.status(403).json({ error: 'Account deactivated' });
+      req.staff = {
+        id: result.rows[0].id, email: result.rows[0].email,
+        first_name: result.rows[0].first_name, last_name: result.rows[0].last_name, role: result.rows[0].role
+      };
+      next();
+    } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+  }
+
   return {
     hashPassword, verifyPassword, validatePassword, hashToken,
-    staffAuth, repAuth, tradeAuth, optionalTradeAuth,
+    staffAuth, staffDocAuth, repAuth, tradeAuth, optionalTradeAuth,
     customerAuth, optionalCustomerAuth, requireRole, logAudit
   };
 }

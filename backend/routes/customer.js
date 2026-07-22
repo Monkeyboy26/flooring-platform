@@ -147,6 +147,25 @@ export default function createCustomerRoutes(ctx) {
     res.json({ customer: req.customer });
   });
 
+  // Store-credit balance + ledger history for the logged-in customer (retail, email-keyed).
+  router.get('/api/customer/store-credit', customerAuth, async (req, res) => {
+    try {
+      const email = req.customer.email;
+      const balRes = await pool.query(
+        "SELECT COALESCE(SUM(amount), 0) AS bal FROM store_credit_ledger WHERE LOWER(customer_email) = LOWER($1) AND trade_customer_id IS NULL",
+        [email]);
+      const entries = await pool.query(
+        `SELECT scl.amount, scl.reason, scl.source_type, scl.created_at, o.order_number
+         FROM store_credit_ledger scl LEFT JOIN orders o ON o.id = scl.order_id
+         WHERE LOWER(scl.customer_email) = LOWER($1) AND scl.trade_customer_id IS NULL
+         ORDER BY scl.created_at DESC`, [email]);
+      res.json({ balance: parseFloat(parseFloat(balRes.rows[0].bal).toFixed(2)), entries: entries.rows });
+    } catch (err) {
+      console.error('Customer store-credit error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   router.put('/api/customer/profile', customerAuth, async (req, res) => {
     try {
       const { first_name, last_name, phone, address_line1, address_line2, city, state, zip } = req.body;

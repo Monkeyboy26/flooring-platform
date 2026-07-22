@@ -1248,6 +1248,127 @@ CREATE TABLE IF NOT EXISTS invoice_payments (
 );
 CREATE INDEX IF NOT EXISTS idx_invoice_payments_invoice ON invoice_payments(invoice_id);
 
+-- ==================== Returns, Credit Memos & Store Credit ====================
+
+-- Store credit ledger: signed entries, balance = SUM(amount) per customer.
+-- Positive = credit granted (refund-to-credit, manual, adjustment).
+-- Negative = credit redeemed against an order at checkout.
+-- Keyed like invoices: trade_customer_id for trade, LOWER(customer_email) for retail.
+CREATE TABLE IF NOT EXISTS store_credit_ledger (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_email TEXT,
+    trade_customer_id UUID REFERENCES trade_customers(id),
+    amount DECIMAL(10,2) NOT NULL,
+    reason TEXT,
+    source_type VARCHAR(20) NOT NULL,    -- 'return' | 'refund' | 'manual' | 'adjustment' | 'redemption'
+    source_id UUID,                      -- return / credit_memo id depending on source_type
+    order_id UUID REFERENCES orders(id), -- redemption target (negative entries)
+    created_by UUID REFERENCES staff_accounts(id),
+    created_by_name TEXT,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_store_credit_email ON store_credit_ledger(LOWER(customer_email));
+CREATE INDEX IF NOT EXISTS idx_store_credit_trade ON store_credit_ledger(trade_customer_id);
+
+-- Credit memos — mirror invoices. Document a refund/credit against an order.
+CREATE TABLE IF NOT EXISTS credit_memos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    credit_memo_number TEXT UNIQUE NOT NULL,
+    order_id UUID REFERENCES orders(id),
+    return_id UUID,                      -- app-enforced link to returns(id); no FK to avoid circularity
+    customer_email TEXT,
+    customer_name TEXT,
+    trade_customer_id UUID REFERENCES trade_customers(id),
+    subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,   -- gross returned line value
+    restock_fee DECIMAL(10,2) DEFAULT 0,
+    discount_adjustment DECIMAL(10,2) DEFAULT 0,
+    tax_refund DECIMAL(10,2) DEFAULT 0,
+    total DECIMAL(10,2) NOT NULL DEFAULT 0,       -- net refund/credit amount
+    settlement JSONB DEFAULT '[]',                -- [{method,label,amount,ref}] tender splits + store credit
+    status VARCHAR(20) DEFAULT 'issued' CHECK (status IN ('issued','applied','void')),
+    created_by UUID REFERENCES staff_accounts(id), -- staff only; rep-created rows use created_by_name
+    created_by_name TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_credit_memos_order ON credit_memos(order_id);
+CREATE INDEX IF NOT EXISTS idx_credit_memos_customer ON credit_memos(customer_email);
+
+CREATE TABLE IF NOT EXISTS credit_memo_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    credit_memo_id UUID NOT NULL REFERENCES credit_memos(id) ON DELETE CASCADE,
+    order_item_id UUID REFERENCES order_items(id),
+    sku_id UUID REFERENCES skus(id),
+    description TEXT NOT NULL,
+    qty DECIMAL(10,2) NOT NULL DEFAULT 1,
+    unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    restock_pct DECIMAL(5,2) DEFAULT 0,
+    restock_fee DECIMAL(10,2) DEFAULT 0,
+    refund_line DECIMAL(10,2) NOT NULL DEFAULT 0,
+    sort_order INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_credit_memo_items_memo ON credit_memo_items(credit_memo_id);
+
+-- Returns / RMA header
+CREATE TABLE IF NOT EXISTS returns (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    rma_number TEXT UNIQUE NOT NULL,
+    order_id UUID NOT NULL REFERENCES orders(id),
+    credit_memo_id UUID REFERENCES credit_memos(id),
+    customer_email TEXT,
+    customer_name TEXT,
+    status VARCHAR(20) DEFAULT 'completed' CHECK (status IN ('draft','completed','void')),
+    reason_summary TEXT,
+    customer_note TEXT,
+    restock_total DECIMAL(10,2) DEFAULT 0,
+    tax_refund DECIMAL(10,2) DEFAULT 0,
+    refund_total DECIMAL(10,2) NOT NULL DEFAULT 0,
+    is_partial BOOLEAN DEFAULT true,
+    created_by UUID REFERENCES staff_accounts(id),
+    created_by_name TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_returns_order ON returns(order_id);
+
+CREATE TABLE IF NOT EXISTS return_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    return_id UUID NOT NULL REFERENCES returns(id) ON DELETE CASCADE,
+    order_item_id UUID REFERENCES order_items(id),
+    sku_id UUID REFERENCES skus(id),
+    product_name TEXT,
+    return_qty DECIMAL(10,2) NOT NULL DEFAULT 0,
+    unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+    reason TEXT,
+    reason_id VARCHAR(30),
+    condition VARCHAR(20) DEFAULT 'saleable',          -- 'saleable' | 'damaged' | 'defective'
+    restock_pct DECIMAL(5,2) DEFAULT 0,
+    restock_fee DECIMAL(10,2) DEFAULT 0,
+    refund_line DECIMAL(10,2) NOT NULL DEFAULT 0,
+    vendor_action VARCHAR(20) DEFAULT 'restock_local', -- 'restock_local' | 'return_to_vendor'
+    vendor_id UUID REFERENCES vendors(id),
+    replacement_requested BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_return_items_return ON return_items(return_id);
+
+-- Inventory adjustment ledger — restocks post a positive delta to the Roma-owned
+-- local warehouse (ROMA-ANAHEIM) so we don't fight scraper-owned vendor snapshots.
+CREATE TABLE IF NOT EXISTS inventory_adjustments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sku_id UUID NOT NULL REFERENCES skus(id) ON DELETE CASCADE,
+    warehouse TEXT NOT NULL DEFAULT 'ROMA-ANAHEIM',
+    delta_qty INTEGER DEFAULT 0,
+    delta_sqft INTEGER DEFAULT 0,
+    reason VARCHAR(30) NOT NULL,         -- 'restock_return' | 'damage_loss' | 'manual'
+    source_type VARCHAR(20),
+    source_id UUID,
+    note TEXT,
+    created_by UUID REFERENCES staff_accounts(id),
+    created_by_name TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_inventory_adjustments_sku ON inventory_adjustments(sku_id);
+
 -- AP Bills
 CREATE TABLE IF NOT EXISTS bills (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

@@ -87,6 +87,72 @@ export async function recalculateCommission(queryable, orderId) {
   }
 }
 
+// ==================== Store Credit ====================
+// A signed ledger: balance = SUM(amount) per customer. Keyed like invoices —
+// trade customers by trade_customer_id, retail by LOWER(customer_email).
+// Positive rows = credit granted; negative rows = credit redeemed at checkout.
+
+export async function getStoreCreditBalance(queryable, { email, trade_customer_id } = {}) {
+  let res;
+  if (trade_customer_id) {
+    res = await queryable.query(
+      'SELECT COALESCE(SUM(amount), 0) AS bal FROM store_credit_ledger WHERE trade_customer_id = $1',
+      [trade_customer_id]
+    );
+  } else if (email) {
+    res = await queryable.query(
+      'SELECT COALESCE(SUM(amount), 0) AS bal FROM store_credit_ledger WHERE LOWER(customer_email) = LOWER($1) AND trade_customer_id IS NULL',
+      [email]
+    );
+  } else {
+    return 0;
+  }
+  return parseFloat(parseFloat(res.rows[0].bal).toFixed(2));
+}
+
+// Grant credit (positive entry). Use inside a transaction (pass the tx client).
+export async function grantStoreCredit(client, {
+  email, trade_customer_id, amount, reason, source_type, source_id, order_id,
+  staffId, staffName, expiresAt
+}) {
+  const amt = parseFloat(parseFloat(amount).toFixed(2));
+  if (!(amt > 0)) throw new Error('Store credit grant amount must be positive');
+  const res = await client.query(
+    `INSERT INTO store_credit_ledger
+       (customer_email, trade_customer_id, amount, reason, source_type, source_id, order_id, created_by, created_by_name, expires_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+    [email || null, trade_customer_id || null, amt, reason || null, source_type,
+     source_id || null, order_id || null, staffId || null, staffName || null, expiresAt || null]
+  );
+  return res.rows[0];
+}
+
+// Redeem credit against an order (negative entry) AND record it as an
+// order_payments tender so recalculateBalance() sees it. Use inside the
+// order's transaction, after the order row exists.
+export async function redeemStoreCredit(client, { email, trade_customer_id, amount, order_id, staffId, staffName }) {
+  const amt = parseFloat(parseFloat(amount).toFixed(2));
+  if (!(amt > 0)) throw new Error('Store credit redemption amount must be positive');
+  const balance = await getStoreCreditBalance(client, { email, trade_customer_id });
+  if (amt > balance + 0.01) {
+    throw new Error(`Insufficient store credit (balance ${balance.toFixed(2)}, requested ${amt.toFixed(2)})`);
+  }
+  const ledgerRes = await client.query(
+    `INSERT INTO store_credit_ledger
+       (customer_email, trade_customer_id, amount, reason, source_type, source_id, order_id, created_by, created_by_name)
+     VALUES ($1,$2,$3,'Applied to order','redemption',$4,$5,$6,$7) RETURNING *`,
+    [email || null, trade_customer_id || null, -amt, order_id || null, order_id || null, staffId || null, staffName || null]
+  );
+  const payRes = await client.query(
+    `INSERT INTO order_payments
+       (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, payment_method)
+     VALUES ($1, 'charge', $2, 'Store credit applied', $3, $4, 'completed', 'store_credit') RETURNING id`,
+    [order_id, amt, staffId || null, staffName || null]
+  );
+  await client.query('UPDATE orders SET amount_paid = COALESCE(amount_paid, 0) + $1 WHERE id = $2', [amt, order_id]);
+  return { ledger: ledgerRes.rows[0], order_payment_id: payRes.rows[0].id };
+}
+
 // Sync an order_payment to invoice_payments (AR receipt) if an invoice exists for the order
 export async function syncOrderPaymentToInvoice(orderPaymentId, orderId, queryable) {
   try {
