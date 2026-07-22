@@ -19276,18 +19276,16 @@
 
               {/* Line Items */}
               <RodCard title={'Line items · ' + items.length + (showReady ? ' · ' + readyCount + '/' + readyTotal + ' ready for pickup' : '')}
-                action2={['pending', 'confirmed'].includes(order.status) ? '+ Add line' : null}
-                onAction2={() => {
-                setAddingItem(true); setAddItemMode('sku'); setAddItemSku('');
-                setSkuSearchResults([]); setSelectedSku(null); setCalcSqft(''); setCalcBoxes(''); setCalcUnitQty(1);
-                setCustomItemName(''); setCustomItemPrice('');
-                setCustomItemVendor(''); setCustomItemVendorName(''); setCustomItemVendorEmail(''); setCustomItemDesc(''); setCustomItemBoxes(1);
-                if (addItemVendors.length === 0) {
-                  repFetch('/api/rep/vendors').then(d => setAddItemVendors(d.vendors || [])).catch(() => {});
-                }
-              }}
-                action={['pending', 'confirmed'].includes(order.status) ? 'Browse catalog' : null}
-                onAction={() => setCatalogOpen(true)}>
+                action={['pending', 'confirmed'].includes(order.status) ? 'Change order' : null}
+                onAction={() => {
+                  // Paid, not-yet-delivered orders use the staged change-order page;
+                  // pending/unpaid orders edit inline via the catalog wizard.
+                  if (paidDone && ['confirmed', 'shipped', 'ready_for_pickup'].includes(order.status)) {
+                    navigate('change-order', order.id);
+                  } else {
+                    setCatalogOpen(true);
+                  }
+                }}>
                 <div className="rod-line-items-header">
                   <span></span>
                   <span>Item</span>
