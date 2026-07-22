@@ -19591,6 +19591,28 @@
             {/* RIGHT COLUMN */}
             <div className="rod-col">
 
+              {/* Customer — v2 */}
+              <RodCard title="Customer">
+                <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'center' }}>
+                    <div className="rov-cust-avatar">{order.customer_name ? order.customer_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'}</div>
+                    <div>
+                      <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{order.customer_name}</div>
+                      <RovMicro style={{ marginTop: 3 }}>
+                        {custType === 'trade' ? 'Trade pro' : custType === 'retail' ? 'Retail' : 'Guest'}
+                        {customerStats ? ' · ' + (customerStats.total_orders || 0) + ' order' + (customerStats.total_orders !== 1 ? 's' : '') + ' · $' + (parseFloat(customerStats.total_spent || 0) / 1000).toFixed(1) + 'k lifetime' : ''}
+                      </RovMicro>
+                    </div>
+                  </div>
+                  <RovMicro>{[order.customer_email, order.phone].filter(Boolean).join(' · ') || '—'}</RovMicro>
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                    <a className="rov-textlink" style={{ cursor: 'pointer' }} onClick={() => navigate('customer-detail', custType + '-' + custId)}>Open account →</a>
+                    {order.customer_email && <a className="rov-textlink" href={'mailto:' + order.customer_email}>Email</a>}
+                    {order.phone && <a className="rov-textlink" href={'tel:' + order.phone}>Call</a>}
+                  </div>
+                </div>
+              </RodCard>
+
               {/* Totals — v2 */}
               <RodCard title="Totals"
                 action={balanceInfo && balanceInfo.balance_status === 'balance_due' ? 'Collect payment' : undefined}
@@ -19775,28 +19797,6 @@
                   </div>
                 </RodCard>
               )}
-
-              {/* Customer — v2 */}
-              <RodCard title="Customer">
-                <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'center' }}>
-                    <div className="rov-cust-avatar">{order.customer_name ? order.customer_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'}</div>
-                    <div>
-                      <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{order.customer_name}</div>
-                      <RovMicro style={{ marginTop: 3 }}>
-                        {custType === 'trade' ? 'Trade pro' : custType === 'retail' ? 'Retail' : 'Guest'}
-                        {customerStats ? ' · ' + (customerStats.total_orders || 0) + ' order' + (customerStats.total_orders !== 1 ? 's' : '') + ' · $' + (parseFloat(customerStats.total_spent || 0) / 1000).toFixed(1) + 'k lifetime' : ''}
-                      </RovMicro>
-                    </div>
-                  </div>
-                  <RovMicro>{[order.customer_email, order.phone].filter(Boolean).join(' · ') || '—'}</RovMicro>
-                  <div style={{ display: 'flex', gap: 16, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                    <a className="rov-textlink" style={{ cursor: 'pointer' }} onClick={() => navigate('customer-detail', custType + '-' + custId)}>Open account →</a>
-                    {order.customer_email && <a className="rov-textlink" href={'mailto:' + order.customer_email}>Email</a>}
-                    {order.phone && <a className="rov-textlink" href={'tel:' + order.phone}>Call</a>}
-                  </div>
-                </div>
-              </RodCard>
 
               {/* Documents — v2 */}
               <RodCard title="Documents">
