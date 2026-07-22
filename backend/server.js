@@ -15281,6 +15281,51 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
   }
 });
 
+// Update a line item's recorded cost (rep). Internal only — cost never affects
+// the customer's price/balance; it feeds margin & commission. Ownership-scoped.
+app.put('/api/rep/orders/:id/items/:itemId/cost', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, itemId } = req.params;
+    const raw = req.body.cost;
+    const cost = (raw === '' || raw == null) ? null : parseFloat(raw);
+    if (cost != null && (isNaN(cost) || cost < 0)) return res.status(400).json({ error: 'Invalid cost' });
+    await client.query('BEGIN');
+    const own = await client.query('SELECT id FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    if (!own.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const it = await client.query('SELECT product_name, cost FROM order_items WHERE id = $1 AND order_id = $2 FOR UPDATE', [itemId, id]);
+    if (!it.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order item not found' }); }
+    await client.query('UPDATE order_items SET cost = $1 WHERE id = $2', [cost != null ? cost.toFixed(2) : null, itemId]);
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, id, 'cost_updated', req.rep.id, repName,
+      { product_name: it.rows[0].product_name, previous_cost: it.rows[0].cost, new_cost: cost != null ? cost.toFixed(2) : null });
+    await client.query('COMMIT');
+    setImmediate(() => recalculateCommission(pool, id));
+    const updatedItems = await pool.query(`
+      SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, s.vendor_sku, s.variant_name,
+        sa_c.value as color, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
+        cat.name as category_name,
+        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
+      LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
+      LEFT JOIN categories cat ON cat.id = p.category_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE oi.order_id = $1 ORDER BY oi.id
+    `, [id]);
+    res.json({ items: updatedItems.rows });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
 // Add item to existing order (rep)
 // Supports two modes:
 //   SKU mode: { sku_id, num_boxes, sqft_needed? }

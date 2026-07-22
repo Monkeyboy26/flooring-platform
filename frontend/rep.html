@@ -5299,7 +5299,7 @@
     .rod-line-items-header {
       padding: 10px 20px;
       display: grid;
-      grid-template-columns: 52px 1.7fr 1fr 80px 100px 110px;
+      grid-template-columns: 52px 1.7fr 1fr 80px 100px 90px 110px;
       gap: 12px;
       background: var(--rod-warm);
       border-bottom: 0.5px solid var(--rod-border);
@@ -5311,7 +5311,7 @@
     .rod-line-item-row {
       padding: 14px 20px;
       display: grid;
-      grid-template-columns: 52px 1.7fr 1fr 80px 100px 110px;
+      grid-template-columns: 52px 1.7fr 1fr 80px 100px 90px 110px;
       gap: 12px;
       align-items: center;
       border-bottom: 0.5px solid rgba(28,25,23,0.06);
@@ -6040,8 +6040,10 @@
       .rod-line-item-row { grid-template-columns: 36px 1fr 60px 80px; gap: 6px; }
       .rod-line-items-header > :nth-child(3),
       .rod-line-items-header > :nth-child(5),
+      .rod-line-items-header > :nth-child(6),
       .rod-line-item-row > :nth-child(3),
-      .rod-line-item-row > :nth-child(5) { display: none; }
+      .rod-line-item-row > :nth-child(5),
+      .rod-line-item-row > :nth-child(6) { display: none; }
       .rod-action-bar { gap: 4px; }
       .rod-action-bar .rod-btn { padding: 6px 8px; font-size: 10px; }
       .rod-activity-entry { grid-template-columns: 1fr; gap: 4px; }
@@ -18682,6 +18684,8 @@
       const [editingItem, setEditingItem] = useState(null);
       const [newPrice, setNewPrice] = useState('');
       const [priceReason, setPriceReason] = useState('');
+      const [editingCostItem, setEditingCostItem] = useState(null);
+      const [costDraft, setCostDraft] = useState('');
       const [purchaseOrders, setPurchaseOrders] = useState([]);
       const [posLoading, setPosLoading] = useState(false);
       const [editingPOItem, setEditingPOItem] = useState(null);
@@ -18754,7 +18758,8 @@
           delivery_method_changed: 'Delivery Changed',
           refund_issued: 'Refund Issued', item_added: 'Item Added', item_removed: 'Item Removed',
           payment_request_sent: 'Payment Request', payment_request_cancelled: 'Request Cancelled',
-          rep_assigned: 'Rep Assigned', price_adjusted: 'Price Adjusted',
+          rep_assigned: 'Rep Assigned', price_adjusted: 'Price Adjusted', cost_updated: 'Cost Updated',
+          item_ready: 'Item Ready', item_unready: 'Item Unmarked',
           payment_collected: 'Payment Collected', invoice_sent: 'Invoice Sent',
           po_created: 'PO Created', po_approved: 'PO Approved', note_added: 'Note Added'
         };
@@ -18780,6 +18785,9 @@
           case 'payment_request_cancelled': return '$' + (d.amount || '0');
           case 'rep_assigned': return d.unassigned ? 'Unassigned' : (d.rep_name || '?');
           case 'price_adjusted': return (d.product_name || '?') + ': $' + (d.previous_price || '?') + ' → $' + (d.new_price || '?') + (d.reason ? ' — ' + d.reason : '');
+          case 'cost_updated': return (d.product_name || '?') + ' cost → ' + (d.new_cost != null ? '$' + d.new_cost : 'cleared');
+          case 'item_ready': return (d.product_name || '?') + ' — at store';
+          case 'item_unready': return (d.product_name || '?') + ' — not ready';
           case 'payment_collected': return '$' + (d.amount || '0') + ' via ' + (d.method || '?') + (d.status === 'pending' ? ' (pending)' : '');
           case 'invoice_sent': return d.sent_to ? 'to ' + d.sent_to : '';
           case 'po_created': return d.po_number ? d.po_number + (d.vendor_name ? ' — ' + d.vendor_name : '') : '';
@@ -19019,6 +19027,18 @@
           setPriceReason('');
         } catch (err) {}
         setUpdating(false);
+      };
+
+      // Record the vendor cost for a line (internal — feeds margin & commission,
+      // never the customer's price). Empty clears it back to the catalog cost.
+      const saveItemCost = async (itemId) => {
+        try {
+          const data = await repFetch('/api/rep/orders/' + editId + '/items/' + itemId + '/cost', {
+            method: 'PUT', body: JSON.stringify({ cost: costDraft === '' ? null : costDraft })
+          });
+          if (data.items) setItems(data.items);
+        } catch (err) { alert(err.message || 'Failed to update cost'); }
+        setEditingCostItem(null); setCostDraft('');
       };
 
       if (loading) return <div className="loading">Loading order...</div>;
@@ -19292,6 +19312,7 @@
                   <span>Vendor · PO</span>
                   <span style={{ textAlign: 'right' }}>Qty</span>
                   <span style={{ textAlign: 'right' }}>Unit $</span>
+                  <span style={{ textAlign: 'right' }}>Cost</span>
                   <span style={{ textAlign: 'right' }}>Ext.</span>
                 </div>
                 {(() => {
@@ -19384,24 +19405,29 @@
                           )}
                         </div>
                         <div className="rod-line-item-price" style={{ textAlign: 'right' }}>
-                          {!item.is_sample && ['pending', 'confirmed'].includes(order.status) ? (
-                            editingItem === item.id ? (
-                              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--rod-accent)', overflow: 'hidden' }}>
-                                <span style={{ padding: '0.2rem 0 0.2rem 0.3rem', fontSize: '0.75rem', color: 'var(--stone-400)' }}>$</span>
-                                <input type="text" inputMode="decimal" autoFocus value={newPrice}
-                                  onChange={e => { const v = e.target.value; if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setNewPrice(v); }}
-                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { setEditingItem(null); setNewPrice(''); } }}
-                                  onBlur={() => { const n = parseFloat(newPrice); if (!isNaN(n) && n >= 0 && newPrice !== parseFloat(item.unit_price || 0).toFixed(2)) { setNewPrice(n.toFixed(2)); savePrice(item.id); } else { setEditingItem(null); setNewPrice(''); } }}
-                                  style={{ width: '60px', padding: '0.2rem 0.3rem', fontSize: '0.75rem', border: 'none', outline: 'none', background: 'transparent' }} />
+                          <span>{item.is_sample ? 'Free' : '$' + parseFloat(item.unit_price || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="rod-line-item-cost" style={{ textAlign: 'right' }}>
+                          {(!showCost || item.is_sample) ? (
+                            <span style={{ color: 'var(--rod-muted)', fontSize: '0.75rem' }}>{item.is_sample ? '—' : ''}</span>
+                          ) : ['pending', 'confirmed'].includes(order.status) ? (
+                            editingCostItem === item.id ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid var(--rod-accent)', overflow: 'hidden' }}>
+                                <span style={{ padding: '0.15rem 0 0.15rem 0.3rem', fontSize: '0.7rem', color: 'var(--stone-400)' }}>$</span>
+                                <input type="text" inputMode="decimal" autoFocus value={costDraft}
+                                  onChange={e => { const v = e.target.value; if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setCostDraft(v); }}
+                                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { setEditingCostItem(null); setCostDraft(''); } }}
+                                  onBlur={() => saveItemCost(item.id)}
+                                  style={{ width: '52px', padding: '0.15rem 0.3rem', fontSize: '0.7rem', border: 'none', outline: 'none', background: 'transparent' }} />
                               </div>
                             ) : (
-                              <button title="Edit unit price" onClick={() => { setEditingItem(item.id); setNewPrice(parseFloat(item.unit_price || 0).toFixed(2)); setPriceReason(''); }}
-                                style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem', border: 'none', borderBottom: '1px dashed rgba(28,25,23,0.35)', background: 'transparent', cursor: 'pointer', color: 'var(--rod-ink)' }}>
-                                {item.is_sample ? 'Free' : '$' + parseFloat(item.unit_price || 0).toFixed(2)}
+                              <button title="Set vendor cost" onClick={() => { setEditingCostItem(item.id); setCostDraft(item.cost != null ? parseFloat(item.cost).toFixed(2) : (item.vendor_cost != null ? parseFloat(item.vendor_cost).toFixed(2) : '')); }}
+                                style={{ padding: '0.1rem 0.3rem', font: '400 13px/1.2 "Inter", sans-serif', border: 'none', borderBottom: '1px dashed rgba(28,25,23,0.3)', background: 'transparent', cursor: 'pointer', color: 'var(--rod-ink)' }}>
+                                {item.cost != null ? '$' + parseFloat(item.cost).toFixed(2) : (item.vendor_cost ? '$' + parseFloat(item.vendor_cost).toFixed(2) : '—')}
                               </button>
                             )
                           ) : (
-                            <span>{item.is_sample ? 'Free' : '$' + parseFloat(item.unit_price || 0).toFixed(2)}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--rod-muted)' }}>{item.cost != null ? '$' + parseFloat(item.cost).toFixed(2) : (item.vendor_cost ? '$' + parseFloat(item.vendor_cost).toFixed(2) : '—')}</span>
                           )}
                         </div>
                         <div className="rod-line-item-subtotal" style={{ textAlign: 'right', font: '400 14px/1 "Cormorant Garamond", serif', letterSpacing: '-0.008em' }}>
