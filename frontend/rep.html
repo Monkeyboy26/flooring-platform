@@ -20806,18 +20806,20 @@
           const perSqft = p.price_basis === 'per_sqft' || p.price_basis === 'sqft';
           const spb = parseFloat(p.sqft_per_box || 0);
           const mult = isUnit ? 1 : isCarpet ? (spb > 0 ? spb / 9 : 1) : (perSqft && spb > 0 ? spb : 1);
+          const skuCost = (p.cost != null && p.cost !== '' && parseFloat(p.cost) > 0) ? parseFloat(p.cost) : null;
           staged.push({ key: genKey(), type: 'add', name: (p.display_name || p.name || p.collection || p.product_name || 'Item') + (p.color ? ' ' + p.color : ''),
-            vendorName: p.vendor_name || 'Roma', isCustom: false, skuId: p.sku_id, sellBy, isCarpet, spb, mult,
-            qty, unitPrice: parseFloat(p.unit_price || p.price || 0), cost: null });
+            vendorName: p.vendor_name || 'Roma', image: p.primary_image || null, isCustom: false, skuId: p.sku_id, sellBy, isCarpet, spb, mult,
+            qty, unitPrice: parseFloat(p.unit_price || p.price || 0), cost: skuCost });
         }
         for (const { acc, qty } of accessories) {
+          const accCost = (acc.cost != null && parseFloat(acc.cost) > 0) ? parseFloat(acc.cost) : ((acc.vendor_cost != null && parseFloat(acc.vendor_cost) > 0) ? parseFloat(acc.vendor_cost) : null);
           staged.push({ key: genKey(), type: 'add', name: (acc.product_name || 'Accessory') + (acc.color ? ' ' + acc.color : ''),
-            vendorName: acc.vendor_name || 'Roma', isCustom: false, skuId: acc.sku_id, sellBy: acc.sell_by || 'unit', isCarpet: false, spb: 0, mult: 1,
-            qty, unitPrice: parseFloat(acc.unit_price || acc.price || 0), cost: null });
+            vendorName: acc.vendor_name || 'Roma', image: acc.primary_image || null, isCustom: false, skuId: acc.sku_id, sellBy: acc.sell_by || 'unit', isCarpet: false, spb: 0, mult: 1,
+            qty, unitPrice: parseFloat(acc.unit_price || acc.price || 0), cost: accCost });
         }
         for (const c of customs) {
           const sellBy = c.sell_by || 'box';
-          staged.push({ key: genKey(), type: 'add', name: c.product_name || 'Custom item',
+          staged.push({ key: genKey(), type: 'add', name: c.product_name || 'Custom item', image: null,
             vendorName: c.custom_vendor || 'Custom', isCustom: true, product_name: c.product_name,
             vendor_id: c.vendor_id || null, custom_vendor: c.custom_vendor || null, custom_vendor_email: c.custom_vendor_email || null,
             description: c.description || null, sellBy, isCarpet: sellBy === 'roll', spb: 0, mult: sellBy === 'roll' ? (1 / 9) : 1,
@@ -21058,7 +21060,9 @@
                       if (d.type === 'add') {
                         return (
                           <div key={d.key} style={{ padding: '14px 0', display: 'grid', gridTemplateColumns: '44px 1fr auto 24px', gap: 12, alignItems: 'center', borderBottom: rowBorder }}>
-                            <div style={{ height: 38, ...materialFace(changeMaterialKind({}), changeTone(d.name)) }} />
+                            {d.image
+                              ? <img src={optimizeImg(d.image, 96)} alt="" loading="lazy" style={{ height: 38, width: 44, objectFit: 'cover', border: '0.5px solid rgba(28,25,23,0.1)' }} />
+                              : <div style={{ height: 38, ...materialFace(changeMaterialKind({}), changeTone(d.name)) }} />}
                             <div>
                               <div style={{ font: "400 14px/1.3 'Cormorant Garamond', serif", color: 'var(--rod-ink)' }}>{d.name}</div>
                               <div style={{ font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.14em', color: 'var(--rod-green)', textTransform: 'uppercase', margin: '4px 0 9px' }}>● New line · {d.vendorName}</div>
