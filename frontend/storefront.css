@@ -3231,6 +3231,21 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .acct-credit-amt { font-family: var(--font-heading); font-size: 1.15rem; white-space: nowrap; }
 .acct-credit-amt.pos { color: var(--sage); }
 .acct-credit-amt.neg { color: var(--stone-500); }
+/* Checkout — apply store credit */
+.co-credit { display: flex; align-items: center; gap: 0.85rem; padding: 0.85rem 1rem; margin-bottom: 1rem; border: 1px solid var(--stone-200); border-left: 3px solid var(--gold); border-radius: 8px; background: linear-gradient(180deg, rgba(168,121,53,0.045), transparent); transition: background 0.2s ease, border-color 0.2s ease; }
+.co-credit.applied { background: linear-gradient(180deg, rgba(168,121,53,0.11), rgba(168,121,53,0.03)); border-color: var(--gold); }
+.co-credit-icon { flex: none; width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(168,121,53,0.12); color: var(--gold); }
+.co-credit-icon svg { width: 20px; height: 20px; }
+.co-credit-body { flex: 1; min-width: 0; }
+.co-credit-title { font-size: 0.9rem; font-weight: 600; color: var(--stone-800); letter-spacing: -0.01em; }
+.co-credit-sub { font-size: 0.78rem; color: var(--stone-500); margin-top: 0.12rem; }
+.co-credit-sub .applied-amt { color: var(--gold); font-weight: 600; }
+.co-credit-switch { position: relative; flex: none; width: 44px; height: 26px; cursor: pointer; }
+.co-credit-switch input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.co-credit-slider { position: absolute; inset: 0; border-radius: 999px; background: var(--stone-300); transition: background 0.2s ease; }
+.co-credit-slider::before { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.25); transition: transform 0.2s ease; }
+.co-credit-switch input:checked + .co-credit-slider { background: var(--gold); }
+.co-credit-switch input:checked + .co-credit-slider::before { transform: translateX(18px); }
 .acct-profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.875rem; }
 .acct-input { width: 100%; padding: 0.625rem 0.75rem; border: 0.5px solid rgba(28,25,23,0.15); background: transparent; font-family: var(--font-body); font-size: 0.8125rem; color: var(--stone-800); outline: none; transition: border-color 0.15s; border-radius: 4px; }
 .acct-input:focus { border-color: var(--gold); }

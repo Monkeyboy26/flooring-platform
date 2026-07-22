@@ -10508,10 +10508,25 @@
                     </div>
                   </div>
                   {customerToken && storeCreditBalance > 0 && (
-                    <label className="co-save-card" style={{ marginBottom: '0.75rem' }}>
-                      <input type="checkbox" checked={applyStoreCredit} onChange={e => setApplyStoreCredit(e.target.checked)} />
-                      {' '}Apply store credit (${storeCreditBalance.toFixed(2)} available)
-                    </label>
+                    <div className={'co-credit' + (applyStoreCredit ? ' applied' : '')}>
+                      <div className="co-credit-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10.5h20"/>
+                          <circle cx="17.5" cy="14.5" r="1.4" fill="currentColor" stroke="none"/>
+                        </svg>
+                      </div>
+                      <div className="co-credit-body">
+                        <div className="co-credit-title">Store credit</div>
+                        <div className="co-credit-sub">
+                          ${storeCreditBalance.toFixed(2)} available
+                          {creditApplicable > 0 && <> &middot; <span className="applied-amt">&minus;${creditApplicable.toFixed(2)} applied</span></>}
+                        </div>
+                      </div>
+                      <label className="co-credit-switch" aria-label="Apply store credit">
+                        <input type="checkbox" checked={applyStoreCredit} onChange={e => setApplyStoreCredit(e.target.checked)} />
+                        <span className="co-credit-slider"></span>
+                      </label>
+                    </div>
                   )}
                   {fullyCoveredByCredit && (
                     <div className="co-final-sale" style={{ background: '#f0f7ee', borderColor: '#cfe3c6' }}>
