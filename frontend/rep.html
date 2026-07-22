@@ -19115,6 +19115,21 @@
       const custId = order.trade_customer_id || order.customer_id || order.customer_email;
       const custType = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
 
+      // Per-item pickup readiness (check items off as they arrive at the store;
+      // the last one auto-advances the order to Ready for Pickup + emails customer).
+      const showReady = isPickup && ['confirmed', 'ready_for_pickup'].includes(order.status);
+      const readyTotal = items.filter(i => !i.is_sample).length;
+      const readyCount = items.filter(i => !i.is_sample && i.ready_at).length;
+      const toggleItemReady = async (item) => {
+        try {
+          const data = await repFetch('/api/rep/orders/' + editId + '/items/' + item.id + '/ready', {
+            method: 'PUT', body: JSON.stringify({ ready: !item.ready_at })
+          });
+          if (data.order) setOrder(data.order);
+          setItems(prev => prev.map(i => i.id === item.id ? { ...i, ready_at: data.ready_at } : i));
+        } catch (err) { alert(err.message || 'Failed to update item'); }
+      };
+
       return (
         <div style={{ paddingBottom: 96 }}>
           {/* A. Breadcrumb */}
@@ -19260,7 +19275,7 @@
             <div className="rod-col">
 
               {/* Line Items */}
-              <RodCard title={'Line items · ' + items.length}
+              <RodCard title={'Line items · ' + items.length + (showReady ? ' · ' + readyCount + '/' + readyTotal + ' ready for pickup' : '')}
                 action2={['pending', 'confirmed'].includes(order.status) ? 'Browse catalog' : null}
                 onAction2={() => setCatalogOpen(true)}
                 action="+ Add Line" onAction={() => {
@@ -19337,6 +19352,16 @@
                             {isCustom && <span style={{ color: 'var(--rod-accent)' }}>Custom</span>}
                             {item.is_sample && <span style={{ marginLeft: '4px', color: 'var(--rod-muted)' }}>Sample</span>}
                           </div>
+                          {showReady && !item.is_sample && (
+                            <button onClick={() => toggleItemReady(item)}
+                              style={{ marginTop: 5, font: '500 10px/1 "Inter", sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase',
+                                padding: '3px 8px', borderRadius: 3, cursor: 'pointer',
+                                border: '1px solid ' + (item.ready_at ? 'var(--rod-green)' : 'rgba(28,25,23,0.2)'),
+                                background: item.ready_at ? 'rgba(75,138,86,0.12)' : 'transparent',
+                                color: item.ready_at ? 'var(--rod-green)' : 'var(--rod-muted)' }}>
+                              {item.ready_at ? '✓ At store' : 'Mark ready'}
+                            </button>
+                          )}
                         </div>
                         <div>
                           <div style={{ font: '400 13px/1.2 "Inter", sans-serif', color: 'var(--rod-ink)' }}>{item.vendor_name || (isCustom ? 'Custom' : 'Roma')}</div>

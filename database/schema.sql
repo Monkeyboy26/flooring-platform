@@ -177,7 +177,10 @@ CREATE TABLE order_items (
     -- custom_vendor free text for a one-off vendor not in the system
     vendor_id UUID REFERENCES vendors(id),
     custom_vendor TEXT,
-    cost DECIMAL(10,2)
+    cost DECIMAL(10,2),
+    -- Pickup readiness: set when this line's goods are at the store. When every
+    -- non-sample line is ready, a pickup order auto-advances to ready_for_pickup.
+    ready_at TIMESTAMP
 );
 
 CREATE TABLE cart_items (

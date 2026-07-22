@@ -4570,6 +4570,20 @@
       const productItems = items.filter(i => !i.is_sample);
       const sampleItems = items.filter(i => i.is_sample);
 
+      // Per-item pickup readiness: check items off as they arrive at the store.
+      // Marking the last one auto-advances the order to Ready for Pickup.
+      const showReadyCol = isPickupOrder && ['confirmed', 'ready_for_pickup'].includes(order.status) && ['admin', 'manager'].includes(staffRole);
+      const readyCount = productItems.filter(i => i.ready_at).length;
+      const toggleItemReady = async (item) => {
+        try {
+          const data = await adminFetch('/api/admin/orders/' + editId + '/items/' + item.id + '/ready', {
+            method: 'PUT', body: JSON.stringify({ ready: !item.ready_at })
+          });
+          if (data.order) setOrder(data.order);
+          setItems(prev => prev.map(i => i.id === item.id ? { ...i, ready_at: data.ready_at } : i));
+        } catch (err) { alert(err.message || 'Failed to update item'); }
+      };
+
       return (
         <React.Fragment>
         <div>
@@ -5040,7 +5054,13 @@
           </div>
 
           <div className="form-card">
-            <h3>Line Items</h3>
+            <h3>Line Items
+              {showReadyCol && (
+                <span style={{ fontSize: '0.75rem', fontWeight: 400, color: readyCount === productItems.length ? 'var(--green)' : 'var(--stone-500)', marginLeft: '0.5rem' }}>
+                  · {readyCount} of {productItems.length} ready for pickup
+                </span>
+              )}
+            </h3>
             <div className="table-scroll-wrapper">
             <table className="admin-table">
               <thead>
@@ -5050,6 +5070,7 @@
                   <th style={{ width: 100 }}>Qty</th>
                   <th style={{ width: 140 }}>Unit Price</th>
                   <th style={{ width: 110, textAlign: 'right' }}>Subtotal</th>
+                  {showReadyCol && <th style={{ width: 130 }}>Store Pickup</th>}
                   {['pending', 'confirmed'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && <th style={{ width: 80 }}>Actions</th>}
                 </tr>
               </thead>
@@ -5073,6 +5094,18 @@
                     <td data-label="Qty">{item.sell_by === 'roll' ? (item.sqft_needed || 0) : item.num_boxes} <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel}</span></td>
                     <td data-label="Unit Price">{item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '—'} <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}</span></td>
                     <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>{item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}</td>
+                    {showReadyCol && (
+                      <td data-label="Store Pickup">
+                        {item.is_sample ? <span style={{ color: 'var(--stone-400)' }}>—</span> : (
+                          <button
+                            className={item.ready_at ? 'btn btn-sm' : 'btn btn-secondary btn-sm'}
+                            style={item.ready_at ? { background: 'var(--green-light)', color: 'var(--green)', borderColor: 'var(--green)' } : {}}
+                            onClick={() => toggleItemReady(item)}>
+                            {item.ready_at ? '✓ At store' : 'Mark ready'}
+                          </button>
+                        )}
+                      </td>
+                    )}
                     {['pending', 'confirmed'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && (
                       <td data-label="" className="actions">
                         <button className="btn btn-danger btn-sm"

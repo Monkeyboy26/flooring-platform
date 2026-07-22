@@ -7572,6 +7572,69 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
   }
 });
 
+// Keep a pickup order's status in sync with its per-item readiness checklist:
+// all non-sample lines ready + status 'confirmed' → 'ready_for_pickup';
+// not all ready + status 'ready_for_pickup' → back to 'confirmed'. No-op for
+// shipping orders or other statuses. Returns { changed, newStatus, total, ready }.
+async function syncPickupReady(client, orderId) {
+  const ord = await client.query('SELECT status, delivery_method FROM orders WHERE id = $1', [orderId]);
+  if (!ord.rows.length) return { changed: false };
+  const { status, delivery_method } = ord.rows[0];
+  const cnt = await client.query(
+    `SELECT COUNT(*)::int AS total, COUNT(ready_at)::int AS ready
+       FROM order_items WHERE order_id = $1 AND COALESCE(is_sample, false) = false`,
+    [orderId]
+  );
+  const { total, ready } = cnt.rows[0];
+  const allReady = total > 0 && ready === total;
+  if (delivery_method !== 'pickup') return { changed: false, total, ready };
+  if (allReady && status === 'confirmed') {
+    await client.query("UPDATE orders SET status = 'ready_for_pickup' WHERE id = $1", [orderId]);
+    return { changed: true, newStatus: 'ready_for_pickup', total, ready };
+  }
+  if (!allReady && status === 'ready_for_pickup') {
+    await client.query("UPDATE orders SET status = 'confirmed' WHERE id = $1", [orderId]);
+    return { changed: true, newStatus: 'confirmed', total, ready };
+  }
+  return { changed: false, total, ready };
+}
+
+// Toggle a single line item's pickup readiness (goods arrived at the store).
+// When the last line becomes ready, the pickup order auto-advances to
+// ready_for_pickup and the customer gets the "ready" email.
+app.put('/api/admin/orders/:id/items/:itemId/ready', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, itemId } = req.params;
+    const ready = !!req.body.ready;
+    await client.query('BEGIN');
+    const it = await client.query(
+      'SELECT id, product_name, collection FROM order_items WHERE id = $1 AND order_id = $2 FOR UPDATE',
+      [itemId, id]
+    );
+    if (!it.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Item not found' }); }
+    await client.query('UPDATE order_items SET ready_at = $1 WHERE id = $2', [ready ? new Date() : null, itemId]);
+    const sync = await syncPickupReady(client, id);
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await logOrderActivity(client, id, ready ? 'item_ready' : 'item_unready', req.staff.id, staffName,
+      { product_name: it.rows[0].collection || it.rows[0].product_name, ...(sync.changed ? { order_status: sync.newStatus } : {}) });
+    await client.query('COMMIT');
+    const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const order = fresh.rows[0];
+    if (sync.changed && sync.newStatus === 'ready_for_pickup') {
+      setImmediate(() => sendOrderStatusUpdate(order, 'ready_for_pickup'));
+      setImmediate(() => recalculateCommission(pool, id));
+      if (order.sales_rep_id) {
+        setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'order_status_changed',
+          'Order ' + order.order_number + ' → ready for pickup', 'All items are ready at the store', 'order', id));
+      }
+    }
+    res.json({ order, item_id: itemId, ready_at: ready ? order.updated_at || new Date() : null, ready_summary: { total: sync.total, ready: sync.ready } });
+  } catch (err) {
+    await client.query('ROLLBACK'); console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
 // Update order status
 app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   const client = await pool.connect();
@@ -7623,11 +7686,19 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
         'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
         [status, id]
       );
+      // Marking the whole order ready implies every line is at the store —
+      // keep the per-item checklist in sync.
+      await client.query(
+        "UPDATE order_items SET ready_at = COALESCE(ready_at, NOW()) WHERE order_id = $1 AND COALESCE(is_sample, false) = false",
+        [id]
+      );
     } else if (status === 'confirmed') {
       result = await client.query(
         'UPDATE orders SET status = $1, confirmed_at = NOW() WHERE id = $2 RETURNING *',
         [status, id]
       );
+      // Reverting to confirmed clears per-item readiness (pickup checklist).
+      await client.query('UPDATE order_items SET ready_at = NULL WHERE order_id = $1', [id]);
     } else if (status === 'delivered') {
       result = await client.query(
         'UPDATE orders SET status = $1, delivered_at = NOW() WHERE id = $2 RETURNING *',
@@ -14760,6 +14831,39 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
   }
 });
 
+// Rep: toggle a line item's pickup readiness (ownership-scoped). Same auto-flip
+// to ready_for_pickup + customer email as the admin endpoint.
+app.put('/api/rep/orders/:id/items/:itemId/ready', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, itemId } = req.params;
+    const ready = !!req.body.ready;
+    await client.query('BEGIN');
+    const own = await client.query('SELECT id FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    if (!own.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const it = await client.query(
+      'SELECT id, product_name, collection FROM order_items WHERE id = $1 AND order_id = $2 FOR UPDATE',
+      [itemId, id]
+    );
+    if (!it.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Item not found' }); }
+    await client.query('UPDATE order_items SET ready_at = $1 WHERE id = $2', [ready ? new Date() : null, itemId]);
+    const sync = await syncPickupReady(client, id);
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, id, ready ? 'item_ready' : 'item_unready', req.rep.id, repName,
+      { product_name: it.rows[0].collection || it.rows[0].product_name, ...(sync.changed ? { order_status: sync.newStatus } : {}) });
+    await client.query('COMMIT');
+    const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const order = fresh.rows[0];
+    if (sync.changed && sync.newStatus === 'ready_for_pickup') {
+      setImmediate(() => sendOrderStatusUpdate(order, 'ready_for_pickup'));
+      setImmediate(() => recalculateCommission(pool, id));
+    }
+    res.json({ order, item_id: itemId, ready_at: ready ? new Date() : null, ready_summary: { total: sync.total, ready: sync.ready } });
+  } catch (err) {
+    await client.query('ROLLBACK'); console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
 app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -14816,11 +14920,19 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
         'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
         [status, id]
       );
+      // Marking the whole order ready implies every line is at the store —
+      // keep the per-item checklist in sync.
+      await client.query(
+        "UPDATE order_items SET ready_at = COALESCE(ready_at, NOW()) WHERE order_id = $1 AND COALESCE(is_sample, false) = false",
+        [id]
+      );
     } else if (status === 'confirmed') {
       result = await client.query(
         'UPDATE orders SET status = $1, confirmed_at = NOW() WHERE id = $2 RETURNING *',
         [status, id]
       );
+      // Reverting to confirmed clears per-item readiness (pickup checklist).
+      await client.query('UPDATE order_items SET ready_at = NULL WHERE order_id = $1', [id]);
     } else if (status === 'delivered') {
       result = await client.query(
         'UPDATE orders SET status = $1, delivered_at = NOW() WHERE id = $2 RETURNING *',
