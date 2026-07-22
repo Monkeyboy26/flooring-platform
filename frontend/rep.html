@@ -19406,19 +19406,6 @@
                         </div>
                         <div className="rod-line-item-subtotal" style={{ textAlign: 'right', font: '400 14px/1 "Cormorant Garamond", serif', letterSpacing: '-0.008em' }}>
                           {item.is_sample ? 'Free' : item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}
-                          {['pending', 'confirmed'].includes(order.status) && !item.is_sample && (
-                            <button title="Remove item" style={{ marginLeft: '6px', padding: '1px 5px', border: '0.5px solid rgba(197,71,49,0.35)', background: 'transparent', color: 'var(--rod-red)', cursor: 'pointer', font: '400 11px/1.2 "Inter", sans-serif' }}
-                              onClick={async () => {
-                                if (!confirm('Remove this item from the order?')) return;
-                                try {
-                                  const data = await repFetch('/api/rep/orders/' + editId + '/items/' + item.id, { method: 'DELETE' });
-                                  if (data.order) setOrder(data.order);
-                                  if (data.items) setItems(data.items);
-                                  if (data.balance) setBalanceInfo(data.balance);
-                                  loadPOs();
-                                } catch (err) { alert(err.message); }
-                              }}>×</button>
-                          )}
                         </div>
                       </div>
                       {itemAdj.length > 0 && (
