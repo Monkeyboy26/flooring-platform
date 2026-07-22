@@ -2287,8 +2287,8 @@ CREATE INDEX IF NOT EXISTS idx_email_failures_unresolved
 
 -- ==================== Order Activity Log ====================
 -- Append-only audit of order lifecycle events (status changes, price
--- adjustments, refunds, shipments). Exists in the live DB but had drifted
--- out of this file; re-declared here so schema.sql stays the source of truth.
+-- adjustments, refunds). Exists in the live DB but had drifted out of this
+-- file; re-declared here so schema.sql stays the source of truth.
 -- Written via logOrderActivity() in backend/lib/orderHelpers.js. performed_by
 -- is a plain UUID (no FK) because both staff_accounts and sales_reps write here
 -- and reps are not in staff_accounts.
@@ -2303,54 +2303,3 @@ CREATE TABLE IF NOT EXISTS order_activity_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_order_activity_log_order ON order_activity_log(order_id);
-
--- ==================== Order Fulfillment / Shipments ====================
--- First-class shipment entities so a single order can ship in multiple parts
--- (split / partial shipments + backorder visibility). orders.status gains a
--- 'processing' state between 'confirmed' and 'shipped' for picking/packing;
--- orders.fulfillment_status is a code-maintained rollup (see recalcFulfillment
--- in backend/lib/orderHelpers.js) of how much of the order has actually shipped.
-
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS fulfillment_status VARCHAR(20) DEFAULT 'unfulfilled';
--- fulfillment_status: 'unfulfilled' | 'partial' | 'fulfilled'
-
-CREATE TABLE IF NOT EXISTS shipments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    shipment_number TEXT UNIQUE NOT NULL,        -- e.g. RD-10028-S1
-    status VARCHAR(20) NOT NULL DEFAULT 'packing', -- 'packing' | 'shipped' | 'delivered' | 'cancelled'
-    delivery_method VARCHAR(20) DEFAULT 'shipping', -- 'shipping' | 'pickup'
-    carrier TEXT,
-    service_level TEXT,
-    tracking_number TEXT,
-    tracking_url TEXT,
-    package_count INTEGER DEFAULT 1,
-    total_weight_lbs DECIMAL(10,2),
-    shipping_cost DECIMAL(10,2),
-    freightview_shipment_id TEXT,
-    notes TEXT,
-    -- packed_by / created_by are plain UUIDs (no FK): both staff and reps write here
-    packed_by UUID,
-    packed_at TIMESTAMP,
-    shipped_at TIMESTAMP,
-    delivered_at TIMESTAMP,
-    created_by UUID,
-    created_by_name TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_shipments_order ON shipments(order_id);
-CREATE INDEX IF NOT EXISTS idx_shipments_status ON shipments(status);
-CREATE INDEX IF NOT EXISTS idx_shipments_tracking ON shipments(tracking_number);
-
-CREATE TABLE IF NOT EXISTS shipment_items (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    shipment_id UUID NOT NULL REFERENCES shipments(id) ON DELETE CASCADE,
-    order_item_id UUID NOT NULL REFERENCES order_items(id),
-    sku_id UUID REFERENCES skus(id),
-    qty_boxes INTEGER NOT NULL,
-    sqft DECIMAL(10,2),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_shipment_items_shipment ON shipment_items(shipment_id);
-CREATE INDEX IF NOT EXISTS idx_shipment_items_order_item ON shipment_items(order_item_id);
