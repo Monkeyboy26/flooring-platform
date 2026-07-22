@@ -19276,9 +19276,8 @@
 
               {/* Line Items */}
               <RodCard title={'Line items · ' + items.length + (showReady ? ' · ' + readyCount + '/' + readyTotal + ' ready for pickup' : '')}
-                action2={['pending', 'confirmed'].includes(order.status) ? 'Browse catalog' : null}
-                onAction2={() => setCatalogOpen(true)}
-                action="+ Add Line" onAction={() => {
+                action2={['pending', 'confirmed'].includes(order.status) ? '+ Add line' : null}
+                onAction2={() => {
                 setAddingItem(true); setAddItemMode('sku'); setAddItemSku('');
                 setSkuSearchResults([]); setSelectedSku(null); setCalcSqft(''); setCalcBoxes(''); setCalcUnitQty(1);
                 setCustomItemName(''); setCustomItemPrice('');
@@ -19286,7 +19285,9 @@
                 if (addItemVendors.length === 0) {
                   repFetch('/api/rep/vendors').then(d => setAddItemVendors(d.vendors || [])).catch(() => {});
                 }
-              }}>
+              }}
+                action={['pending', 'confirmed'].includes(order.status) ? 'Browse catalog' : null}
+                onAction={() => setCatalogOpen(true)}>
                 <div className="rod-line-items-header">
                   <span></span>
                   <span>Item</span>
@@ -20206,8 +20207,9 @@
             )}
           </div>
 
-          {/* Browse catalog popup — same as the order flow */}
-          {catalogOpen && order.status === 'pending' && (
+          {/* Browse catalog popup — same wizard used by the new-order and quote
+              flows; available whenever items can be added (pending / confirmed). */}
+          {catalogOpen && ['pending', 'confirmed'].includes(order.status) && (
             <RofCatalogModal
               data={{ customer: null, newCustomerName: order.customer_name }}
               showCost={showCost}
