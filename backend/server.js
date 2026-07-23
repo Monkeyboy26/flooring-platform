@@ -11412,7 +11412,7 @@ app.get('/api/trade/dashboard', tradeAuth, async (req, res) => {
     `, [id]);
 
     const membership = await pool.query(`
-      SELECT tc.total_spend,
+      SELECT tc.total_spend, tc.created_at,
         mt.name as tier_name, mt.discount_percent, mt.tier_level
       FROM trade_customers tc LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
       WHERE tc.id = $1
@@ -11421,18 +11421,39 @@ app.get('/api/trade/dashboard', tradeAuth, async (req, res) => {
     const mem = membership.rows[0] || {};
     // Find next tier
     const nextTier = await pool.query(
-      'SELECT name, spend_threshold FROM margin_tiers WHERE tier_level > $1 ORDER BY tier_level ASC LIMIT 1',
+      'SELECT name, spend_threshold, discount_percent FROM margin_tiers WHERE tier_level > $1 AND is_active = true ORDER BY tier_level ASC LIMIT 1',
       [mem.tier_level || 0]
     );
     const nt = nextTier.rows[0];
 
+    // Full tier ladder (for the Silver→Gold→Platinum progression display)
+    const allTiers = await pool.query(
+      'SELECT name, discount_percent, spend_threshold, tier_level FROM margin_tiers WHERE is_active = true ORDER BY tier_level ASC'
+    );
+
+    // Open orders = anything not yet delivered/cancelled/refunded
+    const openOrders = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM orders WHERE trade_customer_id = $1 AND status NOT IN ('delivered','cancelled','refunded')`,
+      [id]
+    );
+
     res.json({
       tier_name: mem.tier_name || 'Silver',
       discount_percent: parseFloat(mem.discount_percent || 0),
+      tier_level: mem.tier_level || 0,
       total_spend: parseFloat(mem.total_spend || 0),
       order_count: stats.rows[0].total_orders,
+      open_order_count: openOrders.rows[0].c,
+      member_since: mem.created_at || null,
       next_tier_name: nt ? nt.name : null,
       next_tier_threshold: nt ? parseFloat(nt.spend_threshold) : null,
+      next_tier_discount: nt ? parseFloat(nt.discount_percent) : null,
+      all_tiers: allTiers.rows.map(t => ({
+        name: t.name,
+        discount_percent: parseFloat(t.discount_percent),
+        spend_threshold: parseFloat(t.spend_threshold),
+        tier_level: t.tier_level
+      })),
       recent_orders: recentOrders.rows,
       active_projects: stats.rows[0].active_projects,
       favorite_collections: stats.rows[0].favorite_collections
@@ -11452,7 +11473,11 @@ app.get('/api/trade/orders', tradeAuth, async (req, res) => {
     // Attach items to each order for expandable detail
     const orders = result.rows;
     for (const o of orders) {
-      const items = await pool.query('SELECT oi.product_name, oi.collection, oi.num_boxes, oi.unit_price, oi.subtotal, oi.sqft_needed, s.internal_sku as sku_code FROM order_items oi LEFT JOIN skus s ON s.id = oi.sku_id WHERE oi.order_id = $1 ORDER BY oi.id', [o.id]);
+      const items = await pool.query(`
+        SELECT oi.product_name, oi.collection, oi.num_boxes, oi.unit_price, oi.subtotal, oi.sqft_needed,
+          oi.sku_id, oi.product_id, s.internal_sku as sku_code,
+          (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = oi.sku_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
+        FROM order_items oi LEFT JOIN skus s ON s.id = oi.sku_id WHERE oi.order_id = $1 ORDER BY oi.id`, [o.id]);
       o.items = items.rows;
     }
     res.json({ orders });

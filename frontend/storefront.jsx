@@ -12615,6 +12615,8 @@
       const [showFavForm, setShowFavForm] = useState(false);
       const [favName, setFavName] = useState('');
       const [expandedOrder, setExpandedOrder] = useState(null);
+      const [ordersTab, setOrdersTab] = useState('all');
+      const [ordersSearch, setOrdersSearch] = useState('');
       const [quotes, setQuotes] = useState([]);
       const [expandedQuote, setExpandedQuote] = useState(null);
       const [quoteDetail, setQuoteDetail] = useState(null);
@@ -12628,8 +12630,16 @@
       const loadTab = (t) => {
         setLoading(true);
         if (t === 'overview') {
-          fetch(API + '/api/trade/dashboard', { headers: authHeaders })
-            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setDashData(d); setLoading(false); }).catch(() => setLoading(false));
+          Promise.all([
+            fetch(API + '/api/trade/dashboard', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+            fetch(API + '/api/trade/orders', { headers: authHeaders }).then(r => r.ok ? r.json() : { orders: [] }).catch(() => ({ orders: [] })),
+            fetch(API + '/api/trade/quotes', { headers: authHeaders }).then(r => r.ok ? r.json() : { quotes: [] }).catch(() => ({ quotes: [] })),
+            fetch(API + '/api/trade/projects', { headers: authHeaders }).then(r => r.ok ? r.json() : { projects: [] }).catch(() => ({ projects: [] })),
+            fetch(API + '/api/trade/my-rep', { headers: authHeaders }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
+          ]).then(([d, od, qd, pd, rp]) => {
+            setDashData(d); setOrders(od.orders || []); setQuotes(qd.quotes || []);
+            setProjects(pd.projects || []); setRep(rp.rep || null); setLoading(false);
+          }).catch(() => setLoading(false));
         } else if (t === 'orders') {
           Promise.all([
             fetch(API + '/api/trade/orders', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
@@ -12653,7 +12663,7 @@
             fetch(API + '/api/trade/membership', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).catch(() => ({})),
             fetch(API + '/api/trade/my-rep', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).catch(() => ({}))
           ]).then(([acc, mem, rp]) => {
-            setAccount(acc.customer || acc);
+            setAccount(acc.account || acc.customer || acc);
             setMembership(mem);
             setRep(rp.rep || null);
             setLoading(false);
@@ -12762,324 +12772,511 @@
         account: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       };
 
+      // ---- Account-style shell for the non-overview sections ----
+      const curTierName = (dashData && dashData.tier_name) || tradeCustomer.tier_name || 'Silver';
+      const tInitials = (s) => (s || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+      const tFmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+      const tMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const T_ORDER_STATUS = {
+        pending: { label: 'Pending', color: '#a87935' }, confirmed: { label: 'Confirmed', color: '#a87935' },
+        processing: { label: 'Processing', color: '#a87935' }, ready_for_pickup: { label: 'Ready for pickup', color: '#3a7a4e' },
+        shipped: { label: 'Shipped', color: '#2563eb' }, delivered: { label: 'Delivered', color: '#3a7a4e' },
+        cancelled: { label: 'Cancelled', color: 'var(--warm-muted)' }
+      };
+      const tProjName = (pid) => { const p = (projects || []).find(x => x.id === pid); return p ? p.name : null; };
+      const tOrderCount = (dashData && dashData.order_count != null) ? dashData.order_count : orders.length;
+      const tProjCount = (dashData && dashData.active_projects != null) ? dashData.active_projects : projects.length;
+      const T_NAV = [
+        { id: 'overview', label: 'Overview', meta: 'Snapshot' },
+        { id: 'orders', label: 'Orders', meta: tOrderCount ? tOrderCount + ' total' : 'None yet' },
+        { id: 'quotes', label: 'Quotes', meta: quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : 'None yet' },
+        { id: 'visits', label: 'Visits', meta: visits.length ? visits.length + ' showroom' : 'Recaps' },
+        { id: 'projects', label: 'Projects', meta: tProjCount ? tProjCount + ' active' : 'None yet' },
+        { id: 'favorites', label: 'Favorites', meta: favorites.length ? favorites.length + ' saved' : 'Collections' },
+        { id: 'account', label: 'Account', meta: 'Company & security' }
+      ];
+      const T_HERO = {
+        orders: { eyebrow: 'Order history', heading: <>Your <em>orders</em>.</> },
+        quotes: { eyebrow: 'Prepared by your rep', heading: <>Your <em>quotes</em>.</> },
+        visits: { eyebrow: 'Showroom recaps', heading: <>Your <em>visits</em>.</> },
+        projects: { eyebrow: 'Organize your work', heading: <>Your <em>projects</em>.</> },
+        favorites: { eyebrow: 'Saved materials', heading: <>Your <em>favorites</em>.</> },
+        account: { eyebrow: 'Profile & security', heading: <>Account <em>settings</em>.</> }
+      };
+      const tHero = T_HERO[tab] || T_HERO.orders;
+      const tSectionHead = (eyebrow, title, action, onAction) => (
+        <div className="acct-section-head">
+          <div>
+            <div className="acct-eyebrow">{eyebrow}</div>
+            <h2 className="acct-section-title">{title}</h2>
+          </div>
+          {action && <button className="acct-section-action" onClick={onAction}>{action}</button>}
+        </div>
+      );
+
       return (
-        <div className="trade-dashboard">
-          <div className="trade-dash-header">
-            <h1>Trade Dashboard</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.875rem', color: 'var(--stone-500)' }}>
-              {tradeCustomer.company_name}
-              <span className="trade-tier-badge">{tradeCustomer.tier_name || 'Silver'}</span>
-            </div>
-          </div>
-
-          <div className="trade-dash-tabs">
-            {tabs.map(t => (
-              <button key={t} className={'trade-dash-tab' + (tab === t ? ' active' : '')} onClick={() => setTab(t)}>
-                {tabIcons[t]}
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          {loading ? (
-            <div>
-              <div className="skeleton-stat-grid">
-                {[0, 1, 2, 3].map(i => <div key={i} className="skeleton-stat-card" />)}
-              </div>
-              <div style={{ marginTop: '2rem' }}>
-                {[0, 1, 2].map(i => <div key={i} className="skeleton-table-row" />)}
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Overview */}
-              {tab === 'overview' && dashData && (
-                <div>
-                  <div className="trade-stat-grid">
-                    <div className="trade-stat-card" style={{ background: 'linear-gradient(135deg, #fffbf0 0%, white 100%)' }}>
-                      <label>Tier</label><div className="value">{dashData.tier_name || 'Silver'}</div>
-                    </div>
-                    <div className="trade-stat-card" style={{ background: 'linear-gradient(135deg, #fffbf0 0%, white 100%)' }}>
-                      <label>Your Discount</label><div className="value">{parseFloat(dashData.discount_percent || 0).toFixed(0)}%</div>
-                    </div>
-                    <div className="trade-stat-card" style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, white 100%)' }}>
-                      <label>Spend (last 12 mo)</label><div className="value">${parseFloat(dashData.total_spend || 0).toLocaleString()}</div>
-                    </div>
-                    <div className="trade-stat-card" style={{ background: 'linear-gradient(135deg, #f0f9ff 0%, white 100%)' }}>
-                      <label>Orders</label><div className="value">{dashData.order_count || 0}</div>
-                    </div>
-                  </div>
-                  {dashData.next_tier_name && (
-                    <div className="trade-tier-progress">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
-                        <span>Progress to <strong>{dashData.next_tier_name}</strong></span>
-                        <span>${parseFloat(dashData.total_spend || 0).toLocaleString()} / ${parseFloat(dashData.next_tier_threshold || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="trade-tier-bar">
-                        <div className="trade-tier-bar-fill" style={{ width: Math.min(100, (parseFloat(dashData.total_spend || 0) / parseFloat(dashData.next_tier_threshold || 1) * 100)) + '%' }}></div>
-                      </div>
-                    </div>
-                  )}
-                  {dashData.recent_orders && dashData.recent_orders.length > 0 && (
-                    <div className="trade-card">
-                      <h3>Recent Orders</h3>
-                      <table className="trade-orders-table">
-                        <thead><tr><th>Order #</th><th>Date</th><th>Total</th><th>Status</th></tr></thead>
-                        <tbody>
-                          {dashData.recent_orders.map(o => (
-                            <tr key={o.id}>
-                              <td style={{ fontWeight: 500 }}>{o.order_number}</td>
-                              <td>{new Date(o.created_at).toLocaleDateString()}</td>
-                              <td>${parseFloat(o.total).toFixed(2)}</td>
-                              <td><span className={'trade-status-badge ' + (o.status || 'pending')}>{o.status}</span></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                    <button className="btn" onClick={goBrowse}>Shop Products</button>
-                  </div>
+        <div className="acct-page trade-acct-page">
+          {tab !== 'overview' && (
+            <section className="acct-hero">
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div className="acct-breadcrumb">
+                  <a onClick={() => setTab('overview')}>Dashboard</a>
+                  <span className="acct-breadcrumb-sep" />
+                  <span className="acct-breadcrumb-current">{(T_NAV.find(n => n.id === tab) || {}).label || 'Account'}</span>
                 </div>
-              )}
+                <div className="acct-hero-meta">{tradeCustomer.company_name}</div>
+              </div>
+              <div className="acct-hero-grid">
+                <div>
+                  <div className="acct-hero-eyebrow">{tHero.eyebrow}</div>
+                  <h1 className="acct-hero-heading">{tHero.heading}</h1>
+                </div>
+              </div>
+            </section>
+          )}
+          <div className={'acct-body' + (tab === 'overview' ? ' trade-acct-body--overview' : '')}>
+            <aside className="acct-sidebar">
+              <div className="acct-customer-chip">
+                <div className="acct-avatar">{tInitials(tradeCustomer.company_name)}</div>
+                <div>
+                  <div className="acct-customer-name">{tradeCustomer.company_name}</div>
+                  <div className="acct-customer-tier">&#9679; {curTierName} member</div>
+                </div>
+              </div>
+              <nav className="acct-nav">
+                {T_NAV.map(it => (
+                  <button key={it.id} className={'acct-nav-item' + (tab === it.id ? ' acct-nav-item--active' : '')} onClick={() => setTab(it.id)}>
+                    <span className="acct-nav-label">{it.label}</span>
+                    <span className="acct-nav-meta">{it.meta}</span>
+                  </button>
+                ))}
+              </nav>
+              <button className="acct-signout" onClick={handleTradeLogout}>Sign out &rarr;</button>
+            </aside>
+            <div className="acct-content">
+              {loading ? (
+                <div>{[0, 1, 2].map(i => <div key={i} className="skeleton-table-row" />)}</div>
+              ) : tab === 'overview' ? (
+                <>
+                  {/* Overview — concept layout, bound to real trade data */}
+              {tab === 'overview' && dashData && (() => {
+                const spend = parseFloat(dashData.total_spend || 0);
+                const tiers = (dashData.all_tiers && dashData.all_tiers.length) ? dashData.all_tiers : [];
+                const topThreshold = Math.max.apply(null, tiers.map(t => t.spend_threshold).concat([spend, 1]));
+                const posOf = (v) => Math.max(0, Math.min(100, (v / topThreshold) * 100));
+                const youPos = posOf(Math.min(spend, topThreshold));
+                const youLeft = Math.max(2, youPos);
+                const firstName = ((tradeCustomer.contact_name || '').trim().split(/\s+/)[0]) || (tradeCustomer.company_name || 'there');
+                const hour = new Date().getHours();
+                const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+                const nextName = dashData.next_tier_name;
+                const nextThreshold = dashData.next_tier_threshold;
+                const nextDisc = dashData.next_tier_discount;
+                const toGo = nextThreshold != null ? Math.max(0, nextThreshold - spend) : null;
+                const pctToNext = nextThreshold ? Math.round((spend / nextThreshold) * 100) : null;
+                const fmtUsd = (n) => '$' + Math.round(parseFloat(n || 0)).toLocaleString('en-US');
+                const fmtPct = (n) => (Math.round((parseFloat(n) || 0) * 100) / 100).toString();
+                const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const memberSince = dashData.member_since ? new Date(dashData.member_since).getFullYear() : null;
+                const curName = dashData.tier_name || 'Silver';
+                const curDisc = fmtPct(dashData.discount_percent);
+                const initials = (s) => (s || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                const projName = (pid) => { const p = (projects || []).find(x => x.id === pid); return p ? p.name : null; };
+                const topOrders = (orders || []).slice(0, 3);
+                const pillClass = (s) => s === 'delivered' ? 'done' : (['pending', 'confirmed', 'shipped', 'processing'].includes(s) ? 'open' : '');
+                const openQuotes = (quotes || []).filter(q => !['converted', 'cancelled', 'expired'].includes(q.status)).slice(0, 2);
+                const daysLeft = (d) => { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); };
+                const reorder = [];
+                for (const o of (orders || [])) { for (const it of (o.items || [])) { if (it.sku_id && !reorder.find(r => r.sku_id === it.sku_id)) reorder.push(it); if (reorder.length >= 3) break; } if (reorder.length >= 3) break; }
+                return (
+                  <div>
+                    <div className="td-mast">
+                      <div>
+                        <div className="td-mast-k">{tradeCustomer.company_name} · <span className="td-mast-tier">{curName} member</span></div>
+                        <h1 className="td-greet">{greet}, <em>{firstName}</em>.</h1>
+                      </div>
+                      {rep && (
+                        <div className="td-rep-mini">
+                          <div><b>{rep.first_name} {rep.last_name}</b><span>Your trade rep</span></div>
+                          <div className="td-rep-dot">{initials(rep.first_name + ' ' + rep.last_name)}</div>
+                        </div>
+                      )}
+                    </div>
 
+                    <div className="td-band">
+                      <div className="td-band-l">
+                        <div className="td-mast-k">Your tier</div>
+                        <div className="td-tier-now">{curName} · <b>{curDisc}% off list</b>
+                          {pctToNext != null && <span className="td-tier-pct">{Math.min(99, pctToNext)}% of the way to {nextName}</span>}
+                        </div>
+                        {tiers.length > 0 && (
+                          <div className="td-ladder">
+                            <div className="td-ladder-rail"></div>
+                            <div className="td-ladder-fill" style={{ width: youPos + '%' }}></div>
+                            {tiers.map((t, i) => (
+                              <div key={t.name} className={'td-stop' + (spend >= t.spend_threshold ? ' hit' : '') + (i === 0 ? ' first' : '') + (i === tiers.length - 1 ? ' last' : '')} style={{ left: posOf(t.spend_threshold) + '%' }}>
+                                <i></i><small>{t.name} · {fmtPct(t.discount_percent)}%{t.spend_threshold > 0 ? ' · ' + fmtUsd(t.spend_threshold) : ''}</small>
+                              </div>
+                            ))}
+                            <div className="td-stop you" style={{ left: youLeft + '%' }}><small>You · {fmtUsd(spend)}</small><i></i></div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="td-band-r">
+                        {nextName ? (
+                          <React.Fragment>
+                            <div className="td-mast-k">To unlock {nextName}</div>
+                            <div className="td-unlock-big">{fmtUsd(toGo)} <b>to go</b></div>
+                            <div className="td-unlock-note">At {nextName} your trade discount rises to <b>{fmtPct(nextDisc)}% off list</b> across the catalog.</div>
+                          </React.Fragment>
+                        ) : (
+                          <React.Fragment>
+                            <div className="td-mast-k">Tier status</div>
+                            <div className="td-unlock-big"><b>Top tier</b></div>
+                            <div className="td-unlock-note">You're at our highest trade tier — <b>{curDisc}% off list</b> on the whole catalog.</div>
+                          </React.Fragment>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="td-stats">
+                      <div className="td-stat"><div className="td-mast-k">Spend · last 12 mo</div><div className="td-stat-v">{fmtUsd(spend)}</div><div className="td-stat-d">Counts toward your tier</div></div>
+                      <div className="td-stat"><div className="td-mast-k">Open orders</div><div className="td-stat-v">{dashData.open_order_count || 0}</div><div className="td-stat-d">{dashData.order_count || 0} lifetime</div></div>
+                      <div className="td-stat"><div className="td-mast-k">Your discount</div><div className="td-stat-v">{curDisc}%</div><div className="td-stat-d">{curName} tier</div></div>
+                      <div className="td-stat"><div className="td-mast-k">Member since</div><div className="td-stat-v">{memberSince || '—'}</div><div className="td-stat-d">Trade account</div></div>
+                    </div>
+
+                    <div className="td-main">
+                      <div className="td-col-l">
+                        <div className="td-sec-h"><h2>Orders</h2><a onClick={() => setTab('orders')}>All orders →</a></div>
+                        {topOrders.length ? (
+                          <table className="td-otable">
+                            <thead><tr><th>Order</th><th>Project</th><th>Status</th><th className="num">Total</th></tr></thead>
+                            <tbody>
+                              {topOrders.map(o => { const it = (o.items || [])[0]; const pn = projName(o.project_id); return (
+                                <tr key={o.id}>
+                                  <td><span className="td-oid">{o.order_number}</span><div className="td-oname">{it ? (it.collection || it.product_name) : 'Order'}{it && o.item_count > 1 ? ' + ' + (o.item_count - 1) + ' more' : ''}</div></td>
+                                  <td><div className="td-oproj">{pn || '—'}</div></td>
+                                  <td><span className={'td-pill ' + pillClass(o.status)}>{o.status}</span></td>
+                                  <td className="num"><b>{money(o.total)}</b></td>
+                                </tr>
+                              ); })}
+                            </tbody>
+                          </table>
+                        ) : <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No orders yet. <a onClick={goBrowse} style={{ cursor: 'pointer', color: 'var(--gold-dark)' }}>Start shopping →</a></p>}
+
+                        <div style={{ height: '2rem' }}></div>
+                        <div className="td-sec-h"><h2>Quotes</h2><a onClick={() => setTab('quotes')}>All quotes →</a></div>
+                        {openQuotes.length ? openQuotes.map(q => { const dl = daysLeft(q.expires_at); return (
+                          <div key={q.id} className="td-quote-row">
+                            <div><span className="td-oid">{q.quote_number}</span><div className="td-oname">{q.customer_name || 'Quote'}</div>{dl != null && dl >= 0 && <div className="td-qexp">Locked pricing expires in {dl} day{dl === 1 ? '' : 's'}</div>}</div>
+                            <div style={{ textAlign: 'right' }}><b style={{ fontSize: '1rem' }}>{money(q.total)}</b><div className="td-oproj">{q.item_count} line{q.item_count === 1 ? '' : 's'}</div></div>
+                            <button className="btn" onClick={() => acceptQuote(q.id)}>Accept</button>
+                          </div>
+                        ); }) : <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No open quotes.</p>}
+                      </div>
+
+                      <div className="td-col-r">
+                        {rep ? (
+                          <div className="td-side-card">
+                            <div className="td-mast-k">Your trade rep</div>
+                            <div style={{ display: 'flex', gap: '0.7rem', alignItems: 'center', margin: '0.7rem 0 0' }}>
+                              <div className="td-rep-dot">{initials(rep.first_name + ' ' + rep.last_name)}</div>
+                              <div><b style={{ fontSize: '0.85rem' }}>{rep.first_name} {rep.last_name}</b><div style={{ fontSize: '0.72rem', color: 'var(--stone-500)' }}>{rep.phone || rep.email}</div></div>
+                            </div>
+                            <div className="td-pm-actions"><a className="btn" href={'mailto:' + rep.email}>Message rep</a></div>
+                          </div>
+                        ) : (
+                          <div className="td-side-card">
+                            <div className="td-mast-k">Talk to a rep</div>
+                            <div style={{ fontSize: '0.85rem', margin: '0.6rem 0 0.7rem' }}>One dedicated rep on every order.</div>
+                            <a className="btn" href="tel:7149990009">(714) 999-0009</a>
+                          </div>
+                        )}
+                        {reorder.length > 0 && (
+                          <div>
+                            <div className="td-sec-h"><h2>Reorder</h2><a onClick={() => setTab('orders')}>History →</a></div>
+                            {reorder.map(it => (
+                              <div key={it.sku_id} className="td-reorder">
+                                {it.primary_image ? <img className="sw" src={optimizeImg(it.primary_image, 96)} alt="" loading="lazy" /> : <div className="sw"></div>}
+                                <div><b>{it.collection || it.product_name}</b><span>{money(it.unit_price)} trade</span></div>
+                                <a onClick={() => { addToCart({ product_id: it.product_id, sku_id: it.sku_id, sqft_needed: parseFloat(it.sqft_needed) || 1, num_boxes: parseInt(it.num_boxes) || 1, unit_price: parseFloat(it.unit_price || 0), subtotal: parseFloat(it.unit_price || 0).toFixed(2) }); showToast && showToast('Added to cart', 'success'); }}>Add</a>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="td-side-card">
+                          <h3 style={{ marginTop: 0 }}>{curName} benefits</h3>
+                          <div className="td-perk"><span>Catalog discount</span><b>{curDisc}% off list</b></div>
+                          <div className="td-perk"><span>Trade pricing</span><b>Baked into every line</b></div>
+                          <div className="td-perk"><span>Dedicated rep</span><b>{rep ? rep.first_name + ' ' + rep.last_name : 'On every order'}</b></div>
+                          {nextName && <div className="td-perk"><span>At {nextName}</span><b>{fmtPct(nextDisc)}% off list</b></div>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+                </>
+              ) : (
+                <>
               {/* Orders */}
               {tab === 'orders' && (
                 <div>
-                  {orders.length === 0 ? (
-                    <div className="trade-empty-state">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-                      <p>No orders yet</p>
-                      <button className="btn" onClick={goBrowse}>Start Shopping</button>
+                  <div className="acct-tabs">
+                    {[{ id: 'all', label: 'All' }, { id: 'active', label: 'Active' }, { id: 'delivered', label: 'Delivered' }].map(t => {
+                      const active = ['pending', 'confirmed', 'processing', 'shipped', 'ready_for_pickup'];
+                      const count = t.id === 'all' ? orders.length : t.id === 'active' ? orders.filter(o => active.includes(o.status)).length : orders.filter(o => o.status === 'delivered').length;
+                      return (
+                        <button key={t.id} className={'acct-tab' + (ordersTab === t.id ? ' acct-tab--active' : '')} onClick={() => setOrdersTab(t.id)}>
+                          {t.label}<span className="acct-tab-count">{count}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="acct-toolbar">
+                    <div className="acct-search-box">
+                      <span className="acct-search-icon">&#8981;</span>
+                      <input className="acct-search-input" placeholder="Search by order number…" value={ordersSearch} onChange={e => setOrdersSearch(e.target.value)} />
                     </div>
-                  ) : (
-                    <table className="trade-orders-table">
-                      <thead><tr><th>Order #</th><th>Date</th><th>Items</th><th>Total</th><th>Status</th><th>PO #</th><th>Project</th><th></th></tr></thead>
-                      <tbody>
-                        {orders.map(o => (
-                          <React.Fragment key={o.id}>
-                            <tr onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)} style={{ cursor: 'pointer' }}>
-                              <td style={{ fontWeight: 500 }}>{o.order_number}</td>
-                              <td>{new Date(o.created_at).toLocaleDateString()}</td>
-                              <td>{o.item_count}</td>
-                              <td>${parseFloat(o.total).toFixed(2)}</td>
-                              <td><span className={'trade-status-badge ' + (o.status || 'pending')}>{o.status}</span></td>
-                              <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{o.po_number || '\u2014'}</td>
-                              <td onClick={e => e.stopPropagation()}>
-                                <select value={o.project_id || ''} onChange={e => assignOrderProject(o.id, e.target.value)}
-                                  style={{ fontSize: '0.75rem', padding: '0.2rem', border: '1px solid var(--stone-300)' }}>
-                                  <option value="">None</option>
-                                  {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                </select>
-                              </td>
-                              <td style={{ fontSize: '0.8125rem' }}>{expandedOrder === o.id ? '\u25B2' : '\u25BC'}</td>
-                            </tr>
-                            {expandedOrder === o.id && o.items && (
-                              <tr><td colSpan="8" style={{ background: 'var(--stone-50)', padding: '1rem' }}>
-                                {o.items.map((item, idx) => (
-                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.35rem 0', fontSize: '0.8125rem' }}>
-                                    <span>{item.product_name} — {item.sku_code}</span>
-                                    <span>{item.quantity} x ${parseFloat(item.unit_price).toFixed(2)}</span>
-                                  </div>
-                                ))}
-                              </td></tr>
-                            )}
-                          </React.Fragment>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              )}
-
-              {/* Quotes */}
-              {tab === 'quotes' && (
-                <div>
-                  {quotes.length > 0 ? (
-                    <div className="trade-card">
-                      <table className="trade-orders-table">
-                        <thead><tr><th>Quote #</th><th>Date</th><th>Items</th><th>Total</th><th>Expires</th><th>Status</th><th></th></tr></thead>
-                        <tbody>
-                          {quotes.map(q => {
-                            const isExpired = q.expires_at && new Date(q.expires_at) < new Date();
-                            const daysLeft = q.expires_at ? Math.ceil((new Date(q.expires_at) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+                    <div className="acct-toolbar-right">
+                      <span style={{ color: 'var(--warm-muted)' }}>Sort: <span style={{ color: 'var(--stone-800)' }}>Newest first</span></span>
+                    </div>
+                  </div>
+                  {orders.length === 0 ? (
+                    <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                      <p style={{ color: 'var(--warm-muted)', marginBottom: '1rem' }}>No orders yet.</p>
+                      <button className="acct-btn" onClick={goBrowse}>Start shopping</button>
+                    </div>
+                  ) : (() => {
+                    const active = ['pending', 'confirmed', 'processing', 'shipped', 'ready_for_pickup'];
+                    let fo = orders;
+                    if (ordersTab === 'active') fo = orders.filter(o => active.includes(o.status));
+                    else if (ordersTab === 'delivered') fo = orders.filter(o => o.status === 'delivered');
+                    const q = ordersSearch.trim().toLowerCase();
+                    if (q) fo = fo.filter(o => (o.order_number || '').toLowerCase().includes(q));
+                    return (
+                      <>
+                        <div className="acct-col-headers">
+                          <span>Order</span><span>Materials</span><span>Project</span><span>Status</span><span style={{ textAlign: 'right' }}>Total</span><span />
+                        </div>
+                        <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
+                          {fo.length === 0 ? (
+                            <p style={{ color: 'var(--warm-muted)', fontSize: '0.875rem', padding: '1.5rem', margin: 0 }}>No orders match.</p>
+                          ) : fo.map(o => {
+                            const sm = T_ORDER_STATUS[o.status] || T_ORDER_STATUS.pending;
+                            const pn = tProjName(o.project_id);
                             return (
-                              <React.Fragment key={q.id}>
-                                <tr style={{ cursor: 'pointer' }} onClick={() => expandQuote(q.id)}>
-                                  <td style={{ fontWeight: 500 }}>{q.quote_number || 'Q-' + q.id.substring(0, 8).toUpperCase()}</td>
-                                  <td>{new Date(q.created_at).toLocaleDateString()}</td>
-                                  <td>{q.item_count || 0}</td>
-                                  <td>${parseFloat(q.total || 0).toFixed(2)}</td>
-                                  <td>
-                                    {q.expires_at ? (
-                                      <span style={{ color: isExpired ? '#dc2626' : (daysLeft <= 3 ? '#ea580c' : 'inherit'), fontWeight: isExpired || daysLeft <= 3 ? 600 : 400 }}>
-                                        {isExpired ? 'Expired' : daysLeft + ' days left'}
-                                      </span>
-                                    ) : '\u2014'}
-                                  </td>
-                                  <td><span className={'trade-status-badge ' + (q.status || 'draft')}>{q.status === 'converted' ? 'Accepted' : (q.status || 'draft')}</span></td>
-                                  <td style={{ textAlign: 'right' }}>
-                                    <button onClick={(e) => { e.stopPropagation(); downloadQuotePdf(q.id); }}
-                                      style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500, marginRight: '0.5rem' }}>PDF</button>
-                                    {q.status !== 'converted' && !isExpired && (
-                                      <button onClick={(e) => { e.stopPropagation(); acceptQuote(q.id); }}
-                                        className="btn" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>Accept</button>
-                                    )}
-                                  </td>
-                                </tr>
-                                {expandedQuote === q.id && quoteDetail && (
-                                  <tr><td colSpan="7" style={{ padding: '1rem 1.5rem', background: '#fafaf9' }}>
-                                    <table style={{ width: '100%', fontSize: '0.8125rem' }}>
-                                      <thead><tr style={{ borderBottom: '1px solid var(--stone-200)' }}>
-                                        <th style={{ padding: '0.5rem', fontWeight: 500 }}>Item</th>
-                                        <th style={{ padding: '0.5rem', fontWeight: 500, textAlign: 'right' }}>Qty</th>
-                                        <th style={{ padding: '0.5rem', fontWeight: 500, textAlign: 'right' }}>Unit Price</th>
-                                        <th style={{ padding: '0.5rem', fontWeight: 500, textAlign: 'right' }}>Subtotal</th>
-                                      </tr></thead>
-                                      <tbody>
-                                        {(quoteDetail.items || []).map((item, i) => (
-                                          <tr key={i} style={{ borderBottom: '1px solid #e7e5e4' }}>
-                                            <td style={{ padding: '0.5rem' }}>{item.product_name || ''}</td>
-                                            <td style={{ padding: '0.5rem', textAlign: 'right' }}>{item.num_boxes || item.quantity || 1}</td>
-                                            <td style={{ padding: '0.5rem', textAlign: 'right' }}>${parseFloat(item.unit_price || 0).toFixed(2)}</td>
-                                            <td style={{ padding: '0.5rem', textAlign: 'right' }}>${parseFloat(item.subtotal || 0).toFixed(2)}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                    <div style={{ textAlign: 'right', marginTop: '0.75rem', fontWeight: 500 }}>Total: ${parseFloat(q.total || 0).toFixed(2)}</div>
-                                  </td></tr>
+                              <React.Fragment key={o.id}>
+                                <div className="acct-order-row" onClick={() => setExpandedOrder(expandedOrder === o.id ? null : o.id)}>
+                                  <div>
+                                    <div className="acct-order-num">{o.order_number}</div>
+                                    <div className="acct-order-date">{tFmtDate(o.created_at)}</div>
+                                  </div>
+                                  <div className="acct-order-items" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+                                    {(o.items || []).filter(p => p.primary_image).slice(0, 5).map((p, i) => (
+                                      <img key={i} onLoad={handleProductImgLoad} src={optimizeImg(p.primary_image, 100)} alt={p.product_name || ''} loading="lazy"
+                                        style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: 3, border: '0.5px solid rgba(28,25,23,0.1)' }} />
+                                    ))}
+                                    <span style={{ marginLeft: '0.375rem' }}>{o.item_count || 0} {o.item_count === 1 ? 'item' : 'items'}</span>
+                                  </div>
+                                  <div className="acct-order-detail">{pn || (o.po_number ? 'PO ' + o.po_number : 'Unassigned')}</div>
+                                  <div className="acct-order-status" style={{ color: sm.color }}>&#9679; {sm.label}</div>
+                                  <div className="acct-order-total">{tMoney(o.total)}</div>
+                                  <span className="acct-order-action">{expandedOrder === o.id ? 'Close ×' : 'Open →'}</span>
+                                </div>
+                                {expandedOrder === o.id && (
+                                  <div className="acct-order-expanded">
+                                    <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Materials</div>
+                                    {(o.items || []).map((item, idx) => (
+                                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', padding: '0.5rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
+                                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name}{item.sku_code ? ' · ' + item.sku_code : ''}</span>
+                                        <span style={{ whiteSpace: 'nowrap' }}>{item.quantity} × {tMoney(item.unit_price)}</span>
+                                      </div>
+                                    ))}
+                                    <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', maxWidth: 280 }}>
+                                      <span className="acct-input-label" style={{ margin: 0 }}>Assign to project</span>
+                                      <select value={o.project_id || ''} onClick={e => e.stopPropagation()} onChange={e => assignOrderProject(o.id, e.target.value)} className="acct-input">
+                                        <option value="">Unassigned</option>
+                                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                      </select>
+                                    </div>
+                                  </div>
                                 )}
                               </React.Fragment>
                             );
                           })}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="trade-empty-state">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                      <p>No quotes yet. Contact your trade representative to request a custom quote.</p>
-                    </div>
-                  )}
+                        </div>
+                        <div className="acct-pagination">
+                          <span>Showing {fo.length} of {orders.length} {orders.length === 1 ? 'order' : 'orders'}</span>
+                          <span>&middot; &middot; &middot;</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 
+              {/* Quotes */}
+              {tab === 'quotes' && (() => {
+                const quoteGrid = { gridTemplateColumns: '150px 1fr 130px 120px 80px' };
+                return (
+                  <div>
+                    {quotes.length === 0 ? (
+                      <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                        <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No quotes yet.</p>
+                        <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: 0 }}>When your rep prepares pricing — in the showroom or over the phone — it lands here.</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="acct-col-headers" style={quoteGrid}>
+                          <span>Quote</span><span>Detail</span><span>Status</span><span style={{ textAlign: 'right' }}>Total</span><span />
+                        </div>
+                        <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
+                          {quotes.map(q => {
+                            const isExpired = q.expires_at && new Date(q.expires_at) < new Date();
+                            const label = q.status === 'converted' ? 'Accepted' : ((q.status || 'sent').charAt(0).toUpperCase() + (q.status || 'sent').slice(1));
+                            const sColor = q.status === 'converted' ? '#3a7a4e' : (isExpired ? '#b0462f' : '#a87935');
+                            const items = (q.item_count || 0) + ' ' + ((q.item_count || 0) === 1 ? 'item' : 'items');
+                            const detail = q.status === 'converted' ? items + ' · Became an order' : (isExpired ? items + ' · Expired ' + tFmtDate(q.expires_at) : (q.expires_at ? items + ' · Valid until ' + tFmtDate(q.expires_at) : items));
+                            return (
+                              <React.Fragment key={q.id}>
+                                <div className="acct-order-row" style={quoteGrid} onClick={() => expandQuote(q.id)}>
+                                  <div>
+                                    <div className="acct-order-num">{q.quote_number || 'Q-' + q.id.substring(0, 8).toUpperCase()}</div>
+                                    <div className="acct-order-date">{tFmtDate(q.created_at)}</div>
+                                  </div>
+                                  <div className="acct-order-detail">{detail}</div>
+                                  <div className="acct-order-status" style={{ color: sColor }}>&#9679; {label}</div>
+                                  <div className="acct-order-total">{tMoney(q.total)}</div>
+                                  <span className="acct-order-action">{expandedQuote === q.id ? 'Close ×' : 'Open →'}</span>
+                                </div>
+                                {expandedQuote === q.id && quoteDetail && (
+                                  <div className="acct-order-expanded">
+                                    {q.expires_at && !isExpired && q.status !== 'converted' && (
+                                      <div style={{ background: 'rgba(216,205,182,0.35)', border: '0.5px solid rgba(168,121,53,0.3)', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem', color: '#7a5a1e', borderRadius: 4 }}>Pricing held until <strong>{tFmtDate(q.expires_at)}</strong> — call (714) 999-0009 with questions.</div>
+                                    )}
+                                    <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Materials</div>
+                                    {(quoteDetail.items || []).map((item, i) => (
+                                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', padding: '0.5rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
+                                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name || 'Product'}</span>
+                                        <span style={{ whiteSpace: 'nowrap' }}>{(item.num_boxes || item.quantity || 1) + ' × ' + tMoney(item.unit_price)}</span>
+                                      </div>
+                                    ))}
+                                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                                      <button className="acct-btn acct-btn--outline" onClick={(e) => { e.stopPropagation(); downloadQuotePdf(q.id); }}>Download PDF</button>
+                                      {q.status !== 'converted' && !isExpired && (
+                                        <button className="acct-btn" onClick={(e) => { e.stopPropagation(); acceptQuote(q.id); }}>Accept quote</button>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </div>
+                        <div className="acct-pagination">
+                          <span>Showing {quotes.length} of {quotes.length} {quotes.length === 1 ? 'quote' : 'quotes'}</span>
+                          <span>&middot; &middot; &middot;</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Visits */}
-              {tab === 'visits' && (
-                <div>
-                  {visits.length > 0 ? (
-                    <div className="trade-card">
-                      <table className="trade-orders-table">
-                        <thead><tr><th>Date</th><th>Products</th><th>Status</th><th></th></tr></thead>
-                        <tbody>
+              {tab === 'visits' && (() => {
+                const visitGrid = { gridTemplateColumns: '150px 1fr 130px 130px 80px' };
+                return (
+                  <div>
+                    {visits.length === 0 ? (
+                      <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                        <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No showroom visits yet.</p>
+                        <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: 0 }}>After you visit us at 1440 S. State College Blvd, your rep's picks and notes land here.</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="acct-col-headers" style={visitGrid}>
+                          <span>Visit</span><span>From your rep</span><span>Materials</span><span>Status</span><span />
+                        </div>
+                        <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
                           {visits.map(v => (
                             <React.Fragment key={v.id}>
-                              <tr style={{ cursor: 'pointer' }} onClick={() => expandVisit(v.id)}>
-                                <td style={{ fontWeight: 500 }}>{new Date(v.sent_at || v.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                                <td>{v.item_count} product{v.item_count !== 1 ? 's' : ''}</td>
-                                <td><span className="trade-status-badge sent">Showroom Visit</span></td>
-                                <td style={{ textAlign: 'right' }}>
-                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{
-                                    width: 16, height: 16, transform: expandedVisit === v.id ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s'
-                                  }}><polyline points="6 9 12 15 18 9"/></svg>
-                                </td>
-                              </tr>
+                              <div className="acct-order-row" style={visitGrid} onClick={() => expandVisit(v.id)}>
+                                <div>
+                                  <div className="acct-order-num">{tFmtDate(v.sent_at || v.created_at)}</div>
+                                  <div className="acct-order-date">Roma showroom · Anaheim</div>
+                                </div>
+                                <div className="acct-order-detail" style={{ fontStyle: v.message ? 'italic' : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{v.message ? '“' + v.message + '”' : 'Your showroom recap'}</div>
+                                <div className="acct-order-items">{v.item_count} material{v.item_count !== 1 ? 's' : ''}</div>
+                                <div className="acct-order-status" style={{ color: '#a87935' }}>&#9679; Recap sent</div>
+                                <span className="acct-order-action">{expandedVisit === v.id ? 'Close ×' : 'Open →'}</span>
+                              </div>
                               {expandedVisit === v.id && visitDetail && (
-                                <tr><td colSpan="4" style={{ padding: '1rem 1.5rem', background: '#fafaf9' }}>
-                                  {v.message && (
-                                    <div style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: 'rgba(216,205,182,0.25)', borderLeft: '3px solid var(--gold)', fontSize: '0.875rem', color: 'var(--stone-700, #44403c)', fontStyle: 'italic', fontFamily: 'var(--font-heading)', lineHeight: 1.55 }}>
-                                      &ldquo;{v.message}&rdquo;
+                                <div className="acct-order-expanded">
+                                  <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>What you looked at</div>
+                                  {(visitDetail.items || []).map((item, i) => (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.625rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
+                                      {item.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: '0.5px solid rgba(28,25,23,0.1)' }} loading="lazy" />}
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name}</div>
+                                        {(item.collection || item.variant_name) && <div style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>{[item.collection, item.variant_name].filter(Boolean).join(' · ')}</div>}
+                                        {item.rep_note && <div style={{ fontSize: '0.75rem', color: '#7a5a1e', fontStyle: 'italic', marginTop: 2 }}>{item.rep_note}</div>}
+                                      </div>
+                                      {skuListPrice(item) && <span style={{ fontWeight: 500, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>${displayPrice(item, skuListPrice(item)).toFixed(2)}{priceSuffix(item)}</span>}
                                     </div>
-                                  )}
-                                  <table style={{ width: '100%', fontSize: '0.8125rem' }}>
-                                    <thead><tr style={{ borderBottom: '1px solid var(--stone-200)' }}>
-                                      <th style={{ padding: '0.5rem', fontWeight: 500, width: 56 }}></th>
-                                      <th style={{ padding: '0.5rem', fontWeight: 500 }}>Product</th>
-                                      <th style={{ padding: '0.5rem', fontWeight: 500 }}>Variant</th>
-                                      <th style={{ padding: '0.5rem', fontWeight: 500, textAlign: 'right' }}>Price</th>
-                                      <th style={{ padding: '0.5rem', fontWeight: 500 }}>Note</th>
-                                    </tr></thead>
-                                    <tbody>
-                                      {(visitDetail.items || []).map((item, i) => (
-                                        <tr key={i} style={{ borderBottom: '1px solid #e7e5e4' }}>
-                                          <td style={{ padding: '0.5rem' }}>
-                                            {item.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt="" style={{ width: 40, height: 40, objectFit: 'cover', border: '1px solid var(--stone-200)' }} loading="lazy" />}
-                                          </td>
-                                          <td style={{ padding: '0.5rem' }}>
-                                            <div style={{ fontWeight: 500 }}>{item.product_name}</div>
-                                            {item.collection && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{item.collection}</div>}
-                                          </td>
-                                          <td style={{ padding: '0.5rem', color: 'var(--stone-600)' }}>{item.variant_name || '\u2014'}</td>
-                                          <td style={{ padding: '0.5rem', textAlign: 'right' }}>
-                                            {skuListPrice(item) ? `$${displayPrice(item, skuListPrice(item)).toFixed(2)}${priceSuffix(item)}` : '\u2014'}
-                                          </td>
-                                          <td style={{ padding: '0.5rem', color: 'var(--stone-500)', fontSize: '0.75rem', maxWidth: 180 }}>{item.rep_note || ''}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </td></tr>
+                                  ))}
+                                </div>
                               )}
                             </React.Fragment>
                           ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="trade-empty-state">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>
-                      <p>No showroom visits yet. After visiting our showroom, your product recommendations will appear here.</p>
-                    </div>
-                  )}
-                </div>
-              )}
+                        </div>
+                        <div className="acct-pagination">
+                          <span>Showing {visits.length} of {visits.length} {visits.length === 1 ? 'visit' : 'visits'}</span>
+                          <span>&middot; &middot; &middot;</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Projects */}
               {tab === 'projects' && (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                    <span style={{ fontSize: '0.875rem', color: 'var(--stone-500)' }}>{projects.length} project{projects.length !== 1 ? 's' : ''}</span>
-                    <button className="btn" onClick={() => { setShowProjectForm(true); setEditingProject(null); setProjectForm({ name: '', client_name: '', address: '', notes: '' }); }}>New Project</button>
+                  <div className="tacct-toolbar">
+                    <button className="acct-btn" onClick={() => { setShowProjectForm(true); setEditingProject(null); setProjectForm({ name: '', client_name: '', address: '', notes: '' }); }}>New project +</button>
                   </div>
                   {showProjectForm && (
-                    <div className="trade-card" style={{ marginBottom: '1.5rem' }}>
-                      <h3>{editingProject ? 'Edit Project' : 'New Project'}</h3>
-                      <div className="trade-field"><label>Project Name *</label><input type="text" value={projectForm.name} onChange={e => setProjectForm({ ...projectForm, name: e.target.value })} /></div>
-                      <div className="trade-field"><label>Client Name</label><input type="text" value={projectForm.client_name} onChange={e => setProjectForm({ ...projectForm, client_name: e.target.value })} /></div>
-                      <div className="trade-field"><label>Address</label><input type="text" value={projectForm.address} onChange={e => setProjectForm({ ...projectForm, address: e.target.value })} /></div>
-                      <div className="trade-field"><label>Notes</label><input type="text" value={projectForm.notes} onChange={e => setProjectForm({ ...projectForm, notes: e.target.value })} /></div>
-                      <div className="trade-btn-row">
-                        <button type="button" className="trade-btn-secondary" onClick={() => setShowProjectForm(false)}>Cancel</button>
-                        <button className="btn" onClick={saveProject} disabled={!projectForm.name}>Save</button>
+                    <div className="tacct-card">
+                      <h3>{editingProject ? 'Edit project' : 'New project'}</h3>
+                      <div className="acct-input-field"><label className="acct-input-label">Project name *</label><input className="acct-input" type="text" value={projectForm.name} onChange={e => setProjectForm({ ...projectForm, name: e.target.value })} /></div>
+                      <div className="acct-input-field"><label className="acct-input-label">Client name</label><input className="acct-input" type="text" value={projectForm.client_name} onChange={e => setProjectForm({ ...projectForm, client_name: e.target.value })} /></div>
+                      <div className="acct-input-field"><label className="acct-input-label">Address</label><input className="acct-input" type="text" value={projectForm.address} onChange={e => setProjectForm({ ...projectForm, address: e.target.value })} /></div>
+                      <div className="acct-input-field"><label className="acct-input-label">Notes</label><input className="acct-input" type="text" value={projectForm.notes} onChange={e => setProjectForm({ ...projectForm, notes: e.target.value })} /></div>
+                      <div className="tacct-btn-row">
+                        <button type="button" className="acct-btn acct-btn--outline" onClick={() => setShowProjectForm(false)}>Cancel</button>
+                        <button className="acct-btn" onClick={saveProject} disabled={!projectForm.name}>Save project</button>
                       </div>
                     </div>
                   )}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-                    {projects.map(p => (
-                      <div key={p.id} className="trade-project-card" onClick={() => {
-                        setEditingProject(p.id);
-                        setProjectForm({ name: p.name, client_name: p.client_name || '', address: p.address || '', notes: p.notes || '' });
-                        setShowProjectForm(true);
-                      }}>
-                        <h4>{p.name}</h4>
-                        {p.client_name && <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{p.client_name}</div>}
-                        {p.address && <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{p.address}</div>}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--stone-400)' }}>{p.order_count || 0} order{(p.order_count || 0) !== 1 ? 's' : ''}</span>
-                          <button onClick={e => { e.stopPropagation(); deleteProject(p.id); }}
-                            style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.75rem', cursor: 'pointer' }}>Delete</button>
+                  {projects.length > 0 ? (
+                    <div className="tacct-cardgrid">
+                      {projects.map(p => (
+                        <div key={p.id} className="tacct-card tacct-card--click" onClick={() => { setEditingProject(p.id); setProjectForm({ name: p.name, client_name: p.client_name || '', address: p.address || '', notes: p.notes || '' }); setShowProjectForm(true); }}>
+                          <h3 style={{ margin: '0 0 0.35rem' }}>{p.name}</h3>
+                          {p.client_name && <div className="acct-order-date">{p.client_name}</div>}
+                          {p.address && <div className="acct-order-date">{p.address}</div>}
+                          <div className="tacct-card-foot">
+                            <span className="acct-order-date">{p.order_count || 0} order{(p.order_count || 0) !== 1 ? 's' : ''}</span>
+                            <button className="tacct-del" onClick={e => { e.stopPropagation(); deleteProject(p.id); }}>Delete</button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                  {projects.length === 0 && !showProjectForm && (
-                    <div className="trade-empty-state">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                      <p>No projects yet. Create one to organize your orders.</p>
-                      <button className="btn" onClick={() => { setShowProjectForm(true); setEditingProject(null); setProjectForm({ name: '', client_name: '', address: '', notes: '' }); }}>New Project</button>
+                      ))}
                     </div>
+                  ) : !showProjectForm && (
+                    <div className="tacct-empty"><p>No projects yet. Create one to organize your orders.</p></div>
                   )}
                 </div>
               )}
@@ -13087,48 +13284,42 @@
               {/* Favorites */}
               {tab === 'favorites' && (
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                    <span style={{ fontSize: '0.875rem', color: 'var(--stone-500)' }}>{favorites.length} collection{favorites.length !== 1 ? 's' : ''}</span>
-                    <button className="btn" onClick={() => setShowFavForm(true)}>New Collection</button>
+                  <div className="tacct-toolbar">
+                    <button className="acct-btn" onClick={() => setShowFavForm(true)}>New collection +</button>
                   </div>
                   {showFavForm && (
-                    <div className="trade-card" style={{ marginBottom: '1.5rem' }}>
-                      <div className="trade-field"><label>Collection Name</label><input type="text" value={favName} onChange={e => setFavName(e.target.value)} /></div>
-                      <div className="trade-btn-row">
-                        <button type="button" className="trade-btn-secondary" onClick={() => setShowFavForm(false)}>Cancel</button>
-                        <button className="btn" onClick={createCollection}>Create</button>
+                    <div className="tacct-card">
+                      <div className="acct-input-field"><label className="acct-input-label">Collection name</label><input className="acct-input" type="text" value={favName} onChange={e => setFavName(e.target.value)} /></div>
+                      <div className="tacct-btn-row">
+                        <button type="button" className="acct-btn acct-btn--outline" onClick={() => setShowFavForm(false)}>Cancel</button>
+                        <button className="acct-btn" onClick={createCollection}>Create collection</button>
                       </div>
                     </div>
                   )}
                   {favorites.map(col => (
-                    <div key={col.id} className="trade-card" style={{ marginBottom: '1rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3>{col.collection_name}</h3>
-                        <button onClick={() => deleteCollection(col.id)}
-                          style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.8125rem', cursor: 'pointer' }}>Delete</button>
+                    <div key={col.id} className="tacct-card">
+                      <div className="tacct-card-head" style={{ marginBottom: '0.9rem' }}>
+                        <h3 style={{ margin: 0 }}>{col.collection_name}</h3>
+                        <button className="tacct-del" onClick={() => deleteCollection(col.id)}>Delete</button>
                       </div>
                       {col.items && col.items.length > 0 ? (
-                        <div className="trade-fav-grid">
+                        <div className="tacct-fav-grid">
                           {col.items.map(item => (
-                            <div key={item.id} className="trade-fav-item">
-                              {item.primary_image_url ? <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image_url, 400)} alt={item.product_name} loading="lazy" decoding="async" /> : <div style={{ height: 140, background: 'var(--stone-100)' }}></div>}
-                              <div className="name">{item.product_name}</div>
-                              <button className="btn" style={{ marginTop: '0.5rem', fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
-                                onClick={() => addToCart({ product_id: item.product_id, sku_id: item.sku_id, sqft_needed: 1, num_boxes: 1, unit_price: parseFloat(item.retail_price || item.price || 0), subtotal: parseFloat(item.retail_price || item.price || 0).toFixed(2) })}>Add to Cart</button>
+                            <div key={item.id} className="tacct-fav-item">
+                              {item.primary_image_url ? <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image_url, 400)} alt={item.product_name} loading="lazy" decoding="async" /> : <div className="tacct-fav-ph" />}
+                              <div className="tacct-fav-name">{item.product_name}</div>
+                              <button className="acct-btn" style={{ marginTop: '0.5rem', width: '100%' }}
+                                onClick={() => addToCart({ product_id: item.product_id, sku_id: item.sku_id, sqft_needed: 1, num_boxes: 1, unit_price: parseFloat(item.retail_price || item.price || 0), subtotal: parseFloat(item.retail_price || item.price || 0).toFixed(2) })}>Add to cart</button>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p style={{ color: 'var(--stone-400)', fontSize: '0.875rem' }}>No items in this collection yet.</p>
+                        <p className="acct-order-date">No items in this collection yet.</p>
                       )}
                     </div>
                   ))}
                   {favorites.length === 0 && !showFavForm && (
-                    <div className="trade-empty-state">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-                      <p>No collections yet. Create one to save your favorite products.</p>
-                      <button className="btn" onClick={() => setShowFavForm(true)}>New Collection</button>
-                    </div>
+                    <div className="tacct-empty"><p>No collections yet. Create one to save your favorite products.</p></div>
                   )}
                 </div>
               )}
@@ -13136,81 +13327,77 @@
               {/* Account */}
               {tab === 'account' && account && (
                 <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                    <div className="trade-card">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3>Company Information</h3>
-                        {!editAccount && <button onClick={() => { setEditAccount(true); setAccountForm({ contact_name: account.contact_name, phone: account.phone || '', company_name: account.company_name }); }}
-                          style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500 }}>Edit</button>}
+                  <div className="acct-profile-section">
+                    <div className="tacct-card-head" style={{ marginBottom: '1.25rem' }}>
+                      <h3 className="acct-profile-title" style={{ margin: 0 }}>Company information</h3>
+                      {!editAccount && <button className="tacct-edit" onClick={() => { setEditAccount(true); setAccountForm({ contact_name: account.contact_name, phone: account.phone || '', company_name: account.company_name }); }}>Edit</button>}
+                    </div>
+                    {editAccount ? (
+                      <div>
+                        <div className="acct-input-field"><label className="acct-input-label">Company name</label><input className="acct-input" value={accountForm.company_name || ''} onChange={e => setAccountForm({ ...accountForm, company_name: e.target.value })} /></div>
+                        <div className="acct-input-field"><label className="acct-input-label">Contact name</label><input className="acct-input" value={accountForm.contact_name || ''} onChange={e => setAccountForm({ ...accountForm, contact_name: e.target.value })} /></div>
+                        <div className="acct-input-field"><label className="acct-input-label">Phone</label><input className="acct-input" value={accountForm.phone || ''} onChange={e => setAccountForm({ ...accountForm, phone: e.target.value })} /></div>
+                        <div className="tacct-btn-row">
+                          <button type="button" className="acct-btn acct-btn--outline" onClick={() => setEditAccount(false)}>Cancel</button>
+                          <button className="acct-btn" onClick={saveAccount}>Save changes</button>
+                        </div>
                       </div>
-                      {editAccount ? (
-                        <div>
-                          <div className="trade-field"><label>Company Name</label><input value={accountForm.company_name || ''} onChange={e => setAccountForm({ ...accountForm, company_name: e.target.value })} /></div>
-                          <div className="trade-field"><label>Contact Name</label><input value={accountForm.contact_name || ''} onChange={e => setAccountForm({ ...accountForm, contact_name: e.target.value })} /></div>
-                          <div className="trade-field"><label>Phone</label><input value={accountForm.phone || ''} onChange={e => setAccountForm({ ...accountForm, phone: e.target.value })} /></div>
-                          <div className="trade-btn-row">
-                            <button type="button" className="trade-btn-secondary" onClick={() => setEditAccount(false)}>Cancel</button>
-                            <button className="btn" onClick={saveAccount}>Save</button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: '0.875rem', lineHeight: 2 }}>
-                          <div><strong>{account.company_name}</strong></div>
-                          <div>{account.contact_name}</div>
-                          <div>{account.email}</div>
-                          {account.phone && <div>{account.phone}</div>}
-                        </div>
+                    ) : (
+                      <div className="tacct-info">
+                        <div><strong>{account.company_name}</strong></div>
+                        <div>{account.contact_name}</div>
+                        <div>{account.email}</div>
+                        {account.phone && <div>{account.phone}</div>}
+                      </div>
+                    )}
+                  </div>
+                  <div className="acct-profile-section">
+                    <h3 className="acct-profile-title">Trade tier</h3>
+                    <div className="tacct-info">
+                      <div>Tier: <span className="trade-tier-badge">{account.tier_name || curTierName}</span></div>
+                      <div>Discount: {parseFloat(account.discount_percent || 0).toFixed(0)}% off list</div>
+                      <div>Spend (last 12 mo): ${parseFloat(account.total_spend || 0).toLocaleString()}</div>
+                      {membership && membership.next_tier && membership.amount_to_next_tier != null && (
+                        <div>${parseFloat(membership.amount_to_next_tier).toLocaleString()} more to reach <strong>{membership.next_tier.name}</strong> ({parseFloat(membership.next_tier.discount_percent).toFixed(0)}% off)</div>
                       )}
                     </div>
-                    <div className="trade-card">
-                      <h3>Trade Tier</h3>
-                      <div style={{ fontSize: '0.875rem', lineHeight: 2 }}>
-                        <div>Tier: <span className="trade-tier-badge">{account.tier_name || 'Silver'}</span></div>
-                        <div>Discount: {parseFloat(account.discount_percent || 0).toFixed(0)}% off</div>
-                        <div>Spend (last 12 months): ${parseFloat(account.total_spend || 0).toLocaleString()}</div>
-                        {membership && membership.next_tier && membership.amount_to_next_tier != null && (
-                          <div>${parseFloat(membership.amount_to_next_tier).toLocaleString()} more to reach <strong>{membership.next_tier.name}</strong> ({parseFloat(membership.next_tier.discount_percent).toFixed(0)}% off)</div>
-                        )}
-                      </div>
-                      <p style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: '0.75rem', lineHeight: 1.5 }}>
-                        Your tier is based on your product spend over the trailing 12 months and updates automatically.
-                      </p>
-                    </div>
+                    <p className="tacct-note">Your tier is based on product spend over the trailing 12 months and updates automatically.</p>
                   </div>
                   {rep && (
-                    <div className="trade-rep-card" style={{ marginTop: '1.5rem' }}>
-                      <div className="trade-rep-avatar">{(rep.first_name || 'R').charAt(0)}{(rep.last_name || '').charAt(0)}</div>
+                    <div className="acct-profile-section" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <div className="acct-avatar" style={{ width: 48, height: 48, flex: 'none' }}>{(rep.first_name || 'R').charAt(0)}{(rep.last_name || '').charAt(0)}</div>
                       <div>
-                        <div style={{ fontWeight: 500, marginBottom: '0.25rem' }}>Your Trade Representative</div>
-                        <div style={{ fontSize: '0.875rem', color: 'var(--stone-600)' }}>{rep.first_name} {rep.last_name}</div>
-                        {rep.email && <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{rep.email}</div>}
-                        {rep.phone && <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{rep.phone}</div>}
+                        <div className="acct-eyebrow" style={{ marginBottom: '0.15rem' }}>Your trade rep</div>
+                        <div style={{ fontWeight: 600 }}>{rep.first_name} {rep.last_name}</div>
+                        {rep.email && <div className="acct-order-date">{rep.email}</div>}
+                        {rep.phone && <div className="acct-order-date">{rep.phone}</div>}
                       </div>
                     </div>
                   )}
-                  <div className="trade-card" style={{ marginTop: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h3>Security</h3>
-                      {!showPwForm && <button onClick={() => setShowPwForm(true)}
-                        style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500 }}>Change Password</button>}
+                  <div className="acct-profile-section">
+                    <div className="tacct-card-head" style={{ marginBottom: '1.25rem' }}>
+                      <h3 className="acct-profile-title" style={{ margin: 0 }}>Security</h3>
+                      {!showPwForm && <button className="tacct-edit" onClick={() => setShowPwForm(true)}>Change password</button>}
                     </div>
                     {showPwForm && (
                       <div>
-                        <div className="trade-field"><label>Current Password</label><input type="password" value={passwordForm.current} onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })} /></div>
-                        <div className="trade-field"><label>New Password</label><input type="password" value={passwordForm.new_password} onChange={e => setPasswordForm({ ...passwordForm, new_password: e.target.value })} /></div>
-                        <div className="trade-field"><label>Confirm Password</label><input type="password" value={passwordForm.confirm} onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} /></div>
-                        <div className="trade-btn-row">
-                          <button type="button" className="trade-btn-secondary" onClick={() => setShowPwForm(false)}>Cancel</button>
-                          <button className="btn" onClick={changePassword} disabled={!passwordForm.current || !passwordForm.new_password}>Update Password</button>
+                        <div className="acct-input-field"><label className="acct-input-label">Current password</label><input className="acct-input" type="password" value={passwordForm.current} onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })} /></div>
+                        <div className="acct-input-field"><label className="acct-input-label">New password</label><input className="acct-input" type="password" value={passwordForm.new_password} onChange={e => setPasswordForm({ ...passwordForm, new_password: e.target.value })} /></div>
+                        <div className="acct-input-field"><label className="acct-input-label">Confirm password</label><input className="acct-input" type="password" value={passwordForm.confirm} onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} /></div>
+                        <div className="tacct-btn-row">
+                          <button type="button" className="acct-btn acct-btn--outline" onClick={() => setShowPwForm(false)}>Cancel</button>
+                          <button className="acct-btn" onClick={changePassword} disabled={!passwordForm.current || !passwordForm.new_password}>Update password</button>
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
               )}
-            </>
-          )}
-        </div>
+                  </>
+                  )}
+                </div>
+              </div>
+            </div>
       );
     }
 
