@@ -7237,9 +7237,18 @@
                 const nextThreshold = parseFloat(nextTier.spend_threshold) || 0;
                 const span = nextThreshold - curThreshold;
                 const pct = span > 0 ? Math.max(0, Math.min(1, (spend - curThreshold) / span)) : 0;
+                // Endowed progress: reaching the current tier is itself a step, so
+                // the bar starts at SEED rather than empty and grows from there.
+                const SEED = 0.12;
+                const displayPct = SEED + (1 - SEED) * pct;
+                // Goal-gradient only motivates when the goal feels reachable. When
+                // they're far off, gate the "spend more" nudge and reinforce the
+                // savings they're already getting instead of a discouraging gap.
+                const inReach = pct >= 0.4;
                 const curName = mem ? mem.tier_name : 'Trade';
                 const curDisc = mem ? fmtPct(mem.discount_percent) : null;
-                const saveUnit = (nextTierUnitPrice != null && nextTierUnitPrice < tradePrice) ? (tradePrice - nextTierUnitPrice) : 0;
+                const saveNext = (nextTierUnitPrice != null && nextTierUnitPrice < tradePrice) ? (tradePrice - nextTierUnitPrice) : 0;
+                const saveNow = retailPrice > tradePrice ? (retailPrice - tradePrice) : 0;
                 const usd = (n) => '$' + Math.round(n).toLocaleString('en-US');
                 return (
                   <div className="pdp-tier">
@@ -7248,11 +7257,19 @@
                       <span className="pdp-tier-next">{nextTier.name} · {fmtPct(nextTier.discount_percent)}%</span>
                     </div>
                     <div className="pdp-tier-track">
-                      <div className="pdp-tier-fill" style={{ width: (pct * 100).toFixed(1) + '%' }} />
+                      <div className="pdp-tier-fill" style={{ width: (displayPct * 100).toFixed(1) + '%' }} />
                     </div>
-                    <div className="pdp-tier-gap"><strong>{usd(amountToNext)}</strong> more this year to unlock {nextTier.name}</div>
-                    {saveUnit > 0 && (
-                      <div className="pdp-tier-payoff">Then this item is <strong>${nextTierUnitPrice.toFixed(2)}</strong>{priceSuffix(sku)} <span className="pdp-tier-save">{'·'} save ${saveUnit.toFixed(2)}{priceSuffix(sku)}</span></div>
+                    {inReach ? (
+                      <React.Fragment>
+                        <div className="pdp-tier-gap"><strong>{usd(amountToNext)}</strong> more this year to unlock {nextTier.name}</div>
+                        {saveNext > 0 && (
+                          <div className="pdp-tier-payoff">Then this item is <strong>${nextTierUnitPrice.toFixed(2)}</strong>{priceSuffix(sku)} <span className="pdp-tier-save">{'·'} save ${saveNext.toFixed(2)}{priceSuffix(sku)}</span></div>
+                        )}
+                      </React.Fragment>
+                    ) : (
+                      saveNow > 0
+                        ? <div className="pdp-tier-payoff">You{'’'}re saving <strong>${saveNow.toFixed(2)}</strong>{priceSuffix(sku)} on this item as a {curName} member</div>
+                        : <div className="pdp-tier-gap">{curName} trade pricing applied</div>
                     )}
                   </div>
                 );
