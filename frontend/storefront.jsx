@@ -12770,16 +12770,6 @@
         else { const d = await resp.json(); showToast(d.error || 'Failed to change password', 'error'); }
       };
 
-      const tabs = ['overview', 'orders', 'quotes', 'visits', 'projects', 'favorites', 'account'];
-      const tabIcons = {
-        overview: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
-        orders: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>,
-        quotes: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
-        visits: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4"/></svg>,
-        projects: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>,
-        favorites: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>,
-        account: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      };
 
       // ---- Account-style shell for the non-overview sections ----
       const curTierName = (dashData && dashData.tier_name) || tradeCustomer.tier_name || 'Silver';
@@ -12794,7 +12784,6 @@
       };
       const tProjName = (pid) => { const p = (projects || []).find(x => x.id === pid); return p ? p.name : null; };
       const tOrderCount = (dashData && dashData.order_count != null) ? dashData.order_count : orders.length;
-      const tProjCount = (dashData && dashData.active_projects != null) ? dashData.active_projects : projects.length;
       const T_NAV = [
         { id: 'overview', label: 'Overview', meta: 'Snapshot' },
         { id: 'orders', label: 'Orders', meta: tOrderCount ? tOrderCount + ' total' : 'None yet' },
@@ -13403,10 +13392,10 @@
                     <h3 className="acct-profile-title">Trade tier</h3>
                     <div className="tacct-info">
                       <div>Tier: <span className="trade-tier-badge">{account.tier_name || curTierName}</span></div>
-                      <div>Discount: {parseFloat(account.discount_percent || 0).toFixed(0)}% off list</div>
+                      <div>Discount: {Math.round(parseFloat(account.discount_percent || 0) * 100) / 100}% off list</div>
                       <div>Spend (last 12 mo): ${parseFloat(account.total_spend || 0).toLocaleString()}</div>
                       {membership && membership.next_tier && membership.amount_to_next_tier != null && (
-                        <div>${parseFloat(membership.amount_to_next_tier).toLocaleString()} more to reach <strong>{membership.next_tier.name}</strong> ({parseFloat(membership.next_tier.discount_percent).toFixed(0)}% off)</div>
+                        <div>${parseFloat(membership.amount_to_next_tier).toLocaleString()} more to reach <strong>{membership.next_tier.name}</strong> ({Math.round(parseFloat(membership.next_tier.discount_percent) * 100) / 100}% off)</div>
                       )}
                     </div>
                     <p className="tacct-note">Your tier is based on product spend over the trailing 12 months and updates automatically.</p>

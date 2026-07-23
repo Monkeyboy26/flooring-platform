@@ -3362,40 +3362,15 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .acct-order-table { background: var(--warm-bg); border: 0.5px solid rgba(28,25,23,0.13); border-radius: 6px; overflow: hidden; }
 .acct-page { min-height: 60vh; }
 
-/* ---- Trade dashboard sections rendered in the account shell ---- */
+/* ---- Trade dashboard Settings section (in the account shell) ---- */
 .trade-acct-page { min-height: 60vh; }
-.tacct-empty { padding: 3rem 1.5rem; text-align: center; color: var(--warm-muted); background: var(--warm-bg); border: 0.5px solid rgba(28,25,23,0.1); border-radius: 6px; }
-.tacct-empty p { margin: 0 0 1rem; font-size: 0.9375rem; }
-.tacct-expand { padding: 1.1rem 1.5rem 1.25rem; background: rgba(216,205,182,0.14); border-bottom: 0.5px solid rgba(28,25,23,0.06); font-size: 0.8125rem; color: var(--stone-700, #44403c); }
-.tacct-expand-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.3rem 0; }
-.tacct-expand-actions { display: flex; gap: 0.75rem; margin-top: 0.9rem; flex-wrap: wrap; }
-.tacct-assign { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.9rem; }
-.tacct-orow-visit { grid-template-columns: 210px 1fr 130px 90px !important; }
-.tacct-quote { padding: 0.75rem 1rem; margin-bottom: 0.9rem; background: rgba(216,205,182,0.3); border-left: 3px solid var(--gold); font-family: var(--font-heading); font-style: italic; font-size: 0.95rem; line-height: 1.5; color: var(--stone-700, #44403c); }
-.tacct-visit-item { display: flex; gap: 0.75rem; align-items: center; padding: 0.55rem 0; border-bottom: 0.5px solid rgba(28,25,23,0.06); }
-.tacct-visit-item:last-child { border-bottom: 0; }
-.tacct-visit-item img { width: 44px; height: 44px; object-fit: cover; border-radius: 4px; border: 0.5px solid rgba(28,25,23,0.1); flex: none; }
-.tacct-card { background: var(--warm-bg); border: 0.5px solid rgba(28,25,23,0.13); border-radius: 6px; padding: 1.4rem 1.6rem; }
-.tacct-card h3 { font-family: var(--font-heading); font-weight: 300; font-size: 1.35rem; letter-spacing: -0.01em; margin: 0 0 1rem; color: var(--stone-800); }
-.tacct-card--click { cursor: pointer; transition: border-color 0.15s; }
-.tacct-card--click:hover { border-color: var(--gold); }
 .tacct-card-head { display: flex; justify-content: space-between; align-items: center; }
 .tacct-card-head h3 { margin: 0; }
-.tacct-card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 0.9rem; }
-.tacct-cardgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
-.tacct-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
 .tacct-info { font-size: 0.875rem; line-height: 1.9; color: var(--stone-700, #44403c); }
 .tacct-info strong { color: var(--stone-800); }
 .tacct-note { font-size: 0.75rem; color: var(--warm-muted); margin-top: 0.9rem; line-height: 1.5; }
 .tacct-btn-row { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
-.tacct-toolbar { display: flex; justify-content: flex-end; margin-bottom: 1.25rem; }
-.tacct-edit, .tacct-del { background: none; border: none; cursor: pointer; font-family: var(--font-body); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
-.tacct-edit { color: var(--gold); }
-.tacct-del { color: #b0462f; }
-.tacct-fav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
-.tacct-fav-item img, .tacct-fav-ph { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px; background: var(--stone-100); display: block; }
-.tacct-fav-name { font-size: 0.8125rem; margin-top: 0.4rem; }
-@media (max-width: 700px) { .tacct-grid2 { grid-template-columns: 1fr; } }
+.tacct-edit { background: none; border: none; cursor: pointer; font-family: var(--font-body); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
 
 @media (max-width: 1100px) {
   .acct-hero { padding: 1.75rem 2rem 2rem; }
