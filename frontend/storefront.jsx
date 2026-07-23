@@ -10932,7 +10932,7 @@
     // ==================== Account Page ====================
 
     // ==================== Saved Payment Methods (account) ====================
-    function PaymentMethodsSection({ customerToken, customer, onCardsChange }) {
+    function PaymentMethodsSection({ customerToken, customer, onCardsChange, apiBase = '/api/customer/payment-methods', tokenHeader = 'X-Customer-Token' }) {
       const [cards, setCards] = useState(null);
       const [showAdd, setShowAdd] = useState(false);
       const [cardComplete, setCardComplete] = useState(false);
@@ -10942,10 +10942,10 @@
       const [msg, setMsg] = useState('');
       const cardElRef = useRef(null);
       const mountRef = useRef(null);
-      const authHeaders = { 'X-Customer-Token': customerToken };
+      const authHeaders = { [tokenHeader]: customerToken };
 
       const loadCards = () => {
-        fetch(API + '/api/customer/payment-methods', { headers: authHeaders })
+        fetch(API + apiBase, { headers: authHeaders })
           .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(data => { setCards(data.cards || []); if (onCardsChange) onCardsChange(data.cards || []); })
           .catch(() => setCards([]));
@@ -10974,7 +10974,7 @@
         if (!stripeInstance || !cardElRef.current || !cardComplete) return;
         setSavingCard(true); setCardError(''); setMsg('');
         try {
-          const r = await fetch(API + '/api/customer/payment-methods/setup-intent', {
+          const r = await fetch(API + apiBase + '/setup-intent', {
             method: 'POST', headers: { ...authHeaders, 'Content-Type': 'application/json' }
           });
           const data = await r.json();
@@ -10982,7 +10982,7 @@
           const result = await stripeInstance.confirmCardSetup(data.client_secret, {
             payment_method: {
               card: cardElRef.current,
-              billing_details: { name: ((customer.first_name || '') + ' ' + (customer.last_name || '')).trim(), email: customer.email }
+              billing_details: { name: (customer.contact_name || ((customer.first_name || '') + ' ' + (customer.last_name || '')).trim() || customer.company_name || ''), email: customer.email }
             }
           });
           if (result.error) throw new Error(result.error.message);
@@ -10999,7 +10999,7 @@
         if (!confirm('Remove this card?')) return;
         setRemoving(pmId);
         try {
-          const r = await fetch(API + '/api/customer/payment-methods/' + pmId, { method: 'DELETE', headers: authHeaders });
+          const r = await fetch(API + apiBase + '/' + pmId, { method: 'DELETE', headers: authHeaders });
           if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || 'Failed to remove card'); }
           const next = (cards || []).filter(c => c.id !== pmId);
           setCards(next);
@@ -12617,6 +12617,8 @@
       const [expandedOrder, setExpandedOrder] = useState(null);
       const [ordersTab, setOrdersTab] = useState('all');
       const [ordersSearch, setOrdersSearch] = useState('');
+      const [sampleRequests, setSampleRequests] = useState([]);
+      const [expandedSample, setExpandedSample] = useState(null);
       const [quotes, setQuotes] = useState([]);
       const [expandedQuote, setExpandedQuote] = useState(null);
       const [quoteDetail, setQuoteDetail] = useState(null);
@@ -12645,10 +12647,7 @@
             fetch(API + '/api/trade/orders', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
             fetch(API + '/api/trade/projects', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).catch(() => ({ projects: [] }))
           ]).then(([od, pd]) => { setOrders(od.orders || []); setProjects(pd.projects || []); setLoading(false); }).catch(() => setLoading(false));
-        } else if (t === 'projects') {
-          fetch(API + '/api/trade/projects', { headers: authHeaders })
-            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setProjects(d.projects || []); setLoading(false); }).catch(() => setLoading(false));
-        } else if (t === 'favorites') {
+        } else if (t === 'wishlist') {
           fetch(API + '/api/trade/favorites', { headers: authHeaders })
             .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setFavorites(d.collections || []); setLoading(false); }).catch(() => setLoading(false));
         } else if (t === 'quotes') {
@@ -12657,7 +12656,12 @@
         } else if (t === 'visits') {
           fetch(API + '/api/trade/visits', { headers: authHeaders })
             .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setVisits(d.visits || []); setExpandedVisit(null); setVisitDetail(null); setLoading(false); }).catch(() => setLoading(false));
-        } else if (t === 'account') {
+        } else if (t === 'samples') {
+          fetch(API + '/api/trade/samples', { headers: authHeaders })
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setSampleRequests(d.sample_requests || []); setExpandedSample(null); setLoading(false); }).catch(() => setLoading(false));
+        } else if (t === 'payment') {
+          setLoading(false);
+        } else if (t === 'settings') {
           Promise.all([
             fetch(API + '/api/trade/account', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
             fetch(API + '/api/trade/membership', { headers: authHeaders }).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).catch(() => ({})),
@@ -12790,18 +12794,20 @@
         { id: 'overview', label: 'Overview', meta: 'Snapshot' },
         { id: 'orders', label: 'Orders', meta: tOrderCount ? tOrderCount + ' total' : 'None yet' },
         { id: 'quotes', label: 'Quotes', meta: quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : 'None yet' },
+        { id: 'samples', label: 'Samples', meta: sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? ' box' : ' boxes') : 'None yet' },
         { id: 'visits', label: 'Visits', meta: visits.length ? visits.length + ' showroom' : 'Recaps' },
-        { id: 'projects', label: 'Projects', meta: tProjCount ? tProjCount + ' active' : 'None yet' },
-        { id: 'favorites', label: 'Favorites', meta: favorites.length ? favorites.length + ' saved' : 'Collections' },
-        { id: 'account', label: 'Account', meta: 'Company & security' }
+        { id: 'wishlist', label: 'Wishlist', meta: favorites.length ? favorites.length + ' saved' : 'Collections' },
+        { id: 'payment', label: 'Payment', meta: 'Cards on file' },
+        { id: 'settings', label: 'Settings', meta: 'Company & security' }
       ];
       const T_HERO = {
         orders: { eyebrow: 'Order history', heading: <>Your <em>orders</em>.</> },
         quotes: { eyebrow: 'Prepared by your rep', heading: <>Your <em>quotes</em>.</> },
+        samples: { eyebrow: 'Boxes & swatches', heading: <>Your <em>samples</em>.</> },
         visits: { eyebrow: 'Showroom recaps', heading: <>Your <em>visits</em>.</> },
-        projects: { eyebrow: 'Organize your work', heading: <>Your <em>projects</em>.</> },
-        favorites: { eyebrow: 'Saved materials', heading: <>Your <em>favorites</em>.</> },
-        account: { eyebrow: 'Profile & security', heading: <>Account <em>settings</em>.</> }
+        wishlist: { eyebrow: 'Saved materials', heading: <>Your <em>wishlist</em>.</> },
+        payment: { eyebrow: 'Stored securely with Stripe', heading: <>Payment <em>methods</em>.</> },
+        settings: { eyebrow: 'Profile & security', heading: <>Account <em>settings</em>.</> }
       };
       const tHero = T_HERO[tab] || T_HERO.orders;
       const tSectionHead = (eyebrow, title, action, onAction) => (
@@ -13243,46 +13249,83 @@
               })()}
 
               {/* Projects */}
-              {tab === 'projects' && (
-                <div>
-                  <div className="tacct-toolbar">
-                    <button className="acct-btn" onClick={() => { setShowProjectForm(true); setEditingProject(null); setProjectForm({ name: '', client_name: '', address: '', notes: '' }); }}>New project +</button>
-                  </div>
-                  {showProjectForm && (
-                    <div className="tacct-card">
-                      <h3>{editingProject ? 'Edit project' : 'New project'}</h3>
-                      <div className="acct-input-field"><label className="acct-input-label">Project name *</label><input className="acct-input" type="text" value={projectForm.name} onChange={e => setProjectForm({ ...projectForm, name: e.target.value })} /></div>
-                      <div className="acct-input-field"><label className="acct-input-label">Client name</label><input className="acct-input" type="text" value={projectForm.client_name} onChange={e => setProjectForm({ ...projectForm, client_name: e.target.value })} /></div>
-                      <div className="acct-input-field"><label className="acct-input-label">Address</label><input className="acct-input" type="text" value={projectForm.address} onChange={e => setProjectForm({ ...projectForm, address: e.target.value })} /></div>
-                      <div className="acct-input-field"><label className="acct-input-label">Notes</label><input className="acct-input" type="text" value={projectForm.notes} onChange={e => setProjectForm({ ...projectForm, notes: e.target.value })} /></div>
-                      <div className="tacct-btn-row">
-                        <button type="button" className="acct-btn acct-btn--outline" onClick={() => setShowProjectForm(false)}>Cancel</button>
-                        <button className="acct-btn" onClick={saveProject} disabled={!projectForm.name}>Save project</button>
+              {tab === 'samples' && (() => {
+                const sampleGrid = { gridTemplateColumns: '150px 1fr 130px 130px 80px' };
+                const SAMPLE_STATUS = { requested: { label: 'Open', color: '#a87935' }, shipped: { label: 'Shipped', color: '#2563eb' }, delivered: { label: 'Delivered', color: '#3a7a4e' }, cancelled: { label: 'Cancelled', color: 'var(--warm-muted)' } };
+                return (
+                  <div>
+                    {sampleRequests.length === 0 ? (
+                      <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                        <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No sample boxes yet.</p>
+                        <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: 0 }}>Order swatches from any product page and your boxes will show up here.</p>
                       </div>
-                    </div>
-                  )}
-                  {projects.length > 0 ? (
-                    <div className="tacct-cardgrid">
-                      {projects.map(p => (
-                        <div key={p.id} className="tacct-card tacct-card--click" onClick={() => { setEditingProject(p.id); setProjectForm({ name: p.name, client_name: p.client_name || '', address: p.address || '', notes: p.notes || '' }); setShowProjectForm(true); }}>
-                          <h3 style={{ margin: '0 0 0.35rem' }}>{p.name}</h3>
-                          {p.client_name && <div className="acct-order-date">{p.client_name}</div>}
-                          {p.address && <div className="acct-order-date">{p.address}</div>}
-                          <div className="tacct-card-foot">
-                            <span className="acct-order-date">{p.order_count || 0} order{(p.order_count || 0) !== 1 ? 's' : ''}</span>
-                            <button className="tacct-del" onClick={e => { e.stopPropagation(); deleteProject(p.id); }}>Delete</button>
-                          </div>
+                    ) : (
+                      <div>
+                        <div className="acct-col-headers" style={sampleGrid}>
+                          <span>Box</span><span>Swatches</span><span>Status</span><span>Ordered</span><span />
                         </div>
-                      ))}
-                    </div>
-                  ) : !showProjectForm && (
-                    <div className="tacct-empty"><p>No projects yet. Create one to organize your orders.</p></div>
-                  )}
+                        <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
+                          {sampleRequests.map(sr => {
+                            const sm = SAMPLE_STATUS[sr.status] || SAMPLE_STATUS.requested;
+                            const items = sr.items || [];
+                            return (
+                              <React.Fragment key={sr.id}>
+                                <div className="acct-order-row" style={sampleGrid} onClick={() => setExpandedSample(expandedSample === sr.id ? null : sr.id)}>
+                                  <div>
+                                    <div className="acct-order-num">{sr.request_number || 'Samples'}</div>
+                                    <div className="acct-order-date">{tFmtDate(sr.created_at)}</div>
+                                  </div>
+                                  <div className="acct-order-items" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+                                    {items.filter(p => p.primary_image).slice(0, 5).map((p, i) => (
+                                      <img key={i} onLoad={handleProductImgLoad} src={optimizeImg(p.primary_image, 100)} alt={p.product_name || ''} loading="lazy"
+                                        style={{ width: 30, height: 30, objectFit: 'cover', borderRadius: 3, border: '0.5px solid rgba(28,25,23,0.1)' }} />
+                                    ))}
+                                    <span style={{ marginLeft: '0.375rem' }}>{items.length} {items.length === 1 ? 'swatch' : 'swatches'}</span>
+                                  </div>
+                                  <div className="acct-order-status" style={{ color: sm.color }}>&#9679; {sm.label}</div>
+                                  <div className="acct-order-detail">{tFmtDate(sr.created_at)}</div>
+                                  <span className="acct-order-action">{expandedSample === sr.id ? 'Close ×' : 'Open →'}</span>
+                                </div>
+                                {expandedSample === sr.id && (
+                                  <div className="acct-order-expanded">
+                                    <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Swatches in this box</div>
+                                    {items.map((item, i) => (
+                                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.625rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
+                                        {item.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: '0.5px solid rgba(28,25,23,0.1)' }} loading="lazy" />}
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name}</div>
+                                          {(item.collection || item.variant_name) && <div style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>{[item.collection, item.variant_name].filter(Boolean).join(' · ')}</div>}
+                                        </div>
+                                      </div>
+                                    ))}
+                                    {sr.tracking_number && <div style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--stone-700, #44403c)' }}>Tracking: <strong>{sr.tracking_number}</strong></div>}
+                                  </div>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </div>
+                        <div className="acct-pagination">
+                          <span>Showing {sampleRequests.length} of {sampleRequests.length} {sampleRequests.length === 1 ? 'box' : 'boxes'}</span>
+                          <span>&middot; &middot; &middot;</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {tab === 'payment' && (
+                <div>
+                  <div className="acct-profile-section">
+                    <h3 className="acct-profile-title">Payment methods</h3>
+                    <PaymentMethodsSection customerToken={tradeToken} customer={tradeCustomer} apiBase="/api/trade/payment-methods" tokenHeader="X-Trade-Token" />
+                  </div>
                 </div>
               )}
 
               {/* Favorites */}
-              {tab === 'favorites' && (
+              {tab === 'wishlist' && (
                 <div>
                   <div className="tacct-toolbar">
                     <button className="acct-btn" onClick={() => setShowFavForm(true)}>New collection +</button>
@@ -13325,7 +13368,7 @@
               )}
 
               {/* Account */}
-              {tab === 'account' && account && (
+              {tab === 'settings' && account && (
                 <div>
                   <div className="acct-profile-section">
                     <div className="tacct-card-head" style={{ marginBottom: '1.25rem' }}>

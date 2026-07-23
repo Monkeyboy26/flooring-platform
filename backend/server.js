@@ -14267,6 +14267,81 @@ app.delete('/api/customer/payment-methods/:pmId', customerAuth, async (req, res)
   }
 });
 
+// ---- Trade portal: samples + saved cards (mirror the retail account sections) ----
+
+// Trade account: sample requests placed under this account's email
+app.get('/api/trade/samples', tradeAuth, async (req, res) => {
+  try {
+    const email = (req.tradeCustomer.email || '').toLowerCase().trim();
+    if (!email) return res.json({ sample_requests: [] });
+    const result = await pool.query(
+      `SELECT sr.*, json_agg(json_build_object(
+          'id', sri.id, 'product_id', sri.product_id, 'sku_id', sri.sku_id,
+          'product_name', sri.product_name, 'collection', sri.collection,
+          'variant_name', sri.variant_name, 'primary_image', sri.primary_image,
+          'status', sri.status, 'sort_order', sri.sort_order
+        ) ORDER BY sri.sort_order) AS items
+       FROM sample_requests sr
+       LEFT JOIN sample_request_items sri ON sri.sample_request_id = sr.id
+       WHERE LOWER(sr.customer_email) = $1
+       GROUP BY sr.id
+       ORDER BY sr.created_at DESC`,
+      [email]
+    );
+    const requests = result.rows.map(r => ({ ...r, items: r.items && r.items[0] && r.items[0].id ? r.items : [] }));
+    res.json({ sample_requests: requests });
+  } catch (err) {
+    console.error('Trade samples error:', err); res.status(500).json({ error: 'Failed to fetch sample requests' });
+  }
+});
+
+// Trade account: list saved cards
+app.get('/api/trade/payment-methods', tradeAuth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT stripe_customer_id FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
+    const stripeCustomerId = r.rows.length ? r.rows[0].stripe_customer_id : null;
+    if (!stripeCustomerId) return res.json({ cards: [] });
+    const pms = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card' });
+    res.json({
+      cards: pms.data.map(pm => ({ id: pm.id, brand: pm.card.brand, last4: pm.card.last4, exp_month: pm.card.exp_month, exp_year: pm.card.exp_year }))
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Trade account: start saving a new card (Stripe SetupIntent)
+app.post('/api/trade/payment-methods/setup-intent', tradeAuth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT stripe_customer_id FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
+    let stripeCustomerId = r.rows.length ? r.rows[0].stripe_customer_id : null;
+    if (!stripeCustomerId) {
+      const sc = await stripe.customers.create({ email: req.tradeCustomer.email });
+      stripeCustomerId = sc.id;
+      await pool.query('UPDATE trade_customers SET stripe_customer_id = $1 WHERE id = $2', [stripeCustomerId, req.tradeCustomer.id]);
+    }
+    const setupIntent = await stripe.setupIntents.create({ customer: stripeCustomerId, payment_method_types: ['card'], usage: 'off_session' });
+    res.json({ client_secret: setupIntent.client_secret });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Trade account: remove a saved card
+app.delete('/api/trade/payment-methods/:pmId', tradeAuth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT stripe_customer_id FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
+    const stripeCustomerId = r.rows.length ? r.rows[0].stripe_customer_id : null;
+    if (!stripeCustomerId) return res.status(404).json({ error: 'No saved cards' });
+    const pm = await stripe.paymentMethods.retrieve(req.params.pmId);
+    if (!pm || pm.customer !== stripeCustomerId) return res.status(404).json({ error: 'Card not found' });
+    await stripe.paymentMethods.detach(req.params.pmId);
+    res.json({ removed: true });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // List a customer's saved cards (card on file) by email
 app.get('/api/rep/customers/payment-methods', repAuth, async (req, res) => {
   try {
