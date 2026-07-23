@@ -11585,11 +11585,25 @@ app.put('/api/trade/orders/:id/project', tradeAuth, async (req, res) => {
 // Trade favorites CRUD
 app.get('/api/trade/favorites', tradeAuth, async (req, res) => {
   try {
-    const collections = await pool.query(
-      'SELECT tf.*, (SELECT COUNT(*)::int FROM trade_favorite_items tfi WHERE tfi.favorite_id = tf.id) as item_count FROM trade_favorites tf WHERE tf.trade_customer_id = $1 ORDER BY tf.created_at DESC',
-      [req.tradeCustomer.id]
-    );
-    res.json({ favorites: collections.rows });
+    const collections = await pool.query(`
+      SELECT tf.*,
+        (SELECT COUNT(*)::int FROM trade_favorite_items tfi WHERE tfi.favorite_id = tf.id) as item_count,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', tfi.id, 'product_id', tfi.product_id, 'sku_id', tfi.sku_id,
+            'product_name', COALESCE(p.display_name, p.name), 'collection', p.collection,
+            'primary_image', (SELECT ma.url FROM media_assets ma WHERE ma.product_id = tfi.product_id AND ma.asset_type != 'spec_pdf'
+              ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'swatch' THEN 2 WHEN 'lifestyle' THEN 3 ELSE 4 END,
+                CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END, ma.sort_order LIMIT 1),
+            'price', (SELECT pr.retail_price FROM pricing pr WHERE pr.sku_id = tfi.sku_id)
+          ) ORDER BY tfi.added_at DESC)
+          FROM trade_favorite_items tfi LEFT JOIN products p ON p.id = tfi.product_id
+          WHERE tfi.favorite_id = tf.id
+        ), '[]'::json) as items
+      FROM trade_favorites tf WHERE tf.trade_customer_id = $1 ORDER BY tf.created_at DESC
+    `, [req.tradeCustomer.id]);
+    // `collections` is what the storefront loadTab reads; keep `favorites` for older callers.
+    res.json({ collections: collections.rows, favorites: collections.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }

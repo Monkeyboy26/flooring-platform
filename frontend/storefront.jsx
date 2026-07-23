@@ -12702,7 +12702,12 @@
       const deleteCollection = async (id) => {
         if (!confirm('Delete this collection and all its items?')) return;
         await fetch(API + '/api/trade/favorites/' + id, { method: 'DELETE', headers: authHeaders });
-        loadTab('favorites');
+        loadTab('wishlist');
+      };
+
+      const removeFavItem = async (favId, itemId) => {
+        await fetch(API + '/api/trade/favorites/' + favId + '/items/' + itemId, { method: 'DELETE', headers: authHeaders });
+        loadTab('wishlist');
       };
 
       const expandQuote = async (quoteId) => {
@@ -12753,7 +12758,7 @@
 
       const saveAccount = async () => {
         await fetch(API + '/api/trade/account', { method: 'PUT', headers, body: JSON.stringify(accountForm) });
-        setEditAccount(false); loadTab('account');
+        setEditAccount(false); loadTab('settings');
       };
 
       const changePassword = async () => {
@@ -13257,7 +13262,8 @@
                     {sampleRequests.length === 0 ? (
                       <div className="acct-profile-section" style={{ textAlign: 'center' }}>
                         <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No sample boxes yet.</p>
-                        <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: 0 }}>Order swatches from any product page and your boxes will show up here.</p>
+                        <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: '0 0 1.25rem', maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.55 }}>Order free swatches from any material's page — request them with this account's email and your boxes show up here.</p>
+                        <button className="acct-btn" onClick={goBrowse}>Browse materials</button>
                       </div>
                     ) : (
                       <div>
@@ -13325,47 +13331,46 @@
               )}
 
               {/* Favorites */}
-              {tab === 'wishlist' && (
-                <div>
-                  <div className="tacct-toolbar">
-                    <button className="acct-btn" onClick={() => setShowFavForm(true)}>New collection +</button>
-                  </div>
-                  {showFavForm && (
-                    <div className="tacct-card">
-                      <div className="acct-input-field"><label className="acct-input-label">Collection name</label><input className="acct-input" type="text" value={favName} onChange={e => setFavName(e.target.value)} /></div>
-                      <div className="tacct-btn-row">
-                        <button type="button" className="acct-btn acct-btn--outline" onClick={() => setShowFavForm(false)}>Cancel</button>
-                        <button className="acct-btn" onClick={createCollection}>Create collection</button>
+              {tab === 'wishlist' && (() => {
+                const items = [];
+                (favorites || []).forEach(col => (col.items || []).forEach(it => items.push({ ...it, _favId: col.id, _collection: col.collection_name })));
+                return (
+                  <div>
+                    {items.length === 0 ? (
+                      <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                        <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>Nothing saved yet.</p>
+                        <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: '0 0 1.25rem', maxWidth: 420, marginLeft: 'auto', marginRight: 'auto', lineHeight: 1.55 }}>Save materials you're considering while you browse, and they'll wait for you here.</p>
+                        <button className="acct-btn" onClick={goBrowse}>Browse materials</button>
                       </div>
-                    </div>
-                  )}
-                  {favorites.map(col => (
-                    <div key={col.id} className="tacct-card">
-                      <div className="tacct-card-head" style={{ marginBottom: '0.9rem' }}>
-                        <h3 style={{ margin: 0 }}>{col.collection_name}</h3>
-                        <button className="tacct-del" onClick={() => deleteCollection(col.id)}>Delete</button>
-                      </div>
-                      {col.items && col.items.length > 0 ? (
-                        <div className="tacct-fav-grid">
-                          {col.items.map(item => (
-                            <div key={item.id} className="tacct-fav-item">
-                              {item.primary_image_url ? <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image_url, 400)} alt={item.product_name} loading="lazy" decoding="async" /> : <div className="tacct-fav-ph" />}
-                              <div className="tacct-fav-name">{item.product_name}</div>
-                              <button className="acct-btn" style={{ marginTop: '0.5rem', width: '100%' }}
-                                onClick={() => addToCart({ product_id: item.product_id, sku_id: item.sku_id, sqft_needed: 1, num_boxes: 1, unit_price: parseFloat(item.retail_price || item.price || 0), subtotal: parseFloat(item.retail_price || item.price || 0).toFixed(2) })}>Add to cart</button>
+                    ) : (
+                      <div>
+                        <div className="acct-wishlist-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '1rem' }}>
+                          {items.map(it => (
+                            <div key={it.id} className="acct-wishlist-card" style={{ cursor: 'default' }}>
+                              <div style={{ position: 'relative', overflow: 'hidden' }}>
+                                {it.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(it.primary_image, 400)} alt={it.product_name || ''} loading="lazy" decoding="async" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)' }} />}
+                                <button aria-label="Remove" title="Remove from wishlist"
+                                  onClick={() => removeFavItem(it._favId, it.id)}
+                                  style={{ position: 'absolute', top: 10, right: 10, width: 24, height: 24, borderRadius: '50%', background: 'rgba(255,255,255,0.92)', border: 'none', color: 'var(--stone-600)', fontSize: '0.875rem', lineHeight: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, boxShadow: '0 1px 4px rgba(28,25,23,0.15)' }}>&times;</button>
+                              </div>
+                              <div className="acct-wishlist-card-body">
+                                <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)', lineHeight: 1.2 }}>{it.product_name || 'Material'}</div>
+                                {(it._collection || it.collection) && <div className="acct-order-date">{it._collection || it.collection}</div>}
+                                <button className="acct-btn" style={{ marginTop: '0.5rem', width: '100%' }}
+                                  onClick={() => addToCart({ product_id: it.product_id, sku_id: it.sku_id, sqft_needed: 1, num_boxes: 1, unit_price: parseFloat(it.price || 0), subtotal: parseFloat(it.price || 0).toFixed(2) })}>Add to cart</button>
+                              </div>
                             </div>
                           ))}
                         </div>
-                      ) : (
-                        <p className="acct-order-date">No items in this collection yet.</p>
-                      )}
-                    </div>
-                  ))}
-                  {favorites.length === 0 && !showFavForm && (
-                    <div className="tacct-empty"><p>No collections yet. Create one to save your favorite products.</p></div>
-                  )}
-                </div>
-              )}
+                        <div className="acct-pagination">
+                          <span>Showing {items.length} saved {items.length === 1 ? 'material' : 'materials'}</span>
+                          <span>&middot; &middot; &middot;</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Account */}
               {tab === 'settings' && account && (
