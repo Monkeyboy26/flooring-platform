@@ -6376,6 +6376,7 @@
 
     function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories }) {
       const [sku, setSku] = useState(null);
+      const [tierInfo, setTierInfo] = useState(null);
       const [media, setMedia] = useState([]);
       const [siblings, setSiblings] = useState([]);
       const [skuAccessories, setSkuAccessories] = useState([]);
@@ -6649,11 +6650,32 @@
         ]});
       }, [sku, media, avgRating, reviewCount]);
 
+      // Trade tier progress: how much more spend unlocks the next tier, and what
+      // that tier's discount would be. Only fetched for logged-in trade members.
+      useEffect(() => {
+        const t = localStorage.getItem('trade_token');
+        if (!t) { setTierInfo(null); return; }
+        fetch(API + '/api/trade/membership', { headers: { 'X-Trade-Token': t } })
+          .then(r => r.ok ? r.json() : null)
+          .then(d => setTierInfo(d))
+          .catch(() => setTierInfo(null));
+      }, [tradeCustomer]);
+
       // Sync sqft <-> boxes
       const sqftPerBox = sku ? parseFloat(sku.sqft_per_box) || 0 : 0;
       const retailPrice = sku ? displayPrice(sku, skuListPrice(sku)) : 0;
       const salePrice = sku && sku.sale_price ? displayPrice(sku, sku.sale_price) : null;
       const tradePrice = sku && sku.trade_price ? displayPrice(sku, sku.trade_price) : null;
+      // Next-tier upsell (uses the same per-unit basis as tradePrice). Cap mirrors
+      // the backend: retail_locked SKUs get at most 10% off regardless of tier.
+      const nextTier = tierInfo && tierInfo.next_tier ? tierInfo.next_tier : null;
+      const amountToNext = tierInfo && tierInfo.amount_to_next_tier != null ? parseFloat(tierInfo.amount_to_next_tier) : null;
+      const nextTierUnitPrice = (nextTier && sku && sku.retail_price && tradePrice != null) ? (() => {
+        const raw = parseFloat(nextTier.discount_percent) || 0;
+        const d = sku.retail_locked ? Math.min(raw, 10) : raw;
+        return displayPrice(sku, (parseFloat(sku.retail_price) * (1 - d / 100)).toFixed(2));
+      })() : null;
+      const fmtPct = (n) => (Math.round((parseFloat(n) || 0) * 100) / 100).toString();
       const msrpAttr = sku && (sku.attributes || []).find(a => a.slug === 'msrp');
       const msrpPrice = msrpAttr && parseFloat(msrpAttr.value) > 0 ? parseFloat(msrpAttr.value) : null;
       const isCarpetSku = sku && isCarpet(sku);
@@ -7206,6 +7228,35 @@
                   </div>
                 )}
               </div>
+
+              {/* Trade tier upsell — progress toward the next tier + this item's price there */}
+              {tradePrice && nextTier && amountToNext > 0 && (() => {
+                const mem = tierInfo && tierInfo.membership ? tierInfo.membership : null;
+                const spend = mem ? parseFloat(mem.total_spend) || 0 : 0;
+                const curThreshold = mem ? parseFloat(mem.spend_threshold) || 0 : 0;
+                const nextThreshold = parseFloat(nextTier.spend_threshold) || 0;
+                const span = nextThreshold - curThreshold;
+                const pct = span > 0 ? Math.max(0, Math.min(1, (spend - curThreshold) / span)) : 0;
+                const curName = mem ? mem.tier_name : 'Trade';
+                const curDisc = mem ? fmtPct(mem.discount_percent) : null;
+                const saveUnit = (nextTierUnitPrice != null && nextTierUnitPrice < tradePrice) ? (tradePrice - nextTierUnitPrice) : 0;
+                const usd = (n) => '$' + Math.round(n).toLocaleString('en-US');
+                return (
+                  <div className="pdp-tier">
+                    <div className="pdp-tier-head">
+                      <span>{curName}{curDisc ? ' · ' + curDisc + '%' : ''}</span>
+                      <span className="pdp-tier-next">{nextTier.name} · {fmtPct(nextTier.discount_percent)}%</span>
+                    </div>
+                    <div className="pdp-tier-track">
+                      <div className="pdp-tier-fill" style={{ width: (pct * 100).toFixed(1) + '%' }} />
+                    </div>
+                    <div className="pdp-tier-gap"><strong>{usd(amountToNext)}</strong> more this year to unlock {nextTier.name}</div>
+                    {saveUnit > 0 && (
+                      <div className="pdp-tier-payoff">Then this item is <strong>${nextTierUnitPrice.toFixed(2)}</strong>{priceSuffix(sku)} <span className="pdp-tier-save">{'·'} save ${saveUnit.toFixed(2)}{priceSuffix(sku)}</span></div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Klarna Pay-in-4 badge — illustrative installment on the smallest purchasable unit */}
               {(() => {

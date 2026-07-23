@@ -8079,6 +8079,7 @@
               {view === 'search-results' && <RepSearchResultsView navigate={navigate} initialQuery={searchQuery} onOpenPalette={() => setShowSearch(true)} />}
               {view === 'return-flow' && <RepReturnFlowView navigate={navigate} editId={editId} showCost={showCost} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />}
               {view === 'change-order' && <RepChangeOrderView navigate={navigate} editId={editId} showCost={showCost} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />}
+              {view === 'release-flow' && <RepReleaseFlowView navigate={navigate} editId={editId} />}
             </div>
           </div>
           {showSearch && <GlobalSearchPalette
@@ -11871,6 +11872,12 @@
       if (p.price_basis === 'per_sqyd') return price * (spb * qty / 9);
       return price * spb * qty;
     }
+    // Trade unit price for a catalog row — retail_locked SKUs cap at 10% off,
+    // matching the backend (effTradeDiscount / HD_LOCKED_DISCOUNT_CAP).
+    function rofTradeUnit(retail, retailLocked, discount) {
+      const d = discount > 0 ? (retailLocked ? Math.min(discount, 10) : discount) : 0;
+      return d > 0 ? retail * (1 - d / 100) : retail;
+    }
 
     function RofCatalogModal({ data, showCost, orderNumber, onClose, onAdd, contextLabel }) {
       const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
@@ -11964,9 +11971,14 @@
       const catalogRetail =
         lineList.reduce((t, { item, qty }) => t + rofCatExt(item, qty, parseFloat(item.price || 0)), 0) +
         accList.reduce((t, { acc, qty }) => t + parseFloat(acc.retail_price || 0) * qty, 0);
+      // Trade total is summed per-line (with the retail_locked cap) so it agrees
+      // with the per-item trade prices shown on the cards and tray.
+      const catalogTrade =
+        lineList.reduce((t, { item, qty }) => t + rofCatExt(item, qty, rofTradeUnit(parseFloat(item.price || 0), item.retail_locked, discount)), 0) +
+        accList.reduce((t, { acc, qty }) => t + rofTradeUnit(parseFloat(acc.retail_price || 0), acc.retail_locked, discount) * qty, 0);
       const customSubtotal = customList.reduce((t, c) => t + c.subtotal, 0);
       const retailSubtotal = catalogRetail + customSubtotal;
-      const discountedTotal = catalogRetail * (1 - discount / 100) + customSubtotal;
+      const discountedTotal = catalogTrade + customSubtotal;
 
 
       const confirm = () => {
@@ -12059,7 +12071,7 @@
                     <div style={{ gridColumn: '1 / -1', padding: '60px 0', textAlign: 'center', color: TH.muted, font: '400 15px/1.5 var(--roma-sans)' }}>Loading SKUs…</div>
                   )}
                   {products.map(p => (
-                    <RofCatCard key={p.sku_id} p={p} showCost={showCost}
+                    <RofCatCard key={p.sku_id} p={p} showCost={showCost} discount={discount}
                       qty={added[p.sku_id] ? added[p.sku_id].qty : 0}
                       onBump={(d) => bumpQty(p, d)}
                       onSet={(v) => setQty(p, v)}
@@ -12102,13 +12114,15 @@
     }
 
     // --- Product card inside the catalog popup ---
-    function RofCatCard({ p, showCost, qty, onBump, onSet, expanded, onToggleExpand, accessories, accAdded, onToggleAcc }) {
+    function RofCatCard({ p, showCost, discount, qty, onBump, onSet, expanded, onToggleExpand, accessories, accAdded, onToggleAcc }) {
       const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
       const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
       const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const marginColor = (pct) => pct >= 30 ? '#3a7a4e' : pct >= 15 ? '#a87935' : '#c54731';
 
       const price = p.price ? parseFloat(p.price) : 0;
+      const tradeUnit = rofTradeUnit(price, p.retail_locked, discount || 0);
+      const discounted = price > 0 && tradeUnit < price;
       const mPct = p.margin_pct || 0;
       const sk = stockDisplay(p);
       const active = qty > 0;
@@ -12151,9 +12165,18 @@
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 2, gap: 8 }}>
                 <span style={{ ...mono(sk.q ? sk.c : TH.muted), fontSize: 9, letterSpacing: '0.1em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sk.q ? sk.q + ' avail' : (p.vendor_sku || p.internal_sku || '')}</span>
-                <span style={{ font: '400 16px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>
-                  {price > 0 ? fmtMoney(price) : '—'}
-                  {price > 0 && <span style={{ font: '400 10px/1 var(--roma-sans)', color: TH.muted }}>{priceUnit}</span>}
+                <span style={{ whiteSpace: 'nowrap', textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                  {price > 0 ? (
+                    <React.Fragment>
+                      {discounted && (
+                        <span style={{ font: '400 10px/1 var(--roma-sans)', color: TH.muted, textDecoration: 'line-through' }}>{fmtMoney(price)}{priceUnit}</span>
+                      )}
+                      <span style={{ font: '400 16px/1 var(--roma-serif)', color: discounted ? TH.accent : TH.ink }}>
+                        {fmtMoney(tradeUnit)}
+                        <span style={{ font: '400 10px/1 var(--roma-sans)', color: TH.muted }}>{priceUnit}</span>
+                      </span>
+                    </React.Fragment>
+                  ) : '—'}
                 </span>
               </div>
             </div>
@@ -12204,6 +12227,8 @@
               {!accLoading && accList.map((a, i) => {
                 const on = !!accAdded[a.sku_id];
                 const aPrice = parseFloat(a.retail_price || 0);
+                const aTrade = rofTradeUnit(aPrice, a.retail_locked, discount || 0);
+                const aDiscounted = aPrice > 0 && aTrade < aPrice;
                 const aUnit = (a.sell_by === 'unit' || a.sell_by === 'piece') ? '/ea' : '/sqft';
                 return (
                   <div key={a.sku_id} style={{
@@ -12220,9 +12245,18 @@
                         {[a.variant_name && a.variant_name !== (a.accessory_label || '') ? a.variant_name : null, a.vendor_sku].filter(Boolean).join(' · ')}
                       </div>
                     </div>
-                    <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>
-                      {aPrice > 0 ? fmtMoney(aPrice) : '—'}
-                      {aPrice > 0 && <span style={{ font: '400 9px/1 var(--roma-sans)', color: TH.muted }}>{aUnit}</span>}
+                    <span style={{ whiteSpace: 'nowrap', textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                      {aPrice > 0 ? (
+                        <React.Fragment>
+                          {aDiscounted && (
+                            <span style={{ font: '400 9px/1 var(--roma-sans)', color: TH.muted, textDecoration: 'line-through' }}>{fmtMoney(aPrice)}{aUnit}</span>
+                          )}
+                          <span style={{ font: '400 13px/1 var(--roma-serif)', color: aDiscounted ? TH.accent : TH.ink }}>
+                            {fmtMoney(aTrade)}
+                            <span style={{ font: '400 9px/1 var(--roma-sans)', color: TH.muted }}>{aUnit}</span>
+                          </span>
+                        </React.Fragment>
+                      ) : '—'}
                     </span>
                     <button onClick={() => onToggleAcc(a)} style={{
                       width: 28, height: 28, flexShrink: 0, cursor: 'pointer',
@@ -12417,7 +12451,9 @@
                 Nothing selected yet.<br />Set a quantity on any product {'—'} accessories tuck in underneath it.
               </div>
             )}
-            {lineList.map(({ item, qty }) => (
+            {lineList.map(({ item, qty }) => {
+              const tUnit = rofTradeUnit(parseFloat(item.price || 0), item.retail_locked, discount);
+              return (
               <div key={item.sku_id} style={{ padding: '10px 20px', display: 'grid', gridTemplateColumns: '30px 1fr auto 18px', gap: 10, alignItems: 'center' }}>
                 {item.primary_image
                   ? <img src={optimizeImg(item.primary_image, 80)} alt="" loading="lazy" style={{ width: 30, height: 30, objectFit: 'cover', border: '0.5px solid rgba(28,25,23,0.1)' }} />
@@ -12425,29 +12461,33 @@
                 <div style={{ minWidth: 0 }}>
                   <div style={{ font: '400 13px/1.2 var(--roma-sans)', color: TH.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.display_name || item.name}</div>
                   <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>
-                    {qty} {(item.sell_by === 'unit' || item.sell_by === 'piece') ? 'units' : 'bx'} {'×'} {fmtMoney(item.price)}
+                    {qty} {(item.sell_by === 'unit' || item.sell_by === 'piece') ? 'units' : 'bx'} {'×'} {fmtMoney(tUnit)}
                   </div>
                 </div>
-                <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(rofCatExt(item, qty, parseFloat(item.price || 0)))}</span>
+                <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(rofCatExt(item, qty, tUnit))}</span>
                 <button onClick={() => onRemoveItem(item.sku_id)} style={xBtn}>{'×'}</button>
               </div>
-            ))}
+              );
+            })}
             {accList.length > 0 && (
               <div style={{ padding: '6px 20px 4px', ...mono(TH.muted), fontSize: 9, marginTop: 4 }}>Accessories</div>
             )}
-            {accList.map(({ acc, qty }) => (
+            {accList.map(({ acc, qty }) => {
+              const aTUnit = rofTradeUnit(parseFloat(acc.retail_price || 0), acc.retail_locked, discount);
+              return (
               <div key={acc.sku_id} style={{ padding: '8px 20px', display: 'grid', gridTemplateColumns: '30px 1fr auto 18px', gap: 10, alignItems: 'center' }}>
                 {acc.primary_image
                   ? <img src={optimizeImg(acc.primary_image, 80)} alt="" loading="lazy" style={{ width: 30, height: 30, objectFit: 'cover', border: '0.5px solid rgba(28,25,23,0.1)' }} />
                   : <div style={{ width: 30, height: 30, background: TH.paper, border: '0.5px solid rgba(28,25,23,0.1)' }} />}
                 <div style={{ minWidth: 0 }}>
                   <div style={{ font: '400 12px/1.2 var(--roma-sans)', color: 'rgba(28,25,23,0.87)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{acc.accessory_label || acc.variant_name}</div>
-                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>{qty} {'×'} {fmtMoney(acc.retail_price)}</div>
+                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>{qty} {'×'} {fmtMoney(aTUnit)}</div>
                 </div>
-                <span style={{ font: '400 12px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(parseFloat(acc.retail_price || 0) * qty)}</span>
+                <span style={{ font: '400 12px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(aTUnit * qty)}</span>
                 <button onClick={() => onRemoveAcc(acc.sku_id)} style={xBtn}>{'×'}</button>
               </div>
-            ))}
+              );
+            })}
             {customList.length > 0 && (
               <div style={{ padding: '6px 20px 4px', ...mono(TH.muted), fontSize: 9, marginTop: 4 }}>Custom lines</div>
             )}
@@ -14411,8 +14451,33 @@
         }, 300);
       };
 
+      // Trade pricing: catalog SKU lines get the customer's margin-tier discount.
+      // Mirrors the backend (effTradeDiscount / HD_LOCKED_DISCOUNT_CAP) so the
+      // total shown here matches what /api/rep/orders computes and charges.
+      const HD_LOCKED_DISCOUNT_CAP = 10;
+      const effTradeDisc = (discount, retailLocked) =>
+        retailLocked ? Math.min(discount, HD_LOCKED_DISCOUNT_CAP) : discount;
+      const tradeDiscountFor = (c) =>
+        (c && c.type === 'trade') ? (parseFloat(c.discount_percent || 0) || 0) : 0;
+      const repriceItems = (items, discount) => {
+        return (items || []).map(item => {
+          if (!item.sku_id || !item.retail_price) return item;
+          const d = discount > 0 ? effTradeDisc(discount, item.retail_locked) : 0;
+          const newPrice = d > 0 ? item.retail_price * (1 - d / 100) : item.retail_price;
+          const isUnit = item.sell_by === 'unit' || item.sell_by === 'piece';
+          const isCarpet = item.price_basis === 'per_sqyd';
+          let sub;
+          if (isUnit) sub = newPrice * item.num_boxes;
+          else if (isCarpet && item.sqft_needed) sub = newPrice * (parseFloat(item.sqft_needed) / 9);
+          else if (item.sqft_needed) sub = newPrice * parseFloat(item.sqft_needed);
+          else sub = newPrice * item.num_boxes;
+          return { ...item, unit_price: newPrice, subtotal: sub };
+        });
+      };
+
       const selectCustomer = (c) => {
         setSelectedCustomer(c);
+        setItems(prev => repriceItems(prev, tradeDiscountFor(c)));
         setForm(f => ({
           ...f,
           customer_name: c.name || '',
@@ -14431,6 +14496,7 @@
 
       const clearCustomer = () => {
         setSelectedCustomer(null);
+        setItems(prev => repriceItems(prev, 0));
         setForm(f => ({ ...f, customer_name: '', customer_email: '', phone: '' }));
         setCustomerMatch(null);
         setEmailError('');
@@ -14471,7 +14537,11 @@
 
       const addSkuItem = (r) => {
         const numBoxes = parseInt(addBoxes) || 1;
-        const unitPrice = parseFloat(r.retail_price || 0);
+        const retailPrice = parseFloat(r.retail_price || 0);
+        const tradeDisc = tradeDiscountFor(selectedCustomer);
+        const unitPrice = tradeDisc > 0
+          ? retailPrice * (1 - effTradeDisc(tradeDisc, r.retail_locked) / 100)
+          : retailPrice;
         const sqftPerBox = parseFloat(r.sqft_per_box || 0);
         const sqftNeeded = sqftPerBox ? sqftPerBox * numBoxes : null;
         const sellBy = r.sell_by || 'box';
@@ -14498,6 +14568,8 @@
           vendor_name: r.vendor_name,
           vendor_sku: r.vendor_sku || r.internal_sku || '',
           unit_price: unitPrice,
+          retail_price: retailPrice,
+          retail_locked: !!r.retail_locked,
           num_boxes: numBoxes,
           subtotal,
           sqft_per_box: sqftPerBox,
@@ -14748,6 +14820,11 @@
             {selectedCustomer && (
               <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.8125rem', color: '#166534', background: '#dcfce7', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontWeight: 500 }}>Existing Customer</span>
+                {tradeDiscountFor(selectedCustomer) > 0 && (
+                  <span style={{ fontSize: '0.8125rem', color: '#7c2d12', background: '#ffedd5', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontWeight: 500 }}>
+                    Trade · {tradeDiscountFor(selectedCustomer).toFixed(0)}% off{selectedCustomer.tier_name ? ' (' + selectedCustomer.tier_name + ')' : ''}
+                  </span>
+                )}
                 {selectedCustomer.company_name && <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{selectedCustomer.company_name}</span>}
                 <button onClick={clearCustomer}
                   style={{ marginLeft: 'auto', fontSize: '0.75rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--stone-400)', textDecoration: 'underline' }}>Clear</button>
@@ -14904,7 +14981,12 @@
                   )}
                   {skuResults.length > 0 && (
                     <div className="search-results">
-                      {skuResults.slice(0, 20).map((r, i) => (
+                      {skuResults.slice(0, 20).map((r, i) => {
+                        const rSuffix = (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft');
+                        const rRetail = parseFloat(r.retail_price || 0);
+                        const rTrade = rofTradeUnit(rRetail, r.retail_locked, tradeDiscountFor(selectedCustomer));
+                        const rDisc = rRetail > 0 && rTrade < rRetail;
+                        return (
                         <div key={i} className="search-result-item" onMouseDown={() => addSkuItem(r)}>
                           {r.primary_image
                             ? <img className="sku-thumb" src={optimizeImg(r.primary_image, 96)} alt="" loading="lazy" />
@@ -14918,11 +15000,14 @@
                             </div>
                             <div className="product-meta">
                               {r.vendor_name}{r.vendor_sku ? ' \u00b7 ' + r.vendor_sku : r.internal_sku ? ' \u00b7 ' + r.internal_sku : ''}
-                              {r.retail_price ? ' \u00b7 $' + parseFloat(r.retail_price).toFixed(2) + (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft') : ''}
+                              {rRetail > 0 && ' \u00b7 '}
+                              {rRetail > 0 && rDisc && <span style={{ textDecoration: 'line-through', color: 'var(--stone-400)' }}>${rRetail.toFixed(2)}</span>}
+                              {rRetail > 0 && <span style={{ color: rDisc ? '#a87935' : undefined }}>{rDisc ? ' ' : ''}${rTrade.toFixed(2)}{rSuffix}</span>}
                             </div>
                           </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -18723,6 +18808,8 @@
       const [showAddNote, setShowAddNote] = useState(false);
       const [commission, setCommission] = useState(null);
       const [orderInvoices, setOrderInvoices] = useState([]);
+      const [releases, setReleases] = useState([]);
+      const [releaseUpdating, setReleaseUpdating] = useState(null);
       const [orderNotes, setOrderNotes] = useState([]);
       const [orderNoteText, setOrderNoteText] = useState('');
       const [savingOrderNote, setSavingOrderNote] = useState(false);
@@ -18839,10 +18926,22 @@
             setBalanceInfo(data.balance || null);
             setCommission(data.commission || null);
             setOrderInvoices(data.invoices || []);
+            setReleases(data.releases || []);
             setLoading(false);
           })
           .catch(() => setLoading(false));
       }, [editId]);
+
+      const releaseAction = useCallback(async (rel, action) => {
+        if (action === 'void' && !confirm('Void release ' + rel.release_number + '? Its quantities become releasable again.')) return;
+        setReleaseUpdating(rel.id);
+        try {
+          await repFetch('/api/rep/releases/' + rel.id + '/' + action, { method: 'POST', body: JSON.stringify({}) });
+          load();
+          loadOrderActivity();
+        } catch (err) { alert(err.message || 'Failed'); }
+        setReleaseUpdating(null);
+      }, [editId, load, loadOrderActivity]);
 
       const loadDocuments = useCallback(() => {
         if (!editId) return;
@@ -19150,6 +19249,10 @@
               {paidDone && ['confirmed', 'shipped', 'ready_for_pickup'].includes(order.status) && (
                 <button className="rov-hbtn" onClick={() => navigate('change-order', order.id)}>Change order</button>
               )}
+              {['confirmed', 'shipped', 'ready_for_pickup', 'delivered'].includes(order.status)
+                && items.some(it => !it.is_sample && (parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0)) > 0.001) && (
+                <button className="rov-hbtn" onClick={() => navigate('release-flow', order.id)}>Release materials</button>
+              )}
               {['shipped', 'delivered', 'ready_for_pickup'].includes(order.status) && (
                 <button className="rov-hbtn" onClick={() => navigate('return-flow', order.id)}>Start return</button>
               )}
@@ -19359,6 +19462,12 @@
                           {item.sell_by !== 'unit' && item.sell_by !== 'piece' && item.sqft_needed && parseFloat(item.sqft_needed) > 0 && (
                             <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', marginTop: 2 }}>{parseFloat(item.sqft_needed).toFixed(0)} sf</div>
                           )}
+                          {!item.is_sample && parseFloat(item.already_released || 0) > 0 && (
+                            <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 3,
+                              color: parseFloat(item.already_released || 0) + 0.001 >= parseFloat(item.num_boxes || 0) ? 'var(--rod-green)' : 'var(--rod-accent)' }}>
+                              {parseFloat(item.already_released) + 0.001 >= parseFloat(item.num_boxes || 0) ? '● Released' : parseFloat(item.already_released) + '/' + item.num_boxes + ' released'}
+                            </div>
+                          )}
                         </div>
                         <div className="rod-line-item-price" style={{ textAlign: 'right' }}>
                           <span>{item.is_sample ? 'Free' : '$' + parseFloat(item.unit_price || 0).toFixed(2)}</span>
@@ -19406,6 +19515,52 @@
                   );
                 }); })()}
               </RodCard>
+
+              {/* Material releases */}
+              {releases.length > 0 && (
+                <RodCard title={'Material releases · ' + releases.filter(r => r.status !== 'void').length}>
+                  <div className="rod-po-section">
+                    {releases.map(rel => {
+                      const isDelivery = rel.release_method === 'delivery';
+                      const chipTone = rel.status === 'void' ? 'soft' : rel.status === 'completed' ? 'live' : 'hold';
+                      const chipLabel = rel.status === 'void' ? 'Voided'
+                        : rel.status === 'completed' ? (isDelivery ? 'Delivered' : 'Picked up')
+                        : 'Authorized';
+                      const qty = parseFloat(rel.total_qty || 0);
+                      return (
+                        <div className="rov-po-row" key={rel.id} style={rel.status === 'void' ? { opacity: 0.55 } : undefined}>
+                          <div className="rov-po-code">{isDelivery ? 'DLV' : 'PU'}</div>
+                          <div>
+                            <div style={{ font: '400 14px/1.2 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
+                              <a style={{ cursor: 'pointer', textDecoration: 'underline rgba(28,25,23,0.2)', color: 'var(--rod-ink)' }}
+                                onClick={() => repOpenDoc('/api/rep/releases/' + rel.id + '/release-form', true).catch(err => alert(err.message))}>{rel.release_number}</a>
+                              {' · ' + (isDelivery ? 'Delivery' : 'Pickup')}
+                            </div>
+                            <RovMicro style={{ marginTop: 3 }}>
+                              {parseFloat(qty.toFixed(2))} across {rel.line_count} line{rel.line_count === 1 ? '' : 's'}
+                            </RovMicro>
+                          </div>
+                          <div>
+                            <div style={{ font: '400 13px/1.3 "Inter", sans-serif', color: 'var(--rod-ink)' }}>{rel.recipient_name || '—'}</div>
+                            <RovMicro style={{ marginTop: 3 }}>
+                              Released {rodFmtDT(rel.released_at)}{rel.completed_at ? ' · Done ' + rodFmtDT(rel.completed_at) : ''}
+                            </RovMicro>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <RovChip tone={chipTone}>{chipLabel}</RovChip>
+                            {rel.status === 'released' && (
+                              <>
+                                <button className="rov-hbtn" style={{ padding: '6px 10px', fontSize: 10 }} disabled={releaseUpdating === rel.id} onClick={() => releaseAction(rel, 'complete')}>{isDelivery ? 'Mark delivered' : 'Mark picked up'}</button>
+                                <button className="rov-hbtn danger" style={{ padding: '6px 10px', fontSize: 10 }} disabled={releaseUpdating === rel.id} onClick={() => releaseAction(rel, 'void')}>Void</button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </RodCard>
+              )}
 
               {/* Vendor POs — v2 */}
               {purchaseOrders.length > 0 && (
@@ -19955,7 +20110,7 @@
               flows; available whenever items can be added (pending / confirmed). */}
           {catalogOpen && ['pending', 'confirmed'].includes(order.status) && (
             <RofCatalogModal
-              data={{ customer: null, newCustomerName: order.customer_name }}
+              data={{ customer: parseFloat(order.trade_discount_percent) > 0 ? { type: 'trade', discount_percent: parseFloat(order.trade_discount_percent), tier_name: order.trade_tier_name } : null, newCustomerName: order.customer_name }}
               showCost={showCost}
               contextLabel={'Add to order · ' + order.order_number}
               onClose={() => setCatalogOpen(false)}
@@ -20685,6 +20840,310 @@
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // RepReleaseFlowView — authorize materials to leave the warehouse for pickup
+    // or delivery, in whole or partial quantities per line. A fulfillment overlay:
+    // it does not change the order status or touch inventory. Single-screen: pick
+    // lines + qty, method, recipient, notes → POST creates the release + emails the
+    // customer + yields a printable release form.
+    // ════════════════════════════════════════════════════════════════════════
+    // Material kind + deterministic tone for the swatch fallback (mirrors the
+    // return flow's helpers so releases share the same visual language).
+    function relMaterialKind(it) {
+      const s = ((it.category_name || '') + ' ' + (it.variant_type || '')).toLowerCase();
+      if (/hardwood|wood/.test(s)) return 'wood';
+      if (/lvp|lvt|vinyl|spc/.test(s)) return 'lvp';
+      if (/laminate/.test(s)) return 'laminate';
+      if (/marble/.test(s)) return 'marble';
+      if (/tile|porcelain|ceramic|mosaic/.test(s)) return 'tile';
+      if (/stone|travertine|slate/.test(s)) return 'stone';
+      if (/quartz/.test(s)) return 'quartz';
+      if (/carpet/.test(s)) return 'carpet';
+      return 'tile';
+    }
+    function relTone(name) {
+      let h = 0;
+      for (let i = 0; i < (name || '').length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
+      h = Math.abs(h);
+      const hue = 20 + (h % 30), satA = 20 + (h >> 4) % 25, litA = 60 + (h >> 8) % 18, litB = 35 + (h >> 12) % 15, litC = 14 + (h >> 16) % 12;
+      const hsl2hex = (hh, s, l) => { s /= 100; l /= 100; const a = s * Math.min(l, 1 - l); const f = n => { const k = (n + hh / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); }; return '#' + [f(0), f(8), f(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join(''); };
+      return { a: hsl2hex(hue, satA, litA), b: hsl2hex(hue, satA + 5, litB), c: hsl2hex(hue, satA + 8, litC) };
+    }
+
+    function RepReleaseFlowView({ navigate, editId }) {
+      const [loading, setLoading] = useState(true);
+      const [ctx, setCtx] = useState(null); // { order, items, releasable }
+      const [lineState, setLineState] = useState({}); // keyed by order_item_id: { selected, qty }
+      const [method, setMethod] = useState('pickup');
+      const [recipient, setRecipient] = useState('');
+      const [notes, setNotes] = useState('');
+      const [committing, setCommitting] = useState(false);
+      const [result, setResult] = useState(null);
+      const [error, setError] = useState('');
+
+      useEffect(() => {
+        if (!editId) return;
+        repFetch('/api/rep/orders/' + editId + '/release-context')
+          .then(data => {
+            setCtx(data);
+            const seed = {};
+            (data.items || []).forEach(it => {
+              const remaining = Math.max(0, parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0));
+              seed[it.id] = { selected: remaining > 0, qty: remaining };
+            });
+            setLineState(seed);
+            if (data.order && data.order.customer_name) setRecipient(data.order.customer_name);
+            setLoading(false);
+          })
+          .catch(err => { setError(err.message || 'Failed to load'); setLoading(false); });
+      }, [editId]);
+
+      const order = ctx && ctx.order;
+      const items = (ctx && ctx.items) || [];
+      const setLine = (id, patch) => setLineState(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+      const remainingFor = (it) => Math.max(0, parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0));
+      const unitFor = (it) => it.sell_by === 'unit' ? 'unit' : it.sell_by === 'roll' ? 'roll' : it.sell_by === 'piece' ? 'pc' : 'box';
+
+      const releasable = items.filter(it => remainingFor(it) > 0);
+      const checkedLines = items.filter(it => lineState[it.id] && lineState[it.id].selected);
+      const selectedLines = items.filter(it => {
+        const st = lineState[it.id];
+        return st && st.selected && parseFloat(st.qty) > 0 && parseFloat(st.qty) <= remainingFor(it) + 0.001;
+      });
+      const totalQty = selectedLines.reduce((s, it) => s + parseFloat(lineState[it.id].qty || 0), 0);
+      const anyRemaining = releasable.length > 0;
+      const overSelected = checkedLines.some(it => parseFloat(lineState[it.id].qty) > remainingFor(it) + 0.001 || !(parseFloat(lineState[it.id].qty) > 0));
+      const valid = selectedLines.length > 0 && !overSelected;
+
+      const allSelected = releasable.length > 0 && releasable.every(it => lineState[it.id] && lineState[it.id].selected);
+      const toggleAll = () => {
+        setLineState(prev => {
+          const next = { ...prev };
+          releasable.forEach(it => { next[it.id] = { ...next[it.id], selected: !allSelected, qty: !allSelected ? (parseFloat(next[it.id] && next[it.id].qty) > 0 ? next[it.id].qty : remainingFor(it)) : next[it.id].qty }; });
+          return next;
+        });
+      };
+
+      const commit = async () => {
+        setCommitting(true); setError('');
+        try {
+          const lines = selectedLines.map(it => ({ order_item_id: it.id, release_qty: parseFloat(lineState[it.id].qty) }));
+          const data = await repFetch('/api/rep/orders/' + editId + '/releases', {
+            method: 'POST',
+            body: JSON.stringify({ lines, release_method: method, recipient_name: recipient.trim() || null, notes: notes.trim() || null })
+          });
+          setResult(data);
+        } catch (err) { setError(err.message || 'Failed to create release'); }
+        setCommitting(false);
+      };
+
+      if (loading) return <div className="loading">Loading release…</div>;
+      if (error && !ctx) return <div className="loading">{error}</div>;
+      if (!ctx) return <div className="loading">Order not available</div>;
+
+      const custName = order ? (order.customer_name || 'Customer') : '';
+      const methodLabel = method === 'delivery' ? 'Delivery' : 'Warehouse pickup';
+      // Grid shared by the line-items header + rows: select · thumb · item · ordered · released · release now
+      const LI_GRID = { display: 'grid', gridTemplateColumns: '24px 48px 1fr 80px 84px 130px', gap: 12, alignItems: 'center' };
+
+      return (
+        <div style={{ paddingBottom: 96 }}>
+          {/* A. Breadcrumb */}
+          <div className="rod-breadcrumb">
+            <div className="rod-breadcrumb-trail">
+              <a onClick={() => navigate('dashboard')}>Workspace</a>
+              <span className="rod-breadcrumb-sep"></span>
+              <a onClick={() => navigate('orders')}>Orders</a>
+              <span className="rod-breadcrumb-sep"></span>
+              <a onClick={() => navigate('order-detail', editId)}>{order.order_number}</a>
+              <span className="rod-breadcrumb-sep"></span>
+              <span className="rod-current">Release</span>
+            </div>
+          </div>
+
+          {/* B. Header */}
+          <div className="rov-header">
+            <div>
+              <RovMicro>Orders · {order.order_number}</RovMicro>
+              <div className="rov-header-title-row">
+                <h1>Release materials</h1>
+                {result
+                  ? <RovChip tone="done">{result.release.release_number}</RovChip>
+                  : <RovChip tone="soft">{methodLabel}</RovChip>}
+                {result && result.is_full && <RovChip tone="live">Fully released</RovChip>}
+              </div>
+              <RovMicro style={{ marginTop: 10 }}>
+                {custName}{order.customer_email ? ' · ' + order.customer_email : ''}{order.rep_name ? ' · Rep ' + order.rep_name : ''}
+              </RovMicro>
+            </div>
+            <div className="rov-header-actions">
+              {result && (
+                <button className="rov-hbtn" onClick={() => repOpenDoc('/api/rep/releases/' + result.release.id + '/release-form', true).catch(err => alert(err.message))}>Release form (PDF)</button>
+              )}
+              <button className="rov-hbtn" onClick={() => navigate('order-detail', editId)}>Back to order</button>
+            </div>
+          </div>
+
+          {error && (
+            <div className="rod-inline-panel" style={{ marginTop: 0, marginBottom: 20, borderColor: 'rgba(197,71,49,0.35)', background: 'rgba(197,71,49,0.05)', color: 'var(--rod-red)', font: "500 12px/1.4 'Inter', sans-serif" }}>{error}</div>
+          )}
+
+          {result ? (
+            /* ── Done ── */
+            <div className="rod-body">
+              <div className="rod-col">
+                <RodCard title="Release receipt">
+                  <div style={{ padding: '4px 20px 8px' }}>
+                    <RovRow l="Release number" v={result.release.release_number} />
+                    <RovRow l="Method" v={methodLabel} />
+                    <RovRow l={method === 'delivery' ? 'Recipient' : 'Picked up by'} v={recipient.trim() || custName} />
+                    <RovRow l="Lines · quantity" v={selectedLines.length + ' · ' + parseFloat(totalQty.toFixed(2))} />
+                    <RovRow l="Order fully released" v={result.is_full ? 'Yes' : 'No · partial'} c={result.is_full ? 'var(--rod-green)' : undefined} last />
+                  </div>
+                  <div style={{ padding: '14px 20px', borderTop: '0.5px solid var(--rod-border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button className="rod-mini-btn primary" onClick={() => repOpenDoc('/api/rep/releases/' + result.release.id + '/release-form', true).catch(err => alert(err.message))}>View release form</button>
+                    <button className="rod-mini-btn" onClick={() => navigate('order-detail', editId)}>Back to order</button>
+                    <button className="rod-mini-btn" onClick={() => navigate('dashboard')}>Dashboard</button>
+                  </div>
+                </RodCard>
+              </div>
+              <div className="rod-col">
+                <RodCard title={method === 'delivery' ? 'Out for delivery' : 'Ready for pickup'}>
+                  <div className="rod-card-body-padded" style={{ font: "400 13px/1.6 'Inter', sans-serif", color: 'var(--rod-muted)' }}>
+                    {method === 'delivery' ? 'These materials are staged for delivery.' : 'These materials are ready for pickup at the Anaheim warehouse.'}{' '}
+                    {order.customer_email ? 'A release notice was emailed to ' + order.customer_email + '.' : 'No customer email on file — email was skipped.'}
+                  </div>
+                </RodCard>
+              </div>
+            </div>
+          ) : !ctx.releasable ? (
+            <RodCard title="Not releasable yet">
+              <div className="rod-card-body-padded" style={{ font: "400 13px/1.6 'Inter', sans-serif", color: 'var(--rod-muted)' }}>
+                Materials can only be released once the order is confirmed (paid). This order is <strong style={{ color: 'var(--rod-ink)' }}>{order.status}</strong>.
+              </div>
+            </RodCard>
+          ) : !anyRemaining ? (
+            <RodCard title="Fully released">
+              <div className="rod-card-body-padded" style={{ font: "400 13px/1.6 'Inter', sans-serif", color: 'var(--rod-muted)' }}>
+                Every line on this order has already been released. Void an existing release from the order detail if you need to redo one.
+              </div>
+            </RodCard>
+          ) : (
+            <>
+              <div className="rod-body">
+                <div className="rod-col">
+                  <RodCard title={'Line items · ' + items.length}
+                    action={allSelected ? 'Clear all' : 'Select all'} onAction={toggleAll}>
+                    <div className="rod-line-items-header" style={LI_GRID}>
+                      <span></span><span></span><span>Item</span>
+                      <span style={{ textAlign: 'right' }}>Ordered</span>
+                      <span style={{ textAlign: 'right' }}>Released</span>
+                      <span style={{ textAlign: 'right' }}>Release now</span>
+                    </div>
+                    {items.map(it => {
+                      const st = lineState[it.id] || {};
+                      const remaining = remainingFor(it);
+                      const released = parseFloat(it.already_released || 0);
+                      const ordered = parseFloat(it.num_boxes || 0);
+                      const unit = unitFor(it);
+                      const name = (it.collection || it.current_collection || it.product_name || '—')
+                        + (it.color ? ' ' + it.color : '')
+                        + (it.variant_name && it.variant_name !== it.color ? ' ' + it.variant_name : '');
+                      const done = remaining <= 0;
+                      const over = st.selected && (parseFloat(st.qty) > remaining + 0.001 || !(parseFloat(st.qty) > 0));
+                      return (
+                        <div key={it.id} className="rod-line-item-row" style={{ ...LI_GRID, opacity: done ? 0.5 : 1 }}>
+                          <span onClick={() => !done && setLine(it.id, { selected: !st.selected })}
+                            style={{ display: 'flex', width: 16, height: 16, border: '1px solid var(--rod-ink)', background: st.selected && !done ? 'var(--rod-ink)' : 'transparent', alignItems: 'center', justifyContent: 'center', color: '#ece5d8', font: "500 10px/1 'Inter', sans-serif", cursor: done ? 'default' : 'pointer' }}>{st.selected && !done ? '✓' : ''}</span>
+                          {it.primary_image
+                            ? <img className="rod-line-item-thumb" src={optimizeImg(it.primary_image, 96)} alt="" />
+                            : <div className="rod-line-item-thumb" style={materialFace(relMaterialKind(it), relTone(it.product_name || name))} />}
+                          <div style={{ minWidth: 0 }}>
+                            <div className="rod-line-item-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+                            <div className="rod-line-item-meta">{it.vendor_name || 'Roma'}</div>
+                          </div>
+                          <div className="rod-line-item-qty">{ordered} <span style={{ color: 'var(--rod-muted)' }}>{ordered === 1 ? unit : unit + 's'}</span></div>
+                          <div className="rod-line-item-qty" style={{ color: released > 0 ? 'var(--rod-accent)' : 'var(--rod-muted)' }}>{released > 0 ? released : '—'}</div>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            {done ? (
+                              <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-green)' }}>● Released</span>
+                            ) : (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', border: '0.5px solid ' + (over ? 'var(--rod-red)' : 'rgba(28,25,23,0.3)'), background: st.selected ? '#fff' : 'rgba(28,25,23,0.03)' }}>
+                                <input type="number" min="0" max={remaining} step="1" value={st.qty} disabled={!st.selected}
+                                  onChange={e => setLine(it.id, { qty: e.target.value })}
+                                  style={{ width: 54, border: 'none', outline: 'none', background: 'transparent', textAlign: 'right', padding: '7px 3px 7px 8px', font: "400 15px/1 'Cormorant Garamond', serif", color: over ? 'var(--rod-red)' : 'var(--rod-ink)' }} />
+                                <span style={{ font: '500 9px/1 ui-monospace, monospace', color: 'var(--rod-muted)', padding: '0 8px 0 2px' }}>/{remaining}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </RodCard>
+                </div>
+
+                <div className="rod-col">
+                  <RodCard title="Fulfillment">
+                    <div className="rod-card-body-padded" style={{ display: 'grid', gap: 16 }}>
+                      <div>
+                        <label className="rod-field-label">Method</label>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button className={'rod-mini-btn' + (method === 'pickup' ? ' selected' : '')} style={{ flex: 1 }} onClick={() => setMethod('pickup')}>Pickup</button>
+                          <button className={'rod-mini-btn' + (method === 'delivery' ? ' selected' : '')} style={{ flex: 1 }} onClick={() => setMethod('delivery')}>Delivery</button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="rod-field-label">{method === 'delivery' ? 'Recipient' : 'Picked up by'}</label>
+                        <input className="rod-input" type="text" maxLength={120} value={recipient} onChange={e => setRecipient(e.target.value)} placeholder="Name of person receiving" />
+                      </div>
+                      <div>
+                        <label className="rod-field-label">Notes (optional)</label>
+                        <textarea className="rod-input" rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. forklift needed, will-call counter" />
+                      </div>
+                    </div>
+                  </RodCard>
+
+                  <RodCard title="Summary">
+                    <div style={{ padding: '4px 20px 8px' }}>
+                      <RovRow l="Lines selected" v={selectedLines.length + ' of ' + releasable.length} />
+                      <RovRow l="Total quantity" v={parseFloat(totalQty.toFixed(2)) + ''} />
+                      <RovRow l="Method" v={methodLabel} last />
+                    </div>
+                    <div style={{ padding: '0 20px 16px' }}>
+                      <div style={{ padding: '9px 12px', textAlign: 'center', background: valid ? 'var(--rod-ink)' : 'var(--rod-warm)', color: valid ? '#ece5d8' : 'var(--rod-muted)', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                        ● {overSelected ? 'Fix quantities' : valid ? 'Ready to release' : 'Select a line'}
+                      </div>
+                    </div>
+                  </RodCard>
+                </div>
+              </div>
+
+              <div className="rof-action-bar">
+                <div className="rof-action-left">
+                  <span>
+                    <span style={{ display: 'block', font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.47)' }}>
+                      New release {'·'} {order.order_number}
+                    </span>
+                    <span className="rof-action-total" style={{ display: 'block', marginTop: 4 }}>
+                      {parseFloat(totalQty.toFixed(2))}
+                      <span style={{ font: '400 0.4375rem/1 ui-monospace, monospace', opacity: 0.5, marginLeft: '0.3rem' }}>{method === 'delivery' ? 'TO DELIVER' : 'TO PICK UP'}</span>
+                    </span>
+                  </span>
+                  <span style={{ font: '500 9px/1.5 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.6)', marginLeft: '1rem' }}>
+                    {custName}{selectedLines.length ? ' · ' + selectedLines.length + ' line' + (selectedLines.length !== 1 ? 's' : '') : ''}
+                  </span>
+                </div>
+                <button className="rof-btn" onClick={() => navigate('order-detail', editId)}>Cancel</button>
+                <button className="rof-btn rof-btn-primary" disabled={!valid || committing} onClick={commit}>
+                  {committing ? 'Releasing…' : 'Release ' + (method === 'delivery' ? 'for delivery' : 'for pickup')}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // RepChangeOrderView — single-page staged diff editor for paid, not-yet-
     // delivered orders. Mirrors rep-change-order design (minus approvals).
     // Stages edits locally, then applies them via add-item / delete / price
@@ -20737,6 +21196,15 @@
 
       const itemQty = (it) => parseInt(it.num_boxes, 10) || 0;
       const itemName = (it) => (it.collection || it.current_collection || it.product_name || '—') + (it.color ? ' ' + it.color : '');
+
+      // Trade pricing: on a trade order, catalog add-lines default to the trade
+      // price (same rule as order creation). Cap mirrors the backend.
+      const HD_LOCKED_DISCOUNT_CAP = 10;
+      const effTradeDisc = (discount, retailLocked) => retailLocked ? Math.min(discount, HD_LOCKED_DISCOUNT_CAP) : discount;
+      const orderTradeDiscount = order && parseFloat(order.trade_discount_percent) > 0 ? parseFloat(order.trade_discount_percent) : 0;
+      const tradePrice = (retail, retailLocked) => orderTradeDiscount > 0
+        ? retail * (1 - effTradeDisc(orderTradeDiscount, retailLocked) / 100)
+        : retail;
 
       // Rebuild the add-item payload for a SKU or custom line at a given qty.
       const rebuildPayload = (it, qty) => {
@@ -20809,13 +21277,13 @@
           const skuCost = (p.cost != null && p.cost !== '' && parseFloat(p.cost) > 0) ? parseFloat(p.cost) : null;
           staged.push({ key: genKey(), type: 'add', name: (p.display_name || p.name || p.collection || p.product_name || 'Item') + (p.color ? ' ' + p.color : ''),
             vendorName: p.vendor_name || 'Roma', image: p.primary_image || null, isCustom: false, skuId: p.sku_id, sellBy, isCarpet, spb, mult,
-            qty, unitPrice: parseFloat(p.unit_price || p.price || 0), cost: skuCost });
+            qty, unitPrice: tradePrice(parseFloat(p.unit_price || p.price || 0), p.retail_locked), cost: skuCost });
         }
         for (const { acc, qty } of accessories) {
           const accCost = (acc.cost != null && parseFloat(acc.cost) > 0) ? parseFloat(acc.cost) : ((acc.vendor_cost != null && parseFloat(acc.vendor_cost) > 0) ? parseFloat(acc.vendor_cost) : null);
           staged.push({ key: genKey(), type: 'add', name: (acc.product_name || 'Accessory') + (acc.color ? ' ' + acc.color : ''),
             vendorName: acc.vendor_name || 'Roma', image: acc.primary_image || null, isCustom: false, skuId: acc.sku_id, sellBy: acc.sell_by || 'unit', isCarpet: false, spb: 0, mult: 1,
-            qty, unitPrice: parseFloat(acc.unit_price || acc.price || 0), cost: accCost });
+            qty, unitPrice: tradePrice(parseFloat(acc.unit_price || acc.price || 0), acc.retail_locked), cost: accCost });
         }
         for (const c of customs) {
           const sellBy = c.sell_by || 'box';
@@ -21121,7 +21589,7 @@
 
           {catalogOpen && (
             <RofCatalogModal
-              data={{ customer: null, newCustomerName: order.customer_name }}
+              data={{ customer: orderTradeDiscount > 0 ? { type: 'trade', discount_percent: orderTradeDiscount, tier_name: order.trade_tier_name } : null, newCustomerName: order.customer_name }}
               showCost={showCost}
               contextLabel={'Change order · ' + order.order_number}
               onClose={() => setCatalogOpen(false)}
@@ -21535,8 +22003,41 @@
         }, 300);
       };
 
+      // Trade pricing: catalog SKU lines reflect the customer's tier discount
+      // (cap mirrors the backend). Custom lines keep their entered price.
+      const HD_LOCKED_DISCOUNT_CAP = 10;
+      const effTradeDisc = (d, locked) => locked ? Math.min(d, HD_LOCKED_DISCOUNT_CAP) : d;
+      const tradeDiscountFor = (c) => (c && c.type === 'trade') ? (parseFloat(c.discount_percent || 0) || 0) : 0;
+      const tradeUnit = (retail, locked, discount) => discount > 0
+        ? retail * (1 - effTradeDisc(discount, locked) / 100) : retail;
+      // Re-price already-added SKU lines when the customer changes. Subtotal is
+      // scaled by the unit-price ratio so it stays correct for any sell-by.
+      const applyQuoteReprice = (discount) => {
+        const next = quoteItems.map(it => {
+          if (!it.sku_id || !it.retail_price) return it;
+          const retail = parseFloat(it.retail_price);
+          const oldUnit = parseFloat(it.unit_price) || retail;
+          const newUnit = tradeUnit(retail, it.retail_locked, discount);
+          const oldSub = parseFloat(it.subtotal) || 0;
+          const newSub = oldUnit > 0 ? oldSub * (newUnit / oldUnit) : newUnit;
+          return { ...it, unit_price: newUnit.toFixed(2), subtotal: newSub.toFixed(2) };
+        });
+        setQuoteItems(next);
+        if (editId) {
+          next.forEach((it, i) => {
+            const before = quoteItems[i];
+            if (it.id && before && (it.unit_price !== before.unit_price || it.subtotal !== before.subtotal)) {
+              repFetch('/api/rep/quotes/' + editId + '/items/' + it.id, {
+                method: 'PUT', body: JSON.stringify({ unit_price: it.unit_price, subtotal: it.subtotal })
+              }).catch(() => {});
+            }
+          });
+        }
+      };
+
       const selectCustomer = (c) => {
         setSelectedCustomer(c);
+        applyQuoteReprice(tradeDiscountFor(c));
         setForm(f => ({
           ...f,
           customer_name: c.name || '',
@@ -21555,6 +22056,7 @@
 
       const clearCustomer = () => {
         setSelectedCustomer(null);
+        applyQuoteReprice(0);
         setForm(f => ({ ...f, customer_name: '', customer_email: '', phone: '' }));
         setCustomerMatch(null);
         setEmailError('');
@@ -21614,7 +22116,8 @@
         setProductSearch('');
         try {
         const isCarpet = sku.price_basis === 'per_sqyd';
-        const price = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
+        const retail = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
+        const price = tradeUnit(retail, sku.retail_locked, tradeDiscountFor(selectedCustomer));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
         const sellBy = isCarpet ? 'roll' : (sku.sell_by || 'box');
         const descParts = [sku.color, sku.variant_name && sku.variant_name !== sku.color ? sku.variant_name : null].filter(Boolean).join(' · ');
@@ -21640,7 +22143,9 @@
           subtotal: subtotal.toFixed(2),
           is_sample: false,
           sell_by: sellBy,
-          _sqft_per_box: sqftPerBox
+          _sqft_per_box: sqftPerBox,
+          retail_price: retail,
+          retail_locked: !!sku.retail_locked
         };
         setAddQty(1);
 
@@ -21653,6 +22158,8 @@
           if (result.item) {
             result.item._sqft_per_box = sqftPerBox;
             result.item.vendor_cost = sku.vendor_cost || null;
+            result.item.retail_price = retail;
+            result.item.retail_locked = !!sku.retail_locked;
             setQuoteItems(prev => [...prev, result.item]);
             // Refresh quote for totals
             const qData = await repFetch('/api/rep/quotes/' + editId);
@@ -22021,9 +22528,11 @@
       // accessory rows, and custom lines into quote items
       const addFromCatalog = async ({ lines, accessories, customs }) => {
         const toAdd = [];
+        const discount = tradeDiscountFor(selectedCustomer);
         for (const { item: p, qty } of lines) {
           const isCarpet = p.price_basis === 'per_sqyd';
-          const price = parseFloat(isCarpet ? (p.cut_price || p.price || 0) : (p.price || 0));
+          const retail = parseFloat(isCarpet ? (p.cut_price || p.price || 0) : (p.price || 0));
+          const price = tradeUnit(retail, p.retail_locked, discount);
           const sqftPerBox = parseFloat(p.sqft_per_box || 0);
           const sellBy = isCarpet ? 'roll' : (p.sell_by || 'box');
           const baseName = p.display_name || p.name || p.product_name || '';
@@ -22044,12 +22553,14 @@
             },
             extra: {
               _sqft_per_box: sqftPerBox, vendor_cost: p.cost || null, primary_image: p.primary_image || null,
-              vendor_name: p.brand_name || p.vendor_name || null, vendor_sku: p.vendor_sku || p.internal_sku || null
+              vendor_name: p.brand_name || p.vendor_name || null, vendor_sku: p.vendor_sku || p.internal_sku || null,
+              retail_price: retail, retail_locked: !!p.retail_locked
             }
           });
         }
         for (const { acc, parent, qty } of accessories) {
-          const price = parseFloat(acc.retail_price || 0);
+          const accRetail = parseFloat(acc.retail_price || 0);
+          const price = tradeUnit(accRetail, acc.retail_locked, discount);
           toAdd.push({
             item: {
               sku_id: acc.sku_id, product_id: acc.product_id || null,
@@ -22061,7 +22572,8 @@
             extra: {
               vendor_cost: acc.cost || null, primary_image: acc.primary_image || null,
               vendor_name: parent ? (parent.brand_name || parent.vendor_name || null) : null,
-              vendor_sku: acc.vendor_sku || null
+              vendor_sku: acc.vendor_sku || null,
+              retail_price: accRetail, retail_locked: !!acc.retail_locked
             }
           });
         }
@@ -22611,7 +23123,12 @@
                       )}
                       {showResults && searchResults.length > 0 && (
                         <div className="rof-search-results">
-                          {searchResults.slice(0, 20).map((r, i) => (
+                          {searchResults.slice(0, 20).map((r, i) => {
+                            const rSuffix = (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft');
+                            const rRetail = parseFloat(r.price || 0);
+                            const rTrade = rofTradeUnit(rRetail, r.retail_locked, tradeDiscountFor(selectedCustomer));
+                            const rDisc = rRetail > 0 && rTrade < rRetail;
+                            return (
                             <div key={r.sku_id || i} className="rof-search-item" onMouseDown={() => addProductToQuote(r)}>
                               {r.primary_image
                                 ? <img src={optimizeImg(r.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} loading="lazy" />
@@ -22625,11 +23142,14 @@
                                 </div>
                                 <div className="rof-search-item-sub">
                                   {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
-                                  {r.price ? ' · $' + parseFloat(r.price).toFixed(2) + (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft') : ''}
+                                  {rRetail > 0 && ' · '}
+                                  {rRetail > 0 && rDisc && <span style={{ textDecoration: 'line-through', color: '#8a7e68' }}>${rRetail.toFixed(2)}</span>}
+                                  {rRetail > 0 && <span style={{ color: rDisc ? '#a87935' : undefined }}>{rDisc ? ' ' : ''}${rTrade.toFixed(2)}{rSuffix}</span>}
                                 </div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -23667,8 +24187,41 @@
         }, 300);
       };
 
+      // Trade pricing: material SKU lines reflect the customer's tier discount
+      // (cap mirrors the backend). Labor and custom lines are never discounted.
+      const HD_LOCKED_DISCOUNT_CAP = 10;
+      const effTradeDisc = (d, locked) => locked ? Math.min(d, HD_LOCKED_DISCOUNT_CAP) : d;
+      const tradeDiscountFor = (c) => (c && c.type === 'trade') ? (parseFloat(c.discount_percent || 0) || 0) : 0;
+      const tradeUnit = (retail, locked, discount) => discount > 0
+        ? retail * (1 - effTradeDisc(discount, locked) / 100) : retail;
+      // Re-price already-added material lines when the customer changes. Subtotal
+      // is scaled by the unit-price ratio so overage/sell-by stay correct.
+      const applyEstimateReprice = (discount) => {
+        const next = items.map(it => {
+          if (!it.sku_id || !it.retail_price) return it;
+          const retail = parseFloat(it.retail_price);
+          const oldUnit = parseFloat(it.unit_price) || retail;
+          const newUnit = tradeUnit(retail, it.retail_locked, discount);
+          const oldSub = parseFloat(it.subtotal) || 0;
+          const newSub = oldUnit > 0 ? oldSub * (newUnit / oldUnit) : newUnit;
+          return { ...it, unit_price: newUnit.toFixed(2), subtotal: newSub.toFixed(2) };
+        });
+        setItems(next);
+        if (estimate) {
+          next.forEach((it, i) => {
+            const before = items[i];
+            if (it.id && before && (it.unit_price !== before.unit_price || it.subtotal !== before.subtotal)) {
+              repFetch('/api/rep/estimates/' + estimate.id + '/items/' + it.id, {
+                method: 'PUT', body: JSON.stringify({ unit_price: it.unit_price, subtotal: it.subtotal })
+              }).catch(() => {});
+            }
+          });
+        }
+      };
+
       const selectCustomer = (c) => {
         setSelectedCustomer(c);
+        applyEstimateReprice(tradeDiscountFor(c));
         setForm(f => ({
           ...f,
           customer_name: c.name || '',
@@ -23687,6 +24240,7 @@
 
       const clearCustomer = () => {
         setSelectedCustomer(null);
+        applyEstimateReprice(0);
         setForm(f => ({ ...f, customer_name: '', customer_email: '', phone: '' }));
         setCustomerMatch(null);
       };
@@ -23766,7 +24320,8 @@
         setShowResults(false);
         setProductSearch('');
         const isCarpet = sku.price_basis === 'per_sqyd';
-        const price = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
+        const retail = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
+        const price = tradeUnit(retail, sku.retail_locked, tradeDiscountFor(selectedCustomer));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
         const sellBy = isCarpet ? 'roll' : (sku.sell_by || 'box');
         const descParts = [sku.color, sku.variant_name && sku.variant_name !== sku.color ? sku.variant_name : null].filter(Boolean).join(' · ');
@@ -23800,6 +24355,8 @@
           if (result.item) {
             result.item._sqft_per_box = sqftPerBox;
             result.item.vendor_cost = sku.vendor_cost || null;
+            result.item.retail_price = retail;
+            result.item.retail_locked = !!sku.retail_locked;
             setItems(prev => [...prev, result.item]);
             if (result.estimate) setEstimate(result.estimate);
           }
@@ -23810,10 +24367,12 @@
       const addFromCatalog = async ({ lines, accessories, customs }) => {
         if (!estimate) return;
         const ovFactor = overageEnabled ? 1.10 : 1;
+        const discount = tradeDiscountFor(selectedCustomer);
         const toAdd = [];
         for (const { item: p, qty } of lines) {
           const isCarpet = p.price_basis === 'per_sqyd';
-          const price = parseFloat(isCarpet ? (p.cut_price || p.price || 0) : (p.price || 0));
+          const retail = parseFloat(isCarpet ? (p.cut_price || p.price || 0) : (p.price || 0));
+          const price = tradeUnit(retail, p.retail_locked, discount);
           const sqftPerBox = parseFloat(p.sqft_per_box || 0);
           const sellBy = isCarpet ? 'roll' : (p.sell_by || 'box');
           const baseName = p.display_name || p.name || p.product_name || '';
@@ -23831,11 +24390,13 @@
               sqft_needed: sqftNeeded || null, num_boxes: isCarpet ? 1 : qty,
               unit_price: price.toFixed(2), subtotal: parseFloat(sub.toFixed(2)).toFixed(2), sell_by: sellBy
             },
-            extra: { _sqft_per_box: sqftPerBox, vendor_cost: p.cost || null, primary_image: p.primary_image || null }
+            extra: { _sqft_per_box: sqftPerBox, vendor_cost: p.cost || null, primary_image: p.primary_image || null,
+              retail_price: retail, retail_locked: !!p.retail_locked }
           });
         }
         for (const { acc, qty } of accessories) {
-          const price = parseFloat(acc.retail_price || 0);
+          const accRetail = parseFloat(acc.retail_price || 0);
+          const price = tradeUnit(accRetail, acc.retail_locked, discount);
           toAdd.push({
             item: {
               item_type: 'material', sku_id: acc.sku_id, product_id: acc.product_id || null,
@@ -23843,7 +24404,8 @@
               collection: '', sqft_needed: null, num_boxes: qty,
               unit_price: price.toFixed(2), subtotal: (price * qty).toFixed(2), sell_by: acc.sell_by || 'unit'
             },
-            extra: { vendor_cost: acc.cost || null, primary_image: acc.primary_image || null }
+            extra: { vendor_cost: acc.cost || null, primary_image: acc.primary_image || null,
+              retail_price: accRetail, retail_locked: !!acc.retail_locked }
           });
         }
         for (const c of customs) {
@@ -24417,7 +24979,12 @@
                       )}
                       {showResults && searchResults.length > 0 && (
                         <div className="rof-search-results">
-                          {searchResults.slice(0, 20).map((r, i) => (
+                          {searchResults.slice(0, 20).map((r, i) => {
+                            const rSuffix = (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft');
+                            const rRetail = parseFloat(r.price || 0);
+                            const rTrade = rofTradeUnit(rRetail, r.retail_locked, tradeDiscountFor(selectedCustomer));
+                            const rDisc = rRetail > 0 && rTrade < rRetail;
+                            return (
                             <div key={r.sku_id || i} className="rof-search-item" onMouseDown={() => addProductToEstimate(r)}>
                               {r.primary_image
                                 ? <img src={optimizeImg(r.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} loading="lazy" />
@@ -24431,11 +24998,14 @@
                                 </div>
                                 <div className="rof-search-item-sub">
                                   {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
-                                  {r.price ? ' · $' + parseFloat(r.price).toFixed(2) + (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft') : ''}
+                                  {rRetail > 0 && ' · '}
+                                  {rRetail > 0 && rDisc && <span style={{ textDecoration: 'line-through', color: '#8a7e68' }}>${rRetail.toFixed(2)}</span>}
+                                  {rRetail > 0 && <span style={{ color: rDisc ? '#a87935' : undefined }}>{rDisc ? ' ' : ''}${rTrade.toFixed(2)}{rSuffix}</span>}
                                 </div>
                               </div>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>

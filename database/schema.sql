@@ -1354,6 +1354,39 @@ CREATE TABLE IF NOT EXISTS return_items (
 );
 CREATE INDEX IF NOT EXISTS idx_return_items_return ON return_items(return_id);
 
+-- Material releases — authorize a subset of an order's materials to leave the
+-- warehouse for pickup/delivery, possibly in several stages. A pure fulfillment-
+-- authorization overlay: it does NOT touch the order status stepper or inventory.
+-- Remaining-to-release for a line = order_items.num_boxes − SUM(release_qty across
+-- this order's non-void releases). Samples are excluded. Rep-created rows leave
+-- released_by NULL and carry released_by_name (reps aren't in staff_accounts).
+CREATE TABLE IF NOT EXISTS material_releases (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    release_number TEXT UNIQUE NOT NULL,
+    order_id UUID NOT NULL REFERENCES orders(id),
+    status VARCHAR(20) DEFAULT 'released' CHECK (status IN ('released','completed','void')),
+    release_method VARCHAR(20) DEFAULT 'pickup',   -- 'pickup' | 'delivery'
+    recipient_name TEXT,                            -- who picks up / receives
+    notes TEXT,
+    released_by UUID REFERENCES staff_accounts(id), -- staff only; rep rows use released_by_name
+    released_by_name TEXT,
+    released_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,                          -- picked up / delivered confirmation
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_material_releases_order ON material_releases(order_id);
+
+CREATE TABLE IF NOT EXISTS release_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    release_id UUID NOT NULL REFERENCES material_releases(id) ON DELETE CASCADE,
+    order_item_id UUID REFERENCES order_items(id),
+    sku_id UUID REFERENCES skus(id),
+    product_name TEXT,
+    release_qty DECIMAL(10,2) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_release_items_release ON release_items(release_id);
+
 -- Inventory adjustment ledger — restocks post a positive delta to the Roma-owned
 -- local warehouse (ROMA-ANAHEIM) so we don't fight scraper-owned vendor snapshots.
 CREATE TABLE IF NOT EXISTS inventory_adjustments (

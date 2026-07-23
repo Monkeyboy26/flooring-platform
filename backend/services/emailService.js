@@ -24,6 +24,7 @@ import { generateProductShareHTML } from '../templates/productShare.js';
 import { generatePaymentRequestHTML } from '../templates/paymentRequest.js';
 import { generatePaymentReceivedHTML } from '../templates/paymentReceived.js';
 import { generateCreditMemoIssuedHTML } from '../templates/creditMemoIssued.js';
+import { generateMaterialReleaseHTML } from '../templates/materialRelease.js';
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -160,6 +161,30 @@ export async function sendCreditMemoIssued(data, opts = {}) {
     return { sent: true };
   } catch (err) {
     console.error(`[Email] Failed to send credit memo email for ${data.cm_number}:`, err.message);
+    return { sent: false };
+  }
+}
+
+export async function sendMaterialRelease(data, opts = {}) {
+  if (!transporter) {
+    console.log(`[Email] Skipping material release email for ${data.release_number} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateMaterialReleaseHTML(data);
+    const isDelivery = data.release_method === 'delivery';
+    await deliver({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: data.customer_email,
+      replyTo: data.rep_email,
+      subject: `Material release ${data.release_number} — your order is ${isDelivery ? 'released for delivery' : 'ready for pickup'}`,
+      html,
+      ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {})
+    });
+    console.log(`[Email] Material release email sent to ${data.customer_email} for ${data.release_number}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send material release email for ${data.release_number}:`, err.message);
     return { sent: false };
   }
 }

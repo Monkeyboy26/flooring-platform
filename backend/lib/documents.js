@@ -1198,6 +1198,168 @@ ${totalsRows}
 </html>`;
 }
 
+// Material release form — a warehouse pickup/delivery authorization slip. Lists the
+// released items + quantities, the recipient, and a signature block. Mirrors the
+// credit-memo doc's Brass-Charcoal styling. No pricing — this is a fulfillment
+// authorization, not a financial document.
+export function generateReleaseFormDoc(release, items, opts = {}) {
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const issued = longDate(release.released_at || release.created_at);
+  const orderNumber = opts.orderNumber || release.order_number || (release.order_id ? 'RD-' + String(release.order_id).substring(0, 8).toUpperCase() : '—');
+  const relNumber = release.release_number || 'REL-' + String(release.id).substring(0, 8).toUpperCase();
+  const isDelivery = release.release_method === 'delivery';
+  const methodLabel = isDelivery ? 'Delivery' : 'Warehouse pickup';
+
+  const statusMap = { released: 'Authorized', completed: isDelivery ? 'Delivered' : 'Picked up', void: 'Voided' };
+  const statusLabel = statusMap[release.status] || 'Authorized';
+  const isVoid = release.status === 'void';
+  const stampColor = isVoid ? '#a13b32' : '#3f7a4f';
+  const stampText = isVoid ? 'Voided' : 'Released';
+
+  const deliveryAddr = [release.shipping_address_line1, release.shipping_address_line2,
+    [release.shipping_city, release.shipping_state, release.shipping_zip].filter(Boolean).join(', ')]
+    .filter(Boolean).join('<br />');
+
+  const SWATCH_FALLBACKS = [
+    'linear-gradient(135deg,#caa97f,#7a5635)',
+    'linear-gradient(135deg,#ebe7df,#a8a59e)',
+    'linear-gradient(135deg,#e7e3db,#b0aca4)',
+    'linear-gradient(135deg,#a89074,#5e4a36)',
+  ];
+
+  const rowsHtml = items.map((i, idx) => {
+    const qty = parseFloat(i.release_qty || 0) || 0;
+    const ordered = parseFloat(i.ordered_qty || 0);
+    const unit = i.sell_by === 'unit' ? 'unit' : i.sell_by === 'roll' ? 'roll' : 'box';
+    const name = i.product_name || i.collection || '—';
+    const suffix = [...new Set([i.color, i.variant_name].filter(Boolean))].filter(v => v !== name).join(' · ');
+    const skuLine = [...new Set([
+      i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
+      i.collection && i.collection !== name ? i.collection : null,
+      i.vendor_name
+    ].filter(Boolean))].join(' · ');
+    const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
+    const swatchSrc = i.primary_image
+      ? `http://localhost:${process.env.PORT || 3001}/api/img?url=${encodeURIComponent(i.primary_image)}&w=64&f=jpeg`
+      : null;
+    const swatch = swatchSrc
+      ? `<div class="swatch" style="background:${gradient};overflow:hidden;"><img src="${swatchSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
+      : `<div class="swatch" style="background:${gradient};"></div>`;
+    return `<div class="grid-row keep" style="padding:12px 0;${idx < items.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+      ${swatch}
+      <div>
+        <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${name}${suffix ? ` <span style="color:var(--muted);font-weight:400;">· ${suffix}</span>` : ''}</div>
+        ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
+      </div>
+      <div class="num">${ordered ? ordered : '—'}<div class="numsub">ordered</div></div>
+      <div class="line-total">${qty}<div class="numsub" style="font-weight:400;">${qty === 1 ? unit : unit + 's'} released</div></div>
+    </div>`;
+  }).join('');
+
+  const totalQty = items.reduce((s, i) => s + (parseFloat(i.release_qty || 0) || 0), 0);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+:root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
+*{box-sizing:border-box}
+body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
+@media screen{body{padding:48px 56px;max-width:816px;margin:0 auto}}
+.mono{font:500 9px/1 ui-monospace,monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted)}
+.small{font:400 10px/1.5 var(--sans);color:#1c1917cc}
+.grid-row{display:grid;grid-template-columns:32px 1fr 90px 120px;gap:12px;align-items:flex-start}
+.swatch{width:32px;height:32px;border:0.5px solid #1c191733}
+.num{text-align:right;font:400 11px/1.2 var(--sans)}
+.numsub{font:400 9px/1.4 var(--sans);color:var(--muted);margin-top:2px}
+.line-total{text-align:right;font:500 12px/1.2 var(--serif)}
+.keep{break-inside:avoid;orphans:3;widows:3}
+</style>
+</head>
+<body>
+
+<div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
+<div>
+<div style="font:300 36px/1 var(--serif);letter-spacing:-0.014em;">Roma</div>
+<div class="mono" style="font-size:8px;letter-spacing:0.22em;margin-top:4px;">Flooring · Surfaces · Anaheim</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+</div>
+<div style="text-align:right;min-width:220px;">
+<div class="mono" style="letter-spacing:0.22em;">Material Release</div>
+<div style="font:300 32px/1 var(--serif);letter-spacing:-0.014em;margin-top:6px;">${relNumber}</div>
+<div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
+<span style="color:var(--muted);">Released</span><span style="text-align:right;">${issued || '—'}</span>
+<span style="color:var(--muted);">Order</span><span style="text-align:right;">${orderNumber}</span>
+<span style="color:var(--muted);">Method</span><span style="text-align:right;">${methodLabel}</span>
+<span style="color:var(--muted);">Status</span><span class="mono" style="color:${stampColor};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
+</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:8px;border-bottom:1px solid #1c191711;align-items:center;">
+<div style="font:500 9px/1.4 var(--sans);letter-spacing:0.06em;color:#1c1917cc;">
+This document authorizes the materials below to be ${isDelivery ? 'delivered' : 'released for pickup'} against order ${orderNumber}. Present it at the Anaheim warehouse. Quantities are in cartons/units as sold.
+</div>
+<div style="padding:8px 14px;border:1.5px solid ${stampColor};color:${stampColor};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</div>
+</div>
+
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 22px;border-bottom:1px solid #1c191722;">
+<div>
+<div class="mono" style="margin-bottom:8px;">Released to</div>
+<div style="font:500 11px/1.2 var(--sans);">${release.recipient_name || release.customer_name || '—'}</div>
+<div class="small" style="margin-top:4px;">${[release.customer_name && release.recipient_name && release.customer_name !== release.recipient_name ? 'On order for ' + release.customer_name : null, release.customer_email, release.phone].filter(Boolean).join('<br />')}</div>
+</div>
+<div>
+<div class="mono" style="margin-bottom:8px;">${isDelivery ? 'Deliver to' : 'Pickup at'}</div>
+<div style="font:500 11px/1.2 var(--sans);">${isDelivery ? (deliveryAddr || 'Delivery address on file') : 'Roma — Anaheim'}</div>
+<div class="small" style="margin-top:4px;">${isDelivery ? '' : '1440 S. State College Blvd #6M<br />Anaheim, CA 92806'}</div>
+</div>
+<div>
+<div class="mono" style="margin-bottom:8px;">Authorized by</div>
+<div style="font:500 11px/1.2 var(--sans);">${release.released_by_name || 'Roma team'}</div>
+<div class="small" style="margin-top:4px;">${release.rep_email ? release.rep_email + '<br />' : ''}(714) 999-0009</div>
+</div>
+</div>
+
+<div style="padding-top:18px;">
+<div class="grid-row" style="padding-bottom:10px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
+<span></span><span>Item</span><span style="text-align:right;">Ordered</span><span style="text-align:right;">Released</span>
+</div>
+${rowsHtml}
+</div>
+
+<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
+<div style="padding-top:4px;" class="small">
+${release.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;">${String(release.notes).replace(/</g, '&lt;')}</div>` : ''}
+<div class="mono" style="margin-bottom:8px;">Received in good condition</div>
+<div style="display:grid;grid-template-columns:1fr 120px;gap:24px;margin-top:26px;">
+<div style="border-top:1px solid var(--ink);padding-top:6px;font:400 9px/1.4 var(--sans);color:var(--muted);">Recipient signature</div>
+<div style="border-top:1px solid var(--ink);padding-top:6px;font:400 9px/1.4 var(--sans);color:var(--muted);">Date</div>
+</div>
+</div>
+<div>
+<div style="padding-top:8px;border-top:1.5px solid var(--ink);display:flex;justify-content:space-between;align-items:baseline;">
+<span class="mono" style="color:var(--ink);letter-spacing:0.18em;">Total released</span>
+<span style="font:300 28px/1 var(--serif);letter-spacing:-0.012em;">${parseFloat(totalQty.toFixed(2))}</span>
+</div>
+<div style="margin-top:6px;padding-top:8px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:baseline;">
+<span class="mono" style="color:var(--muted);letter-spacing:0.18em;">${items.length} line${items.length === 1 ? '' : 's'}</span>
+<span class="mono" style="color:${stampColor};letter-spacing:0.14em;">● ${statusLabel}</span>
+</div>
+</div>
+</div>
+
+<div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
+<span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Release ${relNumber}</span>
+</div>
+
+</body>
+</html>`;
+}
+
 // Showroom sample labels — Avery 5163 sheet layout (2"×4" labels, 2 columns × 5 rows,
 // 10 per US Letter page). Each label states the product/collection name, this tile's
 // color/variant, a compact "also available" summary (colors/sizes + accessories), and a

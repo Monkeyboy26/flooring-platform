@@ -8,7 +8,7 @@ import XLSX from 'xlsx';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -25,7 +25,7 @@ import { calculateSalesTax, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } fro
 import { recalculateBalance, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { createCustomerHelpers } from './lib/customerHelpers.js';
-import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
+import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -8108,7 +8108,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       // SKU mode: Look up SKU + product + pricing + cost + color
       const skuResult = await client.query(`
         SELECT s.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
-          pr.retail_price, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
+          pr.retail_price, pr.retail_locked, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
           pr.cut_cost, pr.roll_cost,
           pk.sqft_per_box, pk.weight_per_box_lbs, pk.roll_width_ft,
           sa_c.value as color
@@ -8124,7 +8124,22 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       sku = skuResult.rows[0];
 
       const isCarpet = sku.price_basis === 'per_sqyd';
-      unitPrice = parseFloat(sku.retail_price || 0);
+      // Default to retail, or the customer's trade price when this is a trade
+      // order (matches order creation). An explicit override still wins.
+      const retailUnit = parseFloat(sku.retail_price || 0);
+      let tradeDiscount = 0;
+      if (order.trade_customer_id) {
+        const tier = await client.query(`
+          SELECT COALESCE(mt.discount_percent, 0) AS discount_percent
+          FROM trade_customers tc
+          LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+          WHERE tc.id = $1
+        `, [order.trade_customer_id]);
+        tradeDiscount = tier.rows.length ? parseFloat(tier.rows[0].discount_percent) || 0 : 0;
+      }
+      unitPrice = tradeDiscount > 0
+        ? retailUnit * (1 - effTradeDiscount(tradeDiscount, sku.retail_locked) / 100)
+        : retailUnit;
       // Allow an explicit price override (e.g. change-order add-line editing).
       if (unit_price != null && unit_price !== '' && !isNaN(parseFloat(unit_price)) && parseFloat(unit_price) >= 0) {
         unitPrice = parseFloat(unit_price);
@@ -12481,6 +12496,48 @@ app.get('/api/staff/returns/:id/credit-memo', staffDocAuth, async (req, res) => 
   }
 });
 
+// Build the material-release form HTML + filename. opts.repId scopes to a rep's own orders.
+async function generateReleaseFormHtml(releaseId, opts = {}) {
+  const rel = await pool.query(`
+    SELECT mr.*, o.order_number, o.customer_name, o.customer_email, o.phone,
+      o.shipping_address_line1, o.shipping_address_line2, o.shipping_city, o.shipping_state, o.shipping_zip,
+      sr.first_name || ' ' || sr.last_name AS rep_name, sr.email AS rep_email
+    FROM material_releases mr
+    JOIN orders o ON o.id = mr.order_id
+    LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+    WHERE mr.id = $1 ${opts.repId ? 'AND o.sales_rep_id = $2' : ''}`,
+    opts.repId ? [releaseId, opts.repId] : [releaseId]);
+  if (!rel.rows.length) return null;
+  const release = rel.rows[0];
+  const items = await pool.query(`
+    SELECT ri.*, oi.collection, oi.sell_by, oi.num_boxes AS ordered_qty,
+      sk.variant_name, sk.vendor_sku, sa_c.value AS color, v.name AS vendor_name,
+      (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) AS primary_image
+    FROM release_items ri
+    LEFT JOIN order_items oi ON oi.id = ri.order_item_id
+    LEFT JOIN skus sk ON sk.id = ri.sku_id
+    LEFT JOIN products pr ON pr.id = COALESCE(sk.product_id, oi.product_id)
+    LEFT JOIN vendors v ON v.id = pr.vendor_id
+    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ri.sku_id
+      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+    WHERE ri.release_id = $1 ORDER BY ri.created_at`, [release.id]);
+  return {
+    html: generateReleaseFormDoc(release, items.rows),
+    filename: `${release.release_number}-release.pdf`,
+  };
+}
+
+// Material release form PDF (rep) — only for releases on the rep's own orders.
+app.get('/api/rep/releases/:id/release-form', repAuth, async (req, res) => {
+  try {
+    const result = await generateReleaseFormHtml(req.params.id, { repId: req.rep.id });
+    if (!result) return res.status(404).json({ error: 'Release not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Send invoice email from admin (with optional payment request if balance due)
 app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
   try {
@@ -14486,6 +14543,19 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       phone, repId: req.rep.id, createdVia: 'order'
     });
 
+    // If this email belongs to a trade account, apply their margin-tier
+    // discount to catalog (SKU) line items — same rule as the storefront and
+    // the RoF quote flow. Custom/one-off lines keep the rep-entered price.
+    const tradeLookup = await client.query(`
+      SELECT tc.id, COALESCE(mt.discount_percent, 0) AS discount_percent, mt.name AS tier_name
+      FROM trade_customers tc
+      LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      WHERE LOWER(tc.email) = LOWER($1)
+      LIMIT 1
+    `, [customer_email]);
+    const tradeCustomer = tradeLookup.rows[0] || null;
+    const tradeDiscount = tradeCustomer ? parseFloat(tradeCustomer.discount_percent) || 0 : 0;
+
     // Resolve items
     const resolvedItems = [];
     for (const item of items) {
@@ -14510,7 +14580,10 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
 
         const sku = skuResult.rows[0];
         const numBoxes = parseInt(item.num_boxes) || 1;
-        const unitPrice = parseFloat(sku.retail_price || 0);
+        const retailUnit = parseFloat(sku.retail_price || 0);
+        const unitPrice = tradeDiscount > 0
+          ? retailUnit * (1 - effTradeDiscount(tradeDiscount, sku.retail_locked) / 100)
+          : retailUnit;
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
         const sqftNeeded = sqftPerBox > 0 ? sqftPerBox * numBoxes : null;
         let subtotal;
@@ -14652,8 +14725,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
         subtotal, shipping, total, status, sales_rep_id, payment_method, delivery_method,
         stripe_payment_intent_id, promo_code_id, promo_code, discount_amount,
-        amount_paid, customer_id, tax_rate, tax_amount, notes)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25)
+        amount_paid, customer_id, tax_rate, tax_amount, notes, trade_customer_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25, $26)
       RETURNING *
     `, [orderNumber, customer_email.toLowerCase().trim(), customer_name, phone || null,
         isPickup ? null : shipping_address.line1, isPickup ? null : (shipping_address.line2 || null),
@@ -14662,7 +14735,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         isPickup ? 'pickup' : 'shipping',
         stripePaymentIntentId, promoCodeId, promoCodeStr, discountAmount.toFixed(2),
         paidInStore ? total.toFixed(2) : '0.00', cust.id, taxRate, taxAmount.toFixed(2),
-        shippingCost.toFixed(2), orderNotes]);
+        shippingCost.toFixed(2), orderNotes, tradeCustomer ? tradeCustomer.id : null]);
 
     const order = orderResult.rows[0];
 
@@ -14773,11 +14846,30 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
     `, [id, req.rep.id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
 
+    // Attach the trade tier discount (if this is a trade order) so change-order
+    // add-lines can default to trade pricing, matching order creation.
+    if (order.rows[0].trade_customer_id) {
+      const tier = await pool.query(`
+        SELECT COALESCE(mt.discount_percent, 0) AS discount_percent, mt.name AS tier_name
+        FROM trade_customers tc
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        WHERE tc.id = $1
+      `, [order.rows[0].trade_customer_id]);
+      order.rows[0].trade_discount_percent = tier.rows.length ? parseFloat(tier.rows[0].discount_percent) || 0 : 0;
+      order.rows[0].trade_tier_name = tier.rows.length ? tier.rows[0].tier_name : null;
+    } else {
+      order.rows[0].trade_discount_percent = 0;
+      order.rows[0].trade_tier_name = null;
+    }
+
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
         COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, s.vendor_sku, s.variant_name,
         sa_c.value as color, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
         cat.name as category_name,
+        COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
+          JOIN material_releases mr ON mr.id = ri.release_id
+          WHERE ri.order_item_id = oi.id AND mr.status != 'void'), 0) as already_released,
         (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -14791,6 +14883,14 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       WHERE oi.order_id = $1
       ORDER BY oi.id
+    `, [id]);
+
+    // Material releases for this order (newest first) with a per-release qty summary.
+    const releases = await pool.query(`
+      SELECT mr.*,
+        (SELECT COALESCE(SUM(ri.release_qty), 0) FROM release_items ri WHERE ri.release_id = mr.id) as total_qty,
+        (SELECT COUNT(*)::int FROM release_items ri WHERE ri.release_id = mr.id) as line_count
+      FROM material_releases mr WHERE mr.order_id = $1 ORDER BY mr.created_at DESC
     `, [id]);
 
     // Get price adjustment history for each item
@@ -14828,7 +14928,8 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       payment_requests: paymentRequests.rows,
       balance: balanceInfo,
       commission: commission.rows[0] || null,
-      invoices: invoices.rows
+      invoices: invoices.rows,
+      releases: releases.rows
     });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -15371,7 +15472,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     if (!isCustom) {
       const skuResult = await client.query(`
         SELECT s.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
-          pr.retail_price, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
+          pr.retail_price, pr.retail_locked, pr.price_basis, pr.cost, pr.cut_price, pr.roll_price,
           pr.cut_cost, pr.roll_cost,
           pk.sqft_per_box, pk.weight_per_box_lbs, pk.roll_width_ft,
           sa_c.value as color
@@ -15387,7 +15488,22 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       sku = skuResult.rows[0];
 
       const isCarpet = sku.price_basis === 'per_sqyd';
-      unitPrice = parseFloat(sku.retail_price || 0);
+      // Default to retail, or the customer's trade price when this is a trade
+      // order (matches order creation). An explicit override still wins.
+      const retailUnit = parseFloat(sku.retail_price || 0);
+      let tradeDiscount = 0;
+      if (order.trade_customer_id) {
+        const tier = await client.query(`
+          SELECT COALESCE(mt.discount_percent, 0) AS discount_percent
+          FROM trade_customers tc
+          LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+          WHERE tc.id = $1
+        `, [order.trade_customer_id]);
+        tradeDiscount = tier.rows.length ? parseFloat(tier.rows[0].discount_percent) || 0 : 0;
+      }
+      unitPrice = tradeDiscount > 0
+        ? retailUnit * (1 - effTradeDiscount(tradeDiscount, sku.retail_locked) / 100)
+        : retailUnit;
       // Allow an explicit price override (e.g. change-order add-line editing).
       if (unit_price != null && unit_price !== '' && !isNaN(parseFloat(unit_price)) && parseFloat(unit_price) >= 0) {
         unitPrice = parseFloat(unit_price);
@@ -16414,6 +16530,206 @@ app.get('/api/staff/orders/:id/returns', staffAuth, async (req, res) => {
 });
 
 
+// ==================== Material Releases ====================
+// Authorize a subset of an order's materials to leave the warehouse for
+// pickup/delivery, in one or more stages. Pure fulfillment-authorization overlay:
+// it does NOT change the order status stepper or touch inventory. Remaining-to-
+// release per line = num_boxes − SUM(release_qty across non-void releases).
+
+const RELEASABLE_STATUSES = ['confirmed', 'shipped', 'ready_for_pickup', 'delivered'];
+
+// Sum of qty already released for one order item (excludes void releases).
+async function priorReleasedQty(queryable, orderItemId) {
+  const r = await queryable.query(
+    `SELECT COALESCE(SUM(ri.release_qty), 0) AS q
+     FROM release_items ri JOIN material_releases mr ON mr.id = ri.release_id
+     WHERE ri.order_item_id = $1 AND mr.status != 'void'`, [orderItemId]);
+  return parseFloat(r.rows[0].q);
+}
+
+async function processRelease(client, { id, order, lines, release_method, recipient_name, notes, actor }) {
+  if (!Array.isArray(lines) || !lines.length) throw new Error('Select at least one line to release');
+  const { performerId, name: actorName, staffId: actorStaffId } = actor;
+  const method = release_method === 'delivery' ? 'delivery' : 'pickup';
+
+  const computed = [];
+  for (const l of lines) {
+    const oiRes = await client.query('SELECT * FROM order_items WHERE id = $1 AND order_id = $2', [l.order_item_id, id]);
+    if (!oiRes.rows.length) throw new Error('Order item not found on this order');
+    const oi = oiRes.rows[0];
+    if (oi.is_sample) throw new Error('Samples cannot be released');
+    const orderedQty = parseFloat(oi.num_boxes || 0);
+    const prior = await priorReleasedQty(client, l.order_item_id);
+    const qty = parseFloat(l.release_qty);
+    if (!(qty > 0)) throw new Error('Release quantity must be positive');
+    if (prior + qty > orderedQty + 0.001) {
+      throw new Error(`Cannot release ${qty} of "${oi.product_name}" — only ${parseFloat((orderedQty - prior).toFixed(2))} remain to release`);
+    }
+    computed.push({ oi, qty });
+  }
+
+  const releaseNumber = await getNextReleaseNumber(client);
+  const relRes = await client.query(`
+    INSERT INTO material_releases (release_number, order_id, status, release_method, recipient_name, notes, released_by, released_by_name)
+    VALUES ($1,$2,'released',$3,$4,$5,$6,$7) RETURNING *`,
+    [releaseNumber, id, method, recipient_name || null, notes || null, actorStaffId || null, actorName]);
+  const release = relRes.rows[0];
+
+  for (const c of computed) {
+    await client.query(`
+      INSERT INTO release_items (release_id, order_item_id, sku_id, product_name, release_qty)
+      VALUES ($1,$2,$3,$4,$5)`,
+      [release.id, c.oi.id, c.oi.sku_id, c.oi.product_name, c.qty]);
+  }
+
+  // Fully released? every non-sample line's total released (incl. this release) covers the ordered qty.
+  const allRes = await client.query(`
+    SELECT oi.id, oi.num_boxes::numeric AS num_boxes,
+      COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
+        JOIN material_releases mr ON mr.id = ri.release_id
+        WHERE ri.order_item_id = oi.id AND mr.status != 'void'), 0) AS released
+    FROM order_items oi WHERE oi.order_id = $1 AND NOT oi.is_sample`, [id]);
+  const isFull = allRes.rows.length > 0 && allRes.rows.every(it =>
+    parseFloat(it.released) + 0.001 >= parseFloat(it.num_boxes || 0));
+
+  await logOrderActivity(client, id, 'material_released', performerId, actorName,
+    { release: releaseNumber, method, lines: computed.length,
+      qty: computed.reduce((s, c) => s + c.qty, 0), is_full: isFull });
+
+  return { release, computed, releaseNumber, isFull };
+}
+
+// Fire the material-release email after a release commits (non-blocking).
+async function emailMaterialRelease({ order, release, computed, actorName, actorEmail }) {
+  if (!order.customer_email) return;
+  try {
+    await sendMaterialRelease({
+      release_number: release.release_number, order_number: order.order_number,
+      customer_name: order.customer_name, customer_email: order.customer_email,
+      release_method: release.release_method, recipient_name: release.recipient_name,
+      created_at: release.released_at, notes: release.notes,
+      rep_name: actorName, rep_email: actorEmail,
+      items: computed.map(c => ({ description: c.oi.product_name, qty: c.qty, sell_by: c.oi.sell_by })),
+    });
+  } catch (mailErr) {
+    console.error('[Releases] Release email failed for', release.release_number, '-', mailErr.message);
+  }
+}
+
+// Release context — order + releasable (non-sample) lines with remaining-to-release.
+app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = oRes.rows[0];
+    const itemsRes = await pool.query(`
+      SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.sqft_needed, oi.sell_by, oi.sku_id,
+        COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
+        s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, cat.name AS category_name,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+        COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
+          JOIN material_releases mr ON mr.id = ri.release_id
+          WHERE ri.order_item_id = oi.id AND mr.status != 'void'), 0) AS already_released,
+        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) AS primary_image
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN categories cat ON cat.id = p.category_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE oi.order_id = $1 AND NOT oi.is_sample ORDER BY oi.id`, [id]);
+    res.json({ order, items: itemsRes.rows, releasable: RELEASABLE_STATUSES.includes(order.status) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Create a material release for an order (rep, ownership-scoped).
+app.post('/api/rep/orders/:id/releases', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { lines, release_method, recipient_name, notes } = req.body || {};
+    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = oRes.rows[0];
+    if (!RELEASABLE_STATUSES.includes(order.status)) {
+      return res.status(400).json({ error: 'Materials can only be released once the order is confirmed (paid).' });
+    }
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await client.query('BEGIN');
+    const result = await processRelease(client, {
+      id, order, lines, release_method, recipient_name, notes,
+      actor: { performerId: req.rep.id, name: repName, staffId: null },
+    });
+    await client.query('COMMIT');
+    await emailMaterialRelease({ order, release: result.release, computed: result.computed, actorName: repName, actorEmail: req.rep.email });
+    res.json({ success: true, release: result.release, is_full: result.isFull });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err);
+    res.status(400).json({ error: err.message || 'Failed to create release' });
+  } finally {
+    client.release();
+  }
+});
+
+// Mark a release completed (materials picked up / delivered).
+app.post('/api/rep/releases/:releaseId/complete', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { releaseId } = req.params;
+    await client.query('BEGIN');
+    const rRes = await client.query(`
+      SELECT mr.*, o.sales_rep_id, o.order_number FROM material_releases mr
+      JOIN orders o ON o.id = mr.order_id
+      WHERE mr.id = $1 AND o.sales_rep_id = $2 FOR UPDATE OF mr`, [releaseId, req.rep.id]);
+    if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Release not found' }); }
+    const rel = rRes.rows[0];
+    if (rel.status !== 'released') { await client.query('ROLLBACK'); return res.status(400).json({ error: `Release is already ${rel.status}` }); }
+    const upd = await client.query(
+      "UPDATE material_releases SET status = 'completed', completed_at = NOW() WHERE id = $1 RETURNING *", [releaseId]);
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, rel.order_id, 'release_completed', req.rep.id, repName,
+      { release: rel.release_number, method: rel.release_method });
+    await client.query('COMMIT');
+    res.json({ success: true, release: upd.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Void a release — restores its quantities to releasable.
+app.post('/api/rep/releases/:releaseId/void', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { releaseId } = req.params;
+    await client.query('BEGIN');
+    const rRes = await client.query(`
+      SELECT mr.*, o.sales_rep_id FROM material_releases mr
+      JOIN orders o ON o.id = mr.order_id
+      WHERE mr.id = $1 AND o.sales_rep_id = $2 FOR UPDATE OF mr`, [releaseId, req.rep.id]);
+    if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Release not found' }); }
+    const rel = rRes.rows[0];
+    if (rel.status === 'void') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Release is already void' }); }
+    const upd = await client.query("UPDATE material_releases SET status = 'void' WHERE id = $1 RETURNING *", [releaseId]);
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, rel.order_id, 'release_void', req.rep.id, repName,
+      { release: rel.release_number, reason: (req.body && req.body.reason) || null });
+    await client.query('COMMIT');
+    res.json({ success: true, release: upd.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // Vendors list for rep (used in custom item dropdown)
 app.get('/api/rep/vendors', repAuth, async (req, res) => {
   try {
@@ -16609,7 +16925,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
         s.id as sku_id, s.variant_name, s.variant_type, s.accessory_label,
         s.vendor_sku, s.internal_sku, s.sell_by,
         (SELECT COUNT(*)::int FROM skus s2 WHERE s2.product_id = p.id AND s2.status = 'active' AND s2.is_sample = false) as sku_count,
-        pr.retail_price as price, pr.cost as cost, pr.map_price, pr.price_basis,
+        pr.retail_price as price, pr.cost as cost, pr.map_price, pr.price_basis, pr.retail_locked,
         pk.sqft_per_box, pk.weight_per_box_lbs as weight_per_box, pk.pieces_per_box,
         (SELECT COUNT(*)::int FROM sku_accessories sacc
          JOIN skus acc ON acc.id = sacc.accessory_sku_id AND acc.status = 'active'
@@ -22930,6 +23246,17 @@ async function getNextCreditMemoNumber(client) {
   const prefix = 'CM-' + new Date().getFullYear() + '-';
   const result = await q.query(
     "SELECT COALESCE(MAX((substring(credit_memo_number FROM $2))::int), 0) AS maxnum FROM credit_memos WHERE credit_memo_number ~ $1",
+    ['^' + prefix + '[0-9]+$', '^' + prefix + '([0-9]+)$']
+  );
+  return prefix + String((result.rows[0].maxnum || 0) + 1).padStart(4, '0');
+}
+
+// Material release numbers — REL-2026-0001. Same MAX-based, year-scoped scheme.
+async function getNextReleaseNumber(client) {
+  const q = client || pool;
+  const prefix = 'REL-' + new Date().getFullYear() + '-';
+  const result = await q.query(
+    "SELECT COALESCE(MAX((substring(release_number FROM $2))::int), 0) AS maxnum FROM material_releases WHERE release_number ~ $1",
     ['^' + prefix + '[0-9]+$', '^' + prefix + '([0-9]+)$']
   );
   return prefix + String((result.rows[0].maxnum || 0) + 1).padStart(4, '0');
