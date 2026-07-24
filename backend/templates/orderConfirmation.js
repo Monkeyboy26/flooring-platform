@@ -19,7 +19,10 @@ export function generateOrderConfirmationHTML(orderData) {
     const isSample = item.is_sample;
     const name = esc(item.product_name || 'Product');
     const collection = item.collection ? esc(item.collection) : '';
-    const qty = isSample
+    const isLabor = (item.item_type || 'material') === 'labor';
+    const qty = isLabor
+      ? (item.rate_type === 'per_sqft' ? `${parseFloat(item.labor_sqft || 0).toFixed(0)} sqft` : 'Service')
+      : isSample
       ? `${item.num_boxes} sample${item.num_boxes > 1 ? 's' : ''}`
       : item.sell_by === 'unit' ? `${item.num_boxes}` : `${item.num_boxes} box${item.num_boxes > 1 ? 'es' : ''}`;
     const price = isSample ? 'Free' : money(item.subtotal);

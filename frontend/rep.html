@@ -4104,10 +4104,11 @@
       background: none;
       border: none;
       cursor: pointer;
-      padding: 0;
-      transition: color 0.15s;
+      padding: 0.3rem 0.45rem;
+      border-radius: 3px;
+      transition: color 0.15s, background 0.15s;
     }
-    .rof-card-action:hover { color: #1c1917; }
+    .rof-card-action:hover { color: #1c1917; background: rgba(28,25,23,0.045); }
     .rof-card-body {
       padding: 1.25rem;
     }
@@ -4217,6 +4218,7 @@
       z-index: 100;
       max-height: 280px;
       overflow-y: auto;
+      border-radius: 0 0 4px 4px;
       box-shadow: 0 8px 24px rgba(28,25,23,0.12);
     }
     .rof-search-item {
@@ -4229,6 +4231,7 @@
       transition: background 0.1s;
     }
     .rof-search-item:hover { background: rgba(28,25,23,0.04); }
+    .rof-search-item img { border-radius: 3px; }
     .rof-search-item-name {
       font: 500 0.8125rem/1.3 'Inter', sans-serif;
       color: #1c1917;
@@ -4315,19 +4318,27 @@
     /* Items row with material swatch */
     .rof-item-row {
       display: grid;
-      grid-template-columns: 36px 1fr 84px 82px 104px 112px;
+      grid-template-columns: 36px 1fr 84px 100px 104px 112px;
       gap: 0.75rem;
       align-items: center;
       padding: 0.625rem 0;
       border-bottom: 0.5px solid rgba(28,25,23,0.06);
+      border-radius: 3px;
+      transition: background 0.12s;
     }
+    .rof-item-row:hover { background: rgba(28,25,23,0.025); }
     .rof-item-row.rof-nocost,
     .rof-items-header.rof-nocost { grid-template-columns: 36px 1fr 84px 104px 112px; }
     .rof-item-swatch {
       width: 36px;
       height: 36px;
       flex-shrink: 0;
+      border-radius: 3px;
+      overflow: hidden;
+      background: rgba(28,25,23,0.04);
+      box-shadow: inset 0 0 0 0.5px rgba(28,25,23,0.1);
     }
+    .rof-item-swatch:empty { background: none; box-shadow: none; }
     .rof-item-info { min-width: 0; }
     .rof-item-name {
       font: 500 0.8125rem/1.3 'Inter', sans-serif;
@@ -4349,7 +4360,7 @@
     }
     .rof-items-header {
       display: grid;
-      grid-template-columns: 36px 1fr 84px 82px 104px 112px;
+      grid-template-columns: 36px 1fr 84px 100px 104px 112px;
       gap: 0.75rem;
       padding: 0.375rem 0;
       border-bottom: 0.5px solid rgba(28,25,23,0.12);
@@ -4362,34 +4373,41 @@
     }
     .rof-items-empty {
       text-align: center;
-      padding: 2.5rem 1rem;
+      padding: 1.75rem 1rem;
+      margin-top: 0.75rem;
       color: #8a7e68;
       font: 400 0.8125rem/1.4 'Inter', sans-serif;
+      border: 0.5px dashed rgba(28,25,23,0.16);
+      border-radius: 4px;
+      background: rgba(28,25,23,0.012);
     }
 
     /* Editable cell */
     .rof-edit-cell {
       display: inline-flex;
       align-items: center;
-      padding: 0.2rem 0.4rem;
-      border: 0.5px solid rgba(28,25,23,0.12);
-      background: transparent;
+      padding: 0.15rem 0;
+      border: none;
+      background: none;
       cursor: pointer;
       font: 400 0.8125rem/1 'Inter', sans-serif;
       color: #1c1917;
+      /* Persistent dashed underline signals the value is adjustable;
+         firms up to gold on hover. */
+      border-bottom: 0.5px dashed rgba(28,25,23,0.3);
       transition: border-color 0.15s;
-      min-width: 36px;
-      justify-content: center;
     }
-    .rof-edit-cell:hover { border-color: #a87935; }
+    .rof-edit-cell:hover { border-bottom-color: #a87935; }
     .rof-edit-input {
       width: 56px;
-      padding: 0.2rem 0.3rem;
+      padding: 0.25rem 0.3rem;
       border: 0.5px solid #a87935;
-      background: #ece5d8;
+      border-radius: 3px;
+      background: #f5f0e8;
       font: 400 0.8125rem/1 'Inter', sans-serif;
       text-align: center;
       outline: none;
+      box-shadow: 0 0 0 2px rgba(168,121,53,0.12);
     }
 
     /* Mode cards (fulfillment) */
@@ -4957,12 +4975,14 @@
       background: none;
       border: none;
       cursor: pointer;
-      color: #8a7e68;
+      color: rgba(28,25,23,0.25);
       font-size: 0.8125rem;
       padding: 0.2rem;
-      transition: color 0.15s;
+      border-radius: 3px;
+      transition: color 0.15s, background 0.15s;
     }
-    .rof-remove-btn:hover { color: var(--red); }
+    .rof-item-row:hover .rof-remove-btn { color: #8a7e68; }
+    .rof-remove-btn:hover { color: var(--red); background: rgba(197,71,49,0.08); }
 
     /* Modal animations */
     @keyframes rofSpin { to { transform: rotate(360deg); } }
@@ -5859,6 +5879,7 @@
       grid-template-columns: repeat(5, 1fr);
       margin-bottom: 24px;
     }
+    .rov-lifecycle.cols-4 { grid-template-columns: repeat(4, 1fr); }
     .rov-stage {
       padding: 14px 18px;
       border-left: 0.5px solid rgba(28,25,23,0.09);
@@ -6060,7 +6081,7 @@
       .rod-breadcrumb-nav { display: none; }
       .rov-header { grid-template-columns: 1fr; align-items: start; }
       .rov-header h1 { font-size: 32px; }
-      .rov-lifecycle { grid-template-columns: 1fr; }
+      .rov-lifecycle, .rov-lifecycle.cols-4 { grid-template-columns: 1fr; }
       .rov-stage { border-left: none; border-top: 0.5px solid rgba(28,25,23,0.09); }
       .rov-stage:first-child { border-top: none; }
       .rov-po-row { grid-template-columns: 40px 1fr; }
@@ -6186,6 +6207,8 @@
           if (!r.ok) {
             const e = new Error(data.error || 'Request failed (status ' + r.status + ')');
             e.status = r.status;
+            e.data = data;
+            if (data.needs_force) e.needs_force = true;
             throw e;
           }
           return data;
@@ -12977,9 +13000,9 @@
               <div className={'rof-items-header' + (showCost ? '' : ' rof-nocost')}>
                 <span></span>
                 <span>Product</span>
-                <span>Qty</span>
-                {showCost && <span>Cost</span>}
-                <span>{data.customer && data.customer.type === 'trade' ? 'Trade Price' : 'Price'}</span>
+                <span style={{ textAlign: 'right' }}>Qty</span>
+                {showCost && <span style={{ textAlign: 'right' }}>Cost</span>}
+                <span style={{ textAlign: 'right' }}>{data.customer && data.customer.type === 'trade' ? 'Trade Price' : 'Price'}</span>
                 <span style={{ textAlign: 'right' }}>Subtotal</span>
               </div>
             )}
@@ -13003,7 +13026,7 @@
                     {item.is_custom ? 'Custom' + ((item.vendor_name || item.custom_vendor) ? ' \u00b7 ' + (item.vendor_name || item.custom_vendor) : '') : (item.vendor_name || '') + (item.vendor_sku ? ' \u00b7 ' + item.vendor_sku : '')}
                   </div>
                 </div>
-                <div>
+                <div style={{ textAlign: 'right' }}>
                   {editingKey === item._key && editField === 'qty' ? (
                     <input className="rof-edit-input" type="text" inputMode="numeric" autoFocus
                       value={editValue}
@@ -13017,7 +13040,7 @@
                   )}
                 </div>
                 {showCost && (
-                  <div>
+                  <div style={{ textAlign: 'right' }}>
                     {editingKey === item._key && editField === 'cost' ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center' }}>
                         <span style={{ fontSize: '0.8125rem', color: '#8a7e68', marginRight: '0.1rem' }}>$</span>
@@ -13035,7 +13058,7 @@
                     )}
                   </div>
                 )}
-                <div>
+                <div style={{ textAlign: 'right' }}>
                   {editingKey === item._key && editField === 'price' ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.8125rem', color: '#8a7e68', marginRight: '0.1rem' }}>$</span>
@@ -19250,7 +19273,7 @@
                 <button className="rov-hbtn" onClick={() => navigate('change-order', order.id)}>Change order</button>
               )}
               {['confirmed', 'shipped', 'ready_for_pickup', 'delivered'].includes(order.status)
-                && items.some(it => !it.is_sample && (parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0)) > 0.001) && (
+                && items.some(it => !it.is_sample && it.item_type !== 'labor' && (parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0)) > 0.001) && (
                 <button className="rov-hbtn" onClick={() => navigate('release-flow', order.id)}>Release materials</button>
               )}
               {['shipped', 'delivered', 'ready_for_pickup'].includes(order.status) && (
@@ -19410,7 +19433,8 @@
                   };
                   return items.map(item => {
                   const itemAdj = adjustments.filter(a => a.order_item_id === item.id);
-                  const isCustom = !item.product_id;
+                  const isLabor = item.item_type === 'labor';
+                  const isCustom = !isLabor && !item.product_id;
                   return (
                     <React.Fragment key={item.id}>
                       <div className="rod-line-item-row">
@@ -19422,16 +19446,25 @@
                         </div>
                         <div>
                           <div className="rod-line-item-name">
-                            {item.collection || item.current_collection || item.product_name || '—'}
-                            {item.color ? ' ' + item.color : ''}
-                            {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
+                            {isLabor
+                              ? (item.product_name || 'Labor')
+                              : (item.collection || item.current_collection || item.product_name || '—')}
+                            {!isLabor && item.color ? ' ' + item.color : ''}
+                            {!isLabor && item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
+                            {isLabor && (
+                              <span style={{ marginLeft: 6, font: '500 8px/1 "Inter", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase',
+                                padding: '2px 6px', borderRadius: 3, background: 'rgba(28,25,23,0.08)', color: 'var(--rod-muted)', verticalAlign: 'middle' }}>Labor</span>
+                            )}
                           </div>
                           <div className="rod-line-item-meta">
-                            {!isCustom && <>{item.vendor_sku ? 'SKU ' + item.vendor_sku : ''}{item.category_name ? (item.vendor_sku ? ' · ' : '') + item.category_name : ''}</>}
-                            {isCustom && <span style={{ color: 'var(--rod-accent)' }}>Custom</span>}
+                            {isLabor && <span style={{ color: 'var(--rod-muted)' }}>
+                              {[item.labor_category ? String(item.labor_category).replace(/_/g, ' ') : null, item.source_estimate_area || null].filter(Boolean).join(' · ') || 'Service'}
+                            </span>}
+                            {!isLabor && !isCustom && <>{item.vendor_sku ? 'SKU ' + item.vendor_sku : ''}{item.category_name ? (item.vendor_sku ? ' · ' : '') + item.category_name : ''}</>}
+                            {!isLabor && isCustom && <span style={{ color: 'var(--rod-accent)' }}>Custom</span>}
                             {item.is_sample && <span style={{ marginLeft: '4px', color: 'var(--rod-muted)' }}>Sample</span>}
                           </div>
-                          {showReady && !item.is_sample && (
+                          {showReady && !item.is_sample && !isLabor && (
                             <button onClick={() => toggleItemReady(item)}
                               style={{ marginTop: 5, font: '500 10px/1 "Inter", sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase',
                                 padding: '3px 8px', borderRadius: 3, cursor: 'pointer',
@@ -19443,9 +19476,9 @@
                           )}
                         </div>
                         <div>
-                          <div style={{ font: '400 13px/1.2 "Inter", sans-serif', color: 'var(--rod-ink)' }}>{item.vendor_name || (isCustom ? 'Custom' : 'Roma')}</div>
+                          <div style={{ font: '400 13px/1.2 "Inter", sans-serif', color: 'var(--rod-ink)' }}>{isLabor ? 'Roma' : (item.vendor_name || (isCustom ? 'Custom' : 'Roma'))}</div>
                           <div className="rod-line-item-meta" style={{ marginTop: 3 }}>
-                            {(() => {
+                            {isLabor ? 'Labor · no PO' : (() => {
                               const po = poForItem(item.id);
                               if (po) return (
                                 <a style={{ color: 'var(--rod-muted)', textDecoration: 'underline rgba(28,25,23,0.2)', cursor: 'pointer' }} onClick={() => {
@@ -19458,6 +19491,14 @@
                           </div>
                         </div>
                         <div className="rod-line-item-qty" style={{ textAlign: 'right' }}>
+                          {isLabor ? (
+                            item.rate_type === 'per_sqft'
+                              ? <span style={{ font: '400 12px/1.3 "Inter", sans-serif', color: 'var(--rod-muted)' }}>${parseFloat(item.rate_sqft || 0).toFixed(2)}/sf × {parseFloat(item.labor_sqft || 0).toFixed(0)}</span>
+                              : parseFloat(item.quantity || 1) > 1
+                                ? <span style={{ font: '400 12px/1.3 "Inter", sans-serif', color: 'var(--rod-muted)' }}>× {parseFloat(item.quantity).toFixed(0)}</span>
+                                : <span style={{ color: 'var(--rod-muted)' }}>{'—'}</span>
+                          ) : (
+                          <React.Fragment>
                           {item.sell_by === 'roll' ? (item.sqft_needed || 0) : item.num_boxes} {item.sell_by === 'unit' ? 'unit' + (item.num_boxes > 1 ? 's' : '') : item.sell_by === 'piece' ? 'pc' + (item.num_boxes > 1 ? 's' : '') : item.sell_by === 'roll' ? 'sf' : 'box' + (item.num_boxes > 1 ? 'es' : '')}
                           {item.sell_by !== 'unit' && item.sell_by !== 'piece' && item.sqft_needed && parseFloat(item.sqft_needed) > 0 && (
                             <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', marginTop: 2 }}>{parseFloat(item.sqft_needed).toFixed(0)} sf</div>
@@ -19468,13 +19509,15 @@
                               {parseFloat(item.already_released) + 0.001 >= parseFloat(item.num_boxes || 0) ? '● Released' : parseFloat(item.already_released) + '/' + item.num_boxes + ' released'}
                             </div>
                           )}
+                          </React.Fragment>
+                          )}
                         </div>
                         <div className="rod-line-item-price" style={{ textAlign: 'right' }}>
                           <span>{item.is_sample ? 'Free' : '$' + parseFloat(item.unit_price || 0).toFixed(2)}</span>
                         </div>
                         <div className="rod-line-item-cost" style={{ textAlign: 'right' }}>
-                          {(!showCost || item.is_sample) ? (
-                            <span style={{ color: 'var(--rod-muted)', fontSize: '0.75rem' }}>{item.is_sample ? '—' : ''}</span>
+                          {(!showCost || item.is_sample || isLabor) ? (
+                            <span style={{ color: 'var(--rod-muted)', fontSize: '0.75rem' }}>{(item.is_sample || isLabor) ? '—' : ''}</span>
                           ) : ['pending', 'confirmed'].includes(order.status) ? (
                             editingCostItem === item.id ? (
                               <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid var(--rod-accent)', overflow: 'hidden' }}>
@@ -22278,7 +22321,7 @@
         });
       };
 
-      const saveItemEdit = async (item, index) => {
+      const saveItemEdit = async (item, index, includeCost = false) => {
         if (editId && item.id) {
           await repFetch('/api/rep/quotes/' + editId + '/items/' + item.id, {
             method: 'PUT',
@@ -22290,7 +22333,10 @@
               product_name: item.product_name,
               collection: item.collection,
               description: item.description,
-              sell_by: item.sell_by
+              sell_by: item.sell_by,
+              // Only persist cost when the cost cell itself was edited, so
+              // editing qty/price never freezes a catalog item's live cost.
+              ...(includeCost ? { cost: item.vendor_cost } : {})
             })
           });
           const qData = await repFetch('/api/rep/quotes/' + editId);
@@ -23222,9 +23268,9 @@
                   <div className={'rof-items-header' + (showCost ? '' : ' rof-nocost')}>
                     <span></span>
                     <span>Product</span>
-                    <span>Qty</span>
-                    {showCost && <span>Cost · Mgn</span>}
-                    <span>Price</span>
+                    <span style={{ textAlign: 'right' }}>Qty</span>
+                    {showCost && <span style={{ textAlign: 'right' }}>Cost · Mgn</span>}
+                    <span style={{ textAlign: 'right' }}>Price</span>
                     <span style={{ textAlign: 'right' }}>Subtotal</span>
                   </div>
                 )}
@@ -23237,6 +23283,7 @@
                   const qtyVal = item.sell_by === 'roll' ? (item.sqft_needed || 0) : item.num_boxes;
                   const isEditingQty = editingCell && editingCell.idx === idx && editingCell.field === 'qty';
                   const isEditingPrice = editingCell && editingCell.idx === idx && editingCell.field === 'price';
+                  const isEditingCost = editingCell && editingCell.idx === idx && editingCell.field === 'cost';
                   const metaBits = [
                     isCustom ? 'Custom' : null,
                     item.vendor_name || item.custom_vendor || null,
@@ -23272,7 +23319,7 @@
                         )}
                         {metaBits && <div className="rof-item-meta">{metaBits}</div>}
                       </div>
-                      <div>
+                      <div style={{ textAlign: 'right' }}>
                         {!isReadonly && isEditingQty ? (
                           <input className="rof-edit-input" type="text" inputMode="numeric" autoFocus
                             value={cellValue}
@@ -23290,16 +23337,32 @@
                         )}
                       </div>
                       {showCost && (
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ font: '400 0.75rem/1.3 Inter, sans-serif', color: '#8a7e68' }}>
-                            {parseFloat(item.vendor_cost) > 0 ? '$' + parseFloat(item.vendor_cost).toFixed(2) : '—'}
-                          </div>
-                          <div style={{ font: '500 0.5625rem/1.3 ui-monospace, monospace', letterSpacing: '0.04em', color: '#a87935' }}>
-                            {mgn !== null ? mgn.toFixed(1) + '%' : ''}
-                          </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'flex-end', gap: '0.35rem' }}>
+                          {!isReadonly && isEditingCost ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.8125rem', color: '#8a7e68', marginRight: '0.1rem' }}>$</span>
+                              <input className="rof-edit-input" type="text" inputMode="decimal" autoFocus
+                                value={cellValue}
+                                onChange={e => { const v = e.target.value; if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) { setCellValue(v); updateItemLocal(idx, 'vendor_cost', v); } }}
+                                onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') cancelCellEdit(); }}
+                                onBlur={() => { saveItemEdit(item, idx, true); cancelCellEdit(); }} />
+                            </span>
+                          ) : !isReadonly ? (
+                            <button className="rof-edit-cell" style={{ color: '#8a7e68' }}
+                              onClick={() => startCellEdit(idx, 'cost', parseFloat(item.vendor_cost || 0).toFixed(2))}>
+                              {parseFloat(item.vendor_cost) > 0 ? '$' + parseFloat(item.vendor_cost).toFixed(2) : '—'}
+                            </button>
+                          ) : (
+                            <div style={{ font: '400 0.75rem/1.3 Inter, sans-serif', color: '#8a7e68' }}>
+                              {parseFloat(item.vendor_cost) > 0 ? '$' + parseFloat(item.vendor_cost).toFixed(2) : '—'}
+                            </div>
+                          )}
+                          {mgn !== null && (
+                            <span style={{ font: '500 0.5625rem/1.3 ui-monospace, monospace', letterSpacing: '0.04em', color: '#a87935' }}>{mgn.toFixed(1) + '%'}</span>
+                          )}
                         </div>
                       )}
-                      <div>
+                      <div style={{ textAlign: 'right' }}>
                         {!isReadonly && isEditingPrice ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center' }}>
                             <span style={{ fontSize: '0.8125rem', color: '#8a7e68', marginRight: '0.1rem' }}>$</span>
@@ -23820,6 +23883,9 @@
       const [page, setPage] = useState(1);
       const perPage = 50;
 
+      const [bulkSending, setBulkSending] = useState(false);
+      const [bulkMsg, setBulkMsg] = useState(null);
+
       const load = useCallback(() => {
         setLoading(true);
         const params = new URLSearchParams();
@@ -23832,13 +23898,18 @@
 
       useEffect(load, [load]);
 
+      // effective_status folds "sent + past expiry" into 'expired'
+      const effOf = (e) => e.effective_status || e.status;
+
       // Saved view definitions — filter the loaded estimates client-side
       const viewFilters = {
-        'open': e => ['draft', 'sent'].includes(e.status),
-        'drafts': e => e.status === 'draft',
-        'awaiting': e => e.status === 'sent',
-        'converted': e => e.status === 'converted',
-        'expired': e => e.status === 'expired',
+        'open': e => ['draft', 'sent', 'accepted'].includes(effOf(e)),
+        'drafts': e => effOf(e) === 'draft',
+        'awaiting': e => effOf(e) === 'sent',
+        'accepted': e => effOf(e) === 'accepted',
+        'declined': e => effOf(e) === 'declined',
+        'converted': e => effOf(e) === 'converted',
+        'expired': e => effOf(e) === 'expired',
         'all': () => true,
       };
 
@@ -23851,6 +23922,8 @@
         'open': estimates.filter(viewFilters['open']).length,
         'drafts': estimates.filter(viewFilters['drafts']).length,
         'awaiting': estimates.filter(viewFilters['awaiting']).length,
+        'accepted': estimates.filter(viewFilters['accepted']).length,
+        'declined': estimates.filter(viewFilters['declined']).length,
         'converted': estimates.filter(viewFilters['converted']).length,
         'expired': estimates.filter(viewFilters['expired']).length,
         'all': estimates.length,
@@ -23871,10 +23944,40 @@
         else setSelected(new Set(pageEstimates.map(e => e.id)));
       };
 
+      // Bulk re-send: only 'sent'/'expired' estimates can be re-sent (drafts
+      // aren't sent yet; accepted/declined/converted are done). Silently skips
+      // ineligible rows in the selection and reports what actually went out.
+      const bulkResend = async () => {
+        const eligible = estimates.filter(e => selected.has(e.id) && ['sent', 'expired'].includes(effOf(e)));
+        if (!eligible.length) {
+          setBulkMsg({ type: 'warn', text: 'Select sent or expired estimates to re-send.' });
+          return;
+        }
+        setBulkSending(true); setBulkMsg(null);
+        try {
+          const result = await repFetch('/api/rep/estimates/bulk-resend', {
+            method: 'POST', body: JSON.stringify({ ids: eligible.map(e => e.id) })
+          });
+          const sent = result.sent || 0, failed = result.failed || 0;
+          setBulkMsg({
+            type: failed ? 'warn' : 'success',
+            text: 'Re-sent ' + sent + ' estimate' + (sent !== 1 ? 's' : '') + (failed ? ', ' + failed + ' failed' : '') + '.'
+          });
+          setSelected(new Set());
+          load();
+        } catch (err) {
+          setBulkMsg({ type: 'error', text: 'Bulk re-send failed. Please try again.' });
+        }
+        setBulkSending(false);
+      };
+
       const getStatusColor = (s) => {
         if (s === 'draft') return '#a87935';
-        if (s === 'sent') return '#3a7a4e';
-        if (s === 'expired') return '#c54731';
+        if (s === 'sent') return '#5c6e94';
+        if (s === 'accepted') return '#3a7a4e';
+        if (s === 'converted') return '#3a7a4e';
+        if (s === 'declined') return '#c54731';
+        if (s === 'expired') return 'var(--brass-muted)';
         return 'var(--brass-muted)';
       };
 
@@ -23889,6 +23992,8 @@
         { key: 'open', label: 'Open', tone: '#a87935' },
         { key: 'drafts', label: 'Drafts' },
         { key: 'awaiting', label: 'Awaiting customer' },
+        { key: 'accepted', label: 'Accepted', tone: '#3a7a4e' },
+        { key: 'declined', label: 'Declined', tone: '#c54731' },
         { key: 'converted', label: 'Converted' },
         { key: 'expired', label: 'Expired' },
         { key: 'all', label: 'All' },
@@ -23898,6 +24003,8 @@
         { value: '', label: 'Any' },
         { value: 'draft', label: 'Draft' },
         { value: 'sent', label: 'Sent' },
+        { value: 'accepted', label: 'Accepted' },
+        { value: 'declined', label: 'Declined' },
         { value: 'converted', label: 'Converted' },
         { value: 'expired', label: 'Expired' },
       ];
@@ -23908,7 +24015,7 @@
           <div className="ol-header">
             <div>
               <div className="ol-header-label">
-                {'\u25CF'} Estimates {'\u00b7'} {estimates.filter(e => ['draft', 'sent'].includes(e.status)).length} open {'\u00b7'} {estimates.length} total
+                {'\u25CF'} Estimates {'\u00b7'} {estimates.filter(e => ['draft', 'sent', 'accepted'].includes(effOf(e))).length} open {'\u00b7'} {estimates.length} total
               </div>
               <h1><em>Estimates</em></h1>
             </div>
@@ -23961,10 +24068,16 @@
             <div className="ol-bulk-bar">
               <div className="ol-bulk-label">{'\u25CF'} {selected.size} estimate{selected.size !== 1 ? 's' : ''} selected</div>
               <div className="ol-bulk-actions">
+                <button className="ol-bulk-btn" onClick={bulkResend} disabled={bulkSending}>
+                  {bulkSending ? 'Re-sending\u2026' : '\u21BB Re-send'}
+                </button>
                 <button className="ol-bulk-btn">Export CSV</button>
                 <button className="ol-bulk-btn" onClick={() => setSelected(new Set())}>{'\u2715'} Clear</button>
               </div>
             </div>
+          )}
+          {bulkMsg && (
+            <div className={'rof-alert ' + bulkMsg.type} style={{ margin: '0 0 12px' }}>{bulkMsg.text}</div>
           )}
 
           {loading ? (
@@ -23990,17 +24103,21 @@
               {/* Rows */}
               {pageEstimates.map(e => {
                 const isSel = selected.has(e.id);
-                const statusLabel = e.status === 'draft' ? 'Draft'
-                  : e.status === 'sent' ? 'Sent'
-                  : e.status === 'converted' ? 'Converted'
-                  : e.status === 'expired' ? 'Expired'
-                  : e.status;
+                const es = effOf(e);
+                const statusLabel = es === 'draft' ? 'Draft'
+                  : es === 'sent' ? 'Sent'
+                  : es === 'accepted' ? 'Accepted'
+                  : es === 'declined' ? 'Declined'
+                  : es === 'converted' ? 'Converted'
+                  : es === 'expired' ? 'Expired'
+                  : es;
                 // Descriptive step text — materials vs labor split
                 const stepText = 'Mat $' + parseFloat(e.materials_subtotal || 0).toFixed(2)
                   + ' \u00b7 Labor $' + parseFloat(e.labor_subtotal || 0).toFixed(2);
                 // Flag color: drafts get amber, expired gets red
-                const flagColor = e.status === 'draft' ? '#a87935'
-                  : e.status === 'expired' ? '#c54731'
+                const flagColor = es === 'draft' ? '#a87935'
+                  : es === 'declined' ? '#c54731'
+                  : es === 'accepted' ? '#3a7a4e'
                   : 'transparent';
                 return (
                   <div key={e.id} className={'ol-table-row' + (isSel ? ' selected' : '')}
@@ -24018,7 +24135,7 @@
                     <span className="ol-total">${parseFloat(e.total || 0).toFixed(2)}</span>
                     <span className="ol-install">{e.item_count || 0} item{parseInt(e.item_count, 10) !== 1 ? 's' : ''}</span>
                     <div>
-                      <div className="ol-state-label" style={{ color: getStatusColor(e.status) }}>
+                      <div className="ol-state-label" style={{ color: getStatusColor(es) }}>
                         {'\u25CF'} {statusLabel}
                       </div>
                       <div className="ol-state-step">{stepText}</div>
@@ -24076,8 +24193,27 @@
     function RepEstimateFormView({ navigate, editId, showCost }) {
       const [estimate, setEstimate] = useState(null);
       const [items, setItems] = useState([]);
+      const [areas, setAreas] = useState([]);
+      const [areaSubtotals, setAreaSubtotals] = useState({});
       const [loading, setLoading] = useState(!!editId);
       const [saving, setSaving] = useState(false);
+      // Area editing / adding
+      const [editingAreaId, setEditingAreaId] = useState(null);
+      const [areaDraft, setAreaDraft] = useState({ name: '', area_sqft: '' });
+      const [addingArea, setAddingArea] = useState(false);
+      const [newAreaName, setNewAreaName] = useState('');
+      const [scopeOpen, setScopeOpen] = useState({});      // {areaId: bool}
+      const [scopeDraft, setScopeDraft] = useState({});     // {areaId: text}
+      const scopeTimers = useRef({});
+      const [confirmDeleteArea, setConfirmDeleteArea] = useState(null); // areaId
+      const [areaBusy, setAreaBusy] = useState(false);
+      // Thread + engagement (estimate_events)
+      const [events, setEvents] = useState([]);
+      const [engagement, setEngagement] = useState(null);
+      const [threadText, setThreadText] = useState('');
+      const [threadPosting, setThreadPosting] = useState(false);
+      const [copied, setCopied] = useState(false);
+      const [actionError, setActionError] = useState(null);
       const [form, setForm] = useState({
         customer_name: '', customer_email: '', phone: '',
         project_name: '',
@@ -24085,6 +24221,11 @@
         project_city: '', project_state: '', project_zip: '',
         notes: '', internal_notes: ''
       });
+
+      // Deposit (optional pay-online-at-acceptance). House default for a
+      // never-set estimate is percent/50; only persisted when the rep saves.
+      const [depositType, setDepositType] = useState('percent');
+      const [depositValue, setDepositValue] = useState('50');
 
       // Customer search
       const [customerSearch, setCustomerSearch] = useState('');
@@ -24101,6 +24242,10 @@
       const [showResults, setShowResults] = useState(false);
       const searchTimeout = useRef(null);
       const [catalogOpen, setCatalogOpen] = useState(false);
+      // The area a quick-add / catalog add / labor add should land in (null = General)
+      const [targetAreaId, setTargetAreaId] = useState(null);
+      // Which inline add-surface is open, e.g. 'mat-<areaId|general>' or 'labor-<areaId|general>'
+      const [activeAddArea, setActiveAddArea] = useState(null);
 
       // Inline cell editing
       const [editingCell, setEditingCell] = useState(null); // { id, field }
@@ -24111,9 +24256,22 @@
       // Labor form
       const [showLaborForm, setShowLaborForm] = useState(false);
       const [laborItem, setLaborItem] = useState({
-        labor_category: 'installation', description: '', rate_type: 'per_sqft',
-        rate_sqft: '', labor_sqft: '', unit_price: '', quantity: '1'
+        labor_category: 'installation', custom_name: '', description: '', rate_type: 'per_sqft',
+        rate_sqft: '', labor_sqft: '', unit_price: '', quantity: '1', area_id: null
       });
+      // Unified add panel: which tab is showing inside the open area's panel
+      const [addPanelTab, setAddPanelTab] = useState('material'); // 'material' | 'labor'
+
+      // Open / close the single add panel for an area (null areaId = General bucket).
+      const openAddPanel = (areaId, tab) => {
+        const key = 'add-' + (areaId || 'general');
+        setTargetAreaId(areaId);
+        setProductSearch(''); setSearchResults([]); setShowResults(false);
+        setLaborItem(l => ({ ...l, area_id: areaId }));
+        setAddPanelTab(tab || 'material');
+        setActiveAddArea(key);
+      };
+      const closeAddPanel = () => { setActiveAddArea(null); setShowResults(false); };
 
       // Email preview
       const [showPreview, setShowPreview] = useState(false);
@@ -24132,6 +24290,7 @@
       // Overage
       const [overageEnabled, setOverageEnabled] = useState(false);
 
+      // Header/item mutations are backend-rejected unless status is draft|sent.
       const isReadonly = estimate && !['draft', 'sent'].includes(estimate.status);
 
       // Address autofill
@@ -24147,6 +24306,8 @@
           .then(data => {
             setEstimate(data.estimate);
             setItems(data.items || []);
+            setAreas(data.areas || []);
+            setAreaSubtotals(data.area_subtotals || {});
             setForm({
               customer_name: data.estimate.customer_name || '',
               customer_email: data.estimate.customer_email || '',
@@ -24160,6 +24321,15 @@
               notes: data.estimate.notes || '',
               internal_notes: data.estimate.internal_notes || ''
             });
+            // Deposit: pre-fill the house default (percent/50) when it was never
+            // set (type none/null AND value 0/null); otherwise show saved values.
+            const dt = data.estimate.deposit_type;
+            const dv = parseFloat(data.estimate.deposit_value || 0);
+            if ((!dt || dt === 'none') && !dv) {
+              setDepositType('percent'); setDepositValue('50');
+            } else {
+              setDepositType(dt || 'none'); setDepositValue(String(dv || 0));
+            }
             // Restore the selected-customer banner for the estimate's linked customer
             if (data.customer) {
               setSelectedCustomer(data.customer);
@@ -24171,6 +24341,41 @@
           })
           .catch(() => setLoading(false));
       }, [editId]);
+
+      // Reload just areas/items/subtotals + header totals after area mutations
+      const reloadEstimate = useCallback(async () => {
+        if (!editId) return;
+        try {
+          const data = await repFetch('/api/rep/estimates/' + editId);
+          setEstimate(data.estimate);
+          setItems(data.items || []);
+          setAreas(data.areas || []);
+          setAreaSubtotals(data.area_subtotals || {});
+        } catch (e) {}
+      }, [editId]);
+
+      // Engagement thread (estimate_events) — lazy load for non-draft estimates
+      const loadEvents = useCallback(() => {
+        if (!editId) { setEvents([]); setEngagement(null); return; }
+        repFetch('/api/rep/estimates/' + editId + '/events')
+          .then(d => { setEvents(d.events || []); setEngagement(d.engagement || null); })
+          .catch(() => {});
+      }, [editId]);
+      useEffect(() => { loadEvents(); }, [loadEvents]);
+
+      const postThreadEntry = async (kind) => {
+        const body = threadText.trim();
+        if (!body || !editId) return;
+        setThreadPosting(true);
+        try {
+          await repFetch('/api/rep/estimates/' + editId + '/events', {
+            method: 'POST', body: JSON.stringify({ event_type: kind, body })
+          });
+          setThreadText('');
+          loadEvents();
+        } catch (err) { alert(err.message || 'Failed to log entry'); }
+        setThreadPosting(false);
+      };
 
       // Customer search
       const searchCustomers = (q) => {
@@ -24219,14 +24424,26 @@
         }
       };
 
+      // Persist attached/updated customer + project fields onto an existing
+      // estimate record (fire-and-forget; the record may not exist yet).
+      const persistCustomer = (fields) => {
+        if (!estimate) return;
+        repFetch('/api/rep/estimates/' + estimate.id, { method: 'PUT', body: JSON.stringify(fields) })
+          .then(d => { if (d.estimate) setEstimate(d.estimate); })
+          .catch(() => {});
+      };
+
       const selectCustomer = (c) => {
         setSelectedCustomer(c);
         applyEstimateReprice(tradeDiscountFor(c));
-        setForm(f => ({
-          ...f,
+        const patch = {
           customer_name: c.name || '',
           customer_email: c.email || '',
-          phone: c.phone || '',
+          phone: c.phone || ''
+        };
+        setForm(f => ({
+          ...f,
+          ...patch,
           project_address_line1: c.address_line1 || f.project_address_line1,
           project_address_line2: c.address_line2 || f.project_address_line2,
           project_city: c.city || f.project_city,
@@ -24236,6 +24453,7 @@
         setCustomerSearch('');
         setCustomerResults([]);
         setCustomerMatch(null);
+        persistCustomer(patch);
       };
 
       const clearCustomer = () => {
@@ -24243,6 +24461,7 @@
         applyEstimateReprice(0);
         setForm(f => ({ ...f, customer_name: '', customer_email: '', phone: '' }));
         setCustomerMatch(null);
+        persistCustomer({ customer_name: '', customer_email: '', phone: '' });
       };
 
       const checkCustomerMatch = async (field) => {
@@ -24256,25 +24475,51 @@
         } catch (e) { setCustomerMatch(null); }
       };
 
-      // Save or create estimate
+      // Lazily create the estimate record so the rep can start building before
+      // filling in a customer. Deduped via a ref so a rapid burst of adds can't
+      // spawn duplicate drafts. Does NOT navigate — the caller navigates to the
+      // edit route once its first line is persisted (avoids a remount mid-add).
+      const creatingRef = useRef(null);
+      const ensureEstimate = async () => {
+        if (estimate) return estimate;
+        if (creatingRef.current) return creatingRef.current;
+        const p = (async () => {
+          const data = await repFetch('/api/rep/estimates', { method: 'POST', body: JSON.stringify(form) });
+          setEstimate(data.estimate);
+          setItems(data.items || []);
+          return data.estimate;
+        })();
+        creatingRef.current = p;
+        return p;
+      };
+
+      // Validate only fields the rep actually filled — a draft may have no
+      // customer yet (it's required to send, enforced by the backend).
+      const validateCustomerFields = () => {
+        if (form.customer_name && form.customer_name.trim().split(/\s+/).length < 2) { alert('Enter the customer’s first and last name.'); return false; }
+        if (form.customer_email && !isValidEmail(form.customer_email)) { alert('Enter a valid customer email.'); return false; }
+        if (form.phone && !isValidPhone(form.phone)) { alert('Enter a valid 10-digit phone number.'); return false; }
+        return true;
+      };
+
+      // Manual "Save" — persists customer/project details. Creates the record if
+      // it doesn't exist yet (e.g. rep filled the customer before adding a line).
       const saveEstimate = async () => {
-        if (!form.customer_name || form.customer_name.trim().split(/\s+/).length < 2) return alert('Customer first and last name are required.');
-        if (!form.customer_email || !isValidEmail(form.customer_email)) return alert('A valid customer email is required.');
-        if (!form.phone || !isValidPhone(form.phone)) return alert('A valid 10-digit phone number is required.');
+        if (!validateCustomerFields()) return;
         setSaving(true);
         try {
           if (editId && estimate) {
             const data = await repFetch('/api/rep/estimates/' + editId, {
-              method: 'PUT', body: JSON.stringify(form)
+              method: 'PUT', body: JSON.stringify({
+                ...form,
+                deposit_type: depositType,
+                deposit_value: depositType === 'none' ? 0 : (parseFloat(depositValue) || 0)
+              })
             });
             setEstimate(data.estimate);
           } else {
-            const data = await repFetch('/api/rep/estimates', {
-              method: 'POST', body: JSON.stringify(form)
-            });
-            setEstimate(data.estimate);
-            setItems(data.items || []);
-            navigate('estimate-edit', data.estimate.id);
+            const est = await ensureEstimate();
+            navigate('estimate-edit', est.id);
           }
         } catch (err) {
           alert('Save failed: ' + err.message);
@@ -24345,11 +24590,16 @@
           unit_price: price.toFixed(2),
           subtotal: sub.toFixed(2),
           sell_by: sellBy,
+          area_id: targetAreaId,
+          vendor_cost: sku.vendor_cost || null,
           _sqft_per_box: sqftPerBox
         };
 
-        if (estimate) {
-          const result = await repFetch('/api/rep/estimates/' + estimate.id + '/items', {
+        const existed = !!estimate;
+        let est;
+        try { est = await ensureEstimate(); } catch (err) { setActionError(err.message || 'Failed to start estimate'); return; }
+        try {
+          const result = await repFetch('/api/rep/estimates/' + est.id + '/items', {
             method: 'POST', body: JSON.stringify(newItem)
           });
           if (result.item) {
@@ -24360,12 +24610,15 @@
             setItems(prev => [...prev, result.item]);
             if (result.estimate) setEstimate(result.estimate);
           }
-        }
+        } catch (err) { setActionError(err.message || 'Failed to add item'); return; }
+        if (!existed) navigate('estimate-edit', est.id);
       };
 
       // Bulk add from the "Browse catalog" popup — materials only, with overage applied
       const addFromCatalog = async ({ lines, accessories, customs }) => {
-        if (!estimate) return;
+        const existed = !!estimate;
+        let est;
+        try { est = await ensureEstimate(); } catch (err) { setActionError(err.message || 'Failed to start estimate'); return; }
         const ovFactor = overageEnabled ? 1.10 : 1;
         const discount = tradeDiscountFor(selectedCustomer);
         const toAdd = [];
@@ -24388,7 +24641,8 @@
               item_type: 'material', sku_id: p.sku_id, product_id: p.id || p.product_id || null,
               product_name: productName, collection: p.collection || '',
               sqft_needed: sqftNeeded || null, num_boxes: isCarpet ? 1 : qty,
-              unit_price: price.toFixed(2), subtotal: parseFloat(sub.toFixed(2)).toFixed(2), sell_by: sellBy
+              unit_price: price.toFixed(2), subtotal: parseFloat(sub.toFixed(2)).toFixed(2), sell_by: sellBy,
+              area_id: targetAreaId
             },
             extra: { _sqft_per_box: sqftPerBox, vendor_cost: p.cost || null, primary_image: p.primary_image || null,
               retail_price: retail, retail_locked: !!p.retail_locked }
@@ -24402,7 +24656,8 @@
               item_type: 'material', sku_id: acc.sku_id, product_id: acc.product_id || null,
               product_name: acc.accessory_label || acc.variant_name || 'Accessory',
               collection: '', sqft_needed: null, num_boxes: qty,
-              unit_price: price.toFixed(2), subtotal: (price * qty).toFixed(2), sell_by: acc.sell_by || 'unit'
+              unit_price: price.toFixed(2), subtotal: (price * qty).toFixed(2), sell_by: acc.sell_by || 'unit',
+              area_id: targetAreaId
             },
             extra: { vendor_cost: acc.cost || null, primary_image: acc.primary_image || null,
               retail_price: accRetail, retail_locked: !!acc.retail_locked }
@@ -24415,14 +24670,15 @@
               product_name: c.product_name, collection: '', description: c.description || '',
               sqft_needed: null, num_boxes: c.num_boxes,
               unit_price: parseFloat(c.unit_price || 0).toFixed(2),
-              subtotal: parseFloat(c.subtotal || 0).toFixed(2), sell_by: c.sell_by || 'box'
+              subtotal: parseFloat(c.subtotal || 0).toFixed(2), sell_by: c.sell_by || 'box',
+              area_id: targetAreaId
             },
             extra: {}
           });
         }
         try {
           for (const { item, extra } of toAdd) {
-            const result = await repFetch('/api/rep/estimates/' + estimate.id + '/items', {
+            const result = await repFetch('/api/rep/estimates/' + est.id + '/items', {
               method: 'POST', body: JSON.stringify(item)
             });
             if (result.item) {
@@ -24431,6 +24687,7 @@
             }
           }
         } catch (err) { alert('Failed to add items: ' + (err.message || 'Unknown error')); }
+        if (!existed) navigate('estimate-edit', est.id);
       };
 
       // Update material item
@@ -24479,15 +24736,25 @@
           merged.subtotal = sqft > 0 ? (sqft * ovFactor * price).toFixed(2) : (boxes * price).toFixed(2);
         }
 
-        const result = await repFetch('/api/rep/estimates/' + estimate.id + '/items/' + item.id, {
-          method: 'PUT', body: JSON.stringify({
-            sqft_needed: merged.sqft_needed, num_boxes: merged.num_boxes,
-            unit_price: merged.unit_price, subtotal: merged.subtotal
-          })
-        });
+        let result;
+        try {
+          result = await repFetch('/api/rep/estimates/' + estimate.id + '/items/' + item.id, {
+            method: 'PUT', body: JSON.stringify({
+              sqft_needed: merged.sqft_needed, num_boxes: merged.num_boxes,
+              unit_price: merged.unit_price, subtotal: merged.subtotal,
+              ...(local.vendor_cost !== undefined ? { vendor_cost: merged.vendor_cost } : {})
+            })
+          });
+        } catch (err) {
+          setActionError(err.message || 'Failed to update item');
+          setLocalEdits(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+          return;
+        }
         if (result.item) {
-          result.item._sqft_per_box = sqftPerBox;
-          setItems(prev => prev.map(i => i.id === item.id ? result.item : i));
+          // Preserve rep-only extras the API doesn't echo back
+          const kept = { _sqft_per_box: sqftPerBox, vendor_cost: merged.vendor_cost, retail_price: item.retail_price,
+            retail_locked: item.retail_locked, primary_image: item.primary_image };
+          setItems(prev => prev.map(i => i.id === item.id ? { ...kept, ...result.item } : i));
           if (result.estimate) setEstimate(result.estimate);
         }
         setLocalEdits(prev => { const n = { ...prev }; delete n[item.id]; return n; });
@@ -24496,14 +24763,15 @@
       // Delete item
       const deleteItem = async (itemId) => {
         if (!estimate) return;
-        const result = await repFetch('/api/rep/estimates/' + estimate.id + '/items/' + itemId, { method: 'DELETE' });
-        setItems(prev => prev.filter(i => i.id !== itemId));
-        if (result.estimate) setEstimate(result.estimate);
+        try {
+          const result = await repFetch('/api/rep/estimates/' + estimate.id + '/items/' + itemId, { method: 'DELETE' });
+          setItems(prev => prev.filter(i => i.id !== itemId));
+          if (result.estimate) setEstimate(result.estimate);
+        } catch (err) { setActionError(err.message || 'Failed to remove item'); }
       };
 
       // Add labor item
       const addLaborItem = async () => {
-        if (!estimate) return;
         const li = laborItem;
         let unitPrice, qty, sub;
         if (li.rate_type === 'per_sqft') {
@@ -24520,24 +24788,127 @@
         const newItem = {
           item_type: 'labor',
           labor_category: li.labor_category,
+          product_name: li.labor_category === 'other' ? ((li.custom_name || '').trim() || null) : null,
           description: li.description,
           rate_type: li.rate_type,
           rate_sqft: li.rate_type === 'per_sqft' ? unitPrice : null,
           labor_sqft: li.rate_type === 'per_sqft' ? qty : null,
           unit_price: unitPrice.toFixed(2),
           quantity: qty,
-          subtotal: sub.toFixed(2)
+          subtotal: sub.toFixed(2),
+          area_id: li.area_id || null
         };
 
-        const result = await repFetch('/api/rep/estimates/' + estimate.id + '/items', {
-          method: 'POST', body: JSON.stringify(newItem)
-        });
-        if (result.item) {
-          setItems(prev => [...prev, result.item]);
+        const existed = !!estimate;
+        let est;
+        try { est = await ensureEstimate(); } catch (err) { setActionError(err.message || 'Failed to start estimate'); return; }
+        try {
+          const result = await repFetch('/api/rep/estimates/' + est.id + '/items', {
+            method: 'POST', body: JSON.stringify(newItem)
+          });
+          if (result.item) {
+            setItems(prev => [...prev, result.item]);
+            if (result.estimate) setEstimate(result.estimate);
+          }
+        } catch (err) { setActionError(err.message || 'Failed to add labor'); return; }
+        // Reset the form but keep it pinned to the panel's area so a second
+        // labor line added without reopening still lands in the right place.
+        setLaborItem({ labor_category: 'installation', custom_name: '', description: '', rate_type: 'per_sqft', rate_sqft: '', labor_sqft: '', unit_price: '', quantity: '1', area_id: li.area_id || null });
+        if (!existed) navigate('estimate-edit', est.id);
+      };
+
+      // ── Areas (work sections) ───────────────────────────────────────────
+      const addArea = async (name) => {
+        if (!name || !name.trim()) return;
+        const existed = !!estimate;
+        setAreaBusy(true);
+        let est;
+        try { est = await ensureEstimate(); } catch (err) { setActionError(err.message || 'Failed to start estimate'); setAreaBusy(false); return; }
+        try {
+          const data = await repFetch('/api/rep/estimates/' + est.id + '/areas', {
+            method: 'POST', body: JSON.stringify({ name: name.trim() })
+          });
+          if (data.area) setAreas(prev => [...prev, data.area]);
+          setNewAreaName(''); setAddingArea(false);
+        } catch (err) { setActionError(err.message || 'Failed to add section'); }
+        setAreaBusy(false);
+        if (!existed) navigate('estimate-edit', est.id);
+      };
+
+      const saveAreaField = async (areaId, patch) => {
+        if (!estimate) return;
+        try {
+          const data = await repFetch('/api/rep/estimates/' + estimate.id + '/areas/' + areaId, {
+            method: 'PUT', body: JSON.stringify(patch)
+          });
+          if (data.area) setAreas(prev => prev.map(a => a.id === areaId ? data.area : a));
+        } catch (err) { setActionError(err.message || 'Failed to update area'); }
+      };
+
+      const commitAreaHeader = async (areaId) => {
+        const name = (areaDraft.name || '').trim();
+        const patch = {};
+        if (name) patch.name = name;
+        patch.area_sqft = areaDraft.area_sqft === '' ? null : parseFloat(areaDraft.area_sqft);
+        setEditingAreaId(null);
+        await saveAreaField(areaId, patch);
+      };
+
+      const onScopeChange = (areaId, val) => {
+        setScopeDraft(prev => ({ ...prev, [areaId]: val }));
+        if (scopeTimers.current[areaId]) clearTimeout(scopeTimers.current[areaId]);
+        scopeTimers.current[areaId] = setTimeout(() => {
+          saveAreaField(areaId, { scope_notes: val });
+        }, 800);
+      };
+
+      const commitScope = (areaId) => {
+        if (scopeTimers.current[areaId]) clearTimeout(scopeTimers.current[areaId]);
+        const val = scopeDraft[areaId];
+        if (val !== undefined) saveAreaField(areaId, { scope_notes: val });
+      };
+
+      const moveArea = async (areaId, dir) => {
+        const idx = areas.findIndex(a => a.id === areaId);
+        if (idx < 0) return;
+        const swap = idx + dir;
+        if (swap < 0 || swap >= areas.length) return;
+        const next = areas.slice();
+        const [row] = next.splice(idx, 1);
+        next.splice(swap, 0, row);
+        setAreas(next); // optimistic
+        try {
+          const data = await repFetch('/api/rep/estimates/' + estimate.id + '/areas/reorder', {
+            method: 'POST', body: JSON.stringify({ area_ids: next.map(a => a.id) })
+          });
+          if (data.areas) setAreas(data.areas);
+        } catch (err) { setActionError(err.message || 'Failed to reorder'); reloadEstimate(); }
+      };
+
+      const removeArea = async (areaId, mode) => {
+        if (!estimate) return;
+        setAreaBusy(true);
+        try {
+          await repFetch('/api/rep/estimates/' + estimate.id + '/areas/' + areaId + '?mode=' + mode, {
+            method: 'DELETE'
+          });
+          setConfirmDeleteArea(null);
+          await reloadEstimate();
+        } catch (err) { setActionError(err.message || 'Failed to delete area'); }
+        setAreaBusy(false);
+      };
+
+      // Move a single item into an area (or General when areaId is null)
+      const moveItemToArea = async (item, areaId) => {
+        if (!estimate) return;
+        try {
+          const result = await repFetch('/api/rep/estimates/' + estimate.id + '/items/' + item.id, {
+            method: 'PUT', body: JSON.stringify({ area_id: areaId })
+          });
+          const merged = result.item ? { ...item, ...result.item } : { ...item, area_id: areaId };
+          setItems(prev => prev.map(i => i.id === item.id ? merged : i));
           if (result.estimate) setEstimate(result.estimate);
-        }
-        setLaborItem({ labor_category: 'installation', description: '', rate_type: 'per_sqft', rate_sqft: '', labor_sqft: '', unit_price: '', quantity: '1' });
-        setShowLaborForm(false);
+        } catch (err) { setActionError(err.message || 'Failed to move item'); }
       };
 
       // Send estimate
@@ -24553,6 +24924,11 @@
       // Preview
       const loadPreview = async () => {
         if (!estimate) return;
+        // Customer is optional while building but required to send.
+        if (!form.customer_email || !isValidEmail(form.customer_email)) {
+          setActionError('Add a customer with a valid email before sending this estimate.');
+          return;
+        }
         setPreviewLoading(true);
         try {
           const data = await repFetch('/api/rep/estimates/' + estimate.id + '/preview');
@@ -24563,30 +24939,47 @@
         setPreviewLoading(false);
       };
 
-      // Convert to quote
-      const convertToQuote = async () => {
+      // Convert to quote (materials only; labor summarized in quote notes)
+      const convertToQuote = async (force) => {
         if (!estimate) return;
         setConverting(true);
         try {
-          const data = await repFetch('/api/rep/estimates/' + estimate.id + '/convert-to-quote', { method: 'POST' });
+          const data = await repFetch('/api/rep/estimates/' + estimate.id + '/convert-to-quote', {
+            method: 'POST', body: JSON.stringify(force ? { force: true } : {})
+          });
           if (data.quote) navigate('quote-edit', data.quote.id);
         } catch (err) {
-          alert('Conversion failed: ' + err.message);
+          // Declined/expired estimates require an explicit force confirm
+          if (err.needs_force || (err.data && err.data.needs_force)) {
+            if (confirm((err.message || 'This estimate is declined or expired.') + '\n\nConvert it anyway?')) {
+              setConverting(false);
+              return convertToQuote(true);
+            }
+          } else {
+            alert('Conversion failed: ' + err.message);
+          }
         }
         setConverting(false);
       };
 
-      // Convert to order
-      const convertToOrder = async () => {
+      // Convert to order (carries materials + labor; tax on materials only)
+      const convertToOrder = async (force) => {
         if (!estimate) return;
         setConverting(true);
         try {
           const data = await repFetch('/api/rep/estimates/' + estimate.id + '/convert-to-order', {
-            method: 'POST', body: JSON.stringify({ payment_method: convertMethod })
+            method: 'POST', body: JSON.stringify(force ? { payment_method: convertMethod, force: true } : { payment_method: convertMethod })
           });
           if (data.order) navigate('order-detail', data.order.id);
         } catch (err) {
-          alert('Conversion failed: ' + err.message);
+          if (err.needs_force || (err.data && err.data.needs_force)) {
+            if (confirm((err.message || 'This estimate is declined or expired.') + '\n\nConvert it anyway?')) {
+              setConverting(false);
+              return convertToOrder(true);
+            }
+          } else {
+            alert('Conversion failed: ' + err.message);
+          }
         }
         setConverting(false);
       };
@@ -24602,29 +24995,89 @@
       const materialItems = items.filter(i => i.item_type === 'material');
       const laborItems = items.filter(i => i.item_type === 'labor');
 
+      // Group items by area. area_id null => General bucket.
+      const itemsForArea = (areaId) => items.filter(i => (i.area_id || null) === areaId);
+      const generalItems = itemsForArea(null);
+      // Subtotal for an area (materials + labor). Prefer backend area_subtotals, fall
+      // back to client sum (keeps totals live between reloads).
+      const subtotalFor = (key) => {
+        const be = areaSubtotals && areaSubtotals[key];
+        if (be) return { materials: parseFloat(be.materials || 0), labor: parseFloat(be.labor || 0), total: parseFloat(be.total || 0) };
+        const areaId = key === 'general' ? null : key;
+        const list = itemsForArea(areaId);
+        const materials = list.filter(i => i.item_type === 'material').reduce((s, i) => s + parseFloat(i.subtotal || 0), 0);
+        const labor = list.filter(i => i.item_type === 'labor').reduce((s, i) => s + parseFloat(i.subtotal || 0), 0);
+        return { materials, labor, total: materials + labor };
+      };
+      // General section shows when it has items OR there are no areas at all
+      const showGeneral = generalItems.length > 0 || areas.length === 0;
+
       const laborCategoryLabels = {
         installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
         transitions: 'Transitions', baseboards: 'Baseboards', floor_leveling: 'Floor Leveling',
         moisture_barrier: 'Moisture Barrier', furniture_moving: 'Furniture Moving', other: 'Other'
       };
+      // Categories billed per linear foot rather than per square foot.
+      const linearLaborCats = { baseboards: true };
+      const laborUnitShort = (cat) => linearLaborCats[cat] ? 'lin ft' : 'sqft';
+      // "Other" carries a free-text name (stored in product_name); everything else
+      // shows its fixed category label.
+      const laborDisplayName = (item) => (item.labor_category === 'other' && item.product_name)
+        ? item.product_name
+        : (laborCategoryLabels[item.labor_category] || item.labor_category);
 
       if (loading) return <div className="loading">Loading estimate...</div>;
 
       const fmtD = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const fmtDT = (d) => {
+        if (!d) return null;
+        const dt = new Date(d);
+        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' +
+          dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase().replace(' ', '');
+      };
+      // effective_status folds "sent + expired" into 'expired'
+      const effStatus = estimate ? (estimate.effective_status || estimate.status) : 'draft';
+      const isTerminalNeg = effStatus === 'declined' || effStatus === 'expired';
       const EST_STATUS_META = {
         draft: { label: 'Draft', tone: '#a87935' },
         sent: { label: 'Sent · awaiting customer', tone: '#5c6e94' },
+        accepted: { label: 'Accepted', tone: '#3a7a4e' },
+        declined: { label: 'Declined', tone: '#c54731' },
+        expired: { label: 'Expired', tone: 'var(--brass-muted)' },
         converted: { label: 'Converted', tone: '#3a7a4e' },
       };
-      const st = estimate ? (EST_STATUS_META[estimate.status] || { label: estimate.status, tone: 'var(--brass-muted)' }) : { label: 'New draft', tone: '#a87935' };
-      const estStepRank = !estimate ? 0 : estimate.status === 'converted' ? 2 : estimate.status === 'sent' ? 1 : 0;
+      const st = estimate ? (EST_STATUS_META[effStatus] || { label: effStatus, tone: 'var(--brass-muted)' }) : { label: 'New draft', tone: '#a87935' };
+      const estStepRank = !estimate ? 0
+        : effStatus === 'converted' ? 3
+        : effStatus === 'accepted' ? 2
+        : effStatus === 'sent' ? 1 : 0;
       const estSteps = [
-        { label: 'Drafted', meta: estimate ? fmtD(estimate.created_at) : 'not saved yet' },
-        { label: 'Sent', meta: estimate && estimate.status !== 'draft' ? 'emailed to customer' : 'preview & send' },
+        { label: 'Draft', meta: estimate ? fmtD(estimate.created_at) : 'not saved yet' },
+        { label: 'Sent', meta: estimate && ['sent', 'accepted', 'declined', 'converted'].includes(estimate.status) ? 'emailed to customer' : 'preview & send' },
+        { label: 'Accepted', meta: estimate && estimate.accepted_at ? 'by ' + (estimate.accepted_by_name || 'customer') : 'customer approval' },
         { label: 'Converted', meta: estimate && estimate.converted_quote_id ? 'quote created'
-            : estimate && estimate.converted_order_id ? 'order created' : 'becomes a quote or order' },
+            : estimate && estimate.converted_order_id ? 'order created' : 'becomes an order' },
       ];
-      const initials = (form.customer_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+      const publicLink = estimate && estimate.public_token
+        ? window.location.origin + '/estimate/' + estimate.public_token : null;
+      const copyPublicLink = () => {
+        if (!publicLink) return;
+        const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1600); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(publicLink).then(done, done);
+        } else {
+          const ta = document.createElement('textarea'); ta.value = publicLink;
+          document.body.appendChild(ta); ta.select();
+          try { document.execCommand('copy'); } catch (e) {}
+          document.body.removeChild(ta); done();
+        }
+      };
+      // Engagement summary (estimate_events)
+      const engOpens = engagement ? engagement.opens : 0;
+      const engViewers = engagement ? engagement.viewers : 0;
+      const engReplies = engagement ? engagement.replies : 0;
+      const lastViewedAt = engagement && engagement.last_viewed_at ? engagement.last_viewed_at : null;
+      const lastReplyAt = engagement && engagement.last_reply_at ? engagement.last_reply_at : null;
 
       // Rep-only economics over materials (a $0 cost means "cost unknown", not 100% margin)
       const estCosted = materialItems.filter(i => parseFloat(i.vendor_cost) > 0 && parseFloat(i.unit_price) > 0);
@@ -24633,95 +25086,499 @@
       const estBlendedMargin = estCostedSell > 0 ? (estGrossProfit / estCostedSell) * 100 : null;
 
       const canConvert = estimate && !isReadonly && materialItems.length > 0;
-      const createDisabled = saving || !form.customer_name || !form.customer_email;
+      // Saving a draft no longer requires a customer up front (attach before send),
+      // so the only thing that blocks the save button is an in-flight save.
+      const createDisabled = saving;
+
+      // "Move to section" affordance shared by material + labor rows
+      const moveSelect = (item) => {
+        if (isReadonly || (areas.length === 0)) return null;
+        return (
+          <select value={item.area_id || ''} title="Move to section"
+            onChange={e => moveItemToArea(item, e.target.value || null)}
+            style={{ font: '400 0.625rem/1 Inter, sans-serif', color: '#8a7e68', border: '0.5px solid rgba(28,25,23,0.16)', background: '#ece5d8', padding: '2px 4px', maxWidth: 96 }}>
+            <option value="">General</option>
+            {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        );
+      };
+
+      // Render a single material row (reuses editingCell machinery)
+      const renderMaterialRow = (item) => {
+        const isUnit = item.sell_by === 'unit' || item.sell_by === 'piece';
+        const isCarpet = item.sell_by === 'roll';
+        const liveCost = parseFloat(getMaterialValue(item, 'vendor_cost') || 0);
+        const livePrice = parseFloat(getMaterialValue(item, 'unit_price') || 0);
+        const mgn = (liveCost > 0 && livePrice > 0)
+          ? (1 - liveCost / livePrice) * 100 : null;
+        const editCell = (field, rawVal, display, numericOnly) => {
+          const isEditing = editingCell && editingCell.id === item.id && editingCell.field === field;
+          const targetField = field === 'sqft' ? 'sqft_needed' : field === 'qty' ? 'num_boxes' : field === 'cost' ? 'vendor_cost' : 'unit_price';
+          if (isReadonly) return <span style={{ font: '400 0.8125rem/1 Inter, sans-serif', color: '#1c1917' }}>{display}</span>;
+          return isEditing ? (
+            <input className="rof-edit-input" type="text" inputMode={numericOnly ? 'numeric' : 'decimal'} autoFocus
+              value={cellValue}
+              onChange={e => {
+                const v = e.target.value;
+                const ok = numericOnly ? (v === '' || /^\d+$/.test(v)) : (v === '' || /^\d*\.?\d{0,2}$/.test(v));
+                if (ok) { setCellValue(v); onMaterialChange(item, targetField, v || '0'); }
+              }}
+              onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') cancelCellEdit(); }}
+              onBlur={() => { commitMaterialItem(item); cancelCellEdit(); }} />
+          ) : (
+            <button className="rof-edit-cell" onClick={() => startCellEdit(item.id, field, rawVal)}>{display}</button>
+          );
+        };
+        return (
+          <div key={item.id} className={'rof-item-row' + (showCost ? '' : ' rof-nocost')}>
+            <div className="rof-item-swatch">
+              {item.primary_image
+                ? <img src={optimizeImg(item.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover' }} loading="lazy" />
+                : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: item.collection || item.current_collection }), 50) }} />
+              }
+            </div>
+            <div className="rof-item-info">
+              <div className="rof-item-name">
+                {item.collection || item.current_collection || item.product_name || '—'}
+                {item.color ? ' ' + item.color : ''}
+                {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
+              </div>
+              <div className="rof-item-meta" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span>{[
+                  item.vendor_name || null,
+                  item.vendor_sku || null,
+                  (!isUnit && !isCarpet && parseFloat(getMaterialValue(item, 'sqft_needed') || 0) > 0)
+                    ? parseFloat(getMaterialValue(item, 'sqft_needed') || 0).toFixed(0) + ' sqft' : null
+                ].filter(Boolean).join(' · ')}</span>
+                {moveSelect(item)}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              {isCarpet
+                ? editCell('sqft', getMaterialValue(item, 'sqft_needed') || 0,
+                    <React.Fragment>{parseFloat(getMaterialValue(item, 'sqft_needed') || 0).toFixed(0)} <span style={{ fontSize: '0.5625rem', color: '#8a7e68', marginLeft: '0.1rem' }}>sqft</span></React.Fragment>)
+                : editCell('qty', getMaterialValue(item, 'num_boxes') || 1,
+                    <React.Fragment>{getMaterialValue(item, 'num_boxes') || 1} <span style={{ fontSize: '0.5625rem', color: '#8a7e68', marginLeft: '0.1rem' }}>{isUnit ? (item.sell_by === 'piece' ? 'pcs' : 'units') : 'boxes'}</span></React.Fragment>, true)}
+            </div>
+            {showCost && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'flex-end', gap: '0.35rem' }}>
+                {editCell('cost', liveCost.toFixed(2),
+                  <span style={{ color: '#8a7e68' }}>{liveCost > 0 ? '$' + liveCost.toFixed(2) : '—'}</span>)}
+                {mgn !== null && (
+                  <span style={{ font: '500 0.5625rem/1.3 ui-monospace, monospace', letterSpacing: '0.04em', color: '#a87935' }}>{mgn.toFixed(1) + '%'}</span>
+                )}
+              </div>
+            )}
+            <div style={{ textAlign: 'right' }}>
+              {editCell('price', parseFloat(getMaterialValue(item, 'unit_price') || 0).toFixed(2),
+                <React.Fragment>${parseFloat(getMaterialValue(item, 'unit_price') || 0).toFixed(2)}<span style={{ fontSize: '0.5rem', color: '#8a7e68', marginLeft: '0.15rem' }}>{isUnit ? '/ea' : isCarpet ? '/sqyd' : '/sqft'}</span></React.Fragment>)}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', justifyContent: 'flex-end' }}>
+              <span className="rof-item-price">${parseFloat(item.subtotal || 0).toFixed(2)}</span>
+              {!isReadonly && (
+                <button className="rof-remove-btn" onClick={() => deleteItem(item.id)} title="Remove">{'✕'}</button>
+              )}
+            </div>
+          </div>
+        );
+      };
+
+      // Render a single labor row — matches the order line-item grid
+      const laborCols = '36px 1.5fr 2fr 1.1fr 112px';
+      const renderLaborRow = (item) => (
+        <div key={item.id} className="rof-item-row" style={{ gridTemplateColumns: laborCols }}>
+          <div className="rof-item-swatch"></div>
+          <div className="rof-item-info">
+            <div className="rof-item-name">
+              {laborDisplayName(item)}
+              <span style={{ marginLeft: 6, font: '500 8px/1 "Inter", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase',
+                padding: '2px 6px', borderRadius: 3, background: 'rgba(28,25,23,0.08)', color: '#8a7e68', verticalAlign: 'middle' }}>Labor</span>
+            </div>
+            <div className="rof-item-meta" style={{ marginTop: 4 }}>{moveSelect(item)}</div>
+          </div>
+          <div style={{ font: '400 0.75rem/1.5 Inter, sans-serif', color: 'rgba(28,25,23,0.7)' }}>
+            {item.description ? item.description.split('\n').map((line, i) => (
+              <div key={i}>{i > 0 ? '— ' : ''}{line}</div>
+            )) : '—'}
+          </div>
+          <div className="rof-item-meta" style={{ marginTop: 0, textAlign: 'right', whiteSpace: 'nowrap' }}>
+            {item.rate_type === 'per_sqft'
+              ? '$' + parseFloat(item.rate_sqft || 0).toFixed(2) + '/' + laborUnitShort(item.labor_category) + ' × ' + parseFloat(item.labor_sqft || 0).toFixed(0)
+              : (parseFloat(item.quantity || 1) > 1
+                ? '$' + parseFloat(item.unit_price || 0).toFixed(2) + ' × ' + parseFloat(item.quantity).toFixed(0)
+                : 'Flat rate')}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', justifyContent: 'flex-end' }}>
+            <span className="rof-item-price">${parseFloat(item.subtotal || 0).toFixed(2)}</span>
+            {!isReadonly && (
+              <button className="rof-remove-btn" onClick={() => deleteItem(item.id)} title="Remove">{'✕'}</button>
+            )}
+          </div>
+        </div>
+      );
+
+      // Materials group: "+ Add material" toggles an inline SKU search that
+      // appends to the estimate. Stays open so several can be added in a row.
+      const renderMaterialAdd = () => {
+        if (isReadonly) return null;
+        if (activeAddArea !== 'material') return (
+          <div style={{ marginTop: '0.75rem' }}>
+            <button className="rof-card-action" onClick={() => { setTargetAreaId(null); setProductSearch(''); setSearchResults([]); setShowResults(false); setActiveAddArea('material'); }}>+ Add material</button>
+          </div>
+        );
+        return (
+          <div className="rof-search-wrap" style={{ marginTop: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input type="text" value={productSearch} placeholder="Search SKU or product name…" autoFocus
+                onFocus={() => { if (searchResults.length > 0) setShowResults(true); }}
+                onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                onChange={e => handleProductSearch(e.target.value)}
+                style={{ flex: 1, padding: '0.5625rem 0.75rem', border: '0.5px solid rgba(28,25,23,0.18)', background: '#ece5d8', font: '400 0.8125rem/1.4 Inter, sans-serif', boxSizing: 'border-box' }} />
+              <button className="rof-btn-light" style={{ padding: '0.5rem 0.85rem', whiteSpace: 'nowrap' }} onClick={() => { setTargetAreaId(null); setCatalogOpen(true); }}>Browse catalog {'→'}</button>
+              <button className="rof-btn-light" style={{ padding: '0.5rem 0.85rem' }} onClick={() => setActiveAddArea(null)}>Done</button>
+            </div>
+            <div style={{ marginTop: '0.4rem', font: '400 0.6875rem/1.4 Inter, sans-serif', color: '#8a7e68' }}>
+              Search to add a single SKU, or browse the full catalog to set quantities and add accessories in bulk.
+            </div>
+            {showResults && searchResults.length === 0 && productSearch.length >= 2 && (
+              <div className="rof-search-results" style={{ padding: '0.75rem', color: '#8a7e68', fontSize: '0.8125rem' }}>Searching...</div>
+            )}
+            {showResults && searchResults.length > 0 && (
+              <div className="rof-search-results">
+                {searchResults.slice(0, 20).map((r, i) => {
+                  const rSuffix = (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft');
+                  const rRetail = parseFloat(r.price || 0);
+                  const rTrade = rofTradeUnit(rRetail, r.retail_locked, tradeDiscountFor(selectedCustomer));
+                  const rDisc = rRetail > 0 && rTrade < rRetail;
+                  return (
+                  <div key={r.sku_id || i} className="rof-search-item" onMouseDown={() => { setTargetAreaId(null); addProductToEstimate(r); }}>
+                    {r.primary_image
+                      ? <img src={optimizeImg(r.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} loading="lazy" />
+                      : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: r.collection }), 50), flexShrink: 0 }} />
+                    }
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="rof-search-item-name">
+                        {r.collection || r.product_name}
+                        {r.color ? ' — ' + r.color : ''}
+                        {r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
+                      </div>
+                      <div className="rof-search-item-sub">
+                        {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
+                        {rRetail > 0 && ' · '}
+                        {rRetail > 0 && rDisc && <span style={{ textDecoration: 'line-through', color: '#8a7e68' }}>${rRetail.toFixed(2)}</span>}
+                        {rRetail > 0 && <span style={{ color: rDisc ? '#a87935' : undefined }}>{rDisc ? ' ' : ''}${rTrade.toFixed(2)}{rSuffix}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // Labor group: "+ Add labor" toggles an inline labor form.
+      const renderLaborAdd = () => {
+        if (isReadonly) return null;
+        if (activeAddArea !== 'labor') return (
+          <div style={{ marginTop: '0.75rem' }}>
+            <button className="rof-card-action" onClick={() => { setLaborItem(l => ({ ...l, area_id: null })); setActiveAddArea('labor'); }}>+ Add labor</button>
+          </div>
+        );
+        const isSqft = laborItem.rate_type === 'per_sqft';
+        const isOther = laborItem.labor_category === 'other';
+        const unit = laborUnitShort(laborItem.labor_category); // 'sqft' | 'lin ft'
+        const isLinear = unit === 'lin ft';
+        const lineTotal = isSqft
+          ? parseFloat(laborItem.rate_sqft || 0) * parseFloat(laborItem.labor_sqft || 0)
+          : parseFloat(laborItem.unit_price || 0) * parseFloat(laborItem.quantity || 1);
+        const needsName = isOther && !(laborItem.custom_name || '').trim();
+        const canAdd = lineTotal > 0 && !needsName;
+        // Labor area usually mirrors the material area already on the estimate —
+        // offer it as a one-tap prefill (square-foot categories only).
+        const matSqft = Math.round(items.filter(i => i.item_type === 'material')
+          .reduce((s, i) => s + parseFloat(i.sqft_needed || 0), 0));
+        const fieldLabel = { display: 'block', font: '500 0.5rem/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 5 };
+        const numInput = (val, onCh) => (
+          <input type="text" inputMode="decimal" placeholder="0" value={val}
+            onChange={e => { const v = e.target.value; if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) onCh(v); }}
+            style={{ width: '100%', padding: '0.5rem 0.625rem', border: '0.5px solid rgba(28,25,23,0.2)', background: '#f5f0e8', font: '400 0.875rem/1 Inter, sans-serif', boxSizing: 'border-box' }} />
+        );
+        return (
+          <div style={{ marginTop: '0.75rem', border: '0.5px solid rgba(28,25,23,0.16)', borderLeft: '2px solid #a87935', background: 'rgba(28,25,23,0.025)' }}>
+            {/* Header: title + billing-mode segmented toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.75rem 1rem', borderBottom: '0.5px solid rgba(28,25,23,0.1)', flexWrap: 'wrap' }}>
+              <span style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>New labor line</span>
+              <div style={{ display: 'inline-flex', border: '0.5px solid rgba(28,25,23,0.2)' }}>
+                {[['per_sqft', isLinear ? 'Per lin ft' : 'Per sq ft'], ['flat', 'Flat rate']].map(([rt, lbl]) => (
+                  <button key={rt} onClick={() => setLaborItem(l => ({ ...l, rate_type: rt }))}
+                    style={{ padding: '0.4rem 0.85rem', cursor: 'pointer', border: 'none',
+                      font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase',
+                      background: laborItem.rate_type === rt ? '#1c1917' : 'transparent',
+                      color: laborItem.rate_type === rt ? '#f5f0e8' : '#8a7e68' }}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ padding: '1rem' }}>
+              <div className="rof-field-row" style={{ marginBottom: '0.875rem' }}>
+                <div className="rof-field" style={{ marginBottom: 0 }}>
+                  <label>Category</label>
+                  <select value={laborItem.labor_category}
+                    onChange={e => setLaborItem(l => ({ ...l, labor_category: e.target.value }))}>
+                    {Object.entries(laborCategoryLabels).map(([v, lbl]) => <option key={v} value={v}>{lbl}</option>)}
+                  </select>
+                </div>
+                {isOther ? (
+                  <div className="rof-field" style={{ marginBottom: 0 }}>
+                    <label>Specify {'—'} name this labor line *</label>
+                    <input type="text" maxLength={60} autoFocus placeholder="e.g. Stair nosing install, Curbless shower prep"
+                      value={laborItem.custom_name}
+                      onChange={e => setLaborItem(l => ({ ...l, custom_name: e.target.value }))} />
+                  </div>
+                ) : <div />}
+              </div>
+              <div className="rof-field" style={{ marginBottom: 0 }}>
+                <label>Description {'—'} one detail per line, shown on the estimate</label>
+                <textarea rows="2" placeholder={"e.g.\nInstall porcelain tile with thinset + grout\nSeal and haul away debris"}
+                  value={laborItem.description} onChange={e => setLaborItem(l => ({ ...l, description: e.target.value }))} />
+              </div>
+
+              {/* Pricing */}
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.625rem', flexWrap: 'wrap', marginTop: '1rem', paddingTop: '0.875rem', borderTop: '0.5px solid rgba(28,25,23,0.08)' }}>
+                {isSqft ? (
+                  <React.Fragment>
+                    <div style={{ width: 118 }}>
+                      <label style={fieldLabel}>Rate / {unit}</label>
+                      {numInput(laborItem.rate_sqft, v => setLaborItem(l => ({ ...l, rate_sqft: v })))}
+                    </div>
+                    <span style={{ font: '300 1.125rem/1 "Cormorant Garamond", serif', color: '#8a7e68', paddingBottom: '0.45rem' }}>×</span>
+                    <div style={{ width: 132 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 6 }}>
+                        <label style={fieldLabel}>{isLinear ? 'Length (lin ft)' : 'Area (sqft)'}</label>
+                        {!isLinear && matSqft > 0 && parseFloat(laborItem.labor_sqft || 0) !== matSqft && (
+                          <button onClick={() => setLaborItem(l => ({ ...l, labor_sqft: String(matSqft) }))}
+                            title="Match the total material sqft on this estimate"
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: '500 0.5rem/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', color: '#a87935' }}>
+                            Use {matSqft}
+                          </button>
+                        )}
+                      </div>
+                      {numInput(laborItem.labor_sqft, v => setLaborItem(l => ({ ...l, labor_sqft: v })))}
+                    </div>
+                  </React.Fragment>
+                ) : (
+                  <React.Fragment>
+                    <div style={{ width: 118 }}>
+                      <label style={fieldLabel}>Price</label>
+                      {numInput(laborItem.unit_price, v => setLaborItem(l => ({ ...l, unit_price: v })))}
+                    </div>
+                    <span style={{ font: '300 1.125rem/1 "Cormorant Garamond", serif', color: '#8a7e68', paddingBottom: '0.45rem' }}>×</span>
+                    <div style={{ width: 90 }}>
+                      <label style={fieldLabel}>Qty</label>
+                      {numInput(laborItem.quantity, v => setLaborItem(l => ({ ...l, quantity: v })))}
+                    </div>
+                  </React.Fragment>
+                )}
+                <div style={{ flex: 1, minWidth: 90, textAlign: 'right' }}>
+                  <div style={{ ...fieldLabel, marginBottom: 3 }}>Line total</div>
+                  <div style={{ font: '300 1.5rem/1 "Cormorant Garamond", serif', color: canAdd ? '#1c1917' : '#b8ad97', letterSpacing: '-0.01em' }}>${lineTotal.toFixed(2)}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
+                <button className="rof-btn-light" style={{ padding: '0.5rem 0.85rem' }} onClick={() => setActiveAddArea(null)}>Cancel</button>
+                <button className="rof-btn-light primary" onClick={addLaborItem} disabled={!canAdd}
+                  style={{ padding: '0.5rem 1.1rem', opacity: canAdd ? 1 : 0.5, cursor: canAdd ? 'pointer' : 'not-allowed' }}>Add labor</button>
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      // Materials card body: header row + material lines + add.
+      const renderMaterialsBody = () => {
+        const mats = items.filter(i => i.item_type === 'material');
+        return (
+          <React.Fragment>
+            {mats.length > 0 ? (
+              <div style={{ marginTop: '1rem' }}>
+                <div className={'rof-items-header' + (showCost ? '' : ' rof-nocost')}>
+                  <span></span>
+                  <span>Product</span>
+                  <span style={{ textAlign: 'right' }}>Qty</span>
+                  {showCost && <span style={{ textAlign: 'right' }}>Cost · Mgn</span>}
+                  <span style={{ textAlign: 'right' }}>Price</span>
+                  <span style={{ textAlign: 'right' }}>Subtotal</span>
+                </div>
+                {mats.map(renderMaterialRow)}
+              </div>
+            ) : (
+              <div className="rof-items-empty">No materials yet — add flooring, trim, or accessories.</div>
+            )}
+            {renderMaterialAdd()}
+          </React.Fragment>
+        );
+      };
+
+      // Labor card body: labor lines + add. (Per-line descriptions carry the
+      // detail — the old free-text "scope of work" note was redundant.)
+      const renderLaborBody = () => {
+        const labor = items.filter(i => i.item_type === 'labor');
+        return (
+          <React.Fragment>
+            {labor.length > 0 ? (
+              <div style={{ marginTop: '1rem' }}>
+                <div className="rof-items-header" style={{ gridTemplateColumns: laborCols }}>
+                  <span></span>
+                  <span>Labor</span>
+                  <span>Description</span>
+                  <span style={{ textAlign: 'right' }}>Rate</span>
+                  <span style={{ textAlign: 'right' }}>Subtotal</span>
+                </div>
+                {labor.map(renderLaborRow)}
+              </div>
+            ) : (
+              <div className="rof-items-empty">No labor lines yet — add installation, tearout, prep, etc.</div>
+            )}
+            {renderLaborAdd()}
+          </React.Fragment>
+        );
+      };
 
       return (
         <div style={{ paddingBottom: 96 }}>
-          {/* Breadcrumb */}
-          <div className="qw-breadcrumb">
-            <div className="qw-crumbs">
+          {/* Breadcrumb — Order View v2 style */}
+          <div className="rod-breadcrumb">
+            <div className="rod-breadcrumb-trail">
+              <a onClick={() => navigate('dashboard')}>Workspace</a>
+              <span className="rod-breadcrumb-sep"></span>
               <a onClick={() => navigate('estimates')}>Estimates</a>
-              <span className="qw-crumb-sep" />
-              <span className="qw-crumb-current">{estimate ? estimate.estimate_number : 'New estimate'}</span>
+              <span className="rod-breadcrumb-sep"></span>
+              <span className="rod-current">{estimate ? estimate.estimate_number : 'New estimate'}</span>
             </div>
-            <div className="qw-meta-right">
-              {estimate && <span>Updated {fmtD(estimate.updated_at)}</span>}
-              <span style={{ color: st.tone }}>{'●'} {st.label}</span>
+            <div className="rod-breadcrumb-nav">
+              <a onClick={() => navigate('estimates')}>← Estimates</a>
             </div>
           </div>
 
-          {/* Header */}
-          <div className="qw-header">
-            <div>
-              <h1>{estimate ? <React.Fragment>Estimate <em>{estimate.estimate_number}</em></React.Fragment> : <React.Fragment>New <em>estimate</em></React.Fragment>}</h1>
-              <div className="qw-identity">
-                <div className="qw-avatar">{initials}</div>
+          {/* Header — Order View v2 style */}
+          {(() => {
+            const chipTone = effStatus === 'accepted' ? 'live'
+              : effStatus === 'converted' ? 'done'
+              : effStatus === 'declined' ? 'hot'
+              : effStatus === 'sent' ? 'hold'
+              : 'soft';
+            return (
+              <div className="rov-header">
                 <div>
-                  <div className="qw-cust-line">
+                  <RovMicro>Estimates{form.project_name ? ' · ' + form.project_name : ''}</RovMicro>
+                  <div className="rov-header-title-row">
+                    <h1>{estimate ? estimate.estimate_number : 'New estimate'}</h1>
+                    <RovChip tone={chipTone}>{st.label}</RovChip>
+                  </div>
+                  <RovMicro style={{ marginTop: 10 }}>
                     {form.customer_name || 'No customer yet'}
-                    {form.project_name ? <React.Fragment> · <em style={{ fontFamily: '"Cormorant Garamond", serif' }}>{form.project_name}</em></React.Fragment> : null}
-                  </div>
-                  <div className="qw-cust-sub">
-                    {form.customer_email || form.phone
-                      ? [form.customer_email, form.phone].filter(Boolean).join(' · ')
-                      : 'Pick an existing customer or enter details below'}
-                  </div>
+                    {(form.customer_email || form.phone) ? ' · ' + [form.customer_email, form.phone].filter(Boolean).join(' · ') : ''}
+                    {estimate ? ' · Updated ' + fmtD(estimate.updated_at) : ''}
+                  </RovMicro>
+                </div>
+                <div className="rov-header-actions">
+                  {estimate && !isReadonly && (
+                    <button className="rov-hbtn" onClick={loadPreview} disabled={previewLoading}>
+                      {previewLoading ? 'Loading…' : effStatus === 'expired' ? 'Re-send (renew 30 days)' : estimate.status === 'sent' ? 'Resend estimate' : 'Preview & send'}
+                    </button>
+                  )}
+                  {estimate && (
+                    <button className="rov-hbtn" onClick={async () => {
+                      try {
+                        const url = await repOpenDoc('/api/rep/estimates/' + estimate.id + '/pdf?preview=true');
+                        setPdfViewer({ url, filename: (estimate.estimate_number || 'estimate') + '.pdf' });
+                      } catch(e) { alert('Failed to load PDF'); }
+                    }}>Preview PDF</button>
+                  )}
+                  {!isReadonly && (
+                    <button className="rov-hbtn" onClick={saveEstimate} disabled={saving}>
+                      {saving ? 'Saving…' : (estimate ? 'Save details' : 'Save draft')}
+                    </button>
+                  )}
+                  {estimate && estimate.status === 'draft' && (
+                    <button className="rov-hbtn danger" onClick={deleteEstimate}>Delete</button>
+                  )}
                 </div>
               </div>
-            </div>
-            <div className="ol-header-actions">
-              {estimate && estimate.status === 'draft' && (
-                <button className="ol-header-btn" onClick={deleteEstimate} style={{ color: 'var(--red, #c54731)' }}>Delete</button>
-              )}
-              {estimate && (
-                <button className="ol-header-btn" onClick={async () => {
-                  try {
-                    const url = await repOpenDoc('/api/rep/estimates/' + estimate.id + '/pdf?preview=true');
-                    setPdfViewer({ url, filename: (estimate.estimate_number || 'estimate') + '.pdf' });
-                  } catch(e) { alert('Failed to load PDF'); }
-                }}>Preview PDF</button>
-              )}
-              {pdfViewer && (
-                <RepPdfViewer
-                  url={pdfViewer.url}
-                  filename={pdfViewer.filename}
-                  downloadPath={'/api/rep/estimates/' + estimate.id + '/pdf'}
-                  onClose={() => setPdfViewer(null)}
-                />
-              )}
-              {estimate && !isReadonly && (
-                <button className="ol-header-btn" onClick={loadPreview} disabled={previewLoading}>
-                  {previewLoading ? 'Loading…' : estimate.status === 'sent' ? 'Resend estimate' : 'Preview & send'}
-                </button>
-              )}
-              {!isReadonly && (
-                <button className="ol-header-btn primary" onClick={saveEstimate} disabled={createDisabled}>
-                  {saving ? 'Saving…' : (estimate ? 'Save details' : 'Create estimate')}
-                </button>
-              )}
-            </div>
-          </div>
+            );
+          })()}
+          {pdfViewer && (
+            <RepPdfViewer
+              url={pdfViewer.url}
+              filename={pdfViewer.filename}
+              downloadPath={'/api/rep/estimates/' + estimate.id + '/pdf'}
+              onClose={() => setPdfViewer(null)}
+            />
+          )}
 
           {/* Send feedback */}
           {sendFeedback && (
             <div className="rof-alert success" style={{ marginBottom: '1rem' }}>{sendFeedback}</div>
           )}
 
-          {/* Lifecycle stepper */}
-          <div className="qw-stepper cols-3">
+          {/* Accepted banner */}
+          {estimate && estimate.status === 'accepted' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.875rem 1.125rem', marginBottom: '1rem', background: 'rgba(58,122,78,0.1)', border: '0.5px solid rgba(58,122,78,0.35)', flexWrap: 'wrap' }}>
+              <span style={{ font: '400 1rem/1.3 "Cormorant Garamond", serif', color: '#2f6340', flex: 1 }}>
+                {'✓'} Accepted{estimate.accepted_by_name ? ' by ' + estimate.accepted_by_name : ''}{estimate.accepted_at ? ' on ' + fmtD(estimate.accepted_at) : ''}
+              </span>
+              {canConvert && (
+                <button className="rof-btn rof-btn-primary" style={{ padding: '0.5rem 1rem' }} onClick={() => setShowConvertOrderModal(true)} disabled={converting}>
+                  Convert to Order {'→'}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Lifecycle rail — Order View v2 style */}
+          <div className="rov-lifecycle cols-4">
             {estSteps.map((s, i) => {
-              const state = i < estStepRank ? 'done' : i === estStepRank ? 'now' : 'next';
+              const state = isTerminalNeg ? 'dead'
+                : i < estStepRank ? 'done'
+                : i === estStepRank ? 'current'
+                : 'future';
               return (
-                <div key={s.label} className={'qw-step ' + state}>
-                  <div className="qw-step-label">
-                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'now' ? '●' : '○'}</span>
-                    <span>{s.label}</span>
+                <div key={s.label} className={'rov-stage ' + state}>
+                  <span className="rov-stage-mark">{state === 'done' ? '✓' : isTerminalNeg ? '✕' : '0' + (i + 1)}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="rov-stage-label">{s.label}</div>
+                    <RovMicro style={{ marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.meta}</RovMicro>
                   </div>
-                  <div className="qw-step-meta">{s.meta}</div>
                 </div>
               );
             })}
           </div>
+          {/* Declined / expired reason banner */}
+          {isTerminalNeg && (
+            <div style={{ marginTop: '-12px', marginBottom: '24px', padding: '0.75rem 1rem',
+              background: effStatus === 'declined' ? 'rgba(197,71,49,0.08)' : 'rgba(28,25,23,0.05)',
+              border: '0.5px solid ' + (effStatus === 'declined' ? 'rgba(197,71,49,0.35)' : 'rgba(28,25,23,0.18)'),
+              font: '400 0.8125rem/1.5 Inter, sans-serif', color: 'rgba(28,25,23,0.75)' }}>
+              <strong style={{ color: effStatus === 'declined' ? '#c54731' : '#8a7e68' }}>
+                {effStatus === 'declined' ? 'Declined' : 'Expired'}:
+              </strong>{' '}
+              {effStatus === 'declined'
+                ? (estimate.decline_reason ? 'Reason: ' + estimate.decline_reason : 'The customer declined this estimate.')
+                : 'Re-send to renew for 30 days.'}
+            </div>
+          )}
+
+          {/* Copy customer link — visible once sent */}
+          {estimate && estimate.status !== 'draft' && publicLink && (
+            <div style={{ marginBottom: '1rem' }}>
+              <button className="rof-btn-light" style={{ padding: '0.4rem 0.8rem' }} onClick={copyPublicLink}>
+                {copied ? '✓ Copied' : 'Copy customer link'}
+              </button>
+            </div>
+          )}
 
           <div className="qw-grid">
             {/* ── Working column ── */}
@@ -24940,9 +25797,18 @@
                 </div>
               </WizRepCard>
 
-              {/* Materials — same item table as the order flow */}
-              {estimate ? (
-                <WizRepCard title={'Materials · ' + materialItems.length}
+              {/* Two fixed groups: Materials, then Labor & scope of work.
+                  The estimate record is created lazily on the first add. */}
+              {actionError && (
+                <div className="rof-alert error" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                  <span>{actionError}</span>
+                  <button className="rof-btn-light" style={{ padding: '0.15rem 0.5rem', fontSize: '0.5rem' }} onClick={() => setActionError(null)}>Dismiss</button>
+                </div>
+              )}
+
+              {/* Materials */}
+              {(
+                <WizRepCard title="Materials"
                   actions={
                     <React.Fragment>
                       {showCost && <span style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a87935' }}>Cost + margin · rep only</span>}
@@ -24952,290 +25818,25 @@
                           10% overage
                         </label>
                       )}
+                      <span style={{ font: '400 1rem/1 "Cormorant Garamond", serif', color: '#1c1917' }}>${items.filter(i => i.item_type === 'material').reduce((s, i) => s + parseFloat(i.subtotal || 0), 0).toFixed(2)}</span>
                     </React.Fragment>
                   }>
-
-                  {/* Catalog launcher — same popup as the order flow */}
-                  {!isReadonly && (
-                    <button className="rof-cat-launch" onClick={() => setCatalogOpen(true)}>
-                      <span className="rof-cat-launch-icon">{'⊞'}</span>
-                      <span>
-                        <span className="rof-cat-launch-title">Browse the full catalog</span>
-                        <span className="rof-cat-launch-sub">Filter by vendor, set quantities &amp; add accessories in one pass</span>
-                      </span>
-                      <span className="rof-cat-launch-cta">Open catalog {'→'}</span>
-                    </button>
-                  )}
-
-                  {!isReadonly && (
-                    <div className="rof-search-wrap" style={{ marginBottom: '0.75rem' }}>
-                      <input type="text" value={productSearch} placeholder="Quick add — search SKU or product name..."
-                        onFocus={() => { if (searchResults.length > 0) setShowResults(true); }}
-                        onBlur={() => setTimeout(() => setShowResults(false), 200)}
-                        onChange={e => handleProductSearch(e.target.value)}
-                        style={{ width: '100%', padding: '0.5625rem 0.75rem', border: '0.5px solid rgba(28,25,23,0.18)', background: '#ece5d8', font: '400 0.8125rem/1.4 Inter, sans-serif', boxSizing: 'border-box' }} />
-                      {showResults && searchResults.length === 0 && productSearch.length >= 2 && (
-                        <div className="rof-search-results" style={{ padding: '0.75rem', color: '#8a7e68', fontSize: '0.8125rem' }}>Searching...</div>
-                      )}
-                      {showResults && searchResults.length > 0 && (
-                        <div className="rof-search-results">
-                          {searchResults.slice(0, 20).map((r, i) => {
-                            const rSuffix = (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft');
-                            const rRetail = parseFloat(r.price || 0);
-                            const rTrade = rofTradeUnit(rRetail, r.retail_locked, tradeDiscountFor(selectedCustomer));
-                            const rDisc = rRetail > 0 && rTrade < rRetail;
-                            return (
-                            <div key={r.sku_id || i} className="rof-search-item" onMouseDown={() => addProductToEstimate(r)}>
-                              {r.primary_image
-                                ? <img src={optimizeImg(r.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} loading="lazy" />
-                                : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: r.collection }), 50), flexShrink: 0 }} />
-                              }
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div className="rof-search-item-name">
-                                  {r.collection || r.product_name}
-                                  {r.color ? ' — ' + r.color : ''}
-                                  {r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
-                                </div>
-                                <div className="rof-search-item-sub">
-                                  {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
-                                  {rRetail > 0 && ' · '}
-                                  {rRetail > 0 && rDisc && <span style={{ textDecoration: 'line-through', color: '#8a7e68' }}>${rRetail.toFixed(2)}</span>}
-                                  {rRetail > 0 && <span style={{ color: rDisc ? '#a87935' : undefined }}>{rDisc ? ' ' : ''}${rTrade.toFixed(2)}{rSuffix}</span>}
-                                </div>
-                              </div>
-                            </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {materialItems.length > 0 && (
-                    <div className={'rof-items-header' + (showCost ? '' : ' rof-nocost')}>
-                      <span></span>
-                      <span>Product</span>
-                      <span>SqFt · Qty</span>
-                      {showCost && <span>Cost · Mgn</span>}
-                      <span>Price</span>
-                      <span style={{ textAlign: 'right' }}>Subtotal</span>
-                    </div>
-                  )}
-
-                  {materialItems.map(item => {
-                    const isUnit = item.sell_by === 'unit' || item.sell_by === 'piece';
-                    const isCarpet = item.sell_by === 'roll';
-                    const mgn = (parseFloat(item.vendor_cost) > 0 && parseFloat(item.unit_price) > 0)
-                      ? (1 - parseFloat(item.vendor_cost) / parseFloat(item.unit_price)) * 100 : null;
-                    const editCell = (field, rawVal, display, numericOnly) => {
-                      const isEditing = editingCell && editingCell.id === item.id && editingCell.field === field;
-                      const targetField = field === 'sqft' ? 'sqft_needed' : field === 'qty' ? 'num_boxes' : 'unit_price';
-                      if (isReadonly) return <span style={{ font: '400 0.8125rem/1 Inter, sans-serif', color: '#1c1917' }}>{display}</span>;
-                      return isEditing ? (
-                        <input className="rof-edit-input" type="text" inputMode={numericOnly ? 'numeric' : 'decimal'} autoFocus
-                          value={cellValue}
-                          onChange={e => {
-                            const v = e.target.value;
-                            const ok = numericOnly ? (v === '' || /^\d+$/.test(v)) : (v === '' || /^\d*\.?\d{0,2}$/.test(v));
-                            if (ok) { setCellValue(v); onMaterialChange(item, targetField, v || '0'); }
-                          }}
-                          onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') cancelCellEdit(); }}
-                          onBlur={() => { commitMaterialItem(item); cancelCellEdit(); }} />
-                      ) : (
-                        <button className="rof-edit-cell" onClick={() => startCellEdit(item.id, field, rawVal)}>{display}</button>
-                      );
-                    };
-                    return (
-                      <div key={item.id} className={'rof-item-row' + (showCost ? '' : ' rof-nocost')}>
-                        <div className="rof-item-swatch">
-                          {item.primary_image
-                            ? <img src={optimizeImg(item.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover' }} loading="lazy" />
-                            : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: item.collection || item.current_collection }), 50) }} />
-                          }
-                        </div>
-                        <div className="rof-item-info">
-                          <div className="rof-item-name">
-                            {item.collection || item.current_collection || item.product_name || '—'}
-                            {item.color ? ' ' + item.color : ''}
-                            {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
-                          </div>
-                          <div className="rof-item-meta">
-                            {[item.vendor_name || null, item.vendor_sku || null].filter(Boolean).join(' · ')}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
-                          {!isUnit && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.15rem' }}>
-                              {editCell('sqft', getMaterialValue(item, 'sqft_needed') || 0,
-                                <React.Fragment>{parseFloat(getMaterialValue(item, 'sqft_needed') || 0).toFixed(0)} <span style={{ fontSize: '0.5625rem', color: '#8a7e68' }}>sqft</span></React.Fragment>)}
-                            </span>
-                          )}
-                          {!isCarpet && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.15rem' }}>
-                              {editCell('qty', getMaterialValue(item, 'num_boxes') || 1,
-                                <React.Fragment>{getMaterialValue(item, 'num_boxes') || 1} <span style={{ fontSize: '0.5625rem', color: '#8a7e68' }}>{isUnit ? (item.sell_by === 'piece' ? 'pcs' : 'units') : 'boxes'}</span></React.Fragment>, true)}
-                            </span>
-                          )}
-                        </div>
-                        {showCost && (
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ font: '400 0.75rem/1.3 Inter, sans-serif', color: '#8a7e68' }}>
-                              {parseFloat(item.vendor_cost) > 0 ? '$' + parseFloat(item.vendor_cost).toFixed(2) : '—'}
-                            </div>
-                            <div style={{ font: '500 0.5625rem/1.3 ui-monospace, monospace', letterSpacing: '0.04em', color: '#a87935' }}>
-                              {mgn !== null ? mgn.toFixed(1) + '%' : ''}
-                            </div>
-                          </div>
-                        )}
-                        <div>
-                          {editCell('price', parseFloat(getMaterialValue(item, 'unit_price') || 0).toFixed(2),
-                            <React.Fragment>${parseFloat(getMaterialValue(item, 'unit_price') || 0).toFixed(2)}<span style={{ fontSize: '0.5rem', color: '#8a7e68', marginLeft: '0.15rem' }}>{isUnit ? '/ea' : isCarpet ? '/sqyd' : '/sqft'}</span></React.Fragment>)}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', justifyContent: 'flex-end' }}>
-                          <span className="rof-item-price">${parseFloat(item.subtotal || 0).toFixed(2)}</span>
-                          {!isReadonly && (
-                            <button className="rof-remove-btn" onClick={() => deleteItem(item.id)} title="Remove">{'✕'}</button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {materialItems.length === 0 && (
-                    <div className="rof-items-empty">No materials yet. Search the catalog above.</div>
-                  )}
-                </WizRepCard>
-              ) : (
-                <WizRepCard title="Materials &amp; labor">
-                  <div className="rof-items-empty">Create the estimate to start adding materials and labor.</div>
+                  {renderMaterialsBody()}
                 </WizRepCard>
               )}
 
-              {/* Labor & Services */}
-              {estimate && (
-                <WizRepCard title={'Labor & services · ' + laborItems.length}
-                  actions={!isReadonly ? (
-                    <button className="rof-card-action" onClick={() => setShowLaborForm(!showLaborForm)}>
-                      {showLaborForm ? 'Cancel' : '+ Add Service'}
-                    </button>
-                  ) : null}>
-
-                  {laborItems.length > 0 && (
-                    <div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr auto auto 24px', gap: '0.75rem', padding: '0.375rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.12)' }}>
-                        {['Service', 'Description', 'Rate', 'Subtotal', ''].map((h, i) => (
-                          <span key={i} style={{ font: '500 0.5rem/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a7e68', textAlign: h === 'Subtotal' ? 'right' : 'left' }}>{h}</span>
-                        ))}
-                      </div>
-                      {laborItems.map(item => (
-                        <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr auto auto 24px', gap: '0.75rem', alignItems: 'center', padding: '0.625rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.06)' }}>
-                          <div className="rof-item-name">{laborCategoryLabels[item.labor_category] || item.labor_category}</div>
-                          <div style={{ font: '400 0.75rem/1.5 Inter, sans-serif', color: 'rgba(28,25,23,0.7)' }}>
-                            {item.description ? item.description.split('\n').map((line, i) => (
-                              <div key={i}>{i > 0 ? '— ' : ''}{line}</div>
-                            )) : '—'}
-                          </div>
-                          <div style={{ font: '400 0.625rem/1.3 ui-monospace, monospace', color: '#8a7e68', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
-                            {item.rate_type === 'per_sqft'
-                              ? '$' + parseFloat(item.rate_sqft || 0).toFixed(2) + '/sqft × ' + parseFloat(item.labor_sqft || 0).toFixed(0)
-                              : (parseFloat(item.quantity || 1) > 1
-                                ? '$' + parseFloat(item.unit_price || 0).toFixed(2) + ' × ' + parseFloat(item.quantity).toFixed(0)
-                                : 'Flat rate')}
-                          </div>
-                          <span className="rof-item-price">${parseFloat(item.subtotal || 0).toFixed(2)}</span>
-                          <span>
-                            {!isReadonly && (
-                              <button className="rof-remove-btn" onClick={() => deleteItem(item.id)} title="Remove">{'✕'}</button>
-                            )}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {laborItems.length === 0 && !showLaborForm && (
-                    <div className="rof-items-empty">No labor yet — installation, tearout, leveling, and more.</div>
-                  )}
-
-                  {showLaborForm && (
-                    <div style={{ border: '0.5px solid rgba(28,25,23,0.1)', padding: '1rem', marginTop: laborItems.length ? '0.75rem' : 0, background: 'rgba(28,25,23,0.02)' }}>
-                      <div style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: '0.75rem' }}>Add Service</div>
-                      <div className="rof-field-row">
-                        <div className="rof-field">
-                          <label>Category</label>
-                          <select value={laborItem.labor_category}
-                            onChange={e => setLaborItem(l => ({ ...l, labor_category: e.target.value }))}>
-                            <option value="installation">Installation</option>
-                            <option value="tearout">Tearout</option>
-                            <option value="underlayment">Underlayment</option>
-                            <option value="transitions">Transitions</option>
-                            <option value="baseboards">Baseboards</option>
-                            <option value="floor_leveling">Floor Leveling</option>
-                            <option value="moisture_barrier">Moisture Barrier</option>
-                            <option value="furniture_moving">Furniture Moving</option>
-                            <option value="other">Other</option>
-                          </select>
-                        </div>
-                        <div className="rof-field">
-                          <label>Rate Type</label>
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button className={'rof-btn-light' + (laborItem.rate_type === 'per_sqft' ? ' primary' : '')}
-                              onClick={() => setLaborItem(l => ({ ...l, rate_type: 'per_sqft' }))}
-                              style={{ padding: '0.5rem 0.75rem' }}>Per SqFt</button>
-                            <button className={'rof-btn-light' + (laborItem.rate_type === 'flat' ? ' primary' : '')}
-                              onClick={() => setLaborItem(l => ({ ...l, rate_type: 'flat' }))}
-                              style={{ padding: '0.5rem 0.75rem' }}>Flat Rate</button>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="rof-field">
-                        <label>Description (one detail per line)</label>
-                        <textarea rows="3" placeholder={"e.g.\nInstallation of tile\nIncludes grout and thinset"}
-                          value={laborItem.description} onChange={e => setLaborItem(l => ({ ...l, description: e.target.value }))} />
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                        {laborItem.rate_type === 'per_sqft' ? (
-                          <React.Fragment>
-                            <div className="rof-field" style={{ width: 110, marginBottom: 0 }}>
-                              <label>Rate ($/sqft)</label>
-                              <input type="number" step="0.01" placeholder="0.00"
-                                value={laborItem.rate_sqft} onChange={e => setLaborItem(l => ({ ...l, rate_sqft: e.target.value }))} />
-                            </div>
-                            <div className="rof-field" style={{ width: 100, marginBottom: 0 }}>
-                              <label>Area (sqft)</label>
-                              <input type="number" placeholder="0"
-                                value={laborItem.labor_sqft} onChange={e => setLaborItem(l => ({ ...l, labor_sqft: e.target.value }))} />
-                            </div>
-                            <div style={{ font: '300 1.125rem/1 "Cormorant Garamond", serif', color: '#1c1917', padding: '0.5rem 0.75rem' }}>
-                              ${(parseFloat(laborItem.rate_sqft || 0) * parseFloat(laborItem.labor_sqft || 0)).toFixed(2)}
-                            </div>
-                          </React.Fragment>
-                        ) : (
-                          <React.Fragment>
-                            <div className="rof-field" style={{ width: 110, marginBottom: 0 }}>
-                              <label>Price</label>
-                              <input type="number" step="0.01" placeholder="0.00"
-                                value={laborItem.unit_price} onChange={e => setLaborItem(l => ({ ...l, unit_price: e.target.value }))} />
-                            </div>
-                            <div className="rof-field" style={{ width: 80, marginBottom: 0 }}>
-                              <label>Qty</label>
-                              <input type="number" min="1" placeholder="1"
-                                value={laborItem.quantity} onChange={e => setLaborItem(l => ({ ...l, quantity: e.target.value }))} />
-                            </div>
-                            <div style={{ font: '300 1.125rem/1 "Cormorant Garamond", serif', color: '#1c1917', padding: '0.5rem 0.75rem' }}>
-                              ${(parseFloat(laborItem.unit_price || 0) * parseFloat(laborItem.quantity || 1)).toFixed(2)}
-                            </div>
-                          </React.Fragment>
-                        )}
-                        <button className="rof-btn-light primary" onClick={addLaborItem} style={{ padding: '0.5rem 1rem' }}>Add Service</button>
-                      </div>
-                    </div>
-                  )}
+              {/* Labor */}
+              {(
+                <WizRepCard title="Labor"
+                  actions={<span style={{ font: '400 1rem/1 "Cormorant Garamond", serif', color: '#1c1917' }}>${items.filter(i => i.item_type === 'labor').reduce((s, i) => s + parseFloat(i.subtotal || 0), 0).toFixed(2)}</span>}>
+                  {renderLaborBody()}
                 </WizRepCard>
               )}
 
               {/* Notes */}
-              {estimate && (
+              {(
                 <WizRepCard title="Notes">
-                  <div className="rof-field-row">
+  <div className="rof-field-row">
                     <div className="rof-field" style={{ marginBottom: 0 }}>
                       <label>Customer Notes (shown on PDF)</label>
                       <textarea rows="3" value={form.notes} disabled={isReadonly}
@@ -25248,6 +25849,87 @@
                     </div>
                   </div>
                 </WizRepCard>
+              )}
+
+              {/* Engagement thread — sends, opens, accept/decline, notes, replies */}
+              {estimate && estimate.status !== 'draft' && (
+                <section className="qw-card" style={{ marginTop: '1rem' }}>
+                  <div className="qw-card-head">
+                    <h3>Engagement</h3>
+                    {engOpens > 0 && <span className="qw-card-hint">{'●'} {engOpens === 1 ? '1 open' : engOpens + ' opens'}</span>}
+                  </div>
+                  <div style={{ padding: '12px 20px 0', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                    {[[engOpens, engOpens === 1 ? 'open' : 'opens'], [engViewers, engViewers === 1 ? 'viewer' : 'viewers'], [engReplies, engReplies === 1 ? 'reply' : 'replies']].map(([n, l]) => (
+                      <div key={l}>
+                        <div style={{ font: '400 22px/1 "Cormorant Garamond", serif', color: '#1c1917' }}>{n}</div>
+                        <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--brass-muted)', marginTop: 3 }}>{l}</div>
+                      </div>
+                    ))}
+                    {lastViewedAt && (
+                      <div style={{ marginLeft: 'auto', alignSelf: 'flex-end', font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--brass-muted)' }}>
+                        Last viewed {fmtDT(lastViewedAt)}
+                      </div>
+                    )}
+                  </div>
+                  {(() => {
+                    // Collapse consecutive viewed events into one entry
+                    const entries = [];
+                    events.forEach(e => {
+                      const prev = entries[entries.length - 1];
+                      if (e.event_type === 'viewed' && prev && prev.event_type === 'viewed') {
+                        prev._count += 1; prev.created_at = e.created_at;
+                      } else { entries.push({ ...e, _count: 1 }); }
+                    });
+                    if (entries.length === 0) {
+                      return <div className="qw-thread-empty">No activity yet — opens, replies, and accept/decline land here.</div>;
+                    }
+                    return (
+                      <div className="qw-thread-list">
+                        {entries.map(e => {
+                          const isRep = e.actor === 'rep';
+                          const isSys = ['sent', 'viewed', 'accepted', 'declined', 'converted'].includes(e.event_type);
+                          const name = e.actor_name || (e.actor === 'customer' ? form.customer_name : 'System');
+                          const initials2 = (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+                          let label = e.body || '';
+                          if (e.event_type === 'viewed') {
+                            const src = e.meta && e.meta.source === 'page' ? 'page view' : 'email open';
+                            label = (e._count > 1 ? (e._count + ' ' + src + 's') : src);
+                          } else if (e.event_type === 'sent') label = e.body || 'Estimate sent';
+                          else if (e.event_type === 'accepted') label = e.body || 'Accepted by customer';
+                          else if (e.event_type === 'declined') label = e.body || 'Declined by customer';
+                          else if (e.event_type === 'converted') label = e.body || 'Converted';
+                          return (
+                            <div key={e.id} className={'qw-msg' + (isRep ? ' rep' : '')}>
+                              <div className="qw-msg-avatar">{initials2}</div>
+                              <div style={{ minWidth: 0 }}>
+                                <div className="qw-msg-head">
+                                  <span className="qw-msg-name">{name}</span>
+                                  <span className="qw-msg-time">{fmtDT(e.created_at)}</span>
+                                  {e.event_type === 'note' && <span className="qw-msg-tag">Internal note</span>}
+                                  {e.event_type === 'reply' && e.meta && e.meta.logged_by && <span className="qw-msg-tag">Logged by {e.meta.logged_by}</span>}
+                                </div>
+                                <div className={'qw-msg-body' + (isSys ? ' sys' : e.event_type === 'note' ? ' note' : '')}>
+                                  {e.event_type === 'reply' ? '“' + label + '”' : label}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                  <div className="qw-composer">
+                    <textarea rows={2} maxLength={2000} placeholder="Log a customer reply or an internal note…"
+                      value={threadText} onChange={e => setThreadText(e.target.value)} disabled={threadPosting} />
+                    <div className="qw-composer-bar">
+                      <span className="qw-composer-hint">Internal record — nothing here emails the customer</span>
+                      <div className="qw-composer-actions">
+                        <button className="qw-composer-btn ghost" onClick={() => postThreadEntry('note')} disabled={threadPosting || !threadText.trim()}>+ Internal note</button>
+                        <button className="qw-composer-btn" onClick={() => postThreadEntry('reply')} disabled={threadPosting || !threadText.trim()}>Log customer reply</button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
               )}
             </div>
 
@@ -25272,13 +25954,54 @@
                     <span className="v">{estBlendedMargin.toFixed(1)}%</span>
                   </div>
                 )}
+                {(() => {
+                  // Optional deposit the customer can pay online at acceptance.
+                  const estTotal = parseFloat(estimate ? estimate.total || 0 : 0) || 0;
+                  const depAmt = depositType === 'percent'
+                    ? Math.min(estTotal, Math.round(estTotal * ((parseFloat(depositValue) || 0) / 100) * 100) / 100)
+                    : depositType === 'fixed'
+                      ? Math.min(estTotal, parseFloat(depositValue) || 0)
+                      : 0;
+                  return (
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid rgba(28,25,23,0.14)' }}>
+                      <div className="rof-field" style={{ marginBottom: depositType === 'none' ? 0 : '0.5rem' }}>
+                        <label>Deposit</label>
+                        <select value={depositType} disabled={isReadonly}
+                          onChange={e => setDepositType(e.target.value)}>
+                          <option value="none">No deposit</option>
+                          <option value="percent">Percentage</option>
+                          <option value="fixed">Fixed amount</option>
+                        </select>
+                      </div>
+                      {depositType === 'percent' && (
+                        <div className="rof-field" style={{ marginBottom: '0.4rem' }}>
+                          <label>Percent of total</label>
+                          <input type="number" min="0" max="100" step="1" value={depositValue} disabled={isReadonly}
+                            onChange={e => setDepositValue(e.target.value)} placeholder="50" />
+                        </div>
+                      )}
+                      {depositType === 'fixed' && (
+                        <div className="rof-field" style={{ marginBottom: '0.4rem' }}>
+                          <label>Amount ($)</label>
+                          <input type="number" min="0" max={estTotal || undefined} step="0.01" value={depositValue} disabled={isReadonly}
+                            onChange={e => setDepositValue(e.target.value)} placeholder="0.00" />
+                        </div>
+                      )}
+                      {depositType !== 'none' && (
+                        <div style={{ font: '400 11px/1.4 "Inter", sans-serif', color: 'var(--brass-muted)' }}>
+                          Customer can pay a <strong>${depAmt.toFixed(2)}</strong> deposit online at acceptance.
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {canConvert && (
                 <div className="qw-convert-card">
                   <div className="qw-convert-label">Ready to commit</div>
                   <div className="qw-convert-copy">
-                    Converting carries the materials into an order or quote — labor is noted for the install team.
+                    Convert to an <strong>order</strong> to bill materials <em>and</em> labor (tax on materials only). Convert to a <strong>quote</strong> for materials only — labor is summarized in the quote notes.
                   </div>
                   <button className="qw-convert-btn" onClick={() => setShowConvertOrderModal(true)} disabled={converting}>
                     Convert to order {'→'}
@@ -25306,19 +26029,6 @@
                       View order {'→'}
                     </button>
                   )}
-                </div>
-              )}
-
-              {!estimate && (
-                <div className="qw-convert-card">
-                  <div className="qw-convert-label">Ready to draft</div>
-                  <div className="qw-convert-copy">
-                    Creating saves the draft and unlocks materials, labor, send, and convert.
-                  </div>
-                  <button className="qw-convert-btn" onClick={saveEstimate} disabled={createDisabled}>
-                    {saving ? 'Creating…' : <React.Fragment>Create estimate {'→'}</React.Fragment>}
-                  </button>
-                  {createDisabled && !saving && <div className="qw-convert-note">Complete customer details to create</div>}
                 </div>
               )}
 
@@ -25353,8 +26063,8 @@
             {!estimate ? (
               <React.Fragment>
                 <button className="rof-btn" onClick={() => navigate('estimates')}>Cancel</button>
-                <button className="rof-btn rof-btn-primary" onClick={saveEstimate} disabled={createDisabled}>
-                  {saving ? 'Creating…' : 'Create Estimate'}
+                <button className="rof-btn rof-btn-primary" onClick={saveEstimate} disabled={saving}>
+                  {saving ? 'Saving…' : 'Save draft'}
                 </button>
               </React.Fragment>
             ) : (
@@ -25370,7 +26080,7 @@
                     {previewLoading ? 'Loading…' : 'Preview & Send'}
                   </button>
                 )}
-                {estimate.status === 'sent' && canConvert && (
+                {['sent', 'accepted'].includes(estimate.status) && canConvert && (
                   <button className="rof-btn rof-btn-primary" onClick={() => setShowConvertOrderModal(true)} disabled={converting}>
                     Convert to Order {'→'}
                   </button>
@@ -25438,13 +26148,14 @@
                   </p>
                   {laborItems.length > 0 && (
                     <div style={{ padding: '0.75rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', marginBottom: '1rem' }}>
-                      <strong>{laborItems.length} labor item{laborItems.length !== 1 ? 's' : ''}</strong> totaling <strong>${parseFloat(estimate.labor_subtotal || 0).toFixed(2)}</strong> will be excluded from the quote but noted in the quote notes.
+                      <strong>{laborItems.length} labor item{laborItems.length !== 1 ? 's' : ''}</strong> totaling <strong>${parseFloat(estimate.labor_subtotal || 0).toFixed(2)}</strong> will be excluded from the quote but summarized in the quote notes.
+                      <div style={{ marginTop: '0.5rem', color: '#8a7e68' }}>Tip: convert to an <strong>order</strong> instead to bill labor alongside materials.</div>
                     </div>
                   )}
                 </div>
                 <div className="modal-footer">
                   <button className="btn btn-secondary" onClick={() => setShowConvertQuoteModal(false)}>Cancel</button>
-                  <button className="btn btn-primary" onClick={convertToQuote} disabled={converting}>
+                  <button className="btn btn-primary" onClick={() => convertToQuote()} disabled={converting}>
                     {converting ? 'Converting...' : 'Convert to Quote'}
                   </button>
                 </div>
@@ -25462,13 +26173,15 @@
                 </div>
                 <div className="modal-body">
                   <p style={{ marginBottom: '1rem', fontSize: '0.875rem', color: 'var(--stone-600)' }}>
-                    This will create a new order with <strong>{materialItems.length} material item{materialItems.length !== 1 ? 's' : ''}</strong> totaling <strong>${parseFloat(estimate.materials_subtotal || 0).toFixed(2)}</strong>.
+                    This will create a new order with <strong>{materialItems.length} material item{materialItems.length !== 1 ? 's' : ''}</strong>
+                    {laborItems.length > 0 ? <React.Fragment> and <strong>{laborItems.length} labor item{laborItems.length !== 1 ? 's' : ''}</strong></React.Fragment> : null}.
                   </p>
-                  {laborItems.length > 0 && (
-                    <div style={{ padding: '0.75rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', marginBottom: '1rem' }}>
-                      <strong>{laborItems.length} labor item{laborItems.length !== 1 ? 's' : ''}</strong> totaling <strong>${parseFloat(estimate.labor_subtotal || 0).toFixed(2)}</strong> will be excluded but noted in the order notes.
-                    </div>
-                  )}
+                  <div style={{ padding: '0.75rem', background: '#f0f6f1', border: '1px solid #b7d6bf', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem', marginBottom: '1rem' }}>
+                    <div>Materials: <strong>${parseFloat(estimate.materials_subtotal || 0).toFixed(2)}</strong></div>
+                    <div>Labor: <strong>${parseFloat(estimate.labor_subtotal || 0).toFixed(2)}</strong> (billed on the order)</div>
+                    {parseFloat(estimate.tax_amount || 0) > 0 && <div>Tax (materials only): <strong>${parseFloat(estimate.tax_amount || 0).toFixed(2)}</strong></div>}
+                    <div style={{ marginTop: '0.35rem', borderTop: '1px solid #b7d6bf', paddingTop: '0.35rem' }}>Order total: <strong>${parseFloat(estimate.total || 0).toFixed(2)}</strong></div>
+                  </div>
                   <div className="form-group">
                     <label>Payment Method</label>
                     <select className="form-input" value={convertMethod} onChange={e => setConvertMethod(e.target.value)}>
@@ -25482,7 +26195,7 @@
                 </div>
                 <div className="modal-footer">
                   <button className="btn btn-secondary" onClick={() => setShowConvertOrderModal(false)}>Cancel</button>
-                  <button className="btn btn-primary" onClick={convertToOrder} disabled={converting}>
+                  <button className="btn btn-primary" onClick={() => convertToOrder()} disabled={converting}>
                     {converting ? 'Converting...' : 'Create Order'}
                   </button>
                 </div>

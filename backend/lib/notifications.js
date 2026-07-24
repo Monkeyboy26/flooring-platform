@@ -22,8 +22,8 @@ export async function notifyAllActiveReps(queryable, type, title, message, entit
 }
 
 export const AUTO_TASK_DEFAULT_DAYS = {
-  quote_sent: 3, estimate_sent: 3, sample_shipped: 5,
-  order_delivered: 7, deal_stuck: 0, payment_failed: 0,
+  quote_sent: 3, estimate_sent: 3, estimate_accepted: 1, estimate_declined: 1,
+  sample_shipped: 5, order_delivered: 7, deal_stuck: 0, payment_failed: 0,
   visit_quote_request: 1
 };
 

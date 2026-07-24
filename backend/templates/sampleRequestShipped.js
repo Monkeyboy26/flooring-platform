@@ -1,93 +1,71 @@
-import { LOGO_URL } from './_config.js';
+// Customer-facing "your samples have shipped" email, rebuilt on the shared
+// "Brass Charcoal" shell (_shell.js), matching sampleRequestConfirmation.js.
+// Announces the shipment, surfaces the tracking number, and lists what's inside.
+import { emailShell, heroSection, section, detailList, warmCard, T, SERIF, SANS, MONO, esc, emailImage } from './_shell.js';
 
-function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function sampleRow(item, isLast) {
+  const rowBorder = isLast ? '' : `border-bottom:1px solid ${T.border};`;
+  const name = esc(item.product_name || 'Product');
+  const sub = [...new Set([item.collection, item.variant_name].filter(Boolean))]
+    .filter(v => v !== item.product_name).map(esc).join(' &middot; ');
+  const thumb = item.primary_image
+    ? `<img src="${esc(emailImage(item.primary_image, 72, 72))}" alt="${name}" width="72" style="display:block;width:72px;height:72px;object-fit:cover;" />`
+    : `<div style="width:72px;height:72px;background:${T.warm};border:1px solid ${T.border};"></div>`;
+
+  return `<tr>
+    <td width="72" valign="middle" style="padding:16px 16px 16px 0;${rowBorder}">${thumb}</td>
+    <td valign="middle" style="padding:16px 0;${rowBorder}">
+      <p style="margin:0;font-family:${SERIF};font-size:18px;line-height:1.2;letter-spacing:-0.012em;color:${T.ink};">${name}</p>
+      ${sub ? `<p style="margin:2px 0 0;font-family:${SANS};font-size:12px;line-height:1.4;color:${T.soft};">${sub}</p>` : ''}
+    </td>
+  </tr>`;
 }
 
 export function generateSampleRequestShippedHTML(data) {
-  const {
-    customer_name, request_number, tracking_number, items = []
-  } = data;
+  const { customer_name, request_number, tracking_number, items = [] } = data;
+  const firstName = (customer_name || '').trim().split(/\s+/)[0] || 'there';
+  const count = items.length;
 
-  const itemRows = items.map(item => {
-    const name = esc(item.product_name || 'Product');
-    const collection = item.collection ? esc(item.collection) : '';
-    const variant = item.variant_name ? esc(item.variant_name) : '';
-    const image = item.primary_image || '';
+  const metaBlock = section(detailList([
+    { label: 'Request', value: esc(request_number) },
+    count ? { label: 'In the box', value: `${count} ${count === 1 ? 'swatch' : 'swatches'}` } : null,
+  ].filter(Boolean)), '4px 40px 8px');
 
-    return `<tr>
-      <td style="padding:16px 0;border-bottom:1px solid #e7e5e4;">
-        <table cellpadding="0" cellspacing="0" width="100%"><tr>
-          ${image ? `<td width="120" valign="top" style="padding-right:16px;">
-            <img src="${esc(image)}" alt="${name}" width="120" height="120" style="display:block;width:120px;height:120px;object-fit:cover;border:1px solid #e7e5e4;" />
-          </td>` : ''}
-          <td valign="top" style="font-family:Inter,Arial,sans-serif;">
-            <p style="margin:0 0 4px;font-size:16px;font-weight:500;color:#292524;">${name}</p>
-            ${collection ? `<p style="margin:0 0 2px;font-size:13px;color:#78716c;">${collection}</p>` : ''}
-            ${variant ? `<p style="margin:0 0 2px;font-size:13px;color:#78716c;">${variant}</p>` : ''}
-          </td>
-        </tr></table>
-      </td>
-    </tr>`;
-  }).join('');
+  const trackingCard = tracking_number ? section(warmCard(`
+    <p style="margin:0 0 6px;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.muted};">Tracking number</p>
+    <p style="margin:0;font-family:${MONO};font-size:18px;letter-spacing:0.08em;color:${T.ink};">${esc(tracking_number)}</p>
+  `, '18px 22px'), '8px 40px 8px') : '';
 
-  const trackingBlock = tracking_number ? `
-  <tr><td style="padding:0 40px 24px;">
-    <p style="margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;font-weight:500;">Tracking Number</p>
-    <div style="background:#f5f5f4;display:inline-block;padding:10px 24px;font-family:'Courier New',Courier,monospace;font-size:15px;font-weight:500;color:#1c1917;letter-spacing:1px;">
-      ${esc(tracking_number)}
-    </div>
-  </td></tr>` : '';
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;500&display=swap');</style>
-</head>
-<body style="margin:0;padding:0;background-color:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;">
-<tr><td align="center" style="padding:40px 20px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
-
-  <!-- Header -->
-  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto;width:140px;height:140px;" />
-  </td></tr>
-
-  <!-- Greeting -->
-  <tr><td style="padding:40px 40px 16px;">
-    <h1 style="margin:0 0 8px;font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:400;color:#1c1917;">Your Samples Are On The Way</h1>
-    <p style="margin:0;font-size:15px;color:#57534e;">Hi ${esc(customer_name)}, your samples have shipped!</p>
-  </td></tr>
-
-  <!-- Request Number -->
-  <tr><td style="padding:0 40px 24px;">
-    <div style="background:#f5f5f4;display:inline-block;padding:10px 24px;font-size:15px;font-weight:500;color:#1c1917;">
-      ${esc(request_number)}
-    </div>
-  </td></tr>
-
-  ${trackingBlock}
-
-  <!-- Items -->
-  <tr><td style="padding:0 40px 24px;">
-    <p style="margin:0 0 16px;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;font-weight:500;">Your Samples</p>
-    <table cellpadding="0" cellspacing="0" width="100%">
-      ${itemRows}
+  const itemsBlock = count ? section(`
+    <p style="margin:0 0 4px;padding:0 0 8px;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.accent};border-bottom:2px solid ${T.ink};">Your samples</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${items.map((it, i) => sampleRow(it, i === count - 1)).join('')}
     </table>
-  </td></tr>
+  `, '8px 40px 20px') : '';
 
-  <!-- Footer -->
-  <tr><td style="padding:24px 40px;background:#fafaf9;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0 0 4px;font-size:12px;color:#78716c;">Questions? Contact us at (714) 999-0009</p>
-    <p style="margin:0;color:#a8a29e;font-size:11px;">Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
-  </td></tr>
+  const signature = section(`
+    <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};">
+      When they land, view them in your own light next to your cabinetry and trim &mdash; then reply here or call
+      <span style="color:${T.ink};font-weight:500;">(714) 999-0009</span> and we&rsquo;ll help you move forward.
+    </p>
+  `, '8px 40px 36px');
 
-</table>
-</td></tr></table>
-</body>
-</html>`;
+  const content = `
+    ${heroSection({
+      eyebrow: `Sample request &middot; ${esc(request_number || '')}`,
+      headline: `Your samples are <em style="color:${T.accent};">on the way</em>.`,
+      body: `Hi ${esc(firstName)} &mdash; good news, your ${count ? (count === 1 ? 'swatch has' : `${count} swatches have`) : 'samples have'} shipped and should reach you shortly.`,
+      chip: '&#9679; Shipped'
+    })}
+    ${metaBlock}
+    ${trackingCard}
+    ${itemsBlock}
+    ${signature}
+  `;
+
+  return emailShell({
+    title: `Your Roma samples shipped — ${request_number || ''}`,
+    preheader: `Hi ${firstName} — your samples are on the way${tracking_number ? `. Tracking ${tracking_number}` : ''}.`,
+    content
+  });
 }

@@ -2296,6 +2296,7 @@
 
       // Visit recap
       const [visitRecapToken, setVisitRecapToken] = useState(null);
+      const [estimateToken, setEstimateToken] = useState(null);
 
       // Auth
       const [tradeCustomer, setTradeCustomer] = useState(null);
@@ -2841,6 +2842,14 @@
           window.scrollTo(0, 0);
           return;
         }
+        if (path.startsWith('/estimate/')) {
+          const token = path.replace('/estimate/', '').split('?')[0];
+          setEstimateToken(token);
+          setView('estimate-view');
+          history.pushState({ view: 'estimate-view', token }, '', path);
+          window.scrollTo(0, 0);
+          return;
+        }
         // Service page placeholders
         const servicePages = {
           '/design-services': 'Design Services'
@@ -3234,6 +3243,9 @@
         } else if (path.startsWith('/visit/')) {
           setVisitRecapToken(path.replace('/visit/', ''));
           setView('visit-recap');
+        } else if (path.startsWith('/estimate/')) {
+          setEstimateToken(path.replace('/estimate/', ''));
+          setView('estimate-view');
         } else if (path === '/reset-password') {
           setView('reset-password');
         } else if (path === '/signin') {
@@ -3327,6 +3339,7 @@
               fetchFacetsRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [] });
             }
             if (state.view === 'visit-recap' && state.token) setVisitRecapToken(state.token);
+            if (state.view === 'estimate-view' && state.token) setEstimateToken(state.token);
             if (state.view === 'coming-soon' && state.title) setComingSoonTitle(state.title);
           } else {
             // Re-parse URL for unknown states
@@ -3344,6 +3357,7 @@
             else if (p === '/cabinets') { setView('cabinets'); }
             else if (p === '/about') { setView('about'); }
             else if (p.startsWith('/visit/')) { setVisitRecapToken(p.replace('/visit/', '')); setView('visit-recap'); }
+            else if (p.startsWith('/estimate/')) { setEstimateToken(p.replace('/estimate/', '')); setView('estimate-view'); }
             else {
               setView('browse');
               const sp2 = new URLSearchParams(window.location.search);
@@ -3655,6 +3669,10 @@
 
           {view === 'visit-recap' && visitRecapToken && (
             <VisitRecapPage token={visitRecapToken} onSkuClick={goSkuDetail} />
+          )}
+
+          {view === 'estimate-view' && estimateToken && (
+            <EstimatePage token={estimateToken} />
           )}
 
           {view === 'reset-password' && (
@@ -11464,14 +11482,25 @@
                 'ordered': { label: 'Ordered', color: '#a87935' },
                 'pending': { label: 'Processing', color: 'var(--warm-muted)' }
               };
-              const fm = !item.is_sample ? (fulfillMap[fStatus] || fulfillMap['pending']) : null;
+              const isLabor = item.item_type === 'labor';
+              const fm = (!item.is_sample && !isLabor) ? (fulfillMap[fStatus] || fulfillMap['pending']) : null;
+              const laborSqft = parseFloat(item.labor_sqft || 0);
               return (
                 <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', padding: '0.5rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: '0.625rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name || 'Product'}</span>
-                    <span style={{ color: 'var(--warm-muted)', fontSize: '0.75rem' }}>
-                      {item.is_sample ? 'Sample' : item.sell_by === 'unit' ? 'x' + item.num_boxes : 'x' + item.num_boxes + ' box' + (item.num_boxes !== 1 ? 'es' : '')}
-                    </span>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name || item.description || 'Product'}</span>
+                    {isLabor ? (
+                      <>
+                        <span style={{ fontSize: '0.625rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--stone-600)', background: 'rgba(28,25,23,0.06)', padding: '0.1rem 0.4rem', borderRadius: 3 }}>Labor</span>
+                        <span style={{ color: 'var(--warm-muted)', fontSize: '0.75rem' }}>
+                          {item.rate_type === 'per_sqft' && laborSqft > 0 ? laborSqft.toLocaleString() + ' ' + laborUnitShort(item.labor_category) : 'Service'}
+                        </span>
+                      </>
+                    ) : (
+                      <span style={{ color: 'var(--warm-muted)', fontSize: '0.75rem' }}>
+                        {item.is_sample ? 'Sample' : item.sell_by === 'unit' ? 'x' + item.num_boxes : 'x' + item.num_boxes + ' box' + (item.num_boxes !== 1 ? 'es' : '')}
+                      </span>
+                    )}
                     {fm && <span className="acct-order-status" style={{ color: fm.color }}>&#9679; {fm.label}</span>}
                   </div>
                   <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
@@ -15539,6 +15568,512 @@
     }
 
     // ==================== Visit Recap Page ====================
+
+    // ==================== Customer Estimate Page (/estimate/:token) ====================
+    // Public, no-login estimate view sent by a rep. Renders sections of material +
+    // labor line items, totals, and accept/decline actions. Mirrors VisitRecapPage's
+    // token-page pattern and renders within the standard Header/SiteFooter chrome.
+
+    const LABOR_CATEGORY_LABELS = {
+      installation: 'Installation',
+      tearout: 'Tearout',
+      underlayment: 'Underlayment',
+      transitions: 'Transitions',
+      baseboards: 'Baseboards',
+      floor_leveling: 'Floor Leveling',
+      moisture_barrier: 'Moisture Barrier',
+      furniture_moving: 'Furniture Moving',
+      other: 'Other',
+    };
+    // Categories billed per linear foot rather than per square foot.
+    const LINEAR_LABOR_CATS = { baseboards: true };
+    const laborUnitShort = (cat) => LINEAR_LABOR_CATS[cat] ? 'lin ft' : 'sqft';
+    // "Other" carries a free-text name (in product_name); others show their label.
+    const laborDisplayName = (item) => (item.labor_category === 'other' && item.product_name)
+      ? item.product_name
+      : (LABOR_CATEGORY_LABELS[item.labor_category] || 'Labor');
+
+    function EstimatePage({ token }) {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null); // 'not_found' | 'expired'
+      const [expiredInfo, setExpiredInfo] = useState(null); // rep contact from 410 body
+      // Live status override once the customer accepts/declines without reloading
+      const [liveStatus, setLiveStatus] = useState(null);
+      const [liveAccept, setLiveAccept] = useState(null); // { accepted_by_name, accepted_at }
+      const [liveDecline, setLiveDecline] = useState(null); // { decline_reason }
+      const [acceptOpen, setAcceptOpen] = useState(false);
+      const [declineOpen, setDeclineOpen] = useState(false);
+      const [signName, setSignName] = useState('');
+      const [declineReason, setDeclineReason] = useState('');
+      const [submitting, setSubmitting] = useState(false);
+      const [actionError, setActionError] = useState('');
+      const [isNarrow, setIsNarrow] = useState(typeof window !== 'undefined' && window.innerWidth <= 640);
+      const [depositLoading, setDepositLoading] = useState(false);
+      const [depositError, setDepositError] = useState('');
+      // Read ?deposit=success|cancelled once on mount (return from Stripe Checkout)
+      const [depositResult, setDepositResult] = useState(() => {
+        if (typeof window === 'undefined') return null;
+        const p = new URLSearchParams(window.location.search).get('deposit');
+        return (p === 'success' || p === 'cancelled') ? p : null;
+      });
+
+      useEffect(() => {
+        const onResize = () => setIsNarrow(window.innerWidth <= 640);
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+      }, []);
+
+      useEffect(() => {
+        let cancelled = false;
+        setLoading(true); setError(null); setData(null);
+        fetch(API + '/api/estimate-view/' + token)
+          .then(async r => {
+            if (r.status === 404) throw { kind: 'not_found' };
+            if (r.status === 410) {
+              const body = await r.json().catch(() => ({}));
+              throw { kind: 'expired', estimate: body && body.estimate };
+            }
+            if (!r.ok) throw { kind: 'not_found' };
+            return r.json();
+          })
+          .then(d => { if (cancelled) return; setData(d); setLoading(false); })
+          .catch(err => {
+            if (cancelled) return;
+            setError(err.kind || 'not_found');
+            if (err.kind === 'expired') setExpiredInfo(err.estimate || null);
+            setLoading(false);
+          });
+        return () => { cancelled = true; };
+      }, [token]);
+
+      const money = (v) => '$' + parseFloat(v || 0).toFixed(2);
+      const fmtDay = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+
+      const submitAccept = async () => {
+        setActionError('');
+        const trimmed = signName.trim();
+        if (trimmed.split(/\s+/).filter(Boolean).length < 2) {
+          setActionError('Please type your full name to accept'); return;
+        }
+        setSubmitting(true);
+        try {
+          const resp = await fetch(API + '/api/estimate-view/' + token + '/accept', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: trimmed })
+          });
+          if (resp.status === 410) {
+            setAcceptOpen(false); setError('expired');
+            const body = await resp.json().catch(() => ({}));
+            setExpiredInfo(body && body.estimate);
+            setSubmitting(false); return;
+          }
+          const body = await resp.json().catch(() => ({}));
+          if (!resp.ok) { setActionError(body.error || 'Something went wrong. Please try again.'); setSubmitting(false); return; }
+          setLiveStatus('accepted');
+          setLiveAccept({ accepted_by_name: trimmed, accepted_at: new Date().toISOString() });
+          setAcceptOpen(false); setSubmitting(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (e) {
+          setActionError('Something went wrong. Please try again.'); setSubmitting(false);
+        }
+      };
+
+      const submitDecline = async () => {
+        setActionError(''); setSubmitting(true);
+        try {
+          const resp = await fetch(API + '/api/estimate-view/' + token + '/decline', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason: declineReason.trim() || undefined })
+          });
+          if (resp.status === 410) {
+            setDeclineOpen(false); setError('expired');
+            const body = await resp.json().catch(() => ({}));
+            setExpiredInfo(body && body.estimate);
+            setSubmitting(false); return;
+          }
+          if (!resp.ok) { const b = await resp.json().catch(() => ({})); setActionError(b.error || 'Something went wrong. Please try again.'); setSubmitting(false); return; }
+          setLiveStatus('declined');
+          setLiveDecline({ decline_reason: declineReason.trim() || null });
+          setDeclineOpen(false); setSubmitting(false);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (e) {
+          setActionError('Something went wrong. Please try again.'); setSubmitting(false);
+        }
+      };
+
+      const payDeposit = async () => {
+        setDepositError(''); setDepositLoading(true);
+        try {
+          const resp = await fetch(API + '/api/estimate-view/' + token + '/pay-deposit', { method: 'POST' });
+          const body = await resp.json().catch(() => ({}));
+          if (!resp.ok || !body.checkout_url) {
+            setDepositError(body.error || 'Something went wrong. Please try again.');
+            setDepositLoading(false); return;
+          }
+          window.location.href = body.checkout_url;
+        } catch (e) {
+          setDepositError('Something went wrong. Please try again.'); setDepositLoading(false);
+        }
+      };
+
+      if (loading) return (
+        <div style={{ maxWidth: 820, margin: '4rem auto', padding: '0 1.5rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--stone-500)' }}>Loading your estimate…</p>
+        </div>
+      );
+
+      if (error === 'expired') {
+        const est = expiredInfo || {};
+        return (
+          <div style={{ maxWidth: 620, margin: '4rem auto 6rem', padding: '0 1.5rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.6875rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>
+              Construction Estimate{est.estimate_number ? ' · ' + est.estimate_number : ''}
+            </div>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.25rem', fontWeight: 400, margin: '0 0 1rem' }}>This estimate has expired</h1>
+            <p style={{ color: 'var(--stone-600)', fontSize: '1rem', lineHeight: 1.65, margin: '0 auto 1.5rem', maxWidth: 460 }}>
+              This estimate is no longer valid{est.expires_at ? ' (it was valid through ' + fmtDay(est.expires_at) + ')' : ''}. Pricing and availability may have changed — please reach out to your rep for an updated estimate.
+            </p>
+            {(est.rep_name || est.rep_email) && (
+              <div style={{ display: 'inline-block', textAlign: 'left', background: 'var(--stone-50)', border: '0.5px solid rgba(28,25,23,0.12)', borderRadius: 6, padding: '1.25rem 1.5rem' }}>
+                <div style={{ fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.4rem' }}>Your rep</div>
+                {est.rep_name && <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', color: 'var(--stone-800)' }}>{est.rep_name}</div>}
+                {est.rep_email && <div style={{ marginTop: '0.35rem' }}><a href={'mailto:' + est.rep_email} style={{ color: 'var(--stone-700)', textDecoration: 'underline', fontSize: '0.9375rem' }}>{est.rep_email}</a></div>}
+                <div style={{ marginTop: '0.35rem', fontSize: '0.9375rem', color: 'var(--stone-600)' }}>(714) 999-0009</div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      if (error) return (
+        <div style={{ maxWidth: 620, margin: '4rem auto 6rem', padding: '0 1.5rem', textAlign: 'center' }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.25rem', fontWeight: 400, margin: '0 0 1rem' }}>Estimate not found</h1>
+          <p style={{ color: 'var(--stone-600)', fontSize: '1rem', lineHeight: 1.65 }}>
+            We couldn't find this estimate. The link may be incorrect or the estimate may have been removed.
+          </p>
+          <p style={{ color: 'var(--stone-400)', fontSize: '0.875rem', marginTop: '1.5rem' }}>Questions? Contact us at (714) 999-0009</p>
+        </div>
+      );
+
+      const est = data.estimate;
+      const materials = data.materials || [];
+      const labor = data.labor || [];
+      const scopeOfWork = (est.scope_of_work || '').trim();
+      const status = liveStatus || est.status;
+
+      const addr = [
+        est.project_address_line1,
+        est.project_address_line2,
+        [est.project_city, est.project_state].filter(Boolean).join(', ') + (est.project_zip ? ' ' + est.project_zip : '')
+      ].filter(s => s && s.trim());
+
+      const taxAmt = parseFloat(est.tax_amount || 0);
+      const laborTotal = parseFloat(est.labor_subtotal || 0);
+      const showActions = status === 'sent';
+      const depositAmount = parseFloat(est.deposit_amount || 0);
+      const hasDeposit = depositAmount > 0;
+      // Show pay-deposit CTA only when accepted, deposit configured, and not yet converted to an order
+      const canPayDeposit = hasDeposit && status === 'accepted' && !est.converted_order_id;
+
+      const renderDepositCta = () => {
+        if (!canPayDeposit) return null;
+        return (
+          <div style={{ marginTop: '0.9rem' }}>
+            {depositResult !== 'success' && (
+              <button className="btn" style={{ padding: '0.85rem 1.75rem' }} onClick={payDeposit} disabled={depositLoading}>
+                {depositLoading ? 'Redirecting…' : 'Pay your ' + money(depositAmount) + ' deposit'}
+              </button>
+            )}
+            {depositError && <div className="checkout-error" style={{ marginTop: '0.6rem' }}>{depositError}</div>}
+          </div>
+        );
+      };
+
+      const bannerStyles = {
+        accepted: { bg: '#f0fdf4', border: '#bbf7d0', color: '#166534' },
+        declined: { bg: 'var(--stone-50)', border: 'rgba(28,25,23,0.14)', color: 'var(--stone-700)' },
+        converted: { bg: 'rgba(216,205,182,0.35)', border: 'rgba(168,121,53,0.3)', color: '#7a5a1e' },
+      };
+
+      const renderStatusBanner = () => {
+        if (status === 'accepted') {
+          const by = (liveAccept && liveAccept.accepted_by_name) || est.accepted_by_name;
+          const at = (liveAccept && liveAccept.accepted_at) || est.accepted_at;
+          const s = bannerStyles.accepted;
+          return (
+            <div style={{ background: s.bg, border: '1px solid ' + s.border, color: s.color, borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <div>
+                  <div style={{ fontWeight: 600 }}>Estimate accepted{by ? ' by ' + by : ''}</div>
+                  {at && <div style={{ fontSize: '0.8125rem', opacity: 0.85, marginTop: '0.15rem' }}>Accepted {fmtDay(at)}. Your rep will follow up with next steps.</div>}
+                </div>
+              </div>
+              {renderDepositCta()}
+            </div>
+          );
+        }
+        if (status === 'declined') {
+          const reason = (liveDecline && liveDecline.decline_reason) || est.decline_reason;
+          const s = bannerStyles.declined;
+          return (
+            <div style={{ background: s.bg, border: '1px solid ' + s.border, color: s.color, borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem' }}>
+              <div style={{ fontWeight: 600 }}>This estimate was declined</div>
+              {reason && <div style={{ fontSize: '0.8125rem', opacity: 0.9, marginTop: '0.3rem', lineHeight: 1.5 }}>Reason: {reason}</div>}
+              <div style={{ fontSize: '0.8125rem', opacity: 0.85, marginTop: '0.3rem' }}>Changed your mind or need adjustments? Contact your rep below.</div>
+            </div>
+          );
+        }
+        if (status === 'converted') {
+          const s = bannerStyles.converted;
+          return (
+            <div style={{ background: s.bg, border: '1px solid ' + s.border, color: s.color, borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem', fontWeight: 600 }}>
+              This estimate has been converted to an order.
+            </div>
+          );
+        }
+        return null;
+      };
+
+      const renderMaterialRow = (item, idx) => {
+        const qtyLabel = item.sell_by === 'unit'
+          ? (parseFloat(item.quantity || item.num_boxes || 0)) + ' ea'
+          : [
+              (item.sqft_needed != null ? parseFloat(item.sqft_needed).toLocaleString() + ' sqft' : null),
+              (item.num_boxes != null ? item.num_boxes + ' box' + (Number(item.num_boxes) !== 1 ? 'es' : '') : null)
+            ].filter(Boolean).join(' · ');
+        const sub = [item.collection, item.color, item.variant_name].filter(v => v && String(v).trim()).join(' · ');
+        return (
+          <div key={'m' + idx} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', padding: '0.9rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
+            <div style={{ width: 56, height: 56, flexShrink: 0, background: 'var(--stone-100)', borderRadius: 4, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {item.primary_image
+                ? <img src={optimizeImg(item.primary_image, 96)} alt="" width={56} height={56} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" decoding="async" />
+                : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 22, height: 22, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--stone-800)', lineHeight: 1.3 }}>{item.product_name || 'Material'}</div>
+              {sub && <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginTop: '0.15rem' }}>{sub}</div>}
+              {qtyLabel && <div style={{ fontSize: '0.8125rem', color: 'var(--warm-muted, var(--stone-500))', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>{qtyLabel}</div>}
+            </div>
+            <div style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: 'var(--stone-800)' }}>{money(item.subtotal)}</div>
+          </div>
+        );
+      };
+
+      const renderLaborRow = (item, idx) => {
+        const label = laborDisplayName(item);
+        const unit = laborUnitShort(item.labor_category);
+        const descLines = item.description ? String(item.description).split('\n').map(s => s.trim()).filter(Boolean) : [];
+        let rateLabel = '';
+        if (item.rate_type === 'per_sqft') {
+          rateLabel = money(item.rate_sqft) + '/' + unit + ' × ' + parseFloat(item.labor_sqft || 0).toLocaleString() + ' ' + unit;
+        } else {
+          rateLabel = (parseFloat(item.quantity || 1) > 1) ? (money(item.unit_price) + ' × ' + parseFloat(item.quantity)) : 'Flat';
+        }
+        return (
+          <div key={'l' + idx} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', padding: '0.9rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
+            <div style={{ width: 56, height: 56, flexShrink: 0, background: 'var(--stone-100)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--stone-400)' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 22, height: 22 }}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--stone-800)' }}>{label}</span>
+                <span style={{ fontSize: '0.625rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--stone-600)', background: 'rgba(28,25,23,0.06)', padding: '0.1rem 0.4rem', borderRadius: 3 }}>Labor</span>
+              </div>
+              {descLines.length > 0 && (
+                <ul style={{ margin: '0.35rem 0 0', paddingLeft: '1.1rem', color: 'var(--stone-600)', fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                  {descLines.map((ln, i) => <li key={i}>{ln}</li>)}
+                </ul>
+              )}
+              <div style={{ fontSize: '0.8125rem', color: 'var(--warm-muted, var(--stone-500))', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>{rateLabel}</div>
+            </div>
+            <div style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: 'var(--stone-800)' }}>{money(item.subtotal)}</div>
+          </div>
+        );
+      };
+
+      return (
+        <div style={{ maxWidth: 820, margin: '0 auto', padding: '3rem 1.5rem', paddingBottom: showActions ? '7rem' : '3rem' }}>
+          {/* Header */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: '0.6875rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.6rem' }}>
+              Construction Estimate{est.estimate_number ? ' · ' + est.estimate_number : ''}
+            </div>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.5rem', fontWeight: 400, lineHeight: 1.1, margin: '0 0 0.75rem' }}>
+              {est.project_name || 'Your Project'}
+            </h1>
+            {addr.length > 0 && (
+              <div style={{ color: 'var(--stone-600)', fontSize: '0.9375rem', lineHeight: 1.5 }}>
+                {addr.map((line, i) => <div key={i}>{line}</div>)}
+              </div>
+            )}
+            <div style={{ marginTop: '0.85rem', display: 'flex', flexWrap: 'wrap', gap: '0.35rem 1.5rem', color: 'var(--stone-500)', fontSize: '0.875rem' }}>
+              {est.customer_name && <span>Prepared for <strong style={{ color: 'var(--stone-700)', fontWeight: 500 }}>{est.customer_name}</strong></span>}
+              {(est.sent_at || est.created_at) && <span>{fmtDay(est.sent_at || est.created_at)}</span>}
+              {est.expires_at && <span>Valid through {fmtDay(est.expires_at)}</span>}
+            </div>
+          </div>
+
+          {renderStatusBanner()}
+
+          {/* Deposit payment return banner (from Stripe Checkout) */}
+          {depositResult === 'success' && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <div style={{ fontWeight: 600 }}>Deposit received — thank you! Your rep will follow up to schedule the work.</div>
+            </div>
+          )}
+          {depositResult === 'cancelled' && (
+            <div style={{ background: 'var(--stone-50)', border: '1px solid rgba(28,25,23,0.14)', color: 'var(--stone-700)', borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem' }}>
+              <div style={{ fontWeight: 600 }}>Deposit payment cancelled</div>
+              <div style={{ fontSize: '0.8125rem', opacity: 0.9, marginTop: '0.3rem' }}>No charge was made — you can pay your deposit anytime from this page.</div>
+            </div>
+          )}
+
+          {/* Rep card */}
+          {(est.rep_name || est.rep_email) && (
+            <div style={{ background: 'var(--stone-50)', border: '0.5px solid rgba(28,25,23,0.12)', borderRadius: 6, padding: '1.15rem 1.35rem', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+              <div>
+                <div style={{ fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.3rem' }}>Prepared by</div>
+                {est.rep_name && <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', color: 'var(--stone-800)' }}>{est.rep_name}</div>}
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '0.9375rem' }}>
+                {est.rep_email && <div><a href={'mailto:' + est.rep_email} style={{ color: 'var(--stone-700)', textDecoration: 'underline' }}>{est.rep_email}</a></div>}
+                <div style={{ color: 'var(--stone-600)', marginTop: '0.2rem' }}>(714) 999-0009</div>
+              </div>
+            </div>
+          )}
+
+          {/* Two groups: Materials, then Labor & Services (with scope of work) */}
+          <div style={{ marginBottom: '2.5rem' }}>
+            {materials.length > 0 && (
+              <div style={{ marginBottom: (labor.length > 0 || scopeOfWork) ? '2rem' : 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '1rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '0.25rem' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.375rem', color: 'var(--stone-800)' }}>Materials</div>
+                  <div style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: 'var(--stone-700)', whiteSpace: 'nowrap' }}>{money(est.materials_subtotal)}</div>
+                </div>
+                <div>{materials.map((item, ii) => renderMaterialRow(item, 'm-' + ii))}</div>
+              </div>
+            )}
+            {(labor.length > 0 || scopeOfWork) && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '1rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '0.25rem' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.375rem', color: 'var(--stone-800)' }}>Labor &amp; Services</div>
+                  {parseFloat(est.labor_subtotal || 0) > 0 && (
+                    <div style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: 'var(--stone-700)', whiteSpace: 'nowrap' }}>{money(est.labor_subtotal)}</div>
+                  )}
+                </div>
+                {scopeOfWork && (
+                  <div style={{ margin: '0.75rem 0 1rem' }}>
+                    <div style={{ fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.35rem' }}>Scope of work</div>
+                    <p style={{ color: 'var(--stone-700)', fontSize: '0.9375rem', lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap' }}>{scopeOfWork}</p>
+                  </div>
+                )}
+                <div>{labor.map((item, ii) => renderLaborRow(item, 'l-' + ii))}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Totals */}
+          <div style={{ background: 'var(--stone-50)', border: '0.5px solid rgba(28,25,23,0.12)', borderRadius: 6, padding: '1.5rem 1.75rem', marginBottom: '2rem', maxWidth: 420, marginLeft: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.35rem 0' }}>
+              <span>Materials</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(est.materials_subtotal)}</span>
+            </div>
+            {laborTotal > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.35rem 0' }}>
+                <span>Labor &amp; Services</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(est.labor_subtotal)}</span>
+              </div>
+            )}
+            {taxAmt > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.35rem 0' }}>
+                <span>Tax{est.tax_rate ? ' (' + (parseFloat(est.tax_rate) * 100).toFixed(2).replace(/\.?0+$/, '') + '%, materials only)' : ' (materials only)'}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(est.tax_amount)}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '0.6rem', paddingTop: '0.75rem', borderTop: '1px solid var(--stone-200)' }}>
+              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', color: 'var(--stone-800)' }}>Grand Total</span>
+              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', color: 'var(--stone-900)', fontVariantNumeric: 'tabular-nums' }}>{money(est.total)}</span>
+            </div>
+          </div>
+
+          {/* Customer notes */}
+          {est.notes && String(est.notes).trim() && (
+            <div style={{ marginBottom: '2rem', padding: '1.25rem 1.5rem', background: 'var(--stone-50)', borderLeft: '3px solid var(--gold)' }}>
+              <div style={{ fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Notes</div>
+              <p style={{ margin: 0, color: 'var(--stone-700)', fontSize: '0.9375rem', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{est.notes}</p>
+            </div>
+          )}
+
+          {/* Inline action buttons (desktop); mobile uses the sticky bar below */}
+          {showActions && !isNarrow && (
+            <div className="est-actions-inline" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+              <button className="btn" style={{ flex: '1 1 200px', padding: '1rem' }} onClick={() => { setActionError(''); setAcceptOpen(true); }}>Accept Estimate</button>
+              <button className="btn btn-secondary" style={{ flex: '1 1 140px', padding: '1rem' }} onClick={() => { setActionError(''); setDeclineOpen(true); }}>Decline</button>
+            </div>
+          )}
+
+          {/* Footer contact */}
+          <div style={{ textAlign: 'center', paddingTop: '2.5rem', marginTop: '2.5rem', borderTop: '1px solid var(--stone-200)' }}>
+            <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Questions? Contact us at (714) 999-0009</p>
+            <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>Roma Flooring Designs · 1440 S. State College Blvd Suite 6M, Anaheim, CA 92806</p>
+          </div>
+
+          {/* Sticky mobile action bar */}
+          {showActions && isNarrow && (
+            <div className="est-sticky-bar" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900, background: '#fff', borderTop: '1px solid var(--stone-200)', boxShadow: '0 -4px 20px rgba(0,0,0,0.08)', padding: '0.75rem 1rem' }}>
+              <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', gap: '0.6rem' }}>
+                <button className="btn btn-secondary" style={{ flex: '0 0 auto', padding: '0.85rem 1.25rem' }} onClick={() => { setActionError(''); setDeclineOpen(true); }}>Decline</button>
+                <button className="btn" style={{ flex: 1, padding: '0.85rem' }} onClick={() => { setActionError(''); setAcceptOpen(true); }}>Accept Estimate</button>
+              </div>
+            </div>
+          )}
+
+          {/* Accept modal */}
+          {acceptOpen && (
+            <div className="modal-overlay" onClick={() => !submitting && setAcceptOpen(false)}>
+              <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <button className="modal-close" onClick={() => setAcceptOpen(false)}>&times;</button>
+                <h2 style={{ marginBottom: '0.5rem' }}>Accept Estimate</h2>
+                <p style={{ color: 'var(--stone-600)', fontSize: '0.9rem', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+                  Type your full name below to accept this estimate. Typing your name constitutes acceptance of this estimate.
+                  {hasDeposit && ' A ' + money(depositAmount) + ' deposit secures your project — you can pay it right after accepting.'}
+                </p>
+                <div className="checkout-field">
+                  <label>Full name</label>
+                  <input className="checkout-input" value={signName} onChange={e => setSignName(e.target.value)} placeholder="Your full name" autoFocus onKeyDown={e => { if (e.key === 'Enter') submitAccept(); }} />
+                </div>
+                {actionError && <div className="checkout-error" style={{ marginTop: '0.5rem' }}>{actionError}</div>}
+                <button className="btn" style={{ width: '100%', padding: '0.95rem', marginTop: '1rem' }} onClick={submitAccept} disabled={submitting}>
+                  {submitting ? 'Submitting…' : 'Confirm & Accept'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Decline modal */}
+          {declineOpen && (
+            <div className="modal-overlay" onClick={() => !submitting && setDeclineOpen(false)}>
+              <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <button className="modal-close" onClick={() => setDeclineOpen(false)}>&times;</button>
+                <h2 style={{ marginBottom: '0.5rem' }}>Decline Estimate</h2>
+                <p style={{ color: 'var(--stone-600)', fontSize: '0.9rem', marginBottom: '1.25rem', lineHeight: 1.6 }}>
+                  If you'd like, let your rep know why — this is optional and helps us make it right.
+                </p>
+                <div className="checkout-field">
+                  <label>Reason (optional)</label>
+                  <textarea className="checkout-input" rows={3} style={{ resize: 'none' }} value={declineReason} onChange={e => setDeclineReason(e.target.value)} maxLength={1000} placeholder="Anything you'd like your rep to know…" />
+                </div>
+                {actionError && <div className="checkout-error" style={{ marginTop: '0.5rem' }}>{actionError}</div>}
+                <button className="btn btn-secondary" style={{ width: '100%', padding: '0.95rem', marginTop: '1rem' }} onClick={submitDecline} disabled={submitting}>
+                  {submitting ? 'Submitting…' : 'Confirm Decline'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
 
     function VisitRecapPage({ token, onSkuClick }) {
       const [data, setData] = useState(null);

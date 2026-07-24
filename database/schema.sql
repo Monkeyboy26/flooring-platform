@@ -180,7 +180,16 @@ CREATE TABLE order_items (
     cost DECIMAL(10,2),
     -- Pickup readiness: set when this line's goods are at the store. When every
     -- non-sample line is ready, a pickup order auto-advances to ready_for_pickup.
-    ready_at TIMESTAMP
+    ready_at TIMESTAMP,
+    -- Labor lines (from estimate conversion): item_type 'labor' lines are billed
+    -- through the order but excluded from POs, releases, returns, and readiness
+    item_type VARCHAR(20) DEFAULT 'material',
+    labor_category VARCHAR(50),
+    rate_type VARCHAR(20),
+    rate_sqft DECIMAL(10,2),
+    labor_sqft DECIMAL(10,2),
+    quantity DECIMAL(10,2),
+    source_estimate_area TEXT
 );
 
 CREATE TABLE cart_items (
@@ -1599,8 +1608,10 @@ CREATE TABLE IF NOT EXISTS estimates (
     estimate_number TEXT UNIQUE NOT NULL,
     sales_rep_id UUID NOT NULL REFERENCES sales_reps(id),
     customer_id UUID REFERENCES customers(id),
-    customer_name TEXT NOT NULL,
-    customer_email TEXT NOT NULL,
+    -- Nullable: a draft estimate can be built before a customer is attached;
+    -- the customer is required only to send (see /api/rep/estimates/:id/send).
+    customer_name TEXT,
+    customer_email TEXT,
     phone TEXT,
     project_name TEXT,
     project_address_line1 TEXT,
@@ -1616,16 +1627,47 @@ CREATE TABLE IF NOT EXISTS estimates (
     total DECIMAL(10,2) DEFAULT 0,
     notes TEXT,
     internal_notes TEXT,
-    status VARCHAR(30) DEFAULT 'draft',
+    scope_of_work TEXT, -- shown with the Labor group on the estimate
+    -- Optional deposit the customer can pay online at accept time. deposit_type:
+    -- 'none' (no deposit offered), 'percent' (deposit_value = % of total), or
+    -- 'fixed' (deposit_value = dollar amount). Computed deposit is derived, never
+    -- stored. New estimates pre-fill from the house default (see ESTIMATE_DEFAULT_DEPOSIT_PERCENT).
+    deposit_type VARCHAR(10) DEFAULT 'none',
+    deposit_value DECIMAL(10,2) DEFAULT 0,
+    status VARCHAR(30) DEFAULT 'draft', -- draft | sent | accepted | declined | converted ("expired" is computed from expires_at)
     converted_quote_id UUID REFERENCES quotes(id),
     converted_order_id UUID REFERENCES orders(id),
     expires_at TIMESTAMP,
     sent_at TIMESTAMP,
+    -- Customer acceptance: public_token is the secret for the customer-facing
+    -- /estimate/:token page; accepted_by_name is the typed-name signature
+    public_token UUID UNIQUE DEFAULT uuid_generate_v4(),
+    accepted_at TIMESTAMP,
+    accepted_by_name TEXT,
+    declined_at TIMESTAMP,
+    decline_reason TEXT,
+    first_viewed_at TIMESTAMP,
+    -- One expiry-reminder email is sent ~7 days before expires_at; this stamps
+    -- when it went out so the reminder cron never emails the same estimate twice.
+    reminder_sent_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_estimates_rep ON estimates(sales_rep_id);
 CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status);
+
+-- Rooms/areas within an estimate ("Master Bath", "Kitchen"). Items reference an
+-- area via estimate_items.area_id; NULL area_id = the implicit "General" bucket.
+CREATE TABLE IF NOT EXISTS estimate_areas (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    estimate_id UUID NOT NULL REFERENCES estimates(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    scope_notes TEXT,
+    area_sqft DECIMAL(10,2),
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_estimate_areas_estimate ON estimate_areas(estimate_id);
 
 CREATE TABLE IF NOT EXISTS estimate_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -1646,10 +1688,25 @@ CREATE TABLE IF NOT EXISTS estimate_items (
     unit_price DECIMAL(10,2) NOT NULL,
     quantity DECIMAL(10,2) DEFAULT 1,
     subtotal DECIMAL(10,2) NOT NULL,
+    cost DECIMAL(10,2),
     sort_order INTEGER DEFAULT 0,
+    area_id UUID REFERENCES estimate_areas(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_estimate_items_estimate ON estimate_items(estimate_id);
+
+-- Engagement + lifecycle timeline for estimates (mirrors quote_events)
+CREATE TABLE IF NOT EXISTS estimate_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    estimate_id UUID NOT NULL REFERENCES estimates(id) ON DELETE CASCADE,
+    event_type VARCHAR(30) NOT NULL, -- sent | reminder | viewed | reply | note | accepted | declined | converted
+    body TEXT,
+    meta JSONB DEFAULT '{}',
+    actor VARCHAR(20) DEFAULT 'system',
+    actor_name TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_estimate_events_estimate ON estimate_events(estimate_id);
 
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

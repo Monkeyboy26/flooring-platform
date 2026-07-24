@@ -8,7 +8,7 @@ import XLSX from 'xlsx';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -24,8 +24,9 @@ import { createAuthMiddleware } from './lib/auth.js';
 import { calculateSalesTax, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
 import { recalculateBalance, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
+import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers } from './lib/customerHelpers.js';
-import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
+import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -4532,6 +4533,18 @@ async function getNextEstimateNumber() {
   return 'RDE-' + result.rows[0].nextval;
 }
 
+// Same contract as logQuoteEvent: never throws.
+async function logEstimateEvent(db, estimateId, eventType, { body = null, meta = {}, actor = 'system', actorName = null } = {}) {
+  try {
+    await db.query(
+      'INSERT INTO estimate_events (estimate_id, event_type, body, meta, actor, actor_name) VALUES ($1, $2, $3, $4, $5, $6)',
+      [estimateId, eventType, body, JSON.stringify(meta), actor, actorName]
+    );
+  } catch (err) {
+    console.error('[EstimateEvent] log failed (non-fatal):', err.message);
+  }
+}
+
 async function getNextSampleNumber() {
   const result = await pool.query("SELECT nextval('sample_number_seq')");
   return 'RDS-' + result.rows[0].nextval;
@@ -4590,6 +4603,7 @@ async function generatePurchaseOrders(orderId, client) {
     WHERE oi.order_id = $1
       AND oi.is_sample = false
       AND oi.product_id IS NOT NULL
+      AND COALESCE(oi.item_type, 'material') != 'labor'
   `, [orderId]);
 
   // Custom (off-catalog) lines tied to a known vendor also go on that vendor's
@@ -4604,6 +4618,7 @@ async function generatePurchaseOrders(orderId, client) {
       AND oi.is_sample = false
       AND oi.product_id IS NULL
       AND oi.vendor_id IS NOT NULL
+      AND COALESCE(oi.item_type, 'material') != 'labor'
   `, [orderId]);
 
   if (itemsResult.rows.length === 0 && customItemsResult.rows.length === 0) return [];
@@ -7582,7 +7597,8 @@ async function syncPickupReady(client, orderId) {
   const { status, delivery_method } = ord.rows[0];
   const cnt = await client.query(
     `SELECT COUNT(*)::int AS total, COUNT(ready_at)::int AS ready
-       FROM order_items WHERE order_id = $1 AND COALESCE(is_sample, false) = false`,
+       FROM order_items WHERE order_id = $1 AND COALESCE(is_sample, false) = false
+       AND COALESCE(item_type, 'material') != 'labor'`,
     [orderId]
   );
   const { total, ready } = cnt.rows[0];
@@ -7689,7 +7705,7 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
       // Marking the whole order ready implies every line is at the store —
       // keep the per-item checklist in sync.
       await client.query(
-        "UPDATE order_items SET ready_at = COALESCE(ready_at, NOW()) WHERE order_id = $1 AND COALESCE(is_sample, false) = false",
+        "UPDATE order_items SET ready_at = COALESCE(ready_at, NOW()) WHERE order_id = $1 AND COALESCE(is_sample, false) = false AND COALESCE(item_type, 'material') != 'labor'",
         [id]
       );
     } else if (status === 'confirmed') {
@@ -12161,7 +12177,7 @@ async function generateOrderPackingSlipHtml(orderId) {
     LEFT JOIN categories c ON c.id = pr.category_id
     LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
       AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-    WHERE oi.order_id = $1 ORDER BY oi.id
+    WHERE oi.order_id = $1 AND COALESCE(oi.item_type, 'material') != 'labor' ORDER BY oi.id
   `, [orderId]);
   const o = order.rows[0];
   const isPickup = o.delivery_method === 'pickup';
@@ -13973,6 +13989,9 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
       vendor_email: vendor.email,
       vendor_name: vendor.name,
       request_number: sr.request_number,
+      rep_name: repName,
+      item_count: itemsRes.rows.length,
+      ship_to: shipToAddress,
       pdf_buffer: pdfBuffer
     });
 
@@ -15142,7 +15161,7 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
       // Marking the whole order ready implies every line is at the store —
       // keep the per-item checklist in sync.
       await client.query(
-        "UPDATE order_items SET ready_at = COALESCE(ready_at, NOW()) WHERE order_id = $1 AND COALESCE(is_sample, false) = false",
+        "UPDATE order_items SET ready_at = COALESCE(ready_at, NOW()) WHERE order_id = $1 AND COALESCE(is_sample, false) = false AND COALESCE(item_type, 'material') != 'labor'",
         [id]
       );
     } else if (status === 'confirmed') {
@@ -16334,7 +16353,7 @@ app.get('/api/rep/orders/:id/return-context', repAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
-      WHERE oi.order_id = $1 AND NOT oi.is_sample
+      WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor'
       ORDER BY oi.id
     `, [id]);
 
@@ -16422,7 +16441,7 @@ async function processReturn(client, { id, order, lines, refund_splits = [], sto
   const allItemsRes = await client.query(`
     SELECT oi.id, oi.num_boxes::numeric AS num_boxes,
       COALESCE((SELECT SUM(ri.return_qty) FROM return_items ri WHERE ri.order_item_id = oi.id), 0) AS prior_returned
-    FROM order_items oi WHERE oi.order_id = $1 AND NOT oi.is_sample`, [id]);
+    FROM order_items oi WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor'`, [id]);
   const addNow = {};
   for (const c of computed) addNow[c.oi.id] = (addNow[c.oi.id] || 0) + c.returnQty;
   const isFull = allItemsRes.rows.length > 0 && allItemsRes.rows.every(it =>
@@ -16586,7 +16605,7 @@ app.get('/api/staff/orders/:id/return-context', staffAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
-      WHERE oi.order_id = $1 AND NOT oi.is_sample ORDER BY oi.id`, [id]);
+      WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor' ORDER BY oi.id`, [id]);
     const payRes = await pool.query(
       `SELECT * FROM order_payments WHERE order_id = $1 AND payment_type IN ('charge','additional_charge') AND status = 'completed' AND amount > 0 ORDER BY created_at`, [id]);
     const tenders = [];
@@ -16672,6 +16691,7 @@ async function processRelease(client, { id, order, lines, release_method, recipi
     if (!oiRes.rows.length) throw new Error('Order item not found on this order');
     const oi = oiRes.rows[0];
     if (oi.is_sample) throw new Error('Samples cannot be released');
+    if ((oi.item_type || 'material') === 'labor') throw new Error('Labor lines cannot be released — releases cover physical goods only');
     const orderedQty = parseFloat(oi.num_boxes || 0);
     const prior = await priorReleasedQty(client, l.order_item_id);
     const qty = parseFloat(l.release_qty);
@@ -16702,7 +16722,7 @@ async function processRelease(client, { id, order, lines, release_method, recipi
       COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
         JOIN material_releases mr ON mr.id = ri.release_id
         WHERE ri.order_item_id = oi.id AND mr.status != 'void'), 0) AS released
-    FROM order_items oi WHERE oi.order_id = $1 AND NOT oi.is_sample`, [id]);
+    FROM order_items oi WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor'`, [id]);
   const isFull = allRes.rows.length > 0 && allRes.rows.every(it =>
     parseFloat(it.released) + 0.001 >= parseFloat(it.num_boxes || 0));
 
@@ -16754,7 +16774,7 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
       LEFT JOIN categories cat ON cat.id = p.category_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-      WHERE oi.order_id = $1 AND NOT oi.is_sample ORDER BY oi.id`, [id]);
+      WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor' ORDER BY oi.id`, [id]);
     res.json({ order, items: itemsRes.rows, releasable: RELEASABLE_STATUSES.includes(order.status) });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -18756,7 +18776,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
     const fullQuote = await pool.query('SELECT * FROM quotes WHERE id = $1', [quote.id]);
     const quoteItems = await pool.query(`
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
-        COALESCE(pr.cost, qi.cost) as vendor_cost,
+        COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -18790,7 +18810,7 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
-        COALESCE(pr.cost, qi.cost) as vendor_cost,
+        COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -18996,10 +19016,11 @@ app.put('/api/rep/quotes/:id/items/:itemId', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id, itemId } = req.params;
-    const { num_boxes, unit_price, sqft_needed, subtotal, product_name, collection, description, sell_by } = req.body;
+    const { num_boxes, unit_price, sqft_needed, subtotal, product_name, collection, description, sell_by, cost } = req.body;
 
     await client.query('BEGIN');
 
+    // cost is the rep-only margin basis; a blank clears it back to the catalog cost.
     const result = await client.query(`
       UPDATE quote_items SET
         num_boxes = COALESCE($1, num_boxes),
@@ -19009,10 +19030,13 @@ app.put('/api/rep/quotes/:id/items/:itemId', repAuth, async (req, res) => {
         product_name = COALESCE($7, product_name),
         collection = COALESCE($8, collection),
         description = COALESCE($9, description),
-        sell_by = COALESCE($10, sell_by)
+        sell_by = COALESCE($10, sell_by),
+        cost = CASE WHEN $11 THEN $12 ELSE cost END
       WHERE id = $5 AND quote_id = $6
       RETURNING *
-    `, [num_boxes, unit_price, sqft_needed, subtotal, itemId, id, product_name, collection, description, sell_by]);
+    `, [num_boxes, unit_price, sqft_needed, subtotal, itemId, id, product_name, collection, description, sell_by,
+        Object.prototype.hasOwnProperty.call(req.body, 'cost'),
+        (cost == null || cost === '') ? null : parseFloat(cost).toFixed(2)]);
 
     if (!result.rows.length) {
       await client.query('ROLLBACK');
@@ -19619,12 +19643,24 @@ async function recalculateEstimateTotals(estimateId, client) {
   return { materials_subtotal: materialsSubtotal, labor_subtotal: laborSubtotal, subtotal: sub, tax_rate: tax.rate, tax_amount: tax.amount, total };
 }
 
+// Estimates are mutable only before the customer decides: draft or sent.
+// Returns { estimate } or { errorStatus, errorMessage }.
+async function getEditableEstimate(db, id) {
+  const r = await db.query('SELECT * FROM estimates WHERE id = $1', [id]);
+  if (!r.rows.length) return { errorStatus: 404, errorMessage: 'Estimate not found' };
+  if (!['draft', 'sent'].includes(r.rows[0].status)) {
+    return { errorStatus: 400, errorMessage: 'Estimate cannot be edited in current status', estimate: r.rows[0] };
+  }
+  return { estimate: r.rows[0] };
+}
+
 // GET /api/rep/estimates — List estimates
 app.get('/api/rep/estimates', repAuth, async (req, res) => {
   try {
     const { status, search } = req.query;
     let query = `
       SELECT e.*,
+        CASE WHEN e.status = 'sent' AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
         sr.first_name || ' ' || sr.last_name as rep_name,
         (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count,
         (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id AND ei.item_type = 'material') as material_count,
@@ -19663,16 +19699,16 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
             project_address_line1, project_address_line2,
             project_city, project_state, project_zip,
             notes, internal_notes } = req.body;
-    if (!customer_name || !customer_email) {
-      return res.status(400).json({ error: 'Customer name and email are required' });
-    }
-    if (customer_name.trim().split(/\s+/).length < 2) {
+
+    // A draft can be created with no customer yet (build first, attach before
+    // sending). Only validate the format of fields that were actually provided.
+    if (customer_name && customer_name.trim().split(/\s+/).length < 2) {
       return res.status(400).json({ error: 'Customer first and last name are required' });
     }
-    if (!isValidEmailAddr(customer_email)) {
+    if (customer_email && !isValidEmailAddr(customer_email)) {
       return res.status(400).json({ error: 'A valid customer email is required' });
     }
-    if (!phone || phone.replace(/\D/g, '').length !== 10) {
+    if (phone && phone.replace(/\D/g, '').length !== 10) {
       return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
     }
 
@@ -19681,14 +19717,16 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Auto-create customer
-    const nameParts = (customer_name || '').split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-    const { customer: cust } = await findOrCreateCustomer(client, {
-      email: customer_email, firstName, lastName,
-      phone, repId: req.rep.id, createdVia: 'estimate'
-    });
+    // Link/create the customer only when an email was supplied.
+    let custId = null;
+    if (customer_email) {
+      const nameParts = (customer_name || '').split(' ');
+      const { customer: cust } = await findOrCreateCustomer(client, {
+        email: customer_email, firstName: nameParts[0] || '', lastName: nameParts.slice(1).join(' ') || '',
+        phone, repId: req.rep.id, createdVia: 'estimate'
+      });
+      custId = cust.id;
+    }
 
     const result = await client.query(`
       INSERT INTO estimates (estimate_number, sales_rep_id, customer_id, customer_name, customer_email, phone,
@@ -19696,7 +19734,7 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
         notes, internal_notes, expires_at)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
-    `, [estimateNumber, req.rep.id, cust.id, customer_name, customer_email.toLowerCase().trim(), phone || null,
+    `, [estimateNumber, req.rep.id, custId, customer_name || null, customer_email ? customer_email.toLowerCase().trim() : null, phone || null,
         project_name || null,
         project_address_line1 || null, project_address_line2 || null,
         project_city || null, project_state || null, project_zip || null,
@@ -19712,35 +19750,16 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
   }
 });
 
-// GET /api/rep/estimates/:id — Get estimate with items
+// GET /api/rep/estimates/:id — Get estimate with items, areas, and engagement
 app.get('/api/rep/estimates/:id', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const estimate = await pool.query(`
-      SELECT e.*, sr.first_name || ' ' || sr.last_name as rep_name
-      FROM estimates e LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
-      WHERE e.id = $1
-    `, [id]);
-    if (!estimate.rows.length) return res.status(404).json({ error: 'Estimate not found' });
-
-    const items = await pool.query(`
-      SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
-        p.collection as current_collection, pr.cost as vendor_cost,
-        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
-         ORDER BY CASE WHEN ma.sku_id = ei.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
-      FROM estimate_items ei
-      LEFT JOIN skus s ON s.id = ei.sku_id
-      LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
-      LEFT JOIN vendors v ON v.id = p.vendor_id
-      LEFT JOIN pricing pr ON pr.sku_id = ei.sku_id
-      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
-        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-      WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
-    `, [id]);
+    const bundle = await getEstimateBundle(pool, { id });
+    if (!bundle) return res.status(404).json({ error: 'Estimate not found' });
 
     // Rehydrate the linked customer (same shape as /api/rep/customers/search)
     // so the workspace can restore the selected-customer banner after reload.
-    const e = estimate.rows[0];
+    const e = bundle.estimate;
     let customer = null;
     if (e.customer_email) {
       const trade = await pool.query(`
@@ -19768,7 +19787,10 @@ app.get('/api/rep/estimates/:id', repAuth, async (req, res) => {
       customer = retail.rows[0] || null;
     }
 
-    res.json({ estimate: e, items: items.rows, customer });
+    res.json({
+      estimate: e, items: bundle.items, customer,
+      areas: bundle.areas, area_subtotals: bundle.areaSubtotals
+    });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -19782,15 +19804,24 @@ app.put('/api/rep/estimates/:id', repAuth, async (req, res) => {
     const { customer_name, customer_email, phone, project_name,
             project_address_line1, project_address_line2,
             project_city, project_state, project_zip,
-            notes, internal_notes, tax_rate } = req.body;
+            notes, internal_notes, scope_of_work, tax_rate,
+            deposit_type, deposit_value } = req.body;
 
-    if (customer_name !== undefined && (!customer_name || customer_name.trim().split(/\s+/).length < 2)) {
+    // Validate only fields that carry a value — empty means "clear", undefined
+    // means "leave as is" (a customer can be attached or removed at any point).
+    if (customer_name && customer_name.trim().split(/\s+/).length < 2) {
       return res.status(400).json({ error: 'Customer first and last name are required' });
     }
-    if (customer_email !== undefined && !isValidEmailAddr(customer_email)) {
+    if (deposit_type !== undefined && !['none', 'percent', 'fixed'].includes(deposit_type)) {
+      return res.status(400).json({ error: 'deposit_type must be none, percent, or fixed' });
+    }
+    if (deposit_value !== undefined && (isNaN(parseFloat(deposit_value)) || parseFloat(deposit_value) < 0)) {
+      return res.status(400).json({ error: 'deposit_value must be a non-negative number' });
+    }
+    if (customer_email && !isValidEmailAddr(customer_email)) {
       return res.status(400).json({ error: 'A valid customer email is required' });
     }
-    if (phone !== undefined && (!phone || phone.replace(/\D/g, '').length !== 10)) {
+    if (phone && phone.replace(/\D/g, '').length !== 10) {
       return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
     }
 
@@ -19802,6 +19833,19 @@ app.put('/api/rep/estimates/:id', repAuth, async (req, res) => {
     }
 
     await client.query('BEGIN');
+
+    // Re-link customer_id whenever the email is set/changed here; clear it when
+    // the customer is removed. Left untouched when customer_email isn't in the body.
+    const touchCustomer = customer_email !== undefined;
+    let custId = null;
+    if (customer_email) {
+      const nameParts = (customer_name || '').split(' ');
+      const { customer } = await findOrCreateCustomer(client, {
+        email: customer_email, firstName: nameParts[0] || '', lastName: nameParts.slice(1).join(' ') || '',
+        phone, repId: req.rep.id, createdVia: 'estimate'
+      });
+      custId = customer.id;
+    }
 
     const result = await client.query(`
       UPDATE estimates SET
@@ -19816,13 +19860,18 @@ app.put('/api/rep/estimates/:id', repAuth, async (req, res) => {
         project_zip = COALESCE($9, project_zip),
         notes = COALESCE($10, notes),
         internal_notes = COALESCE($11, internal_notes),
+        scope_of_work = COALESCE($15, scope_of_work),
+        deposit_type = COALESCE($16, deposit_type),
+        deposit_value = COALESCE($17, deposit_value),
+        customer_id = CASE WHEN $13 THEN $14::uuid ELSE customer_id END,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $12
       RETURNING *
     `, [customer_name, customer_email, phone, project_name,
         project_address_line1, project_address_line2,
         project_city, project_state, project_zip,
-        notes, internal_notes, id]);
+        notes, internal_notes, id, touchCustomer, custId, scope_of_work,
+        deposit_type ?? null, deposit_value ?? null]);
 
     // Recalculate totals (in case zip changed, affecting tax)
     await recalculateEstimateTotals(id, client);
@@ -19862,22 +19911,26 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
     const { item_type, product_id, sku_id, product_name, collection, description,
             sqft_needed, num_boxes, sell_by,
             labor_category, rate_type, rate_sqft, labor_sqft,
-            unit_price, quantity, subtotal, sort_order } = req.body;
+            unit_price, quantity, subtotal, sort_order, area_id, vendor_cost } = req.body;
+
+    const guard = await getEditableEstimate(client, id);
+    if (guard.errorStatus) return res.status(guard.errorStatus).json({ error: guard.errorMessage });
 
     await client.query('BEGIN');
 
     const itemResult = await client.query(`
       INSERT INTO estimate_items (estimate_id, item_type, product_id, sku_id, product_name, collection, description,
         sqft_needed, num_boxes, sell_by, labor_category, rate_type, rate_sqft, labor_sqft,
-        unit_price, quantity, subtotal, sort_order)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        unit_price, quantity, subtotal, sort_order, area_id, cost)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *
     `, [id, item_type || 'material', product_id || null, sku_id || null,
         product_name || null, collection || null, description || null,
         sqft_needed || null, num_boxes || null, sell_by || null,
         labor_category || null, rate_type || null, rate_sqft || null, labor_sqft || null,
         parseFloat(unit_price || 0).toFixed(2), quantity || 1,
-        parseFloat(subtotal || 0).toFixed(2), sort_order || 0]);
+        parseFloat(subtotal || 0).toFixed(2), sort_order || 0, area_id || null,
+        (vendor_cost == null || vendor_cost === '') ? null : parseFloat(vendor_cost).toFixed(2)]);
 
     await recalculateEstimateTotals(id, client);
     await client.query('COMMIT');
@@ -19899,10 +19952,16 @@ app.put('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => {
     const { id, itemId } = req.params;
     const { product_name, collection, description, sqft_needed, num_boxes, sell_by,
             labor_category, rate_type, rate_sqft, labor_sqft,
-            unit_price, quantity, subtotal, sort_order } = req.body;
+            unit_price, quantity, subtotal, sort_order, vendor_cost } = req.body;
+
+    const guard = await getEditableEstimate(client, id);
+    if (guard.errorStatus) return res.status(guard.errorStatus).json({ error: guard.errorMessage });
 
     await client.query('BEGIN');
 
+    // area_id can be set to NULL ("move to General"), so it can't use COALESCE:
+    // only touch it when the key is present in the request body. cost is the
+    // rep-only margin basis; a blank clears it back to the catalog cost.
     const result = await client.query(`
       UPDATE estimate_items SET
         product_name = COALESCE($1, product_name),
@@ -19918,13 +19977,18 @@ app.put('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => {
         unit_price = COALESCE($11, unit_price),
         quantity = COALESCE($12, quantity),
         subtotal = COALESCE($13, subtotal),
-        sort_order = COALESCE($14, sort_order)
-      WHERE id = $15 AND estimate_id = $16
+        sort_order = COALESCE($14, sort_order),
+        area_id = CASE WHEN $15 THEN $16::uuid ELSE area_id END,
+        cost = CASE WHEN $19 THEN $20 ELSE cost END
+      WHERE id = $17 AND estimate_id = $18
       RETURNING *
     `, [product_name, collection, description, sqft_needed, num_boxes, sell_by,
         labor_category, rate_type, rate_sqft, labor_sqft,
         unit_price, quantity, subtotal, sort_order,
-        itemId, id]);
+        Object.prototype.hasOwnProperty.call(req.body, 'area_id'), req.body.area_id || null,
+        itemId, id,
+        Object.prototype.hasOwnProperty.call(req.body, 'vendor_cost'),
+        (vendor_cost == null || vendor_cost === '') ? null : parseFloat(vendor_cost).toFixed(2)]);
 
     if (!result.rows.length) {
       await client.query('ROLLBACK');
@@ -19950,6 +20014,9 @@ app.delete('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => 
   try {
     const { id, itemId } = req.params;
 
+    const guard = await getEditableEstimate(client, id);
+    if (guard.errorStatus) return res.status(guard.errorStatus).json({ error: guard.errorMessage });
+
     await client.query('BEGIN');
 
     const result = await client.query(
@@ -19973,164 +20040,243 @@ app.delete('/api/rep/estimates/:id/items/:itemId', repAuth, async (req, res) => 
   }
 });
 
-// GET /api/rep/estimates/:id/pdf — Branded PDF
-app.get('/api/rep/estimates/:id/pdf', repAuth, async (req, res) => {
+// ---- Estimate areas (rooms) ----
+
+// POST /api/rep/estimates/:id/areas/reorder — must be declared before the
+// :areaId routes or Express would capture "reorder" as an areaId.
+app.post('/api/rep/estimates/:id/areas/reorder', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const estimate = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
-    if (!estimate.rows.length) return res.status(404).json({ error: 'Estimate not found' });
-    const e = estimate.rows[0];
+    const { area_ids } = req.body;
+    if (!Array.isArray(area_ids) || !area_ids.length) {
+      return res.status(400).json({ error: 'area_ids array is required' });
+    }
+    const guard = await getEditableEstimate(pool, id);
+    if (guard.errorStatus) return res.status(guard.errorStatus).json({ error: guard.errorMessage });
 
-    const items = await pool.query(`
-      SELECT ei.*, sk.variant_name, sa_c.value as color,
-        v.name as vendor_name, sk.vendor_sku, p.collection as current_collection
-      FROM estimate_items ei
-      LEFT JOIN skus sk ON sk.id = ei.sku_id
-      LEFT JOIN products p ON p.id = COALESCE(sk.product_id, ei.product_id)
-      LEFT JOIN vendors v ON v.id = p.vendor_id
-      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
-        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-      WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
-    `, [id]);
-    const materialItems = items.rows.filter(i => i.item_type === 'material');
-    const laborItems = items.rows.filter(i => i.item_type === 'labor');
-
-    const laborCategoryLabels = {
-      installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
-      transitions: 'Transitions', baseboards: 'Baseboards', floor_leveling: 'Floor Leveling',
-      moisture_barrier: 'Moisture Barrier', furniture_moving: 'Furniture Moving', other: 'Other'
-    };
-
-    const isExpired = e.expires_at && new Date(e.expires_at) < new Date();
-    const expiryStr = e.expires_at ? new Date(e.expires_at).toLocaleDateString() : 'N/A';
-
-    const materialRowsHtml = materialItems.map((i, idx) => {
-      const isUnit = i.sell_by === 'unit';
-      const qty = i.num_boxes || i.quantity || 1;
-      return `<tr>
-      <td>${idx + 1}</td>
-      <td>${itemDescriptionCell(i.collection, i.color, i.variant_name)}</td>
-      <td style="text-align:right">${isUnit ? '—' : (i.sqft_needed ? parseFloat(i.sqft_needed).toFixed(0) + ' sqft' : '—')}</td>
-      <td style="text-align:right">${qty}${isUnit ? '' : ' box' + (qty > 1 ? 'es' : '')}</td>
-      <td style="text-align:right">$${parseFloat(i.unit_price || 0).toFixed(2)}${isUnit ? '/ea' : '/sqft'}</td>
-      <td style="text-align:right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
-    </tr>`; }).join('');
-
-    const laborRowsHtml = laborItems.map((i, idx) => {
-      const rateDisplay = i.rate_type === 'per_sqft'
-        ? `$${parseFloat(i.rate_sqft || 0).toFixed(2)}/sqft`
-        : 'Flat';
-      const areaQty = i.rate_type === 'per_sqft'
-        ? `${parseFloat(i.labor_sqft || 0).toFixed(0)} sqft`
-        : (parseFloat(i.quantity || 1) > 1 ? parseFloat(i.quantity).toFixed(0) : '-');
-      return `<tr>
-        <td>${idx + 1}</td>
-        <td>${laborCategoryLabels[i.labor_category] || i.labor_category || ''}</td>
-        <td>${i.description ? i.description.split('\n').map((line, idx) => idx === 0 ? line : '&bull; ' + line).join('<br/>') : ''}</td>
-        <td style="text-align:right">${rateDisplay}</td>
-        <td style="text-align:right">${areaQty}</td>
-        <td style="text-align:right">$${parseFloat(i.subtotal || 0).toFixed(2)}</td>
-      </tr>`;
-    }).join('');
-
-    const termsHtml = `${parseFloat(e.tax_amount || 0) > 0 ? '<p>* Sales tax applies to materials only. Labor and services are not taxed.</p>' : ''}
-      <p>Valid for 30 days from the date of issue. Labor rates may vary based on site conditions.</p>`;
-
-    const html = `<!DOCTYPE html><html><head><style>${getDocumentBaseCSS()}</style></head><body>
-      <div class="page">
-        ${getDocumentHeader('Estimate')}
-        <div class="doc-banner">
-          <div class="doc-banner-left">
-            <div class="meta-group"><p class="meta-label">Estimate</p><p class="meta-value">${e.estimate_number}</p></div>
-            <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(e.created_at).toLocaleDateString()}</p></div>
-            <div class="meta-group"><p class="meta-label">Valid Until</p><p class="meta-value-sm">${expiryStr}</p></div>
-          </div>
-          <div>${isExpired ? '<span class="badge badge-expired">Expired</span>' : '<span class="badge badge-valid">Valid</span>'}</div>
-        </div>
-        <div class="info-row">
-          <div class="info-card">
-            <h3>Prepared For</h3>
-            <p><strong>${e.customer_name || ''}</strong><br/>
-            ${e.customer_email || ''}${e.phone ? '<br/>' + e.phone : ''}</p>
-          </div>
-          <div class="info-card">
-            <h3>Project Location</h3>
-            <p>${e.project_name ? '<strong>' + e.project_name + '</strong><br/>' : ''}
-            ${e.project_address_line1 || ''}${e.project_address_line2 ? '<br/>' + e.project_address_line2 : ''}
-            ${e.project_city ? '<br/>' + e.project_city + ', ' + (e.project_state || '') + ' ' + (e.project_zip || '') : ''}</p>
-          </div>
-        </div>
-
-        ${materialItems.length > 0 ? `
-        <div class="section-title">Materials</div>
-        <table>
-          <thead><tr><th>#</th><th>Description</th><th class="text-right">Area</th><th class="text-right">Qty</th><th class="text-right">Unit Price</th><th class="text-right">Subtotal</th></tr></thead>
-          <tbody>${materialRowsHtml}</tbody>
-        </table>
-        ` : ''}
-
-        ${laborItems.length > 0 ? `
-        <div class="section-title">Labor &amp; Services</div>
-        <table>
-          <thead><tr><th>#</th><th>Service</th><th>Description</th><th class="text-right">Rate</th><th class="text-right">Area/Qty</th><th class="text-right">Subtotal</th></tr></thead>
-          <tbody>${laborRowsHtml}</tbody>
-        </table>
-        ` : ''}
-
-        <div class="totals-wrapper"><div class="totals-box">
-          <div class="totals-line"><span>Materials Subtotal</span><span>$${parseFloat(e.materials_subtotal || 0).toFixed(2)}</span></div>
-          <div class="totals-line"><span>Labor &amp; Services</span><span>$${parseFloat(e.labor_subtotal || 0).toFixed(2)}</span></div>
-          ${parseFloat(e.tax_amount || 0) > 0 ? `<div class="totals-line"><span>Tax (materials only)*</span><span>$${parseFloat(e.tax_amount).toFixed(2)}</span></div>` : ''}
-          <div class="totals-line grand-total"><span>Grand Total</span><span>$${parseFloat(e.total || 0).toFixed(2)}</span></div>
-        </div></div>
-
-        ${e.notes ? `<div class="notes-block"><h4>Notes</h4><p style="margin:0;white-space:pre-wrap;">${e.notes}</p></div>` : ''}
-
-        ${getDocumentFooter(termsHtml)}
-      </div>
-    </body></html>`;
-
-    await generatePDF(html, `estimate-${e.estimate_number}.pdf`, req, res);
+    for (let i = 0; i < area_ids.length; i++) {
+      await pool.query(
+        'UPDATE estimate_areas SET sort_order = $1 WHERE id = $2 AND estimate_id = $3',
+        [i, area_ids[i], id]
+      );
+    }
+    const areas = await pool.query(
+      'SELECT * FROM estimate_areas WHERE estimate_id = $1 ORDER BY sort_order, created_at', [id]
+    );
+    res.json({ areas: areas.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
+// POST /api/rep/estimates/:id/areas — Add an area
+app.post('/api/rep/estimates/:id/areas', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, scope_notes, area_sqft } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Area name is required' });
+    const guard = await getEditableEstimate(pool, id);
+    if (guard.errorStatus) return res.status(guard.errorStatus).json({ error: guard.errorMessage });
+
+    const result = await pool.query(`
+      INSERT INTO estimate_areas (estimate_id, name, scope_notes, area_sqft, sort_order)
+      VALUES ($1, $2, $3, $4, (SELECT COALESCE(MAX(sort_order), -1) + 1 FROM estimate_areas WHERE estimate_id = $1))
+      RETURNING *
+    `, [id, name.trim(), scope_notes || null, area_sqft || null]);
+    res.json({ area: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/rep/estimates/:id/areas/:areaId — Update an area
+app.put('/api/rep/estimates/:id/areas/:areaId', repAuth, async (req, res) => {
+  try {
+    const { id, areaId } = req.params;
+    const { name, scope_notes, area_sqft, sort_order } = req.body;
+    const guard = await getEditableEstimate(pool, id);
+    if (guard.errorStatus) return res.status(guard.errorStatus).json({ error: guard.errorMessage });
+
+    const result = await pool.query(`
+      UPDATE estimate_areas SET
+        name = COALESCE($1, name),
+        scope_notes = CASE WHEN $2 THEN $3 ELSE scope_notes END,
+        area_sqft = CASE WHEN $4 THEN $5::decimal ELSE area_sqft END,
+        sort_order = COALESCE($6, sort_order)
+      WHERE id = $7 AND estimate_id = $8
+      RETURNING *
+    `, [name || null,
+        Object.prototype.hasOwnProperty.call(req.body, 'scope_notes'), scope_notes || null,
+        Object.prototype.hasOwnProperty.call(req.body, 'area_sqft'), area_sqft || null,
+        sort_order === undefined ? null : sort_order, areaId, id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Area not found' });
+    res.json({ area: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/rep/estimates/:id/areas/:areaId?mode=keep|delete
+// keep (default): items drop to the General bucket (FK is ON DELETE SET NULL);
+// delete: the area's items go with it.
+app.delete('/api/rep/estimates/:id/areas/:areaId', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, areaId } = req.params;
+    const mode = req.query.mode === 'delete' ? 'delete' : 'keep';
+    const guard = await getEditableEstimate(client, id);
+    if (guard.errorStatus) return res.status(guard.errorStatus).json({ error: guard.errorMessage });
+
+    await client.query('BEGIN');
+    if (mode === 'delete') {
+      await client.query('DELETE FROM estimate_items WHERE estimate_id = $1 AND area_id = $2', [id, areaId]);
+    }
+    const result = await client.query(
+      'DELETE FROM estimate_areas WHERE id = $1 AND estimate_id = $2 RETURNING id', [areaId, id]
+    );
+    if (!result.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Area not found' });
+    }
+    await recalculateEstimateTotals(id, client);
+    await client.query('COMMIT');
+
+    const updated = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    res.json({ deleted: areaId, mode, estimate: updated.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// ---- Estimate engagement (events, pixel) ----
+
+// Email open-tracking pixel — public: the UUID is the secret (same as quotes).
+app.get('/api/estimates/:id/open.gif', async (req, res) => {
+  try {
+    const est = await pool.query('SELECT id, status, customer_name FROM estimates WHERE id = $1', [req.params.id]);
+    if (est.rows.length && est.rows[0].status !== 'draft') {
+      const ua = req.headers['user-agent'] || '';
+      const viewerKey = crypto.createHash('sha1').update((req.ip || '') + '|' + ua).digest('hex').substring(0, 12);
+      await logEstimateEvent(pool, req.params.id, 'viewed', {
+        body: 'Opened the estimate email',
+        meta: { source: 'email', viewer_key: viewerKey, user_agent: ua.substring(0, 200) },
+        actor: 'customer',
+        actorName: est.rows[0].customer_name
+      });
+    }
+  } catch (err) {
+    console.error('[EstimateEvent] pixel error (non-fatal):', err.message);
+  }
+  res.set({ 'Content-Type': 'image/gif', 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache' });
+  res.send(TRACKING_PIXEL_GIF);
+});
+
+// Thread + engagement for the estimate workspace
+app.get('/api/rep/estimates/:id/events', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const events = await pool.query(
+      'SELECT * FROM estimate_events WHERE estimate_id = $1 ORDER BY created_at ASC, id ASC', [id]
+    );
+    const views = events.rows.filter(e => e.event_type === 'viewed');
+    const replies = events.rows.filter(e => e.event_type === 'reply');
+    const viewerKeys = new Set(views.map(v => (v.meta && v.meta.viewer_key) || 'unknown'));
+    res.json({
+      events: events.rows,
+      engagement: {
+        opens: views.length,
+        viewers: viewerKeys.size,
+        replies: replies.length,
+        last_viewed_at: views.length ? views[views.length - 1].created_at : null,
+        last_reply_at: replies.length ? replies[replies.length - 1].created_at : null
+      }
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Log a thread entry: an internal note, or a customer reply the rep is recording
+app.post('/api/rep/estimates/:id/events', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { event_type, body } = req.body;
+    if (!['note', 'reply'].includes(event_type)) {
+      return res.status(400).json({ error: 'event_type must be note or reply' });
+    }
+    if (!body || !body.trim()) return res.status(400).json({ error: 'body is required' });
+
+    const est = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
+    if (!est.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    const e = est.rows[0];
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    const result = await pool.query(
+      'INSERT INTO estimate_events (estimate_id, event_type, body, meta, actor, actor_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [id, event_type, body.trim(), JSON.stringify(event_type === 'reply' ? { logged_by: repName } : {}),
+       event_type === 'reply' ? 'customer' : 'rep',
+       event_type === 'reply' ? e.customer_name : repName]
+    );
+    res.json({ event: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Build the branded estimate PDF HTML from a bundle — shared by the PDF
+// download endpoint and the estimate email attachment so both stay identical.
+// Uses the shared editorial document system (generateEstimateHtml), matching
+// the quote / invoice / credit-memo PDFs.
+function buildEstimatePdfHtml(bundle) {
+  return generateEstimateHtml(
+    bundle.estimate,
+    bundle.items.filter(i => i.item_type === 'material'),
+    bundle.items.filter(i => i.item_type === 'labor')
+  );
+}
+
+// GET /api/rep/estimates/:id/pdf — Branded PDF, grouped by area
+app.get('/api/rep/estimates/:id/pdf', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const bundle = await getEstimateBundle(pool, { id });
+    if (!bundle) return res.status(404).json({ error: 'Estimate not found' });
+    await generatePDF(buildEstimatePdfHtml(bundle), `estimate-${bundle.estimate.estimate_number}.pdf`, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Assemble the estimateSent.js template payload from a bundle.
+// House default deposit for new estimates — reps can override or clear it per
+// estimate in the builder. Change this one value to adjust the default offered
+// across all new estimates.
+const ESTIMATE_DEFAULT_DEPOSIT_PERCENT = 50;
+
+function estimateEmailData(bundle, rep) {
+  const e = bundle.estimate; // includes scope_of_work
+  return {
+    ...e,
+    materialItems: bundle.items.filter(i => i.item_type === 'material'),
+    laborItems: bundle.items.filter(i => i.item_type === 'labor'),
+    rep_first_name: rep.first_name,
+    rep_last_name: rep.last_name,
+    rep_email: rep.email
+  };
+}
+
 // GET /api/rep/estimates/:id/preview — Email preview HTML
 app.get('/api/rep/estimates/:id/preview', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const estimate = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
-    if (!estimate.rows.length) return res.status(404).json({ error: 'Estimate not found' });
-    const e = estimate.rows[0];
+    const bundle = await getEstimateBundle(pool, { id });
+    if (!bundle) return res.status(404).json({ error: 'Estimate not found' });
+    const e = bundle.estimate;
 
-    const items = await pool.query(`
-      SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
-        p.collection as current_collection, pr.cost as vendor_cost,
-        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
-         ORDER BY CASE WHEN ma.sku_id = ei.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
-      FROM estimate_items ei
-      LEFT JOIN skus s ON s.id = ei.sku_id
-      LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
-      LEFT JOIN vendors v ON v.id = p.vendor_id
-      LEFT JOIN pricing pr ON pr.sku_id = ei.sku_id
-      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
-        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-      WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
-    `, [id]);
-    const materialItems = items.rows.filter(i => i.item_type === 'material');
-    const laborItems = items.rows.filter(i => i.item_type === 'labor');
-
-    const emailData = {
-      ...e,
-      materialItems,
-      laborItems,
-      rep_first_name: req.rep.first_name,
-      rep_last_name: req.rep.last_name,
-      rep_email: req.rep.email
-    };
-
-    const html = generateEstimateSentHTML(emailData);
+    const html = generateEstimateSentHTML(estimateEmailData(bundle, req.rep));
     res.json({
       html,
       subject: `Your Construction Estimate — ${e.estimate_number}`,
@@ -20142,63 +20288,111 @@ app.get('/api/rep/estimates/:id/preview', repAuth, async (req, res) => {
   }
 });
 
-// POST /api/rep/estimates/:id/send — Send estimate to customer
+// Deliver an estimate to the customer: restart the 30-day window, email the
+// branded PDF, and log the event. Shared by the single-send and bulk-resend
+// endpoints. Returns { emailed, resend } or throws { statusCode, error } for
+// caller-mappable validation failures (bad status / missing email).
+// Re-sending is also the revival path for an expired estimate.
+async function deliverEstimate(bundle, rep) {
+  const e = bundle.estimate;
+  if (e.status !== 'draft' && e.status !== 'sent') {
+    throw { statusCode: 400, error: 'Estimate cannot be sent in current status' };
+  }
+  // Customer is optional while building, but required to send.
+  if (!e.customer_email || !isValidEmailAddr(e.customer_email)) {
+    throw { statusCode: 400, error: 'Add a customer with a valid email before sending this estimate.' };
+  }
+
+  // A send on an estimate that was already 'sent' is a re-send: the audit
+  // trail distinguishes it, and the reminder must re-arm for the fresh window.
+  const isResend = e.status === 'sent';
+  const previousExpiry = e.expires_at;
+  const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  await pool.query(
+    "UPDATE estimates SET status = 'sent', sent_at = CURRENT_TIMESTAMP, expires_at = $2, reminder_sent_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
+    [e.id, newExpiry]
+  );
+  e.status = 'sent';
+  e.expires_at = newExpiry;
+
+  // Attach the branded estimate PDF (same document as the PDF endpoint).
+  // If rendering fails, send the email without it.
+  let attachments;
+  try {
+    const pdfBuffer = await generatePDFBuffer(buildEstimatePdfHtml(bundle));
+    attachments = [{
+      filename: `Roma-Estimate-${e.estimate_number || String(e.id).substring(0, 8)}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf'
+    }];
+  } catch (pdfErr) {
+    console.error('[Email] Estimate PDF attachment failed — sending without it:', pdfErr.message);
+  }
+
+  const emailResult = await sendEstimateSent(estimateEmailData(bundle, rep), { attachments });
+  const emailed = emailResult && emailResult.sent;
+
+  const verb = isResend ? 're-sent' : 'emailed';
+  await logEstimateEvent(pool, e.id, 'sent', {
+    body: emailed
+      ? `Estimate ${verb} to ${e.customer_email}${isResend ? ' — validity window restarted' : ''}`
+      : `Estimate marked as ${isResend ? 're-sent' : 'sent'} (email not configured)`,
+    meta: { to: e.customer_email, emailed: !!emailed, resend: isResend, ...(isResend ? { previous_expires_at: previousExpiry } : {}) },
+    actor: 'rep',
+    actorName: rep.first_name + ' ' + rep.last_name
+  });
+
+  // Auto-task: follow up on estimate (deduped per estimate by the unique index)
+  setImmediate(() => createAutoTask(pool, rep.id, 'estimate_sent', e.id,
+    `Follow up on Estimate ${e.estimate_number} — ${e.customer_name}`, {
+      customer_name: e.customer_name, customer_email: e.customer_email, customer_phone: e.phone,
+      linked_estimate_id: e.id
+    }).catch(err => console.error('[AutoTask] estimate_sent error:', err.message)));
+
+  return { emailed: !!emailed, resend: isResend };
+}
+
+// POST /api/rep/estimates/:id/send — Send (or re-send) estimate to customer.
 app.post('/api/rep/estimates/:id/send', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const estimate = await pool.query('SELECT * FROM estimates WHERE id = $1', [id]);
-    if (!estimate.rows.length) return res.status(404).json({ error: 'Estimate not found' });
-    const e = estimate.rows[0];
+    const bundle = await getEstimateBundle(pool, { id });
+    if (!bundle) return res.status(404).json({ error: 'Estimate not found' });
 
-    if (e.status !== 'draft' && e.status !== 'sent') {
-      return res.status(400).json({ error: 'Estimate cannot be sent in current status' });
+    const { emailed } = await deliverEstimate(bundle, req.rep);
+    const to = bundle.estimate.customer_email;
+    res.json({
+      success: true,
+      emailed,
+      message: emailed ? 'Estimate emailed to ' + to : 'Estimate marked as sent (email not configured)'
+    });
+  } catch (err) {
+    if (err && err.statusCode) return res.status(err.statusCode).json({ error: err.error });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/rep/estimates/bulk-resend — Re-send several estimates in one pass
+// (e.g. sweep a list of expiring/expired estimates). Per-estimate failures are
+// collected, not fatal; the response reports each outcome.
+app.post('/api/rep/estimates/bulk-resend', repAuth, async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(Boolean).slice(0, 100) : [];
+    if (!ids.length) return res.status(400).json({ error: 'Provide an array of estimate ids to re-send.' });
+
+    const results = [];
+    for (const id of ids) {
+      try {
+        const bundle = await getEstimateBundle(pool, { id });
+        if (!bundle) { results.push({ id, ok: false, error: 'Not found' }); continue; }
+        const { emailed, resend } = await deliverEstimate(bundle, req.rep);
+        results.push({ id, ok: true, emailed, resend, estimate_number: bundle.estimate.estimate_number });
+      } catch (err) {
+        results.push({ id, ok: false, error: (err && err.error) || 'Failed to send' });
+      }
     }
-
-    await pool.query(
-      "UPDATE estimates SET status = 'sent', sent_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [id]
-    );
-
-    const items = await pool.query(`
-      SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
-        p.collection as current_collection, pr.cost as vendor_cost,
-        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
-         ORDER BY CASE WHEN ma.sku_id = ei.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
-      FROM estimate_items ei
-      LEFT JOIN skus s ON s.id = ei.sku_id
-      LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
-      LEFT JOIN vendors v ON v.id = p.vendor_id
-      LEFT JOIN pricing pr ON pr.sku_id = ei.sku_id
-      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
-        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-      WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
-    `, [id]);
-    const materialItems = items.rows.filter(i => i.item_type === 'material');
-    const laborItems = items.rows.filter(i => i.item_type === 'labor');
-
-    const emailData = {
-      ...e,
-      materialItems,
-      laborItems,
-      rep_first_name: req.rep.first_name,
-      rep_last_name: req.rep.last_name,
-      rep_email: req.rep.email
-    };
-    const emailResult = await sendEstimateSent(emailData);
-    const emailed = emailResult && emailResult.sent;
-
-    // Auto-task: follow up on estimate
-    setImmediate(() => createAutoTask(pool, req.rep.id, 'estimate_sent', id,
-      `Follow up on Estimate ${e.estimate_number} — ${e.customer_name}`, {
-        customer_name: e.customer_name, customer_email: e.customer_email, customer_phone: e.customer_phone,
-        linked_estimate_id: id
-      }).catch(err => console.error('[AutoTask] estimate_sent error:', err.message)));
-
-    if (emailed) {
-      res.json({ success: true, message: 'Estimate emailed to ' + e.customer_email, emailed: true });
-    } else {
-      res.json({ success: true, message: 'Estimate marked as sent (email not configured)', emailed: false });
-    }
+    const sent = results.filter(r => r.ok).length;
+    res.json({ success: true, sent, failed: results.length - sent, results });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -20209,6 +20403,7 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
   const client = await pool.connect();
   try {
     const { id } = req.params;
+    const { force } = req.body || {};
     const estResult = await client.query('SELECT * FROM estimates WHERE id = $1', [id]);
     if (!estResult.rows.length) return res.status(404).json({ error: 'Estimate not found' });
     const e = estResult.rows[0];
@@ -20216,9 +20411,18 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
     if (e.status === 'converted') {
       return res.status(400).json({ error: 'Estimate already converted' });
     }
+    // Declined or expired estimates need an explicit rep override
+    if (!force && (e.status === 'declined' || effectiveStatus(e) === 'expired')) {
+      return res.status(400).json({
+        error: e.status === 'declined'
+          ? 'Customer declined this estimate. Pass force to convert anyway.'
+          : 'This estimate has expired. Re-send it or pass force to convert anyway.',
+        needs_force: true
+      });
+    }
 
     const itemsResult = await client.query(
-      "SELECT * FROM estimate_items WHERE estimate_id = $1 ORDER BY sort_order, created_at", [id]
+      "SELECT ei.*, ea.name as area_name FROM estimate_items ei LEFT JOIN estimate_areas ea ON ea.id = ei.area_id WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at", [id]
     );
     const materialItems = itemsResult.rows.filter(i => i.item_type === 'material');
     const laborItems = itemsResult.rows.filter(i => i.item_type === 'labor');
@@ -20231,17 +20435,13 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
 
     const quoteNumber = await getNextQuoteNumber();
 
-    // Build labor note
-    const laborCategoryLabels = {
-      installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
-      transitions: 'Transitions', baseboards: 'Baseboards', floor_leveling: 'Floor Leveling',
-      moisture_barrier: 'Moisture Barrier', furniture_moving: 'Furniture Moving', other: 'Other'
-    };
+    // Quotes stay materials-only documents: labor is summarized in the notes.
+    // (Use convert-to-order to bill labor through the system.)
     let laborNote = '';
     if (laborItems.length > 0) {
       const laborTotal = parseFloat(e.labor_subtotal || 0);
       const laborDetails = laborItems.map(i =>
-        `${laborCategoryLabels[i.labor_category] || i.labor_category} ($${parseFloat(i.subtotal || 0).toFixed(2)})`
+        `${laborDisplayName(i)} ($${parseFloat(i.subtotal || 0).toFixed(2)})`
       ).join(', ');
       laborNote = `\nConverted from Estimate ${e.estimate_number}. Labor/services totaling $${laborTotal.toFixed(2)} excluded: ${laborDetails}.`;
     } else {
@@ -20272,14 +20472,18 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
 
     const quote = quoteResult.rows[0];
 
-    // Copy material items to quote items
+    // Copy material items to quote items, prefixing the source area so the
+    // room grouping survives in the flat quote line list
     for (const item of materialItems) {
+      const desc = item.area_name
+        ? (item.description ? `${item.area_name} — ${item.description}` : item.area_name)
+        : item.description;
       await client.query(`
         INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description,
           sqft_needed, num_boxes, unit_price, subtotal, sell_by)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       `, [quote.id, item.product_id, item.sku_id, item.product_name, item.collection,
-          item.description, item.sqft_needed, item.num_boxes || item.quantity || 1,
+          desc, item.sqft_needed, item.num_boxes || item.quantity || 1,
           item.unit_price, item.subtotal, item.sell_by]);
     }
 
@@ -20298,6 +20502,12 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
       "UPDATE estimates SET status = 'converted', converted_quote_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
       [quote.id, id]
     );
+    await logEstimateEvent(client, id, 'converted', {
+      body: `Converted to Quote ${quoteNumber}` + (laborItems.length ? ' (labor excluded)' : ''),
+      meta: { quote_id: quote.id, quote_number: quoteNumber, labor_excluded: laborItems.length > 0 },
+      actor: 'rep',
+      actorName: req.rep.first_name + ' ' + req.rep.last_name
+    });
 
     await client.query('COMMIT');
 
@@ -20321,12 +20531,128 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
   }
 });
 
-// POST /api/rep/estimates/:id/convert-to-order — Convert to order (materials only)
+// POST /api/rep/estimates/:id/convert-to-order — Convert to order.
+// Materials AND labor both carry over: labor becomes item_type='labor' order
+// lines so install work is billed through the normal payment flow. Order
+// subtotal = materials + labor; tax stays materials-only.
+// Build an order from an estimate inside an already-open transaction (the caller
+// owns BEGIN/COMMIT). Shared by the rep convert-to-order endpoint and the customer
+// online-deposit flow. Copies materials + labor, records an in-store payment when
+// paidInStore, flips the estimate to 'converted', closes its open follow-up tasks,
+// and generates POs for confirmed orders. Returns the new order row.
+async function convertEstimateToOrderTx(client, e, materialItems, laborItems, opts) {
+  const { paymentMethod, salesRepId, actor = 'system', actorId = null, actorName = 'System' } = opts;
+
+  // Auto-create / link the customer
+  const nameParts = (e.customer_name || '').split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+  const { customer: cust } = await findOrCreateCustomer(client, {
+    email: e.customer_email, firstName, lastName,
+    phone: e.phone, repId: salesRepId, createdVia: 'estimate_convert'
+  });
+
+  const orderNumber = await getNextOrderNumber();
+  // paidInStore = the rep collected the full amount at convert. Online deposits
+  // use 'stripe' → not paid-in-full here; the deposit lands via the webhook.
+  const paidInStore = ['cash', 'check', 'card', 'offline'].includes(paymentMethod);
+  const orderStatus = paidInStore ? 'confirmed' : 'pending';
+
+  // Subtotal covers materials + labor; sales tax applies to materials only
+  const matSubtotal = parseFloat(e.materials_subtotal || 0);
+  const laborSubtotal = parseFloat(e.labor_subtotal || 0);
+  const orderSubtotal = parseFloat((matSubtotal + laborSubtotal).toFixed(2));
+  const tax = calculateSalesTax(matSubtotal, e.project_zip);
+  const orderTotal = parseFloat((orderSubtotal + tax.amount).toFixed(2));
+
+  const orderResult = await client.query(`
+    INSERT INTO orders (order_number, customer_email, customer_name, phone,
+      shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
+      subtotal, total, status, sales_rep_id, payment_method, customer_id, notes,
+      tax_rate, tax_amount, delivery_method,
+      amount_paid)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'shipping', $19)
+    RETURNING *
+  `, [orderNumber, e.customer_email, e.customer_name, e.phone,
+      e.project_address_line1 || '', e.project_address_line2 || null,
+      e.project_city || '', e.project_state || '', e.project_zip || '',
+      orderSubtotal.toFixed(2), orderTotal.toFixed(2), orderStatus, salesRepId, paymentMethod, cust.id,
+      `Converted from Estimate ${e.estimate_number}.`, tax.rate, tax.amount.toFixed(2),
+      paidInStore ? orderTotal.toFixed(2) : '0.00']);
+
+  const order = orderResult.rows[0];
+
+  // Copy material items to order items
+  for (const item of materialItems) {
+    await client.query(`
+      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
+        sqft_needed, num_boxes, unit_price, subtotal, sell_by, item_type, source_estimate_area)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'material', $12)
+    `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
+        item.description, item.sqft_needed, item.num_boxes || item.quantity || 1,
+        item.unit_price, item.subtotal, item.sell_by, item.area_name || null]);
+  }
+
+  // Copy labor items as labor lines. num_boxes is NOT NULL and generic
+  // renderers show product_name/subtotal, so labor lines stay readable
+  // anywhere they surface; fulfillment paths skip item_type='labor'.
+  for (const item of laborItems) {
+    const laborName = laborDisplayName(item) + ' — Labor';
+    await client.query(`
+      INSERT INTO order_items (order_id, product_name, description,
+        num_boxes, unit_price, subtotal, item_type,
+        labor_category, rate_type, rate_sqft, labor_sqft, quantity, source_estimate_area)
+      VALUES ($1, $2, $3, 1, $4, $5, 'labor', $6, $7, $8, $9, $10, $11)
+    `, [order.id, laborName, item.description,
+        item.unit_price, item.subtotal,
+        item.labor_category, item.rate_type, item.rate_sqft, item.labor_sqft,
+        item.quantity || 1, item.area_name || null]);
+  }
+
+  // Record payment for in-store (full amount). Online-deposit orders record
+  // nothing here — the deposit is captured by the payment_request webhook.
+  if (paidInStore) {
+    const payDesc = `${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)} payment (estimate conversion)`;
+    await client.query(`
+      INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, payment_method)
+      VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6)
+    `, [order.id, orderTotal.toFixed(2), payDesc, actorId, actorName, paymentMethod]);
+  }
+
+  // Update estimate status
+  await client.query(
+    "UPDATE estimates SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
+    [order.id, e.id]
+  );
+  await logEstimateEvent(client, e.id, 'converted', {
+    body: `Converted to Order ${orderNumber} (materials + labor)`,
+    meta: { order_id: order.id, order_number: orderNumber, payment_method: paymentMethod },
+    actor, actorName
+  });
+
+  // Close the estimate's open follow-up tasks — converting is the terminal
+  // action, so the "convert accepted estimate" / "follow up on estimate" auto
+  // tasks are done and shouldn't linger in the rep's queue.
+  await client.query(
+    `UPDATE rep_tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+     WHERE source = 'auto' AND status = 'open'
+       AND source_type IN ('estimate_accepted', 'estimate_sent') AND source_id = $1`,
+    [String(e.id)]
+  );
+
+  // Generate purchase orders if order is confirmed
+  if (orderStatus === 'confirmed') {
+    await generatePurchaseOrders(order.id, client);
+  }
+
+  return order;
+}
+
 app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { payment_method } = req.body;
+    const { payment_method, force } = req.body;
 
     if (!payment_method || !['cash', 'check', 'card', 'stripe', 'offline', 'ach'].includes(payment_method)) {
       return res.status(400).json({ error: 'payment_method must be cash, check, card, stripe, offline, or ach' });
@@ -20339,9 +20665,17 @@ app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) =>
     if (e.status === 'converted') {
       return res.status(400).json({ error: 'Estimate already converted' });
     }
+    if (!force && (e.status === 'declined' || effectiveStatus(e) === 'expired')) {
+      return res.status(400).json({
+        error: e.status === 'declined'
+          ? 'Customer declined this estimate. Pass force to convert anyway.'
+          : 'This estimate has expired. Re-send it or pass force to convert anyway.',
+        needs_force: true
+      });
+    }
 
     const itemsResult = await client.query(
-      "SELECT * FROM estimate_items WHERE estimate_id = $1 ORDER BY sort_order, created_at", [id]
+      "SELECT ei.*, ea.name as area_name FROM estimate_items ei LEFT JOIN estimate_areas ea ON ea.id = ei.area_id WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at", [id]
     );
     const materialItems = itemsResult.rows.filter(i => i.item_type === 'material');
     const laborItems = itemsResult.rows.filter(i => i.item_type === 'labor');
@@ -20351,100 +20685,295 @@ app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) =>
     }
 
     await client.query('BEGIN');
-
-    // Build labor note
-    const laborCategoryLabels = {
-      installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
-      transitions: 'Transitions', baseboards: 'Baseboards', floor_leveling: 'Floor Leveling',
-      moisture_barrier: 'Moisture Barrier', furniture_moving: 'Furniture Moving', other: 'Other'
-    };
-    let laborNote = '';
-    if (laborItems.length > 0) {
-      const laborTotal = parseFloat(e.labor_subtotal || 0);
-      const laborDetails = laborItems.map(i =>
-        `${laborCategoryLabels[i.labor_category] || i.labor_category} ($${parseFloat(i.subtotal || 0).toFixed(2)})`
-      ).join(', ');
-      laborNote = `Converted from Estimate ${e.estimate_number}. Labor/services totaling $${laborTotal.toFixed(2)} excluded: ${laborDetails}.`;
-    } else {
-      laborNote = `Converted from Estimate ${e.estimate_number}.`;
-    }
-
-    // Auto-create customer
-    const nameParts = (e.customer_name || '').split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-    const { customer: cust } = await findOrCreateCustomer(client, {
-      email: e.customer_email, firstName, lastName,
-      phone: e.phone, repId: req.rep.id, createdVia: 'estimate_convert'
+    const order = await convertEstimateToOrderTx(client, e, materialItems, laborItems, {
+      paymentMethod: payment_method, salesRepId: req.rep.id,
+      actor: 'rep', actorId: req.rep.id, actorName: req.rep.first_name + ' ' + req.rep.last_name
     });
-
-    const orderNumber = await getNextOrderNumber();
-    const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
-    const orderStatus = paidInStore ? 'confirmed' : 'pending';
-
-    // Calculate materials-only subtotal and tax
-    const matSubtotal = parseFloat(e.materials_subtotal || 0);
-    const tax = calculateSalesTax(matSubtotal, e.project_zip);
-    const orderTotal = parseFloat((matSubtotal + tax.amount).toFixed(2));
-
-    const orderResult = await client.query(`
-      INSERT INTO orders (order_number, customer_email, customer_name, phone,
-        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
-        subtotal, total, status, sales_rep_id, payment_method, customer_id, notes,
-        tax_rate, tax_amount, delivery_method,
-        amount_paid)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, 'shipping', $19)
-      RETURNING *
-    `, [orderNumber, e.customer_email, e.customer_name, e.phone,
-        e.project_address_line1 || '', e.project_address_line2 || null,
-        e.project_city || '', e.project_state || '', e.project_zip || '',
-        matSubtotal.toFixed(2), orderTotal.toFixed(2), orderStatus, req.rep.id, payment_method, cust.id,
-        laborNote, tax.rate, tax.amount.toFixed(2),
-        paidInStore ? orderTotal.toFixed(2) : '0.00']);
-
-    const order = orderResult.rows[0];
-
-    // Copy material items to order items
-    for (const item of materialItems) {
-      await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
-          sqft_needed, num_boxes, unit_price, subtotal, sell_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
-          item.description, item.sqft_needed, item.num_boxes || item.quantity || 1,
-          item.unit_price, item.subtotal, item.sell_by]);
-    }
-
-    // Record payment for in-store
-    if (paidInStore) {
-      const repFullName = req.rep.first_name + ' ' + req.rep.last_name;
-      let payDesc = `${payment_method.charAt(0).toUpperCase() + payment_method.slice(1)} payment (estimate conversion)`;
-      await client.query(`
-        INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, payment_method)
-        VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6)
-      `, [order.id, orderTotal.toFixed(2), payDesc, req.rep.id, repFullName, payment_method]);
-    }
-
-    // Update estimate status
-    await client.query(
-      "UPDATE estimates SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
-      [order.id, id]
-    );
-
-    // Generate purchase orders if order is confirmed
-    if (orderStatus === 'confirmed') {
-      await generatePurchaseOrders(order.id, client);
-    }
-
     await client.query('COMMIT');
 
     const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
     res.json({ order: { ...order, items: orderItems.rows } });
+
+    // Fire-and-forget: order confirmation email to the customer, same as the
+    // storefront/rep order-create paths (the convert path previously skipped it).
+    const emailOrder = { ...order, items: orderItems.rows };
+    setImmediate(() => sendOrderConfirmation(emailOrder).catch(err => console.error('[Email] convert order confirmation error:', err.message)));
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
+  }
+});
+
+// ==================== Estimate Customer View (Public) ====================
+// Token-based, no auth: the public_token UUID is the secret (same model as
+// showroom visit recaps).
+
+app.get('/api/estimate-view/:token', async (req, res) => {
+  try {
+    const bundle = await getEstimateBundle(pool, { token: req.params.token, includeInternal: false });
+    if (!bundle || bundle.estimate.status === 'draft') {
+      return res.status(404).json({ error: 'Estimate not found' });
+    }
+    const e = bundle.estimate;
+
+    if (e.effective_status === 'expired') {
+      return res.status(410).json({
+        error: 'This estimate has expired',
+        estimate: { estimate_number: e.estimate_number, rep_name: e.rep_name, rep_email: e.rep_email, expires_at: e.expires_at }
+      });
+    }
+
+    if (!e.first_viewed_at) {
+      await pool.query('UPDATE estimates SET first_viewed_at = NOW() WHERE id = $1 AND first_viewed_at IS NULL', [e.id]);
+    }
+
+    // Log a page view, throttled to one event per viewer per 30 minutes
+    const ua = req.headers['user-agent'] || '';
+    const viewerKey = crypto.createHash('sha1').update((req.ip || '') + '|' + ua).digest('hex').substring(0, 12);
+    const recent = await pool.query(`
+      SELECT 1 FROM estimate_events
+      WHERE estimate_id = $1 AND event_type = 'viewed' AND meta->>'viewer_key' = $2
+        AND created_at > NOW() - INTERVAL '30 minutes' LIMIT 1
+    `, [e.id, viewerKey]);
+    if (!recent.rows.length) {
+      await logEstimateEvent(pool, e.id, 'viewed', {
+        body: 'Viewed the estimate page',
+        meta: { source: 'page', viewer_key: viewerKey, user_agent: ua.substring(0, 200) },
+        actor: 'customer',
+        actorName: e.customer_name
+      });
+    }
+
+    res.json({
+      estimate: {
+        id: e.id, estimate_number: e.estimate_number, status: e.status, effective_status: e.effective_status,
+        customer_name: e.customer_name, project_name: e.project_name,
+        project_address_line1: e.project_address_line1, project_address_line2: e.project_address_line2,
+        project_city: e.project_city, project_state: e.project_state, project_zip: e.project_zip,
+        materials_subtotal: e.materials_subtotal, labor_subtotal: e.labor_subtotal, subtotal: e.subtotal,
+        tax_rate: e.tax_rate, tax_amount: e.tax_amount, total: e.total,
+        notes: e.notes, scope_of_work: e.scope_of_work, expires_at: e.expires_at, sent_at: e.sent_at, created_at: e.created_at,
+        accepted_at: e.accepted_at, accepted_by_name: e.accepted_by_name,
+        declined_at: e.declined_at, decline_reason: e.decline_reason,
+        deposit_type: e.deposit_type, deposit_value: e.deposit_value, deposit_amount: e.deposit_amount,
+        converted_order_id: e.converted_order_id,
+        rep_name: e.rep_name, rep_email: e.rep_email
+      },
+      materials: bundle.items.filter(i => i.item_type === 'material'),
+      labor: bundle.items.filter(i => i.item_type === 'labor')
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/estimate-view/:token/accept — customer accepts (typed name = signature)
+app.post('/api/estimate-view/:token/accept', async (req, res) => {
+  try {
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim().substring(0, 120) : '';
+    if (!name || name.split(/\s+/).length < 2) {
+      return res.status(400).json({ error: 'Please type your full name to accept' });
+    }
+
+    const estRes = await pool.query(`
+      SELECT e.*, sr.first_name AS rep_first_name, sr.last_name AS rep_last_name, sr.email AS rep_email
+      FROM estimates e LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+      WHERE e.public_token = $1
+    `, [req.params.token]);
+    if (!estRes.rows.length || estRes.rows[0].status === 'draft') {
+      return res.status(404).json({ error: 'Estimate not found' });
+    }
+    const e = estRes.rows[0];
+
+    if (e.status === 'accepted') return res.json({ success: true, already_decided: true, status: 'accepted' });
+    if (e.status !== 'sent') {
+      return res.status(400).json({ error: 'This estimate can no longer be accepted. Please contact your sales rep.' });
+    }
+    if (effectiveStatus(e) === 'expired') {
+      return res.status(410).json({ error: 'This estimate has expired. Please contact your sales rep for an updated estimate.' });
+    }
+
+    await pool.query(
+      "UPDATE estimates SET status = 'accepted', accepted_at = NOW(), accepted_by_name = $2, updated_at = NOW() WHERE id = $1",
+      [e.id, name]
+    );
+    await logEstimateEvent(pool, e.id, 'accepted', {
+      body: `Accepted online — signed "${name}"`,
+      meta: { accepted_by_name: name, source: 'page' },
+      actor: 'customer',
+      actorName: name
+    });
+
+    setImmediate(() => {
+      createRepNotification(pool, e.sales_rep_id, 'estimate_accepted',
+        `${e.customer_name} accepted Estimate ${e.estimate_number}`,
+        `Signed by ${name} — $${parseFloat(e.total || 0).toFixed(2)} total. Convert it to an order to get started.`,
+        'estimate', e.id)
+        .catch(err => console.error('[Notify] estimate_accepted error:', err.message));
+      createAutoTask(pool, e.sales_rep_id, 'estimate_accepted', e.id,
+        `Convert accepted Estimate ${e.estimate_number} — ${e.customer_name}`, {
+          description: `Customer accepted online (signed "${name}"). Collect payment and convert to an order.`,
+          priority: 'high',
+          customer_name: e.customer_name, customer_email: e.customer_email, customer_phone: e.phone,
+          linked_estimate_id: e.id
+        }).catch(err => console.error('[AutoTask] estimate_accepted error:', err.message));
+      // Confirmation receipt to the customer — they just signed, so give them a
+      // record of it and set the "your rep will follow up" expectation.
+      sendEstimateAccepted({
+        estimate_number: e.estimate_number, customer_name: e.customer_name, customer_email: e.customer_email,
+        project_name: e.project_name, total: e.total, accepted_by_name: name, accepted_at: new Date().toISOString(),
+        deposit_amount: depositAmount(e), public_token: e.public_token,
+        rep_first_name: e.rep_first_name, rep_last_name: e.rep_last_name, rep_email: e.rep_email
+      }).catch(err => console.error('[Email] estimate_accepted confirmation error:', err.message));
+    });
+
+    res.json({ success: true, status: 'accepted' });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/estimate-view/:token/pay-deposit — customer pays the configured
+// deposit online. Converts the estimate to an order (pending) and opens a Stripe
+// Checkout for the deposit; the existing payment_request webhook records the
+// payment and tracks the remaining balance. Mirrors the quote accept-pay flow.
+app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const bundle = await getEstimateBundle(pool, { token: req.params.token });
+    if (!bundle || bundle.estimate.status === 'draft') return res.status(404).json({ error: 'Estimate not found' });
+    const e = bundle.estimate;
+    const deposit = parseFloat(e.deposit_amount || 0);
+    if (deposit <= 0) return res.status(400).json({ error: 'No deposit is configured for this estimate.' });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    // Insert the request row first so its id can ride in the session's create-time
+    // metadata (this SDK version has no sessions.update). type='payment_request'
+    // routes settlement through the existing webhook handler.
+    const createDepositSession = async (order, amount) => {
+      const prResult = await pool.query(`
+        INSERT INTO payment_requests (order_id, amount, sent_to_email, sent_by_name, expires_at)
+        VALUES ($1, $2, $3, 'Estimate deposit', $4) RETURNING *
+      `, [order.id, amount.toFixed(2), order.customer_email, new Date(Date.now() + 24 * 3600 * 1000)]);
+      let session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          payment_method_types: ['card', 'klarna'],
+          customer_email: order.customer_email,
+          line_items: [{
+            price_data: {
+              currency: 'usd',
+              product_data: { name: `Deposit — Estimate ${e.estimate_number} (Order ${order.order_number})` },
+              unit_amount: Math.round(amount * 100)
+            },
+            quantity: 1
+          }],
+          metadata: { order_id: order.id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+          success_url: `${frontendUrl}/estimate/${req.params.token}?deposit=success`,
+          cancel_url: `${frontendUrl}/estimate/${req.params.token}?deposit=cancelled`,
+          expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+        });
+      } catch (stripeErr) {
+        await pool.query('DELETE FROM payment_requests WHERE id = $1', [prResult.rows[0].id]);
+        throw stripeErr;
+      }
+      await pool.query('UPDATE payment_requests SET stripe_checkout_session_id = $1, stripe_checkout_url = $2 WHERE id = $3',
+        [session.id, session.url, prResult.rows[0].id]);
+      return session.url;
+    };
+
+    // Re-entry: estimate already converted (e.g. paid-click then came back) —
+    // resume the pending deposit request or mint a fresh one against the balance.
+    if (e.status === 'converted' && e.converted_order_id) {
+      const orderRes = await pool.query('SELECT * FROM orders WHERE id = $1', [e.converted_order_id]);
+      if (!orderRes.rows.length) return res.status(400).json({ error: 'Estimate already converted' });
+      const order = orderRes.rows[0];
+      const pending = await pool.query(
+        "SELECT * FROM payment_requests WHERE order_id = $1 AND status = 'pending' AND stripe_checkout_url IS NOT NULL AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at DESC LIMIT 1",
+        [order.id]);
+      if (pending.rows.length) return res.json({ checkout_url: pending.rows[0].stripe_checkout_url });
+      const balanceInfo = await recalculateBalance(pool, order.id);
+      if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') {
+        return res.status(400).json({ error: 'This order is already paid.' });
+      }
+      const amount = Math.min(deposit, parseFloat(balanceInfo.balance_due || deposit));
+      return res.json({ checkout_url: await createDepositSession(order, amount) });
+    }
+
+    if (e.status === 'declined') return res.status(400).json({ error: 'This estimate was declined.' });
+    if (e.effective_status === 'expired') return res.status(410).json({ error: 'This estimate has expired. Please contact your sales rep for an updated estimate.' });
+
+    const materialItems = bundle.items.filter(i => i.item_type === 'material');
+    const laborItems = bundle.items.filter(i => i.item_type === 'labor');
+    if (!materialItems.length) return res.status(400).json({ error: 'This estimate has no material items.' });
+
+    await client.query('BEGIN');
+    const order = await convertEstimateToOrderTx(client, e, materialItems, laborItems, {
+      paymentMethod: 'stripe', salesRepId: e.sales_rep_id,
+      actor: 'customer', actorName: e.accepted_by_name || e.customer_name || 'Customer'
+    });
+    await client.query('COMMIT');
+
+    // Order confirmation now; the webhook sends the payment-received email on settlement.
+    const orderItems = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [order.id]);
+    setImmediate(() => sendOrderConfirmation({ ...order, items: orderItems.rows }).catch(err => console.error('[Email] deposit order confirmation error:', err.message)));
+
+    res.json({ checkout_url: await createDepositSession(order, deposit) });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* already committed or never began */ }
+    console.error(err); res.status(500).json({ error: 'Could not start deposit payment — please try again.' });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/estimate-view/:token/decline — customer declines (optional reason)
+app.post('/api/estimate-view/:token/decline', async (req, res) => {
+  try {
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().substring(0, 1000) : null;
+
+    const estRes = await pool.query('SELECT * FROM estimates WHERE public_token = $1', [req.params.token]);
+    if (!estRes.rows.length || estRes.rows[0].status === 'draft') {
+      return res.status(404).json({ error: 'Estimate not found' });
+    }
+    const e = estRes.rows[0];
+
+    if (e.status === 'declined') return res.json({ success: true, already_decided: true, status: 'declined' });
+    if (e.status !== 'sent') {
+      return res.status(400).json({ error: 'This estimate can no longer be declined. Please contact your sales rep.' });
+    }
+
+    await pool.query(
+      "UPDATE estimates SET status = 'declined', declined_at = NOW(), decline_reason = $2, updated_at = NOW() WHERE id = $1",
+      [e.id, reason]
+    );
+    await logEstimateEvent(pool, e.id, 'declined', {
+      body: 'Declined online' + (reason ? ` — "${reason}"` : ''),
+      meta: { reason, source: 'page' },
+      actor: 'customer',
+      actorName: e.customer_name
+    });
+
+    setImmediate(() => {
+      createRepNotification(pool, e.sales_rep_id, 'estimate_declined',
+        `${e.customer_name} declined Estimate ${e.estimate_number}`,
+        reason ? `Reason: "${reason}"` : null, 'estimate', e.id)
+        .catch(err => console.error('[Notify] estimate_declined error:', err.message));
+      createAutoTask(pool, e.sales_rep_id, 'estimate_declined', e.id,
+        `Follow up on declined Estimate ${e.estimate_number} — ${e.customer_name}`, {
+          description: `Customer declined online${reason ? ` — "${reason}"` : ' (no reason given)'}. Reach out to understand the objection and see if a revised estimate can win it back.`,
+          customer_name: e.customer_name, customer_email: e.customer_email, customer_phone: e.phone,
+          linked_estimate_id: e.id
+        }).catch(err => console.error('[AutoTask] estimate_declined error:', err.message));
+    });
+
+    res.json({ success: true, status: 'declined' });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -24743,6 +25272,56 @@ cron.schedule('0 6 * * *', async () => {
     console.log('[Cron] Cleaned up expired sessions and 2FA codes');
   } catch (err) {
     console.error('[Cron] Daily trade tier cron error:', err.message);
+  }
+});
+
+// ==================== Estimate Expiry Reminder Cron ====================
+
+// Run daily at 7 AM UTC — nudge the customer once, ~7 days before a still-open
+// ('sent') estimate lapses. reminder_sent_at guarantees one email per estimate;
+// accepted/declined/converted estimates fall out of the 'sent' filter.
+cron.schedule('0 7 * * *', async () => {
+  try {
+    const due = await pool.query(`
+      SELECT e.id, e.estimate_number, e.customer_email,
+        sr.first_name AS rep_first_name, sr.last_name AS rep_last_name, sr.email AS rep_email
+      FROM estimates e
+      JOIN sales_reps sr ON sr.id = e.sales_rep_id
+      WHERE e.status = 'sent'
+        AND e.reminder_sent_at IS NULL
+        AND e.expires_at IS NOT NULL
+        AND e.expires_at > NOW()
+        AND e.expires_at <= NOW() + INTERVAL '7 days'
+        AND e.customer_email IS NOT NULL
+      ORDER BY e.expires_at
+    `);
+    let sent = 0;
+    for (const row of due.rows) {
+      if (!isValidEmailAddr(row.customer_email)) continue;
+      try {
+        const bundle = await getEstimateBundle(pool, { id: row.id });
+        // Guard against a status change between the query and now.
+        if (!bundle || bundle.estimate.status !== 'sent') continue;
+        const rep = { first_name: row.rep_first_name, last_name: row.rep_last_name, email: row.rep_email };
+        const emailResult = await sendEstimateSent(estimateEmailData(bundle, rep), { reminder: true });
+        // Only stamp/log on a real send so an unconfigured SMTP box retries once
+        // it's wired up, rather than silently burning the single reminder.
+        if (emailResult && emailResult.sent) {
+          await pool.query('UPDATE estimates SET reminder_sent_at = CURRENT_TIMESTAMP WHERE id = $1', [row.id]);
+          await logEstimateEvent(pool, row.id, 'reminder', {
+            body: 'Expiry reminder emailed to ' + row.customer_email,
+            meta: { to: row.customer_email, expires_at: bundle.estimate.expires_at },
+            actor: 'system'
+          });
+          sent++;
+        }
+      } catch (e) {
+        console.error(`[Cron] Estimate reminder failed for ${row.estimate_number}:`, e.message);
+      }
+    }
+    if (sent > 0) console.log(`[Cron] Sent ${sent} estimate expiry reminder(s)`);
+  } catch (err) {
+    console.error('[Cron] Estimate reminder cron error:', err.message);
   }
 });
 

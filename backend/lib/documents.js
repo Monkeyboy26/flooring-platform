@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { laborUnitShort, laborDisplayName } from './estimateBundle.js';
 
 let LOGO_DATA_URI = '';
 try {
@@ -784,6 +785,241 @@ ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'v
 </html>`;
 }
 
+// Construction estimate document — same editorial system as generateQuoteHtml
+// (letterhead, greeting band with status stamp, three info cards, swatch-led
+// line items, terms + totals columns, signature lines), adapted for an
+// estimate: a Materials section and a Labor & Services section, with tax shown
+// on materials only. `e` is the estimate row (from the bundle, includes
+// rep_name/rep_email/effective_status); `materials`/`labor` are item arrays.
+export function generateEstimateHtml(e, materials = [], labor = []) {
+  const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const issued = longDate(e.created_at);
+  const validUntil = longDate(e.expires_at);
+  const isExpired = e.effective_status === 'expired' || (e.expires_at && new Date(e.expires_at) < new Date());
+  const estimateNumber = e.estimate_number || 'E-' + String(e.id).substring(0, 8).toUpperCase();
+
+  const statusLabel = isExpired ? 'Expired'
+    : e.status === 'converted' ? 'Converted · Order'
+    : e.status === 'accepted' ? 'Accepted'
+    : e.status === 'sent' ? 'Open · Sent'
+    : 'Draft';
+
+  const validityDays = e.expires_at
+    ? Math.max(1, Math.round((new Date(e.expires_at) - new Date(e.created_at)) / 86400000))
+    : 30;
+  const stampText = isExpired ? 'Expired' : `Valid ${validityDays} days`;
+
+  const customerFirst = (e.customer_name || '').trim().split(/\s+/)[0] || 'Hello';
+  const repFirst = (e.rep_name || '').trim().split(/\s+/)[0];
+  const greeting = `${customerFirst} — here's the estimate ${repFirst ? repFirst + ' prepared' : 'we prepared'} for you on ${issued}. ` +
+    (isExpired
+      ? `This estimate expired on <span style="color:var(--ink);font-weight:500;">${validUntil}</span> — reach out and we'll refresh it.`
+      : validUntil
+        ? `Valid through <span style="color:var(--ink);font-weight:500;">${validUntil}</span>.`
+        : 'Valid for 30 days from the date of issue.');
+
+  const SWATCH_FALLBACKS = [
+    'linear-gradient(135deg,#caa97f,#7a5635)',
+    'linear-gradient(135deg,#ebe7df,#a8a59e)',
+    'linear-gradient(135deg,#e7e3db,#b0aca4)',
+    'linear-gradient(135deg,#a89074,#5e4a36)',
+  ];
+
+  const materialRows = materials.map((i, idx) => {
+    const isUnit = i.sell_by === 'unit' || i.sell_by === 'piece';
+    const qty = i.num_boxes || i.quantity || 1;
+    const name = i.collection || i.current_collection || i.product_name || '—';
+    const suffix = [...new Set([i.color, i.variant_name].filter(Boolean))].filter(v => v !== name).join(' · ');
+    const skuLine = [...new Set([
+      i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
+      i.vendor_name
+    ].filter(Boolean))].join(' · ');
+    const sqft = parseFloat(i.sqft_needed || 0);
+    const perBox = !isUnit && sqft > 0 && qty > 0 ? sqft / qty : null;
+    const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
+    const swatchSrc = i.primary_image
+      ? `http://localhost:${process.env.PORT || 3001}/api/img?url=${encodeURIComponent(i.primary_image)}&w=64&f=jpeg`
+      : null;
+    const swatch = swatchSrc
+      ? `<div class="swatch" style="background:${gradient};overflow:hidden;"><img src="${swatchSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
+      : `<div class="swatch" style="background:${gradient};"></div>`;
+    return `<div class="grid-row keep" style="padding:12px 0;${idx < materials.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+      ${swatch}
+      <div>
+        <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${name}${suffix ? ` <span style="color:var(--muted);font-weight:400;">· ${suffix}</span>` : ''}</div>
+        ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
+      </div>
+      <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
+      <div class="num">${qty}<div class="numsub">${isUnit ? (qty === 1 ? 'unit' : 'units') : (qty === 1 ? 'box' : 'boxes')}</div></div>
+      <div class="num">${money(i.unit_price)}${isUnit ? '/ea' : '/sf'}</div>
+      <div class="line-total">${money(i.subtotal)}</div>
+    </div>`;
+  }).join('');
+
+  const laborRows = labor.map((i, idx) => {
+    const unit = laborUnitShort(i.labor_category);
+    const rateDisplay = i.rate_type === 'per_sqft' ? `${money(i.rate_sqft)}/${unit}` : 'Flat rate';
+    const qtyDisplay = i.rate_type === 'per_sqft'
+      ? `${parseFloat(i.labor_sqft || 0).toFixed(0)} ${unit}`
+      : (parseFloat(i.quantity || 1) > 1 ? parseFloat(i.quantity).toFixed(0) : '—');
+    const desc = i.description
+      ? i.description.split('\n').map((l, k) => k === 0 ? l : '· ' + l).join('<br />')
+      : '';
+    return `<div class="labor-row keep" style="padding:12px 0;${idx < labor.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+      <div>
+        <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${laborDisplayName(i)}</div>
+        <div style="font:400 9px/1 ui-monospace,monospace;letter-spacing:0.12em;color:var(--muted);margin-top:4px;text-transform:uppercase;">Labor</div>
+      </div>
+      <div style="font:400 10px/1.5 var(--sans);color:#1c1917cc;">${desc || '—'}</div>
+      <div class="num">${rateDisplay}</div>
+      <div class="num">${qtyDisplay}</div>
+      <div class="line-total">${money(i.subtotal)}</div>
+    </div>`;
+  }).join('');
+
+  const projectLoc = [
+    e.project_address_line1,
+    e.project_address_line2,
+    e.project_city ? `${e.project_city}, ${e.project_state || ''} ${e.project_zip || ''}` : null
+  ].filter(Boolean).join('<br />');
+
+  const projectCard = `<div>
+      <div class="mono" style="margin-bottom:8px;">Project location</div>
+      <div style="font:500 11px/1.2 var(--sans);">${e.project_name || 'Project'}</div>
+      <div class="small" style="margin-top:4px;">${projectLoc || 'Address to be confirmed'}</div>
+    </div>`;
+
+  const accountCard = `<div>
+      <div class="mono" style="margin-bottom:8px;">Roma account</div>
+      <div style="font:500 11px/1.2 var(--sans);">${e.customer_name || ''}</div>
+      <div class="small" style="margin-top:4px;">${e.rep_name ? `<span style="color:var(--muted);">Your rep</span><br />${e.rep_name}${e.rep_email ? '<br />' + e.rep_email : ''}<br />(714) 999-0009` : '(714) 999-0009'}</div>
+    </div>`;
+
+  const materialsSection = materials.length ? `
+<div style="padding-top:18px;">
+<div class="mono" style="margin-bottom:10px;color:var(--accent);">Materials</div>
+<div class="grid-row" style="padding-bottom:10px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
+<span></span><span>Description</span><span style="text-align:right;">Coverage</span><span style="text-align:right;">Qty</span><span style="text-align:right;">Unit</span><span style="text-align:right;">Line total</span>
+</div>
+${materialRows}
+</div>` : '';
+
+  const hasScope = e.scope_of_work && e.scope_of_work.trim();
+  const laborSection = (labor.length || hasScope) ? `
+<div style="padding-top:22px;">
+<div class="mono" style="margin-bottom:10px;color:var(--accent);">Labor &amp; Services</div>
+${hasScope ? `<div class="small" style="margin-bottom:12px;white-space:pre-wrap;"><span class="mono" style="display:block;margin-bottom:4px;">Scope of work</span>${e.scope_of_work}</div>` : ''}
+${labor.length ? `<div class="labor-row" style="padding-bottom:10px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
+<span>Service</span><span>Description</span><span style="text-align:right;">Rate</span><span style="text-align:right;">Qty</span><span style="text-align:right;">Line total</span>
+</div>
+${laborRows}` : ''}
+</div>` : '';
+
+  const totalsRows = [
+    `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Materials subtotal</span><span>${money(e.materials_subtotal)}</span></div>`,
+    `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Labor &amp; services</span><span>${money(e.labor_subtotal)}</span></div>`,
+    parseFloat(e.tax_amount || 0) > 0
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Tax · materials only</span><span>${money(e.tax_amount)}</span></div>` : '',
+  ].filter(Boolean).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+:root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
+*{box-sizing:border-box}
+body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
+@media screen{body{padding:48px 56px;max-width:816px;margin:0 auto}}
+.mono{font:500 9px/1 ui-monospace,monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted)}
+.small{font:400 10px/1.5 var(--sans);color:#1c1917cc}
+.grid-row{display:grid;grid-template-columns:32px 1fr 86px 70px 80px 84px;gap:12px;align-items:flex-start}
+.labor-row{display:grid;grid-template-columns:1.2fr 1.6fr 92px 70px 84px;gap:12px;align-items:flex-start}
+.swatch{width:32px;height:32px;border:0.5px solid #1c191733}
+.num{text-align:right;font:400 11px/1.2 var(--sans)}
+.numsub{font:400 9px/1.4 var(--sans);color:var(--muted);margin-top:2px}
+.line-total{text-align:right;font:500 12px/1.2 var(--serif)}
+.keep{break-inside:avoid;orphans:3;widows:3}
+</style>
+</head>
+<body>
+
+<div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
+<div>
+<div style="font:300 36px/1 var(--serif);letter-spacing:-0.014em;">Roma</div>
+<div class="mono" style="font-size:8px;letter-spacing:0.22em;margin-top:4px;">Flooring · Surfaces · Anaheim</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+</div>
+<div style="text-align:right;min-width:220px;">
+<div class="mono" style="letter-spacing:0.22em;">Estimate</div>
+<div style="font:300 32px/1 var(--serif);letter-spacing:-0.014em;margin-top:6px;">${estimateNumber}</div>
+<div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
+<span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
+<span style="color:var(--muted);">Valid until</span><span style="text-align:right;">${validUntil || '30 days from issue'}</span>
+${e.rep_name ? `<span style="color:var(--muted);">Prepared by</span><span style="text-align:right;">${e.rep_name}</span>` : ''}
+<span style="color:var(--muted);">Status</span><span class="mono" style="color:${isExpired ? 'var(--muted)' : 'var(--accent)'};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
+</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:8px;border-bottom:1px solid #1c191711;align-items:center;">
+<div style="font:500 9px/1.4 var(--sans);letter-spacing:0.06em;color:#1c1917cc;">
+${greeting}
+</div>
+<div style="padding:8px 14px;border:1.5px solid ${isExpired ? 'var(--muted)' : 'var(--accent)'};color:${isExpired ? 'var(--muted)' : 'var(--accent)'};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg);">${stampText}</div>
+</div>
+
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 22px;border-bottom:1px solid #1c191722;">
+<div>
+<div class="mono" style="margin-bottom:8px;">Prepared for</div>
+<div style="font:500 11px/1.2 var(--sans);">${e.customer_name || ''}</div>
+<div class="small" style="margin-top:4px;">${[e.customer_email, e.phone].filter(Boolean).join('<br />')}</div>
+</div>
+${projectCard}
+${accountCard}
+</div>
+
+${materialsSection}
+${laborSection}
+
+<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
+<div style="padding-top:4px;" class="small">
+${e.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;white-space:pre-wrap;">${e.notes}</div>` : ''}
+<div class="mono" style="margin-bottom:8px;">How to accept</div>
+<div style="margin-bottom:10px;">
+<span style="color:var(--muted);">Online</span>&nbsp;&nbsp;<span style="color:var(--ink);">Open your estimate link to review &amp; approve — a typed name is your signature</span><br />
+<span style="color:var(--muted);">Showroom</span>&nbsp;&nbsp;<span style="color:var(--ink);">(714) 999-0009 · 1440 S. State College Blvd #6M, Anaheim</span><br />
+<span style="color:var(--muted);">Email</span>&nbsp;&nbsp;<span style="color:var(--ink);">Reply to your estimate email${e.rep_email ? ' or write ' + e.rep_email : ''}</span>
+</div>
+<div class="mono" style="margin-bottom:8px;margin-top:14px;">Terms &amp; validity</div>
+<div>${validUntil ? `Valid through ${validUntil}` : 'Valid for 30 days from the date of issue'}; labor rates may vary based on site conditions. Sales tax applies to materials only. Natural stone and wood vary by lot — final selections are approved at the showroom or from delivered samples. Roma Flooring Designs · License #830966.</div>
+</div>
+<div>
+${totalsRows}
+<div style="margin-top:8px;padding-top:8px;border-top:1.5px solid var(--ink);display:flex;justify-content:space-between;align-items:baseline;">
+<span class="mono" style="color:var(--ink);letter-spacing:0.18em;">Estimate total · USD</span>
+<span style="font:300 28px/1 var(--serif);letter-spacing:-0.012em;">${money(e.total)}</span>
+</div>
+${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'var(--accent)'};text-align:right;margin-top:6px;letter-spacing:0.16em;">● ${isExpired ? 'Expired' : 'Valid until'} ${validUntil}</div>` : ''}
+</div>
+</div>
+
+<div class="keep" style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:26px;">
+<div><div style="border-bottom:0.5px solid var(--ink);height:26px;"></div><div class="mono" style="margin-top:5px;letter-spacing:0.16em;">Customer acceptance · date</div></div>
+<div><div style="border-bottom:0.5px solid var(--ink);height:26px;"></div><div class="mono" style="margin-top:5px;letter-spacing:0.16em;">Roma Flooring Designs · date</div></div>
+</div>
+
+<div style="margin-top:18px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
+<span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Estimate ${estimateNumber}</span>
+</div>
+
+</body>
+</html>`;
+}
+
 // Shared order invoice document — same editorial system as generateQuoteHtml
 // (letterhead, greeting band with status stamp, three info cards, swatch-led
 // line items, terms + totals columns), adapted for an invoice: Bill To / Ship
@@ -818,6 +1054,27 @@ export function generateOrderInvoiceDoc(o, items) {
   ];
 
   const rowsHtml = items.map((i, idx) => {
+    // Labor lines (estimate conversions): no swatch/sqft/boxes — show the
+    // service description and rate basis instead
+    if ((i.item_type || 'material') === 'labor') {
+      const rateInfo = i.rate_type === 'per_sqft'
+        ? `${money(i.rate_sqft)}/sf × ${parseFloat(i.labor_sqft || 0).toFixed(0)} sf`
+        : (parseFloat(i.quantity || 1) > 1 ? `${money(i.unit_price)} × ${parseFloat(i.quantity).toFixed(0)}` : 'Flat rate');
+      const descLine = i.description
+        ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${String(i.description).split('\n').join(' · ')}</div>` : '';
+      return `<div class="grid-row keep" style="padding:12px 0;${idx < items.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+        <div class="swatch" style="background:var(--warm);display:flex;align-items:center;justify-content:center;font:500 7px/1 ui-monospace,monospace;letter-spacing:0.08em;color:var(--ink);">LBR</div>
+        <div>
+          <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${i.product_name || 'Labor'}</div>
+          ${descLine}
+          ${i.source_estimate_area ? `<div style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.12em;color:var(--muted);margin-top:4px;text-transform:uppercase;">${i.source_estimate_area}</div>` : ''}
+        </div>
+        <div class="num">—</div>
+        <div class="num">—</div>
+        <div class="num">${rateInfo}</div>
+        <div class="line-total">${money(i.subtotal)}</div>
+      </div>`;
+    }
     const isUnit = i.sell_by === 'unit';
     const qty = i.num_boxes || i.quantity || 1;
     const name = i.product_name || i.collection || '—';
@@ -876,8 +1133,9 @@ export function generateOrderInvoiceDoc(o, items) {
       <div class="small" style="margin-top:4px;">${o.company_name ? o.company_name + '<br />' : ''}${o.rep_name ? `<span style="color:var(--muted);">Your rep</span><br />${o.rep_name}${o.rep_email ? '<br />' + o.rep_email : ''}<br />(714) 999-0009` : '(714) 999-0009'}</div>
     </div>`;
 
+  const hasLabor = items.some(i => (i.item_type || 'material') === 'labor');
   const totalsRows = [
-    `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Subtotal · materials</span><span>${money(o.subtotal)}</span></div>`,
+    `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">${hasLabor ? 'Subtotal · materials &amp; labor' : 'Subtotal · materials'}</span><span>${money(o.subtotal)}</span></div>`,
     parseFloat(o.discount_amount || 0) > 0
       ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Discount${o.promo_code ? ' · ' + o.promo_code : ''}</span><span style="color:var(--accent);">−${money(o.discount_amount)}</span></div>` : '',
     parseFloat(o.shipping || 0) > 0

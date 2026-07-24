@@ -15,11 +15,13 @@ import { generateSampleRequestShippedHTML } from '../templates/sampleRequestShip
 import { generateStockAlertHTML } from '../templates/stockAlert.js';
 import { generateInvoiceSentHTML } from '../templates/invoiceSent.js';
 import { generateInvoiceReminderHTML } from '../templates/invoiceReminder.js';
-import { generateSampleRequestVendorHTML } from '../templates/sampleRequestVendor.js';
+import { generateSampleRequestVendorEmailHTML } from '../templates/sampleRequestVendor.js';
+import { generateSampleShippingPaymentHTML } from '../templates/sampleShippingPayment.js';
 import { generateWelcomeSetPasswordHTML } from '../templates/welcomeSetPassword.js';
 import { generateDailyAnalyticsSummaryHTML } from '../templates/dailyAnalyticsSummary.js';
 import { generateDailyHealthCheckHTML } from '../templates/dailyHealthCheck.js';
 import { generateEstimateSentHTML } from '../templates/estimateSent.js';
+import { generateEstimateAcceptedHTML } from '../templates/estimateAccepted.js';
 import { generateProductShareHTML } from '../templates/productShare.js';
 import { generatePaymentRequestHTML } from '../templates/paymentRequest.js';
 import { generatePaymentReceivedHTML } from '../templates/paymentReceived.js';
@@ -688,43 +690,15 @@ export async function sendInvoiceReminder(invoice) {
 /**
  * Send sample request PDF to vendor via email.
  */
-export async function sendSampleRequestToVendor({ vendor_email, vendor_name, request_number, pdf_buffer }) {
+export async function sendSampleRequestToVendor({ vendor_email, vendor_name, request_number, rep_name, item_count, ship_to, pdf_buffer }) {
   if (!transporter) {
     console.log(`[Email] Skipping sample request email for ${request_number} to ${vendor_email} — SMTP not configured`);
     return { sent: false };
   }
   try {
-    const html = generateSampleRequestVendorHTML({
-      vendor_name,
-      request_number,
-      customer_name: '',
-      items: []
+    const emailBody = generateSampleRequestVendorEmailHTML({
+      vendor_name, request_number, rep_name, item_count, ship_to
     });
-
-    const emailBody = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background-color:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;">
-<tr><td align="center" style="padding:40px 20px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
-  <tr><td style="padding:32px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <h1 style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;font-weight:400;color:#1c1917;">Roma Flooring Designs</h1>
-  </td></tr>
-  <tr><td style="padding:32px 40px;">
-    <p style="margin:0 0 8px;font-size:15px;color:#1c1917;">Hi ${vendor_name},</p>
-    <p style="margin:0 0 16px;font-size:14px;color:#57534e;">We are requesting product samples for one of our customers. Please see the attached PDF for the full sample request details.</p>
-    <div style="background:#f5f5f4;display:inline-block;padding:10px 24px;font-size:15px;font-weight:500;color:#1c1917;">
-      ${request_number}
-    </div>
-    <p style="margin:16px 0 0;font-size:14px;color:#57534e;">Please send the samples to our showroom at your earliest convenience. Thank you!</p>
-  </td></tr>
-  <tr><td style="padding:24px 40px;background:#fafaf9;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0 0 4px;font-size:12px;color:#78716c;">Questions? Contact us at (714) 999-0009</p>
-    <p style="margin:0;color:#a8a29e;font-size:11px;">Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
-  </td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
 
     await deliver({
       from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
@@ -750,28 +724,7 @@ export async function sendSampleShippingPayment({ customer_name, customer_email,
     return;
   }
   try {
-    const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 0;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
-  <tr><td style="padding:40px;text-align:center;">
-    <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:300;color:#1c1917;margin:0 0 24px;">Roma Flooring Designs</h1>
-    <p style="color:#57534e;font-size:16px;margin:0 0 8px;">Hi ${customer_name},</p>
-    <p style="color:#57534e;font-size:14px;margin:0 0 8px;">Thank you for your sample request <strong>${request_number}</strong>!</p>
-    <p style="color:#57534e;font-size:14px;margin:0 0 24px;">
-      Your samples are free, but a flat-rate shipping fee of <strong>$${parseFloat(amount).toFixed(2)}</strong> applies. Please complete payment below so we can ship your samples.
-    </p>
-    <a href="${checkout_url}" style="display:inline-block;background:#1c1917;color:#fff;padding:14px 40px;text-decoration:none;font-size:16px;font-weight:500;margin:0 0 24px;">Pay Shipping &mdash; $${parseFloat(amount).toFixed(2)}</a>
-    <p style="color:#78716c;font-size:12px;margin:0;">This payment link expires in 72 hours. If you have questions, contact us at (714) 999-0009.</p>
-  </td></tr>
-  <tr><td style="padding:16px 40px;background:#fafaf9;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="color:#a8a29e;font-size:11px;margin:0;">Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
-  </td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
+    const html = generateSampleShippingPaymentHTML({ customer_name, request_number, checkout_url, amount });
 
     await deliver({
       from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
@@ -966,24 +919,53 @@ export async function sendQualityDigest(staffEmails, qualityData) {
 /**
  * Send estimate email to customer.
  */
-export async function sendEstimateSent(estimateData) {
+export async function sendEstimateSent(estimateData, opts = {}) {
   if (!transporter) {
     console.log(`[Email] Skipping estimate email for ${estimateData.estimate_number} — SMTP not configured`);
     return { sent: false };
   }
   try {
-    const html = generateEstimateSentHTML(estimateData);
+    const html = generateEstimateSentHTML(estimateData, { tracking: true, reminder: opts.reminder });
     await deliver({
       from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
       to: estimateData.customer_email,
       replyTo: estimateData.rep_email,
-      subject: `Your Construction Estimate — ${estimateData.estimate_number}`,
-      html
+      subject: opts.reminder
+        ? `Reminder: your estimate ${estimateData.estimate_number} expires soon`
+        : `Your Construction Estimate — ${estimateData.estimate_number}`,
+      html,
+      ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {})
     });
     console.log(`[Email] Estimate email sent to ${estimateData.customer_email} for ${estimateData.estimate_number}`);
     return { sent: true };
   } catch (err) {
     console.error(`[Email] Failed to send estimate email for ${estimateData.estimate_number}:`, err.message);
+    return { sent: false };
+  }
+}
+
+/**
+ * Send the customer their acceptance confirmation (receipt) after they sign
+ * off on an estimate on the public page.
+ */
+export async function sendEstimateAccepted(estimateData) {
+  if (!transporter) {
+    console.log(`[Email] Skipping estimate-accepted email for ${estimateData.estimate_number} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateEstimateAcceptedHTML(estimateData);
+    await deliver({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: estimateData.customer_email,
+      replyTo: estimateData.rep_email,
+      subject: `Estimate accepted — ${estimateData.estimate_number}`,
+      html
+    });
+    console.log(`[Email] Estimate-accepted email sent to ${estimateData.customer_email} for ${estimateData.estimate_number}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send estimate-accepted email for ${estimateData.estimate_number}:`, err.message);
     return { sent: false };
   }
 }

@@ -1,180 +1,217 @@
-import { LOGO_URL } from './_config.js';
+// Construction estimate email — rebuilt on the shared Brass Charcoal shell
+// (_shell.js), matching quoteSent.js. Groups line items into work sections
+// (e.g. Demolition, Tile installation), each with a scope-of-work note and its
+// own subtotal, and leads with a "View & Accept"
+// CTA to the customer estimate page (/estimate/:public_token).
+//
+// opts.tracking adds an open-tracking pixel — only set when actually emailing,
+// never for the rep-facing preview (the preview iframe would log a fake open).
+import { emailShell, heroSection, ctaButton, warmCard, section, sectionLabel, detailList, money, T, SERIF, SANS, MONO, esc, emailImage } from './_shell.js';
+import { LINEAR_LABOR_CATS } from '../lib/estimateBundle.js';
 
-export function generateEstimateSentHTML(data) {
+const num = (v) => parseFloat(String(v ?? 0).replace(/,/g, '')) || 0;
+
+const LABOR_CATEGORY_LABELS = {
+  installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
+  transitions: 'Transitions', baseboards: 'Baseboards', floor_leveling: 'Floor Leveling',
+  moisture_barrier: 'Moisture Barrier', furniture_moving: 'Furniture Moving', other: 'Other'
+};
+
+function materialRow(item, isLast) {
+  const rowBorder = isLast ? '' : `border-bottom:1px solid ${T.border};`;
+  const name = esc(item.product_name || item.collection || 'Product');
+  const topLine = [item.collection && item.collection !== item.product_name ? item.collection : null, item.vendor_name]
+    .filter(Boolean).map(esc).join(' &middot; ');
+  const subLine = [...new Set([item.color, item.variant_name].filter(Boolean))]
+    .filter(v => v !== item.product_name).map(esc).join(' &middot; ');
+  const isUnit = item.sell_by === 'unit';
+  const qty = item.num_boxes || item.quantity || 1;
+  const sqft = num(item.sqft_needed);
+  const qtyLine = isUnit
+    ? `${qty} ea`
+    : `${qty} ${qty === 1 ? 'box' : 'boxes'}${sqft ? ' &middot; ' + sqft.toFixed(1) + ' sf' : ''}`;
+  const thumb = item.primary_image
+    ? `<img src="${esc(emailImage(item.primary_image, 72, 72))}" alt="${name}" width="72" style="display:block;width:72px;height:auto;" />`
+    : `<div style="width:72px;height:72px;background:${T.warm};border:1px solid ${T.border};"></div>`;
+
+  return `<tr>
+    <td width="72" valign="middle" style="padding:16px 16px 16px 0;${rowBorder}">${thumb}</td>
+    <td valign="middle" style="padding:16px 0;${rowBorder}">
+      ${topLine ? `<p style="margin:0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">${topLine}</p>` : ''}
+      <p style="margin:${topLine ? '4px' : '0'} 0 0;font-family:${SERIF};font-size:18px;line-height:1.2;letter-spacing:-0.012em;color:${T.ink};">${name}</p>
+      ${subLine ? `<p style="margin:2px 0 0;font-family:${SANS};font-size:12px;line-height:1.4;color:${T.soft};">${subLine}</p>` : ''}
+      <p style="margin:6px 0 0;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">${qtyLine}</p>
+    </td>
+    <td valign="middle" align="right" style="padding:16px 0 16px 12px;${rowBorder}white-space:nowrap;">
+      <p style="margin:0;font-family:${SERIF};font-size:22px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};">${money(item.subtotal)}</p>
+    </td>
+  </tr>`;
+}
+
+function laborRow(item, isLast) {
+  const rowBorder = isLast ? '' : `border-bottom:1px solid ${T.border};`;
+  const cat = item.labor_category === 'other' && item.product_name
+    ? esc(item.product_name)
+    : (LABOR_CATEGORY_LABELS[item.labor_category] || esc(item.labor_category || 'Service'));
+  const u = LINEAR_LABOR_CATS[item.labor_category] ? 'lf' : 'sf';
+  const desc = item.description
+    ? item.description.split('\n').map((line, i) => i === 0 ? esc(line) : '&bull; ' + esc(line)).join('<br>')
+    : '';
+  const rateLine = item.rate_type === 'per_sqft'
+    ? `${money(item.rate_sqft)}/${u} &middot; ${num(item.labor_sqft).toFixed(0)} ${u}`
+    : (num(item.quantity) > 1 ? `${money(item.unit_price)} &times; ${num(item.quantity).toFixed(0)}` : 'Flat rate');
+
+  return `<tr>
+    <td width="72" valign="middle" style="padding:16px 16px 16px 0;${rowBorder}">
+      <div style="width:72px;height:72px;background:${T.warm};border:1px solid ${T.border};text-align:center;">
+        <span style="font-family:${MONO};font-size:9px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:${T.ink};line-height:72px;">Labor</span>
+      </div>
+    </td>
+    <td valign="middle" style="padding:16px 0;${rowBorder}">
+      <p style="margin:0;font-family:${SERIF};font-size:18px;line-height:1.2;letter-spacing:-0.012em;color:${T.ink};">${cat}</p>
+      ${desc ? `<p style="margin:2px 0 0;font-family:${SANS};font-size:12px;line-height:1.4;color:${T.soft};">${desc}</p>` : ''}
+      <p style="margin:6px 0 0;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">${rateLine}</p>
+    </td>
+    <td valign="middle" align="right" style="padding:16px 0 16px 12px;${rowBorder}white-space:nowrap;">
+      <p style="margin:0;font-family:${SERIF};font-size:22px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};">${money(item.subtotal)}</p>
+    </td>
+  </tr>`;
+}
+
+// A titled group — "Materials" or "Labor & services" — with an optional scope
+// paragraph (labor only) above its rows.
+function groupBlock(title, rowsHtml, scopeHtml) {
+  return section(`
+    <p style="margin:0 0 8px;padding:0 0 8px;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.accent};border-bottom:2px solid ${T.ink};">${title}</p>
+    ${scopeHtml || ''}
+    ${rowsHtml ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rowsHtml}</table>` : ''}
+  `, '8px 40px 20px');
+}
+
+export function generateEstimateSentHTML(data, opts = {}) {
   const {
-    estimate_number, customer_name, project_name,
-    materials_subtotal, labor_subtotal, subtotal,
-    tax_amount, total,
+    id, estimate_number, customer_name, project_name,
+    materials_subtotal, labor_subtotal, tax_amount, total, deposit_amount,
+    created_at, expires_at, public_token, scope_of_work,
     rep_first_name, rep_last_name, rep_email,
     materialItems = [], laborItems = []
   } = data;
+  const deposit = num(deposit_amount);
 
-  const repName = [rep_first_name, rep_last_name].filter(Boolean).join(' ') || 'Your Sales Representative';
+  const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
+  const firstName = (customer_name || '').trim().split(/\s+/)[0] || 'there';
+  const repName = [rep_first_name, rep_last_name].filter(Boolean).join(' ') || 'our showroom team';
+  const repInitials = [rep_first_name, rep_last_name].filter(Boolean).map(n => n[0]).join('').toUpperCase() || 'R';
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const issued = longDate(created_at) || 'today';
+  const validUntil = longDate(expires_at);
 
-  const materialRows = materialItems.map(item => {
-    const name = esc(item.product_name || 'Product');
-    const collection = item.collection ? esc(item.collection) : '';
-    const qty = `${item.num_boxes || item.quantity || 1}`;
-    const price = `$${parseFloat(item.subtotal || 0).toFixed(2)}`;
-    return `<tr>
-      <td style="padding:10px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:13px;color:#292524;">
-        ${name}${collection ? `<br><span style="color:#78716c;font-size:12px;">${collection}</span>` : ''}
-      </td>
-      <td style="padding:10px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;text-align:center;">${qty}</td>
-      <td style="padding:10px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:13px;color:#292524;text-align:right;">${price}</td>
-    </tr>`;
-  }).join('');
+  // Two fixed groups: Materials, then Labor & services (with the scope of work).
+  const hasScope = scope_of_work && scope_of_work.trim();
+  const materialsHtml = materialItems.length
+    ? groupBlock('Materials', materialItems.map((it, i) => materialRow(it, i === materialItems.length - 1)).join(''))
+    : '';
+  const scopeHtml = hasScope
+    ? `<p style="margin:0 0 14px;font-family:${SANS};font-size:13px;line-height:1.6;color:${T.body};white-space:pre-wrap;">${esc(scope_of_work)}</p>` : '';
+  const laborHtml = (laborItems.length || hasScope)
+    ? groupBlock('Labor &amp; services', laborItems.map((it, i) => laborRow(it, i === laborItems.length - 1)).join(''), scopeHtml)
+    : '';
+  const itemsBlock = materialsHtml + laborHtml;
 
-  const laborCategoryLabels = {
-    installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
-    transitions: 'Transitions', baseboards: 'Baseboards', floor_leveling: 'Floor Leveling',
-    moisture_barrier: 'Moisture Barrier', furniture_moving: 'Furniture Moving', other: 'Other'
-  };
+  // Totals — warm card with the big serif grand total.
+  const totalsRows = [
+    ['Materials', money(materials_subtotal), T.ink],
+    ['Labor &amp; services', money(labor_subtotal), T.ink],
+    num(tax_amount) > 0 ? ['Tax &middot; materials only', money(tax_amount), T.soft] : null,
+  ].filter(Boolean);
+  const totalsBlock = section(warmCard(`
+    ${totalsRows.map(([k, v, col]) => `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+        <td style="padding:6px 0;font-family:${SANS};font-size:13px;color:${T.soft};">${k}</td>
+        <td align="right" style="padding:6px 0;font-family:${SANS};font-size:13px;color:${col};">${v}</td>
+      </tr></table>`).join('')}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;border-top:1px solid ${T.border};"><tr>
+      <td style="padding-top:12px;font-family:${SANS};font-size:12px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">Estimate total</td>
+      <td align="right" style="padding-top:12px;font-family:${SERIF};font-size:32px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};">${money(total)}</td>
+    </tr></table>
+    ${deposit > 0 ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;"><tr>
+      <td style="font-family:${SANS};font-size:12px;font-weight:500;color:${T.accent};">Deposit to get started</td>
+      <td align="right" style="font-family:${SANS};font-size:14px;font-weight:600;color:${T.accent};">${money(deposit)}</td>
+    </tr></table>` : ''}
+  `, '20px 22px'), '0 40px 8px');
 
-  const laborRows = laborItems.map(item => {
-    const cat = laborCategoryLabels[item.labor_category] || esc(item.labor_category || 'Service');
-    const desc = item.description ? '<br><span style="color:#78716c;font-size:12px;">' + item.description.split('\n').map((line, i) => i === 0 ? esc(line) : '&bull; ' + esc(line)).join('<br>') + '</span>' : '';
-    const rateInfo = item.rate_type === 'per_sqft'
-      ? `$${parseFloat(item.rate_sqft || 0).toFixed(2)}/sqft × ${parseFloat(item.labor_sqft || 0).toFixed(0)} sqft`
-      : (parseFloat(item.quantity || 1) > 1 ? `$${parseFloat(item.unit_price || 0).toFixed(2)} × ${parseFloat(item.quantity).toFixed(0)}` : 'Flat rate');
-    const price = `$${parseFloat(item.subtotal || 0).toFixed(2)}`;
-    return `<tr>
-      <td style="padding:10px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:13px;color:#292524;">
-        ${cat}${desc}
-      </td>
-      <td style="padding:10px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;text-align:center;">${rateInfo}</td>
-      <td style="padding:10px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:13px;color:#292524;text-align:right;">${price}</td>
-    </tr>`;
-  }).join('');
+  const estimateUrl = public_token ? `${siteUrl}/estimate/${public_token}` : null;
 
-  const projectLine = project_name ? ` for <strong>${esc(project_name)}</strong>` : '';
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;500&display=swap');</style>
-</head>
-<body style="margin:0;padding:0;background-color:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;">
-<tr><td align="center" style="padding:40px 20px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
-
-  <!-- Header -->
-  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto;width:140px;height:140px;" />
-  </td></tr>
-
-  <!-- Title -->
-  <tr><td style="padding:40px 40px 20px;">
-    <h1 style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:600;color:#292524;">Your Construction Estimate</h1>
-    <p style="margin:12px 0 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;line-height:1.6;">
-      Hi ${esc(customer_name)},<br><br>
-      ${esc(repName)} has prepared a construction estimate${projectLine} for your review. This includes both materials and labor costs.
+  // Signature — reply note + the actual rep.
+  const signature = section(`
+    <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};">
+      Questions or changes? Reply to this email &mdash; it goes straight to ${esc(repName)} at our Anaheim showroom, not a bot.
     </p>
-  </td></tr>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:18px;"><tr>
+      <td width="40" valign="middle">
+        <div style="width:40px;height:40px;border-radius:50%;background:${T.warm};border:1px solid ${T.border};text-align:center;font-family:${SERIF};font-size:16px;line-height:40px;color:${T.ink};">${esc(repInitials)}</div>
+      </td>
+      <td valign="middle" style="padding-left:14px;">
+        <p style="margin:0;font-family:${SERIF};font-size:16px;line-height:1.1;letter-spacing:-0.008em;color:${T.ink};">${esc(repName)}</p>
+        <p style="margin:4px 0 0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:${T.muted};">Your sales rep &middot; Roma Flooring${rep_email ? ` &middot; <a href="mailto:${esc(rep_email)}" style="color:${T.accent};text-decoration:none;">${esc(rep_email)}</a>` : ''}</p>
+      </td>
+    </tr></table>
+  `, '0 40px 36px');
 
-  <!-- Estimate Number -->
-  <tr><td style="padding:0 40px 24px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding:12px 16px;background:#fafaf9;border:1px solid #e7e5e4;">
-          <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">Estimate Number</p>
-          <p style="margin:4px 0 0;font-family:Inter,Arial,sans-serif;font-size:14px;font-weight:500;color:#292524;">${esc(estimate_number)}</p>
-        </td>
-      </tr>
-    </table>
-  </td></tr>
+  const metaBlock = section(detailList([
+    { label: 'Estimate', value: esc(estimate_number) },
+    { label: 'Prepared', value: issued },
+    project_name ? { label: 'Project', value: esc(project_name) } : null,
+    validUntil ? { label: 'Valid until', value: validUntil } : null,
+  ].filter(Boolean)), '4px 40px 8px');
 
-  ${materialRows ? `
-  <!-- Materials -->
-  <tr><td style="padding:0 40px 8px;">
-    <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">Materials</p>
-  </td></tr>
-  <tr><td style="padding:0 40px 24px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;">Product</td>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;text-align:center;">Qty</td>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;text-align:right;">Amount</td>
-      </tr>
-      ${materialRows}
-    </table>
-  </td></tr>
-  ` : ''}
+  const trackingPixel = (opts.tracking && id)
+    ? section(`<img src="${siteUrl}/api/estimates/${id}/open.gif" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;" />`, '0')
+    : '';
 
-  ${laborRows ? `
-  <!-- Labor & Services -->
-  <tr><td style="padding:0 40px 8px;">
-    <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">Labor &amp; Services</p>
-  </td></tr>
-  <tr><td style="padding:0 40px 24px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;">Service</td>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;text-align:center;">Rate</td>
-        <td style="padding:0 0 8px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;border-bottom:2px solid #292524;text-align:right;">Amount</td>
-      </tr>
-      ${laborRows}
-    </table>
-  </td></tr>
-  ` : ''}
+  // Reminder variant: same itemized body, but the hero + chip lead with the
+  // expiry instead of the "ready" announcement. Sent by the expiry cron.
+  const hero = opts.reminder
+    ? heroSection({
+        eyebrow: `Estimate expiring soon &middot; ${esc(estimate_number || '')}`,
+        headline: `A quick <em style="color:${T.accent};">reminder</em>.`,
+        body: `Hi ${esc(firstName)} &mdash; ${esc(repName)}&rsquo;s construction estimate${project_name ? ` for <span style="color:${T.ink};font-weight:500;">${esc(project_name)}</span>` : ''} is still open,` +
+          (validUntil ? ` but it expires on <span style="color:${T.ink};font-weight:500;">${validUntil}</span>. Accept it online below, or just reply and we&rsquo;ll refresh the pricing for you.` : ` and it&rsquo;s about to expire. Accept it online below, or reply and we&rsquo;ll refresh the pricing for you.`),
+        chip: validUntil ? `&#9201; Expires ${validUntil}` : null
+      })
+    : heroSection({
+        eyebrow: `Construction estimate &middot; ${esc(estimate_number || '')}`,
+        headline: `Your estimate, <em style="color:${T.accent};">ready</em>.`,
+        body: `Hi ${esc(firstName)} &mdash; ${esc(repName)} put together a construction estimate${project_name ? ` for <span style="color:${T.ink};font-weight:500;">${esc(project_name)}</span>` : ''}, covering both materials and labor.` +
+          (validUntil ? ` It&rsquo;s valid through <span style="color:${T.ink};font-weight:500;">${validUntil}</span>.` : ''),
+        chip: validUntil ? `&#9201; Valid until ${validUntil}` : null
+      });
 
-  <!-- Totals -->
-  <tr><td style="padding:0 40px 32px;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;">Materials</td>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;text-align:right;">$${parseFloat(materials_subtotal || 0).toFixed(2)}</td>
-      </tr>
-      <tr>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;">Labor &amp; Services</td>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;text-align:right;">$${parseFloat(labor_subtotal || 0).toFixed(2)}</td>
-      </tr>
-      ${parseFloat(tax_amount || 0) > 0 ? `<tr>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;">Tax (materials only)</td>
-        <td style="padding:6px 0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;text-align:right;">$${parseFloat(tax_amount).toFixed(2)}</td>
-      </tr>` : ''}
-      <tr>
-        <td style="padding:12px 0 0;font-family:Inter,Arial,sans-serif;font-size:16px;font-weight:500;color:#292524;border-top:2px solid #292524;">Grand Total</td>
-        <td style="padding:12px 0 0;font-family:Inter,Arial,sans-serif;font-size:16px;font-weight:500;color:#292524;border-top:2px solid #292524;text-align:right;">$${parseFloat(total || 0).toFixed(2)}</td>
-      </tr>
-    </table>
-  </td></tr>
+  const content = `
+    ${hero}
+    ${metaBlock}
+    ${estimateUrl ? ctaButton({
+      href: estimateUrl,
+      label: 'View &amp; accept your estimate &rarr;',
+      note: deposit > 0
+        ? `Accept online and secure your project with a ${money(deposit)} deposit &middot; or reply to this email`
+        : 'Review the full itemized breakdown online and accept or decline &middot; or reply to this email'
+    }) : ''}
+    ${itemsBlock}
+    ${totalsBlock}
+    ${signature}
+    ${trackingPixel}
+  `;
 
-  <!-- Rep Contact -->
-  <tr><td style="padding:0 40px 32px;">
-    <div style="padding:20px;background:#fafaf9;border:1px solid #e7e5e4;">
-      <p style="margin:0 0 4px;font-family:Inter,Arial,sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#78716c;">Your Sales Representative</p>
-      <p style="margin:0 0 4px;font-family:Inter,Arial,sans-serif;font-size:14px;font-weight:500;color:#292524;">${esc(repName)}</p>
-      <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:13px;color:#57534e;">
-        <a href="mailto:${esc(rep_email)}" style="color:#c9a668;">${esc(rep_email)}</a>
-      </p>
-    </div>
-  </td></tr>
-
-  <!-- CTA -->
-  <tr><td style="padding:0 40px 40px;text-align:center;">
-    <p style="margin:0;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;line-height:1.6;">
-      To proceed with this estimate or discuss any changes, simply reply to this email. We look forward to working with you.
-    </p>
-  </td></tr>
-
-  <!-- Footer -->
-  <tr><td style="padding:24px 40px;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:14px;letter-spacing:2px;color:#a8a29e;">ROMA FLOORING DESIGNS</p>
-    <p style="margin:8px 0 0;font-family:Inter,Arial,sans-serif;font-size:11px;color:#a8a29e;">Curated flooring &amp; surfaces for refined spaces</p>
-  </td></tr>
-
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
-
-function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return emailShell({
+    title: opts.reminder
+      ? `Your Roma estimate expires soon — ${estimate_number || ''}`
+      : `Your Roma estimate — ${estimate_number || ''}`,
+    preheader: opts.reminder
+      ? `Hi ${firstName} — your ${money(total)} estimate${project_name ? ' for ' + project_name : ''} is still open` +
+        (validUntil ? ` but expires ${validUntil}. Accept online before it lapses.` : ' but about to expire. Accept online before it lapses.')
+      : `Hi ${firstName} — your construction estimate${project_name ? ' for ' + project_name : ''}, ${money(total)} total.` +
+        (validUntil ? ` Valid until ${validUntil}.` : ''),
+    content
+  });
 }

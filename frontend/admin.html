@@ -4567,7 +4567,8 @@
       const prevStatus = reverseFlow[order.status];
       const canCancel = order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'refunded';
 
-      const productItems = items.filter(i => !i.is_sample);
+      const isLaborItem = (i) => (i.item_type || 'material') === 'labor';
+      const productItems = items.filter(i => !i.is_sample && !isLaborItem(i));
       const sampleItems = items.filter(i => i.is_sample);
 
       // Per-item pickup readiness: check items off as they arrive at the store.
@@ -5077,6 +5078,45 @@
               <tbody>
                 {items.map(item => {
                   const qtyLabel = item.sell_by === 'unit' ? 'units' : item.sell_by === 'piece' ? 'pcs' : item.sell_by === 'roll' ? 'sqft' : 'boxes';
+                  const isLabor = isLaborItem(item);
+                  if (isLabor) {
+                    const rateInfo = item.rate_type === 'per_sqft'
+                      ? '$' + parseFloat(item.rate_sqft || 0).toFixed(2) + '/sqft × ' + parseFloat(item.labor_sqft || 0).toFixed(0) + ' sqft'
+                      : (parseFloat(item.quantity || 1) > 1 ? '$' + parseFloat(item.unit_price || 0).toFixed(2) + ' × ' + parseFloat(item.quantity).toFixed(0) : 'Flat rate');
+                    return (
+                    <tr key={item.id}>
+                      <td data-label="Product">
+                        <div style={{ fontWeight: 500 }}>
+                          {item.product_name || 'Labor'}
+                          <span className="badge" style={{ fontSize: '0.6rem', marginLeft: '0.5rem', background: 'var(--stone-200)', color: 'var(--stone-700)' }}>Labor</span>
+                        </div>
+                        <div style={{ fontSize: '0.6875rem', color: '#78716c' }}>
+                          {item.source_estimate_area ? item.source_estimate_area + ' · ' : ''}{(item.description || '').split('\n').join(' · ')}
+                        </div>
+                      </td>
+                      <td data-label="SqFt"><span style={{ color: 'var(--stone-400)' }}>—</span></td>
+                      <td data-label="Qty"><span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{rateInfo}</span></td>
+                      <td data-label="Unit Price"><span style={{ color: 'var(--stone-400)' }}>—</span></td>
+                      <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>{item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}</td>
+                      {showReadyCol && <td data-label="Store Pickup"><span style={{ color: 'var(--stone-400)' }}>—</span></td>}
+                      {['pending', 'confirmed'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && (
+                        <td data-label="" className="actions">
+                          <button className="btn btn-danger btn-sm"
+                              onClick={async () => {
+                                if (!confirm('Remove this labor line from the order?')) return;
+                                try {
+                                  const data = await adminFetch('/api/admin/orders/' + editId + '/items/' + item.id, { method: 'DELETE' });
+                                  if (data.order) setOrder(data.order);
+                                  if (data.items) setItems(data.items);
+                                  if (data.balance) setBalanceInfo(data.balance);
+                                  loadPOs();
+                                } catch (err) { alert(err.message); }
+                              }}>Remove</button>
+                        </td>
+                      )}
+                    </tr>
+                    );
+                  }
                   return (
                   <tr key={item.id}>
                     <td data-label="Product">

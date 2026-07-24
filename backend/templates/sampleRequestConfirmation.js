@@ -1,8 +1,28 @@
-import { LOGO_URL } from './_config.js';
+// Customer-facing "we got your sample request" email, rebuilt on the shared
+// "Brass Charcoal" shell (_shell.js), matching estimateSent.js / quoteSent.js.
+// Confirms the request, lists the samples with swatches, and sets shipping vs
+// pickup expectations.
+import { emailShell, heroSection, section, detailList, warmCard, T, SERIF, SANS, MONO, esc, emailImage } from './_shell.js';
 
-function esc(str) {
-  if (!str) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function sampleRow(item, isLast) {
+  const rowBorder = isLast ? '' : `border-bottom:1px solid ${T.border};`;
+  const name = esc(item.product_name || 'Product');
+  const sub = [...new Set([item.collection, item.variant_name].filter(Boolean))]
+    .filter(v => v !== item.product_name).map(esc).join(' &middot; ');
+  const thumb = item.primary_image
+    ? `<img src="${esc(emailImage(item.primary_image, 72, 72))}" alt="${name}" width="72" style="display:block;width:72px;height:72px;object-fit:cover;" />`
+    : `<div style="width:72px;height:72px;background:${T.warm};border:1px solid ${T.border};"></div>`;
+
+  return `<tr>
+    <td width="72" valign="middle" style="padding:16px 16px 16px 0;${rowBorder}">${thumb}</td>
+    <td valign="middle" style="padding:16px 0;${rowBorder}">
+      <p style="margin:0;font-family:${SERIF};font-size:18px;line-height:1.2;letter-spacing:-0.012em;color:${T.ink};">${name}</p>
+      ${sub ? `<p style="margin:2px 0 0;font-family:${SANS};font-size:12px;line-height:1.4;color:${T.soft};">${sub}</p>` : ''}
+    </td>
+    <td valign="middle" align="right" style="padding:16px 0 16px 12px;${rowBorder}white-space:nowrap;">
+      <p style="margin:0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:${T.accent};">Free sample</p>
+    </td>
+  </tr>`;
 }
 
 export function generateSampleRequestConfirmationHTML(data) {
@@ -11,101 +31,59 @@ export function generateSampleRequestConfirmationHTML(data) {
     shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip
   } = data;
   const isPickup = delivery_method === 'pickup';
+  const firstName = (customer_name || '').trim().split(/\s+/)[0] || 'there';
+  const count = items.length;
 
-  const itemRows = items.map(item => {
-    const name = esc(item.product_name || 'Product');
-    const collection = item.collection ? esc(item.collection) : '';
-    const variant = item.variant_name ? esc(item.variant_name) : '';
-    const image = item.primary_image || '';
-
-    return `<tr>
-      <td style="padding:16px 0;border-bottom:1px solid #e7e5e4;">
-        <table cellpadding="0" cellspacing="0" width="100%"><tr>
-          ${image ? `<td width="120" valign="top" style="padding-right:16px;">
-            <img src="${esc(image)}" alt="${name}" width="120" height="120" style="display:block;width:120px;height:120px;object-fit:cover;border:1px solid #e7e5e4;" />
-          </td>` : ''}
-          <td valign="top" style="font-family:Inter,Arial,sans-serif;">
-            <p style="margin:0 0 4px;font-size:16px;font-weight:500;color:#292524;">${name}</p>
-            ${collection ? `<p style="margin:0 0 2px;font-size:13px;color:#78716c;">${collection}</p>` : ''}
-            ${variant ? `<p style="margin:0 0 2px;font-size:13px;color:#78716c;">${variant}</p>` : ''}
-            <p style="margin:8px 0 0;font-size:13px;font-weight:500;color:#15803d;">Free Sample</p>
-          </td>
-        </tr></table>
-      </td>
-    </tr>`;
-  }).join('');
-
-  const addressParts = [shipping_address_line1, shipping_address_line2].filter(Boolean);
+  const shipParts = [shipping_address_line1, shipping_address_line2].filter(Boolean);
   const cityLine = [shipping_city, shipping_state].filter(Boolean).join(', ');
-  if (shipping_zip && cityLine) addressParts.push(cityLine + ' ' + shipping_zip);
-  else if (cityLine) addressParts.push(cityLine);
-  else if (shipping_zip) addressParts.push(shipping_zip);
+  if (shipping_zip && cityLine) shipParts.push(cityLine + ' ' + shipping_zip);
+  else if (cityLine) shipParts.push(cityLine);
+  else if (shipping_zip) shipParts.push(shipping_zip);
 
-  const addressBlock = addressParts.length ? `
-  <tr><td style="padding:0 40px 24px;">
-    <p style="margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;font-weight:500;">Shipping To</p>
-    <div style="background:#fafaf9;border:1px solid #e7e5e4;padding:16px 20px;">
-      ${addressParts.map(l => `<p style="margin:0 0 2px;font-size:14px;color:#292524;">${esc(l)}</p>`).join('')}
-    </div>
-  </td></tr>` : '';
+  const metaBlock = section(detailList([
+    { label: 'Request', value: esc(request_number) },
+    count ? { label: 'Samples', value: `${count} ${count === 1 ? 'swatch' : 'swatches'} &middot; free` } : null,
+    { label: isPickup ? 'Pickup' : 'Shipping to', value: isPickup
+      ? 'Anaheim showroom'
+      : (shipParts.length ? shipParts.map(esc).join('<br>') : 'Address on file') },
+  ].filter(Boolean)), '4px 40px 8px');
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Inter:wght@400;500&display=swap');</style>
-</head>
-<body style="margin:0;padding:0;background-color:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fafaf9;">
-<tr><td align="center" style="padding:40px 20px;">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e7e5e4;">
-
-  <!-- Header -->
-  <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto;width:140px;height:140px;" />
-  </td></tr>
-
-  <!-- Greeting -->
-  <tr><td style="padding:40px 40px 16px;">
-    <h1 style="margin:0 0 8px;font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:400;color:#1c1917;">Your Sample Request</h1>
-    <p style="margin:0;font-size:15px;color:#57534e;">Hi ${esc(customer_name)}, we've received your sample request!</p>
-  </td></tr>
-
-  <!-- Request Number -->
-  <tr><td style="padding:0 40px 24px;">
-    <div style="background:#f5f5f4;display:inline-block;padding:10px 24px;font-size:15px;font-weight:500;color:#1c1917;">
-      ${esc(request_number)}
-    </div>
-  </td></tr>
-
-  <!-- Items -->
-  <tr><td style="padding:0 40px 24px;">
-    <p style="margin:0 0 16px;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;color:#78716c;font-weight:500;">Samples Requested</p>
-    <table cellpadding="0" cellspacing="0" width="100%">
-      ${itemRows}
+  const itemsBlock = count ? section(`
+    <p style="margin:0 0 4px;padding:0 0 8px;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.accent};border-bottom:2px solid ${T.ink};">Samples requested</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${items.map((it, i) => sampleRow(it, i === count - 1)).join('')}
     </table>
-  </td></tr>
+  `, '8px 40px 20px') : '';
 
-  ${addressBlock}
+  const noteBlock = section(warmCard(`
+    <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};">${isPickup
+      ? `Free in-store pickup at our Anaheim showroom &mdash; we&rsquo;ll email you the moment your swatches are ready to grab.`
+      : `Your swatches ship for a flat <span style="color:${T.ink};font-weight:500;">$12</span>. The samples themselves are free &mdash; you&rsquo;re only covering delivery.`}</p>
+  `, '18px 22px'), '8px 40px 8px');
 
-  <!-- Shipping/Pickup Note -->
-  <tr><td style="padding:0 40px 40px;">
-    <div style="background:${isPickup ? '#f0fdf4' : '#fefce8'};border:1px solid ${isPickup ? '#bbf7d0' : '#fde68a'};padding:12px 16px;">
-      <p style="margin:0;font-size:13px;color:${isPickup ? '#166534' : '#854d0e'};">${isPickup
-        ? 'In-store pickup \u2014 completely free! We will notify you when your samples are ready.'
-        : 'Samples ship for a flat rate of $12. You will not be charged for the product itself.'}</p>
-    </div>
-  </td></tr>
+  const signature = section(`
+    <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};">
+      Once your samples arrive, hold them against your lighting and existing finishes &mdash; then reply here or call
+      <span style="color:${T.ink};font-weight:500;">(714) 999-0009</span> and we&rsquo;ll help you take the next step.
+    </p>
+  `, '8px 40px 36px');
 
-  <!-- Footer -->
-  <tr><td style="padding:24px 40px;background:#fafaf9;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0 0 4px;font-size:12px;color:#78716c;">Questions? Contact us at (714) 999-0009</p>
-    <p style="margin:0;color:#a8a29e;font-size:11px;">Roma Flooring Designs | License #830966 | www.romaflooringdesigns.com</p>
-  </td></tr>
+  const content = `
+    ${heroSection({
+      eyebrow: `Sample request &middot; ${esc(request_number || '')}`,
+      headline: `Your samples are <em style="color:${T.accent};">reserved</em>.`,
+      body: `Hi ${esc(firstName)} &mdash; thanks for your request. We&rsquo;ve got your ${count ? (count === 1 ? 'swatch' : `${count} swatches`) : 'samples'} lined up and we&rsquo;re preparing ${isPickup ? 'them for pickup' : 'them to ship'}.`,
+      chip: isPickup ? '&#9679; Free showroom pickup' : '&#9679; Ships flat $12'
+    })}
+    ${metaBlock}
+    ${itemsBlock}
+    ${noteBlock}
+    ${signature}
+  `;
 
-</table>
-</td></tr></table>
-</body>
-</html>`;
+  return emailShell({
+    title: `Your Roma sample request — ${request_number || ''}`,
+    preheader: `Hi ${firstName} — we've received your sample request${count ? ` (${count} ${count === 1 ? 'swatch' : 'swatches'})` : ''}. ${isPickup ? 'Free showroom pickup.' : 'Ships flat $12.'}`,
+    content
+  });
 }
