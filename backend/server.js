@@ -11136,6 +11136,31 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                   'Payment received for ' + paidOrder.order_number,
                   '$' + paidAmount.toFixed(2) + ' payment received for order ' + paidOrder.order_number,
                   'order', order_id));
+
+                // Estimate-deposit nudge: when a deposit lands on a still-pending
+                // order, prompt the rep to confirm it so vendor POs get cut.
+                // Confirming stays a human decision — this just surfaces the step.
+                // Scoped by the 'Estimate deposit' request label so ordinary
+                // balance-collection payments don't spawn a task.
+                if (paidOrder.status === 'pending' && payment_request_id) {
+                  setImmediate(async () => {
+                    try {
+                      const prMeta = await pool.query('SELECT sent_by_name FROM payment_requests WHERE id = $1', [payment_request_id]);
+                      if (prMeta.rows[0]?.sent_by_name !== 'Estimate deposit') return;
+                      const bal = await recalculateBalance(pool, order_id);
+                      if (!bal || bal.balance_status !== 'balance_due') return;
+                      await createAutoTask(pool, paidOrder.sales_rep_id, 'order_deposit_paid', order_id,
+                        `Deposit received on Order ${paidOrder.order_number} — confirm to order materials`, {
+                          description: `A $${paidAmount.toFixed(2)} deposit was paid online. Confirm the order to generate vendor POs and start the job; the $${bal.balance.toFixed(2)} balance can be collected later.`,
+                          priority: 'high',
+                          customer_name: paidOrder.customer_name, customer_email: paidOrder.customer_email, customer_phone: paidOrder.phone,
+                          linked_order_id: order_id
+                        });
+                    } catch (taskErr) {
+                      console.error('[AutoTask] order_deposit_paid error:', taskErr.message);
+                    }
+                  });
+                }
               }
             }
           } else {
