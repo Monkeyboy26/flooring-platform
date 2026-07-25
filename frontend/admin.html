@@ -1197,7 +1197,10 @@
     .ops-palette-foot { padding: 10px 18px; font: 400 10px/1 var(--mono); letter-spacing: 0.1em; color: var(--faint); }
 
     /* ==================== Order record (full-bleed console) ==================== */
-    .recd-page { min-width: 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; background: var(--bg); }
+    /* Design scroll model: header stays pinned, only the record body scrolls */
+    .recd-page { min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
+    .recd-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+    .recd-scroll .rec-body { min-height: 100%; }
     .recd-head { flex-shrink: 0; border-bottom: 1px solid var(--line); background: var(--panel); }
     .recd-top { display: flex; align-items: flex-start; gap: 18px; padding: 14px 22px 0; flex-wrap: wrap; }
     .recd-crumb { background: transparent; border: none; padding: 0; color: var(--dim); font: 400 10px/1 var(--mono); letter-spacing: 0.12em; cursor: pointer; }
@@ -5164,6 +5167,7 @@
             </div>
           </div>
 
+          <div className="recd-scroll">
           <div className="rec-body">
           <div className="rec-left">
           {recBlocker && !recCancelled && recRisk !== 'ok' && recTab === 'record' && (() => {
@@ -6497,6 +6501,7 @@
               </div>
             )}
           </div>}
+          </div>
           </div>
           </div>
         </div>
