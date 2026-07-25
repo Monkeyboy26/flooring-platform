@@ -5309,6 +5309,336 @@ app.post('/api/admin/search/rebuild', staffAuth, requireRole('admin'), async (re
 });
 
 // Dashboard stats
+// ==================== Operations Worklist ====================
+// Feeds the admin queue home: real items that need staff action, grouped into
+// streams (decide / vendor / money / ops). Each item carries facts, a short
+// trail, and action descriptors pointing at existing mutation endpoints so the
+// queue reuses the same business logic as the ledger views.
+app.get('/api/admin/worklist', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const KIND_LIMIT = 40;
+    const isManager = ['admin', 'manager'].includes(req.staff.role);
+
+    const hoursOpen = (ts) => ts ? (Date.now() - new Date(ts).getTime()) / 3600000 : 0;
+    const ageLabel = (ts) => {
+      const h = hoursOpen(ts);
+      if (h < 1) return `${Math.max(1, Math.round(h * 60))}m`;
+      if (h < 24) return `${Math.round(h)}h`;
+      const d = Math.floor(h / 24);
+      const rem = Math.round(h % 24);
+      return rem ? `${d}d ${rem}h` : `${d}d`;
+    };
+    const sla = (ts, breachH, todayH) => {
+      const h = hoursOpen(ts);
+      return h > breachH ? 'breach' : h > todayH ? 'today' : 'ok';
+    };
+    const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+    const queries = {
+      tradeApps: pool.query(`
+        SELECT tc.id, tc.company_name, tc.contact_name, tc.email, tc.phone, tc.ein, tc.contractor_license, tc.created_at,
+          (SELECT COUNT(*)::int FROM trade_documents td WHERE td.trade_customer_id = tc.id) as doc_count
+        FROM trade_customers tc WHERE tc.status = 'pending'
+        ORDER BY tc.created_at ASC LIMIT $1`, [KIND_LIMIT]),
+      newInquiries: pool.query(`
+        SELECT id, customer_name, customer_email, phone, zip_code, estimated_sqft, product_name, collection, message, created_at
+        FROM installation_inquiries WHERE status = 'new'
+        ORDER BY created_at ASC LIMIT $1`, [KIND_LIMIT]),
+    };
+
+    if (isManager) {
+      queries.pendingOrders = pool.query(`
+        SELECT o.id, o.order_number, o.customer_name, o.customer_email, o.total, o.amount_paid,
+          o.delivery_method, o.payment_method, o.created_at,
+          (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count
+        FROM orders o WHERE o.status = 'pending'
+        ORDER BY o.created_at ASC LIMIT $1`, [KIND_LIMIT]);
+      queries.unackedPos = pool.query(`
+        SELECT po.id, po.po_number, po.subtotal, po.approved_at, po.created_at, po.order_id,
+          v.name as vendor_name, o.order_number
+        FROM purchase_orders po
+        JOIN vendors v ON v.id = po.vendor_id
+        LEFT JOIN orders o ON o.id = po.order_id
+        WHERE po.status = 'sent' AND po.edi_ack_status IS NULL
+        ORDER BY COALESCE(po.approved_at, po.created_at) ASC LIMIT $1`, [KIND_LIMIT]);
+      queries.draftPos = pool.query(`
+        SELECT po.id, po.po_number, po.subtotal, po.created_at, po.order_id,
+          v.name as vendor_name, o.order_number
+        FROM purchase_orders po
+        JOIN vendors v ON v.id = po.vendor_id
+        LEFT JOIN orders o ON o.id = po.order_id
+        WHERE po.status = 'draft' AND po.created_at < NOW() - interval '12 hours'
+        ORDER BY po.created_at ASC LIMIT $1`, [KIND_LIMIT]);
+      queries.overdueInvoices = pool.query(`
+        SELECT i.id, i.invoice_number, i.customer_name, i.customer_email, i.total, i.amount_paid, i.balance,
+          i.due_date, i.issue_date, i.order_id, o.order_number
+        FROM invoices i LEFT JOIN orders o ON o.id = i.order_id
+        WHERE i.status IN ('sent', 'partial', 'overdue') AND i.balance > 0 AND i.due_date < CURRENT_DATE
+          AND i.order_id IS NOT NULL
+        ORDER BY i.due_date ASC LIMIT $1`, [KIND_LIMIT]);
+      queries.agingPayReqs = pool.query(`
+        SELECT pr.id, pr.amount, pr.sent_to_email, pr.sent_by_name, pr.created_at, pr.expires_at,
+          pr.order_id, o.order_number, o.customer_name
+        FROM payment_requests pr JOIN orders o ON o.id = pr.order_id
+        WHERE pr.status = 'pending' AND pr.created_at < NOW() - interval '3 days'
+          AND (pr.expires_at IS NULL OR pr.expires_at > NOW())
+        ORDER BY pr.created_at ASC LIMIT $1`, [KIND_LIMIT]);
+      queries.earnedComms = pool.query(`
+        SELECT rc.id, rc.commission_amount, rc.margin, rc.updated_at, rc.created_at, rc.order_id,
+          o.order_number, sr.first_name || ' ' || sr.last_name as rep_name
+        FROM rep_commissions rc
+        JOIN orders o ON o.id = rc.order_id
+        JOIN sales_reps sr ON sr.id = rc.rep_id
+        WHERE rc.status = 'earned'
+        ORDER BY rc.updated_at ASC LIMIT $1`, [KIND_LIMIT]);
+      queries.pickupOrders = pool.query(`
+        SELECT o.id, o.order_number, o.customer_name, o.customer_email, o.phone, o.total, o.created_at,
+          (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count
+        FROM orders o WHERE o.status = 'ready_for_pickup'
+        ORDER BY o.created_at ASC LIMIT $1`, [KIND_LIMIT]);
+    }
+
+    const keys = Object.keys(queries);
+    const results = await Promise.all(Object.values(queries));
+    const data = {};
+    keys.forEach((k, i) => { data[k] = results[i].rows; });
+
+    // Batched trails for orders and POs in the list
+    const orderIds = [
+      ...(data.pendingOrders || []).map(o => o.id),
+      ...(data.pickupOrders || []).map(o => o.id),
+    ];
+    const poIds = [...(data.unackedPos || []), ...(data.draftPos || [])].map(p => p.id);
+    const [orderTrail, poTrail] = await Promise.all([
+      orderIds.length ? pool.query(`
+        SELECT * FROM (
+          SELECT order_id, action, performer_name, created_at,
+            ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY created_at DESC) rn
+          FROM order_activity_log WHERE order_id = ANY($1)
+        ) t WHERE rn <= 3`, [orderIds]) : { rows: [] },
+      poIds.length ? pool.query(`
+        SELECT * FROM (
+          SELECT purchase_order_id, action, performer_name, created_at,
+            ROW_NUMBER() OVER (PARTITION BY purchase_order_id ORDER BY created_at DESC) rn
+          FROM po_activity_log WHERE purchase_order_id = ANY($1)
+        ) t WHERE rn <= 3`, [poIds]) : { rows: [] },
+    ]);
+    const trailTime = (ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const trailsByOrder = {};
+    for (const r of orderTrail.rows) {
+      (trailsByOrder[r.order_id] = trailsByOrder[r.order_id] || []).unshift(
+        [trailTime(r.created_at), r.performer_name || 'System', (r.action || '').replace(/_/g, ' ')]);
+    }
+    const trailsByPo = {};
+    for (const r of poTrail.rows) {
+      (trailsByPo[r.purchase_order_id] = trailsByPo[r.purchase_order_id] || []).unshift(
+        [trailTime(r.created_at), r.performer_name || 'System', (r.action || '').replace(/_/g, ' ')]);
+    }
+
+    const items = [];
+
+    for (const t of (data.tradeApps || [])) {
+      items.push({
+        id: `trade:${t.id}`, stream: 'decide', kind: 'Trade application',
+        sla: sla(t.created_at, 48, 24), age: ageLabel(t.created_at), created_at: t.created_at,
+        who: t.contact_name, entity: t.company_name, amount: 0,
+        title: `${t.company_name} applied for a trade account`,
+        line: `${t.doc_count} document${t.doc_count === 1 ? '' : 's'} uploaded · ${t.ein ? 'EIN on file' : 'no EIN'} · ${t.contractor_license ? 'license on file' : 'no license #'}`,
+        reason: 'A trade application is waiting on a verification decision. Approval unlocks trade pricing; denial sends the applicant a notice with your reason.',
+        facts: [
+          ['Company', t.company_name], ['Contact', t.contact_name], ['Email', t.email],
+          ['Phone', t.phone || '—'], ['EIN', t.ein || 'not provided'],
+          ['License #', t.contractor_license || 'not provided'], ['Documents', String(t.doc_count)],
+        ],
+        log: [[trailTime(t.created_at), t.contact_name, 'Submitted trade application']],
+        actions: [
+          { label: 'Approve at Silver', type: 'primary', method: 'POST', path: `/api/admin/trade-customers/${t.id}/approve`, body: {} },
+          { label: 'Deny', type: 'alt', method: 'POST', path: `/api/admin/trade-customers/${t.id}/deny`, body: {}, noteField: 'denial_reason', requiresNote: true },
+          { label: 'Open account', type: 'alt', nav: { view: 'trade' } },
+        ],
+      });
+    }
+
+    for (const q of (data.newInquiries || [])) {
+      items.push({
+        id: `inquiry:${q.id}`, stream: 'decide', kind: 'Installation inquiry',
+        sla: sla(q.created_at, 48, 24), age: ageLabel(q.created_at), created_at: q.created_at,
+        who: q.customer_name, entity: q.zip_code ? `ZIP ${q.zip_code}` : 'inquiry', amount: 0,
+        title: q.product_name
+          ? `${q.customer_name} asked about installing ${q.product_name}`
+          : `${q.customer_name} sent an installation inquiry`,
+        line: [q.estimated_sqft ? `~${parseFloat(q.estimated_sqft).toLocaleString()} sqft` : null,
+               q.message ? `"${q.message.slice(0, 90)}${q.message.length > 90 ? '…' : ''}"` : null]
+          .filter(Boolean).join(' · ') || 'No details given — reach out to qualify.',
+        reason: 'A new installation lead has had no contact yet. Leads cool fast; first touch inside a day converts best.',
+        facts: [
+          ['Name', q.customer_name], ['Email', q.customer_email], ['Phone', q.phone || '—'],
+          ['ZIP', q.zip_code || '—'], ['Est. sqft', q.estimated_sqft ? String(parseFloat(q.estimated_sqft)) : '—'],
+          ['Product', q.product_name || '—'],
+        ],
+        log: [[trailTime(q.created_at), q.customer_name, 'Submitted inquiry from the storefront']],
+        actions: [
+          { label: 'Mark contacted', type: 'primary', method: 'PUT', path: `/api/admin/installation-inquiries/${q.id}`, body: { status: 'contacted' }, noteField: 'staff_notes' },
+          { label: 'Close as lost', type: 'alt', method: 'PUT', path: `/api/admin/installation-inquiries/${q.id}`, body: { status: 'closed' }, noteField: 'staff_notes' },
+        ],
+      });
+    }
+
+    for (const o of (data.pendingOrders || [])) {
+      const paid = parseFloat(o.amount_paid || 0);
+      const total = parseFloat(o.total || 0);
+      items.push({
+        id: `order-pending:${o.id}`, stream: 'decide', kind: 'Order awaiting confirmation',
+        sla: sla(o.created_at, 24, 8), age: ageLabel(o.created_at), created_at: o.created_at,
+        who: o.customer_name, entity: o.order_number, amount: total,
+        title: `${o.order_number} placed — needs confirmation to start fulfillment`,
+        line: `${o.item_count} line${o.item_count === 1 ? '' : 's'} · ${paid >= total ? 'paid in full' : paid > 0 ? money(paid) + ' of ' + money(total) + ' paid' : 'unpaid'} · ${o.delivery_method === 'pickup' ? 'customer pickup' : 'shipping'}`,
+        reason: 'Confirming the order releases it into fulfillment and auto-generates vendor purchase orders. Until then nothing is on order with vendors.',
+        facts: [
+          ['Order', o.order_number], ['Customer', o.customer_name], ['Total', money(total)],
+          ['Paid', money(paid)], ['Items', String(o.item_count)],
+          ['Delivery', o.delivery_method || 'shipping'], ['Payment', o.payment_method || '—'],
+        ],
+        log: trailsByOrder[o.id] || [[trailTime(o.created_at), o.customer_name, 'Order placed']],
+        actions: [
+          { label: 'Confirm order', type: 'primary', method: 'PUT', path: `/api/admin/orders/${o.id}/status`, body: { status: 'confirmed' } },
+          { label: 'Open order', type: 'alt', nav: { view: 'order-detail', id: o.id } },
+        ],
+      });
+    }
+
+    for (const p of (data.unackedPos || [])) {
+      const sentAt = p.approved_at || p.created_at;
+      items.push({
+        id: `po-unacked:${p.id}`, stream: 'vendor', kind: 'Unconfirmed PO',
+        sla: sla(sentAt, 48, 24), age: ageLabel(sentAt), created_at: sentAt,
+        who: p.vendor_name, entity: p.po_number, amount: parseFloat(p.subtotal || 0),
+        title: `${p.vendor_name} has not acknowledged ${p.po_number}`,
+        line: `Sent ${ageLabel(sentAt)} ago${p.order_number ? ' · feeds order ' + p.order_number : ''} · vendor SLA is 48h`,
+        reason: 'The purchase order went out but the vendor has not confirmed it. Silence past the SLA usually means a stock or pricing problem — chase or confirm manually.',
+        facts: [
+          ['PO', p.po_number], ['Vendor', p.vendor_name], ['Value', money(p.subtotal)],
+          ['Sent', trailTime(sentAt)], ['Order', p.order_number || '—'],
+        ],
+        log: trailsByPo[p.id] || [[trailTime(sentAt), 'System', 'PO sent to vendor']],
+        actions: [
+          { label: 'Mark acknowledged', type: 'primary', method: 'PUT', path: `/api/admin/purchase-orders/${p.id}/status`, body: { status: 'acknowledged' } },
+          { label: 'Open PO', type: 'alt', nav: { view: 'purchase-order-detail', id: p.id } },
+        ],
+      });
+    }
+
+    for (const p of (data.draftPos || [])) {
+      items.push({
+        id: `po-draft:${p.id}`, stream: 'vendor', kind: 'Draft PO not sent',
+        sla: sla(p.created_at, 72, 24), age: ageLabel(p.created_at), created_at: p.created_at,
+        who: p.vendor_name, entity: p.po_number, amount: parseFloat(p.subtotal || 0),
+        title: `${p.po_number} is still a draft — nothing is on order with ${p.vendor_name}`,
+        line: `Created ${ageLabel(p.created_at)} ago${p.order_number ? ' · feeds order ' + p.order_number : ''}`,
+        reason: 'A purchase order was generated but never sent. The customer order it feeds cannot move until the vendor has it.',
+        facts: [
+          ['PO', p.po_number], ['Vendor', p.vendor_name], ['Value', money(p.subtotal)],
+          ['Created', trailTime(p.created_at)], ['Order', p.order_number || '—'],
+        ],
+        log: trailsByPo[p.id] || [[trailTime(p.created_at), 'System', 'PO drafted']],
+        actions: [
+          { label: 'Review & send PO', type: 'primary', nav: { view: 'purchase-order-detail', id: p.id } },
+        ],
+      });
+    }
+
+    for (const i of (data.overdueInvoices || [])) {
+      const daysLate = Math.floor((Date.now() - new Date(i.due_date).getTime()) / 86400000);
+      items.push({
+        id: `invoice:${i.id}`, stream: 'money', kind: 'Overdue invoice',
+        sla: daysLate > 7 ? 'breach' : 'today', age: `${daysLate}d late`, created_at: i.due_date,
+        who: i.customer_name || i.customer_email || 'Customer', entity: i.invoice_number,
+        amount: parseFloat(i.balance || 0),
+        title: `${i.invoice_number} is ${daysLate} day${daysLate === 1 ? '' : 's'} past due — ${money(i.balance)} open`,
+        line: `${money(i.amount_paid)} of ${money(i.total)} collected${i.order_number ? ' · order ' + i.order_number : ''}`,
+        reason: 'The invoice is past its due date with a balance outstanding. Chase payment or record what has been received.',
+        facts: [
+          ['Invoice', i.invoice_number], ['Customer', i.customer_name || i.customer_email || '—'],
+          ['Total', money(i.total)], ['Paid', money(i.amount_paid)], ['Balance', money(i.balance)],
+          ['Due', trailTime(i.due_date)], ['Order', i.order_number || '—'],
+        ],
+        log: [[trailTime(i.issue_date), 'System', 'Invoice issued'], [trailTime(i.due_date), 'System', 'Payment due']],
+        actions: [{ label: 'Open order', type: 'primary', nav: { view: 'order-detail', id: i.order_id } }],
+      });
+    }
+
+    for (const r of (data.agingPayReqs || [])) {
+      items.push({
+        id: `payreq:${r.id}`, stream: 'money', kind: 'Payment link unanswered',
+        sla: sla(r.created_at, 168, 72), age: ageLabel(r.created_at), created_at: r.created_at,
+        who: r.customer_name || r.sent_to_email, entity: r.order_number, amount: parseFloat(r.amount || 0),
+        title: `Payment link for ${money(r.amount)} on ${r.order_number} has gone unanswered`,
+        line: `Sent to ${r.sent_to_email}${r.sent_by_name ? ' by ' + r.sent_by_name : ''} · ${ageLabel(r.created_at)} ago`,
+        reason: 'A payment request was sent but never paid. Chase the customer, resend from the order, or cancel the request.',
+        facts: [
+          ['Order', r.order_number], ['Amount', money(r.amount)], ['Sent to', r.sent_to_email],
+          ['Sent by', r.sent_by_name || '—'], ['Sent', trailTime(r.created_at)],
+          ['Expires', r.expires_at ? trailTime(r.expires_at) : 'never'],
+        ],
+        log: [[trailTime(r.created_at), r.sent_by_name || 'System', 'Payment link sent']],
+        actions: [
+          { label: 'Open order', type: 'primary', nav: { view: 'order-detail', id: r.order_id } },
+          { label: 'Cancel request', type: 'alt', method: 'POST', path: `/api/admin/orders/${r.order_id}/payment-requests/${r.id}/cancel`, body: {} },
+        ],
+      });
+    }
+
+    for (const c of (data.earnedComms || [])) {
+      items.push({
+        id: `commission:${c.id}`, stream: 'money', kind: 'Commission payable',
+        sla: sla(c.updated_at, 336, 168), age: ageLabel(c.updated_at), created_at: c.updated_at,
+        who: c.rep_name, entity: c.order_number, amount: parseFloat(c.commission_amount || 0),
+        title: `${c.rep_name} earned ${money(c.commission_amount)} on ${c.order_number}`,
+        line: `Order finalized — commission is locked and ready to pay`,
+        reason: 'The order is delivered and paid, so the commission has moved to earned. It stays here until you mark it paid.',
+        facts: [
+          ['Rep', c.rep_name], ['Order', c.order_number],
+          ['Commission', money(c.commission_amount)], ['Margin', money(c.margin)],
+          ['Earned', trailTime(c.updated_at)],
+        ],
+        log: [[trailTime(c.updated_at), 'System', 'Commission moved to earned']],
+        actions: [
+          { label: 'Mark paid', type: 'primary', method: 'POST', path: `/api/admin/accounting/commissions/${c.id}/pay`, body: {} },
+          { label: 'Open order', type: 'alt', nav: { view: 'order-detail', id: c.order_id } },
+        ],
+      });
+    }
+
+    for (const o of (data.pickupOrders || [])) {
+      items.push({
+        id: `pickup:${o.id}`, stream: 'ops', kind: 'Awaiting pickup',
+        sla: sla(o.created_at, 336, 168), age: ageLabel(o.created_at), created_at: o.created_at,
+        who: o.customer_name, entity: o.order_number, amount: parseFloat(o.total || 0),
+        title: `${o.order_number} is ready — ${o.customer_name} has not picked up`,
+        line: `${o.item_count} line${o.item_count === 1 ? '' : 's'} staged${o.phone ? ' · ' + o.phone : ''}`,
+        reason: 'Material is staged for customer pickup and taking up floor space. When it leaves, mark the order picked up to finalize it.',
+        facts: [
+          ['Order', o.order_number], ['Customer', o.customer_name], ['Phone', o.phone || '—'],
+          ['Items', String(o.item_count)], ['Total', money(o.total)],
+        ],
+        log: trailsByOrder[o.id] || [[trailTime(o.created_at), 'System', 'Marked ready for pickup']],
+        actions: [
+          { label: 'Mark picked up', type: 'primary', method: 'PUT', path: `/api/admin/orders/${o.id}/status`, body: { status: 'delivered' } },
+          { label: 'Open order', type: 'alt', nav: { view: 'order-detail', id: o.id } },
+        ],
+      });
+    }
+
+    // Oldest first within the queue, matching the worklist sort label
+    items.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+    res.json({ items, generated_at: new Date().toISOString() });
+  } catch (err) {
+    console.error('worklist error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/admin/stats', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const counts = await pool.query(`
@@ -7533,6 +7863,101 @@ app.delete('/api/admin/categories/:id', staffAuth, requireRole('admin', 'manager
 });
 
 // List all orders
+// Orders ledger — console list view. One row per order with a derived stage,
+// risk level, blocker line, and the saved views it belongs to. Registered
+// before /api/admin/orders/:id so 'ledger' is not captured as an :id.
+app.get('/api/admin/orders/ledger', staffAuth, async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT o.id, o.order_number, o.customer_name, o.customer_email, o.status, o.total, o.amount_paid,
+        o.delivery_method, o.payment_method, o.created_at, o.shipped_at, o.tracking_number,
+        sr.first_name || ' ' || sr.last_name as rep_name,
+        tc.company_name as trade_company,
+        (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count,
+        COALESCE(po.total_pos, 0) as total_pos,
+        COALESCE(po.draft_pos, 0) as draft_pos,
+        COALESCE(po.unacked_pos, 0) as unacked_pos,
+        po.oldest_unacked, po.oldest_draft
+      FROM orders o
+      LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
+      LEFT JOIN trade_customers tc ON tc.id = o.trade_customer_id
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*)::int as total_pos,
+          COUNT(*) FILTER (WHERE p.status = 'draft')::int as draft_pos,
+          COUNT(*) FILTER (WHERE p.status = 'sent' AND p.edi_ack_status IS NULL)::int as unacked_pos,
+          MIN(COALESCE(p.approved_at, p.created_at)) FILTER (WHERE p.status = 'sent' AND p.edi_ack_status IS NULL) as oldest_unacked,
+          MIN(p.created_at) FILTER (WHERE p.status = 'draft') as oldest_draft
+        FROM purchase_orders p WHERE p.order_id = o.id
+      ) po ON true
+      ORDER BY o.created_at DESC
+      LIMIT 500
+    `);
+
+    const h = (ts) => ts ? (Date.now() - new Date(ts).getTime()) / 3600000 : 0;
+    const fmt = (n) => '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+    const orders = r.rows.map(o => {
+      const total = parseFloat(o.total || 0);
+      const paid = parseFloat(o.amount_paid || 0);
+      const balance = Math.max(0, total - paid);
+      const paidUp = balance <= 0.005;
+
+      let stage = 0;
+      if (o.status !== 'pending') stage = 1;
+      if (o.total_pos > 0 && o.draft_pos === 0) stage = 2;
+      if (o.total_pos > 0 && o.draft_pos === 0 && o.unacked_pos === 0) stage = 3;
+      if (o.status === 'ready_for_pickup' || o.status === 'shipped') stage = 4;
+      if (o.status === 'delivered') stage = 5;
+      if (o.status === 'delivered' && paidUp) stage = 6;
+
+      let risk = 'ok', blocker;
+      if (o.status === 'cancelled') blocker = 'Cancelled';
+      else if (o.status === 'refunded') blocker = 'Refunded';
+      else if (o.status === 'pending') {
+        blocker = 'Awaiting confirmation — nothing is on order with vendors';
+        risk = h(o.created_at) > 24 ? 'breach' : h(o.created_at) > 8 ? 'today' : 'ok';
+      } else if (o.draft_pos > 0) {
+        blocker = `${o.draft_pos} PO${o.draft_pos === 1 ? '' : 's'} drafted but never sent`;
+        risk = h(o.oldest_draft) > 72 ? 'breach' : 'today';
+      } else if (o.unacked_pos > 0) {
+        blocker = `Vendor has not confirmed ${o.unacked_pos === 1 ? 'a PO' : o.unacked_pos + ' POs'}`;
+        risk = h(o.oldest_unacked) > 48 ? 'breach' : 'today';
+      } else if (o.status === 'confirmed' && o.total_pos === 0) {
+        blocker = 'Confirmed with no purchase orders — source the material';
+        risk = 'today';
+      } else if (o.status === 'ready_for_pickup') {
+        blocker = 'Staged — waiting on customer pickup';
+        risk = h(o.created_at) > 336 ? 'breach' : h(o.created_at) > 168 ? 'today' : 'ok';
+      } else if (o.status === 'shipped') {
+        blocker = o.tracking_number ? `In transit · ${o.tracking_number}` : 'In transit';
+      } else if (o.status === 'delivered' && !paidUp) {
+        blocker = `Delivered — ${fmt(balance)} unpaid`;
+        risk = 'today';
+      } else if (o.status === 'delivered') {
+        blocker = 'Complete — delivered and paid';
+      } else {
+        blocker = 'Material on order with the vendor';
+      }
+
+      const closed = o.status === 'cancelled' || o.status === 'refunded' || (o.status === 'delivered' && paidUp);
+      const views = [];
+      if (!closed) views.push('active');
+      if (!closed && risk !== 'ok') views.push('risk');
+      if (!closed && (o.draft_pos > 0 || o.unacked_pos > 0 || (o.status === 'confirmed' && o.total_pos === 0))) views.push('vendor');
+      if (o.status === 'ready_for_pickup') views.push('pickup');
+      if (o.status === 'delivered' && !paidUp) views.push('unpaid');
+      if (closed) views.push('closed');
+
+      return { ...o, balance, stage, risk, blocker, views };
+    });
+
+    res.json({ orders });
+  } catch (err) {
+    console.error('orders ledger error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/admin/orders', staffAuth, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -7554,8 +7979,10 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const order = await pool.query(`
-      SELECT o.*, sr.first_name || ' ' || sr.last_name as rep_name
-      FROM orders o LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
+      SELECT o.*, COALESCE(sr.first_name || ' ' || sr.last_name, rp.first_name || ' ' || rp.last_name) as rep_name
+      FROM orders o
+      LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
+      LEFT JOIN sales_reps rp ON rp.id = o.sales_rep_id
       WHERE o.id = $1
     `, [id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
@@ -7581,7 +8008,22 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
     const paymentRequests = await pool.query('SELECT * FROM payment_requests WHERE order_id = $1 ORDER BY created_at DESC', [id]);
     const balanceInfo = await recalculateBalance(pool, id);
 
-    res.json({ order: order.rows[0], items: items.rows, payments: payments.rows, payment_requests: paymentRequests.rows, balance: balanceInfo });
+    // Margin & commission + accounting invoices — same shape the rep order view
+    // uses, so the admin record can show the identical cards.
+    const commission = await pool.query(`
+      SELECT rc.*, sr.first_name || ' ' || sr.last_name as rep_name
+      FROM rep_commissions rc
+      LEFT JOIN sales_reps sr ON sr.id = rc.rep_id
+      WHERE rc.order_id = $1
+    `, [id]);
+    const invoices = await pool.query(`
+      SELECT id, invoice_number, issue_date, due_date, subtotal, tax_amount, shipping,
+        discount_amount, total, amount_paid, balance, status, sent_at, paid_at, notes, created_at
+      FROM invoices WHERE order_id = $1
+      ORDER BY created_at DESC
+    `, [id]);
+
+    res.json({ order: order.rows[0], items: items.rows, payments: payments.rows, payment_requests: paymentRequests.rows, balance: balanceInfo, commission: commission.rows[0] || null, invoices: invoices.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -21109,17 +21551,24 @@ app.get('/api/rep/customers', repAuth, async (req, res) => {
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
 
+    // "Open work" = orders/quotes still in flight (not delivered/cancelled/refunded, and draft/sent quotes)
+    const OPEN_ORDER_FILTER = `o.status NOT IN ('cancelled','refunded','delivered')`;
+
     const queries = [];
 
     // Retail customers
     if (type === 'all' || type === 'retail') {
       queries.push(pool.query(`
-        SELECT c.id, c.first_name || ' ' || c.last_name as name, c.email, c.phone,
+        SELECT c.id, c.first_name || ' ' || c.last_name as name, c.email, c.phone, c.city,
           'retail' as customer_type, c.created_at,
           c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as assigned_rep_name,
           COUNT(o.id)::int as order_count,
           COALESCE(SUM(o.total), 0) as total_spent,
-          MAX(o.created_at) as last_order_date
+          MAX(o.created_at) as last_order_date,
+          (COUNT(o.id) FILTER (WHERE ${OPEN_ORDER_FILTER}))::int as open_orders,
+          COALESCE(SUM(o.total) FILTER (WHERE ${OPEN_ORDER_FILTER}), 0) as open_order_value,
+          (SELECT COUNT(*)::int FROM quotes q WHERE LOWER(q.customer_email) = LOWER(c.email) AND q.status IN ('draft','sent')) as open_quotes,
+          (SELECT COALESCE(SUM(q.total), 0) FROM quotes q WHERE LOWER(q.customer_email) = LOWER(c.email) AND q.status IN ('draft','sent')) as open_quote_value
         FROM customers c
         LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
         LEFT JOIN orders o ON o.customer_id = c.id
@@ -21129,32 +21578,56 @@ app.get('/api/rep/customers', repAuth, async (req, res) => {
 
     // Guest customers
     if (type === 'all' || type === 'guest') {
+      // Guests group by an email expression (not a PK), so open-quote counts come
+      // from a joined per-email aggregate rather than a correlated subquery.
       queries.push(pool.query(`
-        SELECT 'guest_' || LOWER(o.customer_email) as id,
-          (array_agg(o.customer_name ORDER BY o.created_at DESC))[1] as name,
-          LOWER(o.customer_email) as email,
-          (array_agg(o.phone ORDER BY o.created_at DESC))[1] as phone,
-          'guest' as customer_type,
-          MIN(o.created_at) as created_at,
-          COUNT(o.id)::int as order_count,
-          COALESCE(SUM(o.total), 0) as total_spent,
-          MAX(o.created_at) as last_order_date
-        FROM orders o
-        WHERE o.customer_id IS NULL AND o.trade_customer_id IS NULL
-          AND o.customer_email IS NOT NULL
-        GROUP BY LOWER(o.customer_email)
+        SELECT g.id, g.name, g.email, g.phone, g.city, g.customer_type, g.created_at,
+          g.order_count, g.total_spent, g.last_order_date, g.open_orders, g.open_order_value,
+          COALESCE(qc.open_quotes, 0)::int as open_quotes,
+          COALESCE(qc.open_quote_value, 0) as open_quote_value
+        FROM (
+          SELECT 'guest_' || LOWER(o.customer_email) as id,
+            LOWER(o.customer_email) as email_key,
+            (array_agg(o.customer_name ORDER BY o.created_at DESC))[1] as name,
+            LOWER(o.customer_email) as email,
+            (array_agg(o.phone ORDER BY o.created_at DESC))[1] as phone,
+            (array_agg(o.shipping_city ORDER BY o.created_at DESC))[1] as city,
+            'guest' as customer_type,
+            MIN(o.created_at) as created_at,
+            COUNT(o.id)::int as order_count,
+            COALESCE(SUM(o.total), 0) as total_spent,
+            MAX(o.created_at) as last_order_date,
+            (COUNT(o.id) FILTER (WHERE ${OPEN_ORDER_FILTER}))::int as open_orders,
+            COALESCE(SUM(o.total) FILTER (WHERE ${OPEN_ORDER_FILTER}), 0) as open_order_value
+          FROM orders o
+          WHERE o.customer_id IS NULL AND o.trade_customer_id IS NULL
+            AND o.customer_email IS NOT NULL
+          GROUP BY LOWER(o.customer_email)
+        ) g
+        LEFT JOIN (
+          SELECT LOWER(q.customer_email) as email_key,
+            COUNT(*)::int as open_quotes,
+            COALESCE(SUM(q.total), 0) as open_quote_value
+          FROM quotes q
+          WHERE q.status IN ('draft','sent') AND q.customer_email IS NOT NULL
+          GROUP BY LOWER(q.customer_email)
+        ) qc ON qc.email_key = g.email_key
       `));
     }
 
     // Trade customers
     if (type === 'all' || type === 'trade') {
       queries.push(pool.query(`
-        SELECT tc.id, tc.contact_name as name, tc.email, tc.phone,
+        SELECT tc.id, tc.contact_name as name, tc.email, tc.phone, tc.city,
           'trade' as customer_type, tc.created_at,
           COUNT(o.id)::int as order_count,
           COALESCE(SUM(o.total), 0) as total_spent,
           MAX(o.created_at) as last_order_date,
-          tc.company_name, mt.name as tier_name, tc.status as trade_status
+          tc.company_name, mt.name as tier_name, tc.status as trade_status,
+          (COUNT(o.id) FILTER (WHERE ${OPEN_ORDER_FILTER}))::int as open_orders,
+          COALESCE(SUM(o.total) FILTER (WHERE ${OPEN_ORDER_FILTER}), 0) as open_order_value,
+          (SELECT COUNT(*)::int FROM quotes q WHERE q.trade_customer_id = tc.id AND q.status IN ('draft','sent')) as open_quotes,
+          (SELECT COALESCE(SUM(q.total), 0) FROM quotes q WHERE q.trade_customer_id = tc.id AND q.status IN ('draft','sent')) as open_quote_value
         FROM trade_customers tc
         LEFT JOIN orders o ON o.trade_customer_id = tc.id
         LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
@@ -21168,11 +21641,15 @@ app.get('/api/rep/customers', repAuth, async (req, res) => {
       all = all.concat(r.rows);
     }
 
-    // Prefix IDs for retail/trade (guest already prefixed in query)
+    // Prefix IDs for retail/trade (guest already prefixed in query) + normalize numerics
     all = all.map(c => {
       if (c.customer_type === 'retail') c.id = 'retail_' + c.id;
       else if (c.customer_type === 'trade') c.id = 'trade_' + c.id;
       c.total_spent = parseFloat(c.total_spent) || 0;
+      c.open_orders = parseInt(c.open_orders) || 0;
+      c.open_order_value = parseFloat(c.open_order_value) || 0;
+      c.open_quotes = parseInt(c.open_quotes) || 0;
+      c.open_quote_value = parseFloat(c.open_quote_value) || 0;
       return c;
     });
 
@@ -21188,6 +21665,40 @@ app.get('/api/rep/customers', repAuth, async (req, res) => {
     }
 
     const total = all.length;
+
+    // ── Book-wide summary + "needs you today" attention (computed over the full filtered set,
+    //    so the KPI band and cards reflect the whole book, not just the current page) ──
+    const NOW = Date.now(), DAY = 86400000;
+    const daysSince = c => c.last_order_date ? Math.floor((NOW - new Date(c.last_order_date).getTime()) / DAY) : null;
+    const summary = {
+      book_value: all.reduce((s, c) => s + c.total_spent, 0),
+      account_count: total,
+      open_work_value: all.reduce((s, c) => s + c.open_order_value + c.open_quote_value, 0),
+      open_orders: all.reduce((s, c) => s + c.open_orders, 0),
+      open_quotes: all.reduce((s, c) => s + c.open_quotes, 0),
+      touched_week: all.filter(c => { const d = daysSince(c); return d !== null && d <= 7; }).length,
+      going_cold: all.filter(c => c.order_count > 0 && (daysSince(c) || 0) > 180).length,
+    };
+
+    // Attention cards — greedily pick real accounts, no account used twice
+    const used = new Set();
+    const pick = list => { for (const c of list) { if (!used.has(c.id)) { used.add(c.id); return c; } } return null; };
+    const money0 = v => '$' + Math.round(v).toLocaleString();
+    const displayName = c => c.company_name || c.name || 'Unknown';
+    const cardMeta = c => money0(c.total_spent) + ' LTV' + (c.city ? ' · ' + c.city : '');
+    const attention = [];
+    const cold = pick(all.filter(c => c.order_count > 0 && (daysSince(c) || 0) > 180).sort((a, b) => b.total_spent - a.total_spent));
+    if (cold) attention.push({ id: cold.id, type: cold.customer_type, tone: '#c54731', kicker: 'Going cold', name: displayName(cold),
+      body: `No contact in ${daysSince(cold)} days after ${cold.order_count} order${cold.order_count !== 1 ? 's' : ''}. Worth a check-in.`, cta: 'Log call', meta: cardMeta(cold) });
+    const quoteWait = pick(all.filter(c => c.open_quotes > 0).sort((a, b) => b.open_quote_value - a.open_quote_value));
+    if (quoteWait) attention.push({ id: quoteWait.id, type: quoteWait.customer_type, tone: '#a87935', kicker: 'Quote awaiting review', name: displayName(quoteWait),
+      body: `${quoteWait.open_quotes} open quote${quoteWait.open_quotes !== 1 ? 's' : ''} worth ${money0(quoteWait.open_quote_value)} sitting with them.`, cta: 'Review', meta: cardMeta(quoteWait) });
+    const tierUp = pick(all.filter(c => c.customer_type === 'trade' && c.total_spent >= 150000).sort((a, b) => b.total_spent - a.total_spent));
+    if (tierUp) attention.push({ id: tierUp.id, type: tierUp.customer_type, tone: '#a87935', kicker: 'Ready to tier up', name: displayName(tierUp),
+      body: `Crossed ${money0(tierUp.total_spent)} lifetime — worth a trade pricing review.`, cta: 'Open', meta: cardMeta(tierUp) });
+    const inFlight = pick(all.filter(c => c.open_orders > 0).sort((a, b) => b.open_order_value - a.open_order_value));
+    if (inFlight) attention.push({ id: inFlight.id, type: inFlight.customer_type, tone: '#3a7a4e', kicker: 'Order in flight', name: displayName(inFlight),
+      body: `${inFlight.open_orders} order${inFlight.open_orders !== 1 ? 's' : ''} in progress worth ${money0(inFlight.open_order_value)}.`, cta: 'Open', meta: cardMeta(inFlight) });
 
     // Sort
     const sortDir2 = (dir || 'desc').toLowerCase() === 'asc' ? 1 : -1;
@@ -21211,7 +21722,39 @@ app.get('/api/rep/customers', repAuth, async (req, res) => {
     const offset = (pageNum - 1) * limitNum;
     const customers = all.slice(offset, offset + limitNum);
 
-    res.json({ customers, total, page: pageNum, limit: limitNum });
+    res.json({ customers, total, page: pageNum, limit: limitNum, summary, attention });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/rep/customers — create a retail customer, assigned to the current rep
+app.post('/api/rep/customers', repAuth, async (req, res) => {
+  try {
+    const { first_name, last_name, email, phone, address_line1, address_line2, city, state, zip } = req.body || {};
+    if (!first_name || !first_name.trim()) return res.status(400).json({ error: 'First name is required' });
+    if (!last_name || !last_name.trim()) return res.status(400).json({ error: 'Last name is required' });
+    if (!email || !email.trim()) return res.status(400).json({ error: 'Email is required' });
+    const emailNorm = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailNorm)) return res.status(400).json({ error: 'Enter a valid email address' });
+
+    // Email must be unique across retail + trade accounts
+    const dupe = await pool.query(
+      `SELECT 1 FROM customers WHERE LOWER(email) = $1
+       UNION ALL SELECT 1 FROM trade_customers WHERE LOWER(email) = $1 LIMIT 1`, [emailNorm]);
+    if (dupe.rows.length) return res.status(409).json({ error: 'A customer with that email already exists' });
+
+    // Rep-created customers have no password yet (password_set = false); generate a random hash
+    const { hash, salt } = await hashPassword(crypto.randomBytes(24).toString('hex'));
+    const result = await pool.query(
+      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone,
+        address_line1, address_line2, city, state, zip, created_via, assigned_rep_id, assigned_at, password_set)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'rep',$12, CURRENT_TIMESTAMP, false) RETURNING id`,
+      [emailNorm, hash, salt, first_name.trim(), last_name.trim(), (phone || '').trim() || null,
+       (address_line1 || '').trim() || null, (address_line2 || '').trim() || null,
+       (city || '').trim() || null, (state || '').trim() || null, (zip || '').trim() || null, req.rep.id]);
+
+    res.status(201).json({ id: result.rows[0].id });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -21381,7 +21924,73 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
       } catch (e) { return []; }
     })();
 
-    const [quotes, paymentRequests] = await Promise.all([quotesPromise, paymentReqPromise]);
+    // Estimates link by customer_id (retail) or customer_email (all types)
+    const estimatesPromise = (async () => {
+      try {
+        const cols = `e.id, e.estimate_number, e.project_name, e.total, e.status, e.expires_at, e.created_at,
+          e.converted_quote_id, e.converted_order_id,
+          CASE WHEN e.status = 'sent' AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
+          (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count`;
+        const email = (customer.email || '').toLowerCase();
+        let result;
+        if (type === 'retail') {
+          result = await pool.query(
+            `SELECT ${cols} FROM estimates e WHERE e.customer_id = $1 OR ($2 <> '' AND LOWER(e.customer_email) = $2) ORDER BY e.created_at DESC`,
+            [refId, email]);
+        } else {
+          if (!email) return [];
+          result = await pool.query(
+            `SELECT ${cols} FROM estimates e WHERE LOWER(e.customer_email) = $1 ORDER BY e.created_at DESC`,
+            [email]);
+        }
+        return result.rows;
+      } catch (e) { return []; }
+    })();
+
+    // Sample requests + showroom visits (both link by customer email)
+    const samplesPromise = (async () => {
+      try {
+        const email = (customer.email || '').toLowerCase();
+        if (!email) return [];
+        const r = await pool.query(`
+          SELECT sr.id, sr.request_number, sr.status, sr.delivery_method, sr.created_at, sr.shipped_at, sr.delivered_at, sr.tracking_number,
+            (SELECT COUNT(*)::int FROM sample_request_items WHERE sample_request_id = sr.id) as item_count
+          FROM sample_requests sr WHERE LOWER(sr.customer_email) = $1 ORDER BY sr.created_at DESC`, [email]);
+        return r.rows;
+      } catch (e) { return []; }
+    })();
+
+    const visitsPromise = (async () => {
+      try {
+        const email = (customer.email || '').toLowerCase();
+        if (!email) return [];
+        const r = await pool.query(`
+          SELECT sv.id, sv.status, sv.sent_at, sv.opened_at, sv.items_carted_at, sv.quote_requested_at, sv.created_at,
+            (SELECT COUNT(*)::int FROM showroom_visit_items WHERE visit_id = sv.id) as item_count
+          FROM showroom_visits sv WHERE LOWER(sv.customer_email) = $1 ORDER BY sv.created_at DESC`, [email]);
+        return r.rows;
+      } catch (e) { return []; }
+    })();
+
+    // Transactions — actual payments recorded against the customer's orders
+    const transactionsPromise = (async () => {
+      try {
+        if (!orderIds.length) return [];
+        const r = await pool.query(`
+          SELECT op.id, op.order_id, op.payment_type, op.payment_method, op.amount, op.description, op.created_at, op.initiated_by_name,
+            (op.stripe_refund_id IS NOT NULL OR op.refund_of_payment_id IS NOT NULL) as is_refund,
+            o.order_number
+          FROM order_payments op
+          JOIN orders o ON o.id = op.order_id
+          WHERE op.order_id = ANY($1::uuid[]) AND op.status = 'completed'
+          ORDER BY op.created_at DESC
+          LIMIT 100
+        `, [orderIds]);
+        return r.rows;
+      } catch (e) { return []; }
+    })();
+
+    const [quotes, paymentRequests, estimates, samples, visits, transactions] = await Promise.all([quotesPromise, paymentReqPromise, estimatesPromise, samplesPromise, visitsPromise, transactionsPromise]);
 
     const openQuotesCount = quotes.length;
     const openQuotesValue = quotes.reduce((sum, q) => sum + (parseFloat(q.total) || 0), 0);
@@ -21394,6 +22003,10 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
       notes: notesResult.rows,
       quotes,
       payment_requests: paymentRequests,
+      estimates,
+      samples,
+      visits,
+      transactions,
       stats: {
         total_orders: totalOrders, total_spent: totalSpent, avg_order_value: avgOrderValue,
         first_order_date: firstOrderDate, last_order_date: lastOrderDate,
@@ -21701,6 +22314,65 @@ app.get('/api/rep/customers/:id/timeline', repAuth, async (req, res) => {
     // Sort by timestamp desc, limit to 100
     timeline.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     res.json({ timeline: timeline.slice(0, 100) });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/rep/customers/:id/materials — "what they buy": distinct products across
+// the customer's real orders, with count, last-purchased, and a primary image.
+app.get('/api/rep/customers/:id/materials', repAuth, async (req, res) => {
+  try {
+    const { type } = req.query;
+    const refId = req.params.id;
+    if (!type || !['retail', 'guest', 'trade'].includes(type)) {
+      return res.status(400).json({ error: 'type query param required (retail|guest|trade)' });
+    }
+
+    let where, param;
+    if (type === 'retail') { where = 'o.customer_id = $1'; param = refId; }
+    else if (type === 'trade') { where = 'o.trade_customer_id = $1'; param = refId; }
+    else { where = 'LOWER(o.customer_email) = $1 AND o.customer_id IS NULL AND o.trade_customer_id IS NULL'; param = refId.toLowerCase(); }
+
+    const result = await pool.query(`
+      SELECT oi.product_id,
+        MAX(oi.product_name) as product_name,
+        MAX(oi.collection) as collection,
+        COUNT(DISTINCT oi.order_id)::int as order_count,
+        COALESCE(SUM(oi.num_boxes), 0)::numeric as total_boxes,
+        MAX(o.created_at) as last_purchased,
+        (SELECT ma.url FROM media_assets ma
+          WHERE ma.product_id = oi.product_id
+          ORDER BY CASE WHEN ma.asset_type = 'primary' THEN 0 ELSE 1 END,
+                   CASE WHEN ma.sku_id IS NULL THEN 0 ELSE 1 END, ma.sort_order
+          LIMIT 1) as image
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE ${where}
+        AND o.status NOT IN ('cancelled')
+        AND COALESCE(oi.is_sample, false) = false
+        AND COALESCE(oi.item_type, 'product') <> 'labor'
+        AND oi.product_id IS NOT NULL
+      GROUP BY oi.product_id
+      ORDER BY MAX(o.created_at) DESC
+      LIMIT 14
+    `, [param]);
+
+    const uniqueRes = await pool.query(`
+      SELECT COUNT(DISTINCT oi.product_id)::int as unique_skus
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE ${where}
+        AND o.status NOT IN ('cancelled')
+        AND COALESCE(oi.is_sample, false) = false
+        AND COALESCE(oi.item_type, 'product') <> 'labor'
+        AND oi.product_id IS NOT NULL
+    `, [param]);
+
+    res.json({
+      materials: result.rows.map(m => ({ ...m, total_boxes: parseFloat(m.total_boxes) || 0 })),
+      unique_skus: uniqueRes.rows[0] ? uniqueRes.rows[0].unique_skus : 0,
+    });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
