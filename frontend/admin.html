@@ -4434,7 +4434,7 @@
 
     // ========== QuotesListView ==========
     // Staff ledger over every rep's quote pipeline — same console grammar as orders
-    const QUOTE_STAGES = ['Drafted', 'Sent', 'Viewed', 'Accepted', 'Converted'];
+    const QUOTE_STAGES = ['Drafted', 'Sent', 'Viewed', 'Replied', 'Accepted', 'Converted'];
     const QUOTE_VIEWS = [
       { id: 'open', label: 'Open', hint: 'in market' },
       { id: 'hot', label: 'Hot', hint: 'opened 3+ times' },
@@ -4765,20 +4765,49 @@
         : qRisk === 'today' ? 'var(--gold)'
         : quote.status === 'draft' ? 'var(--dim)' : 'var(--cool)';
 
-      let qStage = 0;
-      if (quote.status !== 'draft') qStage = 1;
-      if (qStage >= 1 && engagement.opens > 0) qStage = 2;
-      if (quote.status === 'accepted') qStage = 3;
-      if (quote.status === 'converted') qStage = 4;
       const evFirst = t => { const e = events.find(ev => ev.event_type === t); return e ? e.created_at : null; };
+      const lastSentEvent = [...events].reverse().find(e => e.event_type === 'sent');
+      const railDead = quote.status === 'declined' || qExpired;
+      // 6-step lifecycle, same ladder the rep workspace walks:
+      // Drafted → Sent → Viewed → Replied → Accepted → Converted
+      let qStage = 0;
+      if (quote.status === 'converted') qStage = 5;
+      else if (quote.status === 'accepted' || railDead) qStage = 4;
+      else if (quote.status === 'sent') qStage = engagement.replies > 0 ? 3 : engagement.opens > 0 ? 2 : 1;
       const qRail = [
         ['Drafted', qDd(quote.created_at)],
-        ['Sent', qDd(evFirst('sent'))],
-        ['Viewed', engagement.opens ? engagement.opens + (engagement.opens === 1 ? ' OPEN' : ' OPENS') : ''],
-        ['Accepted', qDd(evFirst('accepted'))],
-        ['Converted', quote.converted_order_number || qDd(evFirst('converted'))],
+        ['Sent', quote.status === 'draft' ? 'NOT YET' : lastSentEvent ? qDd(lastSentEvent.created_at) : ['accepted', 'converted'].includes(quote.status) ? 'DIRECT' : 'EMAILED'],
+        ['Viewed', engagement.opens ? engagement.opens + (engagement.opens === 1 ? ' OPEN' : ' OPENS') : 'NO OPENS'],
+        ['Replied', engagement.replies ? qDd(engagement.last_reply_at) : 'NONE LOGGED'],
+        ['Accepted', railDead ? (quote.status === 'declined' ? 'MARKED LOST' : 'EXPIRED') : ['accepted', 'converted'].includes(quote.status) ? (qDd(evFirst('accepted')) || 'COMMITTED') : quote.expires_at ? 'EXP ' + qDd(quote.expires_at) : ''],
+        ['Converted', quote.converted_order_number || (quote.status === 'converted' ? 'ORDER' : '')],
       ];
-      const railDead = quote.status === 'declined' || qExpired;
+
+      // Rep-workspace economics surfaced for staff: a $0 vendor cost means
+      // "cost unknown", not 100% margin; samples excluded
+      const showMargin = ['admin', 'manager'].includes(staffRole);
+      const costedItems = items.filter(i => parseFloat(i.vendor_cost) > 0 && parseFloat(i.unit_price) > 0 && !i.is_sample);
+      const costedSell = costedItems.reduce((s, i) => s + parseFloat(i.subtotal || 0), 0);
+      const grossProfit = costedItems.reduce((s, i) => s + (1 - parseFloat(i.vendor_cost) / parseFloat(i.unit_price)) * parseFloat(i.subtotal || 0), 0);
+      const blendedMargin = costedSell > 0 ? grossProfit / costedSell * 100 : null;
+      const lineMargin = (item) => {
+        const p = parseFloat(item.unit_price || 0);
+        if (!(parseFloat(item.vendor_cost) > 0) || p <= 0 || item.is_sample) return null;
+        return (1 - parseFloat(item.vendor_cost) / p) * 100;
+      };
+
+      // Thread: collapse consecutive opens so a curious customer doesn't flood it
+      const threadEntries = [];
+      events.forEach(e => {
+        const prev = threadEntries[threadEntries.length - 1];
+        if (e.event_type === 'viewed' && prev && prev.event_type === 'viewed') { prev._count += 1; prev.created_at = e.created_at; }
+        else threadEntries.push({ ...e, _count: 1 });
+      });
+      const threadHot = !!(engagement.last_reply_at && lastSentEvent &&
+        new Date(engagement.last_reply_at) > new Date(lastSentEvent.created_at) &&
+        new Date(engagement.last_reply_at) - new Date(lastSentEvent.created_at) < 86400000);
+      const fmtDT = ts => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+        new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
       const markAccepted = async () => {
         if (!confirm('Mark ' + quote.quote_number + ' accepted — the customer confirmed?')) return;
@@ -4798,11 +4827,11 @@
         } catch (err) { alert(err.message); }
         setUpdating(false);
       };
-      const postNote = async () => {
+      const postThread = async (kind) => {
         if (!noteText.trim()) return;
         setPostingNote(true);
         try {
-          await adminFetch('/api/admin/quotes/' + editId + '/events', { method: 'POST', body: JSON.stringify({ event_type: 'note', body: noteText.trim() }) });
+          await adminFetch('/api/admin/quotes/' + editId + '/events', { method: 'POST', body: JSON.stringify({ event_type: kind, body: noteText.trim() }) });
           setNoteText('');
           await load();
         } catch (err) { alert(err.message); }
@@ -4858,9 +4887,9 @@
             <div className="recd-rail">
               {qRail.map(([s, when], n) => (
                 <div key={s} className="recd-stage">
-                  <div style={{ height: 3, background: railDead ? 'var(--line)' : n < qStage ? 'var(--dim)' : n === qStage ? 'var(--gold)' : 'var(--line)' }} />
-                  <div className="recd-stage-name" style={{ color: railDead ? 'var(--faint)' : n === qStage ? 'var(--ink)' : n < qStage ? 'var(--dim)' : 'var(--faint)' }}>{s}</div>
-                  <div className="recd-stage-when">{n <= qStage ? when : ''}</div>
+                  <div style={{ height: 3, background: railDead ? (n === 4 ? 'var(--hot)' : 'var(--line)') : n < qStage ? 'var(--dim)' : n === qStage ? 'var(--gold)' : 'var(--line)' }} />
+                  <div className="recd-stage-name" style={{ color: railDead ? (n === 4 ? 'var(--hot)' : 'var(--faint)') : n === qStage ? 'var(--ink)' : n < qStage ? 'var(--dim)' : 'var(--faint)' }}>{s}</div>
+                  <div className="recd-stage-when" style={railDead && n === 4 ? { color: 'var(--hot)' } : undefined}>{when}</div>
                 </div>
               ))}
             </div>
@@ -4904,6 +4933,7 @@
                   <th style={{ width: 140 }}>Vendor</th>
                   <th style={{ width: 110 }}>Qty</th>
                   <th style={{ width: 110 }}>Unit Price</th>
+                  {showMargin && <th style={{ width: 80, textAlign: 'right' }}>Margin</th>}
                   <th style={{ width: 100, textAlign: 'right' }}>Subtotal</th>
                 </tr>
               </thead>
@@ -4929,6 +4959,11 @@
                       </span>
                     </td>
                     <td data-label="Unit Price"><span style={{ font: '400 12px/1 var(--mono)' }}>${parseFloat(item.unit_price || 0).toFixed(2)}</span></td>
+                    {showMargin && <td data-label="Margin" style={{ textAlign: 'right' }}>
+                      {lineMargin(item) === null
+                        ? <span style={{ color: 'var(--faint)' }}>—</span>
+                        : <span style={{ font: '400 11px/1 var(--mono)', color: 'var(--gold)' }}>{lineMargin(item).toFixed(1)}%</span>}
+                    </td>}
                     <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</td>
                   </tr>
                 ))}
@@ -4943,28 +4978,87 @@
             <div style={{ font: '400 13px/1.7 var(--sans)', whiteSpace: 'pre-wrap' }}>{quote.notes}</div>
           </div>}
 
+          {qTab === 'record' && <div className="form-card">
+            <h3>Acceptance terms</h3>
+            <div className="rb-facts">
+              {[
+                ['Validity', quote.expires_at ? 'Expires ' + new Date(quote.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'No expiry set — 10 days from send'],
+                ['Deposit', '100% to release for fulfillment'],
+                ['Lead times', 'Per line · vendor-confirmed at order'],
+                ['Returns', '20% restock saleable · no return on cut material'],
+                ['Tax', 'Calculated at order placement'],
+              ].map(([k, v]) => (
+                <div key={k} className="rb-fact"><span className="rb-fact-k">{k}</span><span className="rb-fact-v" style={{ fontFamily: 'var(--sans)', fontSize: 11 }}>{v}</span></div>
+              ))}
+            </div>
+          </div>}
+
           {qTab === 'activity' && <div className="form-card">
-            <h3>Thread · {events.length}</h3>
-            {events.length === 0 ? (
-              <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>nothing recorded yet</div>
+            <div className="rb-head">
+              <h3>Thread · {events.length}</h3>
+              {threadHot && (
+                <span style={{ marginLeft: 'auto', font: '400 10px/1 var(--mono)', letterSpacing: '0.08em', color: 'var(--green)' }}>
+                  {'●'} HOT — REPLIED WITHIN 24 HRS
+                </span>
+              )}
+            </div>
+            {threadEntries.length === 0 ? (
+              <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no activity yet — the thread starts when the rep sends the quote</div>
             ) : (
-              <div className="rb-trail" style={{ gap: 14 }}>
-                {[...events].reverse().map(e => (
-                  <div key={e.id} className="opsq-trail-row">
-                    <span className="rb-trail-when">
-                      {new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      <br />{new Date(e.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                    </span>
-                    <span>
-                      <span className="rb-trail-what" style={{ display: 'block' }}>
-                        {QUOTE_EVENT_LABELS[e.event_type] || e.event_type}{e.actor_name ? ' · ' + e.actor_name : ''}
+              <div style={{ display: 'grid', gap: 14 }}>
+                {threadEntries.map(e => {
+                  const isSys = ['sent', 'viewed', 'accepted', 'marked_lost', 'converted'].includes(e.event_type);
+                  const isCustomer = e.actor === 'customer';
+                  const name = e.actor_name || (isCustomer ? quote.customer_name : 'System');
+                  const initials2 = (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+                  const bodyText = e._count > 1
+                    ? ((e.body || QUOTE_EVENT_LABELS[e.event_type] || 'Opened') + ' ×' + e._count)
+                    : (e.body || (isSys ? QUOTE_EVENT_LABELS[e.event_type] : ''));
+                  return (
+                    <div key={e.id} style={{ display: 'grid', gridTemplateColumns: '26px 1fr', gap: 12 }}>
+                      <span style={{
+                        width: 26, height: 26, display: 'grid', placeItems: 'center', flexShrink: 0,
+                        background: isCustomer ? 'var(--panel2)' : isSys ? 'transparent' : 'var(--gold)',
+                        border: isSys && !isCustomer ? '1px solid var(--line)' : 'none',
+                        color: isCustomer ? 'var(--ink)' : isSys ? 'var(--faint)' : 'var(--brass-ink)',
+                        font: '500 9px/1 var(--mono)',
+                      }}>{initials2}</span>
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                          <span style={{ font: '500 12px/1 var(--sans)', color: 'var(--ink)' }}>{name}</span>
+                          <span style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.1em', color: 'var(--faint)' }}>{fmtDT(e.created_at).toUpperCase()}</span>
+                          {e.event_type === 'note' && (
+                            <span style={{ font: '400 8px/1 var(--mono)', letterSpacing: '0.14em', color: 'var(--gold)', border: '1px solid var(--line2)', padding: '2px 5px' }}>INTERNAL NOTE</span>
+                          )}
+                          {e.event_type === 'reply' && e.meta && e.meta.logged_by && (
+                            <span style={{ font: '400 8px/1 var(--mono)', letterSpacing: '0.14em', color: 'var(--gold)', border: '1px solid var(--line2)', padding: '2px 5px' }}>LOGGED BY {e.meta.logged_by.toUpperCase()}</span>
+                          )}
+                        </span>
+                        <span style={{
+                          display: 'block', marginTop: 5, overflowWrap: 'break-word', whiteSpace: 'pre-wrap',
+                          font: isSys && e.event_type !== 'reply' ? '400 11px/1.6 var(--mono)' : '400 13px/1.6 var(--sans)',
+                          color: e.event_type === 'reply' ? 'var(--ink)' : isSys ? 'var(--faint)' : 'var(--dim)',
+                        }}>
+                          {e.event_type === 'reply' ? '“' + bodyText + '”' : bodyText}
+                        </span>
                       </span>
-                      {e.body && <span style={{ display: 'block', marginTop: 4, font: '400 12px/1.6 var(--sans)', color: 'var(--dim)', whiteSpace: 'pre-wrap' }}>{e.body}</span>}
-                    </span>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             )}
+            <div style={{ marginTop: 18, border: '1px solid var(--line2)', background: 'var(--bg)' }}>
+              <textarea className="opsq-note" style={{ border: 'none', background: 'transparent' }} rows={2} maxLength={2000}
+                placeholder="log a customer reply or an internal note…"
+                value={noteText} onChange={e => setNoteText(e.target.value)} disabled={postingNote} />
+              <div style={{ padding: '9px 10px', borderTop: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={{ font: '400 9px/1.4 var(--mono)', letterSpacing: '0.1em', color: 'var(--faint)' }}>INTERNAL RECORD — NOTHING HERE EMAILS THE CUSTOMER</span>
+                <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                  <button className="btn btn-sm" disabled={postingNote || !noteText.trim()} onClick={() => postThread('note')}>+ Internal note</button>
+                  <button className="btn btn-primary btn-sm" disabled={postingNote || !noteText.trim()} onClick={() => postThread('reply')}>Log customer reply</button>
+                </span>
+              </div>
+            </div>
           </div>}
           </div>
 
@@ -4991,6 +5085,17 @@
             {qExpired && <div className="rb-note" style={{ color: 'var(--hot)' }}>EXPIRED · NEVER CLOSED OUT</div>}
           </div>
 
+          {showMargin && blendedMargin !== null && <div className="form-card">
+            <h3>Margin — staff only</h3>
+            <div className="rb-facts">
+              <div className="rb-fact"><span className="rb-fact-k">Costed sell</span><span className="rb-fact-v">${costedSell.toFixed(2)}{costedSell < parseFloat(quote.subtotal || 0) - 0.005 ? ' of $' + parseFloat(quote.subtotal || 0).toFixed(2) : ''}</span></div>
+              <div className="rb-fact"><span className="rb-fact-k">Gross profit</span><span className="rb-fact-v" style={{ color: 'var(--green)' }}>${grossProfit.toFixed(2)}</span></div>
+              <div className="rb-fact"><span className="rb-fact-k">Blended margin</span><span className="rb-fact-v" style={{ color: 'var(--green)' }}>{blendedMargin.toFixed(1)}%</span></div>
+              <div className="rb-fact"><span className="rb-fact-k">Est. commission · 10%</span><span className="rb-fact-v">${(grossProfit * 0.10).toFixed(2)}</span></div>
+            </div>
+            <div className="rb-note" style={{ color: 'var(--faint)' }}>FROM CATALOG COSTS · SAMPLES &amp; UNKNOWN COSTS EXCLUDED</div>
+          </div>}
+
           <div className="form-card">
             <h3>Engagement</h3>
             <div className="rb-facts">
@@ -4999,11 +5104,17 @@
               <div className="rb-fact"><span className="rb-fact-k">Replies</span><span className="rb-fact-v">{engagement.replies}</span></div>
               <div className="rb-fact"><span className="rb-fact-k">Last opened</span><span className="rb-fact-v">{engagement.last_viewed_at ? new Date(engagement.last_viewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span></div>
             </div>
-            {quote.status === 'draft' ? (
-              <div className="rb-note" style={{ color: 'var(--faint)' }}>TRACKS ONCE THE QUOTE IS SENT</div>
-            ) : engagement.opens >= 3 ? (
-              <div className="rb-note" style={{ color: 'var(--gold)' }}>HOT · CUSTOMER KEEPS COMING BACK</div>
-            ) : null}
+            {engagement.opens > 0 ? (
+              <div className="rb-note" style={{ color: engagement.opens >= 3 ? 'var(--gold)' : 'var(--faint)' }}>
+                LAST OPENED {fmtDT(engagement.last_viewed_at).toUpperCase()}
+                {engagement.last_reply_at ? ' · LAST REPLY ' + fmtDT(engagement.last_reply_at).toUpperCase() : ''}
+                {engagement.opens >= 3 ? ' · HOT' : ''}
+              </div>
+            ) : (
+              <div className="rb-note" style={{ color: 'var(--faint)' }}>
+                {quote.status === 'draft' ? 'SEND THE QUOTE TO START TRACKING OPENS' : 'NO OPENS YET — TRACKING STARTS WHEN THE EMAIL IS OPENED'}
+              </div>
+            )}
           </div>
 
           <div className="form-card">
@@ -5075,18 +5186,14 @@
               <h3>Recent activity</h3>
               {qTab !== 'activity' && <button className="rb-action" onClick={() => setQTab('activity')}>Full thread</button>}
             </div>
-            <textarea className="opsq-note" rows={2} placeholder="log an internal note — goes on the record…" value={noteText} onChange={e => setNoteText(e.target.value)} />
-            <button className="btn btn-sm" style={{ marginTop: 8 }} disabled={postingNote || !noteText.trim()} onClick={postNote}>
-              {postingNote ? 'Logging…' : 'Log note'}
-            </button>
-            <div className="rb-trail" style={{ marginTop: 16 }}>
+            <div className="rb-trail">
               {[...events].reverse().slice(0, 6).map(e => (
                 <div key={e.id} className="rb-trail-row">
                   <span className="rb-trail-when">{new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                   <span className="rb-trail-what">{QUOTE_EVENT_LABELS[e.event_type] || e.event_type}{e.actor_name ? ' · ' + e.actor_name : ''}</span>
                 </div>
               ))}
-              {events.length === 0 && <span style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>nothing recorded yet</span>}
+              {events.length === 0 && <span style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>nothing recorded yet — notes and replies land here</span>}
             </div>
           </div>
           </div>

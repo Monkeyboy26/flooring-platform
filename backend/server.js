@@ -20202,12 +20202,12 @@ app.get('/api/admin/quotes/ledger', staffAuth, async (req, res) => {
       const expired = q.status === 'sent' && q.expires_at && new Date(q.expires_at).getTime() < now;
       const expiresIn = q.status === 'sent' && !expired ? dleft(q.expires_at) : null;
 
-      // Stage ladder: Drafted → Sent → Viewed → Accepted → Converted
+      // Stage ladder (same six steps the rep workspace walks):
+      // Drafted → Sent → Viewed → Replied → Accepted → Converted
       let stage = 0;
-      if (q.status !== 'draft') stage = 1;
-      if (stage >= 1 && q.opens > 0) stage = 2;
-      if (q.status === 'accepted') stage = 3;
-      if (q.status === 'converted') stage = 4;
+      if (q.status !== 'draft') stage = q.replies > 0 ? 3 : q.opens > 0 ? 2 : 1;
+      if (q.status === 'accepted') stage = 4;
+      if (q.status === 'converted') stage = 5;
 
       let risk = 'ok', blocker;
       if (q.status === 'converted') blocker = 'Won — became ' + (q.converted_order_number || 'an order');
