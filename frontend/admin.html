@@ -1287,6 +1287,36 @@
     .rb-doc-sub { margin-top: 2px; font: 400 10px/1.4 var(--mono); color: var(--faint); }
     .rb-doc-link { margin-left: auto; background: transparent; border: none; padding: 0; color: var(--gold); font: 400 10px/1 var(--mono); letter-spacing: 0.08em; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .rb-doc-link:hover { color: var(--gold-light); }
+    /* Release materials — console-grammar sheet (decision-pane structure) */
+    .relm-overlay { position: fixed; inset: 0; background: rgba(10,10,11,0.62); display: flex; justify-content: center; align-items: flex-start; padding: 8vh 16px 16px; z-index: 1000; }
+    .relm { width: 680px; max-width: 100%; max-height: 84vh; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line2); }
+    .relm-head { padding: 16px 22px 15px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+    .relm-kicker { display: flex; align-items: center; gap: 10px; font: 400 10px/1 var(--mono); letter-spacing: 0.12em; color: var(--gold); }
+    .relm-kicker .relm-entity { margin-left: auto; color: var(--faint); }
+    .relm-title { margin: 11px 0 0; font: 400 19px/1.3 var(--sans); letter-spacing: -0.01em; }
+    .relm-sub { margin-top: 9px; max-width: 60ch; font: 400 11px/1.6 var(--mono); color: var(--faint); }
+    .relm-body { flex: 1; overflow-y: auto; min-height: 0; }
+    .relm-block { padding: 14px 22px 16px; border-bottom: 1px solid var(--line); }
+    .relm-label { margin-bottom: 10px; font: 400 9px/1 var(--mono); letter-spacing: 0.16em; color: var(--faint); text-transform: uppercase; }
+    .relm-line { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+    .relm-line:first-of-type { padding-top: 2px; }
+    .relm-line:last-of-type { border-bottom: none; padding-bottom: 2px; }
+    .relm-line.done { opacity: 0.45; cursor: default; }
+    .relm-line-name { display: block; font: 400 13px/1.3 var(--sans); color: var(--ink); }
+    .relm-line-sub { display: block; margin-top: 3px; font: 400 10px/1.4 var(--mono); color: var(--faint); }
+    .relm-qty { width: 74px; padding: 7px 8px; background: var(--bg); border: 1px solid var(--line2); color: var(--ink); font: 400 12px/1 var(--mono); text-align: right; }
+    .relm-qty:disabled { opacity: 0.4; }
+    .relm-chip { padding: 9px 14px; background: transparent; border: 1px solid var(--line2); color: var(--dim); font: 400 12px/1 var(--sans); cursor: pointer; }
+    .relm-chip.on { background: var(--panel2); border-color: var(--gold); color: var(--ink); }
+    .relm-input { width: 100%; box-sizing: border-box; padding: 9px 10px; background: var(--bg); border: 1px solid var(--line2); color: var(--ink); font: 400 12px/1.4 var(--sans); }
+    .relm-foot { padding: 13px 22px 17px; border-top: 1px solid var(--line2); background: var(--panel2); flex-shrink: 0; }
+    .relm-error { margin-top: 9px; font: 400 11px/1.5 var(--mono); color: var(--hot); }
+    .relm-primary { margin-top: 10px; width: 100%; padding: 12px 14px; background: var(--gold); border: none; color: var(--brass-ink); font: 500 13px/1 var(--sans); letter-spacing: 0.01em; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .relm-primary:hover { background: var(--gold-light); }
+    .relm-primary:disabled { opacity: 0.55; cursor: default; }
+    .relm-primary.hot { background: var(--hot); color: #fff; }
+    .relm-alt { margin-top: 8px; width: 100%; padding: 10px 8px; background: transparent; border: 1px solid var(--line2); color: var(--ink); font: 400 11px/1.3 var(--sans); cursor: pointer; }
+    .relm-alt:hover { background: var(--panel); }
     @media (max-width: 1100px) {
       /* Stacked layout goes back to one shared scroll */
       .recd-scroll { overflow-y: auto; }
@@ -4759,6 +4789,8 @@
       // Material releases (staff twins of the rep release flow)
       const [releases, setReleases] = useState([]);
       const [showReleaseModal, setShowReleaseModal] = useState(false);
+      const [relConfirm, setRelConfirm] = useState(null); // { rel, action: 'complete'|'void' }
+      const [relBusy, setRelBusy] = useState(false);
 
       const loadReturns = async () => {
         if (!editId) return;
@@ -5948,16 +5980,10 @@
                       setDocPreview({ path: '/api/staff/releases/' + rel.id + '/release-form', title: 'Release ' + rel.release_number });
                     }}>PDF {'↓'}</button>
                     {rel.status === 'released' && (
-                      <button className="rb-doc-link" onClick={async () => {
-                        if (!confirm('Mark ' + rel.release_number + ' completed (materials picked up / delivered)?')) return;
-                        try { await adminFetch('/api/admin/releases/' + rel.id + '/complete', { method: 'POST' }); reloadOrderDetail(); loadOrderActivity(); } catch (err) { alert(err.message); }
-                      }}>COMPLETE</button>
+                      <button className="rb-doc-link" onClick={() => setRelConfirm({ rel, action: 'complete' })}>COMPLETE</button>
                     )}
                     {rel.status !== 'void' && (
-                      <button className="rb-doc-link" style={{ color: 'var(--hot)' }} onClick={async () => {
-                        if (!confirm('Void ' + rel.release_number + '? Its quantities become releasable again.')) return;
-                        try { await adminFetch('/api/admin/releases/' + rel.id + '/void', { method: 'POST' }); reloadOrderDetail(); loadOrderActivity(); } catch (err) { alert(err.message); }
-                      }}>VOID</button>
+                      <button className="rb-doc-link" style={{ color: 'var(--hot)' }} onClick={() => setRelConfirm({ rel, action: 'void' })}>VOID</button>
                     )}
                   </span>
                 </div>
@@ -6534,6 +6560,42 @@
           />
         )}
 
+        {relConfirm && (
+          <div className="relm-overlay" onClick={() => !relBusy && setRelConfirm(null)}>
+            <div className="relm" style={{ width: 460 }} onClick={e => e.stopPropagation()}>
+              <div className="relm-head">
+                <div className="relm-kicker" style={{ color: relConfirm.action === 'void' ? 'var(--hot)' : 'var(--gold)' }}>
+                  <span>{relConfirm.action === 'void' ? 'VOID RELEASE' : 'COMPLETE RELEASE'}</span>
+                  <span className="relm-entity">{relConfirm.rel.release_number}</span>
+                </div>
+                <h1 className="relm-title">{relConfirm.action === 'void' ? 'Void this release?' : 'Materials handed off?'}</h1>
+                <div className="relm-sub">
+                  {relConfirm.action === 'void'
+                    ? 'The released quantities go back to releasable and the form is no longer valid.'
+                    : 'Marks ' + relConfirm.rel.release_number + ' completed — the goods were picked up or delivered.'}
+                </div>
+              </div>
+              <div className="relm-foot">
+                <div className="relm-label" style={{ marginBottom: 0 }}>Decision</div>
+                <button className={'relm-primary' + (relConfirm.action === 'void' ? ' hot' : '')} disabled={relBusy}
+                  onClick={async () => {
+                    setRelBusy(true);
+                    try {
+                      await adminFetch('/api/admin/releases/' + relConfirm.rel.id + '/' + relConfirm.action, { method: 'POST' });
+                      setRelConfirm(null);
+                      reloadOrderDetail();
+                      loadOrderActivity();
+                    } catch (err) { alert(err.message); }
+                    setRelBusy(false);
+                  }}>
+                  <span>{relBusy ? 'Working…' : relConfirm.action === 'void' ? 'Void ' + relConfirm.rel.release_number : 'Mark completed'}</span>
+                </button>
+                <button className="relm-alt" onClick={() => setRelConfirm(null)} disabled={relBusy}>Keep as is</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {returnConfirmation && (
           <div className="modal-overlay" onClick={() => setReturnConfirmation(null)}>
             <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -6805,9 +6867,8 @@
     }
 
     // ========== ReleaseModal ==========
-    // Staff twin of the rep "Release materials" flow: pick lines + partial
-    // quantities, choose pickup/delivery, name the recipient. Creating a
-    // release emails the customer and prints a signable release form.
+    // Staff twin of the rep "Release materials" flow, in the console grammar:
+    // kicker header, hairline line rows, panel2 footer with the brass primary.
     function ReleaseModal({ editId, onClose, onDone }) {
       const [loading, setLoading] = useState(true);
       const [ctx, setCtx] = useState(null);
@@ -6834,6 +6895,13 @@
           .catch(err => { setError(err.message || 'Failed to load'); setLoading(false); });
       }, [editId]);
 
+      useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape' && !committing) onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+      }, [onClose, committing]);
+
+      const order = ctx && ctx.order;
       const items = (ctx && ctx.items) || [];
       const remainingFor = (it) => Math.max(0, parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0));
       const unitFor = (it) => it.sell_by === 'unit' ? 'units' : it.sell_by === 'roll' ? 'rolls' : it.sell_by === 'piece' ? 'pcs' : 'boxes';
@@ -6866,69 +6934,90 @@
       };
 
       return (
-        <div className="modal-overlay" onClick={() => !committing && onClose()}>
-          <div className="modal-box" style={{ maxWidth: 660 }} onClick={e => e.stopPropagation()}>
-            <h3>Release materials</h3>
-            {loading ? <p style={{ fontSize: '0.8125rem', color: 'var(--stone-400)' }}>Loading…</p> : (
-              <React.Fragment>
-                {ctx && !ctx.releasable && (
-                  <p style={{ fontSize: '0.8125rem', color: '#d9a441', margin: '0 0 0.75rem' }}>
-                    Materials can only be released once the order is confirmed (paid).
-                  </p>
-                )}
-                <p style={{ fontSize: '0.75rem', color: 'var(--stone-400)', margin: '0 0 0.75rem' }}>
-                  Authorizes goods to leave the warehouse — does not change order status or inventory. The customer gets a release email.
-                </p>
-                <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--line)', marginBottom: '0.75rem' }}>
-                  {items.length === 0 && <p style={{ fontSize: '0.8125rem', color: 'var(--stone-400)', padding: '0.75rem' }}>No releasable lines on this order.</p>}
-                  {items.map(it => {
-                    const st = lineState[it.id] || {};
-                    const remaining = remainingFor(it);
-                    const released = parseFloat(it.already_released || 0);
-                    const done = remaining <= 0;
-                    return (
-                      <label key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: '1px solid var(--line)', cursor: done ? 'default' : 'pointer', opacity: done ? 0.5 : 1 }}>
-                        <input type="checkbox" disabled={done} checked={!!st.selected} onChange={e => setLine(it.id, { selected: e.target.checked })} />
-                        <span style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ display: 'block', font: '400 13px/1.3 var(--sans)' }}>{it.collection || it.current_collection || it.product_name}{it.color ? ' ' + it.color : ''}</span>
-                          <span style={{ display: 'block', marginTop: 2, font: '400 10px/1.4 var(--mono)', color: 'var(--faint)' }}>
-                            {it.vendor_name || ''}{it.vendor_sku ? ' · ' + it.vendor_sku : ''}
-                            {' · ' + released + '/' + parseFloat(it.num_boxes || 0) + ' released'}
+        <div className="relm-overlay" onClick={() => !committing && onClose()}>
+          <div className="relm" onClick={e => e.stopPropagation()}>
+            <div className="relm-head">
+              <div className="relm-kicker">
+                <span>RELEASE MATERIALS</span>
+                {order && <span className="relm-entity">{order.order_number}</span>}
+              </div>
+              <h1 className="relm-title">{order ? order.customer_name : 'Release materials'}</h1>
+              <div className="relm-sub">
+                Authorizes goods to leave the warehouse — order status and inventory are untouched. The customer gets a release email and a signable form.
+              </div>
+            </div>
+            <div className="relm-body">
+              {loading ? (
+                <div className="relm-block" style={{ borderBottom: 'none' }}>
+                  <div style={{ font: '400 12px/1.8 var(--mono)', color: 'var(--faint)' }}>loading the order…</div>
+                </div>
+              ) : (
+                <React.Fragment>
+                  {ctx && !ctx.releasable && (
+                    <div className="relm-block">
+                      <div style={{ font: '400 11px/1.6 var(--mono)', color: 'var(--gold)' }}>MATERIALS RELEASE ONLY ONCE THE ORDER IS CONFIRMED (PAID)</div>
+                    </div>
+                  )}
+                  <div className="relm-block">
+                    <div className="relm-label">Lines {'·'} {items.length}</div>
+                    {items.length === 0 && (
+                      <div style={{ font: '400 12px/1.8 var(--mono)', color: 'var(--faint)' }}>no releasable lines on this order</div>
+                    )}
+                    {items.map(it => {
+                      const st = lineState[it.id] || {};
+                      const remaining = remainingFor(it);
+                      const released = parseFloat(it.already_released || 0);
+                      const done = remaining <= 0;
+                      return (
+                        <label key={it.id} className={'relm-line' + (done ? ' done' : '')}>
+                          <input type="checkbox" disabled={done} checked={!!st.selected} onChange={e => setLine(it.id, { selected: e.target.checked })} />
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span className="relm-line-name">{it.collection || it.current_collection || it.product_name}{it.color ? ' ' + it.color : ''}</span>
+                            <span className="relm-line-sub">
+                              {it.vendor_name || ''}{it.vendor_sku ? ' · ' + it.vendor_sku : ''}
+                              {' · ' + released + ' of ' + parseFloat(it.num_boxes || 0) + ' released'}
+                            </span>
                           </span>
-                        </span>
-                        {done ? (
-                          <span style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.1em', color: 'var(--green)' }}>FULLY RELEASED</span>
-                        ) : (
-                          <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexShrink: 0 }}>
-                            <input type="number" min="0.01" step="any" max={remaining} value={st.qty} disabled={!st.selected}
-                              onChange={e => setLine(it.id, { qty: e.target.value })}
-                              style={{ width: 70, padding: '5px 7px', font: '400 12px/1 var(--mono)', textAlign: 'right' }} />
-                            <span style={{ font: '400 10px/1 var(--mono)', color: 'var(--faint)' }}>of {remaining} {unitFor(it)}</span>
-                          </span>
-                        )}
-                      </label>
-                    );
-                  })}
-                </div>
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-                  <select value={method} onChange={e => setMethod(e.target.value)} style={{ padding: '7px 9px', font: '400 12px/1.4 var(--sans)' }}>
-                    <option value="pickup">Customer pickup</option>
-                    <option value="delivery">Delivery</option>
-                  </select>
-                  <input type="text" placeholder="Released to (recipient)" value={recipient} onChange={e => setRecipient(e.target.value)}
-                    style={{ flex: '1 1 180px', minWidth: 140, padding: '7px 9px', font: '400 12px/1.4 var(--sans)' }} />
-                </div>
-                <input type="text" placeholder="Notes for the release form (optional)" value={notes} onChange={e => setNotes(e.target.value)}
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '7px 9px', font: '400 12px/1.4 var(--sans)', marginBottom: '0.75rem' }} />
-                {error && <div className="auth-error" style={{ marginBottom: '0.75rem' }}>{error}</div>}
-                <div className="modal-actions">
-                  <button className="btn btn-secondary" onClick={onClose} disabled={committing}>Cancel</button>
-                  <button className="btn btn-primary" disabled={!valid || committing} onClick={submit}>
-                    {committing ? 'Releasing…' : 'Release ' + selectedLines.length + ' line' + (selectedLines.length === 1 ? '' : 's') + ' · ' + totalQty + ' units'}
-                  </button>
-                </div>
-              </React.Fragment>
-            )}
+                          {done ? (
+                            <span style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.1em', color: 'var(--green)', flexShrink: 0 }}>FULLY RELEASED</span>
+                          ) : (
+                            <span style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexShrink: 0 }}>
+                              <input type="number" min="0.01" step="any" max={remaining} value={st.qty} disabled={!st.selected}
+                                className="relm-qty" onClick={e => e.preventDefault()}
+                                onChange={e => setLine(it.id, { qty: e.target.value })} />
+                              <span style={{ font: '400 10px/1 var(--mono)', color: 'var(--faint)', whiteSpace: 'nowrap' }}>of {remaining} {unitFor(it)}</span>
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className="relm-block">
+                    <div className="relm-label">Leaves the warehouse by</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <button className={'relm-chip' + (method === 'pickup' ? ' on' : '')} onClick={() => setMethod('pickup')}>Customer pickup</button>
+                      <button className={'relm-chip' + (method === 'delivery' ? ' on' : '')} onClick={() => setMethod('delivery')}>Delivery</button>
+                      <input type="text" className="relm-input" style={{ flex: '1 1 180px', minWidth: 140, width: 'auto' }}
+                        placeholder="Released to (recipient)" value={recipient} onChange={e => setRecipient(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="relm-block" style={{ borderBottom: 'none' }}>
+                    <div className="relm-label">Note on the release form</div>
+                    <input type="text" className="relm-input" placeholder="optional — gate code, will-call window, lot notes…"
+                      value={notes} onChange={e => setNotes(e.target.value)} />
+                  </div>
+                </React.Fragment>
+              )}
+            </div>
+            <div className="relm-foot">
+              <div className="relm-label" style={{ marginBottom: 0 }}>Authorize</div>
+              {error && <div className="relm-error">{error}</div>}
+              <button className="relm-primary" disabled={!valid || committing} onClick={submit}>
+                <span>{committing ? 'Releasing…' : 'Release ' + selectedLines.length + ' line' + (selectedLines.length === 1 ? '' : 's') + ' · ' + totalQty + ' units'}</span>
+                <span style={{ font: '400 10px/1 var(--mono)', opacity: 0.7 }}>{method.toUpperCase()}</span>
+              </button>
+              <button className="relm-alt" onClick={onClose} disabled={committing}>Cancel</button>
+            </div>
           </div>
         </div>
       );
