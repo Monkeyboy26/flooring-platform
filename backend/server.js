@@ -22,7 +22,7 @@ import sharp from 'sharp';
 import { pool } from './db.js';
 import { createAuthMiddleware } from './lib/auth.js';
 import { calculateSalesTax, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
-import { recalculateBalance, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
+import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers } from './lib/customerHelpers.js';
@@ -8238,15 +8238,8 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     }
 
     // Recalculate order totals
-    const totalsResult = await client.query(`
-      SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
-      FROM order_items WHERE order_id = $1
-    `, [id]);
-    const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
-    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
-
-    await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
-      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
+    // Recompute subtotal + materials-only tax (scaled from the stored rate) + total
+    const { subtotal: newSubtotal, total: newTotal } = await recalcOrderTotals(client, id);
 
     // --- Auto-update Purchase Orders ---
     // Skipped for one-off vendor custom lines (no vendor in the system to PO)
@@ -8428,15 +8421,8 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     }
 
     // Recalculate order totals
-    const totalsResult = await client.query(`
-      SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
-      FROM order_items WHERE order_id = $1
-    `, [id]);
-    const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
-    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
-
-    await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
-      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
+    // Recompute subtotal + materials-only tax (scaled from the stored rate) + total
+    const { subtotal: newSubtotal, total: newTotal } = await recalcOrderTotals(client, id);
 
     const removedItem = itemResult.rows[0];
     await logOrderActivity(client, id, 'item_removed', req.staff.id, req.staff.first_name + ' ' + req.staff.last_name,
@@ -15474,25 +15460,8 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
       [newPrice.toFixed(2), newSubtotal.toFixed(2), itemId]
     );
 
-    // Recalculate order totals
-    const totalsResult = await client.query(`
-      SELECT
-        COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
-      FROM order_items WHERE order_id = $1
-    `, [id]);
-    const orderSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
-
-    const orderRow = await client.query('SELECT shipping, sample_shipping, discount_amount, tax_amount FROM orders WHERE id = $1', [id]);
-    const shipping = parseFloat(orderRow.rows[0].shipping || 0);
-    const sampleShipping = parseFloat(orderRow.rows[0].sample_shipping || 0);
-    const discount = parseFloat(orderRow.rows[0].discount_amount || 0);
-    const tax = parseFloat(orderRow.rows[0].tax_amount || 0);
-    const orderTotal = parseFloat((orderSubtotal + shipping + sampleShipping + tax - discount).toFixed(2));
-
-    await client.query(
-      'UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
-      [orderSubtotal.toFixed(2), orderTotal.toFixed(2), id]
-    );
+    // Recompute subtotal + materials-only tax (scaled from the stored rate) + total
+    const { subtotal: orderSubtotal, total: orderTotal } = await recalcOrderTotals(client, id);
 
     const priceRepName = req.rep.first_name + ' ' + req.rep.last_name;
     await logOrderActivity(client, id, 'price_adjusted', req.rep.id, priceRepName,
@@ -15741,15 +15710,8 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       newItemId = insertResult.rows[0].id;
     }
 
-    const totalsResult = await client.query(`
-      SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
-      FROM order_items WHERE order_id = $1
-    `, [id]);
-    const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
-    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
-
-    await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
-      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
+    // Recompute subtotal + materials-only tax (scaled from the stored rate) + total
+    const { subtotal: newSubtotal, total: newTotal } = await recalcOrderTotals(client, id);
 
     // --- Auto-update Purchase Orders ---
     // Skipped for one-off vendor custom lines (no vendor in the system to PO)
@@ -15936,15 +15898,8 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
       }
     }
 
-    const totalsResult = await client.query(`
-      SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) as new_subtotal
-      FROM order_items WHERE order_id = $1
-    `, [id]);
-    const newSubtotal = parseFloat(parseFloat(totalsResult.rows[0].new_subtotal).toFixed(2));
-    const newTotal = parseFloat((newSubtotal + parseFloat(order.shipping || 0) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2));
-
-    await client.query('UPDATE orders SET subtotal = $1, total = $2 WHERE id = $3',
-      [newSubtotal.toFixed(2), newTotal.toFixed(2), id]);
+    // Recompute subtotal + materials-only tax (scaled from the stored rate) + total
+    const { subtotal: newSubtotal, total: newTotal } = await recalcOrderTotals(client, id);
 
     const removedItemRep = itemResult.rows[0];
     const removeRepName = req.rep.first_name + ' ' + req.rep.last_name;

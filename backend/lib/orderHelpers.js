@@ -11,6 +11,41 @@ export async function recalculateBalance(pool, orderId, client) {
   return { amount_paid, total, balance, balance_status };
 }
 
+// Recompute an order's money from its current line items and persist it:
+// subtotal (all non-sample lines), materials-only sales tax scaled from the
+// stored tax_rate (labor + samples excluded, matching order creation), then the
+// grand total. Shared by every item add/remove/reprice endpoint so a change
+// order re-taxes correctly instead of freezing the tax at its creation value.
+// Legacy orders with no usable tax_rate keep their existing tax_amount rather
+// than being zeroed. Returns { subtotal, tax_amount, total }.
+export async function recalcOrderTotals(db, orderId) {
+  const o = await db.query(
+    'SELECT shipping, sample_shipping, discount_amount, tax_rate, tax_amount FROM orders WHERE id = $1',
+    [orderId]
+  );
+  if (!o.rows.length) return null;
+  const row = o.rows[0];
+  const sums = await db.query(`
+    SELECT
+      COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) AS subtotal,
+      COALESCE(SUM(CASE WHEN NOT is_sample AND COALESCE(item_type, 'material') <> 'labor' THEN subtotal ELSE 0 END), 0) AS materials_subtotal
+    FROM order_items WHERE order_id = $1
+  `, [orderId]);
+  const subtotal = parseFloat(parseFloat(sums.rows[0].subtotal).toFixed(2));
+  const materialsSubtotal = parseFloat(sums.rows[0].materials_subtotal);
+  const shipping = parseFloat(row.shipping || 0);
+  const sampleShipping = parseFloat(row.sample_shipping || 0);
+  const discount = parseFloat(row.discount_amount || 0);
+  const rate = parseFloat(row.tax_rate || 0);
+  const tax_amount = rate > 0
+    ? parseFloat((materialsSubtotal * rate).toFixed(2))
+    : parseFloat(parseFloat(row.tax_amount || 0).toFixed(2));
+  const total = parseFloat((subtotal + shipping + sampleShipping + tax_amount - discount).toFixed(2));
+  await db.query('UPDATE orders SET subtotal = $1, tax_amount = $2, total = $3 WHERE id = $4',
+    [subtotal.toFixed(2), tax_amount.toFixed(2), total.toFixed(2), orderId]);
+  return { subtotal, tax_amount, total };
+}
+
 export async function logOrderActivity(queryable, orderId, action, performerId, performerName, details = {}) {
   try {
     await queryable.query(
