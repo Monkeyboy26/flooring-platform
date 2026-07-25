@@ -21941,17 +21941,20 @@ app.get('/api/rep/tasks/dashboard', repAuth, async (req, res) => {
 app.post('/api/rep/tasks', repAuth, async (req, res) => {
   try {
     const { title, description, due_date, priority,
+      customer_name, customer_email, customer_phone,
       linked_customer_type, linked_customer_ref,
       linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id } = req.body;
     if (!title || !title.trim()) return res.status(400).json({ error: 'Title is required' });
 
     const result = await pool.query(`
       INSERT INTO rep_tasks (rep_id, title, description, due_date, priority, source,
+        customer_name, customer_email, customer_phone,
         linked_customer_type, linked_customer_ref,
         linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id)
-      VALUES ($1, $2, $3, $4, $5, 'manual', $6, $7, $8, $9, $10, $11)
+      VALUES ($1, $2, $3, $4, $5, 'manual', $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `, [req.rep.id, title.trim(), description || null, due_date || null, priority || 'medium',
+        customer_name || null, customer_email || null, customer_phone || null,
         linked_customer_type || null, linked_customer_ref || null,
         linked_order_id || null, linked_quote_id || null, linked_estimate_id || null, linked_deal_id || null]);
     res.json({ task: result.rows[0] });
@@ -21965,6 +21968,7 @@ app.put('/api/rep/tasks/:id', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, due_date, priority,
+      customer_name, customer_email, customer_phone,
       linked_customer_type, linked_customer_ref,
       linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id } = req.body;
 
@@ -21977,18 +21981,24 @@ app.put('/api/rep/tasks/:id', repAuth, async (req, res) => {
         description = $2,
         due_date = $3,
         priority = COALESCE($4, priority),
-        linked_customer_type = $5,
-        linked_customer_ref = $6,
-        linked_order_id = $7,
-        linked_quote_id = $8,
-        linked_estimate_id = $9,
-        linked_deal_id = $10,
+        customer_name = $5,
+        customer_email = $6,
+        customer_phone = $7,
+        linked_customer_type = $8,
+        linked_customer_ref = $9,
+        linked_order_id = $10,
+        linked_quote_id = $11,
+        linked_estimate_id = $12,
+        linked_deal_id = $13,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $11 AND rep_id = $12
+      WHERE id = $14 AND rep_id = $15
       RETURNING *
     `, [title || null, description !== undefined ? description : existing.rows[0].description,
         due_date !== undefined ? due_date : existing.rows[0].due_date,
         priority || null,
+        customer_name !== undefined ? customer_name : existing.rows[0].customer_name,
+        customer_email !== undefined ? customer_email : existing.rows[0].customer_email,
+        customer_phone !== undefined ? customer_phone : existing.rows[0].customer_phone,
         linked_customer_type !== undefined ? linked_customer_type : existing.rows[0].linked_customer_type,
         linked_customer_ref !== undefined ? linked_customer_ref : existing.rows[0].linked_customer_ref,
         linked_order_id !== undefined ? linked_order_id : existing.rows[0].linked_order_id,

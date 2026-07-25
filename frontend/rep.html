@@ -7446,6 +7446,21 @@
               {customer.rep_name && (
                 <span className="cl-tag" style={{ color: '#a87935', marginTop: 0 }}>Rep \u00b7 {customer.rep_name}</span>
               )}
+              <AddTaskButton
+                navigate={navigate}
+                className="btn btn-secondary btn-sm"
+                label="+ Task"
+                style={{ marginLeft: 'auto' }}
+                prefill={{
+                  title: 'Follow up with ' + (customer.name || customer.email),
+                  linked_customer_type: type,
+                  linked_customer_ref: ref,
+                  customer_name: customer.name,
+                  customer_email: customer.email,
+                  customer_phone: customer.phone,
+                  context_label: (customer.name || customer.email),
+                }}
+              />
             </div>
           </div>
 
@@ -18080,10 +18095,12 @@
       });
 
       // Build today's tasks from tasksDash
+      const overdueIds = new Set((tasksDash && tasksDash.overdue || []).map(o => o.id));
       const todayTasks = tasksDash
         ? [...(tasksDash.overdue || []), ...(tasksDash.today || [])].slice(0, 4).map(t => {
-            const isOverdue = (tasksDash.overdue || []).some(o => o.id === t.id);
+            const isOverdue = overdueIds.has(t.id);
             return {
+              task: t,
               time: isOverdue ? 'Overdue' : 'Today',
               label: t.title + (t.customer_name ? ' \u00b7 ' + t.customer_name : ''),
               kind: isOverdue ? 'urgent' : 'task',
@@ -18091,6 +18108,24 @@
             };
           })
         : [];
+
+      // Complete a task straight from the dashboard, dropping it from the widget.
+      const completeDashTask = (id) => {
+        repFetch('/api/rep/tasks/' + id + '/complete', { method: 'PUT' })
+          .then(() => setTasksDash(prev => prev ? {
+            ...prev,
+            overdue: (prev.overdue || []).filter(t => t.id !== id),
+            today: (prev.today || []).filter(t => t.id !== id),
+          } : prev))
+          .catch(() => {});
+      };
+      // Open a task: jump to its linked record if it has one, else the Tasks tab.
+      const openDashTask = (t) => {
+        if (t.linked_order_id) navigate('order-detail', t.linked_order_id);
+        else if (t.linked_quote_id) navigate('quote-edit', t.linked_quote_id);
+        else if (t.linked_estimate_id) navigate('estimate-edit', t.linked_estimate_id);
+        else navigate('tasks');
+      };
 
       // Momentum from recent orders
       const momentumItems = (recent_orders || []).slice(0, 5).map(o => {
@@ -18175,14 +18210,24 @@
                 <h3>Today {'\u00b7'} {todayTasks.length > 0 ? todayTasks.length + ' things' : 'clear'}</h3>
                 <a onClick={() => navigate('tasks')}>Tasks {'\u2192'}</a>
               </div>
-              {todayTasks.length > 0 ? todayTasks.map((e, i) => (
-                <div key={i} className="td-cal-row">
-                  <div>
-                    <div className="td-cal-time" style={{ fontSize: 14 }}>{e.time}</div>
+              {todayTasks.length > 0 ? todayTasks.map((e) => (
+                <div key={e.task.id} className="td-cal-row" style={{ cursor: 'pointer' }} onClick={() => openDashTask(e.task)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <button
+                      title="Mark complete"
+                      onClick={(ev) => { ev.stopPropagation(); completeDashTask(e.task.id); }}
+                      style={{ width: 18, height: 18, flexShrink: 0, borderRadius: '50%', border: '1.5px solid ' + e.tone,
+                        background: 'transparent', cursor: 'pointer', padding: 0, display: 'inline-flex',
+                        alignItems: 'center', justifyContent: 'center', color: e.tone }}
+                      onMouseEnter={(ev) => { ev.currentTarget.style.background = e.tone + '22'; }}
+                      onMouseLeave={(ev) => { ev.currentTarget.style.background = 'transparent'; }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    </button>
+                    <span style={{ font: "500 10px/1 ui-monospace, monospace", letterSpacing: '0.08em', textTransform: 'uppercase', color: e.tone }}>{e.time}</span>
                   </div>
                   <div className="td-cal-bar" style={{ background: e.tone }} />
                   <div className="td-cal-label">{e.label}</div>
-                  <span className="td-cal-action">Open</span>
+                  <span className="td-cal-action">Open {'→'}</span>
                 </div>
               )) : (
                 <div style={{ padding: '40px 22px', textAlign: 'center', color: 'var(--brass-muted)', font: '400 13px/1.4 Inter, sans-serif' }}>
@@ -19263,6 +19308,19 @@
               </RovMicro>
             </div>
             <div className="rov-header-actions">
+              <AddTaskButton
+                navigate={navigate}
+                className="rov-hbtn"
+                label="+ Task"
+                prefill={{
+                  title: 'Follow up on order ' + order.order_number,
+                  linked_order_id: order.id,
+                  customer_name: order.customer_name,
+                  customer_email: order.customer_email,
+                  customer_phone: order.customer_phone,
+                  context_label: order.order_number + (order.customer_name ? ' · ' + order.customer_name : ''),
+                }}
+              />
               {order.customer_email && (
                 <button className="rov-hbtn" onClick={() => { setInvoiceMessage(''); setShowSendInvoiceModal(true); }}>Resend invoice</button>
               )}
@@ -22786,6 +22844,21 @@
             </div>
             <div className="ol-header-actions">
               {editId && quote && (
+                <AddTaskButton
+                  navigate={navigate}
+                  className="ol-header-btn"
+                  label="+ Task"
+                  prefill={{
+                    title: 'Follow up on quote ' + quote.quote_number,
+                    linked_quote_id: quote.id,
+                    customer_name: form.customer_name,
+                    customer_email: form.customer_email,
+                    customer_phone: form.phone,
+                    context_label: quote.quote_number + (form.customer_name ? ' · ' + form.customer_name : ''),
+                  }}
+                />
+              )}
+              {editId && quote && (
                 <button className="ol-header-btn" onClick={duplicateQuote} disabled={saving}>Duplicate</button>
               )}
               {editId && quote && (
@@ -25485,6 +25558,21 @@
                   </RovMicro>
                 </div>
                 <div className="rov-header-actions">
+                  {estimate && (
+                    <AddTaskButton
+                      navigate={navigate}
+                      className="rov-hbtn"
+                      label="+ Task"
+                      prefill={{
+                        title: 'Follow up on estimate ' + estimate.estimate_number,
+                        linked_estimate_id: estimate.id,
+                        customer_name: form.customer_name,
+                        customer_email: form.customer_email,
+                        customer_phone: form.phone,
+                        context_label: estimate.estimate_number + (form.customer_name ? ' · ' + form.customer_name : ''),
+                      }}
+                    />
+                  )}
                   {estimate && !isReadonly && (
                     <button className="rov-hbtn" onClick={loadPreview} disabled={previewLoading}>
                       {previewLoading ? 'Loading…' : effStatus === 'expired' ? 'Re-send (renew 30 days)' : estimate.status === 'sent' ? 'Resend estimate' : 'Preview & send'}
@@ -26842,7 +26930,19 @@
       const [linkedQuoteId] = useState(task ? task.linked_quote_id : (prefill && prefill.linked_quote_id) || null);
       const [linkedEstimateId] = useState(task ? task.linked_estimate_id : (prefill && prefill.linked_estimate_id) || null);
       const [linkedDealId] = useState(task ? task.linked_deal_id : (prefill && prefill.linked_deal_id) || null);
+      const [linkedCustomerType] = useState(task ? task.linked_customer_type : (prefill && prefill.linked_customer_type) || null);
+      const [linkedCustomerRef] = useState(task ? task.linked_customer_ref : (prefill && prefill.linked_customer_ref) || null);
+      const [customerName] = useState(task ? task.customer_name : (prefill && prefill.customer_name) || null);
+      const [customerEmail] = useState(task ? task.customer_email : (prefill && prefill.customer_email) || null);
+      const [customerPhone] = useState(task ? task.customer_phone : (prefill && prefill.customer_phone) || null);
       const [saving, setSaving] = useState(false);
+
+      // A one-line "For: …" banner so the rep sees what this task is attached to.
+      const contextLabel = (prefill && prefill.context_label)
+        || (task && (task.linked_order_number || task.linked_quote_number || task.linked_estimate_number || task.linked_deal_title
+             ? [task.linked_order_number, task.linked_quote_number, task.linked_estimate_number, task.linked_deal_title].filter(Boolean).join(' · ')
+             : null))
+        || customerName || null;
 
       const setQuickDate = (days) => setDueDate(new Date(Date.now() + days * 86400000).toISOString().split('T')[0]);
       const quickDateMatch = (days) => !!dueDate && dueDate === new Date(Date.now() + days * 86400000).toISOString().split('T')[0];
@@ -26859,6 +26959,8 @@
         const body = {
           title: title.trim(), description: description || null,
           due_date: dueDate || null, priority,
+          customer_name: customerName, customer_email: customerEmail, customer_phone: customerPhone,
+          linked_customer_type: linkedCustomerType, linked_customer_ref: linkedCustomerRef,
           linked_order_id: linkedOrderId, linked_quote_id: linkedQuoteId,
           linked_estimate_id: linkedEstimateId, linked_deal_id: linkedDealId
         };
@@ -26879,6 +26981,14 @@
               <button className="tk-modal-close" onClick={onClose}>{'×'}</button>
             </div>
             <div className="tk-modal-body">
+              {contextLabel && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 14,
+                  background: 'rgba(168,121,53,0.08)', border: '1px solid rgba(168,121,53,0.2)', borderRadius: 6,
+                  font: "400 12px/1.3 'Inter', sans-serif", color: '#8a6d2f' }}>
+                  <span style={{ font: '600 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', opacity: 0.7 }}>For</span>
+                  <span style={{ fontWeight: 500 }}>{contextLabel}</span>
+                </div>
+              )}
               <label className="rod-field-label">Task</label>
               <input className="rod-input" value={title} onChange={e => setTitle(e.target.value)} autoFocus
                 placeholder="What needs to be done?"
@@ -26918,6 +27028,26 @@
             </div>
           </div>
         </div>
+      );
+    }
+
+    // ========== AddTaskButton ==========
+    // Drop-in button for entity detail views. Opens TaskCreateEditModal pre-linked
+    // to the entity (order/quote/estimate/deal/customer) it's placed on.
+    function AddTaskButton({ prefill, navigate, onSaved, label = '+ Follow-up task', className = 'rod-mini-btn', style }) {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button className={className} style={style} onClick={() => setOpen(true)}>{label}</button>
+          {open && (
+            <TaskCreateEditModal
+              prefill={prefill}
+              navigate={navigate}
+              onClose={() => setOpen(false)}
+              onSaved={() => { if (onSaved) onSaved(); }}
+            />
+          )}
+        </>
       );
     }
 
