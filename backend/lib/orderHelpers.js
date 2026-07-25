@@ -70,13 +70,15 @@ export async function recalculateCommission(queryable, orderId) {
     if (!order.sales_rep_id) return;
 
     // Fetch commission config
-    const configRes = await queryable.query('SELECT rate, default_cost_ratio FROM commission_config LIMIT 1');
+    const configRes = await queryable.query('SELECT rate, labor_rate, default_cost_ratio FROM commission_config LIMIT 1');
     if (!configRes.rows.length) return;
     const config = configRes.rows[0];
     const rate = parseFloat(config.rate);
+    const laborRate = parseFloat(config.labor_rate);
     const defaultCostRatio = parseFloat(config.default_cost_ratio);
 
-    // Calculate vendor cost from purchase_order_items (excluding cancelled POs)
+    // Calculate vendor cost from purchase_order_items (excluding cancelled POs).
+    // POs only carry material lines, so this cost is materials-only.
     const costRes = await queryable.query(`
       SELECT COALESCE(SUM(poi.subtotal), 0) as vendor_cost
       FROM purchase_order_items poi
@@ -85,16 +87,34 @@ export async function recalculateCommission(queryable, orderId) {
     `, [orderId]);
     let vendorCost = parseFloat(costRes.rows[0].vendor_cost);
 
-    // Fallback: if no PO data, estimate cost
+    // Labor lines are commissioned separately (flat labor_rate on labor revenue),
+    // so they must be pulled out of the material margin base to avoid paying the
+    // material rate on top of the labor rate.
+    const laborRes = await queryable.query(`
+      SELECT COALESCE(SUM(subtotal), 0) as labor_subtotal
+      FROM order_items
+      WHERE order_id = $1 AND COALESCE(is_sample, false) = false
+        AND COALESCE(item_type, 'material') = 'labor'
+    `, [orderId]);
+    const laborSubtotal = parseFloat(laborRes.rows[0].labor_subtotal);
+
     const orderTotal = parseFloat(order.total);
+    // Materials revenue = everything on the order except labor (still includes
+    // shipping/tax, matching the prior behavior for the material portion).
+    const materialsBase = Math.max(0, orderTotal - laborSubtotal);
+
+    // Fallback: if no PO data, estimate materials cost from the materials base.
     if (vendorCost === 0) {
-      vendorCost = orderTotal * defaultCostRatio;
+      vendorCost = materialsBase * defaultCostRatio;
     }
 
-    const margin = Math.max(0, orderTotal - vendorCost);
-    const commissionAmount = margin * rate;
+    const margin = Math.max(0, materialsBase - vendorCost); // materials gross profit
+    const materialsCommission = margin * rate;
+    const laborCommission = laborSubtotal * laborRate;
+    const commissionAmount = materialsCommission + laborCommission;
 
-    // Determine status
+    // Determine status. Commission is only payable once the order is finalized —
+    // delivered AND paid in full; cancelled/refunded orders forfeit it.
     let commissionStatus = 'pending';
     if (['cancelled', 'refunded'].includes(order.status)) {
       commissionStatus = 'forfeited';
@@ -104,8 +124,8 @@ export async function recalculateCommission(queryable, orderId) {
 
     // Upsert — preserve 'paid' status
     await queryable.query(`
-      INSERT INTO rep_commissions (order_id, rep_id, order_total, vendor_cost, margin, commission_rate, commission_amount, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO rep_commissions (order_id, rep_id, order_total, vendor_cost, margin, commission_rate, commission_amount, labor_subtotal, labor_commission, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       ON CONFLICT (order_id) DO UPDATE SET
         rep_id = EXCLUDED.rep_id,
         order_total = EXCLUDED.order_total,
@@ -113,10 +133,13 @@ export async function recalculateCommission(queryable, orderId) {
         margin = EXCLUDED.margin,
         commission_rate = EXCLUDED.commission_rate,
         commission_amount = EXCLUDED.commission_amount,
+        labor_subtotal = EXCLUDED.labor_subtotal,
+        labor_commission = EXCLUDED.labor_commission,
         status = CASE WHEN rep_commissions.status = 'paid' THEN 'paid' ELSE EXCLUDED.status END,
         updated_at = CURRENT_TIMESTAMP
     `, [orderId, order.sales_rep_id, orderTotal.toFixed(2), vendorCost.toFixed(2),
-        margin.toFixed(2), rate, commissionAmount.toFixed(2), commissionStatus]);
+        margin.toFixed(2), rate, commissionAmount.toFixed(2),
+        laborSubtotal.toFixed(2), laborCommission.toFixed(2), commissionStatus]);
   } catch (err) {
     console.error('Failed to recalculate commission:', err.message);
   }

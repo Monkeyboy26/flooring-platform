@@ -13065,12 +13065,14 @@ app.get('/api/rep/commissions', repAuth, async (req, res) => {
       FROM rep_commissions WHERE rep_id = $1
     `, [req.rep.id]);
 
-    const configRes = await pool.query('SELECT rate FROM commission_config LIMIT 1');
+    const configRes = await pool.query('SELECT rate, labor_rate FROM commission_config LIMIT 1');
     const commissionRate = configRes.rows.length ? parseFloat(configRes.rows[0].rate) : 0.10;
+    const laborRate = configRes.rows.length ? parseFloat(configRes.rows[0].labor_rate) : 0.03;
 
     res.json({
       summary: summaryRes.rows[0],
       commission_rate: commissionRate,
+      labor_rate: laborRate,
       commissions: commissions.rows
     });
   } catch (err) {
@@ -24677,17 +24679,17 @@ app.get('/api/admin/accounting/commissions/summary', staffAuth, requireRole('adm
 app.get('/api/admin/accounting/commissions/config', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM commission_config LIMIT 1');
-    res.json(result.rows[0] || { rate: 0.10, default_cost_ratio: 0.55 });
+    res.json(result.rows[0] || { rate: 0.10, labor_rate: 0.03, default_cost_ratio: 0.55 });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // Update commission config
 app.put('/api/admin/accounting/commissions/config', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { rate, default_cost_ratio } = req.body;
+    const { rate, labor_rate, default_cost_ratio } = req.body;
     const result = await pool.query(
-      `UPDATE commission_config SET rate = COALESCE($1, rate), default_cost_ratio = COALESCE($2, default_cost_ratio), updated_at = CURRENT_TIMESTAMP RETURNING *`,
-      [rate, default_cost_ratio]
+      `UPDATE commission_config SET rate = COALESCE($1, rate), labor_rate = COALESCE($2, labor_rate), default_cost_ratio = COALESCE($3, default_cost_ratio), updated_at = CURRENT_TIMESTAMP RETURNING *`,
+      [rate, labor_rate, default_cost_ratio]
     );
     res.json(result.rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }

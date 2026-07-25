@@ -913,7 +913,8 @@ CREATE INDEX IF NOT EXISTS idx_rep_notifications_created ON rep_notifications(cr
 
 CREATE TABLE IF NOT EXISTS commission_config (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    rate DECIMAL(5,4) NOT NULL DEFAULT 0.10,
+    rate DECIMAL(5,4) NOT NULL DEFAULT 0.10,          -- on materials gross profit
+    labor_rate DECIMAL(5,4) NOT NULL DEFAULT 0.03,    -- on labor revenue
     default_cost_ratio DECIMAL(5,4) NOT NULL DEFAULT 0.55,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -928,9 +929,11 @@ CREATE TABLE IF NOT EXISTS rep_commissions (
     rep_id UUID NOT NULL REFERENCES sales_reps(id),
     order_total DECIMAL(10,2) NOT NULL,
     vendor_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
-    margin DECIMAL(10,2) NOT NULL DEFAULT 0,
-    commission_rate DECIMAL(5,4) NOT NULL,
-    commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    margin DECIMAL(10,2) NOT NULL DEFAULT 0,           -- materials gross profit (labor excluded)
+    commission_rate DECIMAL(5,4) NOT NULL,             -- materials rate
+    commission_amount DECIMAL(10,2) NOT NULL DEFAULT 0, -- materials + labor commission
+    labor_subtotal DECIMAL(10,2) NOT NULL DEFAULT 0,
+    labor_commission DECIMAL(10,2) NOT NULL DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     paid_at TIMESTAMP,
     paid_by UUID,

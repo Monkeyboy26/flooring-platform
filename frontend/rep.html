@@ -17089,6 +17089,7 @@
 
       const rows = data.commissions || [];
       const baseRate = parseFloat(data.commission_rate || 0.10);
+      const laborRate = parseFloat(data.labor_rate != null ? data.labor_rate : 0.03);
 
       let repName = '';
       try {
@@ -17131,11 +17132,14 @@
       const money0 = n => '$' + Math.round(n).toLocaleString('en-US');
       const money2 = n => '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-      const lowMargin = r => parseFloat(r.order_total) > 0 && (parseFloat(r.margin) / parseFloat(r.order_total)) < 0.35 && (r.status === 'earned' || r.status === 'pending');
+      // Margin ratio is measured against materials revenue (labor carries no
+      // vendor cost, so it would distort the ratio).
+      const matBase = r => Math.max(0, parseFloat(r.order_total) - parseFloat(r.labor_subtotal || 0));
+      const lowMargin = r => matBase(r) > 0 && (parseFloat(r.margin) / matBase(r)) < 0.35 && (r.status === 'earned' || r.status === 'pending');
 
       const stateMeta = r => {
         if (r.status === 'earned') return { label: 'Earned · locked', tone: TONE.earned, when: 'Ready for payout' };
-        if (r.status === 'pending') return { label: 'Pending payment', tone: TONE.pending, when: 'Unlocks when order is paid' };
+        if (r.status === 'pending') return { label: 'Pending payment', tone: TONE.pending, when: 'Unlocks once order is finalized' };
         if (r.status === 'paid') return { label: 'Paid', tone: TONE.paid, when: 'Paid ' + fmtDate(r.paid_at) };
         if (r.status === 'forfeited') return { label: 'Forfeited', tone: TONE.forfeited, when: 'Order cancelled' };
         return { label: r.status, tone: muted, when: '' };
@@ -17192,7 +17196,7 @@
                 <em style={{ color: accent }}>Commission</em>
               </h1>
               <div style={{ font: '400 14px/1.5 var(--roma-sans)', color: ink + 'b3', marginTop: 6 }}>
-                {repName ? repName + ' · ' : ''}{(baseRate * 100).toFixed(0)}% base rate on gross profit
+                {repName ? repName + ' · ' : ''}{(baseRate * 100).toFixed(0)}% on materials margin · {(laborRate * 100).toFixed(0)}% on labor · paid once finalized
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -17271,7 +17275,9 @@
                       <div>
                         <div style={{ font: '500 10px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: m.tone, textTransform: 'uppercase' }}>● {m.label}</div>
                         <div style={{ font: '400 11px/1.4 var(--roma-sans)', color: ink + '99', marginTop: 2 }}>
-                          {m.when}{flag ? ' · margin ' + Math.round(parseFloat(r.margin) / parseFloat(r.order_total) * 100) + '% (below floor)' : ''}
+                          {m.when}
+                          {parseFloat(r.labor_commission || 0) > 0 ? ' · incl. ' + money2(r.labor_commission) + ' labor @ ' + (laborRate * 100).toFixed(0) + '%' : ''}
+                          {flag ? ' · margin ' + Math.round(parseFloat(r.margin) / matBase(r) * 100) + '% (below floor)' : ''}
                         </div>
                       </div>
                       <span style={{ color: muted, font: '400 14px/1 var(--roma-serif)', textAlign: 'right' }}>→</span>
@@ -17300,7 +17306,7 @@
           {/* YTD footer */}
           <div style={{ background: '#1c1917', color: paper, padding: '22px 28px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 28 }}>
             {footStat('YTD commission', money0(ytdCommission), ytdRows.length + ' orders this year')}
-            {footStat('Base rate', (baseRate * 100).toFixed(0) + '%', 'of gross profit', '#caa97f')}
+            {footStat('Commission rate', (baseRate * 100).toFixed(0) + ' / ' + (laborRate * 100).toFixed(0) + '%', 'materials margin / labor', '#caa97f')}
             {footStat('Paid to date', money0(lifetimePaid), 'lifetime payouts')}
             {footStat('Forfeited YTD', money0(ytdForfeited), 'cancelled orders')}
           </div>
