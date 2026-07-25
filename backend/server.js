@@ -8022,8 +8022,14 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
       FROM invoices WHERE order_id = $1
       ORDER BY created_at DESC
     `, [id]);
+    const releases = await pool.query(`
+      SELECT mr.*,
+        (SELECT COALESCE(SUM(ri.release_qty), 0) FROM release_items ri WHERE ri.release_id = mr.id) as total_qty,
+        (SELECT COUNT(*)::int FROM release_items ri WHERE ri.release_id = mr.id) as line_count
+      FROM material_releases mr WHERE mr.order_id = $1 ORDER BY mr.created_at DESC
+    `, [id]);
 
-    res.json({ order: order.rows[0], items: items.rows, payments: payments.rows, payment_requests: paymentRequests.rows, balance: balanceInfo, commission: commission.rows[0] || null, invoices: invoices.rows });
+    res.json({ order: order.rows[0], items: items.rows, payments: payments.rows, payment_requests: paymentRequests.rows, balance: balanceInfo, commission: commission.rows[0] || null, invoices: invoices.rows, releases: releases.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -13046,6 +13052,17 @@ app.get('/api/rep/releases/:id/release-form', repAuth, async (req, res) => {
   }
 });
 
+// Material release form PDF (staff) — unrestricted.
+app.get('/api/staff/releases/:id/release-form', staffDocAuth, async (req, res) => {
+  try {
+    const result = await generateReleaseFormHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Release not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Send invoice email from admin (with optional payment request if balance due)
 app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
   try {
@@ -17277,6 +17294,115 @@ app.post('/api/rep/releases/:releaseId/void', repAuth, async (req, res) => {
     const upd = await client.query("UPDATE material_releases SET status = 'void' WHERE id = $1 RETURNING *", [releaseId]);
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await logOrderActivity(client, rel.order_id, 'release_void', req.rep.id, repName,
+      { release: rel.release_number, reason: (req.body && req.body.reason) || null });
+    await client.query('COMMIT');
+    res.json({ success: true, release: upd.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// ── Staff twins of the material-release endpoints (same processRelease core,
+// no rep-ownership scoping; warehouse staff can release too) ────────────────
+
+app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = oRes.rows[0];
+    const itemsRes = await pool.query(`
+      SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.sqft_needed, oi.sell_by, oi.sku_id,
+        COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
+        s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, cat.name AS category_name,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+        COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
+          JOIN material_releases mr ON mr.id = ri.release_id
+          WHERE ri.order_item_id = oi.id AND mr.status != 'void'), 0) AS already_released,
+        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) AS primary_image
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN categories cat ON cat.id = p.category_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor' ORDER BY oi.id`, [id]);
+    res.json({ order, items: itemsRes.rows, releasable: RELEASABLE_STATUSES.includes(order.status) });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/admin/orders/:id/releases', staffAuth, requireRole('admin', 'manager', 'warehouse'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { lines, release_method, recipient_name, notes } = req.body || {};
+    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = oRes.rows[0];
+    if (!RELEASABLE_STATUSES.includes(order.status)) {
+      return res.status(400).json({ error: 'Materials can only be released once the order is confirmed (paid).' });
+    }
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await client.query('BEGIN');
+    const result = await processRelease(client, {
+      id, order, lines, release_method, recipient_name, notes,
+      actor: { performerId: req.staff.id, name: staffName, staffId: req.staff.id },
+    });
+    await client.query('COMMIT');
+    await emailMaterialRelease({ order, release: result.release, computed: result.computed, actorName: staffName, actorEmail: req.staff.email });
+    res.json({ success: true, release: result.release, is_full: result.isFull });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err);
+    res.status(400).json({ error: err.message || 'Failed to create release' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/admin/releases/:releaseId/complete', staffAuth, requireRole('admin', 'manager', 'warehouse'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { releaseId } = req.params;
+    await client.query('BEGIN');
+    const rRes = await client.query(
+      'SELECT mr.*, o.order_number FROM material_releases mr JOIN orders o ON o.id = mr.order_id WHERE mr.id = $1 FOR UPDATE OF mr', [releaseId]);
+    if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Release not found' }); }
+    const rel = rRes.rows[0];
+    if (rel.status !== 'released') { await client.query('ROLLBACK'); return res.status(400).json({ error: `Release is already ${rel.status}` }); }
+    const upd = await client.query(
+      "UPDATE material_releases SET status = 'completed', completed_at = NOW() WHERE id = $1 RETURNING *", [releaseId]);
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await logOrderActivity(client, rel.order_id, 'release_completed', req.staff.id, staffName,
+      { release: rel.release_number, method: rel.release_method });
+    await client.query('COMMIT');
+    res.json({ success: true, release: upd.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/admin/releases/:releaseId/void', staffAuth, requireRole('admin', 'manager', 'warehouse'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { releaseId } = req.params;
+    await client.query('BEGIN');
+    const rRes = await client.query(
+      'SELECT mr.* FROM material_releases mr WHERE mr.id = $1 FOR UPDATE', [releaseId]);
+    if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Release not found' }); }
+    const rel = rRes.rows[0];
+    if (rel.status === 'void') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Release is already void' }); }
+    const upd = await client.query("UPDATE material_releases SET status = 'void' WHERE id = $1 RETURNING *", [releaseId]);
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await logOrderActivity(client, rel.order_id, 'release_void', req.staff.id, staffName,
       { release: rel.release_number, reason: (req.body && req.body.reason) || null });
     await client.query('COMMIT');
     res.json({ success: true, release: upd.rows[0] });

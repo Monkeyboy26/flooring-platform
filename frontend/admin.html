@@ -4749,6 +4749,9 @@
       // Margin/commission + accounting invoices (same objects the rep view uses)
       const [commission, setCommission] = useState(null);
       const [invoices, setInvoices] = useState([]);
+      // Material releases (staff twins of the rep release flow)
+      const [releases, setReleases] = useState([]);
+      const [showReleaseModal, setShowReleaseModal] = useState(false);
 
       const loadReturns = async () => {
         if (!editId) return;
@@ -4769,6 +4772,7 @@
           setBalanceInfo(data.balance || null);
           setCommission(data.commission || null);
           setInvoices(data.invoices || []);
+          setReleases(data.releases || []);
         } catch (e) { /* ignore */ }
       };
 
@@ -4828,7 +4832,7 @@
           case 'payment_collected': return [d.amount ? '$' + d.amount : null, d.payment_method ? 'via ' + d.payment_method : null].filter(Boolean).join(' · ');
           case 'material_released': return (d.release || '') + (d.qty ? ' · ' + d.qty + ' units' : '') + (d.method ? ' · ' + d.method : '');
           default: {
-            const parts = ['product_name', 'amount', 'total', 'to', 'reason'].map(k => d[k]).filter(Boolean);
+            const parts = ['product_name', 'release', 'amount', 'total', 'to', 'reason'].map(k => d[k]).filter(Boolean);
             return parts.join(' · ');
           }
         }
@@ -4870,6 +4874,7 @@
             setBalanceInfo(data.balance || null);
             setCommission(data.commission || null);
             setInvoices(data.invoices || []);
+            setReleases(data.releases || []);
             setLoading(false);
           })
           .catch(() => setLoading(false));
@@ -5132,6 +5137,9 @@
                 )}
                 <button className="opsq-alt" onClick={() => { setInvoiceMessage(''); setShowSendInvoiceModal(true); }}>Email invoice</button>
                 <button className="opsq-alt" onClick={() => { setReturnConfirmation(null); setShowReturnModal(true); }}>Change order</button>
+                {['confirmed', 'shipped', 'ready_for_pickup', 'delivered'].includes(order.status) && ['admin', 'manager', 'warehouse'].includes(staffRole) && productItems.length > 0 && (
+                  <button className="opsq-alt" onClick={() => setShowReleaseModal(true)}>Release materials</button>
+                )}
                 {canCancel && (
                   <button className="opsq-alt" style={{ color: 'var(--hot)' }} disabled={updating}
                     onClick={() => { if (confirm('Cancel this order?')) updateStatus('cancelled'); }}>Cancel order</button>
@@ -5912,6 +5920,50 @@
             </div>
           )}
 
+          {/* Material releases — staff twin of the rep release flow */}
+          {recTab === 'record' && releases.length > 0 && <div className="form-card">
+            <div className="rb-head">
+              <h3>Material releases {'·'} {releases.length}</h3>
+              {['confirmed', 'shipped', 'ready_for_pickup', 'delivered'].includes(order.status) && ['admin', 'manager', 'warehouse'].includes(staffRole) && (
+                <button className="rb-action" onClick={() => setShowReleaseModal(true)}>New release</button>
+              )}
+            </div>
+            <div>
+              {releases.map(rel => (
+                <div className="rb-doc" key={rel.id}>
+                  <span style={{ minWidth: 0 }}>
+                    <span className="rb-doc-name" style={{ display: 'block' }}>{rel.release_number}</span>
+                    <span className="rb-doc-sub" style={{ display: 'block' }}>
+                      {new Date(rel.released_at || rel.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {' · ' + rel.release_method + ' · ' + parseFloat(rel.total_qty || 0) + ' units · ' + rel.line_count + ' line' + (rel.line_count === 1 ? '' : 's')}
+                      {rel.recipient_name ? ' · to ' + rel.recipient_name : ''}
+                      {rel.released_by_name ? ' · by ' + rel.released_by_name : ''}
+                    </span>
+                  </span>
+                  <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 12, flexShrink: 0 }}>
+                    <span style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.1em', color: rel.status === 'completed' ? 'var(--green)' : rel.status === 'void' ? 'var(--faint)' : 'var(--gold)' }}>{(rel.status || '').toUpperCase()}</span>
+                    <button className="rb-doc-link" onClick={() => {
+                      const token = sessionStorage.getItem('staff_token');
+                      setDocPreview({ url: API + '/api/staff/releases/' + rel.id + '/release-form?token=' + encodeURIComponent(token), title: 'Release ' + rel.release_number });
+                    }}>PDF {'↓'}</button>
+                    {rel.status === 'released' && (
+                      <button className="rb-doc-link" onClick={async () => {
+                        if (!confirm('Mark ' + rel.release_number + ' completed (materials picked up / delivered)?')) return;
+                        try { await adminFetch('/api/admin/releases/' + rel.id + '/complete', { method: 'POST' }); reloadOrderDetail(); loadOrderActivity(); } catch (err) { alert(err.message); }
+                      }}>COMPLETE</button>
+                    )}
+                    {rel.status !== 'void' && (
+                      <button className="rb-doc-link" style={{ color: 'var(--hot)' }} onClick={async () => {
+                        if (!confirm('Void ' + rel.release_number + '? Its quantities become releasable again.')) return;
+                        try { await adminFetch('/api/admin/releases/' + rel.id + '/void', { method: 'POST' }); reloadOrderDetail(); loadOrderActivity(); } catch (err) { alert(err.message); }
+                      }}>VOID</button>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>}
+
           {/* Order Activity */}
           {recTab === 'activity' && <div className="form-card">
             <div className="rb-head">
@@ -6468,6 +6520,22 @@
           />
         )}
 
+        {showReleaseModal && (
+          <ReleaseModal
+            editId={editId}
+            onClose={() => setShowReleaseModal(false)}
+            onDone={(rel) => {
+              setShowReleaseModal(false);
+              reloadOrderDetail();
+              loadOrderActivity();
+              if (rel) {
+                const token = sessionStorage.getItem('staff_token');
+                setDocPreview({ url: API + '/api/staff/releases/' + rel.id + '/release-form?token=' + encodeURIComponent(token), title: 'Release ' + rel.release_number });
+              }
+            }}
+          />
+        )}
+
         {returnConfirmation && (
           <div className="modal-overlay" onClick={() => setReturnConfirmation(null)}>
             <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -6640,6 +6708,136 @@
         )}
 
         </React.Fragment>
+      );
+    }
+
+    // ========== ReleaseModal ==========
+    // Staff twin of the rep "Release materials" flow: pick lines + partial
+    // quantities, choose pickup/delivery, name the recipient. Creating a
+    // release emails the customer and prints a signable release form.
+    function ReleaseModal({ editId, onClose, onDone }) {
+      const [loading, setLoading] = useState(true);
+      const [ctx, setCtx] = useState(null);
+      const [lineState, setLineState] = useState({});
+      const [method, setMethod] = useState('pickup');
+      const [recipient, setRecipient] = useState('');
+      const [notes, setNotes] = useState('');
+      const [committing, setCommitting] = useState(false);
+      const [error, setError] = useState('');
+
+      useEffect(() => {
+        adminFetch('/api/admin/orders/' + editId + '/release-context')
+          .then(data => {
+            setCtx(data);
+            const seed = {};
+            (data.items || []).forEach(it => {
+              const remaining = Math.max(0, parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0));
+              seed[it.id] = { selected: remaining > 0, qty: remaining };
+            });
+            setLineState(seed);
+            if (data.order && data.order.customer_name) setRecipient(data.order.customer_name);
+            setLoading(false);
+          })
+          .catch(err => { setError(err.message || 'Failed to load'); setLoading(false); });
+      }, [editId]);
+
+      const items = (ctx && ctx.items) || [];
+      const remainingFor = (it) => Math.max(0, parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0));
+      const unitFor = (it) => it.sell_by === 'unit' ? 'units' : it.sell_by === 'roll' ? 'rolls' : it.sell_by === 'piece' ? 'pcs' : 'boxes';
+      const setLine = (id, patch) => setLineState(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+      const selectedLines = items.filter(it => {
+        const st = lineState[it.id];
+        return st && st.selected && parseFloat(st.qty) > 0 && parseFloat(st.qty) <= remainingFor(it) + 0.001;
+      });
+      const overSelected = items.some(it => {
+        const st = lineState[it.id];
+        return st && st.selected && (!(parseFloat(st.qty) > 0) || parseFloat(st.qty) > remainingFor(it) + 0.001);
+      });
+      const valid = selectedLines.length > 0 && !overSelected && ctx && ctx.releasable;
+      const totalQty = selectedLines.reduce((s, it) => s + parseFloat(lineState[it.id].qty || 0), 0);
+
+      const submit = async () => {
+        setCommitting(true); setError('');
+        try {
+          const data = await adminFetch('/api/admin/orders/' + editId + '/releases', {
+            method: 'POST',
+            body: JSON.stringify({
+              lines: selectedLines.map(it => ({ order_item_id: it.id, release_qty: parseFloat(lineState[it.id].qty) })),
+              release_method: method,
+              recipient_name: recipient || undefined,
+              notes: notes || undefined
+            })
+          });
+          onDone(data.release);
+        } catch (err) { setError(err.message || 'Failed to create release'); setCommitting(false); }
+      };
+
+      return (
+        <div className="modal-overlay" onClick={() => !committing && onClose()}>
+          <div className="modal-box" style={{ maxWidth: 660 }} onClick={e => e.stopPropagation()}>
+            <h3>Release materials</h3>
+            {loading ? <p style={{ fontSize: '0.8125rem', color: 'var(--stone-400)' }}>Loading…</p> : (
+              <React.Fragment>
+                {ctx && !ctx.releasable && (
+                  <p style={{ fontSize: '0.8125rem', color: '#d9a441', margin: '0 0 0.75rem' }}>
+                    Materials can only be released once the order is confirmed (paid).
+                  </p>
+                )}
+                <p style={{ fontSize: '0.75rem', color: 'var(--stone-400)', margin: '0 0 0.75rem' }}>
+                  Authorizes goods to leave the warehouse — does not change order status or inventory. The customer gets a release email.
+                </p>
+                <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--line)', marginBottom: '0.75rem' }}>
+                  {items.length === 0 && <p style={{ fontSize: '0.8125rem', color: 'var(--stone-400)', padding: '0.75rem' }}>No releasable lines on this order.</p>}
+                  {items.map(it => {
+                    const st = lineState[it.id] || {};
+                    const remaining = remainingFor(it);
+                    const released = parseFloat(it.already_released || 0);
+                    const done = remaining <= 0;
+                    return (
+                      <label key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: '1px solid var(--line)', cursor: done ? 'default' : 'pointer', opacity: done ? 0.5 : 1 }}>
+                        <input type="checkbox" disabled={done} checked={!!st.selected} onChange={e => setLine(it.id, { selected: e.target.checked })} />
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ display: 'block', font: '400 13px/1.3 var(--sans)' }}>{it.collection || it.current_collection || it.product_name}{it.color ? ' ' + it.color : ''}</span>
+                          <span style={{ display: 'block', marginTop: 2, font: '400 10px/1.4 var(--mono)', color: 'var(--faint)' }}>
+                            {it.vendor_name || ''}{it.vendor_sku ? ' · ' + it.vendor_sku : ''}
+                            {' · ' + released + '/' + parseFloat(it.num_boxes || 0) + ' released'}
+                          </span>
+                        </span>
+                        {done ? (
+                          <span style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.1em', color: 'var(--green)' }}>FULLY RELEASED</span>
+                        ) : (
+                          <span style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexShrink: 0 }}>
+                            <input type="number" min="0.01" step="any" max={remaining} value={st.qty} disabled={!st.selected}
+                              onChange={e => setLine(it.id, { qty: e.target.value })}
+                              style={{ width: 70, padding: '5px 7px', font: '400 12px/1 var(--mono)', textAlign: 'right' }} />
+                            <span style={{ font: '400 10px/1 var(--mono)', color: 'var(--faint)' }}>of {remaining} {unitFor(it)}</span>
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                  <select value={method} onChange={e => setMethod(e.target.value)} style={{ padding: '7px 9px', font: '400 12px/1.4 var(--sans)' }}>
+                    <option value="pickup">Customer pickup</option>
+                    <option value="delivery">Delivery</option>
+                  </select>
+                  <input type="text" placeholder="Released to (recipient)" value={recipient} onChange={e => setRecipient(e.target.value)}
+                    style={{ flex: '1 1 180px', minWidth: 140, padding: '7px 9px', font: '400 12px/1.4 var(--sans)' }} />
+                </div>
+                <input type="text" placeholder="Notes for the release form (optional)" value={notes} onChange={e => setNotes(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '7px 9px', font: '400 12px/1.4 var(--sans)', marginBottom: '0.75rem' }} />
+                {error && <div className="auth-error" style={{ marginBottom: '0.75rem' }}>{error}</div>}
+                <div className="modal-actions">
+                  <button className="btn btn-secondary" onClick={onClose} disabled={committing}>Cancel</button>
+                  <button className="btn btn-primary" disabled={!valid || committing} onClick={submit}>
+                    {committing ? 'Releasing…' : 'Release ' + selectedLines.length + ' line' + (selectedLines.length === 1 ? '' : 's') + ' · ' + totalQty + ' units'}
+                  </button>
+                </div>
+              </React.Fragment>
+            )}
+          </div>
+        </div>
       );
     }
 
