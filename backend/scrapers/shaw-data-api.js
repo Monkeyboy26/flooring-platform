@@ -150,7 +150,28 @@ async function fetchAllProducts(config, pool, jobId) {
       continue;
     }
 
-    if (!resp.ok) throw new Error(`API error: ${resp.status} ${resp.statusText}`);
+    if (!resp.ok) {
+      let bodyText = '';
+      try { bodyText = await resp.text(); } catch { /* ignore */ }
+      if (resp.status === 401 || resp.status === 403) {
+        // Distinguish which credential Shaw rejected. Shaw's Azure API-Management
+        // gateway returns a body mentioning "subscription key" when the
+        // ocp-apim-subscription-key (gateway_key) is bad/missing. A body WITHOUT
+        // that phrase (e.g. {"errorMessage":"Not Authorized"}) means the request
+        // cleared the gateway and Shaw's application rejected the dealer api-Key.
+        const gatewayRejected = /subscription key/i.test(bodyText);
+        const culprit = gatewayRejected
+          ? 'the Azure gateway key (config.gateway_key / ocp-apim-subscription-key)'
+          : 'the dealer key (config.dealer_key / api-Key) — request cleared Shaw\'s gateway but the app returned "Not Authorized"';
+        throw new Error(
+          `Shaw API ${resp.status}: ${culprit} was rejected — this credential has likely expired or been rotated by Shaw. ` +
+          `Request a fresh key from Shaw (or confirm IP allowlisting), then set it in the vendor source config. ` +
+          `Catalog/pricing still flow via the shaw-832 EDI feed, so this only affects supplementary image/attribute enrichment. ` +
+          `Response body: ${bodyText.slice(0, 200)}`
+        );
+      }
+      throw new Error(`API error: ${resp.status} ${resp.statusText}${bodyText ? ` — ${bodyText.slice(0, 200)}` : ''}`);
+    }
 
     const data = await resp.json();
     const styles = data.retailerStylesDetail || [];
