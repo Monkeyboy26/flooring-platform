@@ -21927,9 +21927,13 @@ app.get('/api/rep/tasks/dashboard', repAuth, async (req, res) => {
         CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END
     `, [req.rep.id, upcoming, today]);
 
-    const overdue = result.rows.filter(t => t.due_date && t.due_date < today);
-    const todayTasks = result.rows.filter(t => t.due_date && t.due_date.toISOString().split('T')[0] === today);
-    const upcomingTasks = result.rows.filter(t => !t.due_date || t.due_date > today);
+    // due_date comes back as a Date; normalize to YYYY-MM-DD before comparing to
+    // the string `today` — comparing a Date to a string coerces to NaN and makes
+    // every </> test false, which silently emptied overdue and upcoming.
+    const dueStr = t => t.due_date ? t.due_date.toISOString().split('T')[0] : null;
+    const overdue = result.rows.filter(t => dueStr(t) && dueStr(t) < today);
+    const todayTasks = result.rows.filter(t => dueStr(t) === today);
+    const upcomingTasks = result.rows.filter(t => !t.due_date || dueStr(t) > today);
 
     res.json({ overdue, today: todayTasks, upcoming: upcomingTasks, total: result.rows.length });
   } catch (err) {

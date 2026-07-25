@@ -18094,20 +18094,37 @@
         };
       });
 
-      // Build today's tasks from tasksDash
+      // Build the dashboard task list: overdue + due-today first, then fall
+      // through to upcoming open tasks so the panel is useful even when nothing
+      // is due today. Each row's label reflects its own due bucket.
       const overdueIds = new Set((tasksDash && tasksDash.overdue || []).map(o => o.id));
-      const todayTasks = tasksDash
-        ? [...(tasksDash.overdue || []), ...(tasksDash.today || [])].slice(0, 4).map(t => {
-            const isOverdue = overdueIds.has(t.id);
-            return {
-              task: t,
-              time: isOverdue ? 'Overdue' : 'Today',
-              label: t.title + (t.customer_name ? ' \u00b7 ' + t.customer_name : ''),
-              kind: isOverdue ? 'urgent' : 'task',
-              tone: isOverdue ? '#c54731' : '#a87935',
-            };
-          })
-        : [];
+      const dueNowTasks = tasksDash ? [...(tasksDash.overdue || []), ...(tasksDash.today || [])] : [];
+      const upcomingTasks = tasksDash ? (tasksDash.upcoming || []) : [];
+      const taskTimeMeta = (t, isOverdue) => {
+        if (isOverdue) return { time: 'Overdue', tone: '#c54731' };
+        if (!t.due_date) return { time: 'No date', tone: '#8a7e68' };
+        const d = new Date(String(t.due_date).split('T')[0] + 'T00:00:00');
+        const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+        const diff = Math.round((d - t0) / 86400000);
+        if (diff <= 0) return { time: 'Today', tone: '#a87935' };
+        if (diff === 1) return { time: 'Tomorrow', tone: '#3a7a4e' };
+        if (diff < 7) return { time: d.toLocaleDateString('en-US', { weekday: 'short' }), tone: '#8a7e68' };
+        return { time: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), tone: '#8a7e68' };
+      };
+      const todayTasks = [...dueNowTasks, ...upcomingTasks].slice(0, 5).map(t => {
+        const meta = taskTimeMeta(t, overdueIds.has(t.id));
+        return {
+          task: t,
+          time: meta.time,
+          tone: meta.tone,
+          label: t.title + (t.customer_name ? ' \u00b7 ' + t.customer_name : ''),
+        };
+      });
+      const dashTaskTitle = dueNowTasks.length > 0
+        ? 'Today \u00b7 ' + dueNowTasks.length + ' thing' + (dueNowTasks.length !== 1 ? 's' : '')
+        : todayTasks.length > 0
+          ? 'Upcoming \u00b7 ' + todayTasks.length
+          : 'Today \u00b7 clear';
 
       // Complete a task straight from the dashboard, dropping it from the widget.
       const completeDashTask = (id) => {
@@ -18116,6 +18133,7 @@
             ...prev,
             overdue: (prev.overdue || []).filter(t => t.id !== id),
             today: (prev.today || []).filter(t => t.id !== id),
+            upcoming: (prev.upcoming || []).filter(t => t.id !== id),
           } : prev))
           .catch(() => {});
       };
@@ -18207,7 +18225,7 @@
             {/* Today's calendar / tasks */}
             <div className="td-panel">
               <div className="td-panel-header">
-                <h3>Today {'\u00b7'} {todayTasks.length > 0 ? todayTasks.length + ' things' : 'clear'}</h3>
+                <h3>{dashTaskTitle}</h3>
                 <a onClick={() => navigate('tasks')}>Tasks {'\u2192'}</a>
               </div>
               {todayTasks.length > 0 ? todayTasks.map((e) => (
@@ -18231,7 +18249,14 @@
                 </div>
               )) : (
                 <div style={{ padding: '40px 22px', textAlign: 'center', color: 'var(--brass-muted)', font: '400 13px/1.4 Inter, sans-serif' }}>
-                  No tasks due today. Check your <a style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => navigate('tasks')}>task list</a>.
+                  Nothing on deck. Add a follow-up from any order, quote, or customer, or check your <a style={{ color: 'var(--gold)', cursor: 'pointer' }} onClick={() => navigate('tasks')}>task list</a>.
+                </div>
+              )}
+              {dueNowTasks.length + upcomingTasks.length > todayTasks.length && (
+                <div className="td-cal-row" style={{ cursor: 'pointer', justifyContent: 'center' }} onClick={() => navigate('tasks')}>
+                  <div className="td-cal-label" style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--gold)', font: '500 12px/1 Inter, sans-serif' }}>
+                    {'+ ' + (dueNowTasks.length + upcomingTasks.length - todayTasks.length) + ' more'} {'→'}
+                  </div>
                 </div>
               )}
             </div>
