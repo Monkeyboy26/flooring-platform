@@ -5029,6 +5029,9 @@
       const nextStatus = statusFlow[order.status];
       const prevStatus = reverseFlow[order.status];
       const canCancel = order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'refunded';
+      const recStatusLabels = isPickupOrder
+        ? { pending: 'Pending', confirmed: 'Confirmed', ready_for_pickup: 'Ready for pickup', delivered: 'Picked up' }
+        : { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered' };
 
       const isLaborItem = (i) => (i.item_type || 'material') === 'labor';
       const productItems = items.filter(i => !i.is_sample && !isLaborItem(i));
@@ -5121,9 +5124,23 @@
                 <div className="opsq-block-label" style={{ marginBottom: 0 }}>ORDER VALUE</div>
                 <div className="recd-value">${recTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
               </div>
-              <div style={{ display: 'flex', gap: 8, alignSelf: 'center', flexShrink: 0 }}>
-                <button className="opsq-alt" onClick={() => setShowSendInvoiceModal(true)}>Email invoice</button>
+              <div style={{ display: 'flex', gap: 8, alignSelf: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+                {nextStatus && !recCancelled && !showTrackingForm && (
+                  <button className="recd-exc-primary" disabled={updating} onClick={() => updateStatus(nextStatus)}>
+                    {updating ? 'Updating…' : order.status === 'pending' ? 'Confirm order' : 'Mark as ' + (recStatusLabels[nextStatus] || nextStatus).toLowerCase()}
+                  </button>
+                )}
+                <button className="opsq-alt" onClick={() => { setInvoiceMessage(''); setShowSendInvoiceModal(true); }}>Email invoice</button>
                 <button className="opsq-alt" onClick={() => { setReturnConfirmation(null); setShowReturnModal(true); }}>Change order</button>
+                {canCancel && (
+                  <button className="opsq-alt" style={{ color: 'var(--hot)' }} disabled={updating}
+                    onClick={() => { if (confirm('Cancel this order?')) updateStatus('cancelled'); }}>Cancel order</button>
+                )}
+                {prevStatus && !recCancelled && (
+                  <button className="opsq-alt" disabled={updating}
+                    title={'Revert to ' + (recStatusLabels[prevStatus] || prevStatus)}
+                    onClick={() => { if (confirm('Revert order to ' + (recStatusLabels[prevStatus] || prevStatus) + '? This will clear any data from later steps (e.g. tracking info).')) updateStatus(prevStatus); }}>{'↩'}</button>
+                )}
               </div>
             </div>
             <div className="recd-rail">
@@ -5155,7 +5172,6 @@
             const excActs = [];
             if (order.status === 'pending') {
               excActs.push({ label: updating ? 'Confirming…' : 'Confirm order', primary: true, busy: updating, run: () => updateStatus('confirmed') });
-              if (canCancel) excActs.push({ label: 'Cancel order', busy: updating, run: () => updateStatus('cancelled') });
             } else if (recDraftPos > 0) {
               if (singleDraft) {
                 excActs.push({ label: 'Send ' + (singleDraft.po_number || 'PO') + ' to ' + (singleDraft.vendor_name || 'vendor'), primary: true, busy: poUpdating, run: () => sendPOToVendor(singleDraft.id, singleDraft.edi_config?.enabled) });
@@ -5188,219 +5204,76 @@
               </div>
             );
           })()}
-          {recTab === 'record' && (() => {
-            const isPickup = order.delivery_method === 'pickup';
-            const steps = isPickup
-              ? ['pending', 'confirmed', 'ready_for_pickup', 'delivered']
-              : ['pending', 'confirmed', 'shipped', 'delivered'];
-            const stepLabels = isPickup
-              ? { pending: 'Pending', confirmed: 'Confirmed', ready_for_pickup: 'Ready for Pickup', delivered: 'Picked Up' }
-              : { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered' };
-            const stepTimestamps = {
-              pending: order.created_at,
-              confirmed: order.confirmed_at,
-              shipped: order.shipped_at,
-              delivered: order.delivered_at
-            };
-            const isCancelled = order.status === 'cancelled' || order.status === 'refunded';
-            // For cancelled/refunded orders, figure out how far it got based on timestamps
-            const currentIdx = isCancelled
-              ? (order.shipped_at ? 2 : order.confirmed_at ? 1 : 0)
-              : steps.indexOf(order.status);
-
-            const getStepState = (stepIdx) => {
-              if (isCancelled) return stepIdx <= currentIdx ? 'cancelled' : 'upcoming';
-              if (stepIdx < currentIdx) return 'completed';
-              if (stepIdx === currentIdx) return 'current';
-              return 'upcoming';
-            };
-
-            return (
-              <div className="form-card">
-                <h3>Actions</h3>
-
-                {order.status === 'cancelled' && (
-                  <div className="stepper-cancelled-banner">Order Cancelled</div>
-                )}
-                {order.status === 'refunded' && (
-                  <div className="stepper-cancelled-banner" style={{ background: 'rgba(150,120,200,0.16)', color: '#b39ddb', borderColor: '#b39ddb' }}>Order Refunded</div>
-                )}
-
-                <div className="order-stepper">
-                  {/* Render connectors */}
-                  {steps.slice(1).map((step, idx) => {
-                    const prevState = getStepState(idx);
-                    const curState = getStepState(idx + 1);
-                    const connClass = (prevState === 'completed' && (curState === 'completed' || curState === 'current'))
-                      ? 'completed'
-                      : (prevState === 'cancelled' ? 'completed' : 'upcoming');
-                    const pct = 100 / (steps.length - 1);
-                    const leftPct = idx * pct;
-                    return (
-                      <div
-                        key={'conn-' + idx}
-                        className={'stepper-connector ' + connClass}
-                        style={{
-                          left: 'calc(' + (leftPct + pct * 0.15) + '% + 18px)',
-                          width: 'calc(' + (pct * 0.7) + '% - 36px)',
-                        }}
-                      />
-                    );
-                  })}
-                  {/* Render step nodes */}
-                  {steps.map((step, idx) => {
-                    const state = getStepState(idx);
-                    const ts = stepTimestamps[step];
-                    return (
-                      <div key={step} className={'stepper-step ' + state}>
-                        <div className="stepper-circle">
-                          {state === 'completed' ? '\u2713' : state === 'cancelled' ? '\u2717' : (idx + 1)}
-                        </div>
-                        <div className="stepper-label">{stepLabels[step]}</div>
-                        {ts && (state === 'completed' || state === 'current' || state === 'cancelled') && (
-                          <div className="stepper-timestamp">{new Date(ts).toLocaleDateString()}</div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Tracking info display below stepper when shipped/delivered */}
-                {order.tracking_number && !showTrackingForm && (
-                  <div className="stepper-tracking-info">
-                    <div><strong style={{ color: 'var(--stone-500)' }}>Tracking:</strong> {order.tracking_number}
-                      {trackingData2 && trackingData2.tracking_url && (
-                        <a href={trackingData2.tracking_url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--accent-gold)' }}>Track on carrier site &rarr;</a>
-                      )}
-                    </div>
-                    {order.shipping_carrier && <div><strong style={{ color: 'var(--stone-500)' }}>Carrier:</strong> {order.shipping_carrier}</div>}
-                    {order.shipped_at && <div><strong style={{ color: 'var(--stone-500)' }}>Shipped:</strong> {new Date(order.shipped_at).toLocaleDateString()}</div>}
-                    {trackingData2 && trackingData2.tracking_status && (
-                      <div><strong style={{ color: 'var(--stone-500)' }}>Status:</strong> <span style={{ textTransform: 'capitalize' }}>{trackingData2.tracking_status}</span></div>
-                    )}
-                  </div>
-                )}
-
-                {/* Tracking events timeline */}
-                {order.tracking_number && !showTrackingForm && trackingData2 && (trackingData2.events || []).length > 0 && (
-                  <div style={{ marginTop: '0.75rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                      <h4 style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--stone-700)' }}>Tracking Events</h4>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {trackingData2.last_checked && (
-                          <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>Last checked: {new Date(trackingData2.last_checked).toLocaleString()}</span>
-                        )}
-                        <button className="btn btn-secondary btn-sm" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem' }} onClick={refreshTracking} disabled={trackingRefreshing}>
-                          {trackingRefreshing ? 'Refreshing...' : 'Refresh'}
-                        </button>
-                      </div>
-                    </div>
-                    <div style={{ position: 'relative', paddingLeft: '1.25rem' }}>
-                      <div style={{ position: 'absolute', left: '4px', top: '6px', bottom: '6px', width: '2px', background: 'var(--stone-200)' }}></div>
-                      {trackingData2.events.map((evt, idx) => (
-                        <div key={evt.id || idx} style={{ position: 'relative', paddingBottom: idx < trackingData2.events.length - 1 ? '0.75rem' : 0, fontSize: '0.8125rem' }}>
-                          <div style={{ position: 'absolute', left: '-1.25rem', top: '4px', width: '10px', height: '10px', borderRadius: '50%', background: idx === 0 ? 'var(--accent-gold)' : 'var(--stone-300)', border: '2px solid #fff' }}></div>
-                          <div style={{ fontWeight: idx === 0 ? 600 : 400, color: 'var(--stone-800)', textTransform: 'capitalize' }}>{evt.status}</div>
-                          {evt.description && <div style={{ color: 'var(--stone-500)', fontSize: '0.75rem' }}>{evt.description}</div>}
-                          <div style={{ color: 'var(--stone-400)', fontSize: '0.7rem' }}>
-                            {evt.event_time ? new Date(evt.event_time).toLocaleString() : ''}
-                            {evt.location ? (' — ' + evt.location) : ''}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Manual refresh button when no events yet but order is shipped */}
-                {order.tracking_number && !showTrackingForm && trackingData2 && (trackingData2.events || []).length === 0 && (
-                  <div style={{ marginTop: '0.5rem', textAlign: 'center' }}>
-                    <button className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem' }} onClick={refreshTracking} disabled={trackingRefreshing}>
-                      {trackingRefreshing ? 'Checking...' : 'Check for tracking updates'}
-                    </button>
-                  </div>
-                )}
-
-                {/* Tracking form - slides in when advancing to shipped */}
-                {showTrackingForm && (
-                  <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)' }}>
-                    <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--stone-700)' }}>Shipment Details</h4>
-                    <div className="resp-grid-3" style={{ gap: '0.75rem' }}>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Carrier *</label>
-                        <select className="form-control" value={trackingData.carrier} onChange={e => setTrackingData({ ...trackingData, carrier: e.target.value })} style={{ fontSize: '0.8125rem' }}>
-                          <option value="">Select carrier...</option>
-                          <option>UPS</option>
-                          <option>FedEx</option>
-                          <option>USPS</option>
-                          <option>FedEx Freight</option>
-                          <option>XPO Logistics</option>
-                          <option>R+L Carriers</option>
-                          <option>SAIA</option>
-                          <option>Old Dominion</option>
-                          <option>Other</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Tracking Number *</label>
-                        <input className="form-control" type="text" placeholder="Enter tracking number" value={trackingData.tracking_number} onChange={e => setTrackingData({ ...trackingData, tracking_number: e.target.value })} style={{ fontSize: '0.8125rem' }} />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Ship Date</label>
-                        <input className="form-control" type="date" value={trackingData.shipped_at} onChange={e => setTrackingData({ ...trackingData, shipped_at: e.target.value })} style={{ fontSize: '0.8125rem' }} />
-                      </div>
-                    </div>
-                    <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
-                      <button className="btn btn-primary btn-sm" onClick={() => updateStatus('shipped')} disabled={updating || !trackingData.carrier || !trackingData.tracking_number}>
-                        {updating ? 'Submitting...' : 'Confirm Shipment'}
-                      </button>
-                      <button className="btn btn-secondary btn-sm" onClick={() => setShowTrackingForm(false)}>Cancel</button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Action bar below stepper */}
-                {!showTrackingForm && (
-                  <div className="stepper-actions">
-                    {prevStatus && (
-                      <button className="stepper-revert-link" onClick={() => { if (confirm('Revert order to ' + (stepLabels[prevStatus] || prevStatus) + '? This will clear any data from later steps (e.g. tracking info).')) updateStatus(prevStatus); }} disabled={updating}>
-                        {'\u21A9'} Revert to {stepLabels[prevStatus] || prevStatus.charAt(0).toUpperCase() + prevStatus.slice(1)}
-                      </button>
-                    )}
-                    {nextStatus && (
-                      <button className="btn btn-primary" onClick={() => updateStatus(nextStatus)} disabled={updating}>
-                        {updating ? 'Updating...' : 'Mark as ' + (stepLabels[nextStatus] || nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1))}
-                      </button>
-                    )}
-                    <button className="btn btn-primary btn-sm" onClick={() => { setInvoiceMessage(''); setShowSendInvoiceModal(true); }}>
-                      Email Invoice
-                    </button>
-                    {['shipped', 'delivered', 'ready_for_pickup'].includes(order.status) && ['admin', 'manager'].includes(staffRole) && (
-                      <button className="btn btn-secondary btn-sm" onClick={() => { setReturnConfirmation(null); setShowReturnModal(true); }}>
-                        Start Return
-                      </button>
-                    )}
-                    {canCancel && !isCancelled && (
-                      <button className="stepper-cancel-link" onClick={() => updateStatus('cancelled')} disabled={updating}>
-                        Cancel Order
-                      </button>
-                    )}
-                    {order.status === 'cancelled' && !order.stripe_refund_id && order.stripe_payment_intent_id && ['admin', 'manager'].includes(staffRole) && (
-                      <button className="btn" style={{ background: 'rgba(217,164,65,0.15)', color: '#d9a441' }}
-                        onClick={() => setShowRefundModal(true)}>
-                        Issue Refund
-                      </button>
-                    )}
-                    {order.status === 'refunded' && (
-                      <span className="badge badge-refunded" style={{ fontSize: '0.8125rem', padding: '0.35rem 0.85rem' }}>
-                        Refunded ${parseFloat(order.refund_amount || 0).toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-                )}
+          {/* Shipment details — appears when advancing a shipping order to Shipped */}
+          {recTab === 'record' && showTrackingForm && (
+            <div className="recd-exception" style={{ borderLeftColor: 'var(--gold)' }}>
+              <div className="recd-exc-head"><span style={{ color: 'var(--gold)' }}>SHIPMENT DETAILS</span></div>
+              <div style={{ marginTop: 13, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <select value={trackingData.carrier} onChange={e => setTrackingData({ ...trackingData, carrier: e.target.value })}
+                  style={{ padding: '9px 10px', font: '400 12px/1.4 var(--sans)' }}>
+                  <option value="">Carrier…</option>
+                  <option>UPS</option>
+                  <option>FedEx</option>
+                  <option>USPS</option>
+                  <option>FedEx Freight</option>
+                  <option>XPO Logistics</option>
+                  <option>R+L Carriers</option>
+                  <option>SAIA</option>
+                  <option>Old Dominion</option>
+                  <option>Other</option>
+                </select>
+                <input type="text" placeholder="Tracking number" value={trackingData.tracking_number}
+                  onChange={e => setTrackingData({ ...trackingData, tracking_number: e.target.value })}
+                  style={{ flex: '1 1 180px', minWidth: 140, padding: '9px 10px', font: '400 12px/1.4 var(--mono)' }} />
+                <input type="date" value={trackingData.shipped_at}
+                  onChange={e => setTrackingData({ ...trackingData, shipped_at: e.target.value })}
+                  style={{ padding: '9px 10px', font: '400 12px/1.4 var(--mono)' }} />
               </div>
-            );
-          })()}
+              <div className="recd-exc-actions">
+                <button className="recd-exc-primary" disabled={updating || !trackingData.carrier || !trackingData.tracking_number}
+                  onClick={() => updateStatus('shipped')}>{updating ? 'Submitting…' : 'Confirm shipment'}</button>
+                <button className="opsq-alt" onClick={() => setShowTrackingForm(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+
+          {/* Tracking — shipped orders */}
+          {recTab === 'record' && order.tracking_number && !showTrackingForm && (
+            <div className="form-card">
+              <div className="rb-head">
+                <h3>Tracking</h3>
+                {trackingData2 && trackingData2.tracking_url && (
+                  <a className="rb-action" style={{ marginLeft: 'auto' }} href={trackingData2.tracking_url} target="_blank" rel="noopener noreferrer">Carrier site {'↗'}</a>
+                )}
+                <button className="rb-action" style={{ marginLeft: trackingData2 && trackingData2.tracking_url ? 0 : 'auto' }}
+                  onClick={refreshTracking} disabled={trackingRefreshing}>{trackingRefreshing ? 'Checking…' : 'Refresh'}</button>
+              </div>
+              <div className="rb-facts" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <div className="rb-fact"><span className="rb-fact-k">Tracking</span><span className="rb-fact-v">{order.tracking_number}</span></div>
+                <div className="rb-fact"><span className="rb-fact-k">Carrier</span><span className="rb-fact-v">{order.shipping_carrier || '—'}</span></div>
+                <div className="rb-fact"><span className="rb-fact-k">Shipped</span><span className="rb-fact-v">{order.shipped_at ? new Date(order.shipped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span></div>
+                <div className="rb-fact"><span className="rb-fact-k">Status</span><span className="rb-fact-v" style={{ textTransform: 'capitalize' }}>{(trackingData2 && trackingData2.tracking_status) || '—'}</span></div>
+              </div>
+              {trackingData2 && (trackingData2.events || []).length > 0 && (
+                <div className="rb-trail" style={{ marginTop: 14, gap: 12 }}>
+                  {trackingData2.events.map((evt, idx) => (
+                    <div key={evt.id || idx} className="rb-trail-row" style={{ gridTemplateColumns: '76px 1fr' }}>
+                      <span className="rb-trail-when">{evt.event_time ? new Date(evt.event_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + new Date(evt.event_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : ''}</span>
+                      <span>
+                        <span style={{ display: 'block', font: '400 12px/1.4 var(--sans)', textTransform: 'capitalize', color: idx === 0 ? 'var(--ink)' : 'var(--dim)' }}>{evt.status}{evt.location ? ' · ' + evt.location : ''}</span>
+                        {evt.description && <span style={{ display: 'block', marginTop: 2, font: '400 10px/1.4 var(--mono)', color: 'var(--faint)' }}>{evt.description}</span>}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {trackingData2 && (trackingData2.last_checked || (trackingData2.events || []).length === 0) && (
+                <div className="rb-note" style={{ color: 'var(--faint)' }}>
+                  {(trackingData2.events || []).length === 0 ? 'NO CARRIER EVENTS YET' : 'LAST CHECKED ' + new Date(trackingData2.last_checked).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }).toUpperCase()}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Unsent PO warning \u2014 on non-record tabs the exception band isn't shown, keep the reminder visible */}
           {recTab !== 'record' && (() => {
@@ -6188,12 +6061,18 @@
             {balanceInfo && balanceInfo.balance_status === 'credit' && (
               <div className="rb-note" style={{ color: '#8fb3dd' }}>CREDIT ON ORDER · ${Math.abs(balanceInfo.balance).toFixed(2)}</div>
             )}
+            {order.status === 'refunded' && (
+              <div className="rb-note" style={{ color: '#b39ddb' }}>REFUNDED ${parseFloat(order.refund_amount || 0).toFixed(2)}</div>
+            )}
             {balanceInfo && balanceInfo.balance_status === 'balance_due' && (
               <button className="rb-collect" onClick={() => { setPaymentRequestMessage(''); setShowPaymentRequestModal(true); }}>
                 Collect balance · ${balanceInfo.balance.toFixed(2)}
               </button>
             )}
             <div className="rb-rail-btns">
+              {order.status === 'cancelled' && !order.stripe_refund_id && order.stripe_payment_intent_id && ['admin', 'manager'].includes(staffRole) && (
+                <button className="btn btn-sm" style={{ color: 'var(--gold)' }} onClick={() => setShowRefundModal(true)}>Issue refund</button>
+              )}
               {balanceInfo && balanceInfo.balance_status === 'credit' && ['admin', 'manager'].includes(staffRole) && (
                 <button className="btn btn-sm"
                   onClick={() => { setPartialRefundAmount(Math.abs(balanceInfo.balance).toFixed(2)); setPartialRefundReason(''); setShowPartialRefundModal(true); }}>
