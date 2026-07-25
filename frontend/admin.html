@@ -5130,7 +5130,9 @@
                 <div className="recd-value">${recTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
               </div>
               <div style={{ display: 'flex', gap: 8, alignSelf: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
-                {nextStatus && !recCancelled && !showTrackingForm && (
+                {/* No manual "ready for pickup" advance — the order flips automatically
+                    once every line is marked ready at the store (syncPickupReady). */}
+                {nextStatus && nextStatus !== 'ready_for_pickup' && !recCancelled && !showTrackingForm && (
                   <button className="recd-exc-primary" disabled={updating} onClick={() => updateStatus(nextStatus)}>
                     {updating ? 'Updating…' : order.status === 'pending' ? 'Confirm order' : 'Mark as ' + (recStatusLabels[nextStatus] || nextStatus).toLowerCase()}
                   </button>
