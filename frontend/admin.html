@@ -2158,6 +2158,7 @@
       const allNavItems = [
         { key: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0h4', roles: ['admin', 'manager', 'sales_rep', 'warehouse'] },
         { key: 'orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', roles: ['admin', 'manager', 'sales_rep', 'warehouse'] },
+        { key: 'quotes', label: 'Quotes', icon: 'M8 7h8m-8 4h6m-6 4h4m-7 6l3-3h9a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v16z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'purchase-orders', label: 'Purchase Orders', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', roles: ['admin', 'manager', 'warehouse'] },
         { key: 'customers', label: 'Customers', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: ['admin', 'manager'] },
@@ -2183,6 +2184,7 @@
                           view.split('-')[0] === 'vendor' ? 'vendors' :
                           view.split('-')[0] === 'customer' ? 'customers' :
                           view.split('-')[0] === 'order' ? 'orders' :
+                          view.split('-')[0] === 'quote' ? 'quotes' :
                           view.split('-')[0] === 'promo' || view === 'promos' ? 'promos' :
                           view.split('-')[0] === 'trade' ? 'trade' :
                           view.split('-')[0] === 'staff' ? 'staff' :
@@ -2204,6 +2206,10 @@
               <OrdersListView navigate={navigate} />
             ) : view === 'order-detail' ? (
               <OrderDetailView navigate={navigate} editId={editId} staffRole={staffRole} />
+            ) : view === 'quotes' ? (
+              <QuotesListView navigate={navigate} />
+            ) : view === 'quote-detail' ? (
+              <QuoteDetailView navigate={navigate} editId={editId} staffRole={staffRole} />
             ) : (
           <div className="admin-content">
             {view === 'overview' && <DashboardView navigate={navigate} />}
@@ -4423,6 +4429,698 @@
             )}
           </aside>
         </div>
+      );
+    }
+
+    // ========== QuotesListView ==========
+    // Staff ledger over every rep's quote pipeline — same console grammar as orders
+    const QUOTE_STAGES = ['Drafted', 'Sent', 'Viewed', 'Accepted', 'Converted'];
+    const QUOTE_VIEWS = [
+      { id: 'open', label: 'Open', hint: 'in market' },
+      { id: 'hot', label: 'Hot', hint: 'opened 3+ times' },
+      { id: 'expiring', label: 'Expiring', hint: 'closes within 7 days' },
+      { id: 'accepted', label: 'Accepted', hint: 'awaiting conversion' },
+      { id: 'converted', label: 'Won', hint: 'became orders' },
+      { id: 'closed', label: 'Closed', hint: 'lost or expired' },
+    ];
+    const QTL_RISK_LABEL = { breach: 'GONE COLD', today: 'NEEDS ACTION', ok: 'ON TRACK' };
+    const QUOTE_EVENT_LABELS = {
+      sent: 'Quote sent', viewed: 'Opened by customer', reply: 'Customer reply', note: 'Internal note',
+      accepted: 'Marked accepted', marked_lost: 'Marked lost', converted: 'Converted to order',
+    };
+
+    function QtlStageBar({ i, status, expired }) {
+      if (status === 'declined' || expired) {
+        return <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.08em', color: 'var(--faint)' }}>{status === 'declined' ? 'LOST' : 'EXPIRED'}</span>;
+      }
+      return (
+        <span style={{ display: 'block' }}>
+          <span style={{ display: 'flex', gap: 2 }}>
+            {QUOTE_STAGES.map((s, n) => (
+              <span key={s} style={{ flex: 1, height: 4, background: n < i ? 'var(--dim)' : n === i ? 'var(--gold)' : 'var(--line)' }} />
+            ))}
+          </span>
+          <span style={{ display: 'block', marginTop: 6, font: '400 10px/1 var(--mono)', color: 'var(--dim)' }}>{QUOTE_STAGES[i]}</span>
+        </span>
+      );
+    }
+
+    function QuotesListView({ navigate }) {
+      const [quotes, setQuotes] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [view, setView] = useState('open');
+      const [q, setQ] = useState('');
+      const [repFilter, setRepFilter] = useState('');
+      const [sortByValue, setSortByValue] = useState(false);
+      const [sel, setSel] = useState(null);
+      const [pane, setPane] = useState(null);
+      const [paneLoading, setPaneLoading] = useState(false);
+
+      useEffect(() => {
+        adminFetch('/api/admin/quotes/ledger')
+          .then(d => { setQuotes(d.quotes || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, []);
+
+      const reps = [...new Set(quotes.map(o => o.rep_name).filter(Boolean))].sort();
+      const rows = quotes
+        .filter(o => o.views.includes(view))
+        .filter(o => !repFilter || o.rep_name === repFilter)
+        .filter(o => !q || (o.quote_number + ' ' + o.customer_name + ' ' + (o.customer_email || '') + ' ' + (o.trade_company || '') + ' ' + o.blocker).toLowerCase().includes(q.toLowerCase()))
+        .sort((a, b) => sortByValue ? parseFloat(b.total) - parseFloat(a.total) : new Date(b.created_at) - new Date(a.created_at));
+
+      const activeId = rows.some(r => r.id === sel) ? sel : (rows[0] ? rows[0].id : null);
+      const activeRow = quotes.find(o => o.id === activeId) || null;
+      const openValue = rows.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+      const fmt = n => '$' + parseFloat(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+      const dfmt = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+
+      useEffect(() => {
+        if (!activeId) { setPane(null); return; }
+        let dead = false;
+        setPaneLoading(true);
+        adminFetch(`/api/admin/quotes/${activeId}`).then(detail => {
+          if (dead) return;
+          setPane(detail);
+          setPaneLoading(false);
+        }).catch(() => { if (!dead) { setPane(null); setPaneLoading(false); } });
+        return () => { dead = true; };
+      }, [activeId]);
+
+      const keyDate = o =>
+        o.status === 'converted' ? 'Won ' + dfmt(o.updated_at) :
+        o.status === 'declined' ? 'Lost ' + dfmt(o.updated_at) :
+        o.expired ? 'Expired ' + dfmt(o.expires_at) :
+        o.status === 'sent' && o.expires_at ? 'Expires ' + dfmt(o.expires_at) :
+        o.status === 'accepted' ? 'Accepted ' + dfmt(o.updated_at) :
+        'Drafted ' + dfmt(o.created_at);
+
+      const COLS = 'minmax(84px, 110px) minmax(120px, 1fr) minmax(70px, 90px) minmax(110px, 140px) minmax(90px, 110px)';
+
+      return (
+        <div className="ordl">
+          <section className="ordl-main">
+            <div className="ordl-tabs">
+              {QUOTE_VIEWS.map(v => {
+                const on = v.id === view;
+                const n = quotes.filter(o => o.views.includes(v.id)).length;
+                return (
+                  <button key={v.id} className={'ordl-tab' + (on ? ' active' : '')} onClick={() => setView(v.id)}>
+                    <span className="ordl-tab-row">
+                      <span className="ordl-tab-label">{v.label}</span>
+                      <span className="ordl-tab-n">{n}</span>
+                    </span>
+                    <span className="ordl-tab-hint">{v.hint.toUpperCase()}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="ordl-filters">
+              <select value={repFilter} onChange={e => setRepFilter(e.target.value)} className="ordl-chip">
+                <option value="">Any rep</option>
+                {reps.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <button className={'ordl-chip' + (sortByValue ? ' on' : '')} onClick={() => setSortByValue(s => !s)}>
+                {sortByValue ? 'VALUE ↓' : 'NEWEST'}
+              </button>
+              <input className="ordl-search" value={q} onChange={e => setQ(e.target.value)} placeholder="filter quotes…" />
+            </div>
+
+            <div className="ordl-scroll">
+              <div style={{ minWidth: 640 }}>
+                <div className="ordl-head" style={{ gridTemplateColumns: COLS }}>
+                  <span>QUOTE</span><span>CUSTOMER</span>
+                  <span style={{ textAlign: 'right' }}>VALUE</span>
+                  <span>STAGE</span><span>KEY DATE</span>
+                </div>
+                {loading && <div className="opsq-empty">loading quotes…</div>}
+                {!loading && rows.length === 0 && <div className="opsq-empty">no quotes in this view</div>}
+                {rows.map(o => {
+                  const on = o.id === activeId;
+                  const settled = o.status === 'converted' || o.status === 'declined' || o.expired;
+                  return (
+                    <div key={o.id} className={'ordl-row' + (on ? ' active' : '')}
+                      onClick={() => { if (window.innerWidth < 1100) navigate('quote-detail', o.id); else setSel(o.id); }}>
+                      <div className="ordl-grid" style={{ gridTemplateColumns: COLS }}>
+                        <span className="ordl-num">
+                          <span className="ops-dot" style={{ width: 5, height: 5, background: o.status === 'converted' ? 'var(--green)' : settled ? 'var(--faint)' : ORDL_RISK[o.risk] }} />
+                          {(o.quote_number || '')}
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                          <span className="ordl-cust">{o.customer_name}</span>
+                          <span className="ordl-co">{o.trade_company || o.customer_email || 'Direct retail'}</span>
+                        </span>
+                        <span className="ordl-val">{fmt(o.total)}</span>
+                        <QtlStageBar i={o.stage} status={o.status} expired={o.expired} />
+                        <span className="ordl-date">{keyDate(o)}</span>
+                      </div>
+                      <div className="ordl-sub">
+                        {!settled && (
+                          <span style={{ color: ORDL_RISK[o.risk], font: '400 10px/1 var(--mono)', letterSpacing: '0.06em', flexShrink: 0 }}>
+                            {QTL_RISK_LABEL[o.risk]}
+                          </span>
+                        )}
+                        {o.status === 'converted' && (
+                          <span style={{ color: 'var(--green)', font: '400 10px/1 var(--mono)', letterSpacing: '0.06em', flexShrink: 0 }}>WON</span>
+                        )}
+                        <span className="ordl-blocker">{o.blocker}</span>
+                        <span className="ordl-rep">{o.rep_name || 'house'}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="ordl-foot">
+              <span style={{ letterSpacing: '0.08em' }}>{rows.length} QUOTES</span>
+              <span style={{ color: 'var(--dim)' }}>{fmt(openValue)} {view === 'converted' ? 'won' : view === 'closed' ? 'closed' : 'quoted'} value</span>
+            </div>
+          </section>
+
+          <aside className="ordl-pane">
+            {!activeRow ? (
+              <div style={{ flex: 1, display: 'grid', placeItems: 'center', font: '400 12px/1 var(--mono)', color: 'var(--faint)' }}>NO QUOTE SELECTED</div>
+            ) : (
+              <React.Fragment>
+                <div className="ordl-pane-head">
+                  <div className="opsq-meta">
+                    <span style={{ color: 'var(--ink)' }}>{activeRow.quote_number}</span>
+                    <span style={{ color: activeRow.status === 'converted' ? 'var(--green)' : activeRow.status === 'declined' || activeRow.expired ? 'var(--faint)' : ORDL_RISK[activeRow.risk] }}>
+                      {activeRow.status === 'converted' ? 'WON' : activeRow.status === 'declined' ? 'LOST' : activeRow.expired ? 'EXPIRED' : QTL_RISK_LABEL[activeRow.risk]}
+                    </span>
+                    <span style={{ marginLeft: 'auto', color: 'var(--faint)' }}>{activeRow.rep_name || ''}</span>
+                  </div>
+                  <h1 className="ordl-pane-title">{activeRow.customer_name}</h1>
+                  <div className="ordl-pane-meta">
+                    <span>{activeRow.trade_company || activeRow.customer_email || 'Direct retail'}</span>
+                    <span style={{ color: 'var(--ink)' }}>{fmt(activeRow.total)}</span>
+                  </div>
+                  <div className="ordl-next" style={{ borderLeftColor: activeRow.status === 'converted' ? 'var(--green)' : activeRow.status === 'declined' || activeRow.expired ? 'var(--line2)' : ORDL_RISK[activeRow.risk] }}>
+                    <div className="opsq-block-label" style={{ marginBottom: 0 }}>NEXT</div>
+                    <div style={{ marginTop: 6, font: '400 12px/1.5 var(--sans)', textWrap: 'pretty' }}>{activeRow.blocker}</div>
+                  </div>
+                </div>
+                <div className="opsq-pane-body">
+                  {paneLoading && <div className="opsq-empty">loading record…</div>}
+                  {!paneLoading && pane && (
+                    <React.Fragment>
+                      <OpsBlock label={`Lines · ${pane.items.length}`}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                          {pane.items.map(l => (
+                            <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '1fr 66px 72px', gap: 10, alignItems: 'baseline' }}>
+                              <span style={{ minWidth: 0 }}>
+                                <span style={{ display: 'block', font: '400 12px/1.35 var(--sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {(l.collection || l.current_collection || l.product_name || '—') + (l.color ? ' ' + l.color : '')}
+                                </span>
+                                <span style={{ display: 'block', marginTop: 3, font: '400 9px/1 var(--mono)', color: 'var(--faint)' }}>{l.vendor_sku || l.vendor_name || ''}</span>
+                              </span>
+                              <span style={{ font: '400 11px/1 var(--mono)', color: 'var(--dim)', textAlign: 'right' }}>
+                                {l.sqft_needed ? parseFloat(l.sqft_needed) + ' sf' : (l.num_boxes || 0) + (l.sell_by === 'unit' ? ' ea' : ' bx')}
+                              </span>
+                              <span style={{ font: '400 11px/1 var(--mono)', textAlign: 'right' }}>{fmt(l.subtotal)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </OpsBlock>
+                      <OpsBlock label="Engagement">
+                        <div className="opsq-facts">
+                          {[
+                            ['Opens', pane.engagement.opens],
+                            ['Viewers', pane.engagement.viewers],
+                            ['Replies', pane.engagement.replies],
+                            ['Last opened', pane.engagement.last_viewed_at ? dfmt(pane.engagement.last_viewed_at) : '—'],
+                          ].map(m => (
+                            <div key={m[0]} className="opsq-fact">
+                              <div className="opsq-fact-k">{m[0]}</div>
+                              <div className="opsq-fact-v">{m[1]}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </OpsBlock>
+                      <OpsBlock label="Money">
+                        <div className="opsq-facts">
+                          {[
+                            ['Total', fmt(activeRow.total)],
+                            ['Discount', parseFloat(pane.quote.discount_amount || 0) > 0 ? '-' + fmt(pane.quote.discount_amount) : '—'],
+                            ['Delivery', activeRow.delivery_method || 'shipping'],
+                            ['Expires', activeRow.expires_at ? dfmt(activeRow.expires_at) : 'on send'],
+                          ].map(m => (
+                            <div key={m[0]} className="opsq-fact">
+                              <div className="opsq-fact-k">{m[0]}</div>
+                              <div className="opsq-fact-v">{m[1]}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </OpsBlock>
+                      <OpsBlock label="Trail">
+                        {pane.events.length === 0 ? (
+                          <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no activity recorded</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {[...pane.events].reverse().slice(0, 6).map(t => (
+                              <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '54px 1fr', gap: 12 }}>
+                                <span style={{ font: '400 10px/1.5 var(--mono)', color: 'var(--faint)' }}>{dfmt(t.created_at)}</span>
+                                <span style={{ font: '400 12px/1.5 var(--sans)' }}>
+                                  {QUOTE_EVENT_LABELS[t.event_type] || t.event_type}{t.actor_name ? ' · ' + t.actor_name : ''}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </OpsBlock>
+                    </React.Fragment>
+                  )}
+                </div>
+                <div className="ordl-pane-foot">
+                  <button className="opsq-primary" style={{ marginTop: 0, flex: 1, width: 'auto' }} onClick={() => navigate('quote-detail', activeRow.id)}>
+                    <span>Open full record</span>
+                  </button>
+                </div>
+              </React.Fragment>
+            )}
+          </aside>
+        </div>
+      );
+    }
+
+    // ========== QuoteDetailView ==========
+    // Full quote record in the order-record console grammar: pinned header,
+    // stage rail, independently scrolling left column + right rail.
+    function QuoteDetailView({ navigate, editId, staffRole }) {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [qTab, setQTab] = useState('record');
+      const [docPreview, setDocPreview] = useState(null);
+      const [updating, setUpdating] = useState(false);
+      const [showLostSheet, setShowLostSheet] = useState(false);
+      const [lostReason, setLostReason] = useState('');
+      const [noteText, setNoteText] = useState('');
+      const [postingNote, setPostingNote] = useState(false);
+
+      const load = async () => {
+        try {
+          const d = await adminFetch('/api/admin/quotes/' + editId);
+          setData(d);
+        } catch (e) { setData(null); }
+        setLoading(false);
+      };
+      useEffect(() => { setLoading(true); load(); }, [editId]);
+
+      if (loading) return <div className="recd-page"><div className="opsq-empty">loading quote record…</div></div>;
+      if (!data || !data.quote) return <div className="recd-page"><div className="opsq-empty">quote not found</div></div>;
+
+      const { quote, items, customer, events, engagement } = data;
+      const canManage = ['admin', 'manager'].includes(staffRole);
+      const qTotal = parseFloat(quote.total || 0);
+      const now = Date.now();
+      const qExpired = quote.status === 'sent' && quote.expires_at && new Date(quote.expires_at).getTime() < now;
+      const qSettled = quote.status === 'converted' || quote.status === 'declined' || qExpired;
+      const daysLeft = quote.expires_at ? (new Date(quote.expires_at).getTime() - now) / 86400000 : null;
+      const ageDays = (now - new Date(quote.created_at).getTime()) / 86400000;
+      const dshort = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      const qDd = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase() : '';
+
+      // Risk + blocker, mirroring the ledger's read of the pipeline
+      let qRisk = 'ok', qBlocker = null;
+      if (qExpired) { qRisk = 'breach'; qBlocker = 'Expired ' + dshort(quote.expires_at) + ' — close it out, or have the rep send a revision'; }
+      else if (quote.status === 'draft' && ageDays > 3) { qRisk = 'today'; qBlocker = 'Drafted ' + Math.floor(ageDays) + ' days ago and never sent to the customer'; }
+      else if (quote.status === 'accepted') { qRisk = 'today'; qBlocker = 'Customer said yes — the rep converts it to an order from the rep workspace'; }
+      else if (quote.status === 'sent' && daysLeft !== null && daysLeft <= 3) {
+        qRisk = 'today';
+        qBlocker = 'Expires ' + dshort(quote.expires_at) + ' — ' + (engagement.opens ? 'the customer has opened it ' + engagement.opens + '×' : 'the customer never opened it');
+      }
+      else if (quote.status === 'sent' && engagement.opens >= 3) { qRisk = 'today'; qBlocker = 'Hot — the customer opened this quote ' + engagement.opens + ' times'; }
+
+      const qStatusLabel = quote.status === 'converted' ? 'WON'
+        : quote.status === 'declined' ? 'LOST'
+        : qExpired ? 'EXPIRED'
+        : quote.status === 'accepted' ? 'ACCEPTED'
+        : quote.status === 'draft' ? 'DRAFT'
+        : qRisk === 'today' ? 'NEEDS ACTION' : 'IN MARKET';
+      const qStatusColor = quote.status === 'converted' ? 'var(--green)'
+        : quote.status === 'declined' ? 'var(--faint)'
+        : qExpired ? 'var(--hot)'
+        : qRisk === 'today' ? 'var(--gold)'
+        : quote.status === 'draft' ? 'var(--dim)' : 'var(--cool)';
+
+      let qStage = 0;
+      if (quote.status !== 'draft') qStage = 1;
+      if (qStage >= 1 && engagement.opens > 0) qStage = 2;
+      if (quote.status === 'accepted') qStage = 3;
+      if (quote.status === 'converted') qStage = 4;
+      const evFirst = t => { const e = events.find(ev => ev.event_type === t); return e ? e.created_at : null; };
+      const qRail = [
+        ['Drafted', qDd(quote.created_at)],
+        ['Sent', qDd(evFirst('sent'))],
+        ['Viewed', engagement.opens ? engagement.opens + (engagement.opens === 1 ? ' OPEN' : ' OPENS') : ''],
+        ['Accepted', qDd(evFirst('accepted'))],
+        ['Converted', quote.converted_order_number || qDd(evFirst('converted'))],
+      ];
+      const railDead = quote.status === 'declined' || qExpired;
+
+      const markAccepted = async () => {
+        if (!confirm('Mark ' + quote.quote_number + ' accepted — the customer confirmed?')) return;
+        setUpdating(true);
+        try {
+          await adminFetch('/api/admin/quotes/' + editId + '/status', { method: 'POST', body: JSON.stringify({ status: 'accepted' }) });
+          await load();
+        } catch (err) { alert(err.message); }
+        setUpdating(false);
+      };
+      const markLost = async () => {
+        setUpdating(true);
+        try {
+          await adminFetch('/api/admin/quotes/' + editId + '/status', { method: 'POST', body: JSON.stringify({ status: 'declined', reason: lostReason.trim() || undefined }) });
+          setShowLostSheet(false); setLostReason('');
+          await load();
+        } catch (err) { alert(err.message); }
+        setUpdating(false);
+      };
+      const postNote = async () => {
+        if (!noteText.trim()) return;
+        setPostingNote(true);
+        try {
+          await adminFetch('/api/admin/quotes/' + editId + '/events', { method: 'POST', body: JSON.stringify({ event_type: 'note', body: noteText.trim() }) });
+          setNoteText('');
+          await load();
+        } catch (err) { alert(err.message); }
+        setPostingNote(false);
+      };
+
+      const customerNavId = quote.trade_customer_id ? 'trade_' + quote.trade_customer_id
+        : quote.customer_id ? 'retail_' + quote.customer_id
+        : quote.customer_email ? 'guest_' + quote.customer_email : null;
+
+      return (
+        <React.Fragment>
+        <div className="recd-page">
+          <div className="recd-head">
+            <div className="recd-top">
+              <div style={{ minWidth: 0 }}>
+                <div className="opsq-meta">
+                  <button className="recd-crumb" onClick={() => navigate('quotes')}>← QUOTES</button>
+                  <span style={{ color: 'var(--faint)' }}>/</span>
+                  <span style={{ color: 'var(--ink)' }}>{quote.quote_number}</span>
+                  <span style={{ color: qStatusColor }}>{qStatusLabel}</span>
+                </div>
+                <h1 className="recd-title">{quote.customer_name}</h1>
+                <div className="recd-meta">
+                  <span>{quote.customer_email}</span>
+                  {quote.rep_name && <span>{quote.rep_name}</span>}
+                  <span>{items.length} lines</span>
+                  <span>{engagement.opens} open{engagement.opens === 1 ? '' : 's'}</span>
+                  {quote.expires_at && !qSettled && <span style={{ color: qExpired || (daysLeft !== null && daysLeft <= 3) ? 'var(--gold)' : undefined }}>expires {dshort(quote.expires_at)}</span>}
+                </div>
+              </div>
+              <div style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
+                <div className="opsq-block-label" style={{ marginBottom: 0 }}>QUOTE VALUE</div>
+                <div className="recd-value">${qTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignSelf: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+                {quote.status === 'converted' && (
+                  <button className="recd-exc-primary" onClick={() => navigate('order-detail', quote.converted_order_id)}>
+                    Open {quote.converted_order_number || 'order'}
+                  </button>
+                )}
+                {canManage && ['draft', 'sent'].includes(quote.status) && (
+                  <button className="recd-exc-primary" disabled={updating} onClick={markAccepted}>
+                    {updating ? 'Updating…' : 'Mark accepted'}
+                  </button>
+                )}
+                <button className="opsq-alt" onClick={() => setDocPreview({ path: '/api/staff/quotes/' + editId + '/pdf', title: 'Quote ' + quote.quote_number })}>Quote PDF</button>
+                {canManage && !['converted', 'declined'].includes(quote.status) && (
+                  <button className="opsq-alt" style={{ color: 'var(--hot)' }} disabled={updating} onClick={() => setShowLostSheet(true)}>Mark lost</button>
+                )}
+              </div>
+            </div>
+            <div className="recd-rail">
+              {qRail.map(([s, when], n) => (
+                <div key={s} className="recd-stage">
+                  <div style={{ height: 3, background: railDead ? 'var(--line)' : n < qStage ? 'var(--dim)' : n === qStage ? 'var(--gold)' : 'var(--line)' }} />
+                  <div className="recd-stage-name" style={{ color: railDead ? 'var(--faint)' : n === qStage ? 'var(--ink)' : n < qStage ? 'var(--dim)' : 'var(--faint)' }}>{s}</div>
+                  <div className="recd-stage-when">{n <= qStage ? when : ''}</div>
+                </div>
+              ))}
+            </div>
+            <div className="recd-tabs">
+              {['record', 'activity'].map(t => (
+                <button key={t} className={'recd-tab' + (qTab === t ? ' active' : '')} onClick={() => setQTab(t)}>{t}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="recd-scroll">
+          <div className="rec-body">
+          <div className="rec-left">
+          {qBlocker && qTab === 'record' && (
+            <div className="recd-exception" style={{ borderLeftColor: qExpired ? 'var(--hot)' : 'var(--gold)' }}>
+              <div className="recd-exc-head">
+                <span style={{ color: qExpired ? 'var(--hot)' : 'var(--gold)' }}>
+                  {QTL_RISK_LABEL[qRisk]} · {qExpired ? 'EXPIRED' : quote.status === 'accepted' ? 'AWAITING CONVERSION' : quote.status === 'draft' ? 'STALE DRAFT' : engagement.opens >= 3 ? 'HOT QUOTE' : 'EXPIRING'}
+                </span>
+                <span style={{ marginLeft: 'auto', color: 'var(--faint)' }}>{quote.quote_number}</span>
+              </div>
+              <div className="recd-exc-title">{qBlocker}</div>
+              {qExpired && canManage && (
+                <div className="recd-exc-actions">
+                  <button className="recd-exc-primary" disabled={updating} onClick={() => setShowLostSheet(true)}>Close out as lost</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {qTab === 'record' && <div className="form-card">
+            <h3>Lines · {items.length}</h3>
+            {items.length === 0 ? (
+              <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no lines on this quote yet</div>
+            ) : (
+            <div className="table-scroll-wrapper">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th style={{ width: 140 }}>Vendor</th>
+                  <th style={{ width: 110 }}>Qty</th>
+                  <th style={{ width: 110 }}>Unit Price</th>
+                  <th style={{ width: 100, textAlign: 'right' }}>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(item => (
+                  <tr key={item.id}>
+                    <td data-label="Product">
+                      <div style={{ fontWeight: 500 }}>
+                        {item.collection || item.current_collection || item.product_name || '—'}
+                        {item.color ? ' ' + item.color : ''}
+                        {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
+                        {item.is_sample && <span className="badge" style={{ fontSize: '0.6rem', marginLeft: '0.5rem', background: 'var(--stone-200)', color: 'var(--stone-700)' }}>Sample</span>}
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>
+                        {(item.collection || item.current_collection) && item.product_name ? item.product_name : ''}
+                        {item.vendor_sku ? ((item.collection || item.current_collection) && item.product_name ? ' · ' : '') + item.vendor_sku : ''}
+                      </div>
+                    </td>
+                    <td data-label="Vendor"><span style={{ font: '400 11px/1.4 var(--sans)', color: 'var(--dim)' }}>{item.vendor_name || '—'}</span></td>
+                    <td data-label="Qty">
+                      <span style={{ font: '400 12px/1 var(--mono)' }}>
+                        {item.sqft_needed ? parseFloat(item.sqft_needed) + ' sqft · ' + (item.num_boxes || 0) + ' bx' : (item.num_boxes || 0) + (item.sell_by === 'unit' ? ' ea' : ' bx')}
+                      </span>
+                    </td>
+                    <td data-label="Unit Price"><span style={{ font: '400 12px/1 var(--mono)' }}>${parseFloat(item.unit_price || 0).toFixed(2)}</span></td>
+                    <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>${parseFloat(item.subtotal || 0).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+            )}
+          </div>}
+
+          {qTab === 'record' && quote.notes && <div className="form-card">
+            <h3>Quote notes</h3>
+            <div style={{ font: '400 13px/1.7 var(--sans)', whiteSpace: 'pre-wrap' }}>{quote.notes}</div>
+          </div>}
+
+          {qTab === 'activity' && <div className="form-card">
+            <h3>Thread · {events.length}</h3>
+            {events.length === 0 ? (
+              <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>nothing recorded yet</div>
+            ) : (
+              <div className="rb-trail" style={{ gap: 14 }}>
+                {[...events].reverse().map(e => (
+                  <div key={e.id} className="opsq-trail-row">
+                    <span className="rb-trail-when">
+                      {new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      <br />{new Date(e.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                    <span>
+                      <span className="rb-trail-what" style={{ display: 'block' }}>
+                        {QUOTE_EVENT_LABELS[e.event_type] || e.event_type}{e.actor_name ? ' · ' + e.actor_name : ''}
+                      </span>
+                      {e.body && <span style={{ display: 'block', marginTop: 4, font: '400 12px/1.6 var(--sans)', color: 'var(--dim)', whiteSpace: 'pre-wrap' }}>{e.body}</span>}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>}
+          </div>
+
+          <div className="rec-right">
+          <div className="form-card">
+            <h3>Money</h3>
+            <div className="rb-facts">
+              <div className="rb-fact"><span className="rb-fact-k">Subtotal</span><span className="rb-fact-v">${parseFloat(quote.subtotal || 0).toFixed(2)}</span></div>
+              {quote.delivery_method === 'pickup' ? (
+                <div className="rb-fact"><span className="rb-fact-k">Shipping</span><span className="rb-fact-v" style={{ color: 'var(--green)' }}>pickup · free</span></div>
+              ) : parseFloat(quote.shipping || 0) > 0 ? (
+                <div className="rb-fact"><span className="rb-fact-k">Shipping</span><span className="rb-fact-v">${parseFloat(quote.shipping).toFixed(2)}</span></div>
+              ) : null}
+              {parseFloat(quote.discount_amount || 0) > 0 && (
+                <div className="rb-fact"><span className="rb-fact-k">Discount{quote.promo_code ? ' · ' + quote.promo_code : ''}</span><span className="rb-fact-v" style={{ color: 'var(--green)' }}>-${parseFloat(quote.discount_amount).toFixed(2)}</span></div>
+              )}
+              <div className="rb-fact"><span className="rb-fact-k">Total</span><span className="rb-fact-v big">${qTotal.toFixed(2)}</span></div>
+              <div className="rb-fact"><span className="rb-fact-k">Expires</span><span className="rb-fact-v" style={{ color: qExpired ? 'var(--hot)' : daysLeft !== null && daysLeft <= 3 && !qSettled ? 'var(--gold)' : 'var(--ink)' }}>{quote.expires_at ? new Date(quote.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'set on send'}</span></div>
+            </div>
+            {quote.status === 'converted' && (
+              <div className="rb-note" style={{ color: 'var(--green)' }}>WON · {quote.converted_order_number || 'CONVERTED'}{quote.payment_method ? ' · ' + quote.payment_method.toUpperCase() : ''}</div>
+            )}
+            {quote.status === 'declined' && <div className="rb-note" style={{ color: 'var(--faint)' }}>MARKED LOST</div>}
+            {qExpired && <div className="rb-note" style={{ color: 'var(--hot)' }}>EXPIRED · NEVER CLOSED OUT</div>}
+          </div>
+
+          <div className="form-card">
+            <h3>Engagement</h3>
+            <div className="rb-facts">
+              <div className="rb-fact"><span className="rb-fact-k">Opens</span><span className="rb-fact-v">{engagement.opens}</span></div>
+              <div className="rb-fact"><span className="rb-fact-k">Unique viewers</span><span className="rb-fact-v">{engagement.viewers}</span></div>
+              <div className="rb-fact"><span className="rb-fact-k">Replies</span><span className="rb-fact-v">{engagement.replies}</span></div>
+              <div className="rb-fact"><span className="rb-fact-k">Last opened</span><span className="rb-fact-v">{engagement.last_viewed_at ? new Date(engagement.last_viewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span></div>
+            </div>
+            {quote.status === 'draft' ? (
+              <div className="rb-note" style={{ color: 'var(--faint)' }}>TRACKS ONCE THE QUOTE IS SENT</div>
+            ) : engagement.opens >= 3 ? (
+              <div className="rb-note" style={{ color: 'var(--gold)' }}>HOT · CUSTOMER KEEPS COMING BACK</div>
+            ) : null}
+          </div>
+
+          <div className="form-card">
+            <div className="rb-head">
+              <h3>Customer</h3>
+              {customerNavId && (
+                <button className="rb-action" onClick={() => navigate('customer-detail', customerNavId)}>Open customer</button>
+              )}
+            </div>
+            <div className="rb-facts">
+              <div className="rb-fact"><span className="rb-fact-k">Contact</span><span className="rb-fact-v" style={{ fontFamily: 'var(--sans)' }}>{quote.customer_name}</span></div>
+              <div className="rb-fact"><span className="rb-fact-k">Email</span><span className="rb-fact-v" style={{ fontSize: 11 }}>{quote.customer_email}</span></div>
+              <div className="rb-fact"><span className="rb-fact-k">Phone</span><span className="rb-fact-v">{quote.phone || '—'}</span></div>
+              {customer && customer.company_name && (
+                <div className="rb-fact"><span className="rb-fact-k">Company{customer.tier_name ? ' · ' + customer.tier_name : ''}</span><span className="rb-fact-v" style={{ fontFamily: 'var(--sans)' }}>{customer.company_name}</span></div>
+              )}
+              {customer && (
+                <div className="rb-fact"><span className="rb-fact-k">Lifetime</span><span className="rb-fact-v">${parseFloat(customer.lifetime_value || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })} · {customer.order_count || 0} orders</span></div>
+              )}
+              <div className="rb-fact"><span className="rb-fact-k">Rep</span><span className="rb-fact-v" style={{ fontFamily: 'var(--sans)' }}>{quote.rep_name || 'house'}</span></div>
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>{quote.delivery_method === 'pickup' ? 'Store pickup' : 'Ships to'}</h3>
+            {quote.delivery_method === 'pickup' ? (
+              <div className="rb-addr">
+                Roma Flooring Designs<br />
+                1440 S. State College Blvd., Suite 6M<br />
+                Anaheim, CA 92806
+              </div>
+            ) : quote.shipping_address_line1 ? (
+              <div className="rb-addr">
+                {quote.shipping_address_line1}<br />
+                {quote.shipping_address_line2 ? <React.Fragment>{quote.shipping_address_line2}<br /></React.Fragment> : null}
+                {quote.shipping_city}{quote.shipping_city ? ', ' : ''}{quote.shipping_state} {quote.shipping_zip}
+              </div>
+            ) : (
+              <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no address on the quote yet</div>
+            )}
+          </div>
+
+          <div className="form-card">
+            <h3>Documents</h3>
+            <div>
+              <div className="rb-doc">
+                <span style={{ minWidth: 0 }}>
+                  <span className="rb-doc-name" style={{ display: 'block' }}>Quote {quote.quote_number}</span>
+                  <span className="rb-doc-sub" style={{ display: 'block' }}>Customer-facing PDF</span>
+                </span>
+                <button className="rb-doc-link" onClick={() => {
+                  setDocPreview({ path: '/api/staff/quotes/' + editId + '/pdf', title: 'Quote ' + quote.quote_number });
+                }}>PDF {'↓'}</button>
+              </div>
+              {quote.converted_order_id && (
+                <div className="rb-doc">
+                  <span style={{ minWidth: 0 }}>
+                    <span className="rb-doc-name" style={{ display: 'block' }}>{quote.converted_order_number || 'Order'}</span>
+                    <span className="rb-doc-sub" style={{ display: 'block' }}>This quote became an order</span>
+                  </span>
+                  <button className="rb-doc-link" onClick={() => navigate('order-detail', quote.converted_order_id)}>OPEN {'→'}</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="form-card">
+            <div className="rb-head">
+              <h3>Recent activity</h3>
+              {qTab !== 'activity' && <button className="rb-action" onClick={() => setQTab('activity')}>Full thread</button>}
+            </div>
+            <textarea className="opsq-note" rows={2} placeholder="log an internal note — goes on the record…" value={noteText} onChange={e => setNoteText(e.target.value)} />
+            <button className="btn btn-sm" style={{ marginTop: 8 }} disabled={postingNote || !noteText.trim()} onClick={postNote}>
+              {postingNote ? 'Logging…' : 'Log note'}
+            </button>
+            <div className="rb-trail" style={{ marginTop: 16 }}>
+              {[...events].reverse().slice(0, 6).map(e => (
+                <div key={e.id} className="rb-trail-row">
+                  <span className="rb-trail-when">{new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  <span className="rb-trail-what">{QUOTE_EVENT_LABELS[e.event_type] || e.event_type}{e.actor_name ? ' · ' + e.actor_name : ''}</span>
+                </div>
+              ))}
+              {events.length === 0 && <span style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>nothing recorded yet</span>}
+            </div>
+          </div>
+          </div>
+          </div>
+          </div>
+        </div>
+
+        {docPreview && <StaffPdfViewer path={docPreview.path} filename={docPreview.title} onClose={() => setDocPreview(null)} />}
+
+        {showLostSheet && (
+          <div className="relm-overlay" onClick={e => { if (e.target === e.currentTarget) setShowLostSheet(false); }}>
+            <div className="relm" style={{ width: 560 }}>
+              <div className="relm-head">
+                <div className="relm-kicker">MARK LOST<span className="relm-entity">{quote.quote_number}</span></div>
+                <div className="relm-title">Close this quote out as lost</div>
+                <div className="relm-sub">The quote leaves the open pipeline and any linked deal moves to lost. The customer is not emailed.</div>
+              </div>
+              <div className="relm-body">
+                <div className="relm-block">
+                  <div className="relm-label">Reason — goes on the record</div>
+                  <input className="relm-input" value={lostReason} onChange={e => setLostReason(e.target.value)}
+                    placeholder="went with another bid, price, timing…" autoFocus />
+                </div>
+              </div>
+              <div className="relm-foot">
+                <button className="relm-primary hot" disabled={updating} onClick={markLost}>
+                  <span>{updating ? 'Marking…' : 'Mark lost'}</span><span>→</span>
+                </button>
+                <button className="relm-alt" onClick={() => setShowLostSheet(false)}>Keep it open</button>
+              </div>
+            </div>
+          </div>
+        )}
+        </React.Fragment>
       );
     }
 
@@ -8532,7 +9230,7 @@
                         expired ? 'Expired' : (q.expires_at ? new Date(q.expires_at).toLocaleDateString() : '\u2014')
                       ),
                       React.createElement('td', { className: 'actions' },
-                        React.createElement('button', { className: 'btn btn-secondary btn-sm', onClick: () => alert('Quote: ' + (q.quote_number || q.id.slice(0, 8))) }, 'View')
+                        React.createElement('button', { className: 'btn btn-secondary btn-sm', onClick: () => navigate('quote-detail', q.id) }, 'View')
                       )
                     );
                   })

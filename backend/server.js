@@ -20162,6 +20162,282 @@ app.get('/api/rep/quotes/:id/pdf', repAuth, async (req, res) => {
   }
 });
 
+// ==================== Admin/Staff Quote Endpoints ====================
+// Staff read view over every rep's pipeline. The rep workspace stays the
+// authoring surface — staff audit, nudge, and close quotes out.
+
+app.get('/api/admin/quotes/ledger', staffAuth, async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT q.id, q.quote_number, q.customer_name, q.customer_email, q.status, q.total,
+        q.delivery_method, q.expires_at, q.converted_order_id, q.created_at, q.updated_at,
+        sr.first_name || ' ' || sr.last_name as rep_name,
+        o.order_number as converted_order_number,
+        tc.company_name as trade_company,
+        (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count,
+        COALESCE(ev.opens, 0) as opens,
+        COALESCE(ev.replies, 0) as replies,
+        ev.last_viewed_at, ev.sent_at
+      FROM quotes q
+      LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      LEFT JOIN orders o ON o.id = q.converted_order_id
+      LEFT JOIN trade_customers tc ON tc.id = q.trade_customer_id
+      LEFT JOIN LATERAL (
+        SELECT COUNT(*) FILTER (WHERE e.event_type = 'viewed')::int as opens,
+          COUNT(*) FILTER (WHERE e.event_type = 'reply')::int as replies,
+          MAX(e.created_at) FILTER (WHERE e.event_type = 'viewed') as last_viewed_at,
+          MIN(e.created_at) FILTER (WHERE e.event_type = 'sent') as sent_at
+      FROM quote_events e WHERE e.quote_id = q.id
+      ) ev ON true
+      ORDER BY q.created_at DESC
+      LIMIT 500
+    `);
+
+    const now = Date.now();
+    const days = (ts) => ts ? (now - new Date(ts).getTime()) / 86400000 : 0;
+    const dleft = (ts) => ts ? (new Date(ts).getTime() - now) / 86400000 : null;
+    const dfmt = (ts) => new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    const quotes = r.rows.map(q => {
+      const expired = q.status === 'sent' && q.expires_at && new Date(q.expires_at).getTime() < now;
+      const expiresIn = q.status === 'sent' && !expired ? dleft(q.expires_at) : null;
+
+      // Stage ladder: Drafted → Sent → Viewed → Accepted → Converted
+      let stage = 0;
+      if (q.status !== 'draft') stage = 1;
+      if (stage >= 1 && q.opens > 0) stage = 2;
+      if (q.status === 'accepted') stage = 3;
+      if (q.status === 'converted') stage = 4;
+
+      let risk = 'ok', blocker;
+      if (q.status === 'converted') blocker = 'Won — became ' + (q.converted_order_number || 'an order');
+      else if (q.status === 'declined') blocker = 'Marked lost';
+      else if (expired) { blocker = 'Expired ' + dfmt(q.expires_at) + ' — never closed out'; risk = 'breach'; }
+      else if (q.status === 'draft') {
+        blocker = 'Draft — never sent to the customer';
+        risk = days(q.created_at) > 3 ? 'today' : 'ok';
+      } else if (q.status === 'accepted') {
+        blocker = 'Accepted — convert it to an order'; risk = 'today';
+      } else if (expiresIn !== null && expiresIn <= 3) {
+        blocker = 'Expires ' + dfmt(q.expires_at) + ' — ' + (q.opens ? q.opens + ' open' + (q.opens === 1 ? '' : 's') : 'never opened');
+        risk = 'today';
+      } else if (q.opens >= 3) {
+        blocker = 'Hot — opened ' + q.opens + '× by the customer'; risk = 'today';
+      } else if (q.opens === 0 && q.sent_at && days(q.sent_at) > 4) {
+        blocker = 'Sent ' + dfmt(q.sent_at) + ' — never opened'; risk = 'today';
+      } else {
+        blocker = 'In market — ' + (q.opens ? q.opens + ' open' + (q.opens === 1 ? '' : 's') : 'awaiting first open');
+      }
+
+      const closed = q.status === 'declined' || expired;
+      const views = [];
+      if (!closed && ['draft', 'sent'].includes(q.status)) views.push('open');
+      if (!closed && q.status === 'sent' && q.opens >= 3) views.push('hot');
+      if (!closed && q.status === 'sent' && expiresIn !== null && expiresIn <= 7) views.push('expiring');
+      if (q.status === 'accepted') views.push('accepted');
+      if (q.status === 'converted') views.push('converted');
+      if (closed) views.push('closed');
+
+      return { ...q, expired, stage, risk, blocker, views };
+    });
+
+    res.json({ quotes });
+  } catch (err) {
+    console.error('quotes ledger error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Full quote record for staff: quote + enriched items + rehydrated customer +
+// the event thread with engagement rollup (same shapes the rep workspace uses).
+app.get('/api/admin/quotes/:id', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quote = await pool.query(`
+      SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name,
+        o.order_number as converted_order_number
+      FROM quotes q
+      LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      LEFT JOIN orders o ON o.id = q.converted_order_id
+      WHERE q.id = $1
+    `, [id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+
+    const items = await pool.query(`
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection,
+        COALESCE(qi.cost, pr.cost) as vendor_cost,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
+      FROM quote_items qi
+      LEFT JOIN skus s ON s.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = qi.vendor_id
+      LEFT JOIN pricing pr ON pr.sku_id = qi.sku_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1 ORDER BY qi.id
+    `, [id]);
+
+    const q = quote.rows[0];
+    let customer = null;
+    if (q.customer_email) {
+      const trade = await pool.query(`
+        SELECT tc.id, tc.contact_name as name, tc.email, tc.phone,
+          tc.address_line1, NULL as address_line2, tc.city, tc.state, tc.zip,
+          'trade' as type, tc.company_name,
+          COALESCE(mt.discount_percent, 0) as discount_percent, mt.name as tier_name,
+          (SELECT COUNT(*)::int FROM orders o WHERE o.trade_customer_id = tc.id) as order_count,
+          COALESCE(tc.total_spend, 0) as lifetime_value
+        FROM trade_customers tc
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        WHERE LOWER(tc.email) = LOWER($1)
+      `, [q.customer_email]);
+      customer = trade.rows[0] || null;
+    }
+    if (!customer && q.customer_id) {
+      const retail = await pool.query(`
+        SELECT c.id, COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '') as name,
+          c.email, c.phone, c.address_line1, c.address_line2, c.city, c.state, c.zip,
+          'retail' as type,
+          (SELECT COUNT(*)::int FROM orders o WHERE o.customer_id = c.id) as order_count,
+          (SELECT COALESCE(SUM(o.total), 0) FROM orders o WHERE o.customer_id = c.id) as lifetime_value
+        FROM customers c WHERE c.id = $1
+      `, [q.customer_id]);
+      customer = retail.rows[0] || null;
+    }
+
+    const events = await pool.query(
+      'SELECT * FROM quote_events WHERE quote_id = $1 ORDER BY created_at ASC, id ASC', [id]
+    );
+    const opens = events.rows.filter(e => e.event_type === 'viewed');
+    const replies = events.rows.filter(e => e.event_type === 'reply');
+    const viewerKeys = new Set(opens.map(v => (v.meta && v.meta.viewer_key) || 'unknown'));
+
+    res.json({
+      quote: q, items: items.rows, customer,
+      events: events.rows,
+      engagement: {
+        opens: opens.length,
+        viewers: viewerKeys.size,
+        replies: replies.length,
+        last_viewed_at: opens.length ? opens[opens.length - 1].created_at : null,
+        last_reply_at: replies.length ? replies[replies.length - 1].created_at : null
+      }
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Staff twin of the rep lifecycle moves: mark accepted (verbal yes) or mark lost
+app.post('/api/admin/quotes/:id/status', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, reason } = req.body;
+    if (!['accepted', 'declined'].includes(status)) {
+      return res.status(400).json({ error: 'status must be accepted or declined' });
+    }
+
+    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1', [id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const q = quote.rows[0];
+    if (q.status === 'converted') return res.status(400).json({ error: 'Quote already converted' });
+    if (status === 'accepted' && !['draft', 'sent'].includes(q.status)) {
+      return res.status(400).json({ error: 'Only draft or sent quotes can be marked accepted' });
+    }
+
+    const result = await pool.query(
+      'UPDATE quotes SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await logQuoteEvent(pool, id, status === 'accepted' ? 'accepted' : 'marked_lost', {
+      body: status === 'accepted'
+        ? 'Marked accepted — customer confirmed'
+        : 'Marked lost' + (reason ? ' — ' + reason : ''),
+      meta: reason ? { reason } : {},
+      actor: 'staff',
+      actorName: staffName
+    });
+
+    if (status === 'declined') {
+      try {
+        await pool.query(`
+          UPDATE deals SET stage = 'lost', lost_reason = COALESCE($1, lost_reason),
+            stage_entered_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+          WHERE linked_quote_id = $2 AND stage NOT IN ('won', 'lost')
+        `, [reason || 'Quote marked lost', id]);
+      } catch (dealErr) {
+        console.error('Deal stage update failed (non-fatal):', dealErr.message);
+      }
+    }
+
+    res.json({ quote: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Staff thread entry: an internal note, or a customer reply staff is recording
+app.post('/api/admin/quotes/:id/events', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { event_type, body } = req.body;
+    if (!['note', 'reply'].includes(event_type)) {
+      return res.status(400).json({ error: 'event_type must be note or reply' });
+    }
+    if (!body || !body.trim()) return res.status(400).json({ error: 'body is required' });
+
+    const quote = await pool.query('SELECT * FROM quotes WHERE id = $1', [id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const q = quote.rows[0];
+
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    const result = await pool.query(
+      'INSERT INTO quote_events (quote_id, event_type, body, meta, actor, actor_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [id, event_type, body.trim(), JSON.stringify(event_type === 'reply' ? { logged_by: staffName } : {}),
+       event_type === 'reply' ? 'customer' : 'staff',
+       event_type === 'reply' ? q.customer_name : staffName]
+    );
+    res.json({ event: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Quote PDF for the staff document viewer (same paper the rep workspace renders)
+app.get('/api/staff/quotes/:id/pdf', staffDocAuth, async (req, res) => {
+  try {
+    const quote = await pool.query(`
+      SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
+      FROM quotes q LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      WHERE q.id = $1
+    `, [req.params.id]);
+    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const q = quote.rows[0];
+    const items = await pool.query(`
+      SELECT qi.*, sk.variant_name, sa_c.value as color,
+        v.name as vendor_name, sk.vendor_sku, p.collection as current_collection,
+        (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+         ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
+      FROM quote_items qi
+      LEFT JOIN skus sk ON sk.id = qi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(sk.product_id, qi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      WHERE qi.quote_id = $1 ORDER BY qi.id
+    `, [req.params.id]);
+
+    const html = generateQuoteHtml(q, items.rows);
+    await generatePDF(html, `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== Rep Estimate Endpoints ====================
 
 // Shared helper: recalculate estimate totals
