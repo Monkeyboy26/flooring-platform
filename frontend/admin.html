@@ -1199,8 +1199,9 @@
     /* ==================== Order record (full-bleed console) ==================== */
     /* Design scroll model: header stays pinned, only the record body scrolls */
     .recd-page { min-width: 0; min-height: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--bg); }
-    .recd-scroll { flex: 1; min-height: 0; overflow-y: auto; }
-    .recd-scroll .rec-body { min-height: 100%; }
+    /* Left column and right rail scroll independently (console pane model) */
+    .recd-scroll { flex: 1; min-height: 0; overflow: hidden; }
+    .recd-scroll .rec-body { height: 100%; min-height: 0; }
     .recd-head { flex-shrink: 0; border-bottom: 1px solid var(--line); background: var(--panel); }
     .recd-top { display: flex; align-items: flex-start; gap: 18px; padding: 14px 22px 0; flex-wrap: wrap; }
     .recd-crumb { background: transparent; border: none; padding: 0; color: var(--dim); font: 400 10px/1 var(--mono); letter-spacing: 0.12em; cursor: pointer; }
@@ -1231,9 +1232,9 @@
     .rec-body .stepper-cancel-link:hover, .rec-body .stepper-revert-link:hover { background: var(--panel2); }
     /* Two-column record body: dense left column, panel right rail — the old
        form-cards flatten into bordered blocks with mono labels inside it */
-    .rec-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 32%, 400px); align-items: stretch; }
-    .rec-left { min-width: 0; border-right: 1px solid var(--line); }
-    .rec-right { min-width: 0; background: var(--panel); }
+    .rec-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 32%, 400px); grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+    .rec-left { min-width: 0; min-height: 0; overflow-y: auto; border-right: 1px solid var(--line); }
+    .rec-right { min-width: 0; min-height: 0; overflow-y: auto; background: var(--panel); }
     .rec-body .form-card { border: none; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; padding: 18px 22px 20px; margin-bottom: 0; box-shadow: none; }
     .rec-right .form-card { background: transparent; }
     .rec-body .form-card h3 { font-family: var(--mono); font-size: 9px; line-height: 1; font-weight: 400; letter-spacing: 0.16em; color: var(--faint); text-transform: uppercase; border-bottom: none; padding-bottom: 0; margin-bottom: 14px; }
@@ -1287,9 +1288,12 @@
     .rb-doc-link { margin-left: auto; background: transparent; border: none; padding: 0; color: var(--gold); font: 400 10px/1 var(--mono); letter-spacing: 0.08em; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
     .rb-doc-link:hover { color: var(--gold-light); }
     @media (max-width: 1100px) {
-      .rec-body { grid-template-columns: 1fr; }
-      .rec-left { border-right: none; }
-      .rec-right { border-top: 1px solid var(--line2); }
+      /* Stacked layout goes back to one shared scroll */
+      .recd-scroll { overflow-y: auto; }
+      .recd-scroll .rec-body { height: auto; min-height: 100%; }
+      .rec-body { grid-template-columns: 1fr; grid-template-rows: none; }
+      .rec-left { border-right: none; overflow: visible; }
+      .rec-right { border-top: 1px solid var(--line2); overflow: visible; }
     }
 
     /* ==================== Orders ledger ==================== */
