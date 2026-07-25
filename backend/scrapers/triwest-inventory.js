@@ -10,6 +10,22 @@ const MAX_ERRORS = 30;
 const PER_MANUFACTURER_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes per manufacturer
 const MAX_CONSECUTIVE_EMPTY = 5; // abort if 5+ manufacturers in a row return 0 results
 const MAX_ATTEMPTS_PER_MANUFACTURER = 2; // retry once if the session expires mid-search
+const RELOGIN_TIMEOUT_MS = 2 * 60 * 1000; // cap each re-login so a hung portal can't stall the job
+// Overall wall-clock budget. The server reaper hard-kills a job at
+// SCRAPER_TIMEOUT_MS (4h) and marks it FAILED, discarding the summary even
+// though inventory is upserted incrementally. Under peak load the 16:00 run's
+// re-logins/retries can drift past 4h, so stop gracefully at 3.4h and let the
+// job finish as COMPLETED with whatever it has. Override via config.job_budget_ms.
+const DEFAULT_JOB_BUDGET_MS = 3.4 * 60 * 60 * 1000;
+
+/** triwestLogin bounded by a timeout so a hung re-login returns control to the loop. */
+async function reloginWithTimeout(pool, jobId) {
+  return Promise.race([
+    triwestLogin(pool, jobId),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`re-login timed out after ${RELOGIN_TIMEOUT_MS / 1000}s`)), RELOGIN_TIMEOUT_MS)),
+  ]);
+}
 
 /**
  * Tri-West DNav inventory scraper.
@@ -64,16 +80,29 @@ export async function run(pool, job, source) {
       return;
     }
 
-    // Login — returns authenticated browser + page
+    // Login — returns authenticated browser + page.
+    // The DNav portal is occasionally degraded (slow load serves a wrong/partial
+    // page), which fails a single login attempt. Retry a couple times before
+    // falling back to cookies, so a transient hiccup doesn't sink the whole run.
     let cookies;
     let page;
-    try {
-      const session = await triwestLogin(pool, job.id);
+    let session = null;
+    let lastLoginErr;
+    for (let attempt = 1; attempt <= 3 && !session; attempt++) {
+      try {
+        session = await triwestLogin(pool, job.id);
+      } catch (err) {
+        lastLoginErr = err;
+        await appendLog(pool, job.id, `Login attempt ${attempt}/3 failed: ${err.message}`);
+        if (attempt < 3) await delay(15000); // give the portal time to recover
+      }
+    }
+    if (session) {
       browser = session.browser;
       page = session.page;
       cookies = session.cookies;
-    } catch (err) {
-      await appendLog(pool, job.id, `Puppeteer login failed: ${err.message} — trying cookie fallback...`);
+    } else {
+      await appendLog(pool, job.id, `Puppeteer login failed after 3 attempts: ${lastLoginErr?.message} — trying cookie fallback...`);
       cookies = await triwestLoginFromCookies(pool, job.id);
       browser = await launchBrowser();
       page = await browser.newPage();
@@ -107,8 +136,18 @@ export async function run(pool, job, source) {
 
     let consecutiveEmpty = 0;
     const dumpRows = []; // raw portal rows for offline match analysis
+    const jobBudgetMs = parseInt(config.job_budget_ms, 10) || DEFAULT_JOB_BUDGET_MS;
+    const loopStart = Date.now();
 
     for (let m = 0; m < mfgrCodes.length; m++) {
+      // Stop gracefully before the reaper's hard time limit so incrementally
+      // upserted inventory is kept and the job finishes as completed, not failed.
+      if (Date.now() - loopStart > jobBudgetMs) {
+        await appendLog(pool, job.id,
+          `Wall-clock budget (${(jobBudgetMs / 3600000).toFixed(1)}h) reached — stopping with partial inventory at ${m}/${mfgrCodes.length} manufacturers`);
+        break;
+      }
+
       const mfgr = mfgrCodes[m];
       const mfgrCode = mfgr.value;
       const brandName = MANUFACTURER_NAMES[mfgrCode] || mfgr.text || mfgrCode;
@@ -145,7 +184,7 @@ export async function run(pool, job, source) {
         await appendLog(pool, job.id, `Session expired mid-search for ${brandName}, re-logging in to retry...`);
         await browser.close().catch(() => {});
         try {
-          const session = await triwestLogin(pool, job.id);
+          const session = await reloginWithTimeout(pool, job.id);
           browser = session.browser;
           page = session.page;
         } catch (err) {
@@ -242,7 +281,7 @@ export async function run(pool, job, source) {
           await appendLog(pool, job.id, `Session expired after ${brandName}, re-logging in...`);
           await browser.close().catch(() => {});
           try {
-            const session = await triwestLogin(pool, job.id);
+            const session = await reloginWithTimeout(pool, job.id);
             browser = session.browser;
             page = session.page;
           } catch (err) {

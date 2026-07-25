@@ -545,14 +545,49 @@ export async function run(pool, job, source) {
   // Cache parsed detail data per product
   const detailCache = new Map(); // wpId → parsedDetail | null
 
-  async function fetchDetailPage(apiProduct) {
+  const MAX_PAGE_RETRIES = 4;        // per-page retries on throttle before giving up
+  const MAX_BACKOFF_MS = 90000;      // cap a single backoff sleep at 90s
+  const ABORT_AFTER = 25;            // consecutive hard failures (post-retry) before bailing
+
+  // Single fetch attempt. Distinguishes throttling (429/503, retryable) from a
+  // genuine miss (404 etc, not retryable) so backoff only kicks in when the
+  // server is actually rate-limiting us.
+  async function fetchDetailOnce(apiProduct) {
     const resp = await fetch(apiProduct.link, {
       headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(45000)
     });
-    if (!resp.ok) return null;
+    if (resp.status === 429 || resp.status === 503 || resp.status === 403) {
+      const raHeader = parseInt(resp.headers.get('retry-after') || '0', 10);
+      return { ok: false, retryable: true, retryAfterMs: raHeader > 0 ? raHeader * 1000 : 0 };
+    }
+    if (!resp.ok) return { ok: false, retryable: false };
     const html = await resp.text();
-    return parseDetailPage(html);
+    return { ok: true, data: parseDetailPage(html) };
+  }
+
+  // Fetch a detail page, backing off exponentially on throttle. Honors any
+  // Retry-After the server sends. Returns parsed detail or null.
+  async function fetchDetailPage(apiProduct) {
+    let backoff = detailDelayMs * 2;
+    for (let attempt = 0; attempt <= MAX_PAGE_RETRIES; attempt++) {
+      let r;
+      try {
+        r = await fetchDetailOnce(apiProduct);
+      } catch {
+        r = { ok: false, retryable: true, retryAfterMs: 0 }; // timeout/network → treat as retryable
+      }
+      if (r.ok) return r.data;
+      if (!r.retryable) return null; // genuine 404/etc — don't waste retries
+      if (attempt < MAX_PAGE_RETRIES) {
+        const wait = Math.min(r.retryAfterMs || backoff, MAX_BACKOFF_MS);
+        await appendLog(pool, job.id,
+          `  Throttled on ${apiProduct.wpId} — backing off ${Math.round(wait / 1000)}s (retry ${attempt + 1}/${MAX_PAGE_RETRIES})`);
+        await delay(wait);
+        backoff = Math.min(Math.round(backoff * 2.5), MAX_BACKOFF_MS);
+      }
+    }
+    return null;
   }
 
   let consecutiveFailures = 0;
@@ -576,16 +611,21 @@ export async function run(pool, job, source) {
       await appendLog(pool, job.id, `Fetch progress: ${i + 1}/${allProducts.length} (${ok} OK)`);
     }
 
-    // If 10 consecutive failures, server is likely blocking us — abort early
-    if (consecutiveFailures >= 10) {
-      await appendLog(pool, job.id, `Aborting Phase 2: ${consecutiveFailures} consecutive failures — server likely rate-limiting`);
+    // Each page already retried with backoff above, so a run of hard failures
+    // means a sustained block — cool off once, then bail if it persists.
+    if (consecutiveFailures === Math.floor(ABORT_AFTER / 2)) {
+      await appendLog(pool, job.id, `${consecutiveFailures} consecutive failures — cooling off 60s before continuing...`);
+      await delay(60000);
+    }
+    if (consecutiveFailures >= ABORT_AFTER) {
+      await appendLog(pool, job.id, `Aborting Phase 2: ${consecutiveFailures} consecutive failures after backoff — server is blocking us`);
       break;
     }
 
     await delay(detailDelayMs);
   }
 
-  // Retry failed pages once (server may have been temporarily throttling)
+  // Retry failed pages once more (fetchDetailPage already backs off internally)
   const failedProducts = allProducts.filter(p => detailCache.get(p.wpId) == null);
   if (failedProducts.length > 0 && failedProducts.length < allProducts.length) {
     await appendLog(pool, job.id, `Retrying ${failedProducts.length} failed detail pages...`);
