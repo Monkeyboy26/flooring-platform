@@ -5146,11 +5146,6 @@
                   <button className="opsq-alt" style={{ color: 'var(--hot)' }} disabled={updating}
                     onClick={() => { if (confirm('Cancel this order?')) updateStatus('cancelled'); }}>Cancel order</button>
                 )}
-                {prevStatus && !recCancelled && (
-                  <button className="opsq-alt" disabled={updating}
-                    title={'Revert to ' + (recStatusLabels[prevStatus] || prevStatus)}
-                    onClick={() => { if (confirm('Revert order to ' + (recStatusLabels[prevStatus] || prevStatus) + '? This will clear any data from later steps (e.g. tracking info).')) updateStatus(prevStatus); }}>{'↩'}</button>
-                )}
               </div>
             </div>
             <div className="recd-rail">
