@@ -4784,10 +4784,7 @@
       };
 
       const openCreditMemo = (returnId) => {
-        // API URL + ?token= (staffDocAuth accepts the query token for iframe docs) —
-        // same pattern as the Invoice/Packing-Slip buttons.
-        const token = sessionStorage.getItem('staff_token');
-        setDocPreview({ url: API + '/api/staff/returns/' + returnId + '/credit-memo?token=' + encodeURIComponent(token), title: 'Credit Memo' });
+        setDocPreview({ path: '/api/staff/returns/' + returnId + '/credit-memo', title: 'Credit Memo' });
       };
 
       const loadTracking = async () => {
@@ -5713,7 +5710,7 @@
                         ))}
                         <button className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.3rem 0.75rem' }}
                           onClick={async () => {
-                            try { const url = await staffOpenDoc('/api/staff/purchase-orders/' + po.id + '/pdf'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number }); } catch(e) { alert('Failed to load PO'); }
+                            setDocPreview({ path: '/api/staff/purchase-orders/' + po.id + '/pdf', title: 'Purchase Order - ' + po.po_number });
                           }}>
                           Download PO
                         </button>
@@ -5948,8 +5945,7 @@
                   <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 12, flexShrink: 0 }}>
                     <span style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.1em', color: rel.status === 'completed' ? 'var(--green)' : rel.status === 'void' ? 'var(--faint)' : 'var(--gold)' }}>{(rel.status || '').toUpperCase()}</span>
                     <button className="rb-doc-link" onClick={() => {
-                      const token = sessionStorage.getItem('staff_token');
-                      setDocPreview({ url: API + '/api/staff/releases/' + rel.id + '/release-form?token=' + encodeURIComponent(token), title: 'Release ' + rel.release_number });
+                      setDocPreview({ path: '/api/staff/releases/' + rel.id + '/release-form', title: 'Release ' + rel.release_number });
                     }}>PDF {'↓'}</button>
                     {rel.status === 'released' && (
                       <button className="rb-doc-link" onClick={async () => {
@@ -6436,8 +6432,7 @@
                     </span>
                   </span>
                   <button className="rb-doc-link" onClick={() => {
-                    const token = sessionStorage.getItem('staff_token');
-                    setDocPreview({ url: API + '/api/staff/orders/' + editId + '/invoice?token=' + encodeURIComponent(token), title: 'Invoice ' + iv.invoice_number });
+                    setDocPreview({ path: '/api/staff/orders/' + editId + '/invoice', title: 'Invoice ' + iv.invoice_number });
                   }}>PDF {'↓'}</button>
                 </div>
               )) : (
@@ -6447,8 +6442,7 @@
                     <span className="rb-doc-sub" style={{ display: 'block' }}>Customer-facing PDF</span>
                   </span>
                   <button className="rb-doc-link" onClick={() => {
-                    const token = sessionStorage.getItem('staff_token');
-                    setDocPreview({ url: API + '/api/staff/orders/' + editId + '/invoice?token=' + encodeURIComponent(token), title: 'Invoice' });
+                    setDocPreview({ path: '/api/staff/orders/' + editId + '/invoice', title: 'Invoice' });
                   }}>PDF {'↓'}</button>
                 </div>
               )}
@@ -6458,8 +6452,7 @@
                   <span className="rb-doc-sub" style={{ display: 'block' }}>Warehouse copy</span>
                 </span>
                 <button className="rb-doc-link" onClick={() => {
-                  const token = sessionStorage.getItem('staff_token');
-                  setDocPreview({ url: API + '/api/staff/orders/' + editId + '/packing-slip?token=' + encodeURIComponent(token), title: 'Packing Slip' });
+                  setDocPreview({ path: '/api/staff/orders/' + editId + '/packing-slip', title: 'Packing Slip' });
                 }}>PDF {'↓'}</button>
               </div>
               {purchaseOrders.filter(po => po.status !== 'cancelled').map(po => (
@@ -6469,7 +6462,7 @@
                     <span className="rb-doc-sub" style={{ display: 'block' }}>{po.vendor_name} · ${parseFloat(po.subtotal || 0).toFixed(2)} · {po.status}</span>
                   </span>
                   <button className="rb-doc-link" onClick={async () => {
-                    try { const url = await staffOpenDoc('/api/staff/purchase-orders/' + po.id + '/pdf'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number }); } catch (e) { alert('Failed to load PO'); }
+                    setDocPreview({ path: '/api/staff/purchase-orders/' + po.id + '/pdf', title: 'Purchase Order - ' + po.po_number });
                   }}>PDF {'↓'}</button>
                 </div>
               ))}
@@ -6510,7 +6503,7 @@
           </div>
         </div>
 
-        {docPreview && <DocumentPreviewModal url={docPreview.url} title={docPreview.title} onClose={() => setDocPreview(null)} />}
+        {docPreview && <StaffPdfViewer path={docPreview.path} filename={docPreview.title} onClose={() => setDocPreview(null)} />}
 
         {showReturnModal && (
           <ReturnModal
@@ -6535,8 +6528,7 @@
               reloadOrderDetail();
               loadOrderActivity();
               if (rel) {
-                const token = sessionStorage.getItem('staff_token');
-                setDocPreview({ url: API + '/api/staff/releases/' + rel.id + '/release-form?token=' + encodeURIComponent(token), title: 'Release ' + rel.release_number });
+                setDocPreview({ path: '/api/staff/releases/' + rel.id + '/release-form', title: 'Release ' + rel.release_number });
               }
             }}
           />
@@ -6714,6 +6706,101 @@
         )}
 
         </React.Fragment>
+      );
+    }
+
+    // ========== StaffPdfViewer — rep-style full-screen document viewer ==========
+    // Same chrome as the rep portal's RepPdfViewer: dark canvas, toolbar with
+    // filename + Download/Print/Close, centered letter-size page. Fetches the
+    // PDF itself via staffOpenDoc (header auth → blob).
+    function StaffPdfViewer({ path, filename, onClose }) {
+      const iframeRef = React.useRef(null);
+      const [url, setUrl] = useState(null);
+      const [error, setError] = useState(false);
+
+      useEffect(() => {
+        // The paper shows the fast HTML preview render (like the rep viewer);
+        // the Download button fetches the actual PDF.
+        let cancelled = false; let blobUrl = null;
+        staffOpenDoc(path + (path.includes('?') ? '&' : '?') + 'preview=true')
+          .then(u => { if (cancelled) { URL.revokeObjectURL(u); return; } blobUrl = u; setUrl(u); })
+          .catch(() => { if (!cancelled) setError(true); });
+        return () => { cancelled = true; if (blobUrl) URL.revokeObjectURL(blobUrl); };
+      }, [path]);
+
+      useEffect(() => {
+        const handler = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+      }, [onClose]);
+
+      const handleDownload = () => {
+        staffOpenDoc(path, true).catch(() => alert('Failed to download PDF'));
+      };
+      const handlePrint = () => {
+        try { iframeRef.current.contentWindow.print(); } catch (e) { window.open(url, '_blank'); }
+      };
+
+      return (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          zIndex: 10000,
+          display: 'grid', gridTemplateRows: 'auto 1fr',
+          background: '#3a3835',
+        }}>
+          {/* Toolbar */}
+          <div style={{
+            background: '#22201e', color: '#fff',
+            padding: '12px 20px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            borderBottom: '1px solid #000',
+          }}>
+            <span style={{
+              font: '400 14px/1 var(--sans)', color: '#fff',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{
+                width: 22, height: 26, border: '0.5px solid #c7c2b8',
+                background: '#fff', color: '#22201e',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                font: '500 9px/26px var(--sans)',
+              }}>{'📄'}</span>
+              {filename}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button onClick={handleDownload} title="Download" style={{
+                padding: '8px 12px', background: 'var(--gold)', color: 'var(--brass-ink)', border: 'none',
+                cursor: 'pointer', font: '500 12px/1 var(--sans)', letterSpacing: '0.04em',
+              }}>{'⤓'} Download</button>
+              <button onClick={handlePrint} title="Print" style={{
+                padding: '8px 12px', background: 'transparent', color: '#fff', border: '0.5px solid #4a4744',
+                cursor: 'pointer', font: '500 12px/1 var(--sans)', letterSpacing: '0.04em',
+              }}>{'⎙'} Print</button>
+              <button onClick={onClose} title="Close" style={{
+                padding: '8px 12px', background: 'transparent', color: '#fff', border: '0.5px solid #4a4744',
+                cursor: 'pointer', font: '500 12px/1 var(--sans)', letterSpacing: '0.04em',
+              }}>{'✕'}</button>
+            </div>
+          </div>
+          {/* Page area */}
+          <div style={{
+            display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
+            padding: '28px 0', overflow: 'auto',
+          }}>
+            {error ? (
+              <div style={{ font: '400 12px/1.8 var(--mono)', color: '#c7c2b8', paddingTop: 60 }}>failed to load document</div>
+            ) : !url ? (
+              <div style={{ font: '400 12px/1.8 var(--mono)', color: '#c7c2b8', paddingTop: 60 }}>rendering document…</div>
+            ) : (
+              <div style={{
+                width: 816, height: 1056, flexShrink: 0,
+                boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+              }}>
+                <iframe ref={iframeRef} src={url} sandbox="allow-same-origin" style={{ width: '100%', height: '100%', border: 'none' }} />
+              </div>
+            )}
+          </div>
+        </div>
       );
     }
 
