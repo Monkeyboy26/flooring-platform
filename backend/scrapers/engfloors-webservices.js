@@ -5,8 +5,12 @@
  * data on all active EF SKUs in the database.
  *
  * PriceInquiry returns both price AND available quantity per SKU, with separate
- * entries for Roll (R) and Cut (C) availability. This is more useful than
- * InventoryInquiry which returns empty quantities for most product types.
+ * entries for Roll (R) and Cut (C) availability. For soft surface (SY basis)
+ * its quantities are full precision, but for LVT/hard surface (SF basis) the
+ * AvailableQuantity field is truncated to a single character (1490 SF comes
+ * back as "1", 733 SF as "7" — confirmed live 2026-07-26). InventoryInquiry
+ * returns the full LVT quantity (and empty AvailableItems for soft surface),
+ * so SF-basis quantities are re-queried there.
  *
  * Actual XML response format (from live testing):
  *   <AvailableItem>
@@ -253,6 +257,29 @@ async function priceInquiry(baseUrl, config, sku, agent) {
   return { available: items.length > 0, items };
 }
 
+/**
+ * Call InventoryInquiry for a single SKU. Only LVT/hard surface items return
+ * quantities here (soft surface comes back with empty AvailableItems), but
+ * unlike PriceInquiry the quantity is full precision.
+ */
+async function inventoryInquiry(baseUrl, config, sku, agent) {
+  const url = buildUrl(baseUrl, 'InventoryInquiry', config, sku);
+  const res = await httpsGet(url, 15000, 30000, agent);
+  if (res.status !== 200) return { items: [], error: `HTTP ${res.status}` };
+
+  const err = xmlError(res.body);
+  if (err) return { items: [], error: err.message };
+
+  const items = xmlAll(res.body, 'AvailableItem').map((itemXml) => {
+    const qtyRaw = xmlText(itemXml, 'AvailableQuantity');
+    return {
+      qty: (qtyRaw && qtyRaw !== 'NA' && qtyRaw !== '') ? parseFloat(qtyRaw) : null,
+      uom: xmlText(itemXml, 'AvailableUnitOfMeasure') || 'SF',
+    };
+  });
+  return { items, error: null };
+}
+
 // ---------------------------------------------------------------------------
 // Main run function (scraper framework entry point)
 // ---------------------------------------------------------------------------
@@ -347,21 +374,47 @@ export async function run(pool, job, source) {
           noDataCount++;
         } else {
           // ── Process inventory ──
-          // Find the best inventory entry (prefer Roll over Cut for broadloom)
+          // Find the best inventory entry (prefer Roll over Cut for broadloom).
+          // SY quantities are trusted as-is; SF quantities are single-character
+          // truncated garbage, so any SF entry triggers an InventoryInquiry
+          // follow-up for the real number.
           let bestQty = null;
           let rollMinSqft = null;
+          let needsInventoryInquiry = false;
 
           for (const item of result.items) {
             if (item.qty !== null && item.qty > 0) {
               inventoryDataFound++;
-              // Convert SY to sqft for inventory (1 SY = 9 sqft)
-              const qtySqft = item.uom === 'SY' ? Math.round(item.qty * 9) : Math.round(item.qty);
-              if (bestQty === null || qtySqft > bestQty) bestQty = qtySqft;
+              if (item.uom === 'SY') {
+                // Convert SY to sqft for inventory (1 SY = 9 sqft)
+                const qtySqft = Math.round(item.qty * 9);
+                if (bestQty === null || qtySqft > bestQty) bestQty = qtySqft;
+              } else {
+                needsInventoryInquiry = true;
+              }
 
               // Track roll minimum
               if (item.rollOrCut === 'C' && item.minQty) {
                 const minSqft = item.uom === 'SY' ? Math.round(item.minQty * 9) : Math.round(item.minQty);
                 rollMinSqft = minSqft;
+              }
+            }
+          }
+
+          if (needsInventoryInquiry) {
+            const inv = await inventoryInquiry(baseUrl, cfg, vendorSku, agent);
+            for (const item of inv.items) {
+              if (item.qty !== null && item.qty > 0) {
+                const qtySqft = item.uom === 'SY' ? Math.round(item.qty * 9) : Math.round(item.qty);
+                if (bestQty === null || qtySqft > bestQty) bestQty = qtySqft;
+              }
+            }
+            // On error/empty, bestQty stays null and the snapshot is skipped —
+            // better to keep the previous snapshot than write a truncated digit.
+            if (inv.error) {
+              errCount++;
+              if (errCount <= 20) {
+                await addJobError(pool, job.id, { message: `InventoryInquiry error for ${vendorSku}: ${inv.error}` });
               }
             }
           }
