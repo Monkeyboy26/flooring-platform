@@ -297,9 +297,14 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
     const title = apiProduct.productTitle || '';
     const props = apiProduct.properties || {};
     const rawCollection = props.parentNumber || '';
-    const collectionName = titleCase(rawCollection) || titleCase(title.split(/\s*-\s*/)[0]) || '';
-
     const titleParts = title.split(/\s*-\s*/);
+    // Title-derived collection only when the title has the "COLLECTION - ..." shape;
+    // dash-less titles (profiles, sundries) would otherwise become junk collections.
+    const titleCollection = titleParts.length > 1 && titleParts[0].length <= 40 ? titleParts[0] : '';
+    let collectionName = titleCase(rawCollection) || titleCase(titleCollection) || '';
+    // Never accept the manufacturer (or an "EMSER E-LEVEL..." hyphen fragment)
+    // as a series name — real Emser series never start with "Emser".
+    if (/^emser\b/i.test(collectionName)) collectionName = '';
     const afterDash = titleParts.length > 1 ? titleParts.slice(1).join(' - ').split(/\s*,\s*/) : [];
     const isTrim = String(props.isTrim || '').toLowerCase() === 'true';
 
