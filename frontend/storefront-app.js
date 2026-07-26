@@ -5656,28 +5656,64 @@
         const ca = collectionAttributes[slug];
         if (ca && ca.values) ca.values.forEach((v) => localAttrCounts[slug].add(v));
       });
+      const _sizeSelectorShown = showSizePills || showSibSizes || showAttrSizes;
       const colorAttrValues = {};
+      const colorSizeAttrValues = {};
+      const _addGroupVal = (store, key, slug, value) => {
+        if (!store[slug]) store[slug] = {};
+        if (!store[slug][key]) store[slug][key] = /* @__PURE__ */ new Set();
+        store[slug][key].add(value);
+      };
       effectiveSiblings.forEach((s) => {
-        const ca = (s.attributes || []).find((a) => a.slug === "color");
+        const attrs = s.attributes || [];
+        const ca = attrs.find((a) => a.slug === "color");
         const c = ca && ca.value || s.variant_name || "";
-        (s.attributes || []).forEach((a) => {
-          if (!colorAttrValues[a.slug]) colorAttrValues[a.slug] = {};
-          if (!colorAttrValues[a.slug][c]) colorAttrValues[a.slug][c] = /* @__PURE__ */ new Set();
-          colorAttrValues[a.slug][c].add(a.value);
+        const sa = attrs.find((a) => a.slug === "size");
+        const ck = c + "||" + (sa ? normalizeSize(sa.value) : "");
+        attrs.forEach((a) => {
+          _addGroupVal(colorAttrValues, c, a.slug, a.value);
+          _addGroupVal(colorSizeAttrValues, ck, a.slug, a.value);
         });
-        if (_hasNoCtSibling && !(s.attributes || []).some((a) => a.slug === "countertop_finish")) {
-          if (!colorAttrValues["countertop_finish"]) colorAttrValues["countertop_finish"] = {};
-          if (!colorAttrValues["countertop_finish"][c]) colorAttrValues["countertop_finish"][c] = /* @__PURE__ */ new Set();
-          colorAttrValues["countertop_finish"][c].add("No Countertop");
+        if (_hasNoCtSibling && !attrs.some((a) => a.slug === "countertop_finish")) {
+          _addGroupVal(colorAttrValues, c, "countertop_finish", "No Countertop");
+          _addGroupVal(colorSizeAttrValues, ck, "countertop_finish", "No Countertop");
         }
       });
-      const variesWithinColor = (slug) => {
-        const byColor = colorAttrValues[slug];
-        if (!byColor) return false;
-        return Object.values(byColor).some((vals) => vals.size > 1);
+      const isIndependentChoice = (slug) => {
+        const byGroup = slug === "shape" || !_sizeSelectorShown ? colorAttrValues[slug] : colorSizeAttrValues[slug];
+        if (!byGroup) return false;
+        return Object.values(byGroup).some((vals) => vals.size > 1);
       };
       const _finishIsColor = !!attrMap["countertop_finish"];
-      const attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter((slug) => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === "countertop_finish") && !NON_SELECTABLE.has(slug) && !(slug === "finish" && (showFinishPills || _finishIsColor)) && (slug === "countertop_finish" || collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? variesWithinColor(slug) : true))).sort((a, b) => a === "finish" ? -1 : b === "finish" ? 1 : 0);
+      let attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter((slug) => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === "countertop_finish") && !NON_SELECTABLE.has(slug) && !(slug === "finish" && (showFinishPills || _finishIsColor)) && (slug === "countertop_finish" || collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? isIndependentChoice(slug) : true))).sort((a, b) => a === "finish" ? -1 : b === "finish" ? 1 : 0);
+      if (attrSlugs.length > 1) {
+        const _pillRank = (slug) => slug === "finish" ? 0 : slug === "shape" ? 1 : 2;
+        const _lockedTogether = (a, b) => {
+          const fwd = /* @__PURE__ */ new Map(), rev = /* @__PURE__ */ new Map();
+          for (const s of effectiveSiblings) {
+            const attrs = s.attributes || [];
+            const va = (attrs.find((x) => x.slug === a) || {}).value;
+            const vb = (attrs.find((x) => x.slug === b) || {}).value;
+            if (va === void 0 || vb === void 0) return false;
+            if (fwd.has(va) && fwd.get(va) !== vb) return false;
+            if (rev.has(vb) && rev.get(vb) !== va) return false;
+            fwd.set(va, vb);
+            rev.set(vb, va);
+          }
+          return fwd.size > 0;
+        };
+        const _drop = /* @__PURE__ */ new Set();
+        for (let i = 0; i < attrSlugs.length; i++) {
+          for (let j = i + 1; j < attrSlugs.length; j++) {
+            const a = attrSlugs[i], b = attrSlugs[j];
+            if (_drop.has(a) || _drop.has(b)) continue;
+            if (a === "countertop_finish" || b === "countertop_finish") continue;
+            if (collectionAugmentedSlugs.has(a) || collectionAugmentedSlugs.has(b)) continue;
+            if (_lockedTogether(a, b)) _drop.add(_pillRank(a) <= _pillRank(b) ? b : a);
+          }
+        }
+        if (_drop.size) attrSlugs = attrSlugs.filter((s) => !_drop.has(s));
+      }
       const sizeSort = (a, b) => {
         const na = parseFractionalInches(a), nb = parseFractionalInches(b);
         if (!isNaN(na) && !isNaN(nb)) return na - nb;
