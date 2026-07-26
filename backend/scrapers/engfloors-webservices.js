@@ -23,7 +23,13 @@
  * Config (vendor_sources.config):
  *   api_key, secret_key, client_id — web service credentials
  *   base_url — service base (default: https://www.engfloors.info/B2B)
- *   batch_delay_ms — delay between requests to avoid hammering (default: 200)
+ *   batch_delay_ms — per-worker delay between requests (default: 200)
+ *   concurrency — parallel request workers, 1-8 (default: 4)
+ *
+ * Note: serviceDiscovery advertises PriceInquiry as a "multiple item request"
+ * but the endpoint is single-item in practice (probed 2026-07-26: repeated
+ * SupplierItemSKU params use only the last value, comma lists match nothing,
+ * POST bodies are ignored) — hence per-SKU calls with a keep-alive agent.
  */
 
 import https from 'https';
@@ -45,6 +51,7 @@ const DEFAULT_CONFIG = {
   client_id: process.env.EF_CLIENT_ID || '18110',
   base_url: 'https://www.engfloors.info/B2B',
   batch_delay_ms: 200,
+  concurrency: 4,
 };
 
 // The EF endpoint has unresponsive windows (July 2026: hung requests and
@@ -60,7 +67,7 @@ const TIME_BUDGET_MS = 3.5 * 60 * 60 * 1000;
 // HTTP helpers
 // ---------------------------------------------------------------------------
 
-function httpsGet(url, timeoutMs = 15000, deadlineMs = 30000) {
+function httpsGet(url, timeoutMs = 15000, deadlineMs = 30000, agent = undefined) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
     let settled = false;
@@ -83,6 +90,7 @@ function httpsGet(url, timeoutMs = 15000, deadlineMs = 30000) {
       path: u.pathname + u.search,
       headers: { 'Accept': 'text/xml, application/xml' },
       timeout: timeoutMs,
+      agent,
     }, (res) => {
       let data = '';
       res.on('data', (c) => {
@@ -201,9 +209,9 @@ function buildUrl(baseUrl, endpoint, config, supplierItemSku) {
  *   error: string | null,
  * }
  */
-async function priceInquiry(baseUrl, config, sku) {
+async function priceInquiry(baseUrl, config, sku, agent) {
   const url = buildUrl(baseUrl, 'PriceInquiry', config, sku);
-  const res = await httpsGet(url);
+  const res = await httpsGet(url, 15000, 30000, agent);
   if (res.status !== 200) return { available: false, items: [], error: `HTTP ${res.status}` };
 
   const err = xmlError(res.body);
@@ -306,144 +314,168 @@ export async function run(pool, job, source) {
   let abortReason = null, timeBudgetHit = false;
   const runStart = Date.now();
 
-  for (const sku of skus) {
-    if (Date.now() - runStart > TIME_BUDGET_MS) {
-      timeBudgetHit = true;
-      break;
-    }
-    const vendorSku = sku.vendor_sku;
-    if (!vendorSku) continue;
+  const concurrency = Math.max(1, Math.min(8, parseInt(cfg.concurrency, 10) || 4));
+  // Keep-alive agent: reuse TLS connections across the ~4.7k requests instead
+  // of a fresh handshake per call. Destroyed after the run.
+  const agent = new https.Agent({ keepAlive: true, maxSockets: concurrency });
+  let nextIndex = 0;
+  let backoffGate = null; // Promise all workers await while backing off
 
-    try {
-      const result = await priceInquiry(baseUrl, cfg, vendorSku);
-      consecutiveFailures = 0;
-
-      if (result.error) {
-        errCount++;
-        if (errCount <= 20) {
-          await addJobError(pool, job.id, { message: `Error for ${vendorSku}: ${result.error}` });
-        }
-      } else if (!result.available || result.items.length === 0) {
-        noDataCount++;
-      } else {
-        // ── Process inventory ──
-        // Find the best inventory entry (prefer Roll over Cut for broadloom)
-        let bestQty = null;
-        let rollMinSqft = null;
-
-        for (const item of result.items) {
-          if (item.qty !== null && item.qty > 0) {
-            inventoryDataFound++;
-            // Convert SY to sqft for inventory (1 SY = 9 sqft)
-            const qtySqft = item.uom === 'SY' ? Math.round(item.qty * 9) : Math.round(item.qty);
-            if (bestQty === null || qtySqft > bestQty) bestQty = qtySqft;
-
-            // Track roll minimum
-            if (item.rollOrCut === 'C' && item.minQty) {
-              const minSqft = item.uom === 'SY' ? Math.round(item.minQty * 9) : Math.round(item.minQty);
-              rollMinSqft = minSqft;
-            }
-          }
-        }
-
-        if (bestQty !== null) {
-          await upsertInventorySnapshot(pool, sku.id, 'EF-main', {
-            qty_on_hand_sqft: bestQty,
-            qty_in_transit_sqft: 0,
-          });
-          inventoryUpdated++;
-        }
-
-        // ── Process pricing ──
-        // EF PriceInquiry returns dealer cost per SY (for broadloom/tile)
-        // Find Roll price and Cut price
-        let rollPrice = null, cutPrice = null;
-        let primaryPrice = null;
-
-        for (const item of result.items) {
-          if (item.price === null) continue;
-          const flag = item.rollOrCut;
-
-          if (flag === 'R') {
-            rollPrice = item.price;
-            if (primaryPrice === null) primaryPrice = item.price;
-          } else if (flag === 'C') {
-            cutPrice = item.price;
-            if (primaryPrice === null) primaryPrice = item.price;
-          } else {
-            if (primaryPrice === null) primaryPrice = item.price;
-          }
-        }
-
-        if (primaryPrice !== null) {
-          pricingDataFound++;
-
-          // Skip pricing upsert for SKUs without an existing pricing row —
-          // we only have dealer cost, not retail_price, and the pricing
-          // table requires retail_price NOT NULL on INSERT.
-          if (!skusWithPricing.has(sku.id)) {
-            pricingSkipped++;
-          } else {
-            // Determine price basis from sell_by
-            const isSqyd = sku.sell_by === 'roll';
-            const isUnit = sku.sell_by === 'unit';
-
-            if (isSqyd) {
-              // Broadloom carpet: cost is per SY, store as cut_cost / roll_cost
-              const pricingData = {
-                price_basis: 'per_sqyd',
-              };
-              if (cutPrice !== null) pricingData.cut_cost = parseFloat(cutPrice.toFixed(2));
-              if (rollPrice !== null) pricingData.roll_cost = parseFloat(rollPrice.toFixed(2));
-              if (rollMinSqft !== null) pricingData.roll_min_sqft = rollMinSqft;
-              // Also update base cost (per sqft) = per SY / 9
-              pricingData.cost = parseFloat(((cutPrice || rollPrice || primaryPrice) / 9).toFixed(4));
-              await upsertPricing(pool, sku.id, pricingData);
-            } else if (isUnit) {
-              // Transitions/accessories: price per unit
-              await upsertPricing(pool, sku.id, {
-                cost: parseFloat(primaryPrice.toFixed(2)),
-                price_basis: 'per_unit',
-              });
-            } else {
-              // Carpet tile / LVP: price per SY, convert to per sqft
-              const costPerSqft = parseFloat((primaryPrice / 9).toFixed(4));
-              await upsertPricing(pool, sku.id, {
-                cost: costPerSqft,
-                price_basis: 'per_sqft',
-              });
-            }
-            pricingUpdated++;
-          }
-        }
+  async function worker() {
+    while (!abortReason && !timeBudgetHit) {
+      if (backoffGate) { await backoffGate; continue; }
+      if (Date.now() - runStart > TIME_BUDGET_MS) {
+        timeBudgetHit = true;
+        break;
       }
+      const idx = nextIndex++;
+      if (idx >= skus.length) break;
+      const sku = skus[idx];
+      const vendorSku = sku.vendor_sku;
+      if (!vendorSku) continue;
 
-      await sleep(cfg.batch_delay_ms);
-
-    } catch (err) {
-      errCount++;
-      consecutiveFailures++;
-      if (errCount <= 20) {
-        await addJobError(pool, job.id, { message: `Exception for ${vendorSku}: ${err.message}` });
-      }
-      if (consecutiveFailures >= CONSECUTIVE_FAILURE_LIMIT) {
-        if (backoffsUsed >= MAX_BACKOFFS) {
-          abortReason = `${CONSECUTIVE_FAILURE_LIMIT} consecutive request failures after ${MAX_BACKOFFS} backoffs — endpoint unresponsive`;
-          break;
-        }
-        backoffsUsed++;
-        await appendLog(pool, job.id,
-          `${consecutiveFailures} consecutive request failures at ${processed}/${skus.length} — backing off ${Math.round(BACKOFF_MS / 60000)} min (${backoffsUsed}/${MAX_BACKOFFS})`);
-        await sleep(BACKOFF_MS);
+      try {
+        const result = await priceInquiry(baseUrl, cfg, vendorSku, agent);
         consecutiveFailures = 0;
+
+        if (result.error) {
+          errCount++;
+          if (errCount <= 20) {
+            await addJobError(pool, job.id, { message: `Error for ${vendorSku}: ${result.error}` });
+          }
+        } else if (!result.available || result.items.length === 0) {
+          noDataCount++;
+        } else {
+          // ── Process inventory ──
+          // Find the best inventory entry (prefer Roll over Cut for broadloom)
+          let bestQty = null;
+          let rollMinSqft = null;
+
+          for (const item of result.items) {
+            if (item.qty !== null && item.qty > 0) {
+              inventoryDataFound++;
+              // Convert SY to sqft for inventory (1 SY = 9 sqft)
+              const qtySqft = item.uom === 'SY' ? Math.round(item.qty * 9) : Math.round(item.qty);
+              if (bestQty === null || qtySqft > bestQty) bestQty = qtySqft;
+
+              // Track roll minimum
+              if (item.rollOrCut === 'C' && item.minQty) {
+                const minSqft = item.uom === 'SY' ? Math.round(item.minQty * 9) : Math.round(item.minQty);
+                rollMinSqft = minSqft;
+              }
+            }
+          }
+
+          if (bestQty !== null) {
+            await upsertInventorySnapshot(pool, sku.id, 'EF-main', {
+              qty_on_hand_sqft: bestQty,
+              qty_in_transit_sqft: 0,
+            });
+            inventoryUpdated++;
+          }
+
+          // ── Process pricing ──
+          // EF PriceInquiry returns dealer cost per SY (for broadloom/tile)
+          // Find Roll price and Cut price
+          let rollPrice = null, cutPrice = null;
+          let primaryPrice = null;
+
+          for (const item of result.items) {
+            if (item.price === null) continue;
+            const flag = item.rollOrCut;
+
+            if (flag === 'R') {
+              rollPrice = item.price;
+              if (primaryPrice === null) primaryPrice = item.price;
+            } else if (flag === 'C') {
+              cutPrice = item.price;
+              if (primaryPrice === null) primaryPrice = item.price;
+            } else {
+              if (primaryPrice === null) primaryPrice = item.price;
+            }
+          }
+
+          if (primaryPrice !== null) {
+            pricingDataFound++;
+
+            // Skip pricing upsert for SKUs without an existing pricing row —
+            // we only have dealer cost, not retail_price, and the pricing
+            // table requires retail_price NOT NULL on INSERT.
+            if (!skusWithPricing.has(sku.id)) {
+              pricingSkipped++;
+            } else {
+              // Determine price basis from sell_by
+              const isSqyd = sku.sell_by === 'roll';
+              const isUnit = sku.sell_by === 'unit';
+
+              if (isSqyd) {
+                // Broadloom carpet: cost is per SY, store as cut_cost / roll_cost
+                const pricingData = {
+                  price_basis: 'per_sqyd',
+                };
+                if (cutPrice !== null) pricingData.cut_cost = parseFloat(cutPrice.toFixed(2));
+                if (rollPrice !== null) pricingData.roll_cost = parseFloat(rollPrice.toFixed(2));
+                if (rollMinSqft !== null) pricingData.roll_min_sqft = rollMinSqft;
+                // Also update base cost (per sqft) = per SY / 9
+                pricingData.cost = parseFloat(((cutPrice || rollPrice || primaryPrice) / 9).toFixed(4));
+                await upsertPricing(pool, sku.id, pricingData);
+              } else if (isUnit) {
+                // Transitions/accessories: price per unit
+                await upsertPricing(pool, sku.id, {
+                  cost: parseFloat(primaryPrice.toFixed(2)),
+                  price_basis: 'per_unit',
+                });
+              } else {
+                // Carpet tile / LVP: price per SY, convert to per sqft
+                const costPerSqft = parseFloat((primaryPrice / 9).toFixed(4));
+                await upsertPricing(pool, sku.id, {
+                  cost: costPerSqft,
+                  price_basis: 'per_sqft',
+                });
+              }
+              pricingUpdated++;
+            }
+          }
+        }
+
+        await sleep(cfg.batch_delay_ms);
+
+      } catch (err) {
+        errCount++;
+        consecutiveFailures++;
+        if (errCount <= 20) {
+          await addJobError(pool, job.id, { message: `Exception for ${vendorSku}: ${err.message}` });
+        }
+        // First worker to hit the threshold opens the gate (synchronously, so
+        // only one backoff starts); the rest pause on it at the top of the loop.
+        if (consecutiveFailures >= CONSECUTIVE_FAILURE_LIMIT && !backoffGate) {
+          if (backoffsUsed >= MAX_BACKOFFS) {
+            abortReason = `${CONSECUTIVE_FAILURE_LIMIT} consecutive request failures after ${MAX_BACKOFFS} backoffs — endpoint unresponsive`;
+            break;
+          }
+          backoffsUsed++;
+          backoffGate = (async () => {
+            await appendLog(pool, job.id,
+              `${consecutiveFailures} consecutive request failures at ${processed}/${skus.length} — backing off ${Math.round(BACKOFF_MS / 60000)} min (${backoffsUsed}/${MAX_BACKOFFS})`);
+            await sleep(BACKOFF_MS);
+            consecutiveFailures = 0;
+            backoffGate = null;
+          })();
+        }
+      }
+
+      processed++;
+      if (processed % batchSize === 0) {
+        await appendLog(pool, job.id,
+          `Progress: ${processed}/${skus.length} SKUs (${inventoryDataFound} inv, ${pricingDataFound} price, ${noDataCount} no data, ${errCount} errors)`);
       }
     }
+  }
 
-    processed++;
-    if (processed % batchSize === 0) {
-      await appendLog(pool, job.id,
-        `Progress: ${processed}/${skus.length} SKUs (${inventoryDataFound} inv, ${pricingDataFound} price, ${noDataCount} no data, ${errCount} errors)`);
-    }
+  try {
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  } finally {
+    agent.destroy();
   }
 
   // ── Step 4: Log summary ──
