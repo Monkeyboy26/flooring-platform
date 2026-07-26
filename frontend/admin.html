@@ -2210,11 +2210,13 @@
               <QuotesListView navigate={navigate} />
             ) : view === 'quote-detail' ? (
               <QuoteDetailView navigate={navigate} editId={editId} staffRole={staffRole} />
+            ) : view === 'customers' ? (
+              <CustomersListView navigate={navigate} />
+            ) : view === 'customer-detail' ? (
+              <CustomerDetailView navigate={navigate} editId={editId} staffRole={staffRole} />
             ) : (
           <div className="admin-content">
             {view === 'overview' && <DashboardView navigate={navigate} />}
-            {view === 'customers' && <CustomersListView navigate={navigate} />}
-            {view === 'customer-detail' && <CustomerDetailView navigate={navigate} editId={editId} staffRole={staffRole} />}
             {view === 'products' && <ProductsListView navigate={navigate} onReady={consumePendingScroll} />}
             {view === 'product-create' && <ProductFormView navigate={navigate} />}
             {view === 'product-edit' && <ProductFormView navigate={navigate} editId={editId} />}
@@ -8869,175 +8871,295 @@
     }
 
     // ========== CustomersListView ==========
+    // The customer book — one dense row per account, money read computed
+    // server-side (/api/admin/customers/ledger), record pane on the right.
+    const CUST_VIEWS = [
+      { id: 'all', label: 'All accounts', hint: 'active book' },
+      { id: 'trade', label: 'Trade', hint: 'pro accounts' },
+      { id: 'retail', label: 'Retail', hint: 'registered direct' },
+      { id: 'guest', label: 'Guest', hint: 'checkout only' },
+      { id: 'watch', label: 'On watch', hint: 'money or approval risk' },
+    ];
+    const CUST_HEALTH = {
+      good: { c: 'var(--cool)', t: 'HEALTHY' },
+      watch: { c: 'var(--gold)', t: 'WATCH' },
+      bad: { c: 'var(--hot)', t: 'AT RISK' },
+    };
+    // Composite account ids: retail_UUID, trade_UUID, guest_email
+    const custParseId = (compositeId) => {
+      if (!compositeId) return { type: null, ref: null };
+      const idx = compositeId.indexOf('_');
+      if (idx === -1) return { type: null, ref: null };
+      return { type: compositeId.substring(0, idx), ref: compositeId.substring(idx + 1) };
+    };
+    const custTierLabel = c =>
+      c.customer_type === 'trade'
+        ? 'Trade' + (c.tier_name ? ' · ' + c.tier_name : '') + (c.trade_status && c.trade_status !== 'approved' ? ' · ' + c.trade_status : '')
+        : c.customer_type === 'retail' ? 'Retail' : 'Guest';
+    const custLastLine = (c, dfmt) =>
+      c.trade_status === 'pending' ? 'Trade application pending review'
+      : c.last_order_number
+        ? c.last_order_number + ' · ' + (c.last_order_status || '').replace(/_/g, ' ') + ' · ' + dfmt(c.last_order_date)
+        : 'No orders yet';
+
     function CustomersListView({ navigate }) {
       const [customers, setCustomers] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [searchTerm, setSearchTerm] = useState('');
-      const [searchInput, setSearchInput] = useState('');
-      const [typeFilter, setTypeFilter] = useState('all');
-      const [sortCol, setSortCol] = useState('last_order');
-      const [sortDir, setSortDir] = useState('desc');
-      const [page, setPage] = useState(1);
-      const [total, setTotal] = useState(0);
-      const limit = 50;
+      const [view, setView] = useState('all');
+      const [q, setQ] = useState('');
+      const [repFilter, setRepFilter] = useState('');
+      const [sortRecent, setSortRecent] = useState(false);
+      const [sel, setSel] = useState(null);
+      const [pane, setPane] = useState(null);
+      const [paneLoading, setPaneLoading] = useState(false);
 
-      const load = () => {
-        setLoading(true);
-        let url = '/api/admin/customers?page=' + page + '&limit=' + limit + '&sort=' + sortCol + '&dir=' + sortDir + '&type=' + typeFilter;
-        if (searchTerm) url += '&search=' + encodeURIComponent(searchTerm);
-        adminFetch(url)
-          .then(data => {
-            setCustomers(data.customers || []);
-            setTotal(data.total || 0);
-            setLoading(false);
-          })
+      useEffect(() => {
+        adminFetch('/api/admin/customers/ledger')
+          .then(d => { setCustomers(d.customers || []); setLoading(false); })
           .catch(() => setLoading(false));
-      };
-      useEffect(load, [page, sortCol, sortDir, typeFilter, searchTerm]);
+      }, []);
 
-      const handleSort = (col) => {
-        if (sortCol === col) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
-        else { setSortCol(col); setSortDir('desc'); }
-        setPage(1);
-      };
+      const inView = (c, v) => v === 'all' ? true : v === 'watch' ? c.health !== 'good' : c.customer_type === v;
+      const reps = [...new Set(customers.map(c => c.rep_name).filter(Boolean))].sort();
+      const rows = customers
+        .filter(c => inView(c, view))
+        .filter(c => !repFilter || c.rep_name === repFilter)
+        .filter(c => !q || ((c.name || '') + ' ' + (c.email || '') + ' ' + (c.company_name || '') + ' ' + (c.phone || '')).toLowerCase().includes(q.toLowerCase()))
+        .sort((a, b) => sortRecent
+          ? new Date(b.last_order_date || b.created_at) - new Date(a.last_order_date || a.created_at)
+          : (b.ytd - a.ytd) || (b.lifetime - a.lifetime));
 
-      const handleSearch = (e) => {
-        e.preventDefault();
-        setSearchTerm(searchInput);
-        setPage(1);
-      };
+      const activeId = rows.some(r => r.id === sel) ? sel : (rows[0] ? rows[0].id : null);
+      const activeRow = customers.find(c => c.id === activeId) || null;
+      const ytdSum = rows.reduce((s, c) => s + (c.ytd || 0), 0);
+      const arSum = rows.reduce((s, c) => s + (c.ar || 0), 0);
+      const fmt = n => '$' + parseFloat(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+      const kfmt = n => { n = parseFloat(n || 0); return n >= 10000 ? '$' + Math.round(n / 1000) + 'k' : fmt(n); };
+      const dfmt = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
 
-      const totalPages = Math.ceil(total / limit) || 1;
+      // Record pane rides on the existing detail endpoint — orders, notes,
+      // stats, address all come back in one call.
+      useEffect(() => {
+        if (!activeId) { setPane(null); return; }
+        let dead = false;
+        setPaneLoading(true);
+        const { type, ref } = custParseId(activeId);
+        adminFetch('/api/admin/customers/' + encodeURIComponent(ref) + '?type=' + type)
+          .then(d => { if (!dead) { setPane(d); setPaneLoading(false); } })
+          .catch(() => { if (!dead) { setPane(null); setPaneLoading(false); } });
+        return () => { dead = true; };
+      }, [activeId]);
 
-      const typeBadge = (t) => {
-        if (t === 'retail') return React.createElement('span', { className: 'badge badge-active' }, 'Retail');
-        if (t === 'trade') return React.createElement('span', { className: 'badge badge-shipped' }, 'Trade');
-        return React.createElement('span', { className: 'badge badge-draft' }, 'Guest');
-      };
-
-      const sortIcon = (col) => sortCol === col ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : '';
+      const COLS = 'minmax(150px, 1.4fr) minmax(96px, 120px) minmax(70px, 90px) minmax(70px, 90px) minmax(70px, 90px) minmax(86px, 104px)';
 
       return (
-        React.createElement('div', null,
-          React.createElement('div', { className: 'content-header' },
-            React.createElement('h1', null, 'Customers'),
-            React.createElement('span', { style: { fontSize: '0.875rem', color: 'var(--stone-400)', marginLeft: '1rem' } }, total + ' total')
-          ),
-          React.createElement('form', { onSubmit: handleSearch, style: { display: 'flex', gap: '0.75rem', marginBottom: '1rem', alignItems: 'center' } },
-            React.createElement('input', {
-              type: 'text', value: searchInput, onChange: e => setSearchInput(e.target.value),
-              placeholder: 'Search name, email, phone, company...',
-              style: { padding: '0.5rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', maxWidth: '300px', width: '100%' }
-            }),
-            React.createElement('button', { type: 'submit', className: 'btn btn-secondary btn-sm' }, 'Search'),
-            searchTerm && React.createElement('button', { type: 'button', className: 'btn btn-secondary btn-sm', onClick: () => { setSearchInput(''); setSearchTerm(''); setPage(1); } }, 'Clear'),
-            React.createElement('select', {
-              value: typeFilter, onChange: e => { setTypeFilter(e.target.value); setPage(1); },
-              style: { padding: '0.5rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem' }
-            },
-              React.createElement('option', { value: 'all' }, 'All Types'),
-              React.createElement('option', { value: 'retail' }, 'Retail'),
-              React.createElement('option', { value: 'guest' }, 'Guest'),
-              React.createElement('option', { value: 'trade' }, 'Trade')
-            ),
-            React.createElement('span', { style: { marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' } }, customers.length + ' shown')
-          ),
-          loading ? React.createElement('div', { className: 'loading' }, 'Loading customers...') :
-          React.createElement('table', { className: 'admin-table' },
-            React.createElement('thead', null,
-              React.createElement('tr', null,
-                React.createElement('th', { style: { cursor: 'pointer' }, onClick: () => handleSort('name') }, 'Name' + sortIcon('name')),
-                React.createElement('th', { style: { cursor: 'pointer' }, onClick: () => handleSort('email') }, 'Email' + sortIcon('email')),
-                React.createElement('th', null, 'Phone'),
-                React.createElement('th', null, 'Type'),
-                React.createElement('th', { style: { cursor: 'pointer' }, onClick: () => handleSort('orders') }, 'Orders' + sortIcon('orders')),
-                React.createElement('th', { style: { cursor: 'pointer' }, onClick: () => handleSort('spent') }, 'Total Spent' + sortIcon('spent')),
-                React.createElement('th', { style: { cursor: 'pointer' }, onClick: () => handleSort('last_order') }, 'Last Order' + sortIcon('last_order')),
-                React.createElement('th', { style: { cursor: 'pointer' }, onClick: () => handleSort('created') }, 'Created' + sortIcon('created')),
-                React.createElement('th', null, 'Actions')
-              )
-            ),
-            React.createElement('tbody', null,
-              customers.map(c =>
-                React.createElement('tr', { key: c.id, style: { cursor: 'pointer' }, onClick: () => navigate('customer-detail', c.id) },
-                  React.createElement('td', { style: { fontWeight: 500 } },
-                    c.name || '\u2014',
-                    c.company_name ? React.createElement('div', { style: { fontSize: '0.75rem', color: 'var(--stone-400)' } }, c.company_name) : null
-                  ),
-                  React.createElement('td', { style: { fontSize: '0.8125rem', color: 'var(--stone-500)' } }, c.email),
-                  React.createElement('td', { style: { fontSize: '0.8125rem', color: 'var(--stone-500)' } }, c.phone || '\u2014'),
-                  React.createElement('td', null, typeBadge(c.customer_type)),
-                  React.createElement('td', null, c.order_count),
-                  React.createElement('td', null, '$' + (parseFloat(c.total_spent) || 0).toFixed(2)),
-                  React.createElement('td', { style: { fontSize: '0.8125rem', color: 'var(--stone-500)' } }, c.last_order_date ? new Date(c.last_order_date).toLocaleDateString() : '\u2014'),
-                  React.createElement('td', { style: { fontSize: '0.8125rem', color: 'var(--stone-500)' } }, new Date(c.created_at).toLocaleDateString()),
-                  React.createElement('td', { className: 'actions', onClick: e => e.stopPropagation() },
-                    React.createElement('button', { className: 'btn btn-secondary btn-sm', onClick: () => navigate('customer-detail', c.id) }, 'View')
-                  )
-                )
-              ),
-              customers.length === 0 && React.createElement('tr', null,
-                React.createElement('td', { colSpan: 9, style: { textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' } }, 'No customers found')
-              )
-            )
-          ),
-          totalPages > 1 && React.createElement('div', { style: { display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', marginTop: '1rem' } },
-            React.createElement('button', { className: 'btn btn-secondary btn-sm', disabled: page <= 1, onClick: () => setPage(p => p - 1) }, 'Previous'),
-            React.createElement('span', { style: { fontSize: '0.8125rem', color: 'var(--stone-500)' } }, 'Page ' + page + ' of ' + totalPages),
-            React.createElement('button', { className: 'btn btn-secondary btn-sm', disabled: page >= totalPages, onClick: () => setPage(p => p + 1) }, 'Next')
-          )
-        )
+        <div className="ordl">
+          <section className="ordl-main">
+            <div className="ordl-tabs">
+              {CUST_VIEWS.map(v => {
+                const on = v.id === view;
+                const n = customers.filter(c => inView(c, v.id)).length;
+                return (
+                  <button key={v.id} className={'ordl-tab' + (on ? ' active' : '')} onClick={() => setView(v.id)}>
+                    <span className="ordl-tab-row">
+                      <span className="ordl-tab-label">{v.label}</span>
+                      <span className="ordl-tab-n">{n}</span>
+                    </span>
+                    <span className="ordl-tab-hint">{v.hint.toUpperCase()}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="ordl-filters">
+              <select value={repFilter} onChange={e => setRepFilter(e.target.value)} className="ordl-chip">
+                <option value="">Any rep</option>
+                {reps.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <button className={'ordl-chip' + (sortRecent ? ' on' : '')} onClick={() => setSortRecent(s => !s)}>
+                {sortRecent ? 'RECENT' : 'YTD ↓'}
+              </button>
+              <input className="ordl-search" value={q} onChange={e => setQ(e.target.value)} placeholder="filter accounts…" />
+            </div>
+
+            <div className="ordl-scroll">
+              <div style={{ minWidth: 640 }}>
+                <div className="ordl-head" style={{ gridTemplateColumns: COLS }}>
+                  <span>ACCOUNT</span><span>TIER</span>
+                  <span style={{ textAlign: 'right' }}>YTD</span>
+                  <span style={{ textAlign: 'right' }}>OPEN</span>
+                  <span style={{ textAlign: 'right' }}>A/R</span>
+                  <span>HEALTH</span>
+                </div>
+                {loading && <div className="opsq-empty">loading accounts…</div>}
+                {!loading && rows.length === 0 && <div className="opsq-empty">no accounts in this view</div>}
+                {rows.map(c => {
+                  const on = c.id === activeId; const h = CUST_HEALTH[c.health] || CUST_HEALTH.good;
+                  return (
+                    <div key={c.id} className={'ordl-row' + (on ? ' active' : '')}
+                      onClick={() => { if (window.innerWidth < 1100) navigate('customer-detail', c.id); else setSel(c.id); }}>
+                      <div className="ordl-grid" style={{ gridTemplateColumns: COLS }}>
+                        <span style={{ minWidth: 0 }}>
+                          <span className="ordl-cust">{c.customer_type === 'trade' ? (c.company_name || c.name || c.email) : (c.name || c.email)}</span>
+                          <span className="ordl-co">{(c.customer_type === 'trade' ? (c.name || c.email || '') : (c.email || '')) + ' · since ' + new Date(c.created_at).getFullYear()}</span>
+                        </span>
+                        <span style={{ font: '400 10px/1.3 var(--mono)', color: 'var(--dim)' }}>{custTierLabel(c)}</span>
+                        <span className="ordl-val">{c.ytd > 0.01 ? kfmt(c.ytd) : '—'}</span>
+                        <span className="ordl-val" style={{ color: 'var(--dim)' }}>{c.open_value > 0.01 ? kfmt(c.open_value) : '—'}</span>
+                        <span className="ordl-val" style={{ color: c.past_due > 0.01 ? 'var(--hot)' : 'var(--dim)' }}>{c.ar > 0.01 ? kfmt(c.ar) : '—'}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 7, font: '400 10px/1 var(--mono)', letterSpacing: '0.06em', color: h.c }}>
+                          <span className="ops-dot" style={{ width: 5, height: 5, background: h.c, flexShrink: 0 }} />{h.t}
+                        </span>
+                      </div>
+                      <div className="ordl-sub">
+                        <span className="ordl-blocker">{custLastLine(c, dfmt)}</span>
+                        <span className="ordl-rep">{c.order_count} order{c.order_count === 1 ? '' : 's'} · {c.rep_name || 'house'}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="ordl-foot">
+              <span style={{ letterSpacing: '0.08em' }}>{rows.length} ACCOUNTS</span>
+              <span style={{ color: 'var(--dim)' }}>{fmt(ytdSum)} YTD</span>
+              <span style={{ color: arSum > 0.01 ? 'var(--gold)' : 'var(--dim)' }}>{fmt(arSum)} A/R</span>
+            </div>
+          </section>
+
+          <aside className="ordl-pane">
+            {!activeRow ? (
+              <div style={{ flex: 1, display: 'grid', placeItems: 'center', font: '400 12px/1 var(--mono)', color: 'var(--faint)' }}>NO ACCOUNT SELECTED</div>
+            ) : (() => {
+              const h = CUST_HEALTH[activeRow.health] || CUST_HEALTH.good;
+              const readNote = pane && pane.notes && pane.notes.length ? pane.notes[0] : null;
+              return (
+                <React.Fragment>
+                  <div className="ordl-pane-head">
+                    <div className="opsq-meta">
+                      <span style={{ color: 'var(--ink)' }}>{activeRow.customer_type.toUpperCase()}</span>
+                      <span style={{ color: h.c }}>{h.t}</span>
+                      <span style={{ marginLeft: 'auto', color: 'var(--faint)' }}>{activeRow.rep_name || ''}</span>
+                    </div>
+                    <h1 className="ordl-pane-title">{activeRow.customer_type === 'trade' ? (activeRow.company_name || activeRow.name || activeRow.email) : (activeRow.name || activeRow.email)}</h1>
+                    <div className="ordl-pane-meta">
+                      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeRow.customer_type === 'trade' ? (activeRow.name || activeRow.email) : activeRow.email}</span>
+                      <span style={{ flexShrink: 0 }}>{custTierLabel(activeRow)}</span>
+                    </div>
+                    <div className="ordl-next" style={{ borderLeftColor: h.c }}>
+                      <div className="opsq-block-label" style={{ marginBottom: 0 }}>{readNote ? ('LATEST NOTE · ' + (readNote.staff_name || 'STAFF').toUpperCase()) : 'LAST ACTIVITY'}</div>
+                      <div style={{ marginTop: 6, font: '400 12px/1.5 var(--sans)', textWrap: 'pretty' }}>
+                        {readNote ? readNote.note : custLastLine(activeRow, dfmt)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="opsq-pane-body">
+                    {paneLoading && <div className="opsq-empty">loading account…</div>}
+                    {!paneLoading && pane && (
+                      <React.Fragment>
+                        <OpsBlock label="Exposure">
+                          <div className="opsq-facts">
+                            {[
+                              ['YTD revenue', fmt(activeRow.ytd)],
+                              ['Lifetime', fmt(activeRow.lifetime)],
+                              ['Open orders', fmt(activeRow.open_value)],
+                              ['A/R balance', fmt(activeRow.ar)],
+                              ['Store credit', fmt(pane.stats && pane.stats.store_credit_balance)],
+                              ['Open quotes', ((pane.stats && pane.stats.open_quotes_count) || 0) + ' · ' + fmt(pane.stats && pane.stats.open_quotes_value)],
+                            ].map(m => (
+                              <div key={m[0]} className="opsq-fact">
+                                <div className="opsq-fact-k">{m[0]}</div>
+                                <div className="opsq-fact-v">{m[1]}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </OpsBlock>
+                        <OpsBlock label={'Orders · ' + pane.orders.length}>
+                          {pane.orders.length === 0 ? (
+                            <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no orders yet</div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                              {pane.orders.slice(0, 5).map(o => (
+                                <div key={o.id} onClick={() => navigate('order-detail', o.id)} style={{ display: 'grid', gridTemplateColumns: '1fr 74px', gap: 10, alignItems: 'baseline', cursor: 'pointer' }}>
+                                  <span style={{ minWidth: 0 }}>
+                                    <span style={{ display: 'block', font: '400 12px/1.35 var(--sans)' }}>{o.order_number} · {o.item_count || 0} line{o.item_count === 1 ? '' : 's'}</span>
+                                    <span style={{ display: 'block', marginTop: 3, font: '400 9px/1.4 var(--mono)', color: 'var(--dim)' }}>{(o.status || '').replace(/_/g, ' ')} · {dfmt(o.created_at)}</span>
+                                  </span>
+                                  <span style={{ font: '400 11px/1 var(--mono)', textAlign: 'right' }}>{fmt(o.total)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </OpsBlock>
+                        <OpsBlock label="Contact">
+                          <div className="rb-addr">
+                            <div>{pane.customer.name || '—'}</div>
+                            {pane.customer.email && <div>{pane.customer.email}</div>}
+                            {pane.customer.phone && <div>{pane.customer.phone}</div>}
+                            {pane.customer.address_line1 && <div>{pane.customer.address_line1}</div>}
+                            {pane.customer.address_line2 && <div>{pane.customer.address_line2}</div>}
+                            {(pane.customer.city || pane.customer.zip) && <div>{[pane.customer.city, pane.customer.state, pane.customer.zip].filter(Boolean).join(', ')}</div>}
+                          </div>
+                        </OpsBlock>
+                      </React.Fragment>
+                    )}
+                  </div>
+                  <div className="ordl-pane-foot">
+                    <button className="opsq-primary" style={{ marginTop: 0, flex: 1, width: 'auto' }} onClick={() => navigate('customer-detail', activeRow.id)}>
+                      <span>Open full record</span>
+                    </button>
+                  </div>
+                </React.Fragment>
+              );
+            })()}
+          </aside>
+        </div>
       );
     }
 
     // ========== CustomerDetailView ==========
+    // Full customer record in the console grammar: relationship read first,
+    // then the order ledger, money, and the note trail. Real mutations only —
+    // store credit grant, notes, and the trade application decision.
     function CustomerDetailView({ navigate, editId, staffRole }) {
       const [customer, setCustomer] = useState(null);
       const [orders, setOrders] = useState([]);
       const [notes, setNotes] = useState([]);
       const [stats, setStats] = useState(null);
-      const [loading, setLoading] = useState(true);
       const [quotes, setQuotes] = useState([]);
       const [paymentRequests, setPaymentRequests] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [tab, setTab] = useState('record');
       const [newNote, setNewNote] = useState('');
       const [addingNote, setAddingNote] = useState(false);
       const [creditEntries, setCreditEntries] = useState(null);
-      const [creditLoading, setCreditLoading] = useState(false);
       const [creditBalance, setCreditBalance] = useState(null);
       const [grantOpen, setGrantOpen] = useState(false);
       const [grantAmount, setGrantAmount] = useState('');
       const [grantReason, setGrantReason] = useState('');
       const [granting, setGranting] = useState(false);
       const [grantError, setGrantError] = useState('');
+      const [deciding, setDeciding] = useState(false);
+      const [denyOpen, setDenyOpen] = useState(false);
+      const [denyReason, setDenyReason] = useState('');
       const canGrant = ['admin', 'manager'].includes(staffRole);
+      const canDecide = ['admin', 'manager'].includes(staffRole);
 
-      // Parse the composite ID: retail_UUID, trade_UUID, guest_email
-      const parseId = (compositeId) => {
-        if (!compositeId) return { type: null, ref: null };
-        const idx = compositeId.indexOf('_');
-        if (idx === -1) return { type: null, ref: null };
-        const type = compositeId.substring(0, idx);
-        const ref = compositeId.substring(idx + 1);
-        return { type, ref };
-      };
-
-      const { type, ref } = parseId(editId);
+      const { type, ref } = custParseId(editId);
 
       const loadStoreCredit = () => {
         if (!type || !ref) return;
-        setCreditLoading(true);
         adminFetch('/api/staff/store-credit?type=' + type + '&id=' + encodeURIComponent(ref))
           .then(data => {
             setCreditEntries(data.entries || []);
             setCreditBalance(typeof data.balance === 'number' ? data.balance : parseFloat(data.balance) || 0);
-            setCreditLoading(false);
           })
-          .catch(() => { setCreditEntries([]); setCreditLoading(false); });
+          .catch(() => setCreditEntries([]));
       };
 
-      useEffect(() => {
+      const load = () => {
         if (!type || !ref) return;
-        setLoading(true);
         adminFetch('/api/admin/customers/' + encodeURIComponent(ref) + '?type=' + type)
           .then(data => {
             setCustomer(data.customer);
@@ -9049,8 +9171,9 @@
             setLoading(false);
           })
           .catch(() => setLoading(false));
-        loadStoreCredit();
-      }, [editId]);
+      };
+
+      useEffect(() => { setLoading(true); setTab('record'); load(); loadStoreCredit(); }, [editId]);
 
       const submitGrant = () => {
         const amt = parseFloat(grantAmount);
@@ -9063,10 +9186,7 @@
           body: JSON.stringify({ type: type, id: ref, amount: amt, reason: grantReason.trim() })
         })
           .then(data => {
-            setGranting(false);
-            setGrantOpen(false);
-            setGrantAmount('');
-            setGrantReason('');
+            setGranting(false); setGrantOpen(false); setGrantAmount(''); setGrantReason('');
             if (typeof data.balance !== 'undefined') {
               setCreditBalance(typeof data.balance === 'number' ? data.balance : parseFloat(data.balance) || 0);
             }
@@ -9082,297 +9202,374 @@
           method: 'POST',
           body: JSON.stringify({ customer_type: type, customer_ref: ref, note: newNote.trim() })
         })
-          .then(data => {
-            setNotes(prev => [data.note, ...prev]);
-            setNewNote('');
-            setAddingNote(false);
-          })
+          .then(data => { setNotes(prev => [data.note, ...prev]); setNewNote(''); setAddingNote(false); })
           .catch(() => setAddingNote(false));
       };
 
-      const pendingPaymentOrderIds = new Set(paymentRequests.map(pr => pr.order_id));
-
-      if (loading) return React.createElement('div', { className: 'loading' }, 'Loading customer...');
-      if (!customer) return React.createElement('div', { style: { padding: '2rem', textAlign: 'center', color: 'var(--stone-400)' } }, 'Customer not found');
-
-      const typeBadge = (t) => {
-        if (t === 'retail') return React.createElement('span', { className: 'badge badge-active' }, 'Retail');
-        if (t === 'trade') return React.createElement('span', { className: 'badge badge-shipped' }, 'Trade');
-        return React.createElement('span', { className: 'badge badge-draft' }, 'Guest');
+      const approveTrade = () => {
+        if (!confirm('Approve ' + (customer.company_name || customer.name) + ' for trade pricing at the entry tier?')) return;
+        setDeciding(true);
+        adminFetch('/api/admin/trade-customers/' + ref + '/approve', { method: 'POST', body: JSON.stringify({}) })
+          .then(() => { setDeciding(false); load(); })
+          .catch(err => { setDeciding(false); alert(err.message); });
+      };
+      const denyTrade = () => {
+        if (!denyReason.trim()) return;
+        setDeciding(true);
+        adminFetch('/api/admin/trade-customers/' + ref + '/deny', { method: 'POST', body: JSON.stringify({ denial_reason: denyReason.trim() }) })
+          .then(() => { setDeciding(false); setDenyOpen(false); setDenyReason(''); load(); })
+          .catch(err => { setDeciding(false); alert(err.message); });
       };
 
-      const statusBadge = (s) => React.createElement('span', { className: 'badge badge-' + s }, s);
+      if (loading) return <div className="recd-page"><div className="opsq-empty">loading customer record…</div></div>;
+      if (!customer) return <div className="recd-page"><div className="opsq-empty">customer not found</div></div>;
 
-      const statCard = (label, value, extraStyle) =>
-        React.createElement('div', { style: Object.assign({ background: 'var(--panel)', border: '1px solid var(--stone-200)', padding: '1.25rem', flex: 1, minWidth: '140px' }, extraStyle || {}) },
-          React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.5rem' } }, label),
-          React.createElement('div', { style: { fontSize: '1.5rem', fontWeight: 500, fontFamily: "var(--sans)" } }, value)
-        );
+      const fmt = n => '$' + parseFloat(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+      const cents = n => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const dfmt = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      const dtfmt = ts => ts ? (new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })) : '';
 
-      return React.createElement('div', null,
-        // Back button + header
-        React.createElement('div', { className: 'content-header' },
-          React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: '1rem' } },
-            React.createElement('button', { className: 'btn btn-secondary btn-sm', onClick: () => navigate('customers') }, '\u2190 Back'),
-            React.createElement('h1', null, customer.name || customer.email),
-            typeBadge(customer.customer_type)
-          )
-        ),
+      const isTrade = customer.customer_type === 'trade';
+      const accountName = isTrade ? (customer.company_name || customer.name) : (customer.name || customer.email);
+      const pendingPaymentOrderIds = new Set(paymentRequests.map(pr => pr.order_id));
 
-        // Stats row 1 — Order stats
-        stats && React.createElement('div', { style: { display: 'flex', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap' } },
-          statCard('Total Orders', stats.total_orders || 0),
-          statCard('Total Spent', '$' + (parseFloat(stats.total_spent) || 0).toFixed(2)),
-          statCard('Avg Order', '$' + (parseFloat(stats.avg_order_value) || 0).toFixed(2)),
-          statCard('First Order', stats.first_order_date ? new Date(stats.first_order_date).toLocaleDateString() : '\u2014'),
-          statCard('Last Order', stats.last_order_date ? new Date(stats.last_order_date).toLocaleDateString() : '\u2014')
-        ),
+      // Same money read the ledger computes server-side, from this record's orders
+      const liveOrders = orders.filter(o => !['cancelled', 'refunded'].includes(o.status));
+      const yearStart = new Date(new Date().getFullYear(), 0, 1);
+      const ytd = liveOrders.filter(o => new Date(o.created_at) >= yearStart).reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+      const openValue = liveOrders.filter(o => o.status !== 'delivered').reduce((s, o) => s + (parseFloat(o.total) || 0), 0);
+      const orderBal = o => Math.max(0, (parseFloat(o.total) || 0) - (parseFloat(o.amount_paid) || 0));
+      const ar = liveOrders.reduce((s, o) => s + orderBal(o), 0);
+      const pastDue = liveOrders.filter(o => o.status === 'delivered').reduce((s, o) => s + orderBal(o), 0);
+      const health = pastDue > 0.01 ? 'bad' : ((isTrade && customer.status === 'pending') || ar > 0.01) ? 'watch' : 'good';
+      const h = CUST_HEALTH[health];
+      const storeCredit = creditBalance !== null ? creditBalance : (parseFloat(stats && stats.store_credit_balance) || 0);
 
-        // Stats row 2 — Financial stats
-        stats && React.createElement('div', { style: { display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' } },
-          statCard('Open Balance', '$' + (parseFloat(stats.open_balance) || 0).toFixed(2),
-            (parseFloat(stats.open_balance) || 0) > 0 ? { background: 'rgba(197,71,49,0.12)', borderColor: 'rgba(197,71,49,0.30)' } : null),
-          statCard('Available Credit', '$' + (parseFloat(stats.available_credit) || 0).toFixed(2),
-            (parseFloat(stats.available_credit) || 0) > 0 ? { background: 'rgba(96,160,120,0.10)', borderColor: 'rgba(96,160,120,0.30)' } : null),
-          statCard('Store Credit', '$' + ((creditBalance !== null ? creditBalance : (parseFloat(stats.store_credit_balance) || 0))).toFixed(2),
-            (creditBalance !== null ? creditBalance : (parseFloat(stats.store_credit_balance) || 0)) > 0 ? { background: 'rgba(126,160,205,0.10)', borderColor: '#bfdbfe' } : null),
-          statCard('Open Quotes', (stats.open_quotes_count || 0) + ' ($' + (parseFloat(stats.open_quotes_value) || 0).toFixed(2) + ')'),
-          statCard('Pending Payments', (stats.pending_payments_count || 0) + ' ($' + (parseFloat(stats.pending_payments_total) || 0).toFixed(2) + ')'),
-          customer.customer_type === 'trade'
-            ? statCard('Lifetime Spend', '$' + (parseFloat(customer.total_spend) || 0).toFixed(2))
-            : React.createElement('div', { style: { flex: 1, minWidth: '140px' } })
-        ),
+      const show = k => tab === 'record' ? k !== 'activity' : tab === k;
 
-        // Customer Information
-        React.createElement(CollapsibleSection, { title: 'Customer Information', defaultOpen: true },
-          React.createElement('div', { className: 'resp-grid-2', style: { gap: '1.5rem' } },
-            React.createElement('div', null,
-              React.createElement('div', { style: { marginBottom: '0.75rem' } },
-                React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Name'),
-                React.createElement('div', null, customer.name || '\u2014')
-              ),
-              React.createElement('div', { style: { marginBottom: '0.75rem' } },
-                React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Email'),
-                React.createElement('div', null, customer.email || '\u2014')
-              ),
-              React.createElement('div', { style: { marginBottom: '0.75rem' } },
-                React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Phone'),
-                React.createElement('div', null, customer.phone || '\u2014')
-              )
-            ),
-            React.createElement('div', null,
-              React.createElement('div', { style: { marginBottom: '0.75rem' } },
-                React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Address'),
-                React.createElement('div', null,
-                  customer.address_line1 ? [
-                    customer.address_line1,
-                    customer.address_line2 ? React.createElement('br', { key: 'br1' }) : null,
-                    customer.address_line2 || null,
-                    React.createElement('br', { key: 'br2' }),
-                    [customer.city, customer.state, customer.zip].filter(Boolean).join(', ')
-                  ] : '\u2014'
-                )
-              ),
-              React.createElement('div', { style: { marginBottom: '0.75rem' } },
-                React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Customer Since'),
-                React.createElement('div', null, customer.created_at ? new Date(customer.created_at).toLocaleDateString() : '\u2014')
-              ),
-              // Trade-specific fields
-              customer.customer_type === 'trade' && React.createElement(React.Fragment, null,
-                React.createElement('div', { style: { marginBottom: '0.75rem' } },
-                  React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Company'),
-                  React.createElement('div', null, customer.company_name || '\u2014')
-                ),
-                React.createElement('div', { style: { marginBottom: '0.75rem' } },
-                  React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Tier / Status'),
-                  React.createElement('div', null,
-                    (customer.tier_name || 'No tier') + ' \u2022 ',
-                    React.createElement('span', { className: 'badge badge-' + (customer.status === 'approved' ? 'active' : customer.status === 'pending' ? 'pending' : 'draft') }, customer.status || 'unknown')
-                  )
-                ),
-                React.createElement('div', { style: { marginBottom: '0.75rem' } },
-                  React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Spend (last 12 mo)'),
-                  React.createElement('div', null, '$' + parseFloat(customer.total_spend || 0).toLocaleString())
-                ),
-                customer.rep_name && React.createElement('div', { style: { marginBottom: '0.75rem' } },
-                  React.createElement('div', { style: { fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)' } }, 'Assigned Rep'),
-                  React.createElement('div', null, customer.rep_name)
-                )
-              )
-            )
-          )
-        ),
+      return (
+        <div className="recd-page">
+          <div className="recd-head">
+            <div className="recd-top">
+              <div style={{ minWidth: 0 }}>
+                <div className="opsq-meta">
+                  <button className="recd-crumb" onClick={() => navigate('customers')}>← CUSTOMERS</button>
+                  <span style={{ color: 'var(--faint)' }}>/</span>
+                  <span style={{ color: 'var(--ink)' }}>{customer.customer_type.toUpperCase()}</span>
+                  <span style={{ color: h.c }}>{h.t}</span>
+                </div>
+                <h1 className="recd-title">{accountName}</h1>
+                <div className="recd-meta">
+                  {isTrade && customer.name && <span>{customer.name}</span>}
+                  {customer.email && <span>{customer.email}</span>}
+                  {customer.phone && <span>{customer.phone}</span>}
+                  {isTrade && <span>{(customer.tier_name || 'no tier') + (customer.status && customer.status !== 'approved' ? ' · ' + customer.status : '')}</span>}
+                  <span>since {customer.created_at ? new Date(customer.created_at).getFullYear() : '—'}</span>
+                  {customer.rep_name && <span>{customer.rep_name}</span>}
+                </div>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 28, flexShrink: 0 }}>
+                {[['YTD REVENUE', fmt(ytd)], ['OPEN', openValue > 0.01 ? fmt(openValue) : '—'], ['A/R', fmt(ar)]].map(m => (
+                  <div key={m[0]} style={{ textAlign: 'right' }}>
+                    <div className="opsq-block-label" style={{ marginBottom: 0 }}>{m[0]}</div>
+                    <div className="recd-value" style={{ fontSize: 20, color: m[0] === 'A/R' && pastDue > 0.01 ? 'var(--hot)' : undefined }}>{m[1]}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignSelf: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+                {canGrant && (
+                  <button className="opsq-alt" onClick={() => { setGrantError(''); setGrantAmount(''); setGrantReason(''); setGrantOpen(true); }}>Grant credit</button>
+                )}
+              </div>
+            </div>
+            <div className="recd-tabs">
+              {['record', 'orders', 'money', 'activity'].map(t => (
+                <button key={t} className={'recd-tab' + (tab === t ? ' active' : '')} onClick={() => setTab(t)}>{t}</button>
+              ))}
+            </div>
+          </div>
 
-        // Store Credit
-        React.createElement(CollapsibleSection, {
-          title: 'Store Credit ($' + ((creditBalance !== null ? creditBalance : (parseFloat(stats && stats.store_credit_balance) || 0))).toFixed(2) + ')',
-          defaultOpen: true
-        },
-          canGrant && React.createElement('div', { style: { marginBottom: '1rem' } },
-            React.createElement('button', { className: 'btn btn-primary btn-sm', onClick: () => { setGrantError(''); setGrantAmount(''); setGrantReason(''); setGrantOpen(true); } }, 'Grant credit')
-          ),
-          creditLoading
-            ? React.createElement('div', { style: { padding: '1rem', textAlign: 'center', color: 'var(--stone-400)' } }, 'Loading store credit...')
-            : (creditEntries && creditEntries.length > 0)
-              ? React.createElement('table', { className: 'admin-table' },
-                  React.createElement('thead', null,
-                    React.createElement('tr', null,
-                      React.createElement('th', null, 'Date'),
-                      React.createElement('th', null, 'Amount'),
-                      React.createElement('th', null, 'Reason'),
-                      React.createElement('th', null, 'Order #')
-                    )
-                  ),
-                  React.createElement('tbody', null,
-                    creditEntries.map((e, i) =>
-                      React.createElement('tr', { key: i },
-                        React.createElement('td', { style: { fontSize: '0.8125rem', color: 'var(--stone-500)' } }, e.created_at ? new Date(e.created_at).toLocaleDateString() : '—'),
-                        React.createElement('td', { style: { fontWeight: 500, color: (parseFloat(e.amount) || 0) < 0 ? '#e07a63' : '#7cc294' } },
-                          ((parseFloat(e.amount) || 0) < 0 ? '−$' : '$') + Math.abs(parseFloat(e.amount) || 0).toFixed(2)),
-                        React.createElement('td', null, e.reason || '—'),
-                        React.createElement('td', null, e.order_number || '—')
-                      )
-                    )
-                  )
-                )
-              : React.createElement('div', { style: { padding: '1rem', textAlign: 'center', color: 'var(--stone-400)' } }, 'No store credit activity')
-        ),
+          <div className="recd-scroll">
+          <div className="rec-body">
+          <div className="rec-left">
 
-        // Grant credit modal
-        grantOpen && React.createElement('div', { className: 'modal-overlay', onClick: (e) => { if (e.target === e.currentTarget && !granting) setGrantOpen(false); } },
-          React.createElement('div', { className: 'modal-box' },
-            React.createElement('h3', null, 'Grant store credit'),
-            grantError && React.createElement('div', { style: { background: 'rgba(197,71,49,0.12)', border: '1px solid rgba(197,71,49,0.30)', color: '#e07a63', padding: '0.625rem 0.75rem', borderRadius: 'var(--radius-md)', fontSize: '0.8125rem', marginBottom: '1rem' } }, grantError),
-            React.createElement('div', { style: { marginBottom: '1rem' } },
-              React.createElement('label', { style: { display: 'block', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.375rem' } }, 'Amount ($)'),
-              React.createElement('input', {
-                type: 'number', min: '0.01', step: '0.01', value: grantAmount,
-                onChange: (e) => setGrantAmount(e.target.value),
-                style: { width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', borderRadius: 'var(--radius-md)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }
-              })
-            ),
-            React.createElement('div', { style: { marginBottom: '1.5rem' } },
-              React.createElement('label', { style: { display: 'block', fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.375rem' } }, 'Reason'),
-              React.createElement('input', {
-                type: 'text', value: grantReason,
-                onChange: (e) => setGrantReason(e.target.value),
-                placeholder: 'e.g. Goodwill adjustment',
-                style: { width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', borderRadius: 'var(--radius-md)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }
-              })
-            ),
-            React.createElement('div', { className: 'modal-actions' },
-              React.createElement('button', { className: 'btn btn-secondary', disabled: granting, onClick: () => setGrantOpen(false) }, 'Cancel'),
-              React.createElement('button', { className: 'btn btn-primary', disabled: granting, onClick: submitGrant }, granting ? 'Granting...' : 'Grant credit')
-            )
-          )
-        ),
+          {tab === 'record' && isTrade && customer.status === 'pending' && (
+            <div className="recd-exception">
+              <div className="recd-exc-head">
+                <span style={{ color: 'var(--gold)' }}>NEEDS A DECISION · TRADE APPLICATION</span>
+                <span style={{ marginLeft: 'auto', color: 'var(--faint)' }}>APPLIED {dfmt(customer.created_at).toUpperCase()}</span>
+              </div>
+              <div className="recd-exc-title">{accountName} applied for a trade account</div>
+              {canDecide && !denyOpen && (
+                <div className="recd-exc-actions">
+                  <button className="recd-exc-primary" disabled={deciding} onClick={approveTrade}>{deciding ? 'Working…' : 'Approve at entry tier'}</button>
+                  <button className="opsq-alt" disabled={deciding} onClick={() => setDenyOpen(true)}>Deny</button>
+                </div>
+              )}
+              {canDecide && denyOpen && (
+                <div style={{ marginTop: 12 }}>
+                  <textarea rows={2} value={denyReason} onChange={e => setDenyReason(e.target.value)}
+                    placeholder="denial reason — this is sent to the applicant…"
+                    style={{ width: '100%', boxSizing: 'border-box', resize: 'none', padding: '9px 10px', background: 'var(--bg)', border: '1px solid var(--line2)', color: 'var(--ink)', font: '400 12px/1.5 var(--sans)', outline: 'none' }} />
+                  <div className="recd-exc-actions">
+                    <button className="recd-exc-primary" style={{ background: 'var(--hot)', color: '#fff' }} disabled={deciding || !denyReason.trim()} onClick={denyTrade}>{deciding ? 'Working…' : 'Deny application'}</button>
+                    <button className="opsq-alt" disabled={deciding} onClick={() => { setDenyOpen(false); setDenyReason(''); }}>Keep pending</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
-        // Order History
-        React.createElement(CollapsibleSection, { title: 'Order History (' + orders.length + ')', defaultOpen: true },
-          orders.length === 0
-            ? React.createElement('div', { style: { padding: '1rem', textAlign: 'center', color: 'var(--stone-400)' } }, 'No orders yet')
-            : React.createElement('table', { className: 'admin-table' },
-                React.createElement('thead', null,
-                  React.createElement('tr', null,
-                    React.createElement('th', null, 'Order #'),
-                    React.createElement('th', null, 'Date'),
-                    React.createElement('th', null, 'Status'),
-                    React.createElement('th', null, 'Items'),
-                    React.createElement('th', null, 'Total'),
-                    React.createElement('th', null, 'Paid'),
-                    React.createElement('th', null, 'Balance')
-                  )
-                ),
-                React.createElement('tbody', null,
-                  orders.map(o =>
-                    React.createElement('tr', { key: o.id, style: { cursor: 'pointer' }, onClick: () => navigate('order-detail', o.id) },
-                      React.createElement('td', { style: { fontWeight: 500 } }, o.order_number),
-                      React.createElement('td', { style: { fontSize: '0.8125rem', color: 'var(--stone-500)' } }, new Date(o.created_at).toLocaleDateString()),
-                      React.createElement('td', null, statusBadge(o.status)),
-                      React.createElement('td', null, o.item_count || '\u2014'),
-                      React.createElement('td', null, '$' + (parseFloat(o.total) || 0).toFixed(2)),
-                      React.createElement('td', null, '$' + (parseFloat(o.amount_paid) || 0).toFixed(2)),
-                      React.createElement('td', null,
-                        '$' + ((parseFloat(o.total) || 0) - (parseFloat(o.amount_paid) || 0)).toFixed(2),
-                        pendingPaymentOrderIds.has(o.id)
-                          ? React.createElement('span', {
-                              style: { marginLeft: '0.5rem', fontSize: '0.625rem', padding: '0.125rem 0.375rem', background: 'rgba(217,164,65,0.15)', color: '#d9a441', borderRadius: '3px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.03em' }
-                            }, 'Payment Requested')
-                          : null
-                      )
-                    )
-                  )
-                )
-              )
-        ),
+          {tab === 'record' && notes.length > 0 && (
+            <div className="recd-exception" style={{ borderLeftColor: h.c }}>
+              <div className="recd-exc-head">
+                <span style={{ color: h.c }}>LATEST NOTE</span>
+                <span style={{ marginLeft: 'auto', color: 'var(--faint)' }}>{(notes[0].staff_name || 'STAFF').toUpperCase()} · {dfmt(notes[0].created_at).toUpperCase()}</span>
+              </div>
+              <div style={{ marginTop: 11, maxWidth: '62ch', font: '400 14px/1.55 var(--sans)', textWrap: 'pretty', whiteSpace: 'pre-wrap' }}>{notes[0].note}</div>
+            </div>
+          )}
 
-        // Open Quotes
-        React.createElement(CollapsibleSection, { title: 'Open Quotes (' + quotes.length + ')', defaultOpen: quotes.length > 0 },
-          quotes.length === 0
-            ? React.createElement('div', { style: { padding: '1rem', textAlign: 'center', color: 'var(--stone-400)' } }, 'No open quotes')
-            : React.createElement('table', { className: 'admin-table' },
-                React.createElement('thead', null,
-                  React.createElement('tr', null,
-                    React.createElement('th', null, 'Quote #'),
-                    React.createElement('th', null, 'Date'),
-                    React.createElement('th', null, 'Status'),
-                    React.createElement('th', null, 'Items'),
-                    React.createElement('th', null, 'Total'),
-                    React.createElement('th', null, 'Expires'),
-                    React.createElement('th', null, 'Actions')
-                  )
-                ),
-                React.createElement('tbody', null,
-                  quotes.map(q => {
-                    const expired = q.expires_at && new Date(q.expires_at) < new Date();
-                    return React.createElement('tr', { key: q.id },
-                      React.createElement('td', { style: { fontWeight: 500 } }, q.quote_number || q.id.slice(0, 8)),
-                      React.createElement('td', { style: { fontSize: '0.8125rem', color: 'var(--stone-500)' } }, new Date(q.created_at).toLocaleDateString()),
-                      React.createElement('td', null,
-                        React.createElement('span', { className: 'badge badge-' + (q.status === 'sent' ? 'shipped' : 'draft') }, q.status)
-                      ),
-                      React.createElement('td', null, q.item_count || '\u2014'),
-                      React.createElement('td', null, '$' + (parseFloat(q.total) || 0).toFixed(2)),
-                      React.createElement('td', { style: expired ? { color: '#e07a63', fontWeight: 500, fontSize: '0.8125rem' } : { fontSize: '0.8125rem', color: 'var(--stone-500)' } },
-                        expired ? 'Expired' : (q.expires_at ? new Date(q.expires_at).toLocaleDateString() : '\u2014')
-                      ),
-                      React.createElement('td', { className: 'actions' },
-                        React.createElement('button', { className: 'btn btn-secondary btn-sm', onClick: () => navigate('quote-detail', q.id) }, 'View')
-                      )
-                    );
-                  })
-                )
-              )
-        ),
+          {show('orders') && <div className="form-card">
+            <h3>Order history · {orders.length}</h3>
+            {orders.length === 0 ? (
+              <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no orders on this account yet</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {orders.map(o => {
+                  const bal = orderBal(o);
+                  const unpaid = bal > 0.01 && !['cancelled', 'refunded'].includes(o.status);
+                  return (
+                    <div key={o.id} onClick={() => navigate('order-detail', o.id)}
+                      style={{ padding: '11px 0', display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) minmax(130px, 180px) 90px', gap: 14, alignItems: 'baseline', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}>
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: 'block', font: '400 13px/1.35 var(--sans)' }}>{o.order_number}</span>
+                        <span style={{ display: 'block', marginTop: 4, font: '400 10px/1 var(--mono)', color: 'var(--faint)' }}>{dfmt(o.created_at)} · {o.item_count || 0} line{o.item_count === 1 ? '' : 's'}</span>
+                      </span>
+                      <span style={{ font: '400 11px/1.4 var(--mono)', color: unpaid ? 'var(--hot)' : 'var(--dim)' }}>
+                        {(o.status || '').replace(/_/g, ' ')}{unpaid ? ' · ' + fmt(bal) + ' due' : ''}{pendingPaymentOrderIds.has(o.id) ? ' · pmt requested' : ''}
+                      </span>
+                      <span style={{ font: '400 12px/1 var(--mono)', textAlign: 'right' }}>{fmt(o.total)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>}
 
-        // Admin Notes
-        React.createElement(CollapsibleSection, { title: 'Admin Notes (' + notes.length + ')', defaultOpen: true },
-          React.createElement('div', { style: { display: 'flex', gap: '0.5rem', marginBottom: '1rem' } },
-            React.createElement('textarea', {
-              value: newNote, onChange: e => setNewNote(e.target.value),
-              placeholder: 'Add a note about this customer...',
-              rows: 2,
-              style: { flex: 1, padding: '0.5rem 0.75rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: "var(--sans)", resize: 'vertical' }
-            }),
-            React.createElement('button', {
-              className: 'btn btn-primary btn-sm',
-              onClick: addNote,
-              disabled: addingNote || !newNote.trim(),
-              style: { alignSelf: 'flex-end' }
-            }, addingNote ? 'Adding...' : 'Add Note')
-          ),
-          notes.length === 0
-            ? React.createElement('div', { style: { padding: '0.5rem', textAlign: 'center', color: 'var(--stone-400)', fontSize: '0.8125rem' } }, 'No notes yet')
-            : notes.map(n =>
-                React.createElement('div', { key: n.id, style: { padding: '0.75rem', borderBottom: '1px solid var(--stone-100)', fontSize: '0.875rem' } },
-                  React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' } },
-                    React.createElement('span', { style: { fontWeight: 500, fontSize: '0.8125rem' } }, n.staff_name || 'Staff'),
-                    React.createElement('span', { style: { fontSize: '0.75rem', color: 'var(--stone-400)' } }, new Date(n.created_at).toLocaleString())
-                  ),
-                  React.createElement('div', { style: { color: 'var(--stone-600)', whiteSpace: 'pre-wrap' } }, n.note)
-                )
-              )
-        )
+          {show('orders') && quotes.length > 0 && <div className="form-card">
+            <h3>Open quotes · {quotes.length}</h3>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {quotes.map(q => {
+                const expired = q.expires_at && new Date(q.expires_at) < new Date();
+                return (
+                  <div key={q.id} onClick={() => navigate('quote-detail', q.id)}
+                    style={{ padding: '11px 0', display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) minmax(130px, 180px) 90px', gap: 14, alignItems: 'baseline', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', font: '400 13px/1.35 var(--sans)' }}>{q.quote_number || q.id.slice(0, 8)}</span>
+                      <span style={{ display: 'block', marginTop: 4, font: '400 10px/1 var(--mono)', color: 'var(--faint)' }}>{dfmt(q.created_at)} · {q.item_count || 0} line{q.item_count === 1 ? '' : 's'}</span>
+                    </span>
+                    <span style={{ font: '400 11px/1.4 var(--mono)', color: expired ? 'var(--hot)' : 'var(--dim)' }}>
+                      {q.status}{expired ? ' · expired' : (q.expires_at ? ' · exp ' + dfmt(q.expires_at) : '')}
+                    </span>
+                    <span style={{ font: '400 12px/1 var(--mono)', textAlign: 'right' }}>{fmt(q.total)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>}
+
+          {isTrade && show('money') && <div className="form-card">
+            <h3>Trade program</h3>
+            <div className="rb-facts">
+              {[
+                ['Tier', customer.tier_name || 'not set'],
+                ['Discount', customer.discount_percent != null ? parseFloat(customer.discount_percent) + '% off list' : '—'],
+                ['Status', customer.status || '—'],
+                ['Business type', customer.business_type || '—'],
+                ['License #', customer.contractor_license || 'not provided'],
+                ['Spend · trailing 365d', cents(customer.total_spend)],
+              ].map(([k, v]) => (
+                <div key={k} className="rb-fact"><span className="rb-fact-k">{k}</span><span className="rb-fact-v">{v}</span></div>
+              ))}
+            </div>
+            <div className="rb-note" style={{ color: 'var(--faint)' }}>TRAILING-365 SPEND SETS THE DISCOUNT TIER · MANAGE FROM THE TRADE LEDGER</div>
+          </div>}
+
+          {show('money') && <div className="form-card">
+            <div className="rb-head">
+              <h3>Store credit · {cents(storeCredit)}</h3>
+              {canGrant && <button className="rb-action" onClick={() => { setGrantError(''); setGrantAmount(''); setGrantReason(''); setGrantOpen(true); }}>Grant credit</button>}
+            </div>
+            {creditEntries === null ? (
+              <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>loading ledger…</div>
+            ) : creditEntries.length === 0 ? (
+              <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no store credit activity</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {creditEntries.map((e, i) => {
+                  const amt = parseFloat(e.amount) || 0;
+                  return (
+                    <div key={i} style={{ padding: '10px 0', display: 'grid', gridTemplateColumns: '76px minmax(120px, 1fr) 90px', gap: 14, alignItems: 'baseline', borderBottom: '1px solid var(--line)' }}>
+                      <span style={{ font: '400 10px/1.4 var(--mono)', color: 'var(--faint)' }}>{dfmt(e.created_at)}</span>
+                      <span style={{ minWidth: 0, font: '400 12px/1.4 var(--sans)' }}>
+                        {e.reason || '—'}{e.order_number ? <span style={{ color: 'var(--faint)', fontFamily: 'var(--mono)', fontSize: 10 }}> · {e.order_number}</span> : null}
+                      </span>
+                      <span style={{ font: '400 12px/1 var(--mono)', textAlign: 'right', color: amt < 0 ? 'var(--hot)' : 'var(--green)' }}>
+                        {(amt < 0 ? '−' : '+') + cents(Math.abs(amt))}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>}
+
+          {show('money') && paymentRequests.length > 0 && <div className="form-card">
+            <h3>Pending payment requests · {paymentRequests.length}</h3>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {paymentRequests.map(pr => (
+                <div key={pr.id} onClick={() => navigate('order-detail', pr.order_id)}
+                  style={{ padding: '10px 0', display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) minmax(120px, 170px) 90px', gap: 14, alignItems: 'baseline', borderBottom: '1px solid var(--line)', cursor: 'pointer' }}>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', font: '400 12px/1.35 var(--sans)' }}>{pr.order_number}</span>
+                    <span style={{ display: 'block', marginTop: 3, font: '400 10px/1.4 var(--mono)', color: 'var(--faint)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pr.sent_to_email}</span>
+                  </span>
+                  <span style={{ font: '400 10px/1.4 var(--mono)', color: 'var(--dim)' }}>sent {dfmt(pr.created_at)}{pr.expires_at ? ' · exp ' + dfmt(pr.expires_at) : ''}</span>
+                  <span style={{ font: '400 12px/1 var(--mono)', textAlign: 'right' }}>{cents(pr.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </div>}
+
+          {tab === 'activity' && <div className="form-card">
+            <h3>Notes on the record · {notes.length}</h3>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+              <textarea rows={2} value={newNote} onChange={e => setNewNote(e.target.value)}
+                placeholder="note on the record — visible to all staff…"
+                style={{ flex: 1, boxSizing: 'border-box', resize: 'none', padding: '9px 10px', background: 'var(--bg)', border: '1px solid var(--line2)', color: 'var(--ink)', font: '400 12px/1.5 var(--sans)', outline: 'none' }} />
+              <button className="recd-exc-primary" style={{ alignSelf: 'flex-end' }} disabled={addingNote || !newNote.trim()} onClick={addNote}>
+                {addingNote ? 'Adding…' : 'Add note'}
+              </button>
+            </div>
+            {notes.length === 0 ? (
+              <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>nothing on the record yet</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+                {notes.map(n => (
+                  <div key={n.id} style={{ display: 'grid', gridTemplateColumns: '92px 1fr', gap: 12 }}>
+                    <span style={{ font: '400 10px/1.5 var(--mono)', color: 'var(--faint)' }}>{dtfmt(n.created_at)}</span>
+                    <span>
+                      <span style={{ display: 'block', font: '400 10px/1 var(--mono)', color: 'var(--dim)' }}>{n.staff_name || 'Staff'}</span>
+                      <span style={{ display: 'block', marginTop: 4, font: '400 12px/1.55 var(--sans)', textWrap: 'pretty', whiteSpace: 'pre-wrap' }}>{n.note}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>}
+
+          </div>
+
+          <div className="rec-right">
+
+          <div className="form-card">
+            <h3>Money</h3>
+            <div className="rb-facts">
+              {[
+                ['Lifetime', fmt(stats && stats.total_spent)],
+                ['YTD revenue', fmt(ytd)],
+                ['Open orders', fmt(openValue)],
+                ['A/R balance', fmt(ar)],
+              ].concat(pastDue > 0.01 ? [['Past due', fmt(pastDue)]] : [])
+               .concat([['Store credit', cents(storeCredit)]])
+               .concat((parseFloat(stats && stats.available_credit) || 0) > 0.01 ? [['Overpayment credit', cents(stats.available_credit)]] : [])
+               .concat([
+                ['Open quotes', ((stats && stats.open_quotes_count) || 0) + ' · ' + fmt(stats && stats.open_quotes_value)],
+                ['Pending pmt requests', ((stats && stats.pending_payments_count) || 0) + ' · ' + fmt(stats && stats.pending_payments_total)],
+              ]).map(([k, v]) => (
+                <div key={k} className="rb-fact">
+                  <span className="rb-fact-k">{k}</span>
+                  <span className={'rb-fact-v big'} style={(k === 'A/R balance' && pastDue > 0.01) || k === 'Past due' ? { color: 'var(--hot)' } : undefined}>{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {tab !== 'activity' && (
+            <div className="form-card">
+              <div className="rb-head">
+                <h3>Recent activity</h3>
+                <button className="rb-action" onClick={() => setTab('activity')}>Add note</button>
+              </div>
+              {notes.length === 0 ? (
+                <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>nothing on the record yet</div>
+              ) : (
+                <div className="rb-trail">
+                  {notes.slice(0, 4).map(n => (
+                    <div key={n.id} className="rb-trail-row">
+                      <span className="rb-trail-when">{dfmt(n.created_at)}</span>
+                      <span className="rb-trail-what" style={{ textWrap: 'pretty' }}>{n.note}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="form-card">
+            <h3>Contact</h3>
+            <div className="rb-addr">
+              <div>{customer.name || '—'}</div>
+              {customer.email && <div>{customer.email}</div>}
+              {customer.phone && <div>{customer.phone}</div>}
+              {customer.address_line1 && <div style={{ marginTop: 8 }}>{customer.address_line1}</div>}
+              {customer.address_line2 && <div>{customer.address_line2}</div>}
+              {(customer.city || customer.zip) && <div>{[customer.city, customer.state, customer.zip].filter(Boolean).join(', ')}</div>}
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>Owner</h3>
+            <div className="rb-facts">
+              {[
+                ['Rep', customer.rep_name || 'house'],
+                ['Segment', customer.customer_type],
+                ['Since', customer.created_at ? new Date(customer.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'],
+                ['Orders', String(orders.length)],
+              ].map(([k, v]) => (
+                <div key={k} className="rb-fact"><span className="rb-fact-k">{k}</span><span className="rb-fact-v">{v}</span></div>
+              ))}
+            </div>
+          </div>
+
+          </div>
+          </div>
+          </div>
+
+          {grantOpen && (
+            <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget && !granting) setGrantOpen(false); }}>
+              <div className="modal-box">
+                <h3>Grant store credit</h3>
+                {grantError && <div style={{ border: '1px solid var(--hot)', color: 'var(--hot)', padding: '0.625rem 0.75rem', fontSize: '0.8125rem', marginBottom: '1rem' }}>{grantError}</div>}
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', font: '400 9px/1 var(--mono)', letterSpacing: '0.12em', color: 'var(--faint)', textTransform: 'uppercase', marginBottom: '0.375rem' }}>Amount ($)</label>
+                  <input type="number" min="0.01" step="0.01" value={grantAmount} onChange={e => setGrantAmount(e.target.value)}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '0.625rem', background: 'var(--bg)', border: '1px solid var(--line2)', color: 'var(--ink)', fontSize: '0.875rem' }} />
+                </div>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', font: '400 9px/1 var(--mono)', letterSpacing: '0.12em', color: 'var(--faint)', textTransform: 'uppercase', marginBottom: '0.375rem' }}>Reason</label>
+                  <input type="text" value={grantReason} onChange={e => setGrantReason(e.target.value)} placeholder="e.g. Goodwill adjustment"
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '0.625rem', background: 'var(--bg)', border: '1px solid var(--line2)', color: 'var(--ink)', fontSize: '0.875rem' }} />
+                </div>
+                <div className="modal-actions">
+                  <button className="btn btn-secondary" disabled={granting} onClick={() => setGrantOpen(false)}>Cancel</button>
+                  <button className="btn btn-primary" disabled={granting} onClick={submitGrant}>{granting ? 'Granting…' : 'Grant credit'}</button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       );
     }
 

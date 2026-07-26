@@ -24571,6 +24571,84 @@ app.get('/api/admin/customers', staffAuth, requireRole('admin', 'manager', 'sale
   }
 });
 
+// GET /api/admin/customers/ledger — the customer book for the ops console.
+// One row per account (retail + trade + guest) with the money read computed
+// server-side: YTD, lifetime, open order value, A/R, and a derived health.
+// Registered before /:id so 'ledger' isn't captured as a customer ref.
+app.get('/api/admin/customers/ledger', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    // Money aggregates shared by all three segments; cancelled/refunded orders
+    // never count toward money, past-due means delivered but not paid off.
+    const aggs = `
+      COUNT(o.id) FILTER (WHERE o.status NOT IN ('cancelled','refunded'))::int as order_count,
+      COALESCE(SUM(o.total) FILTER (WHERE o.status NOT IN ('cancelled','refunded')), 0) as lifetime,
+      COALESCE(SUM(o.total) FILTER (WHERE o.status NOT IN ('cancelled','refunded')
+        AND o.created_at >= date_trunc('year', CURRENT_DATE)), 0) as ytd,
+      COALESCE(SUM(o.total) FILTER (WHERE o.status NOT IN ('cancelled','refunded','delivered')), 0) as open_value,
+      COALESCE(SUM(GREATEST(o.total - COALESCE(o.amount_paid, 0), 0))
+        FILTER (WHERE o.status NOT IN ('cancelled','refunded')), 0) as ar,
+      COALESCE(SUM(GREATEST(o.total - COALESCE(o.amount_paid, 0), 0))
+        FILTER (WHERE o.status = 'delivered'), 0) as past_due,
+      MAX(o.created_at) as last_order_date,
+      (array_agg(o.order_number ORDER BY o.created_at DESC))[1] as last_order_number,
+      (array_agg(o.status ORDER BY o.created_at DESC))[1] as last_order_status`;
+
+    const [retail, guest, trade] = await Promise.all([
+      pool.query(`
+        SELECT c.id::text as ref, 'retail' as customer_type,
+          c.first_name || ' ' || c.last_name as name, c.email, c.phone, c.created_at,
+          sr.first_name || ' ' || sr.last_name as rep_name,
+          NULL as company_name, NULL as tier_name, NULL as trade_status,
+          ${aggs}
+        FROM customers c
+        LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
+        LEFT JOIN orders o ON o.customer_id = c.id
+        GROUP BY c.id, sr.first_name, sr.last_name
+      `),
+      pool.query(`
+        SELECT LOWER(o.customer_email) as ref, 'guest' as customer_type,
+          (array_agg(o.customer_name ORDER BY o.created_at DESC))[1] as name,
+          LOWER(o.customer_email) as email,
+          (array_agg(o.phone ORDER BY o.created_at DESC))[1] as phone,
+          MIN(o.created_at) as created_at,
+          NULL as rep_name, NULL as company_name, NULL as tier_name, NULL as trade_status,
+          ${aggs}
+        FROM orders o
+        WHERE o.customer_id IS NULL AND o.trade_customer_id IS NULL AND o.customer_email IS NOT NULL
+        GROUP BY LOWER(o.customer_email)
+      `),
+      pool.query(`
+        SELECT tc.id::text as ref, 'trade' as customer_type,
+          tc.contact_name as name, tc.email, tc.phone, tc.created_at,
+          sa.first_name || ' ' || sa.last_name as rep_name,
+          tc.company_name, mt.name as tier_name, tc.status as trade_status,
+          ${aggs}
+        FROM trade_customers tc
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        LEFT JOIN staff_accounts sa ON sa.id = tc.assigned_rep_id
+        LEFT JOIN orders o ON o.trade_customer_id = tc.id
+        GROUP BY tc.id, mt.name, sa.first_name, sa.last_name
+      `),
+    ]);
+
+    const customers = [...retail.rows, ...guest.rows, ...trade.rows].map(c => {
+      const num = k => { c[k] = parseFloat(c[k]) || 0; return c[k]; };
+      num('lifetime'); num('ytd'); num('open_value');
+      const ar = num('ar'), past = num('past_due');
+      // Health is a money/approval read, not a vibe: delivered-and-unpaid is a
+      // real problem, any open balance or a pending application deserves eyes.
+      const health = past > 0.01 ? 'bad'
+        : (c.trade_status === 'pending' || ar > 0.01) ? 'watch' : 'good';
+      return { ...c, id: c.customer_type + '_' + c.ref, health };
+    }).sort((a, b) => b.ytd - a.ytd || b.lifetime - a.lifetime);
+
+    res.json({ customers });
+  } catch (err) {
+    console.error('customers ledger error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/admin/customers/:id — detail view
 app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
   try {
@@ -24992,10 +25070,12 @@ async function resolveCreditIdentity(type, refId) {
 }
 
 // Build the WHERE clause + param that scopes the ledger to one customer identity.
+// Columns are scl-qualified: both consumers join orders, which shares the
+// trade_customer_id and customer_email column names.
 function storeCreditScope(ident) {
   return ident.trade_customer_id
-    ? { col: 'trade_customer_id = $1', val: ident.trade_customer_id }
-    : { col: 'LOWER(customer_email) = LOWER($1) AND trade_customer_id IS NULL', val: ident.email };
+    ? { col: 'scl.trade_customer_id = $1', val: ident.trade_customer_id }
+    : { col: 'LOWER(scl.customer_email) = LOWER($1) AND scl.trade_customer_id IS NULL', val: ident.email };
 }
 
 function calculateDueDate(issueDate, terms) {
