@@ -47,6 +47,15 @@ const DEFAULT_CONFIG = {
   batch_delay_ms: 200,
 };
 
+// The EF endpoint has unresponsive windows (July 2026: hung requests and
+// runaway XML parsing wedged the API process for hours). Bound everything:
+// response size, consecutive network failures, and total run time.
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+const CONSECUTIVE_FAILURE_LIMIT = 10;
+const BACKOFF_MS = 5 * 60 * 1000;
+const MAX_BACKOFFS = 3;
+const TIME_BUDGET_MS = 3.5 * 60 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // HTTP helpers
 // ---------------------------------------------------------------------------
@@ -54,24 +63,45 @@ const DEFAULT_CONFIG = {
 function httpsGet(url, timeoutMs = 15000, deadlineMs = 30000) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
-    // Hard deadline: the `timeout` option below only fires on socket *idle*,
-    // so a server that trickles bytes (or never ends the response) would hang
-    // the request forever. Destroy unconditionally after deadlineMs.
+    let settled = false;
+    const settle = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      fn(value);
+    };
+    // Hard deadline: reject directly — req.destroy(err) does NOT reliably emit
+    // 'error' once a response has started streaming, so relying on it leaves
+    // the promise unsettled forever.
     const deadline = setTimeout(() => {
-      req.destroy(new Error(`Request deadline exceeded (${deadlineMs}ms)`));
+      settle(reject, new Error(`Request deadline exceeded (${deadlineMs}ms)`));
+      req.destroy();
     }, deadlineMs);
     const req = https.get({
       hostname: u.hostname,
+      port: u.port || 443,
       path: u.pathname + u.search,
       headers: { 'Accept': 'text/xml, application/xml' },
       timeout: timeoutMs,
     }, (res) => {
       let data = '';
-      res.on('data', (c) => (data += c));
-      res.on('end', () => { clearTimeout(deadline); resolve({ status: res.statusCode, body: data }); });
+      res.on('data', (c) => {
+        data += c;
+        if (data.length > MAX_BODY_BYTES) {
+          settle(reject, new Error(`Response exceeded ${MAX_BODY_BYTES} bytes`));
+          req.destroy();
+        }
+      });
+      res.on('end', () => settle(resolve, { status: res.statusCode, body: data }));
+      // Peer dropped mid-response: 'end' never fires and no 'error' reaches req.
+      res.on('aborted', () => settle(reject, new Error('Response aborted mid-stream')));
+      res.on('close', () => settle(reject, new Error('Connection closed before response completed')));
     });
-    req.on('error', (err) => { clearTimeout(deadline); reject(err); });
-    req.on('timeout', () => { req.destroy(new Error('Request timeout')); });
+    req.on('error', (err) => settle(reject, err));
+    req.on('timeout', () => {
+      settle(reject, new Error('Request timeout'));
+      req.destroy();
+    });
   });
 }
 
@@ -90,15 +120,43 @@ function xmlText(xml, tag) {
   return m ? m[1].trim() : null;
 }
 
-/** Extract all occurrences of a repeating XML element and return their inner XML. */
+/**
+ * Extract all occurrences of a repeating XML element and return their inner XML.
+ * indexOf-based: the previous lazy dot-all regex was quadratic on malformed
+ * bodies (unclosed tags) and could block the event loop for hours.
+ */
 function xmlAll(xml, tag) {
   const results = [];
-  const re = new RegExp(`<${tag}[^>]*>(.*?)</${tag}>`, 'gis');
-  let m;
-  while ((m = re.exec(xml)) !== null) {
-    results.push(m[1]);
+  const open = `<${tag}`;
+  const close = `</${tag}>`;
+  let pos = 0;
+  while (true) {
+    const start = xml.indexOf(open, pos);
+    if (start === -1) break;
+    // Tag-name boundary: don't let <AvailableItem match <AvailableItems>
+    const next = xml.charAt(start + open.length);
+    if (next !== '>' && next !== ' ' && next !== '\t' && next !== '\r' && next !== '\n' && next !== '/') {
+      pos = start + open.length;
+      continue;
+    }
+    const openEnd = xml.indexOf('>', start);
+    if (openEnd === -1) break;
+    const end = xml.indexOf(close, openEnd + 1);
+    if (end === -1) break;
+    results.push(xml.slice(openEnd + 1, end));
+    pos = end + close.length;
   }
   return results;
+}
+
+/** Extract the inner XML of the first <tag>…</tag> section (no attributes). */
+function xmlSection(xml, tag) {
+  const open = `<${tag}>`;
+  const start = xml.indexOf(open);
+  if (start === -1) return null;
+  const end = xml.indexOf(`</${tag}>`, start + open.length);
+  if (end === -1) return null;
+  return xml.slice(start + open.length, end);
 }
 
 /** Check for error elements in response. */
@@ -156,17 +214,17 @@ async function priceInquiry(baseUrl, config, sku) {
 
   if (availableItems.length === 0) {
     // Try flat structure (single item directly inside AvailableItems)
-    const avSection = res.body.match(/<AvailableItems>(.*?)<\/AvailableItems>/is);
-    if (avSection && avSection[1].trim()) {
-      const price = xmlText(avSection[1], 'Price');
-      const qtyRaw = xmlText(avSection[1], 'AvailableQuantity');
+    const avSection = xmlSection(res.body, 'AvailableItems');
+    if (avSection && avSection.trim()) {
+      const price = xmlText(avSection, 'Price');
+      const qtyRaw = xmlText(avSection, 'AvailableQuantity');
       if (price || (qtyRaw && qtyRaw !== 'NA')) {
         items.push({
           qty: (qtyRaw && qtyRaw !== 'NA' && qtyRaw !== '') ? parseFloat(qtyRaw) : null,
           price: price ? parseFloat(price) : null,
-          uom: xmlText(avSection[1], 'AvailableUnitOfMeasure') || 'SY',
-          rollOrCut: (xmlText(avSection[1], 'RollOrCutFlag') || '').toUpperCase().charAt(0) || null,
-          minQty: parseFloat(xmlText(avSection[1], 'MinimumQuantityRestriction') || '0') || null,
+          uom: xmlText(avSection, 'AvailableUnitOfMeasure') || 'SY',
+          rollOrCut: (xmlText(avSection, 'RollOrCutFlag') || '').toUpperCase().charAt(0) || null,
+          minQty: parseFloat(xmlText(avSection, 'MinimumQuantityRestriction') || '0') || null,
         });
       }
     }
@@ -244,13 +302,21 @@ export async function run(pool, job, source) {
   let pricingSkipped = 0;
   const batchSize = 100;
   let processed = 0;
+  let consecutiveFailures = 0, backoffsUsed = 0;
+  let abortReason = null, timeBudgetHit = false;
+  const runStart = Date.now();
 
   for (const sku of skus) {
+    if (Date.now() - runStart > TIME_BUDGET_MS) {
+      timeBudgetHit = true;
+      break;
+    }
     const vendorSku = sku.vendor_sku;
     if (!vendorSku) continue;
 
     try {
       const result = await priceInquiry(baseUrl, cfg, vendorSku);
+      consecutiveFailures = 0;
 
       if (result.error) {
         errCount++;
@@ -356,8 +422,20 @@ export async function run(pool, job, source) {
 
     } catch (err) {
       errCount++;
+      consecutiveFailures++;
       if (errCount <= 20) {
         await addJobError(pool, job.id, { message: `Exception for ${vendorSku}: ${err.message}` });
+      }
+      if (consecutiveFailures >= CONSECUTIVE_FAILURE_LIMIT) {
+        if (backoffsUsed >= MAX_BACKOFFS) {
+          abortReason = `${CONSECUTIVE_FAILURE_LIMIT} consecutive request failures after ${MAX_BACKOFFS} backoffs — endpoint unresponsive`;
+          break;
+        }
+        backoffsUsed++;
+        await appendLog(pool, job.id,
+          `${consecutiveFailures} consecutive request failures at ${processed}/${skus.length} — backing off ${Math.round(BACKOFF_MS / 60000)} min (${backoffsUsed}/${MAX_BACKOFFS})`);
+        await sleep(BACKOFF_MS);
+        consecutiveFailures = 0;
       }
     }
 
@@ -369,9 +447,14 @@ export async function run(pool, job, source) {
   }
 
   // ── Step 4: Log summary ──
+  const header = abortReason
+    ? `EF Web Services sync ABORTED (${abortReason}).`
+    : timeBudgetHit
+      ? `EF Web Services sync stopped at time budget (${Math.round(TIME_BUDGET_MS / 60000)} min) — partial run.`
+      : `EF Web Services sync complete.`;
   await appendLog(pool, job.id, [
-    `EF Web Services sync complete.`,
-    `  SKUs checked: ${processed}`,
+    header,
+    `  SKUs checked: ${processed} of ${skus.length}`,
     `  Inventory found: ${inventoryDataFound} → ${inventoryUpdated} snapshots upserted`,
     `  Pricing found: ${pricingDataFound} → ${pricingUpdated} upserted`,
     pricingSkipped ? `  Pricing skipped (no existing row): ${pricingSkipped}` : null,
@@ -382,4 +465,14 @@ export async function run(pool, job, source) {
     products_updated: inventoryUpdated + pricingUpdated,
     skus_created: 0,
   });
+
+  // Circuit-breaker abort → mark the job failed (and trigger the failure
+  // alert email). Time-budget stops complete normally: data upserted so far
+  // is already persisted and the next scheduled run picks up fresh.
+  if (abortReason) {
+    throw new Error(`EF Web Services sync aborted at ${processed}/${skus.length} SKUs: ${abortReason}`);
+  }
 }
+
+// Exported for tests
+export { httpsGet, xmlAll, xmlSection, xmlText };
