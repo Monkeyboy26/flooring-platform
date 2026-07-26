@@ -8039,7 +8039,15 @@
                   return Object.values(byGroup).some(vals => vals.size > 1);
                 };
                 const _finishIsColor = !!attrMap['countertop_finish'];
-                let attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && !(slug === 'finish' && (showFinishPills || _finishIsColor)) && (slug === 'countertop_finish' || collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? isIndependentChoice(slug) : true)))
+                // Shape is only a real design choice when a non-rectangular shape exists
+                // (Hexagon, Penny, Picket...). All-rectangular shapes (Rectangle/Square/
+                // Plank) just mirror the size — and a shape pill hides the size UI, which
+                // would make same-shape sizes unreachable. Let the size selector show.
+                const RECT_SHAPES = new Set(['rectangle', 'square', 'plank']);
+                const _shapeIsSizeMirror = localAttrCounts['shape'] && [...localAttrCounts['shape']].every(v => RECT_SHAPES.has(v.toLowerCase().trim()));
+                // Semicolon-joined values ("3/8; 5/16") are dirty vendor data, not choices
+                const _hasJunkValues = (slug) => [...localAttrCounts[slug]].some(v => v.includes(';'));
+                let attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && !(slug === 'finish' && (showFinishPills || _finishIsColor)) && !(slug === 'shape' && _shapeIsSizeMirror) && (slug === 'countertop_finish' || (!_hasJunkValues(slug) && (collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? isIndependentChoice(slug) : true)))))
                   .sort((a, b) => a === 'finish' ? -1 : b === 'finish' ? 1 : 0);
                 // Collapse mutually locked pills: when two attributes move 1:1 together
                 // across every sibling, picking one fully determines the other — keep the

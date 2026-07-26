@@ -5685,7 +5685,10 @@
         return Object.values(byGroup).some((vals) => vals.size > 1);
       };
       const _finishIsColor = !!attrMap["countertop_finish"];
-      let attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter((slug) => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === "countertop_finish") && !NON_SELECTABLE.has(slug) && !(slug === "finish" && (showFinishPills || _finishIsColor)) && (slug === "countertop_finish" || collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? isIndependentChoice(slug) : true))).sort((a, b) => a === "finish" ? -1 : b === "finish" ? 1 : 0);
+      const RECT_SHAPES = /* @__PURE__ */ new Set(["rectangle", "square", "plank"]);
+      const _shapeIsSizeMirror = localAttrCounts["shape"] && [...localAttrCounts["shape"]].every((v) => RECT_SHAPES.has(v.toLowerCase().trim()));
+      const _hasJunkValues = (slug) => [...localAttrCounts[slug]].some((v) => v.includes(";"));
+      let attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter((slug) => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === "countertop_finish") && !NON_SELECTABLE.has(slug) && !(slug === "finish" && (showFinishPills || _finishIsColor)) && !(slug === "shape" && _shapeIsSizeMirror) && (slug === "countertop_finish" || !_hasJunkValues(slug) && (collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? isIndependentChoice(slug) : true)))).sort((a, b) => a === "finish" ? -1 : b === "finish" ? 1 : 0);
       if (attrSlugs.length > 1) {
         const _pillRank = (slug) => slug === "finish" ? 0 : slug === "shape" ? 1 : 2;
         const _lockedTogether = (a, b) => {
