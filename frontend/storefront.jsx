@@ -8858,12 +8858,12 @@
                 const inquiryIsSlab = /slab|countertop/i.test(sku.category_name || '') || /slab/i.test(sku.product_name || '') || /slab/i.test(sku.variant_name || '');
                 return (
                 <div className="unit-add-to-cart">
-                  <div style={{ background: 'var(--cream-warm)', border: '0.5px solid rgba(21,18,15,0.07)', borderRadius: 4, padding: '1.5rem', textAlign: 'center' }}>
-                    <p style={{ margin: '0 0 0.375rem', fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 300, color: 'var(--stone-900)' }}>{inquiryIsSlab ? 'Slab — Please Inquire' : 'Please Inquire'}</p>
-                    <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--stone-500)', lineHeight: 1.5 }}>
+                  <div className="pdp-inquiry-banner">
+                    <p className="pdp-inquiry-title">{inquiryIsSlab ? 'Slab — Please Inquire' : 'Please Inquire'}</p>
+                    <p className="pdp-inquiry-sub">
                       {inquiryIsSlab ? 'Contact us to confirm slab dimensions and availability.' : 'Contact us for current pricing and availability.'}
                     </p>
-                    <a href="tel:7149990009" className="pdp-btn pdp-btn-ghost" style={{ marginTop: '1rem', textDecoration: 'none' }}>
+                    <a href="tel:7149990009" className="pdp-btn pdp-btn-gold" style={{ marginTop: '1rem', textDecoration: 'none' }}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
                       Call (714) 999-0009
                     </a>
@@ -8891,12 +8891,12 @@
 
               {/* Call for Price & Stock — shown when no pricing is available */}
               {!isCarpetSku && !isPerUnit && !isSoldPerSqft && (effectivePrice <= 0 || (sqftPerBox <= 0 && !isSheetVinyl)) && (
-                <div style={{ background: 'var(--cream-warm)', border: '0.5px solid rgba(21,18,15,0.07)', borderRadius: 4, padding: '1.5rem', textAlign: 'center' }}>
-                  <p style={{ margin: '0 0 0.375rem', fontFamily: 'var(--font-heading)', fontSize: '1.125rem', fontWeight: 300, color: 'var(--stone-900)' }}>Call for Price &amp; Stock</p>
-                  <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--stone-500)', lineHeight: 1.5 }}>
+                <div className="pdp-inquiry-banner">
+                  <p className="pdp-inquiry-title">Call for Price &amp; Stock</p>
+                  <p className="pdp-inquiry-sub">
                     Contact us for current pricing, stock availability, and lead times.
                   </p>
-                  <a href="tel:7149990009" className="pdp-btn pdp-btn-ghost" style={{ marginTop: '1rem', textDecoration: 'none' }}>
+                  <a href="tel:7149990009" className="pdp-btn pdp-btn-gold" style={{ marginTop: '1rem', textDecoration: 'none' }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
                     Call (714) 999-0009
                   </a>
