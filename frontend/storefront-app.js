@@ -3232,8 +3232,7 @@
   };
   function MegaPanel({ panelId, categories, onCategorySelect, onTradeClick, navigate, shopColumns, onEnter, onClose }) {
     if (panelId === "shop") {
-      const colCount2 = Math.min(shopColumns.length, 4) + 1;
-      return /* @__PURE__ */ React.createElement("div", { className: "mega-panel", onMouseEnter: onEnter, onMouseLeave: onClose }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-inner" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-grid", style: { gridTemplateColumns: `repeat(${colCount2}, 1fr)` } }, shopColumns.slice(0, 4).map((col) => /* @__PURE__ */ React.createElement("div", { key: col.title, className: "mega-panel-col" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-col-title" }, col.title), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-items" }, col.items.map((item) => /* @__PURE__ */ React.createElement("button", { key: item.slug, className: `mega-panel-link${item.isViewAll ? " mega-panel-view-all" : ""}`, onClick: () => onCategorySelect(item.slug) }, item.name, !item.isViewAll && item.count > 0 && /* @__PURE__ */ React.createElement("span", { className: "mega-panel-link-meta" }, item.count)))))), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-eyebrow" }, "Featured"), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-card", onClick: () => navigate("/shop?sort=newest") }, /* @__PURE__ */ React.createElement("img", { src: "/uploads/homepage/hero.jpg", alt: "New Arrivals", loading: "lazy", decoding: "async" }), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-title" }, "New Arrivals"), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-meta" }, "Latest collections"), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-cta" }, "View \u2192")))))));
+      return /* @__PURE__ */ React.createElement("div", { className: "mega-panel", onMouseEnter: onEnter, onMouseLeave: onClose }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-inner" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-shop-cols" }, shopColumns.map((col) => /* @__PURE__ */ React.createElement("div", { key: col.title, className: "mega-panel-col" }, /* @__PURE__ */ React.createElement("button", { className: "mega-panel-col-title mega-panel-col-title-btn", onClick: () => onCategorySelect(col.slug) }, col.title), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-items" }, col.items.map((item) => /* @__PURE__ */ React.createElement("button", { key: item.slug + item.name, className: `mega-panel-link${item.isViewAll ? " mega-panel-view-all" : ""}`, onClick: () => onCategorySelect(item.slug) }, item.name, !item.isViewAll && item.count > 0 && /* @__PURE__ */ React.createElement("span", { className: "mega-panel-link-meta" }, item.count)))))))));
     }
     const panel = MEGA_PANELS[panelId];
     if (!panel) return null;
@@ -3515,9 +3514,9 @@
       const cols = [];
       parentCats.forEach((cat) => {
         const children = (cat.children || []).filter((ch) => ch.product_count > 0).sort((a, b) => b.product_count - a.product_count);
-        const items = children.slice(0, 8).map((ch) => ({ name: ch.name, slug: ch.slug, count: ch.product_count || 0 }));
+        const items = children.map((ch) => ({ name: ch.name, slug: ch.slug, count: ch.product_count || 0 }));
         items.push({ name: "View All", slug: cat.slug, count: cat.product_count || 0, isViewAll: true });
-        cols.push({ title: cat.name, items });
+        cols.push({ title: cat.name, slug: cat.slug, items });
       });
       return cols;
     }, [parentCats, categories]);

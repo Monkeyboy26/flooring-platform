@@ -3874,17 +3874,16 @@
 
     function MegaPanel({ panelId, categories, onCategorySelect, onTradeClick, navigate, shopColumns, onEnter, onClose }) {
       if (panelId === 'shop') {
-        const colCount = Math.min(shopColumns.length, 4) + 1;
         return (
           <div className="mega-panel" onMouseEnter={onEnter} onMouseLeave={onClose}>
             <div className="mega-panel-inner">
-              <div className="mega-panel-grid" style={{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }}>
-                {shopColumns.slice(0, 4).map(col => (
+              <div className="mega-panel-shop-cols">
+                {shopColumns.map(col => (
                   <div key={col.title} className="mega-panel-col">
-                    <div className="mega-panel-col-title">{col.title}</div>
+                    <button className="mega-panel-col-title mega-panel-col-title-btn" onClick={() => onCategorySelect(col.slug)}>{col.title}</button>
                     <div className="mega-panel-items">
                       {col.items.map(item => (
-                        <button key={item.slug} className={`mega-panel-link${item.isViewAll ? ' mega-panel-view-all' : ''}`} onClick={() => onCategorySelect(item.slug)}>
+                        <button key={item.slug + item.name} className={`mega-panel-link${item.isViewAll ? ' mega-panel-view-all' : ''}`} onClick={() => onCategorySelect(item.slug)}>
                           {item.name}
                           {!item.isViewAll && item.count > 0 && <span className="mega-panel-link-meta">{item.count}</span>}
                         </button>
@@ -3892,17 +3891,6 @@
                     </div>
                   </div>
                 ))}
-                <div className="mega-panel-featured">
-                  <div className="mega-panel-featured-eyebrow">Featured</div>
-                  <div className="mega-panel-featured-card" onClick={() => navigate('/shop?sort=newest')}>
-                    <img src="/uploads/homepage/hero.jpg" alt="New Arrivals" loading="lazy" decoding="async" />
-                    <div className="mega-panel-featured-overlay">
-                      <div className="mega-panel-featured-title">New Arrivals</div>
-                      <div className="mega-panel-featured-meta">Latest collections</div>
-                      <div className="mega-panel-featured-cta">View &rarr;</div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -4369,15 +4357,16 @@
       const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
 
       // Build dynamic shop columns from categories (children are nested in API response)
+      // Shows the FULL tree: every parent category with all of its non-empty subcategories
       const shopColumns = useMemo(() => {
         const cols = [];
         parentCats.forEach(cat => {
           const children = (cat.children || [])
             .filter(ch => ch.product_count > 0)
             .sort((a, b) => b.product_count - a.product_count);
-          const items = children.slice(0, 8).map(ch => ({ name: ch.name, slug: ch.slug, count: ch.product_count || 0 }));
+          const items = children.map(ch => ({ name: ch.name, slug: ch.slug, count: ch.product_count || 0 }));
           items.push({ name: 'View All', slug: cat.slug, count: cat.product_count || 0, isViewAll: true });
-          cols.push({ title: cat.name, items });
+          cols.push({ title: cat.name, slug: cat.slug, items });
         });
         return cols;
       }, [parentCats, categories]);

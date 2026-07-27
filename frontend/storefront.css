@@ -109,6 +109,12 @@ header { background: var(--warm-bg); position: sticky; top: 0; z-index: var(--z-
 .mega-panel-view-all { font-family: var(--font-body); font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); margin-top: 0.375rem; padding-top: 0.5rem; border-top: 0.5px solid var(--stone-200); }
 .mega-panel-view-all:hover { color: var(--stone-800); }
 
+/* Shop panel — full category tree in masonry columns */
+.mega-panel-shop-cols { columns: 5 190px; column-gap: 2rem; }
+.mega-panel-shop-cols .mega-panel-col { break-inside: avoid; -webkit-column-break-inside: avoid; margin-bottom: 1.75rem; }
+.mega-panel-col-title-btn { display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--stone-200); cursor: pointer; transition: color 0.15s; }
+.mega-panel-col-title-btn:hover { color: var(--gold); }
+
 /* Mega Panel Featured Card */
 .mega-panel-featured { display: flex; flex-direction: column; }
 .mega-panel-featured-eyebrow { font-family: var(--font-body); font-size: 0.625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--stone-400); padding-bottom: 0.75rem; margin-bottom: 0.875rem; border-bottom: 0.5px solid var(--stone-200); }
