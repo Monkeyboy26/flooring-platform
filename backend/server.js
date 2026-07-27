@@ -2345,7 +2345,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         inv.qty_on_hand, inv.qty_in_transit, inv.fresh_until,
         CASE WHEN pk.sqft_per_box > 0 THEN ROUND(COALESCE(inv.qty_on_hand, 0) * pk.sqft_per_box) END as qty_on_hand_sqft,
         CASE
-          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.fresh_until IS NULL THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
           WHEN inv.qty_on_hand > 0 THEN 'low_stock'
           ELSE 'out_of_stock'
@@ -2359,7 +2359,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN LATERAL (
         SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
-        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW() - INTERVAL '7 days'
       ) inv ON TRUE
       WHERE s.id = $1 AND p.status = 'active'
     `, [skuId]);
@@ -2512,7 +2512,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
          WHERE s_top.vendor_sku IN (sa_ref.value || '-SNK', sa_ref.value, regexp_replace(sa_ref.value, '-([^-]+)$', '-BS-\\1'))
          LIMIT 1) as countertop_image,
         CASE
-          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.fresh_until IS NULL THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
           WHEN inv.qty_on_hand > 0 THEN 'low_stock'
           ELSE 'out_of_stock'
@@ -2525,7 +2525,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       LEFT JOIN LATERAL (
         SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
-        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW() - INTERVAL '7 days'
       ) inv ON TRUE
       WHERE s.product_id = $1 AND s.id != $2 AND s.is_sample = false AND s.status = 'active'
         AND (COALESCE(s.variant_type, '') NOT IN ('accessory') OR $3 = 'accessory')
@@ -2572,7 +2572,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           ) as sku_image,
           NULL as countertop_image,
           CASE
-            WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+            WHEN inv.fresh_until IS NULL THEN 'unknown'
             WHEN inv.qty_on_hand > 10 THEN 'in_stock'
             WHEN inv.qty_on_hand > 0 THEN 'low_stock'
             ELSE 'out_of_stock'
@@ -2585,7 +2585,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         LEFT JOIN packaging pk ON pk.sku_id = s.id
         LEFT JOIN LATERAL (
         SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
-        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW() - INTERVAL '7 days'
       ) inv ON TRUE
         WHERE s.product_id = $1 AND s.id != $2 AND s.status = 'active'
           AND s.variant_type = 'accessory'
@@ -2632,7 +2632,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
               (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
             ) as primary_image,
             CASE
-              WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+              WHEN inv.fresh_until IS NULL THEN 'unknown'
               WHEN inv.qty_on_hand > 10 THEN 'in_stock'
               WHEN inv.qty_on_hand > 0 THEN 'low_stock'
               ELSE 'out_of_stock'
@@ -2643,7 +2643,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           LEFT JOIN packaging pk ON pk.sku_id = s.id
           LEFT JOIN LATERAL (
         SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
-        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW() - INTERVAL '7 days'
       ) inv ON TRUE
           WHERE LOWER(p.collection) = LOWER($1)
             AND p.vendor_id = $2
@@ -2714,7 +2714,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
               LIMIT 1
             ) as countertop_image,
             CASE
-              WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+              WHEN inv.fresh_until IS NULL THEN 'unknown'
               WHEN inv.qty_on_hand > 10 THEN 'in_stock'
               WHEN inv.qty_on_hand > 0 THEN 'low_stock'
               ELSE 'out_of_stock'
@@ -2725,7 +2725,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           LEFT JOIN packaging pk ON pk.sku_id = s.id
           LEFT JOIN LATERAL (
         SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
-        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW() - INTERVAL '7 days'
       ) inv ON TRUE
           WHERE LOWER(p.collection) = LOWER($1)
             AND p.vendor_id = $2
@@ -2779,7 +2779,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = $1 AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1)
         ) as primary_image,
         CASE
-          WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+          WHEN inv.fresh_until IS NULL THEN 'unknown'
           WHEN inv.qty_on_hand > 10 THEN 'in_stock'
           WHEN inv.qty_on_hand > 0 THEN 'low_stock'
           ELSE 'out_of_stock'
@@ -2790,7 +2790,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN LATERAL (
         SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
-        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW() - INTERVAL '7 days'
       ) inv ON TRUE
       WHERE sa.parent_sku_id = $1 AND s.status = 'active'
         AND (
@@ -2849,7 +2849,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
               (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = $4 AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1)
             ) as primary_image,
             CASE
-              WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
+              WHEN inv.fresh_until IS NULL THEN 'unknown'
               WHEN inv.qty_on_hand > 10 THEN 'in_stock'
               WHEN inv.qty_on_hand > 0 THEN 'low_stock'
               ELSE 'out_of_stock'
@@ -2861,7 +2861,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           LEFT JOIN packaging pk ON pk.sku_id = s.id
           LEFT JOIN LATERAL (
         SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
-        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW()
+        FROM inventory_snapshots WHERE sku_id = s.id AND fresh_until > NOW() - INTERVAL '7 days'
       ) inv ON TRUE
           WHERE p.vendor_id = $1 AND s.status = 'active' AND s.is_sample = false
             AND s.product_id != $2
