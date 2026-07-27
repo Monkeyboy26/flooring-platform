@@ -70,42 +70,46 @@ const REMOTE_DIRS = ['/out', '/in', '/'];
 
 // ─── Category mapping ────────────────────────────────────────────────────────
 
+// Values must be real leaf slugs from the categories table — resolveCatId
+// looks them up verbatim in catCache.
 const CATEGORY_MAP = {
-  'porcelain': 'tile', 'porcelain tile': 'tile', 'ceramic': 'tile',
-  'ceramic tile': 'tile', 'tile': 'tile', 'floor tile': 'tile',
-  'wall tile': 'tile', 'wood look tile': 'tile', 'large format': 'tile',
+  'porcelain': 'porcelain-tile', 'porcelain tile': 'porcelain-tile',
+  'ceramic': 'ceramic-tile', 'ceramic tile': 'ceramic-tile',
+  'tile': 'porcelain-tile', 'floor tile': 'porcelain-tile',
+  'wall tile': 'porcelain-tile', 'wood look tile': 'wood-look-tile',
+  'large format': 'large-format-tile',
   'natural stone': 'natural-stone', 'stone': 'natural-stone',
   'marble': 'natural-stone', 'travertine': 'natural-stone',
   'slate': 'natural-stone', 'granite': 'natural-stone',
   'limestone': 'natural-stone', 'quartzite': 'natural-stone',
   'onyx': 'natural-stone', 'sandstone': 'natural-stone',
-  'mosaic': 'mosaic', 'glass': 'mosaic', 'glass tile': 'mosaic',
-  'glass mosaic': 'mosaic', 'stone mosaic': 'mosaic',
-  'metal mosaic': 'mosaic', 'decorative': 'mosaic',
+  'mosaic': 'mosaic-tile', 'glass': 'mosaic-tile', 'glass tile': 'mosaic-tile',
+  'glass mosaic': 'mosaic-tile', 'stone mosaic': 'mosaic-tile',
+  'metal mosaic': 'mosaic-tile', 'decorative': 'mosaic-tile',
   'stacked stone': 'stacked-stone', 'ledger panel': 'stacked-stone',
   'ledger': 'stacked-stone', 'stacked stone panel': 'stacked-stone',
-  'luxury vinyl': 'luxury-vinyl', 'luxury vinyl plank': 'luxury-vinyl',
-  'luxury vinyl tile': 'luxury-vinyl', 'lvp': 'luxury-vinyl',
-  'lvt': 'luxury-vinyl', 'spc': 'luxury-vinyl', 'wpc': 'luxury-vinyl',
-  'vinyl plank': 'luxury-vinyl', 'vinyl tile': 'luxury-vinyl',
-  'rigid core': 'luxury-vinyl',
-  'hardwood': 'hardwood', 'engineered hardwood': 'hardwood',
-  'engineered wood': 'hardwood', 'wood flooring': 'hardwood',
-  'quartz': 'countertops', 'quartz countertop': 'countertops',
-  'quartz countertops': 'countertops', 'granite countertop': 'countertops',
-  'granite countertops': 'countertops', 'marble countertop': 'countertops',
-  'marble countertops': 'countertops', 'countertop': 'countertops',
+  'luxury vinyl': 'lvp-plank', 'luxury vinyl plank': 'lvp-plank',
+  'luxury vinyl tile': 'lvp-plank', 'lvp': 'lvp-plank',
+  'lvt': 'lvp-plank', 'spc': 'lvp-plank', 'wpc': 'lvp-plank',
+  'vinyl plank': 'lvp-plank', 'vinyl tile': 'lvp-plank',
+  'rigid core': 'lvp-plank',
+  'hardwood': 'engineered-hardwood', 'engineered hardwood': 'engineered-hardwood',
+  'engineered wood': 'engineered-hardwood', 'wood flooring': 'engineered-hardwood',
+  'quartz': 'quartz-countertops', 'quartz countertop': 'quartz-countertops',
+  'quartz countertops': 'quartz-countertops', 'granite countertop': 'granite-countertops',
+  'granite countertops': 'granite-countertops', 'marble countertop': 'marble-countertops',
+  'marble countertops': 'marble-countertops', 'countertop': 'countertops',
   'countertops': 'countertops', 'slab': 'countertops', 'slabs': 'countertops',
-  'prefab': 'countertops', 'prefab countertop': 'countertops',
-  'outdoor': 'outdoor', 'paver': 'outdoor', 'pavers': 'outdoor',
-  'pool tile': 'outdoor', 'pool coping': 'outdoor',
-  'turf': 'outdoor', 'artificial turf': 'outdoor',
-  'grout': 'installation-sundries', 'setting material': 'installation-sundries',
-  'setting materials': 'installation-sundries', 'caulk': 'installation-sundries',
-  'sealant': 'installation-sundries', 'adhesive': 'installation-sundries',
-  'mortar': 'installation-sundries', 'backer board': 'installation-sundries',
-  'membrane': 'installation-sundries', 'accessory': 'installation-sundries',
-  'accessories': 'installation-sundries', 'underlayment': 'installation-sundries',
+  'prefab': 'prefab-countertops', 'prefab countertop': 'prefab-countertops',
+  'outdoor': 'hardscaping', 'paver': 'hardscaping', 'pavers': 'hardscaping',
+  'pool tile': 'pool-tile', 'pool coping': 'hardscaping',
+  'turf': 'artificial-turf', 'artificial turf': 'artificial-turf',
+  'grout': 'adhesives-sealants', 'setting material': 'adhesives-sealants',
+  'setting materials': 'adhesives-sealants', 'caulk': 'adhesives-sealants',
+  'sealant': 'adhesives-sealants', 'adhesive': 'adhesives-sealants',
+  'mortar': 'adhesives-sealants', 'backer board': 'surface-prep-levelers',
+  'membrane': 'surface-prep-levelers', 'accessory': 'installation-sundries',
+  'accessories': 'installation-sundries', 'underlayment': 'underlayment',
   'trim': 'transitions-moldings', 'molding': 'transitions-moldings',
   'bullnose': 'transitions-moldings', 'quarter round': 'transitions-moldings',
   'threshold': 'transitions-moldings', 'transition': 'transitions-moldings',
@@ -120,20 +124,49 @@ const BACKSPLASH_NAME_PATTERN = /^(renzo|urbano|dymo|adella|marza)\b/i;
 // Paver/coping products — override to 'hardscaping'
 const PAVER_COPING_NAME_PATTERN = /\b(paver|pavers|coping|cobbles?\b)/i;
 
+// Porcelain ledger panels (e.g. Nora Ledger) — override tile → 'stacked-stone'
+const LEDGER_NAME_PATTERN = /\bledger\b/i;
+
+// Wood-look collections whose EDI records lack the style attribute (PID 38)
+const WOOD_LOOK_COLLECTIONS = /^(country river|palma|upscape)\b/i;
+
+// Sundry/accessory items arrive under generic EDI classes (SETMTL, GRTCAU,
+// VINMISR, 'accessories') — split them into leaf categories by name.
+// First match wins; keep the tools rule ahead of the adhesives rule so
+// "Grout Float" / "Caulking Gun" land in tools, not adhesives.
+const SUNDRY_RULES = [
+  { slug: 'wall-panels', pattern: /^(?!.*display).*(\bwpft\b|wallpaper)/i },
+  { slug: 'underlayment', pattern: /underlayment/i },
+  { slug: 'surface-prep-levelers', pattern: /self.?lvl|self.?level|level set|skim coat|\bpatch\b|floor mud|primer|hydraflex|liqui.?dam|backer|gypsum|encapsulator|board tape/i },
+  { slug: 'tools-trowels', pattern: /trowel|float|nipper|glove|knee pad|\bsaws?\b|blade|scraper|mallet|knife|knives|scoring wheel|tacker|staple|caulking gun|sponge|cheesecloth|towel|wipe|chalk|tape measure|box level|spacer|puller|rubbing stone|snips|plumb|probilt|levolution|masking tape|inseam tape/i },
+  { slug: 'trim-accessories', pattern: /drain frame|wax bowl/i },
+  { slug: 'adhesives-sealants', pattern: /grout|caulk|mortar|mastic|adhesive|\badh\b|sealant|sealer|ult6|accucolor|fusion|millennium|permaflex|permalastic|signature|type1|flexera/i },
+];
+
+function classifySundry(name) {
+  for (const rule of SUNDRY_RULES) {
+    if (rule.pattern.test(name)) return rule.slug;
+  }
+  return null;
+}
+
 // Clean up EDI product names: strip packaging info, encoding artifacts, extra whitespace
 const MAC_CATEGORY_MAP = {
-  PORTILR: 'tile', PORTILC: 'tile', CERTILR: 'tile', CERTILC: 'tile',
+  PORTILR: 'porcelain-tile', PORTILC: 'porcelain-tile',
+  CERTILR: 'ceramic-tile', CERTILC: 'ceramic-tile',
   STNTILR: 'natural-stone', STNTILC: 'natural-stone',
-  MOSTILR: 'mosaic', MOSTILC: 'mosaic', GLSTILR: 'mosaic', GLSTILC: 'mosaic',
-  VINTILR: 'luxury-vinyl', VINTILC: 'luxury-vinyl',
-  VINFLR: 'luxury-vinyl', SPCFLR: 'luxury-vinyl', WPCFLR: 'luxury-vinyl',
-  HRDWDR: 'hardwood', HRDWDC: 'hardwood', ENGWDR: 'hardwood', ENGWDC: 'hardwood',
-  QRTZSL: 'countertops', GRNSL: 'countertops', MRBSL: 'countertops',
-  SLBQTZ: 'countertops', SLBGRN: 'countertops', SLBMRB: 'countertops',
-  PREFAB: 'countertops',
+  MOSTILR: 'mosaic-tile', MOSTILC: 'mosaic-tile',
+  GLSTILR: 'mosaic-tile', GLSTILC: 'mosaic-tile',
+  VINTILR: 'lvp-plank', VINTILC: 'lvp-plank',
+  VINFLR: 'lvp-plank', SPCFLR: 'lvp-plank', WPCFLR: 'lvp-plank',
+  HRDWDR: 'engineered-hardwood', HRDWDC: 'engineered-hardwood',
+  ENGWDR: 'engineered-hardwood', ENGWDC: 'engineered-hardwood',
+  QRTZSL: 'quartz-countertops', GRNSL: 'granite-countertops', MRBSL: 'marble-countertops',
+  SLBQTZ: 'quartz-countertops', SLBGRN: 'granite-countertops', SLBMRB: 'marble-countertops',
+  PREFAB: 'prefab-countertops',
   STKSTL: 'stacked-stone', STKSTC: 'stacked-stone', LDGPNL: 'stacked-stone',
-  PAVTIL: 'outdoor', OUTDOR: 'outdoor', ARTTURF: 'outdoor',
-  SETMTL: 'installation-sundries', GRTCAU: 'installation-sundries',
+  PAVTIL: 'hardscaping', OUTDOR: 'hardscaping', ARTTURF: 'artificial-turf',
+  SETMTL: 'adhesives-sealants', GRTCAU: 'adhesives-sealants',
   TRMACC: 'transitions-moldings', VINMISR: 'installation-sundries',
 };
 
@@ -907,18 +940,46 @@ async function phase2_edi832(pool, vendorId, source, log) {
 
     // Override: mosaic products miscategorized by material (EDI GEN/MAC says "Natural Stone" or "Porcelain")
     const _resolvedSlug = CATEGORY_MAP[(group.category || '').toLowerCase().trim()] || group.category;
-    if (/^(natural-stone|porcelain-tile|ceramic-tile|tile)$/.test(_resolvedSlug) && MOSAIC_NAME_PATTERN.test(group.baseName)) {
+    if (/^(natural-stone|porcelain-tile|ceramic-tile)$/.test(_resolvedSlug) && MOSAIC_NAME_PATTERN.test(group.baseName)) {
       categoryId = catCache['mosaic-tile'] || categoryId;
     }
 
     // Override: backsplash/subway series miscategorized as mosaic (EDI says "Glass" or "Decorative")
-    if (_resolvedSlug === 'mosaic' && BACKSPLASH_NAME_PATTERN.test(group.baseName)) {
+    if (_resolvedSlug === 'mosaic-tile' && BACKSPLASH_NAME_PATTERN.test(group.baseName)) {
       categoryId = catCache['backsplash-tile'] || categoryId;
     }
 
     // Override: paver/coping products miscategorized as stacked-stone or natural-stone
     if (/^(stacked-stone|natural-stone)$/.test(_resolvedSlug) && PAVER_COPING_NAME_PATTERN.test(group.baseName)) {
       categoryId = catCache['hardscaping'] || categoryId;
+    }
+
+    // Override: porcelain ledger panels (e.g. Nora Ledger) → stacked-stone
+    if (/^(porcelain-tile|ceramic-tile)$/.test(_resolvedSlug) && LEDGER_NAME_PATTERN.test(group.baseName)
+        && !MOSAIC_NAME_PATTERN.test(group.baseName)) {
+      categoryId = catCache['stacked-stone'] || categoryId;
+    }
+
+    // Overrides from the EDI style attribute (PID 38): acoustic wall panels,
+    // fluted/slat tile, wood-look porcelain planks
+    const _groupStyles = group.items
+      .flatMap(i => (i.descriptions || []).filter(d => d.characteristic_label === 'style').map(d => d.description || ''))
+      .join(',').toLowerCase();
+    if (/acoustic/i.test(group.baseName) && /slat|panel/i.test(group.baseName)) {
+      categoryId = catCache['wall-panels'] || categoryId;
+    } else if (_groupStyles.includes('fluted')) {
+      categoryId = catCache['fluted-tile'] || categoryId;
+    } else if (/^(porcelain-tile|ceramic-tile)$/.test(_resolvedSlug)
+        && (/\bwood\b/.test(_groupStyles) || WOOD_LOOK_COLLECTIONS.test(group.baseName))
+        && !MOSAIC_NAME_PATTERN.test(group.baseName)) {
+      categoryId = catCache['wood-look-tile'] || categoryId;
+    }
+
+    // Split generic sundry buckets (setting materials, grout/caulk, accessories)
+    // into leaf categories by product name
+    if (/^(installation-sundries|adhesives-sealants)$/.test(_resolvedSlug)) {
+      const sundrySlug = classifySundry(group.baseName);
+      if (sundrySlug && catCache[sundrySlug]) categoryId = catCache[sundrySlug];
     }
 
     const productRow = await upsertProduct(pool, {
