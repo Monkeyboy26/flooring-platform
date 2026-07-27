@@ -8903,22 +8903,6 @@
                 </div>
               )}
 
-              {/* California Prop 65 — warning must be shown before purchase */}
-              {sku.prop65_warning && (
-                <div className="prop65-warning">
-                  <span className="prop65-icon" aria-hidden="true">&#9888;</span>
-                  <span>
-                    <strong>WARNING:</strong>{' '}
-                    {sku.prop65_chemicals ? (
-                      <>This product can expose you to chemicals including {sku.prop65_chemicals}, which is known to the State of California to cause cancer and birth defects or other reproductive harm. For more information go to{' '}</>
-                    ) : (
-                      <>Cancer and Reproductive Harm &mdash;{' '}</>
-                    )}
-                    <a href="https://www.P65Warnings.ca.gov" target="_blank" rel="noopener noreferrer">www.P65Warnings.ca.gov</a>
-                  </span>
-                </div>
-              )}
-
               {/* Matching Accessories */}
               {accessorySiblings.length > 0 && (
                 <div className="accessories-section-sf">
@@ -8992,6 +8976,22 @@
                 </div>
                 <button className="pdp-btn pdp-btn-primary" onClick={() => onRequestInstall(sku)}>Get Quote</button>
               </div>
+
+              {/* California Prop 65 — warning must be shown before purchase */}
+              {sku.prop65_warning && (
+                <div className="prop65-warning">
+                  <span className="prop65-icon" aria-hidden="true">&#9888;</span>
+                  <span>
+                    <strong>WARNING:</strong>{' '}
+                    {sku.prop65_chemicals ? (
+                      <>This product can expose you to chemicals including {sku.prop65_chemicals}, which is known to the State of California to cause cancer and birth defects or other reproductive harm. For more information go to{' '}</>
+                    ) : (
+                      <>Cancer and Reproductive Harm &mdash;{' '}</>
+                    )}
+                    <a href="https://www.P65Warnings.ca.gov" target="_blank" rel="noopener noreferrer">www.P65Warnings.ca.gov</a>
+                  </span>
+                </div>
+              )}
 
             </div>
             </div>{/* end .sku-detail-main */}
