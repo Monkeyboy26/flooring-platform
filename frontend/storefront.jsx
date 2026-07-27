@@ -7027,6 +7027,9 @@
 
       // ADEX products use a 3-row variant selector (Color / Finish / Type) + grouped collection siblings
       const isAdexProduct = /adex/i.test(sku.vendor_name || '');
+      // ADEX collection catalog is assigned by the variant selector below (evaluates earlier in
+      // this JSX tree) and rendered below the quantity entry so add-to-cart stays above the fold
+      let adexCollectionCatalog = null;
 
       // Build sections list for nav
       const navSections = [{ key: 'details', label: 'Details' }];
@@ -7442,9 +7445,10 @@
                     const showFinishRow = finishesForColor.length > 1;
 
                     // Row 3: all OTHER pieces in collection matching current color + finish
+                    // (assigned to adexCollectionCatalog and rendered below the quantity entry)
                     const matchingVariants = allCollection.filter(s => s.color === curColor && s.finish === curFinish && s.sku_id !== sku.sku_id);
 
-                    return (
+                    const variantRows = (
                       <div className="variant-selectors">
                         {uniqueColors.length > 1 && (
                           <div className="variant-selector-group">
@@ -7480,7 +7484,9 @@
                             </div>
                           </div>
                         )}
-                        {matchingVariants.length > 0 && (() => {
+                      </div>
+                    );
+                    adexCollectionCatalog = matchingVariants.length > 0 && (() => {
                           // Group variants by category (like James Martin "Complete the Look")
                           const categorize = (name, variantName) => {
                             const vn = variantName || '';
@@ -7549,9 +7555,8 @@
                               })}
                             </div>
                           );
-                        })()}
-                      </div>
-                    );
+                    })();
+                    return variantRows;
                   }
                 }
 
@@ -8909,6 +8914,9 @@
                   </a>
                 </div>
               )}
+
+              {/* ADEX collection catalog — below the quantity entry so add-to-cart stays first */}
+              {adexCollectionCatalog}
 
               {/* Matching Accessories */}
               {accessorySiblings.length > 0 && (
