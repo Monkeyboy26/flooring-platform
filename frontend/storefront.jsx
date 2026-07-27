@@ -2896,21 +2896,28 @@
       const goSkuDetail = (skuId, productName) => {
         const fromDetail = view === 'detail';
         if (view === 'browse' || view === 'home') scrollY.current = window.scrollY;
+        // Snapshot the live browse state (incl. page + scroll) onto the current history entry
+        // so browser-back lands exactly where the user left off browsing
+        if (view === 'browse') {
+          history.replaceState({
+            view: 'browse', cat: selectedCategory, coll: selectedCollection, search: searchQuery,
+            filters, vendors: vendorFilters, priceMin: userPriceRange.min, priceMax: userPriceRange.max,
+            tags: tagFilters, page: currentPage, scrollPos: window.scrollY
+          }, '', window.location.href);
+        }
         setSelectedSkuId(skuId);
         setView('detail');
         const slug = generateSlug(productName || 'product');
-        history.pushState({ view: 'detail', skuId, _fromDetail: fromDetail }, '', '/shop/sku/' + skuId + '/' + slug);
+        const url = '/shop/sku/' + skuId + '/' + slug;
+        // Detail → detail (variant pills, accessories): replace the entry so Back returns
+        // to the shop where the user was browsing, not through every variant viewed
+        if (fromDetail) history.replaceState({ view: 'detail', skuId }, '', url);
+        else history.pushState({ view: 'detail', skuId }, '', url);
         window.scrollTo(0, 0);
         track('product_view', { sku_id: skuId });
       };
 
       const goBackToBrowse = () => {
-        // Use browser history when the previous page was also a detail page (e.g. navigating back from accessory)
-        const prev = history.state;
-        if (prev && prev._fromDetail) {
-          history.back();
-          return;
-        }
         setView('browse');
         pushShopUrl(selectedCategory, selectedCollection, searchQuery, filters, false, vendorFilters, userPriceRange.min, userPriceRange.max, tagFilters);
         requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, scrollY.current)));
