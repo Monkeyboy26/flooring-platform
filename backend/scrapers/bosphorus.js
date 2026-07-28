@@ -358,6 +358,16 @@ export async function run(pool, job, source) {
             });
             if (sku.is_new) stats.skusCreated++;
 
+            // Descriptive accessory_label survives the color-grouping merge that
+            // collapses the product name to the collection ("Arenite"), so trim
+            // pieces don't all render as the bare collection name on the PDP.
+            if (isAccessory) {
+              await pool.query(
+                'UPDATE skus SET accessory_label = $1 WHERE id = $2',
+                [buildAccessoryLabel(sizeNorm, finish, accessoryType), sku.id]
+              );
+            }
+
             // Inventory from stock status
             if (v.stockStatus !== undefined) {
               const qty = v.totalStock ? parseFloat(v.totalStock) : 0;
@@ -1891,6 +1901,47 @@ function inferAccessoryType(sizeNorm, finish) {
   }
 
   return null;
+}
+
+/**
+ * Build a human-friendly accessory label like "Bullnose 3x24" or "Pencil Liner 1/2x8".
+ *
+ * After group-bosphorus-colors.cjs merges every size/finish product into one
+ * collection-named product ("Arenite"), the accessory's product name is no
+ * longer descriptive — so the storefront falls back to showing the collection
+ * name for every trim piece. Writing accessory_label preserves the trim type.
+ *
+ * The size label (sizeNorm) usually carries the vendor's own trim word
+ * ("3x24 Surface bullnose", "1/2x8 Jolly Liner", "2x2 Mosaic"); when it's a
+ * bare dimension we fall back to inferAccessoryType's size heuristics. The
+ * dimension is appended so multiple trims of the same type (3x24 vs 3x48
+ * bullnose) stay distinct instead of collapsing under the storefront's
+ * DISTINCT ON (accessory_label, variant_name) dedup.
+ */
+function buildAccessoryLabel(sizeNorm, finish, accessoryType) {
+  const raw = (sizeNorm || '').trim();
+  // Split "<dimension> <keyword>" — dimension supports fractions (1/2), mixed
+  // numbers (2 1/2) and decimals (0.5).
+  const m = raw.match(/^\s*((?:\d+\s+)?\d+(?:\.\d+)?(?:\/\d+)?\s*x\s*\d+(?:\.\d+)?(?:\/\d+)?)\s*(.*)$/i);
+  const dim = m ? m[1].replace(/\s*x\s*/i, 'x').trim() : raw;
+  const keyword = m ? m[2].trim() : '';
+
+  const hay = `${keyword} ${finish || ''}`.toLowerCase();
+  let type;
+  if (/bullnose/.test(hay)) type = 'Bullnose';
+  else if (/jolly/.test(hay)) type = 'Jolly Liner';
+  else if (/chair\s*rail/.test(hay)) type = 'Chair Rail';
+  else if (/quarter\s*round/.test(hay)) type = 'Quarter Round';
+  else if (/pencil/.test(hay)) type = 'Pencil Liner';
+  else if (/mosaic/.test(hay)) type = 'Mosaic';
+  else {
+    // No vendor keyword — classify by dimensions. Map inferAccessoryType's
+    // "Mosaic Insert" to "Mosaic" so bare "2x2" matches "2x2 Mosaic".
+    const inferred = inferAccessoryType(dim, finish) || accessoryType;
+    type = inferred === 'Mosaic Insert' ? 'Mosaic' : (inferred || 'Trim');
+  }
+
+  return dim && /x/i.test(dim) ? `${type} ${dim}` : type;
 }
 
 /**
