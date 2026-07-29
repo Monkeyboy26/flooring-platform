@@ -1,30 +1,60 @@
-import { LOGO_URL } from './_config.js';
-function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+// Tier promotion email — rebuilt on the shared Brass Charcoal shell (_shell.js)
+// to match tradeApproval.js. Celebrates a spend-based tier upgrade, showing the
+// new tier and its discount, with a CTA into the trade portal.
+import { emailShell, heroSection, ctaButton, warmCard, section, T, SERIF, SANS, MONO, esc } from './_shell.js';
+
+// Discount by tier, kept in sync with the approval email's ladder. Used to show
+// the new rate when the tier name is recognized; omitted otherwise.
+const TIER_DISCOUNTS = { Silver: '12.5%', Gold: '18.75%', Platinum: '21.875%' };
 
 export function generateTierPromotionHTML(customer, tierName) {
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 0;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
-  <tr><td style="padding:40px 40px 20px;text-align:center;border-bottom:1px solid #e7e5e4;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto 12px;width:140px;height:140px;" />
-    <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#78716c;margin:0;">Trade Program</p>
-  </td></tr>
-  <tr><td style="padding:40px;text-align:center;">
-    <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:400;color:#c9a668;margin:0 0 16px;">Congratulations!</h2>
-    <p style="color:#57534e;line-height:1.6;margin:0 0 16px;font-size:16px;">You've been promoted to</p>
-    <div style="background:#f5f5f4;display:inline-block;padding:16px 40px;margin:0 0 24px;">
-      <span style="font-family:'Cormorant Garamond',Georgia,serif;font-size:32px;font-weight:400;color:#1c1917;">${esc(tierName)}</span>
-    </div>
-    <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">Dear ${esc(customer.contact_name)}, your continued partnership with Roma Flooring Designs has earned you an upgrade to our <strong>${esc(tierName)}</strong> tier.</p>
-    <p style="color:#57534e;line-height:1.6;margin:0;">Log in to your account to see your updated pricing.</p>
-  </td></tr>
-  <tr><td style="padding:20px 40px;background:#f5f5f4;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-size:12px;color:#78716c;">Roma Flooring Designs | 1440 S. State College Blvd #6M, Anaheim, CA 92806 | (714) 999-0009</p>
-  </td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
+  const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
+  const firstName = (customer.contact_name || '').trim().split(/\s+/)[0] || 'there';
+  const tier = esc(tierName || '');
+  const discount = TIER_DISCOUNTS[tierName] || null;
+  const loginUrl = `${siteUrl}/trade`;
+
+  const hero = heroSection({
+    eyebrow: 'Trade Program &middot; Tier upgrade',
+    headline: `You&rsquo;ve reached <em style="color:${T.accent};">${tier}</em>.`,
+    body: `Hi ${esc(firstName)} &mdash; your continued partnership with Roma Flooring has earned ` +
+      `<span style="color:${T.ink};font-weight:500;">${esc(customer.company_name || 'your business')}</span> an upgrade to our ${tier} tier.`,
+    chip: '&#9650; Upgraded'
+  });
+
+  const tierCard = section(warmCard(`
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td valign="middle">
+        <p style="margin:0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">Your new tier</p>
+        <p style="margin:4px 0 0;font-family:${SERIF};font-size:30px;line-height:1;letter-spacing:-0.01em;color:${T.ink};">${tier}</p>
+      </td>
+      ${discount ? `<td valign="middle" align="right">
+        <p style="margin:0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">Discount</p>
+        <p style="margin:4px 0 0;font-family:${SERIF};font-size:30px;line-height:1;font-weight:300;letter-spacing:-0.01em;color:${T.accent};">${discount}</p>
+      </td>` : ''}
+    </tr></table>
+  `, '20px 22px'), '0 40px 24px');
+
+  const closing = section(`
+    <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};">
+      Your new pricing is live across the catalog now. Your tier is based on trailing 12-month spend, so it keeps pace with your business automatically.
+    </p>
+  `, '0 40px 32px');
+
+  const content = `
+    ${hero}
+    ${ctaButton({
+      href: loginUrl,
+      label: 'Log in to see your new pricing &rarr;',
+      note: `Your ${tier} discount is applied automatically at checkout`
+    })}
+    ${tierCard}
+    ${closing}
+  `;
+
+  return emailShell({
+    title: `You've been upgraded to ${tierName || 'a new tier'} — Roma Flooring trade`,
+    preheader: `Congratulations ${firstName} — ${customer.company_name || 'your business'} has been upgraded to ${tierName || 'a new tier'}.`,
+    content
+  });
 }

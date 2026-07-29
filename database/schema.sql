@@ -13,9 +13,31 @@ CREATE TABLE vendors (
     is_active BOOLEAN DEFAULT true,
     -- Auto-created from a rep's one-off custom line (name + email only, no catalog)
     is_one_off BOOLEAN DEFAULT false,
+    -- Vendor company info (managed in admin Vendors section). Rep/contact people
+    -- live in vendor_contacts (one vendor → many contacts).
+    phone TEXT,
+    address TEXT,
+    account_number TEXT,
+    notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Named contacts / reps for a vendor (CS, sales, AR, etc.). Separated from the
+-- vendor company record so a vendor can have multiple people.
+CREATE TABLE vendor_contacts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    role TEXT,
+    email TEXT,
+    phone TEXT,
+    is_primary BOOLEAN DEFAULT false,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_vendor_contacts_vendor ON vendor_contacts(vendor_id);
 
 -- ==================== Brands ====================
 
@@ -132,6 +154,7 @@ CREATE TABLE orders (
     session_id TEXT,
     customer_email TEXT NOT NULL,
     customer_name TEXT NOT NULL,
+    company_name TEXT,
     phone TEXT,
     shipping_address_line1 TEXT,
     shipping_address_line2 TEXT,
@@ -329,6 +352,9 @@ CREATE TABLE sales_reps (
     last_name TEXT NOT NULL,
     phone TEXT,
     is_active BOOLEAN DEFAULT true,
+    -- Reps flagged as managers get the Trade applications review section in the
+    -- rep portal (view/approve/reject trade memberships). Regular reps do not.
+    is_manager BOOLEAN DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -347,6 +373,7 @@ CREATE TABLE quotes (
     sales_rep_id UUID NOT NULL REFERENCES sales_reps(id),
     customer_name TEXT NOT NULL,
     customer_email TEXT NOT NULL,
+    company_name TEXT,
     phone TEXT,
     shipping_address_line1 TEXT,
     shipping_address_line2 TEXT,
@@ -690,6 +717,7 @@ CREATE TABLE installation_inquiries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     customer_name VARCHAR(200) NOT NULL,
     customer_email VARCHAR(255) NOT NULL,
+    company_name VARCHAR(200),
     phone VARCHAR(30),
     zip_code VARCHAR(10),
     estimated_sqft NUMERIC(10,2),
@@ -713,6 +741,7 @@ CREATE TABLE customers (
     password_salt TEXT NOT NULL,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
+    company_name TEXT,
     phone TEXT,
     address_line1 TEXT,
     address_line2 TEXT,
@@ -991,6 +1020,7 @@ CREATE TABLE IF NOT EXISTS sample_requests (
   customer_name TEXT NOT NULL,
   customer_email TEXT,
   customer_phone TEXT,
+  company_name TEXT,
   shipping_address_line1 TEXT,
   shipping_address_line2 TEXT,
   shipping_city TEXT,

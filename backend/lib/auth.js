@@ -55,7 +55,7 @@ export function createAuthMiddleware(pool) {
 
     try {
       const result = await pool.query(`
-        SELECT rs.id as session_id, sr.id, sr.email, sr.first_name, sr.last_name, sr.is_active
+        SELECT rs.id as session_id, sr.id, sr.email, sr.first_name, sr.last_name, sr.is_active, sr.is_manager
         FROM rep_sessions rs
         JOIN sales_reps sr ON sr.id = rs.rep_id
         WHERE rs.token = $1 AND rs.expires_at > CURRENT_TIMESTAMP
@@ -68,7 +68,8 @@ export function createAuthMiddleware(pool) {
         id: result.rows[0].id,
         email: result.rows[0].email,
         first_name: result.rows[0].first_name,
-        last_name: result.rows[0].last_name
+        last_name: result.rows[0].last_name,
+        is_manager: !!result.rows[0].is_manager
       };
       next();
     } catch (err) {
@@ -233,6 +234,13 @@ export function createAuthMiddleware(pool) {
     };
   }
 
+  // Gate for rep-portal endpoints reserved for managers (must follow repAuth).
+  function requireRepManager(req, res, next) {
+    if (!req.rep) return res.status(401).json({ error: 'Authentication required' });
+    if (!req.rep.is_manager) return res.status(403).json({ error: 'Insufficient permissions' });
+    next();
+  }
+
   async function logAudit(staffId, action, entityType, entityId, details, ipAddress) {
     try {
       await pool.query(
@@ -267,6 +275,6 @@ export function createAuthMiddleware(pool) {
   return {
     hashPassword, verifyPassword, validatePassword, hashToken,
     staffAuth, staffDocAuth, repAuth, tradeAuth, optionalTradeAuth,
-    customerAuth, optionalCustomerAuth, requireRole, logAudit
+    customerAuth, optionalCustomerAuth, requireRole, requireRepManager, logAudit
   };
 }

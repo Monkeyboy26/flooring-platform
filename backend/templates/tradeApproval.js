@@ -1,38 +1,100 @@
-import { LOGO_URL } from './_config.js';
-function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+// Trade approval ("Welcome to the Trade Program") email — rebuilt on the shared
+// Brass Charcoal shell (_shell.js) to match quoteSent.js / estimateSent.js.
+// Leads with a welcome hero, shows the spend-based tier ladder in a warm card
+// with the starting Silver tier highlighted, and a CTA into the trade portal.
+import { emailShell, heroSection, ctaButton, warmCard, section, sectionLabel, T, SERIF, SANS, MONO, esc } from './_shell.js';
+
+// Spend-based tier ladder. Kept in sync with the approval copy; the member
+// starts at Silver and moves up automatically on trailing 12-month spend.
+const TIERS = [
+  { name: 'Silver', discount: '12.5%', threshold: 'Starting tier', current: true },
+  { name: 'Gold', discount: '18.75%', threshold: 'at $12,500 / yr' },
+  { name: 'Platinum', discount: '21.875%', threshold: 'at $25,000 / yr' },
+];
+
+function tierLadder() {
+  const rows = TIERS.map((t, i) => {
+    const last = i === TIERS.length - 1;
+    const border = last ? '' : `border-bottom:1px solid ${T.border};`;
+    const nameColor = t.current ? T.ink : T.soft;
+    const nameWeight = t.current ? '500' : '400';
+    return `<tr>
+      <td valign="middle" style="padding:12px 0;${border}">
+        <span style="font-family:${SERIF};font-size:19px;line-height:1;letter-spacing:-0.01em;color:${nameColor};font-weight:${nameWeight};">${t.name}</span>
+        ${t.current ? `<span style="margin-left:10px;font-family:${MONO};font-size:9px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:${T.accent};">You&rsquo;re here</span>` : ''}
+      </td>
+      <td valign="middle" align="right" style="padding:12px 0;${border}white-space:nowrap;">
+        <span style="font-family:${SERIF};font-size:22px;font-weight:300;letter-spacing:-0.01em;color:${nameColor};">${t.discount}</span>
+        <span style="display:block;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.muted};">${t.threshold}</span>
+      </td>
+    </tr>`;
+  }).join('');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>`;
+}
+
+const NEXT_STEPS = [
+  'Log in to see live trade pricing across the catalog',
+  'Order at your exclusive discount, applied automatically',
+  'Track your tier progress from your trade dashboard',
+  'Your dedicated rep will reach out shortly',
+];
 
 export function generateTradeApprovalHTML(customer) {
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 0;">
-<tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
-  <tr><td style="padding:40px 40px 20px;text-align:center;border-bottom:1px solid #e7e5e4;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="140" height="140" style="display:block;margin:0 auto 12px;width:140px;height:140px;" />
-    <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#78716c;margin:0;">Trade Program</p>
-  </td></tr>
-  <tr><td style="padding:40px;">
-    <h2 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;font-weight:400;color:#1c1917;margin:0 0 16px;">Welcome to the Trade Program!</h2>
-    <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">Dear ${esc(customer.contact_name)},</p>
-    <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">We're pleased to inform you that your trade application for <strong>${esc(customer.company_name)}</strong> has been approved.</p>
-    <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">You now have access to exclusive trade pricing, dedicated account support, and all the benefits of our trade program — with no membership fee.</p>
-    <p style="color:#57534e;line-height:1.6;margin:0 0 16px;">You'll start at our <strong>Silver</strong> tier (12.5% off). Your tier is based purely on what you spend with us over a rolling 12-month period — reach $12,500 for <strong>Gold</strong> (18.75% off) and $25,000 for <strong>Platinum</strong> (21.875% off). You'll move up automatically as you order.</p>
-    <div style="background:#f5f5f4;padding:20px;margin:24px 0;">
-      <p style="margin:0 0 8px;font-weight:500;color:#1c1917;">What's Next:</p>
-      <ul style="color:#57534e;line-height:1.8;margin:0;padding-left:20px;">
-        <li>Log in to your account to see trade pricing</li>
-        <li>Browse our full catalog with your exclusive discount</li>
-        <li>Track your tier progress from your trade dashboard</li>
-        <li>Your assigned rep will reach out shortly</li>
-      </ul>
-    </div>
-    <p style="color:#57534e;line-height:1.6;margin:0;">Thank you for choosing Roma Flooring Designs.</p>
-  </td></tr>
-  <tr><td style="padding:20px 40px;background:#f5f5f4;border-top:1px solid #e7e5e4;text-align:center;">
-    <p style="margin:0;font-size:12px;color:#78716c;">Roma Flooring Designs | 1440 S. State College Blvd #6M, Anaheim, CA 92806 | (714) 999-0009</p>
-  </td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
+  const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
+  const firstName = (customer.contact_name || '').trim().split(/\s+/)[0] || 'there';
+  const company = esc(customer.company_name || 'your business');
+  const loginUrl = `${siteUrl}/trade`;
+
+  const hero = heroSection({
+    eyebrow: 'Trade Program &middot; Application approved',
+    headline: `Welcome to the <em style="color:${T.accent};">trade</em>.`,
+    body: `Hi ${esc(firstName)} &mdash; your trade application for <span style="color:${T.ink};font-weight:500;">${company}</span> is approved. ` +
+      `You now have exclusive trade pricing, dedicated account support, and every benefit of the program &mdash; with no membership fee.`,
+    chip: '&#10003; Approved'
+  });
+
+  const tierBlock = section(`
+    ${sectionLabel('Your pricing')}
+    ${warmCard(`
+      <p style="margin:0 0 4px;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};">
+        You&rsquo;re starting at <span style="color:${T.ink};font-weight:500;">Silver</span>. Your tier is based purely on what you spend with us over a rolling 12-month period &mdash; you move up automatically as you order.
+      </p>
+      <div style="height:14px;"></div>
+      ${tierLadder()}
+    `, '20px 22px')}
+  `, '0 40px 24px');
+
+  const nextBlock = section(`
+    ${sectionLabel('What&rsquo;s next')}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      ${NEXT_STEPS.map((step, i) => `<tr>
+        <td width="26" valign="top" style="padding:${i === 0 ? '0' : '10px'} 0 0;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.1em;color:${T.accent};">${String(i + 1).padStart(2, '0')}</td>
+        <td valign="top" style="padding:${i === 0 ? '0' : '10px'} 0 0;font-family:${SANS};font-size:14px;line-height:1.5;color:${T.body};">${step}</td>
+      </tr>`).join('')}
+    </table>
+  `, '0 40px 28px');
+
+  const closing = section(`
+    <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};">
+      Thank you for choosing Roma Flooring Designs. We&rsquo;re glad to have ${company} on the trade roster.
+    </p>
+  `, '0 40px 36px');
+
+  const content = `
+    ${hero}
+    ${ctaButton({
+      href: loginUrl,
+      label: 'Log in to see your trade pricing &rarr;',
+      note: 'Browse the full catalog with your discount applied &middot; track your tier from your dashboard'
+    })}
+    ${tierBlock}
+    ${nextBlock}
+    ${closing}
+  `;
+
+  return emailShell({
+    title: 'Welcome to the Roma Flooring trade program',
+    preheader: `${firstName}, your trade application for ${customer.company_name || 'your business'} is approved — log in to see your pricing.`,
+    content
+  });
 }
