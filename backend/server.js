@@ -21,7 +21,7 @@ import { spawn } from 'child_process';
 import sharp from 'sharp';
 import { pool } from './db.js';
 import { createAuthMiddleware } from './lib/auth.js';
-import { calculateSalesTax, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
+import { calculateSalesTax, isTradeTaxExempt, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
 import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
@@ -3548,7 +3548,7 @@ app.post('/api/calculate', async (req, res) => {
 });
 
 // Cart routes — extracted to routes/cart.js
-app.use(createCartRoutes({ pool, calculateSalesTax, isPickupOnly }));
+app.use(createCartRoutes({ pool, calculateSalesTax, isPickupOnly, optionalTradeAuth }));
 
 // CA sales-tax table (zip prefix → rate) so frontends estimate with the same
 // rates calculateSalesTax applies at order creation
@@ -5083,10 +5083,13 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     }
 
     // Calculate sales tax — CA lets retailer discounts (promo codes) reduce the
-    // taxable receipts, so tax the post-discount merchandise subtotal.
+    // taxable receipts, so tax the post-discount merchandise subtotal. Resale
+    // exemption is resolved from the trade account (backend-authoritative), never
+    // from the client-supplied is_tax_exempt flag.
     const destZip = isPickup ? SHIP_FROM.zip : (shipping ? shipping.zip : null);
     const taxableSubtotal = Math.max(0, productSubtotal - discountAmount);
-    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, is_tax_exempt);
+    const taxExempt = await isTradeTaxExempt(client, { id: req.tradeCustomer ? req.tradeCustomer.id : null });
+    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, taxExempt);
 
     const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
 
@@ -5144,7 +5147,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         isPickup ? null : shipping.city, isPickup ? null : shipping.state, isPickup ? null : shipping.zip,
         productSubtotal.toFixed(2), shippingCost.toFixed(2), shippingMethod, sampleShipping.toFixed(2), total.toFixed(2),
         orderPaymentIntentId, isPickup ? 'pickup' : 'shipping', orderStatus,
-        tradeCustomerId, po_number || null, is_tax_exempt || false, project_id || null,
+        tradeCustomerId, po_number || null, taxExempt, project_id || null,
         selectedCarrier, selectedTransitDays, isResidential, isLiftgate, isFallback,
         existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), amountPaid,
         taxRate, taxAmount.toFixed(2), reqPaymentMethod || 'stripe', bankInstructions ? JSON.stringify(bankInstructions) : null, bankExpiresAt,
@@ -15790,7 +15793,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     // discount to catalog (SKU) line items — same rule as the storefront and
     // the RoF quote flow. Custom/one-off lines keep the rep-entered price.
     const tradeLookup = await client.query(`
-      SELECT tc.id, COALESCE(mt.discount_percent, 0) AS discount_percent, mt.name AS tier_name
+      SELECT tc.id, tc.tax_exempt, tc.status, COALESCE(mt.discount_percent, 0) AS discount_percent, mt.name AS tier_name
       FROM trade_customers tc
       LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
       WHERE LOWER(tc.email) = LOWER($1)
@@ -15798,6 +15801,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     `, [customer_email]);
     const tradeCustomer = tradeLookup.rows[0] || null;
     const tradeDiscount = tradeCustomer ? parseFloat(tradeCustomer.discount_percent) || 0 : 0;
+    const taxExempt = !!(tradeCustomer && tradeCustomer.status === 'approved' && tradeCustomer.tax_exempt);
 
     // Resolve items
     const resolvedItems = [];
@@ -15931,7 +15935,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     // taxable receipts, so tax the post-discount merchandise subtotal.
     const destZip = isPickup ? SHIP_FROM.zip : (shipping_address ? shipping_address.zip : SHIP_FROM.zip);
     const taxableSubtotal = Math.max(0, subtotal - discountAmount);
-    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, false);
+    const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, taxExempt);
     const total = Math.max(0, subtotal + taxAmount + shippingCost - discountAmount);
     if (total <= 0 && !['cash', 'check', 'offline'].includes(payment_method)) {
       await client.query('ROLLBACK');
@@ -21280,10 +21284,11 @@ async function recalculateEstimateTotals(estimateId, client) {
   const laborSubtotal = parseFloat(parseFloat(laborResult.rows[0].total).toFixed(2));
   const sub = parseFloat((materialsSubtotal + laborSubtotal).toFixed(2));
 
-  // Tax on materials only
-  const est = await client.query('SELECT project_zip FROM estimates WHERE id = $1', [estimateId]);
+  // Tax on materials only, and zeroed entirely for resale-exempt trade customers.
+  const est = await client.query('SELECT project_zip, customer_email FROM estimates WHERE id = $1', [estimateId]);
   const zip = est.rows[0] ? est.rows[0].project_zip : null;
-  const tax = calculateSalesTax(materialsSubtotal, zip);
+  const taxExempt = await isTradeTaxExempt(client, { email: est.rows[0] ? est.rows[0].customer_email : null });
+  const tax = calculateSalesTax(materialsSubtotal, zip, taxExempt);
   const total = parseFloat((sub + tax.amount).toFixed(2));
 
   await client.query(
@@ -22210,11 +22215,13 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
   const paidInStore = ['cash', 'check', 'card', 'offline'].includes(paymentMethod);
   const orderStatus = paidInStore ? 'confirmed' : 'pending';
 
-  // Subtotal covers materials + labor; sales tax applies to materials only
+  // Subtotal covers materials + labor; sales tax applies to materials only,
+  // and is zeroed for resale-exempt trade customers.
   const matSubtotal = parseFloat(e.materials_subtotal || 0);
   const laborSubtotal = parseFloat(e.labor_subtotal || 0);
   const orderSubtotal = parseFloat((matSubtotal + laborSubtotal).toFixed(2));
-  const tax = calculateSalesTax(matSubtotal, e.project_zip);
+  const taxExempt = await isTradeTaxExempt(client, { email: e.customer_email });
+  const tax = calculateSalesTax(matSubtotal, e.project_zip, taxExempt);
   const orderTotal = parseFloat((orderSubtotal + tax.amount).toFixed(2));
 
   const orderResult = await client.query(`
@@ -25272,11 +25279,12 @@ app.get('/api/admin/trade-customers', staffAuth, requireRole('admin', 'manager',
 
 app.put('/api/admin/trade-customers/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
   try {
-    const { status, margin_tier_id, notes, payment_terms } = req.body;
+    const { status, margin_tier_id, notes, payment_terms, tax_exempt } = req.body;
     const result = await pool.query(
       `UPDATE trade_customers SET status = COALESCE($1, status), margin_tier_id = COALESCE($2, margin_tier_id),
-       notes = COALESCE($3, notes), payment_terms = COALESCE($4, payment_terms), updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *`,
-      [status, margin_tier_id, notes, payment_terms, req.params.id]
+       notes = COALESCE($3, notes), payment_terms = COALESCE($4, payment_terms),
+       tax_exempt = COALESCE($5, tax_exempt), updated_at = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *`,
+      [status, margin_tier_id, notes, payment_terms, tax_exempt, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Trade customer not found' });
 

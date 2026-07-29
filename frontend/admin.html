@@ -2161,6 +2161,7 @@
         { key: 'quotes', label: 'Quotes', icon: 'M8 7h8m-8 4h6m-6 4h4m-7 6l3-3h9a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v16z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'purchase-orders', label: 'Purchase Orders', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', roles: ['admin', 'manager', 'warehouse'] },
         { key: 'customers', label: 'Customers', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', roles: ['admin', 'manager', 'sales_rep'] },
+        { key: 'visits', label: 'Visits', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: ['admin', 'manager'] },
         { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', roles: ['admin', 'manager'] },
         { key: 'trade', label: 'Trade', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'manager', 'sales_rep'] },
@@ -2183,6 +2184,7 @@
                           view.split('-')[0] === 'product' ? 'products' :
                           view.split('-')[0] === 'vendor' ? 'vendors' :
                           view.split('-')[0] === 'customer' ? 'customers' :
+                          view.split('-')[0] === 'visit' ? 'visits' :
                           view.split('-')[0] === 'order' ? 'orders' :
                           view.split('-')[0] === 'quote' ? 'quotes' :
                           view.split('-')[0] === 'promo' || view === 'promos' ? 'promos' :
@@ -2214,6 +2216,12 @@
               <CustomersListView navigate={navigate} />
             ) : view === 'customer-detail' ? (
               <CustomerDetailView navigate={navigate} editId={editId} staffRole={staffRole} />
+            ) : view === 'customer-duplicates' ? (
+              <CustomerDuplicatesView navigate={navigate} />
+            ) : view === 'visits' ? (
+              <VisitsListView navigate={navigate} />
+            ) : view === 'visit-detail' ? (
+              <VisitDetailView navigate={navigate} editId={editId} staffRole={staffRole} />
             ) : (
           <div className="admin-content">
             {view === 'overview' && <DashboardView navigate={navigate} />}
@@ -2222,6 +2230,7 @@
             {view === 'product-edit' && <ProductFormView navigate={navigate} editId={editId} />}
             {view === 'bulk-import' && <BulkImportView navigate={navigate} />}
             {view === 'vendors' && <VendorsListView navigate={navigate} />}
+            {view === 'vendor-detail' && <VendorDetailView navigate={navigate} editId={editId} />}
             {view === 'vendor-create' && <VendorFormView navigate={navigate} />}
             {view === 'vendor-edit' && <VendorFormView navigate={navigate} editId={editId} />}
             {view === 'trade' && <TradeManagementView navigate={navigate} />}
@@ -4029,6 +4038,9 @@
     function VendorsListView({ navigate }) {
       const [vendors, setVendors] = useState([]);
       const [loading, setLoading] = useState(true);
+      const [search, setSearch] = useState('');
+      const [statusFilter, setStatusFilter] = useState('all');
+      const [sort, setSort] = useState({ key: 'name', dir: 1 });
 
       const load = () => {
         setLoading(true);
@@ -4038,7 +4050,8 @@
       };
       useEffect(load, []);
 
-      const toggleActive = (id) => {
+      const toggleActive = (e, id) => {
+        e.stopPropagation();
         adminFetch('/api/admin/vendors/' + id + '/toggle', { method: 'PATCH' })
           .then(data => {
             if (data.vendor) {
@@ -4047,6 +4060,19 @@
           })
           .catch(() => {});
       };
+
+      const sortBy = (key) => setSort(prev => prev.key === key ? { key, dir: -prev.dir } : { key, dir: 1 });
+      const sortArrow = (key) => sort.key === key ? (sort.dir === 1 ? ' ▲' : ' ▼') : '';
+
+      const q = search.trim().toLowerCase();
+      const visible = vendors
+        .filter(v => statusFilter === 'all' || (statusFilter === 'active' ? v.is_active : !v.is_active))
+        .filter(v => !q || (v.name || '').toLowerCase().includes(q) || (v.code || '').toLowerCase().includes(q))
+        .sort((a, b) => {
+          let av = a[sort.key], bv = b[sort.key];
+          if (sort.key === 'product_count') { av = av || 0; bv = bv || 0; return (av - bv) * sort.dir; }
+          return String(av || '').localeCompare(String(bv || '')) * sort.dir;
+        });
 
       if (loading) return <div className="loading">Loading vendors...</div>;
 
@@ -4058,34 +4084,52 @@
               <button className="btn btn-primary" onClick={() => navigate('vendor-create')}>+ Add Vendor</button>
             </div>
           </div>
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search name or code..."
+              style={{ flex: '1 1 220px', maxWidth: '320px', padding: '0.5rem 0.75rem', border: '1px solid var(--stone-200)', borderRadius: '6px', fontSize: '0.875rem' }}
+            />
+            <div style={{ display: 'flex', gap: '0.25rem' }}>
+              {['all', 'active', 'inactive'].map(f => (
+                <button key={f}
+                  className={'btn btn-sm ' + (statusFilter === f ? 'btn-primary' : 'btn-secondary')}
+                  onClick={() => setStatusFilter(f)}
+                  style={{ textTransform: 'capitalize' }}>{f}</button>
+              ))}
+            </div>
+            <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>{visible.length} of {vendors.length}</span>
+          </div>
           <div className="table-scroll-wrapper">
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Code</th>
-                <th>Website</th>
-                <th>Products</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => sortBy('name')}>Name{sortArrow('name')}</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => sortBy('code')}>Code{sortArrow('code')}</th>
+                <th>Contact</th>
+                <th style={{ cursor: 'pointer' }} onClick={() => sortBy('product_count')}>Products{sortArrow('product_count')}</th>
                 <th>Active</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {vendors.map(v => (
-                <tr key={v.id}>
+              {visible.map(v => (
+                <tr key={v.id} onClick={() => navigate('vendor-detail', v.id)} style={{ cursor: 'pointer' }}>
                   <td style={{ fontWeight: 500 }}>{v.name}</td>
                   <td><code style={{ fontSize: '0.8125rem', background: 'var(--stone-100)', padding: '0.15rem 0.4rem' }}>{v.code}</code></td>
-                  <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.website || '—'}</td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{v.primary_contact_name || v.email || v.phone || '—'}</td>
                   <td>{v.product_count}</td>
                   <td>
-                    <div className={'toggle' + (v.is_active ? ' on' : '')} onClick={() => toggleActive(v.id)} />
+                    <div className={'toggle' + (v.is_active ? ' on' : '')} onClick={(e) => toggleActive(e, v.id)} />
                   </td>
-                  <td className="actions">
+                  <td className="actions" onClick={e => e.stopPropagation()}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => navigate('vendor-detail', v.id)}>View</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => navigate('vendor-edit', v.id)}>Edit</button>
                   </td>
                 </tr>
               ))}
-              {vendors.length === 0 && (
+              {visible.length === 0 && (
                 <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No vendors found</td></tr>
               )}
             </tbody>
@@ -4095,23 +4139,271 @@
       );
     }
 
+    // Progressive US phone formatter → "(XXX) XXX-XXXX" (+1 country code, " x<ext>" beyond 10 digits)
+    function formatPhone(v) {
+      let d = (v || '').replace(/\D/g, '');
+      let cc = '';
+      if (d.length > 10 && d[0] === '1') { cc = '+1 '; d = d.slice(1); }
+      const ext = d.slice(10);
+      d = d.slice(0, 10);
+      let out;
+      if (d.length < 4) out = d;
+      else if (d.length < 7) out = '(' + d.slice(0, 3) + ') ' + d.slice(3);
+      else out = '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+      return (cc + out + (ext ? ' x' + ext : '')).trim();
+    }
+
+    // ========== ContactEditor (inline vendor contact add/edit) ==========
+    function ContactEditor({ form, setForm, onSave, onCancel, saving }) {
+      const set = (k) => (e) => setForm(prev => ({ ...prev, [k]: e.target.value }));
+      const inp = { width: '100%', padding: '0.4rem 0.55rem', border: '1px solid var(--stone-200)', borderRadius: '5px', fontSize: '0.8125rem' };
+      return (
+        <div style={{ padding: '0.75rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: '6px', margin: '0.5rem 0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <input style={inp} placeholder="Name *" value={form.name} onChange={set('name')} />
+            <input style={inp} placeholder="Role (e.g. Sales, AR)" value={form.role} onChange={set('role')} />
+            <input style={inp} placeholder="Email" value={form.email} onChange={set('email')} />
+            <input style={inp} placeholder="Phone" value={form.phone} onChange={e => setForm(prev => ({ ...prev, phone: formatPhone(e.target.value) }))} />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', margin: '0.5rem 0', fontSize: '0.8125rem', color: 'var(--stone-600)' }}>
+            <input type="checkbox" checked={form.is_primary} onChange={e => setForm(prev => ({ ...prev, is_primary: e.target.checked }))} />
+            Primary contact
+          </label>
+          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+            <button className="btn btn-secondary btn-sm" onClick={onCancel} disabled={saving}>Cancel</button>
+            <button className="btn btn-primary btn-sm" onClick={onSave} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== VendorDetailView ==========
+    function VendorDetailView({ navigate, editId }) {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      const fmtMoney = v => '$' + Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const fmtDate = v => v ? new Date(v).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+
+      const load = () => {
+        setLoading(true);
+        adminFetch('/api/admin/vendors/' + editId)
+          .then(d => { setData(d); setLoading(false); })
+          .catch(err => { setError(err.message); setLoading(false); });
+      };
+      useEffect(load, [editId]);
+
+      const toggleActive = () => {
+        adminFetch('/api/admin/vendors/' + editId + '/toggle', { method: 'PATCH' })
+          .then(d => { if (d.vendor) setData(prev => ({ ...prev, vendor: { ...prev.vendor, is_active: d.vendor.is_active } })); })
+          .catch(() => {});
+      };
+
+      const [editingContact, setEditingContact] = useState(null); // null=none, 'new', or contact id
+      const [contactForm, setContactForm] = useState({ name: '', role: '', email: '', phone: '', is_primary: false, notes: '' });
+      const [savingContact, setSavingContact] = useState(false);
+
+      const startNewContact = () => { setContactForm({ name: '', role: '', email: '', phone: '', is_primary: false, notes: '' }); setEditingContact('new'); };
+      const startEditContact = (c) => { setContactForm({ name: c.name || '', role: c.role || '', email: c.email || '', phone: formatPhone(c.phone || ''), is_primary: !!c.is_primary, notes: c.notes || '' }); setEditingContact(c.id); };
+      const cancelContact = () => setEditingContact(null);
+
+      const saveContact = async () => {
+        if (!contactForm.name.trim()) { alert('Contact name is required'); return; }
+        setSavingContact(true);
+        try {
+          const isNew = editingContact === 'new';
+          const url = '/api/admin/vendors/' + editId + '/contacts' + (isNew ? '' : '/' + editingContact);
+          await adminFetch(url, { method: isNew ? 'POST' : 'PUT', body: JSON.stringify(contactForm) });
+          setEditingContact(null);
+          load();
+        } catch (err) { alert('Save failed: ' + err.message); }
+        finally { setSavingContact(false); }
+      };
+
+      const deleteContact = async (c) => {
+        if (!confirm('Delete contact ' + c.name + '?')) return;
+        try { await adminFetch('/api/admin/vendors/' + editId + '/contacts/' + c.id, { method: 'DELETE' }); load(); }
+        catch (err) { alert('Delete failed: ' + err.message); }
+      };
+
+      if (loading) return <div className="loading">Loading vendor...</div>;
+      if (error || !data) return (
+        <div>
+          <button className="recd-crumb" onClick={() => navigate('vendors')}>← VENDORS</button>
+          <div style={{ padding: '2rem', color: 'var(--stone-400)' }}>{error || 'Vendor not found'}</div>
+        </div>
+      );
+
+      const v = data.vendor;
+      const stats = data.stats || {};
+      const infoRow = (label, value, isLink) => (
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', padding: '0.55rem 0', borderBottom: '1px solid var(--stone-100)' }}>
+          <span style={{ color: 'var(--stone-500)', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{label}</span>
+          <span style={{ textAlign: 'right', fontSize: '0.875rem', fontWeight: 500 }}>
+            {value
+              ? (isLink ? <a href={/^https?:/.test(value) ? value : 'https://' + value} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--gold, #b8863b)' }}>{value}</a> : value)
+              : <span style={{ color: 'var(--stone-300)', fontWeight: 400 }}>—</span>}
+          </span>
+        </div>
+      );
+
+      return (
+        <div>
+          <button className="recd-crumb" onClick={() => navigate('vendors')}>← VENDORS</button>
+          <div className="content-header" style={{ marginTop: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0 }}>{v.name}</h1>
+              <code style={{ fontSize: '0.8125rem', background: 'var(--stone-100)', padding: '0.15rem 0.45rem', borderRadius: '4px' }}>{v.code}</code>
+              <span className={'status-badge status-' + (v.is_active ? 'active' : 'draft')}>{v.is_active ? 'Active' : 'Inactive'}</span>
+              {v.is_one_off && <span className="badge badge-draft">One-off</span>}
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-secondary" onClick={toggleActive}>{v.is_active ? 'Deactivate' : 'Activate'}</button>
+              <button className="btn btn-primary" onClick={() => navigate('vendor-edit', v.id)}>Edit</button>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem', alignItems: 'start' }}>
+            <div className="form-card">
+              <h3>Company</h3>
+              {infoRow('Email', v.email)}
+              {infoRow('Phone', v.phone)}
+              {infoRow('Website', v.website, true)}
+              {infoRow('Address', v.address)}
+              {infoRow('Account #', v.account_number)}
+            </div>
+
+            <div className="form-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0 }}>Contacts {data.contacts && data.contacts.length ? '(' + data.contacts.length + ')' : ''}</h3>
+                {editingContact === null && <button className="btn btn-secondary btn-sm" onClick={startNewContact}>+ Add Contact</button>}
+              </div>
+              <div style={{ marginTop: '0.75rem' }}>
+                {(data.contacts || []).map(c => (
+                  editingContact === c.id ? (
+                    <ContactEditor key={c.id} form={contactForm} setForm={setContactForm} onSave={saveContact} onCancel={cancelContact} saving={savingContact} />
+                  ) : (
+                    <div key={c.id} style={{ padding: '0.6rem 0', borderBottom: '1px solid var(--stone-100)', display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>
+                          {c.name}{c.is_primary && <span className="badge status-active" style={{ marginLeft: '0.4rem', fontSize: '0.6rem' }}>Primary</span>}
+                        </div>
+                        {c.role && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{c.role}</div>}
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--stone-600)', marginTop: '0.15rem' }}>
+                          {c.email && <a href={'mailto:' + c.email} style={{ color: 'var(--gold, #b8863b)' }}>{c.email}</a>}
+                          {c.email && c.phone && ' · '}
+                          {c.phone && <a href={'tel:' + c.phone} style={{ color: 'var(--stone-600)' }}>{c.phone}</a>}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => startEditContact(c)}>Edit</button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => deleteContact(c)} style={{ color: 'var(--red, #b4453a)' }}>✕</button>
+                      </div>
+                    </div>
+                  )
+                ))}
+                {editingContact === 'new' && <ContactEditor form={contactForm} setForm={setContactForm} onSave={saveContact} onCancel={cancelContact} saving={savingContact} />}
+                {(!data.contacts || data.contacts.length === 0) && editingContact === null && (
+                  <div style={{ color: 'var(--stone-300)', fontSize: '0.8125rem', padding: '0.5rem 0' }}>No contacts yet</div>
+                )}
+              </div>
+            </div>
+
+            <div className="form-card">
+              <h3>Catalog</h3>
+              <div style={{ display: 'flex', gap: '1.5rem', padding: '0.5rem 0' }}>
+                <div><div style={{ fontSize: '1.5rem', fontWeight: 600 }}>{stats.product_count || 0}</div><div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>Total</div></div>
+                <div><div style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--green, #4a7c59)' }}>{stats.active_product_count || 0}</div><div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>Active</div></div>
+                <div><div style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--stone-400)' }}>{stats.draft_product_count || 0}</div><div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>Draft</div></div>
+              </div>
+              <div style={{ marginTop: '0.75rem' }}>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '0.4rem' }}>Brands</div>
+                {data.brands && data.brands.length ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                    {data.brands.map(b => (
+                      <span key={b.id} className="badge" style={{ background: 'var(--stone-100)', color: 'var(--stone-700)' }}>
+                        {b.name}{b.is_primary ? ' ★' : ''} <span style={{ opacity: 0.6 }}>({b.product_count})</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : <span style={{ color: 'var(--stone-300)', fontSize: '0.8125rem' }}>No brands linked</span>}
+              </div>
+            </div>
+
+            <div className="form-card">
+              <h3>Data Sources</h3>
+              {data.sources && data.sources.length ? (
+                <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
+                  <thead><tr><th>Name</th><th>Type</th><th>Last Scraped</th><th></th></tr></thead>
+                  <tbody>
+                    {data.sources.map(s => (
+                      <tr key={s.id}>
+                        <td>{s.name}</td>
+                        <td>{s.source_type}</td>
+                        <td>{fmtDate(s.last_scraped_at)}</td>
+                        <td><span className={'status-badge status-' + (s.is_active ? 'active' : 'draft')}>{s.is_active ? 'On' : 'Off'}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <span style={{ color: 'var(--stone-300)', fontSize: '0.8125rem' }}>No data sources configured</span>}
+            </div>
+
+            <div className="form-card">
+              <h3>Recent Purchase Orders</h3>
+              {data.purchase_orders && data.purchase_orders.length ? (
+                <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
+                  <thead><tr><th>PO #</th><th>Status</th><th>Subtotal</th><th>Created</th></tr></thead>
+                  <tbody>
+                    {data.purchase_orders.map(po => (
+                      <tr key={po.id} onClick={() => navigate('purchase-order-detail', po.id)} style={{ cursor: 'pointer' }}>
+                        <td>{po.po_number}</td>
+                        <td><span className="badge badge-draft">{po.status}</span></td>
+                        <td>{fmtMoney(po.subtotal)}</td>
+                        <td>{fmtDate(po.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : <span style={{ color: 'var(--stone-300)', fontSize: '0.8125rem' }}>No purchase orders yet</span>}
+            </div>
+
+            {v.notes && (
+              <div className="form-card" style={{ gridColumn: '1 / -1' }}>
+                <h3>Notes</h3>
+                <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.875rem', color: 'var(--stone-700)' }}>{v.notes}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     // ========== VendorFormView ==========
     function VendorFormView({ navigate, editId }) {
-      const [form, setForm] = useState({ name: '', code: '', website: '', email: '' });
+      const emptyForm = { name: '', code: '', website: '', email: '', phone: '', address: '', account_number: '', notes: '' };
+      const [form, setForm] = useState(emptyForm);
       const [loading, setLoading] = useState(!!editId);
       const [saving, setSaving] = useState(false);
 
       useEffect(() => {
         if (editId) {
-          adminFetch('/api/admin/vendors')
+          adminFetch('/api/admin/vendors/' + editId)
             .then(data => {
-              const v = (data.vendors || []).find(v => v.id === editId);
-              if (v) setForm({ name: v.name || '', code: v.code || '', website: v.website || '', email: v.email || '' });
+              const v = data.vendor;
+              if (v) setForm({
+                name: v.name || '', code: v.code || '', website: v.website || '', email: v.email || '',
+                phone: formatPhone(v.phone || ''), address: v.address || '',
+                account_number: v.account_number || '', notes: v.notes || ''
+              });
               setLoading(false);
             })
             .catch(() => setLoading(false));
         }
       }, [editId]);
+
+      const set = (key) => (e) => setForm(prev => ({ ...prev, [key]: e.target.value }));
 
       const handleSave = async () => {
         if (!form.name.trim() || !form.code.trim()) { alert('Name and code are required'); return; }
@@ -4119,10 +4411,11 @@
         try {
           if (editId) {
             await adminFetch('/api/admin/vendors/' + editId, { method: 'PUT', body: JSON.stringify(form) });
+            navigate('vendor-detail', editId);
           } else {
-            await adminFetch('/api/admin/vendors', { method: 'POST', body: JSON.stringify(form) });
+            const res = await adminFetch('/api/admin/vendors', { method: 'POST', body: JSON.stringify(form) });
+            navigate('vendor-detail', res.vendor.id);
           }
-          navigate('vendors');
         } catch (err) {
           alert('Save failed: ' + err.message);
         } finally {
@@ -4137,31 +4430,59 @@
           <div className="content-header">
             <h1>{editId ? 'Edit Vendor' : 'New Vendor'}</h1>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button className="btn btn-secondary" onClick={() => navigate('vendors')}>Cancel</button>
+              <button className="btn btn-secondary" onClick={() => navigate(editId ? 'vendor-detail' : 'vendors', editId)}>Cancel</button>
               <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                 {saving ? 'Saving...' : 'Save Vendor'}
               </button>
             </div>
           </div>
           <div className="form-card">
-            <h3>Vendor Details</h3>
+            <h3>Identity</h3>
             <div className="form-grid">
               <div className="form-group">
                 <label>Vendor Name *</label>
-                <input value={form.name} onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. MSI Surfaces" />
+                <input value={form.name} onChange={set('name')} placeholder="e.g. MSI Surfaces" />
               </div>
               <div className="form-group">
                 <label>Code *</label>
-                <input value={form.code} onChange={e => setForm(prev => ({ ...prev, code: e.target.value }))} placeholder="e.g. MSI" />
+                <input value={form.code} maxLength={4}
+                  onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) }))}
+                  placeholder="e.g. MSI" />
+                <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>2–4 letters (A–Z)</span>
               </div>
               <div className="form-group full">
                 <label>Website</label>
-                <input value={form.website} onChange={e => setForm(prev => ({ ...prev, website: e.target.value }))} placeholder="https://..." />
+                <input value={form.website} onChange={set('website')} placeholder="https://..." />
+              </div>
+            </div>
+          </div>
+          <div className="form-card">
+            <h3>Account &amp; Company</h3>
+            {editId && <p style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Contacts (reps) are managed on the vendor detail page.</p>}
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Order / AR Email</label>
+                <input type="email" value={form.email} onChange={set('email')} placeholder="orders@vendor.com" />
+              </div>
+              <div className="form-group">
+                <label>Phone</label>
+                <input value={form.phone} onChange={e => setForm(prev => ({ ...prev, phone: formatPhone(e.target.value) }))} placeholder="(714) 555-0100" />
+              </div>
+              <div className="form-group">
+                <label>Account Number</label>
+                <input value={form.account_number} onChange={set('account_number')} placeholder="Our account # with this vendor" />
               </div>
               <div className="form-group full">
-                <label>Email</label>
-                <input type="email" value={form.email} onChange={e => setForm(prev => ({ ...prev, email: e.target.value }))} placeholder="orders@vendor.com" />
+                <label>Address</label>
+                <input value={form.address} onChange={set('address')} placeholder="Street, City, State ZIP" />
               </div>
+            </div>
+          </div>
+          <div className="form-card">
+            <h3>Notes</h3>
+            <div className="form-group full">
+              <textarea value={form.notes} onChange={set('notes')} rows="4" placeholder="Internal notes about this vendor..."
+                style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid var(--stone-200)', borderRadius: '6px', fontFamily: 'inherit', fontSize: '0.875rem', resize: 'vertical' }} />
             </div>
           </div>
         </div>
@@ -8234,6 +8555,15 @@
                               {reps.map(r => <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>)}
                             </select>
                           </div>
+                          <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', cursor: 'pointer' }}>
+                              <input type="checkbox" checked={!!c.tax_exempt} onChange={e => updateCustomer(c.id, { tax_exempt: e.target.checked })} style={{ marginTop: '0.15rem' }} />
+                              <span>
+                                <strong>Tax exempt (resale)</strong>
+                                <span style={{ display: 'block', color: 'var(--stone-500)', fontSize: '0.75rem' }}>Removes sales tax on materials. Set only after verifying the resale certificate.</span>
+                              </span>
+                            </label>
+                          </div>
                         </div>
                         <div>
                           {c.status === 'pending' && (
@@ -8429,7 +8759,7 @@
               </div>
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Phone</label>
-                <input style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                <input style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.phone} onChange={e => setForm({ ...form, phone: formatPhone(e.target.value) })} />
               </div>
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Role *</label>
@@ -8902,6 +9232,93 @@
         ? c.last_order_number + ' · ' + (c.last_order_status || '').replace(/_/g, ' ') + ' · ' + dfmt(c.last_order_date)
         : 'No orders yet';
 
+    // ========== CustomerDuplicatesView (find & merge dup accounts) ==========
+    function CustomerDuplicatesView({ navigate }) {
+      const [groups, setGroups] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [keepers, setKeepers] = useState({});
+      const [merging, setMerging] = useState(null);
+      const fmtDate = d => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+      const load = () => {
+        setLoading(true);
+        adminFetch('/api/admin/customers/duplicates')
+          .then(d => {
+            const gs = d.groups || [];
+            const k = {};
+            gs.forEach(g => {
+              // Default keeper = most orders, tie-break to the oldest / claimed account
+              const best = [...g].sort((a, b) =>
+                (b.order_count - a.order_count) ||
+                (b.password_set - a.password_set) ||
+                (new Date(a.created_at) - new Date(b.created_at)))[0];
+              k[g[0].pk] = best.id;
+            });
+            setKeepers(k); setGroups(gs); setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      };
+      useEffect(load, []);
+
+      const mergeGroup = async (g) => {
+        const survivorId = keepers[g[0].pk];
+        const survivor = g.find(m => m.id === survivorId);
+        const losers = g.filter(m => m.id !== survivorId);
+        if (!confirm('Merge ' + losers.length + ' account' + (losers.length !== 1 ? 's' : '') + ' into ' + (survivor.name || survivor.email) + '?\n\nAll their orders, quotes, estimates and samples move to the kept account and the duplicate record' + (losers.length !== 1 ? 's are' : ' is') + ' deleted. This cannot be undone.')) return;
+        setMerging(g[0].pk);
+        try {
+          for (const l of losers) {
+            await adminFetch('/api/admin/customers/merge', { method: 'POST', body: JSON.stringify({ survivor_id: survivorId, loser_id: l.id }) });
+          }
+          load();
+        } catch (err) { alert('Merge failed: ' + err.message); setMerging(null); }
+      };
+
+      if (loading) return <div className="loading">Loading duplicates…</div>;
+
+      return (
+        <div>
+          <button className="recd-crumb" onClick={() => navigate('customers')}>← CUSTOMERS</button>
+          <div className="content-header" style={{ marginTop: '0.5rem' }}>
+            <h1>Duplicate accounts</h1>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{groups.length} group{groups.length !== 1 ? 's' : ''} sharing a phone number</span>
+          </div>
+          {groups.length === 0 ? (
+            <div className="form-card"><div style={{ color: 'var(--stone-400)', padding: '1.5rem', textAlign: 'center' }}>No duplicate accounts found.</div></div>
+          ) : groups.map(g => (
+            <div className="form-card" key={g[0].pk} style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h3 style={{ margin: 0 }}>Phone {g[0].phone} · {g.length} accounts</h3>
+                <button className="btn btn-primary btn-sm" disabled={merging === g[0].pk} onClick={() => mergeGroup(g)}>
+                  {merging === g[0].pk ? 'Merging…' : 'Merge into selected'}
+                </button>
+              </div>
+              <div className="table-scroll-wrapper">
+              <table className="admin-table" style={{ fontSize: '0.8125rem' }}>
+                <thead><tr><th>Keep</th><th>Name</th><th>Email</th><th>Orders</th><th>Quotes</th><th>Est.</th><th>Samples</th><th>Created</th><th>Status</th></tr></thead>
+                <tbody>
+                  {g.map(m => (
+                    <tr key={m.id} style={{ background: keepers[g[0].pk] === m.id ? 'var(--stone-50)' : undefined }}>
+                      <td><input type="radio" name={'keep-' + g[0].pk} checked={keepers[g[0].pk] === m.id} onChange={() => setKeepers(k => ({ ...k, [g[0].pk]: m.id }))} /></td>
+                      <td style={{ fontWeight: 500 }}>{m.name}{m.company_name ? <span style={{ color: 'var(--stone-400)', fontWeight: 400 }}> · {m.company_name}</span> : ''}</td>
+                      <td style={{ color: 'var(--stone-500)' }}>{m.email}</td>
+                      <td>{m.order_count}</td>
+                      <td>{m.quote_count}</td>
+                      <td>{m.estimate_count}</td>
+                      <td>{m.sample_count}</td>
+                      <td style={{ color: 'var(--stone-500)' }}>{fmtDate(m.created_at)}</td>
+                      <td><span className={'status-badge status-' + (m.password_set ? 'active' : 'draft')}>{m.password_set ? 'Claimed' : 'Unclaimed'}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     function CustomersListView({ navigate }) {
       const [customers, setCustomers] = useState([]);
       const [loading, setLoading] = useState(true);
@@ -8980,6 +9397,7 @@
                 {sortRecent ? 'RECENT' : 'YTD ↓'}
               </button>
               <input className="ordl-search" value={q} onChange={e => setQ(e.target.value)} placeholder="filter accounts…" />
+              <button className="ordl-chip" onClick={() => navigate('customer-duplicates')} title="Find & merge duplicate accounts">DUPLICATES</button>
             </div>
 
             <div className="ordl-scroll">
@@ -9567,6 +9985,555 @@
                   <button className="btn btn-primary" disabled={granting} onClick={submitGrant}>{granting ? 'Granting…' : 'Grant credit'}</button>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== VisitsListView ==========
+    // Showroom visits — a visit records exactly two things: who came in and
+    // what they looked at. Capture quality (an email to follow up with) and
+    // the items viewed (the only demand signal before a quote) are the read.
+    const VISIT_VIEWS = [
+      { id: 'today', label: 'Today', hint: 'logged today' },
+      { id: 'week', label: 'This week', hint: 'last 7 days' },
+      { id: 'all', label: 'All', hint: 'full log' },
+      { id: 'incomplete', label: 'Incomplete', hint: 'cannot follow up' },
+      { id: 'nofollow', label: 'No follow-up', hint: 'recap never sent' },
+      { id: 'engaged', label: 'Engaged', hint: 'opened · carted · quote' },
+    ];
+    const VISIT_STATE = {
+      quote: { c: 'var(--green)', t: 'QUOTE ASKED' },
+      carted: { c: 'var(--cool)', t: 'CARTED' },
+      opened: { c: 'var(--cool)', t: 'OPENED' },
+      sent: { c: 'var(--gold)', t: 'SENT' },
+      draft: { c: 'var(--gold)', t: 'NOT SENT' },
+      incomplete: { c: 'var(--hot)', t: 'INCOMPLETE' },
+    };
+    const visitState = v =>
+      !v.customer_email ? 'incomplete'
+      : v.quote_requested_at ? 'quote'
+      : v.status === 'carted' ? 'carted'
+      : v.status === 'opened' ? 'opened'
+      : v.status === 'sent' ? 'sent'
+      : 'draft';
+    const visitEngaged = v => !!(v.quote_requested_at || v.opened_at || v.items_carted_at);
+    const visitMissing = v => (v.customer_email ? 0 : 1) + (v.customer_phone ? 0 : 1);
+    const visitFollowLine = (v, dfmt) => {
+      if (!v.customer_email) return 'No email captured — the recap cannot send';
+      if (v.quote_requested_at) return 'Asked for a quote ' + dfmt(v.quote_requested_at);
+      if (v.items_carted_at) return 'Carted items ' + dfmt(v.items_carted_at);
+      if (v.opened_at) return 'Opened the recap ' + dfmt(v.opened_at);
+      if (v.sent_at) return 'Recap sent ' + dfmt(v.sent_at) + ' — not opened yet';
+      return 'Recap not sent yet';
+    };
+    const visitRecapUrl = v => window.location.origin + '/visit/' + v.token;
+
+    function VisitsListView({ navigate }) {
+      const [visits, setVisits] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [view, setView] = useState('week');
+      const [q, setQ] = useState('');
+      const [repFilter, setRepFilter] = useState('');
+      const [sel, setSel] = useState(null);
+      const [copied, setCopied] = useState(false);
+
+      useEffect(() => {
+        adminFetch('/api/admin/visits')
+          .then(d => { setVisits(d.visits || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      }, []);
+
+      const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0);
+      const weekStart = new Date(Date.now() - 7 * 24 * 3600 * 1000);
+      const inView = (v, id) =>
+        id === 'today' ? new Date(v.created_at) >= dayStart
+        : id === 'week' ? new Date(v.created_at) >= weekStart
+        : id === 'all' ? true
+        : id === 'incomplete' ? !v.customer_email
+        : id === 'nofollow' ? !!v.customer_email && v.status === 'draft'
+        : id === 'engaged' ? visitEngaged(v) : true;
+
+      const reps = [...new Set(visits.map(v => v.rep_name).filter(Boolean))].sort();
+      const rows = visits
+        .filter(v => inView(v, view))
+        .filter(v => !repFilter || v.rep_name === repFilter)
+        .filter(v => !q || ((v.customer_name || '') + ' ' + (v.customer_email || '') + ' ' + (v.rep_name || '') + ' ' + (v.item_names || []).join(' ')).toLowerCase().includes(q.toLowerCase()));
+
+      const activeId = rows.some(r => r.id === sel) ? sel : (rows[0] ? rows[0].id : null);
+      const activeRow = visits.find(v => v.id === activeId) || null;
+      const unreachable = rows.filter(v => !v.customer_email).length;
+      const engaged = rows.filter(visitEngaged).length;
+      const dfmt = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      const tfmt = ts => ts ? new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+
+      const copyLink = v => {
+        navigator.clipboard.writeText(visitRecapUrl(v)).then(() => {
+          setCopied(true); setTimeout(() => setCopied(false), 1800);
+        });
+      };
+
+      const COLS = 'minmax(140px, 1.2fr) minmax(88px, 108px) minmax(150px, 1.6fr) minmax(78px, 100px) minmax(94px, 112px)';
+
+      return (
+        <div className="ordl">
+          <section className="ordl-main">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '10px 16px', background: 'var(--panel2)', borderBottom: '1px solid var(--line)', flexShrink: 0, flexWrap: 'wrap' }}>
+              <span style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.16em', color: 'var(--gold)', whiteSpace: 'nowrap' }}>SHOWROOM VISITS</span>
+              <span style={{ font: '400 11px/1.4 var(--sans)', color: 'var(--dim)', textWrap: 'pretty' }}>A visit captures the customer and the items they looked at. Without an email there is no follow-up, and the items are the only demand signal before a quote.</span>
+            </div>
+
+            <div className="ordl-tabs">
+              {VISIT_VIEWS.map(v => {
+                const on = v.id === view;
+                const n = visits.filter(x => inView(x, v.id)).length;
+                return (
+                  <button key={v.id} className={'ordl-tab' + (on ? ' active' : '')} onClick={() => setView(v.id)}>
+                    <span className="ordl-tab-row">
+                      <span className="ordl-tab-label">{v.label}</span>
+                      <span className="ordl-tab-n">{n}</span>
+                    </span>
+                    <span className="ordl-tab-hint">{v.hint.toUpperCase()}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="ordl-filters">
+              <select value={repFilter} onChange={e => setRepFilter(e.target.value)} className="ordl-chip">
+                <option value="">Any rep</option>
+                {reps.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <input className="ordl-search" value={q} onChange={e => setQ(e.target.value)} placeholder="filter visits…" />
+            </div>
+
+            <div className="ordl-scroll">
+              <div style={{ minWidth: 680 }}>
+                <div className="ordl-head" style={{ gridTemplateColumns: COLS }}>
+                  <span>CUSTOMER</span><span>WHEN</span><span>ITEMS VIEWED</span><span>REP</span><span>STATE</span>
+                </div>
+                {loading && <div className="opsq-empty">loading visits…</div>}
+                {!loading && rows.length === 0 && <div className="opsq-empty">no visits in this view</div>}
+                {rows.map(v => {
+                  const on = v.id === activeId;
+                  const st = VISIT_STATE[visitState(v)];
+                  const reachable = !!v.customer_email;
+                  return (
+                    <div key={v.id} className={'ordl-row' + (on ? ' active' : '')}
+                      onClick={() => { if (window.innerWidth < 1100) navigate('visit-detail', v.id); else setSel(v.id); }}>
+                      <div className="ordl-grid" style={{ gridTemplateColumns: COLS }}>
+                        <span style={{ minWidth: 0 }}>
+                          <span className="ordl-cust" style={{ color: reachable ? undefined : 'var(--gold)' }}>{v.customer_name || 'walk-in'}</span>
+                          <span className="ordl-co">{v.customer_email || v.customer_phone || 'no contact captured'}</span>
+                        </span>
+                        <span style={{ font: '400 10px/1.4 var(--mono)', color: 'var(--dim)' }}>
+                          {dfmt(v.created_at)}
+                          <span style={{ display: 'block', color: 'var(--faint)' }}>{tfmt(v.created_at)}</span>
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                          <span style={{ display: 'block', font: '400 12px/1.35 var(--sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(v.item_names || []).join(', ') || '—'}</span>
+                          <span style={{ display: 'block', marginTop: 3, font: '400 10px/1 var(--mono)', color: 'var(--faint)' }}>{v.item_count} item{v.item_count === 1 ? '' : 's'}</span>
+                        </span>
+                        <span style={{ font: '400 10px/1.3 var(--mono)', color: 'var(--dim)' }}>{v.rep_name || '—'}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 7, font: '400 10px/1 var(--mono)', letterSpacing: '0.06em', color: st.c }}>
+                          <span className="ops-dot" style={{ width: 5, height: 5, background: st.c, flexShrink: 0 }} />{st.t}
+                        </span>
+                      </div>
+                      <div className="ordl-sub">
+                        {!reachable && (
+                          <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.06em', color: 'var(--hot)', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                            NO EMAIL · {visitMissing(v)} FIELD{visitMissing(v) === 1 ? '' : 'S'} MISSING
+                          </span>
+                        )}
+                        <span className="ordl-blocker">{visitFollowLine(v, dfmt)}</span>
+                        <span className="ordl-rep">{v.sent_at && v.expires_at ? 'recap exp ' + dfmt(v.expires_at) : ''}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="ordl-foot">
+              <span style={{ letterSpacing: '0.08em' }}>{rows.length} VISITS</span>
+              <span style={{ color: unreachable ? 'var(--hot)' : 'var(--dim)' }}>{unreachable} unreachable</span>
+              <span style={{ color: 'var(--dim)' }}>{rows.length ? Math.round(engaged / rows.length * 100) : 0}% engaged</span>
+            </div>
+          </section>
+
+          <aside className="ordl-pane">
+            {!activeRow ? (
+              <div style={{ flex: 1, display: 'grid', placeItems: 'center', font: '400 12px/1 var(--mono)', color: 'var(--faint)' }}>NO VISIT SELECTED</div>
+            ) : (() => {
+              const st = VISIT_STATE[visitState(activeRow)];
+              const reachable = !!activeRow.customer_email;
+              return (
+                <React.Fragment>
+                  <div className="ordl-pane-head">
+                    <div className="opsq-meta">
+                      <span style={{ color: st.c }}>{st.t}</span>
+                      {!reachable && <span style={{ color: 'var(--hot)' }}>UNREACHABLE</span>}
+                      <span style={{ marginLeft: 'auto', color: 'var(--faint)' }}>{activeRow.rep_name || ''}</span>
+                    </div>
+                    <h1 className="ordl-pane-title" style={{ color: reachable ? undefined : 'var(--gold)' }}>{activeRow.customer_name || 'walk-in'}</h1>
+                    <div className="ordl-pane-meta">
+                      <span>{dfmt(activeRow.created_at)} · {tfmt(activeRow.created_at)}</span>
+                      <span>{activeRow.item_count} item{activeRow.item_count === 1 ? '' : 's'}</span>
+                    </div>
+                    <div className="ordl-next" style={{ borderLeftColor: reachable ? st.c : 'var(--hot)' }}>
+                      <div className="opsq-block-label" style={{ marginBottom: 0 }}>{reachable ? 'FOLLOW-UP' : 'CANNOT FOLLOW UP'}</div>
+                      <div style={{ marginTop: 6, font: '400 12px/1.5 var(--sans)', textWrap: 'pretty' }}>
+                        {reachable ? visitFollowLine(activeRow, dfmt)
+                          : 'No email was captured, so the recap cannot send. ' + activeRow.item_count + ' item' + (activeRow.item_count === 1 ? '' : 's') + ' viewed with no way to reach the customer.'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="opsq-pane-body">
+                    <OpsBlock label="Customer info · everything collected">
+                      <div className="opsq-facts">
+                        {[
+                          ['Name', activeRow.customer_name || '—'],
+                          ['Email', activeRow.customer_email || '—'],
+                          ['Phone', activeRow.customer_phone || '—'],
+                          ['Account', activeRow.customer_id ? 'linked' : 'none'],
+                        ].map(m => (
+                          <div key={m[0]} className="opsq-fact">
+                            <div className="opsq-fact-k">{m[0]}</div>
+                            <div className="opsq-fact-v" style={m[1] === '—' || m[1] === 'none' ? { color: 'var(--hot)' } : undefined}>{m[1]}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </OpsBlock>
+                    <OpsBlock label={'Item info · ' + activeRow.item_count + ' viewed'}>
+                      {(activeRow.item_names || []).length === 0 ? (
+                        <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no items logged</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {activeRow.item_names.map((n, i) => (
+                            <div key={i} style={{ font: '400 12px/1.35 var(--sans)' }}>{n}</div>
+                          ))}
+                        </div>
+                      )}
+                    </OpsBlock>
+                    {activeRow.customer_id && (
+                      <OpsBlock label="Account">
+                        <button className="rb-action" style={{ marginLeft: 0 }} onClick={() => navigate('customer-detail', 'retail_' + activeRow.customer_id)}>
+                          Open customer record
+                        </button>
+                      </OpsBlock>
+                    )}
+                  </div>
+                  <div className="ordl-pane-foot">
+                    <button className="opsq-primary" style={{ marginTop: 0, flex: 1, width: 'auto' }} onClick={() => navigate('visit-detail', activeRow.id)}>
+                      <span>Open visit</span>
+                    </button>
+                    <button className="opsq-alt" onClick={() => copyLink(activeRow)}>{copied ? 'Copied' : 'Copy link'}</button>
+                  </div>
+                </React.Fragment>
+              );
+            })()}
+          </aside>
+        </div>
+      );
+    }
+
+    // ========== VisitDetailView ==========
+    // Two kinds of data, two panels: customer info (editable — the admin fixes
+    // what the rep failed to capture) and item info (the demand signal).
+    function VisitFieldInput({ label, value, placeholder, onChange, bad }) {
+      return (
+        <div>
+          <div style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.14em', color: bad ? 'var(--hot)' : 'var(--faint)' }}>{label}{bad ? ' · MISSING' : ''}</div>
+          <input value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
+            style={{ marginTop: 8, width: '100%', boxSizing: 'border-box', padding: '10px 11px', background: 'var(--bg)', border: '1px solid ' + (bad ? 'var(--hot)' : 'var(--line2)'), color: 'var(--ink)', font: '400 13px/1 var(--mono)', outline: 'none' }} />
+        </div>
+      );
+    }
+    function VisitDetailView({ navigate, editId, staffRole }) {
+      const [visit, setVisit] = useState(null);
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [tab, setTab] = useState('record');
+      const [eName, setEName] = useState(null);
+      const [eEmail, setEEmail] = useState(null);
+      const [ePhone, setEPhone] = useState(null);
+      const [eCompany, setECompany] = useState(null);
+      const [saving, setSaving] = useState(false);
+      const [sending, setSending] = useState(false);
+      const [copied, setCopied] = useState(false);
+
+      const load = () => {
+        adminFetch('/api/admin/visits/' + editId)
+          .then(d => { setVisit(d.visit); setItems(d.items || []); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(() => {
+        setLoading(true); setTab('record');
+        setEName(null); setEEmail(null); setEPhone(null); setECompany(null);
+        load();
+      }, [editId]);
+
+      if (loading) return <div className="recd-page"><div className="opsq-empty">loading visit record…</div></div>;
+      if (!visit) return <div className="recd-page"><div className="opsq-empty">visit not found</div></div>;
+
+      const dfmt = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      const dtfmt = ts => ts ? (new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })) : '';
+      const money = n => n == null ? '—' : '$' + parseFloat(n).toFixed(2);
+
+      const N = eName === null ? (visit.customer_name || '') : eName;
+      const E = eEmail === null ? (visit.customer_email || '') : eEmail;
+      const P = ePhone === null ? (visit.customer_phone || '') : ePhone;
+      const C = eCompany !== null ? eCompany : (visit.company_name || '');
+      const dirty = N !== (visit.customer_name || '') || E !== (visit.customer_email || '') || P !== (visit.customer_phone || '') || C !== (visit.company_name || '');
+      const emailOk = E.includes('@');
+      const gaps = (emailOk ? 0 : 1) + (P ? 0 : 1);
+      const st = VISIT_STATE[visitState(visit)];
+      const outcome = visit.quote_requested_at ? 'quote asked' : visit.items_carted_at ? 'carted' : 'none';
+      const show = k => tab === 'record' ? true : (k === 'customer' ? tab === 'customer info' : tab === 'item info');
+
+      const saveContact = (thenSend) => {
+        setSaving(true);
+        adminFetch('/api/admin/visits/' + editId + '/contact', {
+          method: 'PUT',
+          body: JSON.stringify({ customer_name: N.trim(), customer_email: E.trim(), customer_phone: P.trim(), company_name: (eCompany !== null ? eCompany : (visit.company_name || null)) })
+        })
+          .then(() => {
+            setSaving(false); setEName(null); setEEmail(null); setEPhone(null); setECompany(null);
+            if (thenSend) return sendRecap(true);
+            load();
+          })
+          .catch(err => { setSaving(false); alert(err.message); });
+      };
+
+      const sendRecap = (skipConfirm) => {
+        if (!skipConfirm && !confirm('Send the recap email to ' + (E || visit.customer_email) + '?')) return;
+        setSending(true);
+        adminFetch('/api/admin/visits/' + editId + '/send', { method: 'POST', body: JSON.stringify({}) })
+          .then(() => { setSending(false); load(); })
+          .catch(err => { setSending(false); alert(err.message); load(); });
+      };
+
+      const copyLink = () => {
+        navigator.clipboard.writeText(visitRecapUrl(visit)).then(() => {
+          setCopied(true); setTimeout(() => setCopied(false), 1800);
+        });
+      };
+
+      const followLine = visitFollowLine(visit, dfmt);
+      const bandColor = visit.customer_email ? st.c : 'var(--hot)';
+
+      return (
+        <div className="recd-page">
+          <div className="recd-head">
+            <div className="recd-top">
+              <div style={{ minWidth: 0 }}>
+                <div className="opsq-meta">
+                  <button className="recd-crumb" onClick={() => navigate('visits')}>← VISITS</button>
+                  <span style={{ color: 'var(--faint)' }}>/</span>
+                  <span style={{ color: st.c }}>{st.t}</span>
+                  {!visit.customer_email && <span style={{ color: 'var(--hot)' }}>UNREACHABLE</span>}
+                </div>
+                <h1 className="recd-title">{visit.customer_name || 'walk-in'}</h1>
+                <div className="recd-meta">
+                  <span>{dtfmt(visit.created_at)}</span>
+                  {visit.rep_name && <span>{visit.rep_name}</span>}
+                  {visit.customer_email && <span>{visit.customer_email}</span>}
+                  {visit.customer_phone && <span>{visit.customer_phone}</span>}
+                </div>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 26, flexShrink: 0 }}>
+                {[['ITEMS VIEWED', String(items.length), false],
+                  ['FIELDS MISSING', String(gaps), gaps > 0],
+                  ['OUTCOME', outcome, outcome === 'none']].map(k => (
+                  <div key={k[0]} style={{ textAlign: 'right' }}>
+                    <div className="opsq-block-label" style={{ marginBottom: 0 }}>{k[0]}</div>
+                    <div className="recd-value" style={{ fontSize: 20, color: k[2] ? 'var(--hot)' : undefined }}>{k[1]}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignSelf: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+                {visit.customer_email && (
+                  <button className="opsq-alt" disabled={sending} onClick={() => sendRecap(false)}>
+                    {sending ? 'Sending…' : (visit.sent_at ? 'Resend recap' : 'Send recap')}
+                  </button>
+                )}
+                <button className="opsq-alt" onClick={copyLink}>{copied ? 'Copied' : 'Copy recap link'}</button>
+              </div>
+            </div>
+            <div className="recd-tabs">
+              {['record', 'customer info', 'item info'].map(t => (
+                <button key={t} className={'recd-tab' + (tab === t ? ' active' : '')} onClick={() => setTab(t)}>{t}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="recd-scroll">
+          <div className="rec-body">
+          <div className="rec-left">
+
+          {show('customer') && (
+            <div className="recd-exception" style={{ borderLeftColor: bandColor }}>
+              <div className="recd-exc-head">
+                <span style={{ color: bandColor }}>{visit.customer_email ? 'FOLLOW-UP' : 'CANNOT FOLLOW UP'}</span>
+                <span style={{ marginLeft: 'auto', color: dirty ? 'var(--gold)' : 'var(--faint)' }}>
+                  {dirty ? (emailOk ? 'SAVE TO MAKE REACHABLE' : 'STILL NO VALID EMAIL') : followLine.toUpperCase()}
+                </span>
+              </div>
+              <div style={{ marginTop: 11, maxWidth: '62ch', font: '400 14px/1.55 var(--sans)', textWrap: 'pretty' }}>
+                {dirty
+                  ? (emailOk
+                    ? 'Preview — on save this visit becomes reachable and the recap can send with all ' + items.length + ' item' + (items.length === 1 ? '' : 's') + '.'
+                    : 'Preview — the email is still not valid, so nothing can send.')
+                  : visit.customer_email
+                  ? items.length + ' item' + (items.length === 1 ? ' is' : 's are') + ' recorded against a reachable customer. ' + (outcome === 'none' ? 'Nothing has come of this visit yet.' : followLine + '.')
+                  : 'The rep logged ' + items.length + ' item' + (items.length === 1 ? '' : 's') + ' but no email. The recap cannot send and the items never reach a quote.'}
+              </div>
+            </div>
+          )}
+
+          {show('customer') && <div className="form-card">
+            <h3>Customer info · the only customer data a visit collects</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18 }}>
+              <VisitFieldInput label="NAME" value={N} placeholder="none captured" onChange={setEName} bad={!N.trim()} />
+              <VisitFieldInput label="EMAIL" value={E} placeholder="none captured" onChange={setEEmail} bad={!emailOk} />
+              <VisitFieldInput label="PHONE" value={P} placeholder="none captured" onChange={v => setEPhone(formatPhone(v))} bad={!P} />
+              <VisitFieldInput label="COMPANY (OPTIONAL)" value={C} placeholder="none captured" onChange={setECompany} />
+            </div>
+            {visit.message && (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.14em', color: 'var(--faint)' }}>PERSONAL MESSAGE ON THE RECAP</div>
+                <div style={{ marginTop: 8, font: '400 12px/1.55 var(--sans)', color: 'var(--dim)', whiteSpace: 'pre-wrap' }}>{visit.message}</div>
+              </div>
+            )}
+          </div>}
+
+          {show('customer') && <div className="form-card">
+            <h3>Account</h3>
+            {visit.customer_id ? (
+              <p style={{ margin: 0, maxWidth: '60ch', font: '400 13px/1.6 var(--sans)', textWrap: 'pretty' }}>
+                Attached to a customer account — the visit shows on that record.{' '}
+                <button className="rb-action" style={{ marginLeft: 0 }} onClick={() => navigate('customer-detail', 'retail_' + visit.customer_id)}>Open customer record</button>
+              </p>
+            ) : (
+              <p style={{ margin: 0, maxWidth: '60ch', font: '400 13px/1.6 var(--sans)', color: 'var(--dim)', textWrap: 'pretty' }}>
+                No account is linked. Visits logged with an email auto-create one; this visit sits outside the customer book.
+              </p>
+            )}
+          </div>}
+
+          {show('items') && <div className="form-card">
+            <h3>Item info · {items.length} viewed</h3>
+            {items.length === 0 ? (
+              <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no items logged on this visit</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 1.4fr) minmax(80px, 110px) minmax(140px, 1.3fr)', gap: 14, padding: '0 0 8px', font: '400 9px/1 var(--mono)', letterSpacing: '0.1em', color: 'var(--faint)', borderBottom: '1px solid var(--line2)' }}>
+                  <span>ITEM</span><span style={{ textAlign: 'right' }}>PRICE</span><span>REP NOTE</span>
+                </div>
+                {items.map(i => (
+                  <div key={i.id} style={{ padding: '11px 0', display: 'grid', gridTemplateColumns: 'minmax(160px, 1.4fr) minmax(80px, 110px) minmax(140px, 1.3fr)', gap: 14, alignItems: 'center', borderBottom: '1px solid var(--line)' }}>
+                    <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {i.primary_image && <img src={i.primary_image} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} onError={e => { e.target.style.display = 'none'; }} />}
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: 'block', font: '400 13px/1.35 var(--sans)' }}>{i.product_name}{i.variant_name ? ' · ' + i.variant_name : ''}</span>
+                        <span style={{ display: 'block', marginTop: 3, font: '400 10px/1 var(--mono)', color: 'var(--faint)' }}>{i.collection || '—'}</span>
+                      </span>
+                    </span>
+                    <span style={{ font: '400 11px/1.3 var(--mono)', textAlign: 'right', color: i.retail_price == null ? 'var(--faint)' : undefined }}>
+                      {money(i.retail_price)}{i.retail_price != null && i.price_basis === 'per_sqft' ? '/sf' : ''}
+                    </span>
+                    <span style={{ font: '400 12px/1.5 var(--sans)', color: 'var(--dim)', textWrap: 'pretty' }}>{i.rep_note || '—'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>}
+
+          </div>
+
+          <div className="rec-right">
+
+          <div className="form-card">
+            <h3>Visit</h3>
+            <div className="rb-facts">
+              {[
+                ['Logged', dtfmt(visit.created_at)],
+                ['Rep', visit.rep_name || '—'],
+                ['Items', String(items.length)],
+                ['Recap', visit.sent_at ? 'sent ' + dfmt(visit.sent_at) : 'not sent'],
+              ].concat(visit.opened_at ? [['Opened', dfmt(visit.opened_at)]] : [])
+               .concat(visit.items_carted_at ? [['Carted', dfmt(visit.items_carted_at)]] : [])
+               .concat(visit.quote_requested_at ? [['Quote asked', dfmt(visit.quote_requested_at)]] : [])
+               .concat(visit.sent_at && visit.expires_at ? [['Link expires', dfmt(visit.expires_at)]] : [])
+               .map(([k, v]) => (
+                <div key={k} className="rb-fact"><span className="rb-fact-k">{k}</span><span className="rb-fact-v">{v}</span></div>
+              ))}
+            </div>
+          </div>
+
+          {visit.quote_requested_at && (
+            <div className="form-card">
+              <h3>Quote request</h3>
+              <div style={{ font: '400 12px/1.55 var(--sans)', textWrap: 'pretty' }}>
+                Asked for a quote from the recap on {dfmt(visit.quote_requested_at)}.
+                {visit.quote_request_message ? ' Their note:' : ''}
+              </div>
+              {visit.quote_request_message && (
+                <div style={{ marginTop: 8, padding: '9px 11px', background: 'var(--bg)', borderLeft: '2px solid var(--green)', font: '400 12px/1.55 var(--sans)', whiteSpace: 'pre-wrap' }}>{visit.quote_request_message}</div>
+              )}
+            </div>
+          )}
+
+          <div className="form-card">
+            <h3>Captured</h3>
+            <div className="rb-facts">
+              {[
+                ['Name', visit.customer_name || '—'],
+                ['Email', visit.customer_email || '—'],
+                ['Phone', visit.customer_phone || '—'],
+                ['Account', visit.customer_id ? 'linked' : 'none'],
+              ].map(([k, v]) => (
+                <div key={k} className="rb-fact">
+                  <span className="rb-fact-k">{k}</span>
+                  <span className="rb-fact-v" style={v === '—' || v === 'none' ? { color: 'var(--hot)' } : undefined}>{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-card">
+            <h3>Items</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {items.map(i => (
+                <div key={i.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+                  <span style={{ font: '400 12px/1.35 var(--sans)', minWidth: 0 }}>{i.product_name}</span>
+                  <span style={{ marginLeft: 'auto', font: '400 10px/1 var(--mono)', color: 'var(--faint)', whiteSpace: 'nowrap' }}>
+                    {money(i.retail_price)}{i.retail_price != null && i.price_basis === 'per_sqft' ? '/sf' : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          </div>
+          </div>
+          </div>
+
+          {dirty && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 22px', borderTop: '1px solid var(--line2)', background: 'var(--panel2)', flexShrink: 0, flexWrap: 'wrap' }}>
+              <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.12em', color: 'var(--gold)', whiteSpace: 'nowrap' }}>UNCOMMITTED</span>
+              <span style={{ font: '400 12px/1.4 var(--sans)', color: 'var(--dim)', textWrap: 'pretty' }}>
+                {[eName !== null && 'Name set', eEmail !== null && 'Email set', ePhone !== null && 'Phone set'].filter(Boolean).join(' · ')}
+                {emailOk ? ' · the recap can send with all ' + items.length + ' item' + (items.length === 1 ? '' : 's') : ' · still no valid email'}
+              </span>
+              <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, flexShrink: 0 }}>
+                <button className="opsq-alt" disabled={saving || sending} onClick={() => { setEName(null); setEEmail(null); setEPhone(null); }}>Discard</button>
+                <button className="opsq-alt" disabled={saving || sending || !N.trim()} onClick={() => saveContact(false)}>{saving ? 'Saving…' : 'Save'}</button>
+                <button className="recd-exc-primary" disabled={saving || sending || !emailOk || !N.trim()} onClick={() => saveContact(true)}>
+                  {saving || sending ? 'Working…' : (emailOk ? 'Save and send recap' : 'Email required')}
+                </button>
+              </span>
             </div>
           )}
         </div>

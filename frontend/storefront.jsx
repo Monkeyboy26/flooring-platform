@@ -7271,6 +7271,52 @@
                 )}
               </div>
 
+              {/* Size selector pills — quick size switch for slab/prefab products.
+                  Self-contained: the shared width-based selector keys off the FIRST
+                  dimension, which is a constant 108"/127" for these slabs, so it can't
+                  tell the prefab widths apart. Here the varying (2nd) dimension is the key. */}
+              {(() => {
+                const vn = sku.variant_name || '';
+                const looksSlab = /prefab|slab/i.test(vn) || mainSiblings.some(s => /prefab|slab/i.test(s.variant_name || ''));
+                if (!looksSlab || mainSiblings.length === 0) return null;
+                const DIM = /\d+(?:\.\d+)?\s*["″”]?\s*[xX×]\s*(\d+(?:\.\d+)?)/;
+                const sizeLabel = (name) => {
+                  const n = name || '';
+                  if (/jumbo/i.test(n)) return 'Jumbo Slab';
+                  if (/standard/i.test(n)) return 'Standard Slab';
+                  const m = n.match(DIM);
+                  return m ? m[1].replace(/\.0$/, '') + '″' : formatVariantName(n);
+                };
+                const sortKey = (name) => {
+                  const n = name || '';
+                  if (/jumbo/i.test(n)) return 100000;
+                  if (/standard/i.test(n)) return 99999;
+                  const m = n.match(DIM);
+                  return m ? parseFloat(m[1]) : 99998;
+                };
+                const raw = [{ sku_id: sku.sku_id, name: vn, is_current: true }].concat(
+                  mainSiblings.filter(s => s.variant_type !== 'accessory')
+                    .map(s => ({ sku_id: s.sku_id, name: s.variant_name, is_current: false }))
+                );
+                const seen = new Set();
+                const items = raw
+                  .map(it => ({ ...it, label: sizeLabel(it.name), sort: sortKey(it.name) }))
+                  .sort((a, b) => a.sort - b.sort)
+                  .filter(it => { if (seen.has(it.label)) return false; seen.add(it.label); return true; });
+                if (items.length < 2) return null;
+                const current = items.find(it => it.is_current);
+                return (
+                  <div className="variant-selector-group pdp-size-selector">
+                    <div className="variant-selector-label">Size{current ? <span>{current.label}</span> : null}</div>
+                    <div className="attr-pills">
+                      {items.map(it => (
+                        <button key={it.sku_id} className={'attr-pill' + (it.is_current ? ' active' : '')} onClick={() => { if (!it.is_current) onSkuClick(it.sku_id); }}>{it.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Trade tier upsell — progress toward the next tier + this item's price there */}
               {tradePrice && nextTier && amountToNext > 0 && (() => {
                 const mem = tierInfo && tierInfo.membership ? tierInfo.membership : null;
@@ -7761,9 +7807,12 @@
                 const _hasCountertopFinish = (sku.attributes || []).some(a => a.slug === 'countertop_finish') || allSiblings.some(s => (s.attributes || []).some(a => a.slug === 'countertop_finish'));
                 const showFinishPills = collectionFinishItems.length > 0 && !_isDecorativeHW && !_hasCountertopFinish;
 
-                // Width-based size + color from same-product siblings (mirrors, bath accessories)
+                // Width-based size + color from same-product siblings (mirrors, bath accessories).
+                // Skip for slab/prefab products — their length (1st dim) is constant, so width
+                // heuristics misfire; the dedicated Size pills above the price handle those.
+                const _isSlabVariant = /prefab|slab/i.test(sku.variant_name || '') || mainSiblings.some(s => /prefab|slab/i.test(s.variant_name || ''));
                 let sibSizeItems = [];
-                if (mainSiblings.length > 0 && !showSizePills) {
+                if (mainSiblings.length > 0 && !showSizePills && !_isSlabVariant) {
                   const _getWidthRaw = (attrs) => { const ol = (attrs || []).find(a => a.slug === 'overall_length'); if (ol) return ol.value; const wa = (attrs || []).find(a => a.slug === 'width'); return wa ? wa.value : null; };
                   const _getWidthNum = (attrs, vn) => { const raw = _getWidthRaw(attrs); if (raw) return parseFractionalInches(raw); const m = (vn || '').match(/\b(\d+(?:[-\s]\d+\/\d+)?\.?\d*)\s*["″]/); return m ? parseFractionalInches(m[1]) : null; };
                   const _getSize = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
@@ -10153,7 +10202,10 @@
         clearTimeout(taxDebounce.current);
         taxDebounce.current = setTimeout(async () => {
           try {
-            const resp = await fetch(API + '/api/cart/tax-estimate?zip=' + encodeURIComponent(taxZip) + '&session_id=' + encodeURIComponent(sessionId));
+            // Send the trade token so resale-exempt trade customers see $0 tax.
+            const tradeTok = localStorage.getItem('trade_token');
+            const resp = await fetch(API + '/api/cart/tax-estimate?zip=' + encodeURIComponent(taxZip) + '&session_id=' + encodeURIComponent(sessionId),
+              tradeTok ? { headers: { 'X-Trade-Token': tradeTok } } : undefined);
             if (!resp.ok) throw new Error('HTTP ' + resp.status);
             const data = await resp.json();
             setTaxEstimate({ rate: data.rate || 0, amount: data.amount || 0 });

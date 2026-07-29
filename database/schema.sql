@@ -1505,6 +1505,9 @@ CREATE INDEX IF NOT EXISTS idx_bill_payments_bill ON bill_payments(bill_id);
 
 -- Trade customer payment terms
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(20) DEFAULT 'due_on_receipt';
+-- Resale tax exemption: set by a rep/admin after verifying the resale certificate.
+-- Removes sales tax on materials for this customer's orders/estimates.
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS tax_exempt BOOLEAN DEFAULT false;
 
 -- Tax columns on orders
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,4) DEFAULT 0;

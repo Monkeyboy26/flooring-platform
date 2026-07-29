@@ -1,8 +1,9 @@
 import { Router } from 'express';
+import { isTradeTaxExempt } from '../lib/helpers.js';
 
 export default function createCartRoutes(ctx) {
   const router = Router();
-  const { pool, calculateSalesTax, isPickupOnly } = ctx;
+  const { pool, calculateSalesTax, isPickupOnly, optionalTradeAuth } = ctx;
 
   router.get('/api/cart', async (req, res) => {
     try {
@@ -249,7 +250,7 @@ export default function createCartRoutes(ctx) {
   });
 
   // Tax estimate for checkout
-  router.get('/api/cart/tax-estimate', async (req, res) => {
+  router.get('/api/cart/tax-estimate', optionalTradeAuth, async (req, res) => {
     try {
       const { zip, session_id } = req.query;
       if (!session_id) return res.status(400).json({ error: 'session_id is required' });
@@ -259,8 +260,10 @@ export default function createCartRoutes(ctx) {
         [session_id]
       );
       const subtotal = parseFloat(result.rows[0].subtotal) || 0;
-      const { rate, amount } = calculateSalesTax(subtotal, zip, false);
-      res.json({ rate, amount, subtotal });
+      // Logged-in resale-exempt trade customers see no tax.
+      const taxExempt = req.tradeCustomer ? await isTradeTaxExempt(pool, { id: req.tradeCustomer.id }) : false;
+      const { rate, amount } = calculateSalesTax(subtotal, zip, taxExempt);
+      res.json({ rate, amount, subtotal, tax_exempt: taxExempt });
     } catch (err) {
       console.error(err); res.status(500).json({ error: 'Internal server error' });
     }

@@ -12,6 +12,21 @@ export function calculateSalesTax(subtotal, shippingZip, isTaxExempt) {
   return { rate, amount };
 }
 
+// Backend-authoritative resale exemption check. Given a trade customer id or
+// email, returns true only if that APPROVED trade account is flagged tax_exempt
+// (set by a rep/admin after verifying the resale certificate). Never trust a
+// client-supplied exemption flag — always resolve it here. `db` is a pool or
+// transaction client.
+export async function isTradeTaxExempt(db, { id, email } = {}) {
+  if (!id && !email) return false;
+  const clause = id ? 'id = $1' : 'LOWER(email) = LOWER($1)';
+  const r = await db.query(
+    `SELECT tax_exempt FROM trade_customers WHERE ${clause} AND status = 'approved' LIMIT 1`,
+    [id || email]
+  );
+  return r.rows.length ? !!r.rows[0].tax_exempt : false;
+}
+
 export function getNextBusinessDay() {
   const d = new Date();
   d.setDate(d.getDate() + 1);
