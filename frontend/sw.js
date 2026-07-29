@@ -1,17 +1,19 @@
-const CACHE_NAME = 'roma-v174';
+const CACHE_NAME = 'roma-v181';
 const IMAGE_CACHE = 'roma-images-v9';
 const IMAGE_CACHE_LIMIT = 2000;
 const SHELL_ASSETS = [
   '/storefront.html',
   '/storefront.css?v=104',
-  '/storefront-app.js?v=363',
+  '/storefront-app.js?v=369',
   '/favicon.svg',
   '/manifest.json'
 ];
 
 self.addEventListener('install', e => {
+  // NOTE: no self.skipWaiting() here. A freshly-installed worker WAITS instead of
+  // hijacking open tabs. The page decides when to promote it (posts SKIP_WAITING),
+  // which keeps a byte-flapping / mismatched deploy from looping open tabs.
   e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(SHELL_ASSETS)));
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
@@ -21,6 +23,14 @@ self.addEventListener('activate', e => {
     )
   );
   self.clients.claim();
+});
+
+// Page-driven controls: gated skipWaiting + version handshake for the reload guard.
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') { self.skipWaiting(); return; }
+  if (e.data && e.data.type === 'GET_VERSION' && e.ports && e.ports[0]) {
+    e.ports[0].postMessage({ version: CACHE_NAME });
+  }
 });
 
 // Trim image cache to limit, evicting oldest entries

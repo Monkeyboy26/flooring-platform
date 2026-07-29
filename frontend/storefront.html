@@ -84,20 +84,48 @@
   </noscript>
   <script>window.onerror=function(m,s,l,c,e){document.title='ERR:'+m;var d=document.createElement('pre');d.style='position:fixed;top:0;left:0;right:0;background:red;color:white;padding:1rem;z-index:99999;font-size:12px;white-space:pre-wrap';d.textContent=m+'\n'+s+':'+l+':'+c+'\n'+(e&&e.stack||'');document.body.prepend(d)}</script>
   <!-- Images now visible immediately — SVG placeholder background provides loading state -->
-  <script src="/storefront-app.js?v=363"></script>
+  <script src="/storefront-app.js?v=369"></script>
   <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/sw.js').then(function(reg) { reg.update(); });
-      // When a new SW takes control (new deploy), reload once so this tab
-      // picks up the new shell instead of running the old bundle until a
-      // manual refresh. hadController guards the first-install claim().
       var hadController = !!navigator.serviceWorker.controller;
       var reloaded = false;
+
+      navigator.serviceWorker.register('/sw.js').then(function(reg) {
+        // The SW no longer skips waiting on its own — promote a genuinely new
+        // worker (installed over an existing controller) so a new deploy still
+        // gets picked up, but only ever via this explicit, one-shot handshake.
+        function promote() { if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING'); }
+        reg.addEventListener('updatefound', function() {
+          var nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', function() {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) promote();
+          });
+        });
+        if (reg.waiting && navigator.serviceWorker.controller) promote();
+        reg.update();
+      });
+
+      // Reload once when a new version takes control. The reload is keyed to the
+      // worker's version in sessionStorage, so if a load balancer flaps between
+      // two builds the tab reloads at most once per version and then converges
+      // instead of looping forever. hadController skips the first-install claim.
       navigator.serviceWorker.addEventListener('controllerchange', function() {
         if (!hadController || reloaded) return;
-        reloaded = true;
-        location.reload();
+        var ctrl = navigator.serviceWorker.controller;
+        if (!ctrl) return;
+        var chan = new MessageChannel();
+        chan.port1.onmessage = function(ev) {
+          var v = ev.data && ev.data.version;
+          if (!v) return;
+          var key = 'sw_reload_' + v;
+          if (sessionStorage.getItem(key)) return; // already picked up this version
+          sessionStorage.setItem(key, '1');
+          reloaded = true;
+          location.reload();
+        };
+        ctrl.postMessage({ type: 'GET_VERSION' }, [chan.port2]);
       });
     });
   }

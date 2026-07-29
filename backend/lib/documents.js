@@ -273,6 +273,56 @@ export function getDocumentFooter(terms) {
   `;
 }
 
+// California General Resale Certificate (CDTFA-230), filled from the applicant's
+// input. Rendered to a PDF (generatePDFBuffer) and stored as a trade_document
+// with doc_type 'resale_certificate'. Standard CDTFA-230 certification text.
+export function generateResaleCertificateHtml(data = {}) {
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const fill = (v, ph) => v ? `<span class="rc-fill">${esc(v)}</span>` : `<span class="rc-blank">${esc(ph || '')}</span>`;
+  const addr = [data.address_line1, [data.city, data.state, data.zip].filter(Boolean).join(', ')].filter(Boolean).join(' &middot; ');
+  const dateStr = data.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const propDesc = data.property_description || 'Flooring, tile, stone, and related installation materials';
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+    ${getDocumentBaseCSS()}
+    .rc-lead { font-family:'Cormorant Garamond',Georgia,serif; font-size:0.72rem; letter-spacing:0.18em; text-transform:uppercase; color:#a87935; margin:0 0 0.5rem; font-weight:500; }
+    .rc-cert { font-weight:600; letter-spacing:0.02em; margin:0 0 1rem; }
+    .rc-list { margin:0 0 1.5rem; padding:0; list-style:none; }
+    .rc-list li { position:relative; padding:0 0 0.85rem 1.9rem; }
+    .rc-list li .rc-num { position:absolute; left:0; top:0; font-weight:600; color:#a87935; }
+    .rc-fill { font-weight:600; color:#1c1917; border-bottom:1px solid #1c1917; padding:0 4px; }
+    .rc-blank { display:inline-block; min-width:180px; border-bottom:1px solid #78716c; }
+    .rc-sign { display:flex; gap:1.5rem; margin-top:1.5rem; }
+    .rc-sign .info-card { flex:1; }
+    .rc-sign-line { border-top:1px solid #1c1917; margin-top:2rem; padding-top:4px; font-size:0.6rem; text-transform:uppercase; letter-spacing:0.1em; color:#78716c; }
+    .rc-note { font-size:0.6875rem; color:#78716c; line-height:1.6; margin-top:1.25rem; }
+  </style></head><body><div class="page">
+    ${getDocumentHeader('Resale Certificate')}
+    <p class="rc-lead">California Resale Certificate &middot; CDTFA-230</p>
+    <p class="rc-cert">I HEREBY CERTIFY:</p>
+    <ul class="rc-list">
+      <li><span class="rc-num">1.</span> I hold valid seller's permit number: ${fill(data.sellers_permit, "seller's permit number")}</li>
+      <li><span class="rc-num">2.</span> I am engaged in the business of selling: ${fill(data.business_type, 'type of business')}</li>
+      <li><span class="rc-num">3.</span> This certificate is for the purchase from <strong>Roma Flooring Designs</strong> of the item(s) described in paragraph 5 below.</li>
+      <li><span class="rc-num">4.</span> I will resell the item(s) described in paragraph 5, which I am purchasing under this resale certificate, in the form of tangible personal property in the regular course of my business operations, and I will do so prior to making any use of the item(s) other than demonstration and display while holding the item(s) for sale in the regular course of my business. I understand that if I use the item(s) purchased under this certificate in any manner other than as just described, I will owe use tax based on each item's purchase price or as otherwise provided by law.</li>
+      <li><span class="rc-num">5.</span> Description of the property to be purchased for resale: ${fill(propDesc)}</li>
+      <li><span class="rc-num">6.</span> I have read and understand the foregoing.</li>
+    </ul>
+    <div class="rc-sign">
+      <div class="info-card">
+        <h3>Purchaser</h3>
+        <p><strong>${esc(data.business_name) || '&mdash;'}</strong>${addr ? '<br/>' + addr : ''}${data.phone ? '<br/>' + esc(data.phone) : ''}${data.email ? '<br/>' + esc(data.email) : ''}</p>
+      </div>
+      <div class="info-card">
+        <h3>Signature</h3>
+        <p><strong>${esc(data.signer_name) || '&mdash;'}</strong>${data.signer_title ? '<br/>' + esc(data.signer_title) : ''}<br/>Date: ${esc(dateStr)}</p>
+        <div class="rc-sign-line">Signature of purchaser</div>
+      </div>
+    </div>
+    <p class="rc-note">Provided to Roma Flooring Designs under the California Sales and Use Tax Law. By submitting it electronically, the purchaser affirms the statements above are true and correct.</p>
+    ${getDocumentFooter('')}
+  </div></body></html>`;
+}
+
 export async function generatePDF(html, filename, req, res, options = {}) {
   // Preview mode: return HTML directly for iframe rendering
   if (req.query.preview === 'true') {

@@ -26,7 +26,7 @@ import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCom
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers, findExactDuplicate } from './lib/customerHelpers.js';
-import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateLabelSheetHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
+import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateLabelSheetHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell } from './lib/documents.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -11490,6 +11490,77 @@ app.post('/api/trade/register/upload', docUpload.single('document'), async (req,
     res.json({ document_id: result.rows[0].id, file_key: fileKey });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Render a filled CDTFA-230 resale certificate to a PDF, store it in S3, and
+// insert a trade_documents row (doc_type 'resale_certificate'). Shared by the
+// application flow (unlinked, linked later via document_ids) and the in-account
+// flow (linked to the authenticated trade customer). Returns { document_id }.
+async function storeResaleCertificate(fields, tradeCustomerId) {
+  const html = generateResaleCertificateHtml(fields);
+  const buffer = await generatePDFBuffer(html);
+  const fileKey = `trade-docs/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf`;
+  await uploadToS3(fileKey, buffer, 'application/pdf');
+  const result = await pool.query(
+    `INSERT INTO trade_documents (trade_customer_id, doc_type, file_name, file_key, file_size, mime_type)
+     VALUES ($1, 'resale_certificate', 'California Resale Certificate.pdf', $2, $3, 'application/pdf') RETURNING id`,
+    [tradeCustomerId || null, fileKey, buffer.length]
+  );
+  return { document_id: result.rows[0].id, file_key: fileKey };
+}
+
+// Applicant fills out the resale certificate during registration (no account yet).
+// The returned document_id is passed in the /register/enhanced document_ids list.
+app.post('/api/trade/register/resale-certificate', registrationLimiter, async (req, res) => {
+  try {
+    const f = req.body || {};
+    if (!f.sellers_permit || !f.business_name) {
+      return res.status(400).json({ error: "Seller's permit number and business name are required" });
+    }
+    const out = await storeResaleCertificate(f, null);
+    res.json({ document_id: out.document_id });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Failed to generate resale certificate' });
+  }
+});
+
+// Approved trade customer fills out / updates the resale certificate from their account.
+app.post('/api/trade/resale-certificate', tradeAuth, async (req, res) => {
+  try {
+    const f = req.body || {};
+    if (!f.sellers_permit) return res.status(400).json({ error: "Seller's permit number is required" });
+    const tc = req.tradeCustomer;
+    const merged = {
+      ...f,
+      business_name: f.business_name || tc.company_name,
+      signer_name: f.signer_name || tc.contact_name,
+      email: f.email || tc.email,
+    };
+    const out = await storeResaleCertificate(merged, tc.id);
+    res.json({ document_id: out.document_id });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Failed to generate resale certificate' });
+  }
+});
+
+// Approved trade customer uploads a document (e.g. an existing resale license /
+// certificate) from their account, linked to their record.
+app.post('/api/trade/documents/upload', tradeAuth, docUpload.single('document'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No valid file uploaded' });
+    const doc_type = req.body.doc_type || 'resale_cert';
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const fileKey = `trade-docs/${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
+    await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
+    const result = await pool.query(
+      `INSERT INTO trade_documents (trade_customer_id, doc_type, file_name, file_key, file_size, mime_type)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [req.tradeCustomer.id, doc_type, req.file.originalname, fileKey, req.file.size, req.file.mimetype]
+    );
+    res.json({ document_id: result.rows[0].id, file_name: req.file.originalname });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Upload failed' });
   }
 });
 

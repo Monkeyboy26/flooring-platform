@@ -17,6 +17,21 @@
       return (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     }
 
+    // Progressive US phone formatter → "(XXX) XXX-XXXX" (+1 country code, " x<ext>" beyond 10 digits). Null-safe.
+    // Module-level fallback used by phone fields whose component has no local formatter.
+    function formatPhone(val) {
+      let d = (val || '').replace(/\D/g, '');
+      let cc = '';
+      if (d.length > 10 && d[0] === '1') { cc = '+1 '; d = d.slice(1); }
+      const ext = d.slice(10);
+      d = d.slice(0, 10);
+      let out;
+      if (d.length < 4) out = d;
+      else if (d.length < 7) out = '(' + d.slice(0, 3) + ') ' + d.slice(3);
+      else out = '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+      return (cc + out + (ext ? ' x' + ext : '')).trim();
+    }
+
     const SITE_URL = 'https://www.romaflooringdesigns.com';
     function updateSEO({ title, description, url, image }) {
       document.title = title || 'Shop | Roma Flooring Designs';
@@ -2350,7 +2365,10 @@
 
       const sessionId = useRef(getSessionId());
       const scrollY = useRef(0);
-      const pendingScroll = useRef(null);
+      // Live view for async callbacks — a scroll restore must never fire after
+      // the user has already navigated off the browse grid (e.g. into a PDP)
+      const viewRef = useRef(null);
+      viewRef.current = view;
 
       // ---- Consent-gated analytics ----
       // Emits to /api/analytics/*, but never when the visitor has declined
@@ -2417,7 +2435,7 @@
       // ---- Fetch SKUs ----
       const fetchSkus = useCallback((opts = {}) => {
         const PAGE_SIZE = 24;
-        const { cat, coll, search, activeFilters, sort, page, vendors, priceMin, priceMax, tags } = {
+        const { cat, coll, search, activeFilters, sort, page, vendors, priceMin, priceMax, tags, restoreScroll } = {
           cat: selectedCategory, coll: selectedCollection, search: searchQuery,
           activeFilters: filters, sort: sortBy, page: currentPage,
           vendors: vendorFilters, priceMin: userPriceRange.min, priceMax: userPriceRange.max, tags: tagFilters, ...opts
@@ -2452,10 +2470,12 @@
             setSearchDidYouMean(data.didYouMean || null);
             setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
             setLoadingSkus(false);
-            if (pendingScroll.current !== null) {
-              const pos = pendingScroll.current;
-              pendingScroll.current = null;
-              requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, pos)));
+            // Restore the saved browse scroll — but only if the user is still on
+            // the grid. This fetch can resolve seconds late (queued behind PDP
+            // image requests), and firing then would yank a freshly-opened PDP
+            // down to the old shop position.
+            if (restoreScroll != null && viewRef.current === 'browse') {
+              requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, restoreScroll)));
             }
           })
           .catch(err => { if (err.name !== 'AbortError') { console.error(err); setLoadingSkus(false); } });
@@ -3328,6 +3348,10 @@
           const state = e.state;
           if (state && state.view) {
             setView(state.view);
+            // Only browse restores a saved position; every other view (PDP, cart,
+            // …) always starts at the top — without this, back/forward into a
+            // PDP keeps the old grid scroll and lands mid-page or at the bottom
+            if (state.view !== 'browse') window.scrollTo(0, 0);
             if (state.view === 'detail' && state.skuId) setSelectedSkuId(state.skuId);
             if (state.view === 'browse') {
               setSelectedCategory(state.cat || null);
@@ -3341,15 +3365,15 @@
               const savedScroll = state.scrollPos || 0;
               setCurrentPage(savedPage);
               scrollY.current = savedScroll;
-              pendingScroll.current = savedScroll;
-              fetchSkusRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [], page: savedPage });
+              fetchSkusRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [], page: savedPage, restoreScroll: savedScroll });
               fetchFacetsRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [] });
             }
             if (state.view === 'visit-recap' && state.token) setVisitRecapToken(state.token);
             if (state.view === 'estimate-view' && state.token) setEstimateToken(state.token);
             if (state.view === 'coming-soon' && state.title) setComingSoonTitle(state.title);
           } else {
-            // Re-parse URL for unknown states
+            // Re-parse URL for unknown states — no saved position exists, so top
+            window.scrollTo(0, 0);
             const rawP = window.location.pathname;
             const p = rawP.length > 1 && rawP.endsWith('/') ? rawP.slice(0, -1) : rawP;
             if (p === '/' || p === '') { setView('home'); }
@@ -3768,6 +3792,7 @@
           />
 
           {showTradeModal && <TradeModal onClose={() => setShowTradeModal(false)} onLogin={handleTradeLogin} initialMode={tradeModalMode} />}
+          {customer && !customer.phone && <CompleteProfileModal customer={customer} customerToken={customerToken} setCustomer={setCustomer} />}
           {showInstallModal && <InstallationModal onClose={() => setShowInstallModal(false)} product={installModalProduct} />}
           {showFloorQuiz && <FloorQuizModal onClose={() => setShowFloorQuiz(false)} onSkuClick={goSkuDetail} onViewAll={(qs) => { navigate('/shop?' + qs); }} />}
 
@@ -9728,6 +9753,7 @@
       const [customerName, setCustomerName] = useState(tradeCustomer ? tradeCustomer.contact_name : (customer ? (customer.first_name + ' ' + customer.last_name) : ''));
       const [customerEmail, setCustomerEmail] = useState(tradeCustomer ? tradeCustomer.email : (customer ? customer.email : ''));
       const [phone, setPhone] = useState(customer ? (customer.phone || '') : '');
+      const [companyName, setCompanyName] = useState(tradeCustomer ? (tradeCustomer.company_name || '') : (customer ? (customer.company_name || '') : ''));
       const [line1, setLine1] = useState(customer ? (customer.address_line1 || '') : '');
       const [line2, setLine2] = useState(customer ? (customer.address_line2 || '') : '');
       const [city, setCity] = useState(customer ? (customer.city || '') : '');
@@ -9983,7 +10009,7 @@
 
           const orderBody = {
             session_id: sessionId, payment_intent_id: confirmedPiId,
-            customer_name: customerName, customer_email: customerEmail, phone,
+            customer_name: customerName, customer_email: customerEmail, phone, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
@@ -10214,7 +10240,7 @@
             const orderBody = {
               session_id: sessionId, fully_covered: true,
               store_credit_applied: piData.store_credit_applied,
-              customer_name: customerName, customer_email: customerEmail, phone,
+              customer_name: customerName, customer_email: customerEmail, phone, company_name: companyName,
               delivery_method: deliveryMethod,
               shipping: isPickup ? null : { line1, line2, city, state, zip },
               residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
@@ -10263,7 +10289,7 @@
 
           const orderBody = {
             session_id: sessionId, payment_intent_id: confirmedPiId,
-            customer_name: customerName, customer_email: customerEmail, phone,
+            customer_name: customerName, customer_email: customerEmail, phone, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
@@ -10326,7 +10352,7 @@
           }
           // Stash the order details — React state is lost across the redirect
           const orderBody = {
-            session_id: sessionId, customer_name: customerName, customer_email: customerEmail, phone,
+            session_id: sessionId, customer_name: customerName, customer_email: customerEmail, phone, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
@@ -10455,6 +10481,10 @@
                       <div className="co-field">
                         <div className="co-field-label">Phone</div>
                         <input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" />
+                      </div>
+                      <div className="co-field">
+                        <div className="co-field-label">Company <span style={{ color: 'var(--stone-400)', fontWeight: 400 }}>(optional)</span></div>
+                        <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Company name" />
                       </div>
                       {!customer && !tradeCustomer && (
                         <>
@@ -12713,8 +12743,55 @@
       const [expandedVisit, setExpandedVisit] = useState(null);
       const [visitDetail, setVisitDetail] = useState(null);
 
+      const [certForm, setCertForm] = useState({ sellers_permit: '', business_type: '', property_description: 'Flooring, tile, stone, and related installation materials', signer_title: 'Owner' });
+      const [showCertForm, setShowCertForm] = useState(false);
+      const [certBusy, setCertBusy] = useState(false);
+      const [certDone, setCertDone] = useState(false);
+      const [certUploading, setCertUploading] = useState(false);
+
       const headers = { 'X-Trade-Token': tradeToken, 'Content-Type': 'application/json' };
       const authHeaders = { 'X-Trade-Token': tradeToken };
+
+      // Generate/refresh the CDTFA-230 resale certificate on file (business name,
+      // contact, and email are filled from the account server-side).
+      const submitCert = async () => {
+        if (!certForm.sellers_permit.trim()) return;
+        setCertBusy(true);
+        try {
+          const resp = await fetch(API + '/api/trade/resale-certificate', {
+            method: 'POST', headers,
+            body: JSON.stringify({
+              sellers_permit: certForm.sellers_permit.trim(),
+              business_type: certForm.business_type.trim(),
+              property_description: certForm.property_description.trim(),
+              signer_title: certForm.signer_title.trim(),
+            }),
+          });
+          const data = await resp.json();
+          if (!resp.ok) { showToast(data.error || 'Could not generate certificate', 'error'); setCertBusy(false); return; }
+          setCertDone(true); setShowCertForm(false);
+          showToast('Resale certificate saved to your account');
+        } catch (e) { showToast('Network error', 'error'); }
+        setCertBusy(false);
+      };
+
+      // Upload an existing resale license / certificate file to the account.
+      const uploadCert = async (file) => {
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) { showToast('That file is over 10 MB', 'error'); return; }
+        setCertUploading(true);
+        try {
+          const fd = new FormData();
+          fd.append('document', file);
+          fd.append('doc_type', 'resale_cert');
+          const resp = await fetch(API + '/api/trade/documents/upload', { method: 'POST', headers: authHeaders, body: fd });
+          const data = await resp.json();
+          if (!resp.ok) { showToast(data.error || 'Upload failed', 'error'); setCertUploading(false); return; }
+          setCertDone(true);
+          showToast('Resale license uploaded to your account');
+        } catch (e) { showToast('Upload failed', 'error'); }
+        setCertUploading(false);
+      };
 
       const loadTab = (t) => {
         setLoading(true);
@@ -13460,7 +13537,7 @@
                       <div>
                         <div className="acct-input-field"><label className="acct-input-label">Company name</label><input className="acct-input" value={accountForm.company_name || ''} onChange={e => setAccountForm({ ...accountForm, company_name: e.target.value })} /></div>
                         <div className="acct-input-field"><label className="acct-input-label">Contact name</label><input className="acct-input" value={accountForm.contact_name || ''} onChange={e => setAccountForm({ ...accountForm, contact_name: e.target.value })} /></div>
-                        <div className="acct-input-field"><label className="acct-input-label">Phone</label><input className="acct-input" value={accountForm.phone || ''} onChange={e => setAccountForm({ ...accountForm, phone: e.target.value })} /></div>
+                        <div className="acct-input-field"><label className="acct-input-label">Phone</label><input className="acct-input" value={accountForm.phone || ''} onChange={e => setAccountForm({ ...accountForm, phone: formatPhone(e.target.value) })} /></div>
                         <div className="tacct-btn-row">
                           <button type="button" className="acct-btn acct-btn--outline" onClick={() => setEditAccount(false)}>Cancel</button>
                           <button className="acct-btn" onClick={saveAccount}>Save changes</button>
@@ -13474,6 +13551,37 @@
                         {account.phone && <div>{account.phone}</div>}
                       </div>
                     )}
+                  </div>
+                  <div className="acct-profile-section">
+                    <div className="tacct-card-head" style={{ marginBottom: '1.25rem' }}>
+                      <h3 className="acct-profile-title" style={{ margin: 0 }}>California resale certificate</h3>
+                      {!showCertForm && (
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                          <label className="tacct-edit" style={{ cursor: certUploading ? 'default' : 'pointer' }}>
+                            {certUploading ? 'Uploading…' : 'Upload'}
+                            <input type="file" accept="image/*,application/pdf" style={{ display: 'none' }} disabled={certUploading} onChange={e => { if (e.target.files[0]) uploadCert(e.target.files[0]); e.target.value = ''; }} />
+                          </label>
+                          <button className="tacct-edit" onClick={() => setShowCertForm(true)}>{certDone ? 'Update' : 'Fill out'}</button>
+                        </div>
+                      )}
+                    </div>
+                    {showCertForm ? (
+                      <div>
+                        <div className="acct-input-field"><label className="acct-input-label">CA seller's permit number</label><input className="acct-input" value={certForm.sellers_permit} onChange={e => setCertForm({ ...certForm, sellers_permit: e.target.value })} placeholder="SR AA 000000" /></div>
+                        <div className="acct-input-field"><label className="acct-input-label">Type of business</label><input className="acct-input" value={certForm.business_type} onChange={e => setCertForm({ ...certForm, business_type: e.target.value })} placeholder="e.g. interior design" /></div>
+                        <div className="acct-input-field"><label className="acct-input-label">Property purchased for resale</label><input className="acct-input" value={certForm.property_description} onChange={e => setCertForm({ ...certForm, property_description: e.target.value })} /></div>
+                        <div className="acct-input-field"><label className="acct-input-label">Your title</label><input className="acct-input" value={certForm.signer_title} onChange={e => setCertForm({ ...certForm, signer_title: e.target.value })} placeholder="Owner" /></div>
+                        <div className="tacct-btn-row">
+                          <button type="button" className="acct-btn acct-btn--outline" onClick={() => setShowCertForm(false)}>Cancel</button>
+                          <button className="acct-btn" onClick={submitCert} disabled={certBusy || !certForm.sellers_permit.trim()}>{certBusy ? 'Generating…' : 'Generate certificate'}</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="tacct-info">
+                        <div>{certDone ? 'A resale certificate is on file with your account.' : 'Optional — file a CDTFA-230 so materials you buy for resale are billed without sales tax.'}</div>
+                      </div>
+                    )}
+                    <p className="tacct-note">We generate a signed CDTFA-230 PDF from these details, using your company name and address on file.</p>
                   </div>
                   <div className="acct-profile-section">
                     <h3 className="acct-profile-title">Trade tier</h3>
@@ -14275,6 +14383,7 @@
       const [lastName, setLastName] = useState("");
       const [email, setEmail] = useState("");
       const [phone, setPhone] = useState("");
+      const [companyName, setCompanyName] = useState("");
       const [password, setPassword] = useState("");
       const [newsletter, setNewsletter] = useState(false);
       const [error, setError] = useState("");
@@ -14297,7 +14406,7 @@
           const res = await fetch(API + "/api/customer/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, phone, newsletter })
+            body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, phone, company_name: companyName, newsletter })
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || data.error) { setError(data.error || "Registration failed."); setLoading(false); return; }
@@ -14365,6 +14474,10 @@
             /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
               /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Phone"),
               /* @__PURE__ */ React.createElement("input", { type: "tel", value: phone, onChange: (e) => setPhone(formatPhone(e.target.value)), placeholder: "(555) 123-4567", required: true, autoComplete: "tel" })
+            ),
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+              /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Company ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-400)", fontWeight: 400 } }, "(optional)")),
+              /* @__PURE__ */ React.createElement("input", { type: "text", value: companyName, onChange: (e) => setCompanyName(e.target.value), placeholder: "Company name", autoComplete: "organization" })
             ),
             /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
               /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Password"),
@@ -14532,12 +14645,56 @@
     }
 
 
+    // Shown when a logged-in customer has no phone on file (e.g. Google sign-up,
+    // which doesn't provide one). Required — no dismiss — so we can reach them
+    // about orders before they shop/checkout.
+    function CompleteProfileModal({ customer, customerToken, setCustomer }) {
+      const [phone, setPhone] = useState('');
+      const [company, setCompany] = useState(customer.company_name || '');
+      const [error, setError] = useState('');
+      const [saving, setSaving] = useState(false);
+      const save = async () => {
+        setError('');
+        if (phone.replace(/\D/g, '').length < 10) { setError('Please enter a valid 10-digit phone number.'); return; }
+        setSaving(true);
+        try {
+          const res = await fetch(API + '/api/customer/profile', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Customer-Token': customerToken },
+            body: JSON.stringify({ phone, company_name: company })
+          });
+          const data = await res.json();
+          if (!res.ok || data.error) { setError(data.error || 'Could not save. Please try again.'); setSaving(false); return; }
+          setCustomer(data.customer);
+        } catch (e) { setError('Could not save. Please try again.'); setSaving(false); }
+      };
+      return (
+        <div className="modal-overlay">
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h2>One more thing</h2>
+            <p style={{ color: 'var(--stone-600)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+              Welcome{customer.first_name ? ', ' + customer.first_name : ''}! Add a phone number so we can reach you about orders and deliveries.
+            </p>
+            {error && <div className="checkout-error">{error}</div>}
+            <div className="checkout-field"><label>Phone *</label>
+              <input className="checkout-input" type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" autoComplete="tel" autoFocus /></div>
+            <div className="checkout-field" style={{ marginTop: '0.75rem' }}><label>Company (optional)</label>
+              <input className="checkout-input" value={company} onChange={e => setCompany(e.target.value)} autoComplete="organization" /></div>
+            <button onClick={save} disabled={saving}
+              style={{ marginTop: '1.5rem', width: '100%', padding: '0.85rem', background: 'var(--stone-900)', color: '#fff', border: 'none', borderRadius: 8, fontSize: '0.95rem', cursor: saving ? 'default' : 'pointer', fontFamily: 'Inter, sans-serif' }}>
+              {saving ? 'Saving…' : 'Save & continue'}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     // ==================== Installation Modal ====================
 
     function InstallationModal({ onClose, product }) {
       const [name, setName] = useState('');
       const [email, setEmail] = useState('');
       const [phone, setPhone] = useState('');
+      const [companyName, setCompanyName] = useState('');
       const [zipCode, setZipCode] = useState('');
       const [sqft, setSqft] = useState('');
       const [message, setMessage] = useState('');
@@ -14549,7 +14706,7 @@
         e.preventDefault();
         setError('');
         try {
-          const body = { customer_name: name, customer_email: email, phone, zip_code: zipCode, estimated_sqft: sqft || null, message };
+          const body = { customer_name: name, customer_email: email, phone, company_name: companyName, zip_code: zipCode, estimated_sqft: sqft || null, message };
           if (product) { body.product_id = product.product_id; body.sku_id = product.sku_id; body.product_name = product.product_name; body.collection = product.collection; }
           const res = await fetch(API + '/api/installation-inquiries', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
@@ -14581,8 +14738,9 @@
                   <div className="checkout-field"><label>Name *</label><input className="checkout-input" value={name} onChange={e => setName(e.target.value)} required /></div>
                   <div className="checkout-row">
                     <div className="checkout-field"><label>Email *</label><input className="checkout-input" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-                    <div className="checkout-field"><label>Phone *</label><input className="checkout-input" type="tel" value={phone} onChange={e => setPhone(e.target.value)} required /></div>
+                    <div className="checkout-field"><label>Phone *</label><input className="checkout-input" type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} required /></div>
                   </div>
+                  <div className="checkout-field"><label>Company (optional)</label><input className="checkout-input" value={companyName} onChange={e => setCompanyName(e.target.value)} autoComplete="organization" /></div>
                   <div className="checkout-row">
                     <div className="checkout-field"><label>ZIP Code</label><input className="checkout-input" value={zipCode} onChange={e => setZipCode(e.target.value)} maxLength={5} /></div>
                     <div className="checkout-field"><label>Est. Square Feet</label><input className="checkout-input" type="number" value={sqft} onChange={e => setSqft(e.target.value)} /></div>
@@ -15291,6 +15449,11 @@
       const [error, setError] = useState('');
       const [loading, setLoading] = useState(false);
       const [submitted, setSubmitted] = useState(false);
+      // Optional inline California resale certificate (CDTFA-230) — generates a
+      // PDF attached to the application in place of uploading an existing one.
+      const [showCert, setShowCert] = useState(false);
+      const [certBusy, setCertBusy] = useState(false);
+      const [cert, setCert] = useState({ sellers_permit: '', business_type: '', property_description: 'Flooring, tile, stone, and related installation materials', signer_title: 'Owner' });
       const [touched, setTouched] = useState({});
       const touch = (k) => setTouched(t => (t[k] ? t : { ...t, [k]: true }));
 
@@ -15331,6 +15494,32 @@
           setDocUploads(prev => ({ ...prev, [docType]: { id: data.document_id, file_name: file.name } }));
         } catch (err) { setError('Upload failed. Please try again.'); }
         setUploading('');
+      };
+
+      // Generate a CDTFA-230 PDF from the inline form; it fills the resale_cert
+      // slot so it's linked to the application like an uploaded document.
+      const generateCert = async () => {
+        if (!cert.sellers_permit.trim()) { setError("Enter your California seller's permit number to generate the certificate."); return; }
+        setCertBusy(true); setError('');
+        try {
+          const resp = await fetch(API + '/api/trade/register/resale-certificate', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sellers_permit: cert.sellers_permit.trim(),
+              business_name: companyName.trim(),
+              business_type: cert.business_type.trim() || businessType,
+              property_description: cert.property_description.trim(),
+              signer_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+              signer_title: cert.signer_title.trim(),
+              address_line1: addressLine1, city, state: addrState, zip, phone, email,
+            }),
+          });
+          const data = await resp.json();
+          if (!resp.ok) { setError(data.error || 'Could not generate the certificate.'); setCertBusy(false); return; }
+          setDocUploads(prev => ({ ...prev, resale_cert: { id: data.document_id, file_name: 'California Resale Certificate.pdf' } }));
+          setShowCert(false);
+        } catch (err) { setError('Network error while generating the certificate.'); }
+        setCertBusy(false);
       };
 
       const handleSubmit = async () => {
@@ -15489,6 +15678,28 @@
                 <TapSection theme={theme} num="03" title="Verification" sub="A photo of your business card is required; the rest are optional and just speed up review. Upload a PDF or a clear photo.">
                   <TapDropzone theme={theme} label="Business card · photo · required" docType="business_card" upload={docUploads.business_card} uploading={uploading} onFile={handleDocUpload} onRemove={removeDoc} />
                   <TapDropzone theme={theme} label="Resale certificate (CDTFA) · optional" docType="resale_cert" upload={docUploads.resale_cert} uploading={uploading} onFile={handleDocUpload} onRemove={removeDoc} />
+                  {!docUploads.resale_cert && (
+                    <div style={{ margin: '-8px 0 0 40px' }}>
+                      {!showCert ? (
+                        <button type="button" onClick={() => setShowCert(true)} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: accent, font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Don't have one? Fill out the California resale certificate online →</button>
+                      ) : (
+                        <div style={{ padding: '20px 22px', border: `0.5px solid ${ink}22`, background: warm, display: 'grid', gap: 20 }}>
+                          <TapMicro theme={theme} color={accent}>California resale certificate · CDTFA-230</TapMicro>
+                          <TapInput theme={theme} label="CA seller's permit number" required mono value={cert.sellers_permit} onChange={e => setCert({ ...cert, sellers_permit: e.target.value })} placeholder="SR AA 000000" />
+                          <TapRow>
+                            <TapInput theme={theme} label="Type of business" value={cert.business_type} onChange={e => setCert({ ...cert, business_type: e.target.value })} placeholder={businessType || 'e.g. interior design'} />
+                            <TapInput theme={theme} label="Your title" value={cert.signer_title} onChange={e => setCert({ ...cert, signer_title: e.target.value })} placeholder="Owner" />
+                          </TapRow>
+                          <TapInput theme={theme} label="Property purchased for resale" value={cert.property_description} onChange={e => setCert({ ...cert, property_description: e.target.value })} />
+                          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', alignItems: 'center' }}>
+                            <button type="button" onClick={() => setShowCert(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', padding: 0 }}>Cancel</button>
+                            <button type="button" onClick={generateCert} disabled={certBusy} style={{ padding: '11px 20px', background: ink, color: paper, border: 'none', font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: certBusy ? 'default' : 'pointer', opacity: certBusy ? 0.6 : 1 }}>{certBusy ? 'Generating…' : 'Generate certificate'}</button>
+                          </div>
+                          <TapMicro theme={theme}>Uses your business name, contact, and address from above. We generate a signed CDTFA-230 PDF and attach it to your application.</TapMicro>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <TapDropzone theme={theme} label="Contractor license · optional" docType="contractor_license" upload={docUploads.contractor_license} uploading={uploading} onFile={handleDocUpload} onRemove={removeDoc} />
                 </TapSection>
 
