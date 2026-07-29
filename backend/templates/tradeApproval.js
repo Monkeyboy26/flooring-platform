@@ -4,28 +4,36 @@
 // with the starting Silver tier highlighted, and a CTA into the trade portal.
 import { emailShell, heroSection, ctaButton, warmCard, section, sectionLabel, T, SERIF, SANS, MONO, esc } from './_shell.js';
 
-// Spend-based tier ladder. Kept in sync with the approval copy; the member
-// starts at Silver and moves up automatically on trailing 12-month spend.
-const TIERS = [
-  { name: 'Silver', discount: '12.5%', threshold: 'Starting tier', current: true },
-  { name: 'Gold', discount: '18.75%', threshold: 'at $12,500 / yr' },
-  { name: 'Platinum', discount: '21.875%', threshold: 'at $25,000 / yr' },
+// Fallback tier ladder, used only if the DB tiers can't be loaded (the live
+// values come from margin_tiers via emailService.loadTradeTiers). Shape matches
+// the DB rows: { name, discount_percent, spend_threshold, tier_level }.
+const DEFAULT_TIERS = [
+  { name: 'Silver', discount_percent: 12.5, spend_threshold: 0, tier_level: 0 },
+  { name: 'Gold', discount_percent: 18.75, spend_threshold: 12500, tier_level: 1 },
+  { name: 'Platinum', discount_percent: 21.875, spend_threshold: 25000, tier_level: 2 },
 ];
 
-function tierLadder() {
-  const rows = TIERS.map((t, i) => {
-    const last = i === TIERS.length - 1;
+// numeric(6,3) like 12.500 → "12.5%"; trailing zeros dropped by parseFloat.
+const fmtPct = (v) => `${parseFloat(v)}%`;
+const fmtMoney0 = (v) => '$' + Math.round(parseFloat(v) || 0).toLocaleString('en-US');
+
+function tierLadder(tiers) {
+  const sorted = [...tiers].sort((a, b) => (a.tier_level || 0) - (b.tier_level || 0));
+  const rows = sorted.map((t, i) => {
+    const last = i === sorted.length - 1;
+    const current = i === 0; // approved members start at the lowest tier
     const border = last ? '' : `border-bottom:1px solid ${T.border};`;
-    const nameColor = t.current ? T.ink : T.soft;
-    const nameWeight = t.current ? '500' : '400';
+    const nameColor = current ? T.ink : T.soft;
+    const nameWeight = current ? '500' : '400';
+    const threshold = current ? 'Starting tier' : `at ${fmtMoney0(t.spend_threshold)} / yr`;
     return `<tr>
       <td valign="middle" style="padding:12px 0;${border}">
-        <span style="font-family:${SERIF};font-size:19px;line-height:1;letter-spacing:-0.01em;color:${nameColor};font-weight:${nameWeight};">${t.name}</span>
-        ${t.current ? `<span style="margin-left:10px;font-family:${MONO};font-size:9px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:${T.accent};">You&rsquo;re here</span>` : ''}
+        <span style="font-family:${SERIF};font-size:19px;line-height:1;letter-spacing:-0.01em;color:${nameColor};font-weight:${nameWeight};">${esc(t.name)}</span>
+        ${current ? `<span style="margin-left:10px;font-family:${MONO};font-size:9px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:${T.accent};">You&rsquo;re here</span>` : ''}
       </td>
       <td valign="middle" align="right" style="padding:12px 0;${border}white-space:nowrap;">
-        <span style="font-family:${SERIF};font-size:22px;font-weight:300;letter-spacing:-0.01em;color:${nameColor};">${t.discount}</span>
-        <span style="display:block;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.muted};">${t.threshold}</span>
+        <span style="font-family:${SERIF};font-size:22px;font-weight:300;letter-spacing:-0.01em;color:${nameColor};">${fmtPct(t.discount_percent)}</span>
+        <span style="display:block;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.muted};">${threshold}</span>
       </td>
     </tr>`;
   }).join('');
@@ -39,11 +47,14 @@ const NEXT_STEPS = [
   'Your dedicated rep will reach out shortly',
 ];
 
-export function generateTradeApprovalHTML(customer) {
+export function generateTradeApprovalHTML(customer, tiers = []) {
   const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
   const firstName = (customer.contact_name || '').trim().split(/\s+/)[0] || 'there';
   const company = esc(customer.company_name || 'your business');
   const loginUrl = `${siteUrl}/trade`;
+
+  const tierList = (tiers && tiers.length) ? tiers : DEFAULT_TIERS;
+  const startingTier = [...tierList].sort((a, b) => (a.tier_level || 0) - (b.tier_level || 0))[0];
 
   const hero = heroSection({
     eyebrow: 'Trade Program &middot; Application approved',
@@ -57,10 +68,10 @@ export function generateTradeApprovalHTML(customer) {
     ${sectionLabel('Your pricing')}
     ${warmCard(`
       <p style="margin:0 0 4px;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};">
-        You&rsquo;re starting at <span style="color:${T.ink};font-weight:500;">Silver</span>. Your tier is based purely on what you spend with us over a rolling 12-month period &mdash; you move up automatically as you order.
+        You&rsquo;re starting at <span style="color:${T.ink};font-weight:500;">${esc(startingTier.name)}</span>. Your tier is based purely on what you spend with us over a rolling 12-month period &mdash; you move up automatically as you order.
       </p>
       <div style="height:14px;"></div>
-      ${tierLadder()}
+      ${tierLadder(tierList)}
     `, '20px 22px')}
   `, '0 40px 24px');
 

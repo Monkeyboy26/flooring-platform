@@ -3,15 +3,19 @@
 // new tier and its discount, with a CTA into the trade portal.
 import { emailShell, heroSection, ctaButton, warmCard, section, T, SERIF, SANS, MONO, esc } from './_shell.js';
 
-// Discount by tier, kept in sync with the approval email's ladder. Used to show
-// the new rate when the tier name is recognized; omitted otherwise.
-const TIER_DISCOUNTS = { Silver: '12.5%', Gold: '18.75%', Platinum: '21.875%' };
+// Fallback discounts, used only if the DB tiers can't be loaded. Live values
+// come from margin_tiers via emailService.loadTradeTiers, passed in as `tiers`.
+const DEFAULT_TIER_DISCOUNTS = { Silver: '12.5%', Gold: '18.75%', Platinum: '21.875%' };
 
-export function generateTierPromotionHTML(customer, tierName) {
+// numeric(6,3) like 18.750 → "18.75%"; trailing zeros dropped by parseFloat.
+const fmtPct = (v) => `${parseFloat(v)}%`;
+
+export function generateTierPromotionHTML(customer, tierName, tiers = []) {
   const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
   const firstName = (customer.contact_name || '').trim().split(/\s+/)[0] || 'there';
   const tier = esc(tierName || '');
-  const discount = TIER_DISCOUNTS[tierName] || null;
+  const matched = (tiers || []).find(t => t.name === tierName);
+  const discount = matched ? fmtPct(matched.discount_percent) : (DEFAULT_TIER_DISCOUNTS[tierName] || null);
   const loginUrl = `${siteUrl}/trade`;
 
   const hero = heroSection({

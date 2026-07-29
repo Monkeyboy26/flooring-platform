@@ -34,7 +34,27 @@ const SMTP_SECURE = process.env.SMTP_SECURE === 'true';
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || 'noreply@romaflooringdesigns.com';
+const SALES_FROM = process.env.SALES_FROM || 'sales@romaflooringdesigns.com';
 const BRAND_NAME = 'Roma Flooring Designs';
+const DEFAULT_FROM = `"${BRAND_NAME}" <${SMTP_FROM}>`;
+// Automated security (2FA, password reset, welcome) and bulk/system notifications
+// (stock alerts, internal digests, scraper alerts) send from the no-reply address.
+// No real noreply@ mailbox exists yet, so this defaults to the authenticated
+// sending address (Sales@) — set the NOREPLY_FROM env var to a real, send-as-verified
+// noreply@ once it exists to isolate these from the sales inbox / reps' reputation.
+const NOREPLY_ADDR = process.env.NOREPLY_FROM || SMTP_FROM;
+const NOREPLY_FROM = `"${BRAND_NAME}" <${NOREPLY_ADDR}>`;
+
+// Customer-facing mail is sent AS the responsible sales rep — reps use
+// @romaflooringdesigns.com addresses, so this passes SPF/DKIM for the domain.
+// Falls back to the brand address when no rep is known (e.g. self-serve
+// storefront orders, system notifications). Reply-To is also the rep.
+function repFrom(d = {}) {
+  const email = d && d.rep_email;
+  if (!email) return DEFAULT_FROM;
+  const name = [d.rep_first_name, d.rep_last_name].filter(Boolean).join(' ').trim();
+  return `"${name ? name + ' · ' + BRAND_NAME : BRAND_NAME}" <${email}>`;
+}
 
 let transporter = null;
 
@@ -102,8 +122,9 @@ export async function sendOrderConfirmation(orderData) {
   try {
     const html = generateOrderConfirmationHTML(orderData);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(orderData),
       to: orderData.customer_email,
+      replyTo: orderData.rep_email,
       subject: `Order Confirmed — ${orderData.order_number}`,
       html
     });
@@ -124,7 +145,7 @@ export async function sendQuoteSent(quoteData, opts = {}) {
   try {
     const html = generateQuoteSentHTML(quoteData, { tracking: true });
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(quoteData),
       to: quoteData.customer_email,
       replyTo: quoteData.rep_email,
       subject: `Your Roma quote ${quoteData.quote_number} — ready when you are`,
@@ -152,7 +173,7 @@ export async function sendCreditMemoIssued(data, opts = {}) {
     const list = Array.isArray(data.settlement) ? data.settlement : [];
     const hasRefund = list.some(s => s.method !== 'store_credit');
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(data),
       to: data.customer_email,
       replyTo: data.rep_email,
       subject: `Credit memo ${data.cm_number} — your return is ${hasRefund ? 'refunded' : 'credited'}`,
@@ -176,7 +197,7 @@ export async function sendMaterialRelease(data, opts = {}) {
     const html = generateMaterialReleaseHTML(data);
     const isDelivery = data.release_method === 'delivery';
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(data),
       to: data.customer_email,
       replyTo: data.rep_email,
       subject: `Material release ${data.release_number} — your order is ${isDelivery ? 'released for delivery' : 'ready for pickup'}`,
@@ -212,14 +233,32 @@ export async function sendOrderStatusUpdate(orderData, status) {
     };
 
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(orderData),
       to: orderData.customer_email,
+      replyTo: orderData.rep_email,
       subject: subjectMap[status],
       html
     });
     console.log(`[Email] Status update (${status}) sent to ${orderData.customer_email} for ${orderData.order_number}`);
   } catch (err) {
     console.error(`[Email] Failed to send status update (${status}) for ${orderData.order_number}:`, err.message);
+  }
+}
+
+/**
+ * Load active trade tiers (name, discount, spend threshold) ordered low→high.
+ * Single source of truth for the tier ladder shown in trade emails. Returns []
+ * on failure so templates fall back to their built-in defaults.
+ */
+async function loadTradeTiers() {
+  try {
+    const r = await pool.query(
+      'SELECT name, discount_percent, spend_threshold, tier_level FROM margin_tiers WHERE is_active = true ORDER BY tier_level'
+    );
+    return r.rows;
+  } catch (err) {
+    console.error('[Email] Failed to load trade tiers:', err.message);
+    return [];
   }
 }
 
@@ -232,7 +271,8 @@ export async function sendTradeApproval(customer) {
     return;
   }
   try {
-    const html = generateTradeApprovalHTML(customer);
+    const tiers = await loadTradeTiers();
+    const html = generateTradeApprovalHTML(customer, tiers);
     await deliver({
       from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
       to: customer.email,
@@ -276,7 +316,8 @@ export async function sendTierPromotion(customer, tierName) {
     return;
   }
   try {
-    const html = generateTierPromotionHTML(customer, tierName);
+    const tiers = await loadTradeTiers();
+    const html = generateTierPromotionHTML(customer, tierName, tiers);
     await deliver({
       from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
       to: customer.email,
@@ -315,7 +356,7 @@ export async function send2FACode(email, code) {
 </body></html>`;
 
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: NOREPLY_FROM,
       to: email,
       subject: `Your verification code: ${code}`,
       html
@@ -375,7 +416,7 @@ export async function sendInstallationInquiryConfirmation(inquiry) {
 /**
  * Send purchase order PDF to vendor via email.
  */
-export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_number, is_revised, pdf_buffer }) {
+export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_number, is_revised, pdf_buffer, rep_email, rep_name, vendor_contact_email }) {
   if (!transporter) {
     console.log(`[Email] Skipping PO email for ${po_number} to ${vendor_email} — SMTP not configured`);
     return { sent: false };
@@ -410,14 +451,17 @@ export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_
 </td></tr></table>
 </body></html>`;
 
+    const cc = [rep_email, vendor_contact_email].filter(Boolean);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: `"${BRAND_NAME} Purchasing" <${SALES_FROM}>`,
       to: vendor_email,
+      cc: cc.length ? cc : undefined,
+      replyTo: rep_email || SALES_FROM,
       subject,
       html,
       attachments: [{ filename: `${po_number}.pdf`, content: pdf_buffer, contentType: 'application/pdf' }]
     });
-    console.log(`[Email] PO ${po_number} sent to ${vendor_email}`);
+    console.log(`[Email] PO ${po_number} sent to ${vendor_email}${cc.length ? ' (cc ' + cc.join(', ') + ')' : ''}`);
     return { sent: true };
   } catch (err) {
     console.error(`[Email] Failed to send PO ${po_number} to ${vendor_email}:`, err.message);
@@ -436,7 +480,7 @@ export async function sendPasswordReset(email, resetUrl) {
   try {
     const html = generatePasswordResetHTML(resetUrl);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: NOREPLY_FROM,
       to: email,
       subject: 'Reset Your Password — Roma Flooring Designs',
       html
@@ -459,8 +503,9 @@ export async function sendPaymentRequest({ order, amount, checkout_url, message,
     const html = generatePaymentRequestHTML({ order, items, balance: amount, checkout_url, message, expires_at });
 
     const mailOpts = {
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(order),
       to: order.customer_email,
+      replyTo: order.rep_email,
       subject: `Payment Required — Order ${order.order_number}`,
       html
     };
@@ -493,7 +538,7 @@ export async function sendVisitRecap(visitData) {
   try {
     const html = generateVisitRecapHTML(visitData);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(visitData),
       to: visitData.customer_email,
       replyTo: visitData.rep_email,
       subject: 'Your Showroom Visit Recap — Roma Flooring Designs',
@@ -516,8 +561,9 @@ export async function sendPaymentReceived(order, amount, pdf_buffer = null) {
     const html = generatePaymentReceivedHTML({ order, amount });
 
     const mailOpts = {
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(order),
       to: order.customer_email,
+      replyTo: order.rep_email,
       subject: `Payment Received — Order ${order.order_number}`,
       html
     };
@@ -547,8 +593,9 @@ export async function sendSampleRequestConfirmation(data) {
   try {
     const html = generateSampleRequestConfirmationHTML(data);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(data),
       to: data.customer_email,
+      replyTo: data.rep_email,
       subject: `Sample Request Received — ${data.request_number}`,
       html
     });
@@ -569,8 +616,9 @@ export async function sendSampleRequestShipped(data) {
   try {
     const html = generateSampleRequestShippedHTML(data);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(data),
       to: data.customer_email,
+      replyTo: data.rep_email,
       subject: `Your Samples Have Shipped — ${data.request_number}`,
       html
     });
@@ -610,7 +658,7 @@ export async function sendScraperFailure({ source_name, scraper_key, job_id, err
       </div>
     `;
     await deliver({
-      from: `"${BRAND_NAME} Alerts" <${SMTP_FROM}>`,
+      from: `"${BRAND_NAME} Alerts" <${NOREPLY_ADDR}>`,
       to: alertEmail,
       subject: `[Scraper Alert] ${source_name} failed`,
       html
@@ -632,7 +680,7 @@ export async function sendStockAlert(data) {
   try {
     const html = generateStockAlertHTML(data);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: NOREPLY_FROM,
       to: data.email,
       subject: `Back in Stock — ${data.product_name}`,
       html
@@ -654,8 +702,9 @@ export async function sendInvoiceSent(invoice) {
   try {
     const html = generateInvoiceSentHTML(invoice);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(invoice),
       to: invoice.customer_email,
+      replyTo: invoice.rep_email,
       subject: `Invoice ${invoice.invoice_number} — Roma Flooring Designs`,
       html
     });
@@ -676,8 +725,9 @@ export async function sendInvoiceReminder(invoice) {
   try {
     const html = generateInvoiceReminderHTML(invoice);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(invoice),
       to: invoice.customer_email,
+      replyTo: invoice.rep_email,
       subject: `Payment Reminder — Invoice ${invoice.invoice_number}`,
       html
     });
@@ -690,7 +740,7 @@ export async function sendInvoiceReminder(invoice) {
 /**
  * Send sample request PDF to vendor via email.
  */
-export async function sendSampleRequestToVendor({ vendor_email, vendor_name, request_number, rep_name, item_count, ship_to, pdf_buffer }) {
+export async function sendSampleRequestToVendor({ vendor_email, vendor_name, request_number, rep_name, rep_email, vendor_contact_email, item_count, ship_to, pdf_buffer }) {
   if (!transporter) {
     console.log(`[Email] Skipping sample request email for ${request_number} to ${vendor_email} — SMTP not configured`);
     return { sent: false };
@@ -700,9 +750,12 @@ export async function sendSampleRequestToVendor({ vendor_email, vendor_name, req
       vendor_name, request_number, rep_name, item_count, ship_to
     });
 
+    const cc = [rep_email, vendor_contact_email].filter(Boolean);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: `"${BRAND_NAME} Purchasing" <${SALES_FROM}>`,
       to: vendor_email,
+      cc: cc.length ? cc : undefined,
+      replyTo: rep_email || SALES_FROM,
       subject: `Sample Request — ${request_number}`,
       html: emailBody,
       attachments: [{ filename: `Sample-Request-${request_number}.pdf`, content: pdf_buffer, contentType: 'application/pdf' }]
@@ -718,7 +771,7 @@ export async function sendSampleRequestToVendor({ vendor_email, vendor_name, req
 /**
  * Send sample shipping payment request email to customer with Stripe checkout link.
  */
-export async function sendSampleShippingPayment({ customer_name, customer_email, request_number, checkout_url, amount }) {
+export async function sendSampleShippingPayment({ customer_name, customer_email, request_number, checkout_url, amount, rep_email, rep_first_name, rep_last_name }) {
   if (!transporter) {
     console.log(`[Email] Skipping sample shipping payment for ${request_number} — SMTP not configured`);
     return;
@@ -727,8 +780,9 @@ export async function sendSampleShippingPayment({ customer_name, customer_email,
     const html = generateSampleShippingPaymentHTML({ customer_name, request_number, checkout_url, amount });
 
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom({ rep_email, rep_first_name, rep_last_name }),
       to: customer_email,
+      replyTo: rep_email || undefined,
       subject: `Shipping Payment Required — Sample Request ${request_number}`,
       html
     });
@@ -838,8 +892,9 @@ export async function sendOrderInvoiceEmail({ order, items, balance, checkout_ur
 </body></html>`;
 
     const mailOpts = {
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(order),
       to: order.customer_email,
+      replyTo: order.rep_email,
       subject: balanceDue > 0
         ? `Invoice & Payment Request — Order ${order.order_number}`
         : `Invoice — Order ${order.order_number}`,
@@ -877,7 +932,7 @@ export async function sendDailyAnalyticsSummary(staffEmails, summaryData) {
     const html = generateDailyAnalyticsSummaryHTML(summaryData);
     const dateStr = new Date(summaryData.stat_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: NOREPLY_FROM,
       to: staffEmails.join(', '),
       subject: `Daily Analytics — ${dateStr}`,
       html
@@ -905,7 +960,7 @@ export async function sendQualityDigest(staffEmails, qualityData) {
     const html = generateQualityDigestHTML(qualityData);
     const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: NOREPLY_FROM,
       to: staffEmails.join(', '),
       subject: `Data Quality Digest — ${dateStr} — Avg ${qualityData.overall.avg_score}`,
       html
@@ -927,7 +982,7 @@ export async function sendEstimateSent(estimateData, opts = {}) {
   try {
     const html = generateEstimateSentHTML(estimateData, { tracking: true, reminder: opts.reminder });
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(estimateData),
       to: estimateData.customer_email,
       replyTo: estimateData.rep_email,
       subject: opts.reminder
@@ -956,7 +1011,7 @@ export async function sendEstimateAccepted(estimateData) {
   try {
     const html = generateEstimateAcceptedHTML(estimateData);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(estimateData),
       to: estimateData.customer_email,
       replyTo: estimateData.rep_email,
       subject: `Estimate accepted — ${estimateData.estimate_number}`,
@@ -978,7 +1033,7 @@ export async function sendWelcomeSetPassword(toEmail, firstName, resetUrl) {
   try {
     const html = generateWelcomeSetPasswordHTML(firstName, resetUrl);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: NOREPLY_FROM,
       to: toEmail,
       subject: 'Welcome to Roma Flooring Designs — Set Your Password',
       html
@@ -1002,7 +1057,7 @@ export async function sendProductShare(data) {
   try {
     const html = generateProductShareHTML(data);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(data),
       to: data.customer_email,
       replyTo: data.rep_email,
       subject: `Check This Out — ${data.product_name}`,
@@ -1035,7 +1090,7 @@ export async function sendScraperHealthCheck(staffEmails, healthData) {
       ? `[Scraper Health] ${problemCount} issue${problemCount !== 1 ? 's' : ''} detected`
       : `[Scraper Health] All ${healthData.summary.total_sources} sources healthy`;
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: NOREPLY_FROM,
       to: staffEmails.join(', '),
       subject,
       html
@@ -1087,8 +1142,9 @@ export async function sendBankTransferAwaitingEmail(orderData, bankInstructions)
 <div style="background:#f5f5f4;padding:16px 24px;text-align:center;font-size:12px;color:#a8a29e;">Roma Flooring Designs · 1440 S. State College Blvd. #6M, Anaheim, CA 92806</div>
 </div></body></html>`;
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(orderData),
       to: orderData.customer_email,
+      replyTo: orderData.rep_email,
       subject: `Order Received — Awaiting Payment — ${orderData.order_number}`,
       html
     });
