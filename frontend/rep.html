@@ -1328,6 +1328,10 @@
     .cv-stat-l { font: 500 10px/1 ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--brass-muted); margin-bottom: 10px; }
     .cv-stat-v { font: 300 30px/1 'Cormorant Garamond', serif; color: var(--stone-900); letter-spacing: -0.01em; }
     .cv-stat-s { font: 400 12px/1.4 'Inter', sans-serif; color: rgba(28,25,23,0.53); margin-top: 6px; }
+    .cv-detail-rows { border-top: 0.5px solid rgba(28,25,23,0.1); }
+    .cv-detail-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 0.5px solid rgba(28,25,23,0.1); }
+    .cv-detail-row span:first-child { color: var(--brass-muted); font: 500 10px/1.4 ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; }
+    .cv-detail-row span:last-child { color: var(--stone-900); font: 400 13px/1.4 'Inter', sans-serif; text-align: right; }
 
     .cv-attention { margin-bottom: 34px; }
     .cv-attention-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
@@ -7322,14 +7326,15 @@
       const [busyId, setBusyId] = useState(null);
       const [error, setError] = useState(null);
 
+      // Load the full set once; the status dropdown filters client-side so the
+      // header stats always reflect every application, not just the current view.
       const load = () => {
         setLoading(true);
-        const qs = statusFilter ? ('?status=' + statusFilter) : '';
-        repFetch('/api/rep/trade-customers' + qs)
+        repFetch('/api/rep/trade-customers')
           .then(d => { setCustomers(d.customers || []); setLoading(false); })
           .catch(e => { setError(e.message); setLoading(false); });
       };
-      useEffect(load, [statusFilter]);
+      useEffect(load, []);
 
       const openReview = (c) => {
         if (expandedId === c.id) { setExpandedId(null); return; }
@@ -7357,11 +7362,18 @@
       };
 
       const money = (n) => '$' + (parseFloat(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-      const fmtDate = (d) => d ? new Date(d).toLocaleDateString() : '—';
-      const badgeTone = (s) => s === 'approved' ? 'var(--rod-green, #3a7a4e)' : s === 'pending' ? 'var(--brass, #a87935)' : 'var(--rod-red, #a2453a)';
+      const fmtDate = (d) => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+      const badgeClass = (s) => s === 'approved' ? 'badge-active' : s === 'pending' ? 'badge-pending' : 'badge-inactive';
 
-      const pendingCount = customers.filter(c => c.status === 'pending').length;
-      const ROW_COLS = '1.4fr 1.3fr 1.6fr 110px 130px 100px';
+      const counts = {
+        pending: customers.filter(c => c.status === 'pending').length,
+        approved: customers.filter(c => c.status === 'approved').length,
+        rejected: customers.filter(c => c.status === 'rejected').length,
+      };
+      const visible = statusFilter ? customers.filter(c => c.status === statusFilter) : customers;
+      const ROW_COLS = '1.5fr 1.3fr 1.7fr 118px 120px 48px';
+      const HEAD = { font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--brass-muted)' };
+      const META = { font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--brass-muted)', marginBottom: 10 };
 
       return (
         <div>
@@ -7373,93 +7385,108 @@
               </div>
             </div>
             <div className="cv-stats">
-              <div className="cv-stat"><div className="cv-stat-l">Showing</div><div className="cv-stat-v">{customers.length}</div><div className="cv-stat-s">{statusFilter || 'all'} applications</div></div>
-              <div className="cv-stat"><div className="cv-stat-l">Pending here</div><div className="cv-stat-v">{pendingCount}</div><div className="cv-stat-s">awaiting review</div></div>
+              <div className="cv-stat"><div className="cv-stat-l">Pending</div><div className="cv-stat-v" style={{ color: counts.pending ? 'var(--gold)' : undefined }}>{counts.pending}</div><div className="cv-stat-s">awaiting your review</div></div>
+              <div className="cv-stat"><div className="cv-stat-l">Approved</div><div className="cv-stat-v">{counts.approved}</div><div className="cv-stat-s">active trade members</div></div>
+              <div className="cv-stat"><div className="cv-stat-l">Rejected</div><div className="cv-stat-v">{counts.rejected}</div><div className="cv-stat-s">declined applications</div></div>
+              <div className="cv-stat"><div className="cv-stat-l">Total</div><div className="cv-stat-v">{customers.length}</div><div className="cv-stat-s">all time</div></div>
             </div>
           </div>
 
           <div className="cv-roster-head">
-            <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--brass-muted)' }}>
-              Filter by status
+            <div style={HEAD}>
+              {statusFilter ? (visible.length + ' ' + statusFilter) : (customers.length + ' total')} application{visible.length === 1 ? '' : 's'}
             </div>
             <div className="cv-roster-tools">
               <select className="ol-search-inline" value={statusFilter} onChange={e => { setExpandedId(null); setStatusFilter(e.target.value); }}>
-                <option value="">All</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
+                <option value="">All statuses</option>
               </select>
             </div>
           </div>
 
-          {error && <div className="gs-empty" style={{ padding: '20px 4px', color: 'var(--rod-red, #a2453a)' }}>{error}</div>}
+          {error && <div className="gs-empty" style={{ padding: '20px 4px', color: 'var(--red)' }}>{error}</div>}
 
           {loading ? (
             <div className="gs-loading" style={{ padding: '40px 4px' }}>Loading applications{'…'}</div>
-          ) : customers.length === 0 ? (
-            <div className="gs-empty" style={{ padding: '40px 4px' }}>No {statusFilter || ''} applications.</div>
+          ) : visible.length === 0 ? (
+            <div className="gs-empty" style={{ padding: '48px 4px', textAlign: 'center' }}>
+              <div style={{ font: '400 22px/1.2 "Cormorant Garamond", serif', color: 'var(--stone-900)', marginBottom: 6 }}>
+                {statusFilter === 'pending' ? 'All caught up' : 'Nothing here'}
+              </div>
+              <div style={{ font: '400 13px/1.5 "Inter", sans-serif', color: 'rgba(28,25,23,0.55)' }}>
+                No {statusFilter || ''} applications{statusFilter === 'pending' ? ' waiting on you right now.' : '.'}
+              </div>
+            </div>
           ) : (
             <div>
-              <div className="cv-row" style={{ gridTemplateColumns: ROW_COLS, cursor: 'default', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--brass-muted)' }}>
-                <div>Company</div><div>Contact</div><div>Email</div><div>Status</div><div>Applied</div><div style={{ textAlign: 'right' }}>Review</div>
+              <div className="cv-row" style={{ gridTemplateColumns: ROW_COLS, cursor: 'default', padding: '10px 4px', ...HEAD }}>
+                <div>Company</div><div>Contact</div><div>Email</div><div>Status</div><div>Applied</div><div />
               </div>
-              {customers.map(c => (
+              {visible.map(c => (
                 <div key={c.id}>
                   <div className="cv-row" style={{ gridTemplateColumns: ROW_COLS }} onClick={() => openReview(c)}>
                     <div className="cv-row-name">{c.company_name}</div>
                     <div className="cv-row-line">{c.contact_name || '—'}</div>
                     <div className="cv-row-line">{c.email}</div>
-                    <div>
-                      <span style={{ font: '600 10px/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: badgeTone(c.status) }}>{c.status}</span>
-                    </div>
+                    <div><span className={'badge ' + badgeClass(c.status)}>{c.status}</span></div>
                     <div className="cv-row-line" style={{ font: '400 13px/1.4 "Inter", sans-serif' }}>{fmtDate(c.created_at)}</div>
-                    <div className="cv-row-last" style={{ textAlign: 'right' }}>
-                      <span style={{ font: '400 14px/1 "Cormorant Garamond", serif', color: 'var(--brass-muted)' }}>{expandedId === c.id ? '▾' : '→'}</span>
+                    <div className="cv-row-last" style={{ justifyContent: 'flex-end' }}>
+                      <span style={{ font: '400 15px/1 "Cormorant Garamond", serif', color: 'var(--gold)' }}>{expandedId === c.id ? '▾' : '→'}</span>
                     </div>
                   </div>
 
                   {expandedId === c.id && (
-                    <div style={{ padding: '16px 18px', margin: '2px 0 10px', border: '1px solid var(--rod-line, #e4ddd0)', borderRadius: 8, background: 'var(--rod-panel, #fbf9f4)' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                    <div style={{ padding: '22px 24px', margin: '0 0 14px', border: '0.5px solid rgba(28,25,23,0.13)', background: 'var(--stone-50)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
                         <div>
-                          <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--brass-muted)', marginBottom: 8 }}>Documents</div>
+                          <div style={META}>Documents</div>
                           {docsLoading ? (
-                            <div className="cv-row-sub">Loading documents…</div>
+                            <div className="cv-row-line">Loading documents…</div>
                           ) : docs.length === 0 ? (
-                            <div className="cv-row-sub">No documents uploaded.</div>
+                            <div className="cv-row-line" style={{ color: 'rgba(28,25,23,0.5)' }}>No documents uploaded.</div>
                           ) : docs.map(d => (
-                            <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', border: '1px solid var(--rod-line, #e4ddd0)', borderRadius: 6, marginBottom: 6, background: '#fff' }}>
-                              <div>
-                                <div className="cv-row-name" style={{ fontSize: 13 }}>{d.doc_type || 'Document'}</div>
-                                <div className="cv-row-sub">{d.file_name || d.file_key}{d.file_size ? ' — ' + Math.round(d.file_size / 1024) + ' KB' : ''}</div>
+                            <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 13px', border: '0.5px solid rgba(28,25,23,0.12)', marginBottom: 8, background: '#fff' }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ font: '500 12px/1.3 "Inter", sans-serif', color: 'var(--stone-900)', textTransform: 'capitalize' }}>{(d.doc_type || 'Document').replace(/_/g, ' ')}</div>
+                                <div style={{ font: '400 11px/1.4 "Inter", sans-serif', color: 'rgba(28,25,23,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.file_name || d.file_key}{d.file_size ? ' · ' + Math.round(d.file_size / 1024) + ' KB' : ''}</div>
                               </div>
-                              {d.url && <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--brass, #a87935)', textDecoration: 'underline', fontSize: 13 }}>View</a>}
+                              {d.url && <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, marginLeft: 12, font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', textDecoration: 'none' }}>View {'→'}</a>}
                             </div>
                           ))}
-                          <div className="cv-row-sub" style={{ marginTop: 10 }}>Spend (last 12 mo): {money(c.total_spend)}</div>
-                          {c.business_type && <div className="cv-row-sub">Business type: {c.business_type}</div>}
-                          {c.ein && <div className="cv-row-sub">EIN: {c.ein}</div>}
-                          {c.contractor_license && <div className="cv-row-sub">License: {c.contractor_license}</div>}
+
+                          <div style={{ marginTop: 18 }}>
+                            <div style={META}>Applicant</div>
+                            <div className="cv-detail-rows">
+                              <div className="cv-detail-row"><span>Spend · 12 mo</span><span>{money(c.total_spend)}</span></div>
+                              {c.business_type && <div className="cv-detail-row"><span>Business type</span><span style={{ textTransform: 'capitalize' }}>{c.business_type}</span></div>}
+                              {c.ein && <div className="cv-detail-row"><span>EIN</span><span>{c.ein}</span></div>}
+                              {c.contractor_license && <div className="cv-detail-row"><span>License</span><span>{c.contractor_license}</span></div>}
+                              {c.phone && <div className="cv-detail-row"><span>Phone</span><span>{c.phone}</span></div>}
+                            </div>
+                          </div>
                         </div>
 
                         <div>
-                          <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--brass-muted)', marginBottom: 8 }}>Decision</div>
-                          {c.status === 'rejected' && c.denial_reason && (
-                            <div className="cv-row-sub" style={{ marginBottom: 10 }}>Denial reason on file: {c.denial_reason}</div>
-                          )}
-                          {c.status !== 'approved' && (
-                            <button className="cdv-btn primary" disabled={busyId === c.id} onClick={() => approve(c)} style={{ marginBottom: 14 }}>
-                              {busyId === c.id ? 'Working…' : (c.status === 'rejected' ? 'Approve anyway' : 'Approve application')}
-                            </button>
-                          )}
-                          {c.status === 'approved' && (
-                            <div className="cv-row-sub" style={{ marginBottom: 14 }}>Approved{c.tier_name ? ' · ' + c.tier_name + ' tier' : ''}. Membership changes are managed in the admin dashboard.</div>
-                          )}
-                          {c.status !== 'rejected' && (
+                          <div style={META}>Decision</div>
+                          {c.status === 'approved' ? (
+                            <div style={{ font: '400 13px/1.6 "Inter", sans-serif', color: 'rgba(28,25,23,0.7)' }}>
+                              Approved{c.tier_name ? ' at ' : ''}<strong style={{ color: 'var(--stone-900)' }}>{c.tier_name ? c.tier_name + ' tier' : ''}</strong>. Membership changes are managed in the admin dashboard.
+                            </div>
+                          ) : (
                             <div>
-                              <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--brass-muted)', marginBottom: 6 }}>Denial reason (optional)</div>
-                              <textarea className="rv-input" style={{ width: '100%', minHeight: 70, marginBottom: 8 }} placeholder="Reason for denial…" value={denialReason} onChange={e => setDenialReason(e.target.value)} />
-                              <button className="cdv-btn" disabled={busyId === c.id} onClick={() => deny(c)} style={{ color: 'var(--rod-red, #a2453a)', borderColor: 'var(--rod-red, #a2453a)' }}>
+                              {c.status === 'rejected' && c.denial_reason && (
+                                <div style={{ font: '400 12px/1.5 "Inter", sans-serif', color: 'rgba(28,25,23,0.6)', background: '#fff', border: '0.5px solid rgba(28,25,23,0.12)', padding: '10px 12px', marginBottom: 16 }}>
+                                  <span style={{ color: 'var(--red)', fontWeight: 500 }}>Previously declined:</span> {c.denial_reason}
+                                </div>
+                              )}
+                              <button className="cdv-btn primary" disabled={busyId === c.id} onClick={() => approve(c)} style={{ width: '100%', marginBottom: 18 }}>
+                                {busyId === c.id ? 'Working…' : (c.status === 'rejected' ? 'Approve anyway' : 'Approve application')}
+                              </button>
+                              <div style={META}>Deny — reason (optional)</div>
+                              <textarea className="rv-input" style={{ width: '100%', minHeight: 76, marginBottom: 10, resize: 'vertical' }} placeholder="Shared with the applicant if you deny…" value={denialReason} onChange={e => setDenialReason(e.target.value)} />
+                              <button className="cdv-btn" disabled={busyId === c.id} onClick={() => deny(c)} style={{ width: '100%', color: 'var(--red)', borderColor: 'rgba(220,38,38,0.4)' }}>
                                 {busyId === c.id ? 'Working…' : 'Deny application'}
                               </button>
                             </div>
