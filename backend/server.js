@@ -13589,6 +13589,19 @@ app.get('/api/rep/trade-customers', repAuth, requireRepManager, async (req, res)
   }
 });
 
+// Active trade tiers — powers the rep review screen's tier simulator and lets
+// a manager approve an applicant at a specific tier (needs the tier id).
+app.get('/api/rep/trade-tiers', repAuth, requireRepManager, async (req, res) => {
+  try {
+    const r = await pool.query(
+      'SELECT id, name, discount_percent, spend_threshold, tier_level FROM margin_tiers WHERE is_active = true ORDER BY tier_level'
+    );
+    res.json({ tiers: r.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/rep/trade-customers/:id/documents', repAuth, requireRepManager, async (req, res) => {
   try {
     const docs = await pool.query(

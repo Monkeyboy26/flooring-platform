@@ -4,15 +4,30 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 export const S3_BUCKET = process.env.S3_BUCKET || 'trade-documents';
 
 export let s3 = null;
+// Client used only to SIGN GET URLs. Presigned URLs are opened by the browser,
+// which cannot resolve the internal Docker host in S3_ENDPOINT (http://minio:9000).
+// So sign against a browser-reachable endpoint: S3_PUBLIC_ENDPOINT if set,
+// otherwise the same endpoint with the internal `minio` host swapped for localhost.
+// getSignedUrl makes no network call, so this client never has to connect.
+export let s3Presign = null;
+const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT
+  || (process.env.S3_ENDPOINT ? process.env.S3_ENDPOINT.replace('//minio:', '//localhost:') : null);
 
 if (process.env.S3_ENDPOINT) {
+  const creds = {
+    accessKeyId: process.env.S3_ACCESS_KEY || 'minioadmin',
+    secretAccessKey: process.env.S3_SECRET_KEY || 'minioadmin'
+  };
   s3 = new S3Client({
     endpoint: process.env.S3_ENDPOINT,
     region: process.env.S3_REGION || 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.S3_ACCESS_KEY || 'minioadmin',
-      secretAccessKey: process.env.S3_SECRET_KEY || 'minioadmin'
-    },
+    credentials: creds,
+    forcePathStyle: true
+  });
+  s3Presign = new S3Client({
+    endpoint: publicEndpoint,
+    region: process.env.S3_REGION || 'us-east-1',
+    credentials: creds,
     forcePathStyle: true
   });
   // Ensure bucket exists
@@ -42,7 +57,8 @@ export async function uploadToS3(fileKey, buffer, mimeType) {
 }
 
 export async function getPresignedUrl(fileKey) {
-  if (!s3) throw new Error('S3 not configured');
+  const client = s3Presign || s3;
+  if (!client) throw new Error('S3 not configured');
   const command = new GetObjectCommand({ Bucket: S3_BUCKET, Key: fileKey });
-  return getSignedUrl(s3, command, { expiresIn: 3600 });
+  return getSignedUrl(client, command, { expiresIn: 3600 });
 }

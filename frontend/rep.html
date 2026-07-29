@@ -1332,6 +1332,16 @@
     .cv-detail-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 0.5px solid rgba(28,25,23,0.1); }
     .cv-detail-row span:first-child { color: var(--brass-muted); font: 500 10px/1.4 ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; }
     .cv-detail-row span:last-child { color: var(--stone-900); font: 400 13px/1.4 'Inter', sans-serif; text-align: right; }
+    /* Trade applications review workspace (queue | review) */
+    .ta-body { display: grid; grid-template-columns: clamp(232px, 24%, 300px) minmax(0, 1fr); }
+    .ta-cols { display: grid; grid-template-columns: 1fr 1fr; }
+    .ta-cols > div:first-child { border-right: 0.5px solid rgba(28,25,23,0.09); }
+    @media (max-width: 1040px) {
+      .ta-body { grid-template-columns: 1fr; }
+      .ta-queue { display: none; }
+      .ta-cols { grid-template-columns: 1fr; }
+      .ta-cols > div:first-child { border-right: none; }
+    }
 
     .cv-attention { margin-bottom: 34px; }
     .cv-attention-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
@@ -7313,192 +7323,353 @@
     // ========== RepCustomersListView ==========
     // ========== RepVendorsListView (read-only directory) ==========
     // ========== RepTradeApplicationsView (managers only) ==========
-    // Review trade membership applications and approve/reject them. Backed by
-    // /api/rep/trade-customers/* which gate on the rep's is_manager flag.
+    // Queue-based review workspace — design: "Rep Trade Applications.html".
+    // Left = pending-application queue; right = evidence + a real tier simulator
+    // + a pinned verdict bar. The mockup's fictional data (CDTFA/IRS/CSLB
+    // verification integrations, referral LTV, Net-terms/credit-limit tiers,
+    // "median decision" metric) is dropped; everything here is real
+    // trade_customers fields, uploaded trade_documents, and margin_tiers.
+    // Backed by /api/rep/trade-customers/* + /api/rep/trade-tiers (is_manager gated).
+    const TA = {
+      paper: '#f0eee9', card: '#f7f5f1', ink: '#1c1917', warm: '#e8e3da',
+      accent: '#a87935', good: '#3a7a4e', hold: '#a87935', bad: '#c54731',
+      serif: "'Cormorant Garamond', serif", sans: "'Inter', sans-serif", mono: 'ui-monospace, monospace',
+    };
+    const tInk = a => `rgba(28,25,23,${a})`;
+    const TA_CHK = {
+      pass: { c: TA.good, g: '✓', t: 'ON FILE' },
+      wait: { c: TA.hold, g: '·', t: 'REVIEW' },
+      none: { c: 'rgba(28,25,23,0.35)', g: '—', t: 'NONE' },
+    };
+    function taAge(iso) {
+      if (!iso) return '';
+      const h = Math.floor((Date.now() - new Date(iso).getTime()) / 3600000);
+      if (h < 1) return 'just now';
+      if (h < 24) return h + ' hr' + (h > 1 ? 's' : '');
+      const d = Math.floor(h / 24);
+      return d + ' day' + (d > 1 ? 's' : '');
+    }
+    const taMoney = n => '$' + (parseFloat(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const taPct = v => `${parseFloat(v)}%`;
+    const taDate = d => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+    // Honest recommendation from real fields: identity (EIN or license) is the bar
+    // for granting trade pricing; without it, it's a request for documents.
+    function taRec(c, lowestTier) {
+      if (!(c.ein || c.contractor_license)) return { key: 'info', label: 'NEEDS DOCUMENTS', c: TA.hold };
+      return { key: 'approve', label: 'APPROVE · ' + (lowestTier ? lowestTier.name : 'Silver'), c: TA.good };
+    }
+
     function RepTradeApplicationsView({ navigate }) {
+      const rootRef = useRef(null);
+      const [h, setH] = useState(560);
       const [customers, setCustomers] = useState([]);
+      const [tiers, setTiers] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [statusFilter, setStatusFilter] = useState('pending');
-      const [expandedId, setExpandedId] = useState(null);
+      const [error, setError] = useState(null);
+      const [sel, setSel] = useState(null);
+      const [tierChoice, setTierChoice] = useState(null); // null = follow recommendation
       const [docs, setDocs] = useState([]);
       const [docsLoading, setDocsLoading] = useState(false);
-      const [denialReason, setDenialReason] = useState('');
-      const [busyId, setBusyId] = useState(null);
-      const [error, setError] = useState(null);
+      const [note, setNote] = useState('');
+      const [busy, setBusy] = useState(false);
 
-      // Load the full set once; the status dropdown filters client-side so the
-      // header stats always reflect every application, not just the current view.
+      // Fill the viewport below the sticky top bar; neutralize the padded,
+      // min-height:100vh content shell so the workspace doesn't add page scroll.
+      React.useLayoutEffect(() => {
+        const content = rootRef.current && rootRef.current.closest('.rep-content');
+        const prevMin = content ? content.style.minHeight : '';
+        if (content) content.style.minHeight = '0';
+        const measure = () => { if (rootRef.current) setH(Math.max(420, window.innerHeight - rootRef.current.getBoundingClientRect().top)); };
+        measure();
+        window.addEventListener('resize', measure);
+        return () => { window.removeEventListener('resize', measure); if (content) content.style.minHeight = prevMin; };
+      }, []);
+
       const load = () => {
         setLoading(true);
-        repFetch('/api/rep/trade-customers')
-          .then(d => { setCustomers(d.customers || []); setLoading(false); })
-          .catch(e => { setError(e.message); setLoading(false); });
+        Promise.all([
+          repFetch('/api/rep/trade-customers?status=pending'),
+          repFetch('/api/rep/trade-tiers'),
+        ]).then(([cs, ts]) => {
+          const list = cs.customers || [];
+          setCustomers(list);
+          setTiers(ts.tiers || []);
+          setSel(s => (s && list.some(c => c.id === s)) ? s : (list[0] ? list[0].id : null));
+          setLoading(false);
+        }).catch(e => { setError(e.message); setLoading(false); });
       };
       useEffect(load, []);
 
-      const openReview = (c) => {
-        if (expandedId === c.id) { setExpandedId(null); return; }
-        setExpandedId(c.id);
-        setDenialReason('');
-        setDocs([]);
+      // Load documents for the selected applicant; reset the per-applicant inputs.
+      useEffect(() => {
+        setTierChoice(null); setNote(''); setDocs([]);
+        if (!sel) return;
         setDocsLoading(true);
-        repFetch('/api/rep/trade-customers/' + c.id + '/documents')
+        repFetch('/api/rep/trade-customers/' + sel + '/documents')
           .then(d => { setDocs(d.documents || []); setDocsLoading(false); })
           .catch(() => setDocsLoading(false));
+      }, [sel]);
+
+      const lowestTier = tiers[0] || null;
+      const a = customers.find(c => c.id === sel) || null;
+      const rec = a ? taRec(a, lowestTier) : null;
+      const recTierId = (rec && rec.key === 'approve' && lowestTier) ? lowestTier.id : 'none';
+      const chosen = tierChoice === null ? recTierId : tierChoice;
+      const chosenTier = chosen === 'none' ? null : tiers.find(t => t.id === chosen);
+
+      const decide = (verdict) => {
+        if (!a || busy) return;
+        setBusy(true);
+        const path = verdict === 'approve' ? '/approve' : '/deny';
+        const body = verdict === 'approve' ? { margin_tier_id: chosen } : { denial_reason: note };
+        repFetch('/api/rep/trade-customers/' + a.id + path, { method: 'POST', body: JSON.stringify(body) })
+          .then(() => {
+            setBusy(false);
+            setCustomers(prev => {
+              const rest = prev.filter(c => c.id !== a.id);
+              setSel(rest[0] ? rest[0].id : null);
+              return rest;
+            });
+          })
+          .catch(e => { setBusy(false); alert(e.message); });
       };
 
-      const approve = (c) => {
-        setBusyId(c.id);
-        repFetch('/api/rep/trade-customers/' + c.id + '/approve', { method: 'POST', body: JSON.stringify({}) })
-          .then(() => { setBusyId(null); setExpandedId(null); load(); })
-          .catch(e => { setBusyId(null); alert(e.message); });
-      };
+      // Derived, honest verification checklist from real data.
+      const hasResale = docs.some(d => /resale|resell|seller/i.test((d.doc_type || '') + ' ' + (d.file_name || '')));
+      const checks = a ? [
+        ['EIN / Tax ID', a.ein ? 'pass' : 'none', a.ein || 'Not provided'],
+        ['Contractor license', a.contractor_license ? 'pass' : 'none', a.contractor_license || 'Not provided'],
+        ['Resale certificate', hasResale ? 'pass' : (docs.length ? 'wait' : 'none'), hasResale ? 'Document uploaded' : (docs.length ? 'Not clearly labeled' : 'No document')],
+        ['Business documents', docs.length ? 'pass' : 'none', docs.length ? docs.length + ' uploaded' : 'None uploaded'],
+        ['Business address', (a.address_line1 || a.city) ? 'pass' : 'none', [a.city, a.state].filter(Boolean).join(', ') || 'Not provided'],
+        ['Prior spend with Roma', parseFloat(a.total_spend) > 0 ? 'pass' : 'none', parseFloat(a.total_spend) > 0 ? taMoney(a.total_spend) + ' trailing 12 mo' : 'No order history'],
+      ] : [];
+      const passCount = checks.filter(c => c[1] === 'pass').length;
+      const submitted = a ? [
+        ['Business name', a.company_name || '—'],
+        ['Contact', a.contact_name || '—'],
+        ['Business type', a.business_type || 'Not stated'],
+        ['EIN', a.ein || 'Not provided'],
+        ['License', a.contractor_license || 'Not provided'],
+        ['State', a.state || '—'],
+        ['Applied', taDate(a.created_at)],
+        ['Trailing spend', taMoney(a.total_spend)],
+      ] : [];
 
-      const deny = (c) => {
-        setBusyId(c.id);
-        repFetch('/api/rep/trade-customers/' + c.id + '/deny', { method: 'POST', body: JSON.stringify({ denial_reason: denialReason }) })
-          .then(() => { setBusyId(null); setExpandedId(null); load(); })
-          .catch(e => { setBusyId(null); alert(e.message); });
-      };
-
-      const money = (n) => '$' + (parseFloat(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-      const fmtDate = (d) => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-      const badgeClass = (s) => s === 'approved' ? 'badge-active' : s === 'pending' ? 'badge-pending' : 'badge-inactive';
-
-      const counts = {
-        pending: customers.filter(c => c.status === 'pending').length,
-        approved: customers.filter(c => c.status === 'approved').length,
-        rejected: customers.filter(c => c.status === 'rejected').length,
-      };
-      const visible = statusFilter ? customers.filter(c => c.status === statusFilter) : customers;
-      const ROW_COLS = '1.5fr 1.3fr 1.7fr 118px 120px 48px';
-      const HEAD = { font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--brass-muted)' };
-      const META = { font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--brass-muted)', marginBottom: 10 };
+      const strip = { display: 'flex', alignItems: 'center', gap: 16, padding: '0 26px', height: 46, background: TA.card, borderBottom: `0.5px solid ${tInk(0.14)}`, flexShrink: 0 };
 
       return (
-        <div>
-          <div className="cv-head">
-            <div className="cv-head-top">
-              <div>
-                <div className="cv-kicker">Trade {'·'} Membership applications</div>
-                <h1 className="cv-title"><em>Trade applications</em></h1>
-              </div>
-            </div>
-            <div className="cv-stats">
-              <div className="cv-stat"><div className="cv-stat-l">Pending</div><div className="cv-stat-v" style={{ color: counts.pending ? 'var(--gold)' : undefined }}>{counts.pending}</div><div className="cv-stat-s">awaiting your review</div></div>
-              <div className="cv-stat"><div className="cv-stat-l">Approved</div><div className="cv-stat-v">{counts.approved}</div><div className="cv-stat-s">active trade members</div></div>
-              <div className="cv-stat"><div className="cv-stat-l">Rejected</div><div className="cv-stat-v">{counts.rejected}</div><div className="cv-stat-s">declined applications</div></div>
-              <div className="cv-stat"><div className="cv-stat-l">Total</div><div className="cv-stat-v">{customers.length}</div><div className="cv-stat-s">all time</div></div>
-            </div>
+        <div ref={rootRef} style={{ margin: '-32px -40px -60px', height: h, display: 'flex', flexDirection: 'column', background: TA.paper, color: TA.ink, fontFamily: TA.sans, overflow: 'hidden' }}>
+          <div style={strip}>
+            <span style={{ font: `500 10px/1 ${TA.mono}`, letterSpacing: '0.18em', textTransform: 'uppercase', color: TA.accent }}>Trade applications</span>
+            <span style={{ marginLeft: 'auto', font: `500 10px/1 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase', color: tInk(0.5) }}>{customers.length} awaiting review</span>
           </div>
+          {error
+            ? <div style={{ padding: 30, color: TA.bad, font: `400 14px ${TA.sans}` }}>{error}</div>
+            : loading
+              ? <div style={{ padding: 30, color: tInk(0.5), font: `400 14px ${TA.sans}` }}>Loading applications{'…'}</div>
+              : <div className="ta-body" style={{ flex: 1, gridTemplateRows: 'minmax(0,1fr)', minHeight: 0, overflow: 'hidden' }}>
+                  <TaQueue list={customers} sel={sel} setSel={setSel} lowestTier={lowestTier} />
+                  {a
+                    ? <TaReview a={a} rec={rec} tiers={tiers} chosen={chosen} chosenTier={chosenTier} recTierId={recTierId} setTierChoice={setTierChoice} checks={checks} passCount={passCount} submitted={submitted} docs={docs} docsLoading={docsLoading} note={note} setNote={setNote} busy={busy} decide={decide} />
+                    : <div style={{ display: 'grid', placeItems: 'center', padding: 40, textAlign: 'center' }}>
+                        <div>
+                          <div style={{ font: `300 30px/1.3 ${TA.serif}`, color: TA.ink }}>Queue clear.</div>
+                          <div style={{ marginTop: 10, font: `500 10px/1.6 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase', color: tInk(0.45) }}>No applications awaiting review</div>
+                        </div>
+                      </div>}
+                </div>}
+        </div>
+      );
+    }
 
-          <div className="cv-roster-head">
-            <div style={HEAD}>
-              {statusFilter ? (visible.length + ' ' + statusFilter) : (customers.length + ' total')} application{visible.length === 1 ? '' : 's'}
-            </div>
-            <div className="cv-roster-tools">
-              <select className="ol-search-inline" value={statusFilter} onChange={e => { setExpandedId(null); setStatusFilter(e.target.value); }}>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-                <option value="">All statuses</option>
-              </select>
-            </div>
+    function TaQueue({ list, sel, setSel, lowestTier }) {
+      return (
+        <aside className="ta-queue" style={{ borderRight: `0.5px solid ${tInk(0.14)}`, background: TA.card, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px 12px', borderBottom: `0.5px solid ${tInk(0.1)}`, flexShrink: 0 }}>
+            <div style={{ font: `500 10px/1 ${TA.mono}`, letterSpacing: '0.2em', textTransform: 'uppercase', color: tInk(0.45) }}>Oldest first</div>
           </div>
-
-          {error && <div className="gs-empty" style={{ padding: '20px 4px', color: 'var(--red)' }}>{error}</div>}
-
-          {loading ? (
-            <div className="gs-loading" style={{ padding: '40px 4px' }}>Loading applications{'…'}</div>
-          ) : visible.length === 0 ? (
-            <div className="gs-empty" style={{ padding: '48px 4px', textAlign: 'center' }}>
-              <div style={{ font: '400 22px/1.2 "Cormorant Garamond", serif', color: 'var(--stone-900)', marginBottom: 6 }}>
-                {statusFilter === 'pending' ? 'All caught up' : 'Nothing here'}
-              </div>
-              <div style={{ font: '400 13px/1.5 "Inter", sans-serif', color: 'rgba(28,25,23,0.55)' }}>
-                No {statusFilter || ''} applications{statusFilter === 'pending' ? ' waiting on you right now.' : '.'}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div className="cv-row" style={{ gridTemplateColumns: ROW_COLS, cursor: 'default', padding: '10px 4px', ...HEAD }}>
-                <div>Company</div><div>Contact</div><div>Email</div><div>Status</div><div>Applied</div><div />
-              </div>
-              {visible.map(c => (
-                <div key={c.id}>
-                  <div className="cv-row" style={{ gridTemplateColumns: ROW_COLS }} onClick={() => openReview(c)}>
-                    <div className="cv-row-name">{c.company_name}</div>
-                    <div className="cv-row-line">{c.contact_name || '—'}</div>
-                    <div className="cv-row-line">{c.email}</div>
-                    <div><span className={'badge ' + badgeClass(c.status)}>{c.status}</span></div>
-                    <div className="cv-row-line" style={{ font: '400 13px/1.4 "Inter", sans-serif' }}>{fmtDate(c.created_at)}</div>
-                    <div className="cv-row-last" style={{ justifyContent: 'flex-end' }}>
-                      <span style={{ font: '400 15px/1 "Cormorant Garamond", serif', color: 'var(--gold)' }}>{expandedId === c.id ? '▾' : '→'}</span>
-                    </div>
+          <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+            {list.length === 0 && <div style={{ padding: '24px 20px', font: `400 13px/1.5 ${TA.sans}`, color: tInk(0.5) }}>No pending applications.</div>}
+            {list.map(a => {
+              const on = a.id === sel;
+              const rec = taRec(a, lowestTier);
+              return (
+                <button key={a.id} onClick={() => setSel(a.id)} style={{
+                  display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+                  padding: '14px 20px 15px', background: on ? TA.warm : 'transparent', border: 'none',
+                  borderBottom: `0.5px solid ${tInk(0.09)}`, borderLeft: `2px solid ${on ? TA.accent : 'transparent'}`,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, font: `500 9px/1 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                    <span style={{ color: rec.c }}>{rec.label}</span>
+                    <span style={{ marginLeft: 'auto', color: tInk(0.4) }}>{taAge(a.created_at)}</span>
                   </div>
+                  <div style={{ marginTop: 9, font: `400 16px/1.2 ${TA.serif}` }}>{a.company_name || a.contact_name}</div>
+                  <div style={{ marginTop: 5, font: `400 12px/1.4 ${TA.sans}`, color: tInk(0.6) }}>{a.contact_name || '—'}{a.city ? ' · ' + a.city : ''}</div>
+                  <div style={{ marginTop: 9, display: 'flex', alignItems: 'center', gap: 8, font: `500 9px/1 ${TA.mono}`, letterSpacing: '0.12em', textTransform: 'uppercase', color: tInk(0.42) }}>
+                    <span>{a.business_type || 'Trade'}</span>
+                    <span style={{ marginLeft: 'auto' }}>{parseFloat(a.total_spend) > 0 ? 'customer' : 'new'}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
+      );
+    }
 
-                  {expandedId === c.id && (
-                    <div style={{ padding: '22px 24px', margin: '0 0 14px', border: '0.5px solid rgba(28,25,23,0.13)', background: 'var(--stone-50)' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
-                        <div>
-                          <div style={META}>Documents</div>
-                          {docsLoading ? (
-                            <div className="cv-row-line">Loading documents…</div>
-                          ) : docs.length === 0 ? (
-                            <div className="cv-row-line" style={{ color: 'rgba(28,25,23,0.5)' }}>No documents uploaded.</div>
-                          ) : docs.map(d => (
-                            <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 13px', border: '0.5px solid rgba(28,25,23,0.12)', marginBottom: 8, background: '#fff' }}>
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ font: '500 12px/1.3 "Inter", sans-serif', color: 'var(--stone-900)', textTransform: 'capitalize' }}>{(d.doc_type || 'Document').replace(/_/g, ' ')}</div>
-                                <div style={{ font: '400 11px/1.4 "Inter", sans-serif', color: 'rgba(28,25,23,0.5)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.file_name || d.file_key}{d.file_size ? ' · ' + Math.round(d.file_size / 1024) + ' KB' : ''}</div>
-                              </div>
-                              {d.url && <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0, marginLeft: 12, font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold)', textDecoration: 'none' }}>View {'→'}</a>}
-                            </div>
-                          ))}
+    function TaReview(props) {
+      const { a, rec, tiers, chosen, chosenTier, recTierId, setTierChoice, checks, passCount, submitted, docs, docsLoading, note, setNote, busy, decide } = props;
+      const isDecline = chosen === 'none';
+      const stats = [['Applied', taDate(a.created_at)], ['Trailing spend', taMoney(a.total_spend)], ['Documents', String(docs.length)]];
+      const readText = rec.key === 'info'
+        ? 'No EIN or contractor license is on file yet. Request the missing documents before granting trade pricing — the account approves cleanly once identity is verified.'
+        : `Identity is on file and ${passCount} of ${checks.length} checks are satisfied. New trade accounts start at ${(tiers[0] || {}).name || 'the base tier'} (${taPct((tiers[0] || {}).discount_percent || 0)} off); the tier rises automatically with trailing 12-month spend.`;
+      const simFacts = isDecline
+        ? [['Discount', 'None — retail pricing'], ['Outcome', 'No trade account created'], ['Note', 'Applicant is emailed your reason']]
+        : [['Discount', taPct(chosenTier.discount_percent) + ' off list'], ['Tier reached at', parseFloat(chosenTier.spend_threshold) > 0 ? taMoney(chosenTier.spend_threshold) + ' / yr' : 'Starting tier'], ['Progression', 'Auto-adjusts on trailing 12-mo spend']];
 
-                          <div style={{ marginTop: 18 }}>
-                            <div style={META}>Applicant</div>
-                            <div className="cv-detail-rows">
-                              <div className="cv-detail-row"><span>Spend · 12 mo</span><span>{money(c.total_spend)}</span></div>
-                              {c.business_type && <div className="cv-detail-row"><span>Business type</span><span style={{ textTransform: 'capitalize' }}>{c.business_type}</span></div>}
-                              {c.ein && <div className="cv-detail-row"><span>EIN</span><span>{c.ein}</span></div>}
-                              {c.contractor_license && <div className="cv-detail-row"><span>License</span><span>{c.contractor_license}</span></div>}
-                              {c.phone && <div className="cv-detail-row"><span>Phone</span><span>{c.phone}</span></div>}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div style={META}>Decision</div>
-                          {c.status === 'approved' ? (
-                            <div style={{ font: '400 13px/1.6 "Inter", sans-serif', color: 'rgba(28,25,23,0.7)' }}>
-                              Approved{c.tier_name ? ' at ' : ''}<strong style={{ color: 'var(--stone-900)' }}>{c.tier_name ? c.tier_name + ' tier' : ''}</strong>. Membership changes are managed in the admin dashboard.
-                            </div>
-                          ) : (
-                            <div>
-                              {c.status === 'rejected' && c.denial_reason && (
-                                <div style={{ font: '400 12px/1.5 "Inter", sans-serif', color: 'rgba(28,25,23,0.6)', background: '#fff', border: '0.5px solid rgba(28,25,23,0.12)', padding: '10px 12px', marginBottom: 16 }}>
-                                  <span style={{ color: 'var(--red)', fontWeight: 500 }}>Previously declined:</span> {c.denial_reason}
-                                </div>
-                              )}
-                              <button className="cdv-btn primary" disabled={busyId === c.id} onClick={() => approve(c)} style={{ width: '100%', marginBottom: 18 }}>
-                                {busyId === c.id ? 'Working…' : (c.status === 'rejected' ? 'Approve anyway' : 'Approve application')}
-                              </button>
-                              <div style={META}>Deny — reason (optional)</div>
-                              <textarea className="rv-input" style={{ width: '100%', minHeight: 76, marginBottom: 10, resize: 'vertical' }} placeholder="Shared with the applicant if you deny…" value={denialReason} onChange={e => setDenialReason(e.target.value)} />
-                              <button className="cdv-btn" disabled={busyId === c.id} onClick={() => deny(c)} style={{ width: '100%', color: 'var(--red)', borderColor: 'rgba(220,38,38,0.4)' }}>
-                                {busyId === c.id ? 'Working…' : 'Deny application'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+      return (
+        <section style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '20px 30px 18px', borderBottom: `0.5px solid ${tInk(0.12)}`, flexShrink: 0, display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, font: `500 10px/1 ${TA.mono}`, letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                <span style={{ color: rec.c }}>{'●'} {rec.label}</span>
+                <span style={{ color: tInk(0.4) }}>submitted {taAge(a.created_at)} ago</span>
+              </div>
+              <h1 style={{ margin: '12px 0 0', font: `300 34px/1 ${TA.serif}`, letterSpacing: '-0.018em' }}>{a.company_name || a.contact_name}</h1>
+              <div style={{ marginTop: 9, font: `400 14px/1.5 ${TA.sans}`, color: tInk(0.68) }}>
+                {a.contact_name}{a.business_type ? ' · ' + a.business_type : ''}{(a.city || a.state) ? ' · ' + [a.city, a.state].filter(Boolean).join(', ') : ''}
+              </div>
+            </div>
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 26, flexShrink: 0 }}>
+              {stats.map(k => (
+                <div key={k[0]} style={{ textAlign: 'right' }}>
+                  <div style={{ font: `500 9px/1 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase', color: tInk(0.45) }}>{k[0]}</div>
+                  <div style={{ marginTop: 8, font: `300 22px/1 ${TA.serif}` }}>{k[1]}</div>
                 </div>
               ))}
             </div>
-          )}
+          </div>
+
+          <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+            <div style={{ padding: '20px 30px 0' }}>
+              <div style={{ background: TA.warm, borderLeft: `3px solid ${rec.c}`, padding: '16px 20px 17px' }}>
+                <div style={{ font: `500 10px/1 ${TA.mono}`, letterSpacing: '0.18em', textTransform: 'uppercase', color: rec.c }}>Recommendation</div>
+                <p style={{ margin: '11px 0 0', maxWidth: '68ch', font: `400 15px/1.6 ${TA.sans}`, textWrap: 'pretty' }}>{readText}</p>
+              </div>
+            </div>
+
+            <TaBlock label="What they get" note={chosen === recTierId ? 'recommended' : 'overridden'}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {[{ id: 'none', name: 'Decline', discount_percent: null }].concat(tiers).map(t => {
+                  const on = t.id === chosen;
+                  return (
+                    <button key={t.id} onClick={() => setTierChoice(t.id)} style={{
+                      padding: '11px 16px', cursor: 'pointer', textAlign: 'left',
+                      background: on ? TA.ink : 'transparent', color: on ? TA.paper : TA.ink,
+                      border: on ? 'none' : `0.5px solid ${tInk(0.22)}`,
+                    }}>
+                      <div style={{ font: `500 11px/1 ${TA.mono}`, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{t.name}</div>
+                      <div style={{ marginTop: 6, font: `400 13px/1 ${TA.sans}`, opacity: on ? 0.85 : 0.6 }}>{t.discount_percent === null ? 'Retail pricing' : taPct(t.discount_percent) + ' off'}</div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 1, background: tInk(0.1) }}>
+                {simFacts.map(k => (
+                  <div key={k[0]} style={{ background: TA.card, padding: '12px 14px' }}>
+                    <div style={{ font: `500 9px/1 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase', color: tInk(0.45) }}>{k[0]}</div>
+                    <div style={{ marginTop: 7, font: `400 13px/1.4 ${TA.sans}` }}>{k[1]}</div>
+                  </div>
+                ))}
+              </div>
+              {chosenTier && tiers[0] && chosenTier.tier_level > tiers[0].tier_level && (
+                <p style={{ margin: '14px 0 0', maxWidth: '64ch', font: `400 13px/1.6 ${TA.sans}`, color: TA.bad, textWrap: 'pretty' }}>
+                  Above the recommended starting tier. Granting {taPct(chosenTier.discount_percent)} before any order history exposes the full margin up front — the spend-based ladder reaches it automatically.
+                </p>
+              )}
+            </TaBlock>
+
+            <TaBlock label={`Verification · ${passCount} of ${checks.length} on file`}>
+              <div style={{ display: 'grid', gap: 1, background: tInk(0.09) }}>
+                {checks.map(c => {
+                  const k = TA_CHK[c[1]];
+                  return (
+                    <div key={c[0]} style={{ background: TA.card, padding: '12px 14px', display: 'grid', gridTemplateColumns: '20px minmax(120px,1fr) minmax(140px,1.4fr) 84px', gap: 14, alignItems: 'center' }}>
+                      <span style={{ width: 18, height: 18, borderRadius: '50%', border: `1px solid ${k.c}`, background: c[1] === 'pass' ? k.c : 'transparent', color: c[1] === 'pass' ? TA.paper : k.c, display: 'grid', placeItems: 'center', font: `500 10px/1 ${TA.sans}` }}>{k.g}</span>
+                      <span style={{ font: `400 14px/1.3 ${TA.sans}` }}>{c[0]}</span>
+                      <span style={{ font: `400 12px/1.4 ${TA.sans}`, color: tInk(0.6) }}>{c[2]}</span>
+                      <span style={{ font: `500 9px/1 ${TA.mono}`, letterSpacing: '0.12em', textTransform: 'uppercase', color: k.c, textAlign: 'right' }}>{k.t}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </TaBlock>
+
+            <div className="ta-cols">
+              <TaBlock label="What they submitted">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))', gap: 16 }}>
+                  {submitted.map(f => (
+                    <div key={f[0]}>
+                      <div style={{ font: `500 9px/1 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase', color: tInk(0.45) }}>{f[0]}</div>
+                      <div style={{ marginTop: 6, font: `400 14px/1.35 ${TA.serif}`, color: /not (provided|stated)/i.test(f[1]) ? TA.bad : TA.ink }}>{f[1]}</div>
+                    </div>
+                  ))}
+                </div>
+              </TaBlock>
+              <TaBlock label={docs.length ? `Documents · ${docs.length}` : 'Documents'}>
+                {docsLoading
+                  ? <div style={{ font: `400 13px/1.5 ${TA.sans}`, color: tInk(0.5) }}>Loading{'…'}</div>
+                  : docs.length === 0
+                    ? <div style={{ font: `500 10px/1.7 ${TA.mono}`, letterSpacing: '0.12em', textTransform: 'uppercase', color: tInk(0.4) }}>Nothing uploaded</div>
+                    : <div>
+                        {docs.map((d, i) => (
+                          <div key={d.id} style={{ padding: '10px 0', borderBottom: i < docs.length - 1 ? `0.5px solid ${tInk(0.09)}` : 'none', display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+                            <span style={{ minWidth: 0 }}>
+                              <span style={{ display: 'block', font: `400 13px/1.3 ${TA.sans}`, textTransform: 'capitalize' }}>{(d.doc_type || 'Document').replace(/_/g, ' ')}</span>
+                              <span style={{ display: 'block', marginTop: 4, font: `500 9px/1.3 ${TA.mono}`, letterSpacing: '0.1em', color: tInk(0.45), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.file_name || d.file_key}{d.file_size ? ' · ' + Math.round(d.file_size / 1024) + ' KB' : ''}</span>
+                            </span>
+                            {d.url && <a href={d.url} target="_blank" rel="noopener noreferrer" style={{ font: `500 9px/1 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase', color: TA.accent, textDecoration: 'none' }}>Open {'↗'}</a>}
+                          </div>
+                        ))}
+                      </div>}
+              </TaBlock>
+            </div>
+
+            <TaBlock label="Note on the record">
+              <textarea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="Visible to the applicant if you decline&hellip;" style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', padding: '11px 12px', background: TA.paper, border: `0.5px solid ${tInk(0.2)}`, color: TA.ink, font: `400 13px/1.5 ${TA.sans}`, outline: 'none' }} />
+            </TaBlock>
+          </div>
+
+          <div style={{ padding: '16px 30px 18px', borderTop: `0.5px solid ${tInk(0.16)}`, background: TA.ink, color: TA.paper, flexShrink: 0, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ minWidth: 240, flex: 1 }}>
+              <div style={{ font: `500 10px/1 ${TA.mono}`, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#caa97f' }}>On this decision</div>
+              <div style={{ marginTop: 8, font: `300 17px/1.45 ${TA.serif}`, textWrap: 'pretty', maxWidth: '70ch' }}>
+                {isDecline
+                  ? `${a.company_name || a.contact_name} is declined and emailed your reason. No trade pricing, no margin exposure.`
+                  : `${a.company_name || a.contact_name} becomes a ${chosenTier.name} account at ${taPct(chosenTier.discount_percent)} off, assigned to the trade program.`}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button disabled={busy} onClick={() => decide('deny')} style={{ padding: '13px 16px', background: 'transparent', border: `0.5px solid ${TA.bad}`, color: '#f6e7e3', font: `500 11px/1 ${TA.sans}`, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>{busy ? 'Working…' : 'Decline'}</button>
+              {!isDecline && (
+                <button disabled={busy} onClick={() => decide('approve')} style={{ padding: '13px 24px', background: '#caa97f', border: 'none', color: TA.ink, font: `500 12px/1 ${TA.sans}`, letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap' }}>{busy ? 'Working…' : `Approve as ${chosenTier.name} →`}</button>
+              )}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function TaBlock({ label, note, children }) {
+      return (
+        <div style={{ padding: '22px 30px 24px', borderBottom: `0.5px solid ${tInk(0.09)}` }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 14 }}>
+            <span style={{ font: `500 10px/1 ${TA.mono}`, letterSpacing: '0.18em', textTransform: 'uppercase', color: tInk(0.45) }}>{label}</span>
+            {note && <span style={{ marginLeft: 'auto', font: `500 9px/1 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase', color: TA.accent }}>{note}</span>}
+          </div>
+          {children}
         </div>
       );
     }
