@@ -772,6 +772,39 @@
       return parts.join(', ');
     }
 
+    // For products that group MANY colors under one product (e.g. Patina Modern
+    // Elegance Plank, Fujiwa Joya) the product name is the line/format, not the
+    // color, so the H1 would read "Modern Elegance Plank" for every color. When
+    // the product genuinely carries more than one color AND the current color
+    // isn't already in the name, lead the title with the color instead and let
+    // the line/format drop to the subtitle. Single-color products (name already
+    // is the identity, color is just a spec) are untouched.
+    function pdpHeroTitle(sku, siblings) {
+      const base = cleanProductTitle(sku.product_name, sku) || fullProductName(sku);
+      if (sku.variant_type === 'accessory') return { hoist: false, title: base, base };
+      const ca = (sku.attributes || []).find(a => a.slug === 'color');
+      const color = ca && ca.value ? ca.value.trim() : null;
+      const colorSet = new Set((siblings || [])
+        .flatMap(s => (s.attributes || []).filter(a => a.slug === 'color').map(a => (a.value || '').toLowerCase()))
+        .filter(Boolean));
+      if (color) colorSet.add(color.toLowerCase());
+      const hoist = colorSet.size > 1 && color && !base.toLowerCase().includes(color.toLowerCase());
+      return { hoist, title: hoist ? formatCarpetValue(color) : base, base };
+    }
+
+    // Subtitle when the color has been hoisted into the H1: lead with the
+    // line/format name, then dimensions and finish (color is already the title).
+    function pdpHoistedSubtitle(sku, base) {
+      const gradeAttr = (sku.attributes || []).find(a => a.slug === 'grade');
+      const sizeAttr = (sku.attributes || []).find(a => a.slug === 'size');
+      const finishAttr = (sku.attributes || []).find(a => a.slug === 'finish');
+      const tail = [];
+      if (gradeAttr && gradeAttr.value) tail.push(formatCarpetValue(gradeAttr.value));
+      if (sizeAttr && sizeAttr.value) tail.push(formatSizeDim(sizeAttr.value));
+      if (finishAttr && finishAttr.value) tail.push(formatCarpetValue(finishAttr.value));
+      return tail.length ? `${base} — ${tail.join(', ')}` : base;
+    }
+
     function fullProductName(sku) {
       const rawName = sku.product_name || '';
       const col = sku.collection || '';
@@ -793,7 +826,9 @@
       name = stripTypeSuffix(name, sku.category_name);
 
       // Append format label (e.g. "4x8", "Hex", "Rombo") for format-grouped products
-      if (sku.format_label) {
+      // Skip appending the format word when the name already ends with it
+      // (grouped products named e.g. "Modern Elegance Plank" → avoid "Plank Plank").
+      if (sku.format_label && !name.toLowerCase().endsWith(sku.format_label.toLowerCase())) {
         name = name + ' ' + sku.format_label;
       }
 
@@ -7093,7 +7128,7 @@
               {/* Specs — below gallery */}
               {(() => {
                 const HIDDEN_SLUGS = new Set(['price_list', 'material_class', 'style_code', 'companion_skus', 'subcategory', 'msrp', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories', 'group_number']);
-                const ORDER = ['_collection', '_category', '_sku', 'collection', 'species', 'color', 'color_code', 'brand', 'application', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
+                const ORDER = ['_collection', '_category', '_sku', 'collection', 'species', 'color', 'color_code', 'grade', 'brand', 'application', 'fiber', 'material', 'construction', 'finish', 'style', 'pattern', 'size', 'thickness', 'width', 'wear_layer', 'weight', 'weight_per_sqyd', 'roll_width', 'roll_length'];
                 const slugMap = {};
                 (sku.attributes || []).forEach(a => { slugMap[a.slug] = (a.value || '').trim(); });
                 const redundantSlugs = new Set();
@@ -7191,7 +7226,7 @@
               {/* Title row with wishlist heart */}
               <div className="pdp-title-row">
                 <h1 className="sku-detail-title-row">
-                  {cleanProductTitle(sku.product_name, sku) || fullProductName(sku)}
+                  {pdpHeroTitle(sku, siblings).title}
                 </h1>
                 <button className={'pdp-wishlist-heart' + (wishlist.includes(sku.sku_id) ? ' active' : '')} onClick={() => toggleWishlist(sku.sku_id)} aria-label={wishlist.includes(sku.sku_id) ? 'Remove from wishlist' : 'Add to wishlist'}>
                   <svg viewBox="0 0 24 24" fill={wishlist.includes(sku.sku_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}>
@@ -7201,7 +7236,10 @@
               </div>
 
               {/* Variant name (italic) */}
-              {(sku.variant_name || (sku.attributes && sku.attributes.length > 0)) && <div className="pdp-variant-name">{pdpSubtitle(sku)}</div>}
+              {(sku.variant_name || (sku.attributes && sku.attributes.length > 0)) && (() => {
+                const ht = pdpHeroTitle(sku, siblings);
+                return <div className="pdp-variant-name">{ht.hoist ? pdpHoistedSubtitle(sku, ht.base) : pdpSubtitle(sku)}</div>;
+              })()}
 
               {/* SKU · Vendor line */}
               <div className="pdp-sku-line">

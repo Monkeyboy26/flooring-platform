@@ -3125,14 +3125,42 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       }
     }
 
-    // Format siblings (cross-product format variants, e.g. Plank vs Herringbone)
+    // Format siblings (cross-product format variants, e.g. Plank vs Herringbone).
+    // When the current SKU has a Color, prefer the sibling SKU of the SAME color in
+    // each format so switching format keeps the color (e.g. Woodland Haze Plank →
+    // Woodland Haze Herringbone), falling back to a same-size then oldest SKU when
+    // that color isn't offered in the sibling format.
     let formatSiblings = [];
     if (sku.format_group) {
+      const curColorAttr = (sku.attributes || []).find(a => a.slug === 'color');
+      const curColorVal = curColorAttr ? curColorAttr.value : null;
+      // Distinguish a COLOR-FACETED group (the same color is offered in more than
+      // one format — e.g. Patina Modern Elegance's Woodland Haze in plank +
+      // herringbone + chevron, or WPT Materia Prima's Black Storm in Hex + Rombo)
+      // from a SERIES-LEVEL toggle where each format carries its own disjoint color
+      // set (e.g. Gaia eTERRA: plank = Picchi/Riva…, herringbone = Bella Sala…).
+      // Only in a color-faceted group do we keep the color fixed and hide formats
+      // that don't offer it; series toggles keep showing every format as before.
+      let colorFaceted = false;
+      if (curColorVal) {
+        const facetRes = await pool.query(`
+          SELECT 1 FROM (
+            SELECT COUNT(DISTINCT p.id) AS np
+            FROM products p
+            JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+            JOIN sku_attributes sa ON sa.sku_id = s.id
+            JOIN attributes a ON a.id = sa.attribute_id AND a.slug = 'color'
+            WHERE p.format_group = $1 AND p.status = 'active'
+            GROUP BY LOWER(sa.value)
+          ) t WHERE t.np > 1 LIMIT 1
+        `, [sku.format_group]);
+        colorFaceted = facetRes.rows.length > 0;
+      }
       const fmtResult = await pool.query(`
         SELECT DISTINCT ON (p.id)
           s.id as sku_id, p.id as product_id, p.format_label,
           COALESCE(p.display_name, p.name) as product_name,
-          s.variant_name, pr.retail_price,
+          s.variant_name, pr.retail_price, col.value as color,
           COALESCE(
             (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
             (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.sku_id IS NULL AND ma.asset_type IN ('primary','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 ELSE 1 END, ma.sort_order LIMIT 1)
@@ -3141,10 +3169,22 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
           AND COALESCE(s.variant_type,'') != 'accessory'
         LEFT JOIN pricing pr ON pr.sku_id = s.id
+        LEFT JOIN LATERAL (
+          SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+          WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1
+        ) col ON TRUE
         WHERE p.format_group = $1 AND p.id != $2 AND p.status = 'active'
-        ORDER BY p.id, (s.variant_name = $3)::int DESC, s.created_at
-      `, [sku.format_group, sku.product_id, sku.variant_name]);
+        ORDER BY p.id,
+          ($4::text IS NOT NULL AND LOWER(col.value) = LOWER($4))::int DESC,
+          (s.variant_name = $3)::int DESC, s.created_at
+      `, [sku.format_group, sku.product_id, sku.variant_name, curColorVal]);
       formatSiblings = fmtResult.rows;
+      // In a color-faceted group only surface formats that actually offer the
+      // current color, so we never imply a color/format combo that isn't sold
+      // (e.g. Blonde, which comes only as plank, shows no herringbone/chevron pill).
+      if (colorFaceted && curColorVal) {
+        formatSiblings = formatSiblings.filter(f => f.color && f.color.toLowerCase() === curColorVal.toLowerCase());
+      }
     }
 
     // Grouped products (e.g. matching cabinets, mirrors for vanities via group_number + color)

@@ -1,0 +1,68 @@
+{
+  "vendor": {
+    "name": "Patina Design",
+    "code": "PATINA",
+    "website": "https://lamontfloor.com",
+    "email": "info@patinadesigns.com",
+    "phone": "(909) 895-8586",
+    "address": "1250 Philadelphia St, Pomona, CA 91766",
+    "notes": "European White Oak engineered-wood importer (Pomona, CA). Product sold under the Lamont Floor brand (lamontfloor.com). Onboarded 2026-08-01 from the 2025 Patina Engineer Wood Pricelist (Effective 1/1/2025, FOB Pomona Zone 1D) — Modern Elegance line only. Pricelist price = Roma COST; retail = cost x1.6 keystone. Photos scraped from lamontfloor.com (WooCommerce Store API): first gallery image = product/swatch photo, remaining = room scene & details. Website carries 33 Modern Elegance colors but only the 16 grade/format combos on the 2025 pricelist are priced/imported (17 extra colors excluded — no confirmed price)."
+  },
+  "brand": {
+    "name": "Lamont Floor",
+    "code": "LAMONT",
+    "website": "https://lamontfloor.com"
+  },
+  "collection": "Modern Elegance",
+  "line": {
+    "species": "European White Oak",
+    "finish": "UV Lacquer",
+    "veneer": "4 mm",
+    "construction": "Engineered"
+  },
+  "colors": {
+    "Blonde": { "group": "Natural", "style": "Contemporary", "copy": "A light, golden hue with delicate wood grains, Blonde is ideal for classic or eclectic interiors. Its airy tone brightens rooms and creates a warm, open feel." },
+    "Coastal Breeze": { "group": "Natural", "style": "Coastal/Nautical", "copy": "A soft, neutral tone with subtle wood grain, Coastal Breeze offers a fresh, calming feel ideal for modern and coastal interiors. Its versatile hue complements light-filled spaces, adding a serene elegance." },
+    "Prairie Wheat": { "group": "Brown", "style": "Contemporary", "copy": "A soft, warm brown with visible grain texture, Prairie Wheat is perfect for rustic or farmhouse designs. It brings a natural, earthy feel that enhances warmth in cozy spaces." },
+    "Sandstone Beige": { "group": "Natural", "style": "Contemporary", "surface_texture": "Brushed White-Washed", "copy": "A warm, earthy beige with a fine brushed white washed grain texture, Sandstone Beige suits traditional and transitional interiors. It enhances a cozy, inviting atmosphere with understated elegance." },
+    "Urban Slate": { "group": "Grey", "style": "Contemporary", "copy": "Deep and refined, Urban Slate's dark grey tones create a dramatic, modern look. The rich texture fits industrial and urban-inspired spaces, bringing bold elegance and contrast." },
+    "Woodland Haze": { "group": "Light", "style": "Coastal/Nautical", "copy": "Featuring a naturally raw wood texture, Woodland Haze brings cozy and comfort to any room. Ideal for contemporary spaces, this color offers an inviting, organic feel while preserving a refined, sophisticated look." },
+    "Tuscan Mist": { "group": "Grey", "style": "Contemporary", "copy": "A timeless, medium-tone grey, Tuscan Mist pairs beautifully with modern and contemporary designs. The grain detail offers subtle texture, adding visual interest to open spaces." },
+    "Shadow Glen": { "group": "Dark", "style": "Contemporary", "surface_texture": "Wire Brushed", "copy": "Shadow Glen's muted grey-brown tones blend well with transitional and contemporary styles. Its wire brushed finish and natural character offer a balanced, refined look for any setting." }
+  },
+  "products": [
+    { "vendor_sku": "LMT06", "img_key": "LMT06", "color": "Blonde",         "grade": "Light Character",  "format": "plank", "thickness": "5/8\"", "width": "9-1/2\"", "length": "86.6\"", "random_length": "33% RL", "sqft_box": 34.1, "box_pallet": 36, "lbs_box": 71.21, "cost": 5.39, "special_order": false },
+    { "vendor_sku": "LMT05", "img_key": "LMT05", "color": "Coastal Breeze",  "grade": "Light Character",  "format": "plank", "thickness": "5/8\"", "width": "9-1/2\"", "length": "86.6\"", "random_length": "33% RL", "sqft_box": 34.1, "box_pallet": 36, "lbs_box": 71.21, "cost": 5.39, "special_order": false },
+    { "vendor_sku": "LMT02", "img_key": "LMT02", "color": "Prairie Wheat",   "grade": "Light Character",  "format": "plank", "thickness": "5/8\"", "width": "9-1/2\"", "length": "86.6\"", "random_length": "33% RL", "sqft_box": 34.1, "box_pallet": 36, "lbs_box": 71.21, "cost": 5.39, "special_order": false },
+    { "vendor_sku": "LMT03", "img_key": "LMT03", "color": "Sandstone Beige", "grade": "Light Character",  "format": "plank", "thickness": "5/8\"", "width": "9-1/2\"", "length": "86.6\"", "random_length": "33% RL", "sqft_box": 34.1, "box_pallet": 36, "lbs_box": 71.21, "cost": 5.39, "special_order": false },
+    { "vendor_sku": "LMT04", "img_key": "LMT04", "color": "Urban Slate",     "grade": "Light Character",  "format": "plank", "thickness": "5/8\"", "width": "9-1/2\"", "length": "86.6\"", "random_length": "33% RL", "sqft_box": 34.1, "box_pallet": 36, "lbs_box": 71.21, "cost": 5.39, "special_order": false },
+    { "vendor_sku": "LMT01", "img_key": "LMT01", "color": "Woodland Haze",   "grade": "Light Character",  "format": "plank", "thickness": "5/8\"", "width": "9-1/2\"", "length": "86.6\"", "random_length": "33% RL", "sqft_box": 34.1, "box_pallet": 36, "lbs_box": 71.21, "cost": 5.39, "special_order": false },
+    { "vendor_sku": "LMT07", "img_key": "LMT07", "color": "Tuscan Mist",     "grade": "Light Character",  "format": "plank", "thickness": "5/8\"", "width": "9-1/2\"", "length": "86.6\"", "random_length": "33% RL", "sqft_box": 34.1, "box_pallet": 36, "lbs_box": 71.21, "cost": 5.39, "special_order": true },
+    { "vendor_sku": "LMT08", "img_key": "LMT08", "color": "Shadow Glen",     "grade": "Light Character",  "format": "plank", "thickness": "5/8\"", "width": "9-1/2\"", "length": "86.6\"", "random_length": "33% RL", "sqft_box": 34.1, "box_pallet": 36, "lbs_box": 71.21, "cost": 5.39, "special_order": true },
+
+    { "vendor_sku": "LMT09", "img_key": "LMT09", "color": "Coastal Breeze",  "grade": "Selected Natural", "format": "plank", "thickness": "5/8\"", "width": "9-1/2\"", "length": "86.6\"", "random_length": "33% RL", "sqft_box": 34.1, "box_pallet": 36, "lbs_box": 71.21, "cost": 8.19, "special_order": false },
+    { "vendor_sku": "LMT10", "img_key": "LMT10", "color": "Woodland Haze",   "grade": "Selected Natural", "format": "plank", "thickness": "5/8\"", "width": "9-1/2\"", "length": "86.6\"", "random_length": "33% RL", "sqft_box": 34.1, "box_pallet": 36, "lbs_box": 71.21, "cost": 8.19, "special_order": false },
+
+    { "vendor_sku": "LMT11",  "img_key": "LMT11", "color": "Woodland Haze",  "grade": "Selected Natural", "format": "wide-plank", "thickness": "3/4\"", "width": "7-1/2\"", "length": "86.6\"", "random_length": "60% RL", "sqft_box": 17.99, "box_pallet": 55, "lbs_box": 49.5, "cost": 6.49, "special_order": false },
+    { "vendor_sku": "LMT-CB75", "img_key": "CB75", "color": "Coastal Breeze","grade": "Selected Natural", "format": "wide-plank", "thickness": "3/4\"", "width": "7-1/2\"", "length": "86.6\"", "random_length": "60% RL", "sqft_box": 17.99, "box_pallet": 55, "lbs_box": 49.5, "cost": 6.49, "special_order": false, "photo_note": "Not published on lamontfloor.com; swatch reuses the Coastal Breeze Selected-Natural photo (LMT09), no room scene." },
+
+    { "vendor_sku": "LMT13", "img_key": "LMT13", "color": "Coastal Breeze",  "grade": "Selected Natural", "format": "herringbone", "thickness": "5/8\"", "width": "5\"", "length": "24\"", "random_length": null, "sqft_box": 12.92, "box_pallet": 64, "lbs_box": 27, "cost": 5.79, "special_order": false },
+    { "vendor_sku": "LMT12", "img_key": "LMT12", "color": "Woodland Haze",   "grade": "Selected Natural", "format": "herringbone", "thickness": "5/8\"", "width": "5\"", "length": "24\"", "random_length": null, "sqft_box": 12.92, "box_pallet": 64, "lbs_box": 27, "cost": 5.79, "special_order": false },
+
+    { "vendor_sku": "LMT15", "img_key": "LMT15", "color": "Coastal Breeze",  "grade": "Selected Natural", "format": "chevron", "thickness": "5/8\"", "width": "5\"", "length": "26.5\"", "random_length": null, "sqft_box": 14.53, "box_pallet": 64, "lbs_box": 31, "cost": 5.99, "special_order": false },
+    { "vendor_sku": "LMT14", "img_key": "LMT14", "color": "Woodland Haze",   "grade": "Selected Natural", "format": "chevron", "thickness": "5/8\"", "width": "5\"", "length": "26.5\"", "random_length": null, "sqft_box": 14.53, "box_pallet": 64, "lbs_box": 31, "cost": 5.99, "special_order": false }
+  ],
+  "molding_set": {
+    "name": "Modern Elegance Moldings & Stair Trim",
+    "material": "Solid Wood",
+    "finish": "Polyurethane",
+    "desc": "Solid-wood stair nosings and transition trim for the Modern Elegance European White Oak collection. Polyurethane finish. Sold per piece.",
+    "pieces": [
+      { "code": "BULLNOSE-SN", "type": "Bullnose (Return) Stair Nose", "grade": "Premium", "length": "86-1/2\"", "pc_box": 4, "cost": 119.00 },
+      { "code": "SQ-STAIRNOSE", "type": "Square Stair Nose (Mitre)",   "grade": "Premium", "length": "86-1/2\"", "pc_box": 4, "cost": 99.00 },
+      { "code": "END-CAP",      "type": "End Cap",                      "grade": "Special Order", "length": null, "pc_box": null, "cost": 68.00 },
+      { "code": "T-MOLDING",    "type": "T-Molding",                    "grade": "Special Order", "length": null, "pc_box": null, "cost": 68.00 },
+      { "code": "REDUCER",      "type": "Reducer",                      "grade": "Special Order", "length": null, "pc_box": null, "cost": 68.00 }
+    ]
+  }
+}
