@@ -1,0 +1,14 @@
+{
+  "mapierre":            { "family": "Glazed Porcelain" },
+  "matera-stone":        { "family": "Porcelain Stoneware" },
+  "marvel-diva":         { "family": "Glazed Porcelain" },
+  "elysian-travertini":  { "family": "Glazed Porcelain" },
+  "easylife":            { "family": "Glazed Porcelain" },
+  "double":              { "family": "Glazed Porcelain" },
+  "noa":                 { "family": "Porcelain Stoneware" },
+  "volcano":             { "family": "Porcelain Stoneware" },
+  "alpi":                { "family": "Porcelain Stoneware" },
+  "boost-vision":        { "family": "Coloured Body Porcelain Stoneware", "effect": "Stone / Concrete" },
+  "natural":             { "family": "Porcelain Stoneware" },
+  "nyra":                { "family": "Coloured Body Porcelain Stoneware", "effect": "Stone" }
+}
