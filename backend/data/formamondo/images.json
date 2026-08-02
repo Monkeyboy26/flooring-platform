@@ -311,9 +311,8 @@
   },
   "FMO-double-beige": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/09/A_04B-X20-DOUBLE-PLAIN-BEIGE-R11-60X120-20MM-scaled.webp",
+      "primary": "https://formamondo.com/wp-content/uploads/2024/10/BEIGE-PLAIN-768x768.jpg",
       "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/10/BEIGE-PLAIN-768x768.jpg",
         "https://formamondo.com/wp-content/uploads/2024/12/Linear-White-768x768.jpg",
         "https://formamondo.com/wp-content/uploads/2024/12/Plain-White-768x768.jpg"
       ]
@@ -332,10 +331,9 @@
   },
   "FMO-double-mint": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/09/D_05-DOUBLE-LIN.MINT-N.80X80-scaled.webp",
+      "primary": "https://formamondo.com/wp-content/uploads/2024/10/MINT-PLAIN-768x768.jpg",
       "alternates": [
         "https://formamondo.com/wp-content/uploads/2024/12/Linear-Mint-768x768.jpg",
-        "https://formamondo.com/wp-content/uploads/2024/10/MINT-PLAIN-768x768.jpg",
         "https://formamondo.com/wp-content/uploads/2024/12/Linear-White-768x768.jpg",
         "https://formamondo.com/wp-content/uploads/2024/12/Plain-White-768x768.jpg"
       ]
@@ -386,9 +384,10 @@
   },
   "FMO-volcano-ash": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/08/Volcano-2-.webp",
+      "primary": "https://formamondo.com/wp-content/uploads/2024/09/volcano-b-1.webp",
       "alternates": [
         "https://formamondo.com/wp-content/uploads/2024/08/Volcano-1.webp",
+        "https://formamondo.com/wp-content/uploads/2024/09/volcano-b-3.webp",
         "https://formamondo.com/wp-content/uploads/2024/09/volcano-b-2.webp"
       ]
     },
@@ -396,10 +395,9 @@
   },
   "FMO-alpi-grigio": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/08/alpi-3-.webp",
+      "primary": "https://formamondo.com/wp-content/uploads/2024/09/alpi-b-1.webp",
       "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/09/alpi-b-1.webp",
-        "https://formamondo.com/wp-content/uploads/2024/09/alpi-b-2.webp",
+        "https://formamondo.com/wp-content/uploads/2024/08/alpi-3-.webp",
         "https://formamondo.com/wp-content/uploads/2024/08/alpi-5-.webp"
       ]
     },
@@ -407,8 +405,9 @@
   },
   "FMO-alpi-tesseo": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/08/alpi-4-.webp",
+      "primary": "https://formamondo.com/wp-content/uploads/2024/09/alpi-b-2.webp",
       "alternates": [
+        "https://formamondo.com/wp-content/uploads/2024/08/alpi-4-.webp",
         "https://formamondo.com/wp-content/uploads/2024/08/alpi-5-.webp",
         "https://formamondo.com/wp-content/uploads/2024/08/alpi-3-.webp"
       ]
