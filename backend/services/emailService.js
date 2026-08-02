@@ -670,6 +670,83 @@ export async function sendScraperFailure({ source_name, scraper_key, job_id, err
 }
 
 /**
+ * Send a catalog pipeline summary (activations / retirements) to the ops team.
+ * Called by lifecycle steps only when a live run actually changed the catalog.
+ */
+export async function sendPipelineSummary({ label, activated = [], retired = [], coverage = null }) {
+  const alertEmail = process.env.SCRAPER_ALERT_EMAIL || SMTP_FROM;
+  if (!transporter) {
+    console.log(`[Email] Skipping pipeline summary for ${label} — SMTP not configured`);
+    return;
+  }
+  const list = (items) => items.length
+    ? `<ul style="margin:8px 0 0; padding-left:20px; font-size:13px; color:#333;">${
+        items.slice(0, 50).map(i => `<li>${i}</li>`).join('')
+      }${items.length > 50 ? `<li>… and ${items.length - 50} more</li>` : ''}</ul>`
+    : '<p style="margin:8px 0 0; font-size:13px; color:#888;">None</p>';
+  try {
+    const html = `
+      <div style="font-family: Inter, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px;">
+        <h2 style="margin-bottom: 8px;">${label} — Catalog Update</h2>
+        ${coverage ? `<p style="font-size:13px; color:#666;">Image coverage: ${coverage}</p>` : ''}
+        <h3 style="margin:20px 0 0; font-size:15px; color:#27ae60;">Activated (${activated.length})</h3>
+        ${list(activated)}
+        <h3 style="margin:20px 0 0; font-size:15px; color:#c0392b;">Retired to draft (${retired.length})</h3>
+        ${list(retired)}
+        <p style="margin-top: 20px; font-size: 12px; color: #888;">Automated by the ${label} pipeline. View full logs in the admin panel.</p>
+      </div>
+    `;
+    await deliver({
+      from: `"${BRAND_NAME} Alerts" <${NOREPLY_ADDR}>`,
+      to: alertEmail,
+      subject: `[Catalog] ${label}: +${activated.length} activated, −${retired.length} retired`,
+      html
+    });
+    console.log(`[Email] Pipeline summary sent for ${label} (+${activated.length}/−${retired.length})`);
+  } catch (err) {
+    console.error(`[Email] Failed to send pipeline summary for ${label}:`, err.message);
+  }
+}
+
+/**
+ * Alert the ops team when a vendor pipeline run fails a step (opt-in via the
+ * pipeline config's `notify` flag). Fires from the pipeline runner, so it covers
+ * failures in any step — including ones that abort before the reporting step.
+ */
+export async function sendPipelineFailure({ label, vendor_code, step_label, error }) {
+  const alertEmail = process.env.SCRAPER_ALERT_EMAIL || SMTP_FROM;
+  if (!transporter) {
+    console.log(`[Email] Skipping pipeline failure alert for ${vendor_code} — SMTP not configured`);
+    return;
+  }
+  try {
+    const html = `
+      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #c0392b; margin-bottom: 16px;">Pipeline Failed: ${label}</h2>
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr><td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #666;">Pipeline</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #eee; font-weight: 600;">${vendor_code}</td></tr>
+          <tr><td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #666;">Failed step</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #eee;">${step_label || 'N/A'}</td></tr>
+          <tr><td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #666;">Error</td>
+              <td style="padding: 8px 12px; border-bottom: 1px solid #eee; color: #c0392b;">${error}</td></tr>
+        </table>
+        <p style="margin-top: 20px; font-size: 13px; color: #888;">Check the admin panel for full pipeline logs.</p>
+      </div>
+    `;
+    await deliver({
+      from: `"${BRAND_NAME} Alerts" <${NOREPLY_ADDR}>`,
+      to: alertEmail,
+      subject: `[Pipeline Alert] ${label} failed`,
+      html
+    });
+    console.log(`[Email] Pipeline failure alert sent for ${vendor_code}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send pipeline failure alert for ${vendor_code}:`, err.message);
+  }
+}
+
+/**
  * Send back-in-stock alert email.
  */
 export async function sendStockAlert(data) {

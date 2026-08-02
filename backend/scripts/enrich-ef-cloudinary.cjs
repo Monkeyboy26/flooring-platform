@@ -34,6 +34,9 @@ const pool = new Pool({
 });
 
 const DRY_RUN = process.argv.includes('--dry-run');
+// When run inside the engfloors pipeline, ef-lifecycle.js is the single authority
+// on activation. --no-activate skips Phase 3 so images-then-lifecycle don't flap.
+const NO_ACTIVATE = process.argv.includes('--no-activate');
 
 const CLOUDINARY_API_KEY = process.env.EF_CLOUDINARY_API_KEY;
 const CLOUDINARY_API_SECRET = process.env.EF_CLOUDINARY_API_SECRET;
@@ -340,7 +343,8 @@ async function main() {
   console.log('Phase 3: Activate Eligible Drafts');
   console.log('═'.repeat(60));
 
-  for (const vid of vendorIds) {
+  if (NO_ACTIVATE) console.log('  Skipped (--no-activate; lifecycle step owns activation)');
+  for (const vid of NO_ACTIVATE ? [] : vendorIds) {
     const vcode = vid === efVendorId ? 'EF' : 'PC';
     const beforeRes = await pool.query(
       'SELECT COUNT(*) FROM products WHERE vendor_id = $1 AND status = $2', [vid, 'draft']

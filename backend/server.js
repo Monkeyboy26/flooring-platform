@@ -6706,7 +6706,6 @@ app.patch('/api/admin/products/bulk/status', staffAuth, requireRole('admin', 'ma
           v.name as vendor_name,
           (SELECT COUNT(*) FROM skus s WHERE s.product_id = p.id AND s.status = 'active') as sku_count,
           p.category_id,
-          EXISTS (SELECT 1 FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary') as has_image,
           (SELECT ROUND(AVG(qs.quality_score))::int FROM sku_quality_scores qs WHERE qs.product_id = p.id) as quality_score
         FROM products p
         LEFT JOIN vendors v ON v.id = p.vendor_id
@@ -6719,7 +6718,6 @@ app.patch('/api/admin/products/bulk/status', staffAuth, requireRole('admin', 'ma
         const issues = [];
         if (parseInt(p.sku_count) === 0) issues.push('no active SKUs');
         if (!p.category_id) issues.push('no category');
-        if (!p.has_image) issues.push('no image');
         if (p.quality_score != null && p.quality_score < 50) issues.push(`quality score ${p.quality_score} (min 50)`);
         if (issues.length > 0) blocked.push({ ...p, issues });
         else if (p.quality_score != null && p.quality_score < 70) {
@@ -10278,6 +10276,14 @@ async function executePipeline(pipelineRunId, vendorCode, config, abortControlle
             `UPDATE pipeline_runs SET status = 'failed', completed_at = CURRENT_TIMESTAMP, error_message = $2 WHERE id = $1`,
             [pipelineRunId, 'Step "' + step.label + '" failed: ' + stepErr.message]
           );
+          if (config.notify) {
+            try {
+              const { sendPipelineFailure } = await import('./services/emailService.js');
+              await sendPipelineFailure({ label: config.label, vendor_code: vendorCode, step_label: step.label, error: stepErr.message });
+            } catch (mailErr) {
+              console.error('[Pipeline] failure alert email failed:', mailErr.message);
+            }
+          }
           return;
         }
       }
