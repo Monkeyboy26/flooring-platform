@@ -121,13 +121,19 @@ async function main() {
   }
   const vendorId = vendorRes.rows[0].id;
 
-  // Get products that need enrichment (prioritize those without images)
+  // Get products that need enrichment (prioritize those without images).
+  // In images-only mode there's no reason to load pages for products that
+  // already have images — skip them entirely (the big win: ~380 → ~55 pages).
+  const imagesOnlyFilter = IMAGES_ONLY
+    ? "AND NOT EXISTS (SELECT 1 FROM media_assets ma WHERE ma.product_id = p.id)"
+    : '';
   const productsRes = await pool.query(`
     SELECT p.id, p.name, p.collection, p.description_long,
            (SELECT COUNT(*) FROM media_assets ma WHERE ma.product_id = p.id) AS image_count,
            p.description_long IS NOT NULL AS has_description
     FROM products p
     WHERE p.vendor_id = $1 AND p.status = 'active'
+      ${imagesOnlyFilter}
     ORDER BY
       (SELECT COUNT(*) FROM media_assets ma WHERE ma.product_id = p.id) ASC,
       p.name
@@ -147,6 +153,25 @@ async function main() {
     // Collect site-wide images to exclude
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 900 });
+
+    // Speed: abort bytes we never read. Keep `image` (extractLargeImages reads
+    // img.naturalWidth, which is 0 if the file never loads) and scripts/xhr (the
+    // SPA must run to render the gallery). Drop fonts, CSS, media, and known
+    // analytics/ads hosts — the latter are what keep the network from settling.
+    const BLOCK_HOSTS = ['google-analytics.com', 'googletagmanager.com', 'doubleclick.net',
+      'facebook.net', 'connect.facebook', 'hotjar.com', 'clarity.ms', 'segment.',
+      'fullstory.com', 'analytics', 'gtag'];
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const type = req.resourceType();
+      const u = req.url();
+      if (type === 'font' || type === 'media' || type === 'stylesheet' ||
+          BLOCK_HOSTS.some(h => u.includes(h))) {
+        req.abort().catch(() => {});
+      } else {
+        req.continue().catch(() => {});
+      }
+    });
     console.log('Collecting site-wide images...');
     const siteWideImages = await collectSiteWideImages(page, BASE_URL);
     console.log(`Site-wide images to exclude: ${siteWideImages.size}\n`);
@@ -177,12 +202,15 @@ async function main() {
       console.log(`  Scraping: ${product.name} — ${url}`);
 
       try {
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
-        await delay(DELAY_MS);
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-        // Wait for SPA to render content
-        await page.waitForSelector('body', { timeout: 5000 });
-        await delay(1000);
+        // Wait for the SPA to actually render product content instead of fixed
+        // sleeps. Falls through to the hasContent guard below on timeout (a real
+        // 404/redirect never crosses the threshold, so bad URLs cost ~8s not 30s).
+        await page.waitForFunction(
+          () => document.body && document.body.innerText.length > 500,
+          { timeout: 8000 }
+        ).catch(() => {});
 
         // Check if page has product content (not a 404/redirect)
         const hasContent = await page.evaluate(() => {
