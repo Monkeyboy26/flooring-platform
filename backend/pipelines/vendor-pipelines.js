@@ -74,7 +74,7 @@ const PIPELINES = {
     steps: [
       { type: 'scraper', sourceKey: 'engfloors-832',          label: 'EF EDI 832 Catalog Import' },
       { type: 'scraper', sourceKey: 'engfloors-webservices',   label: 'EF Web Services (Cost + Inventory)' },
-      { type: 'script',  path: 'pipelines/ef-images.js',      label: 'EF Images (Cloudinary → API → Website)', args: ['--skip-puppeteer'] },
+      { type: 'script',  path: 'pipelines/ef-images.js',      label: 'EF Images (Cloudinary → API → Website)' },
       { type: 'script',  path: 'pipelines/ef-lifecycle.js',    label: 'EF Lifecycle (activate / retire)' },
     ]
   },
