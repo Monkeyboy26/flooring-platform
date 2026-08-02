@@ -1,504 +1,510 @@
 {
   "FMO-mapierre-blanc": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQK_MAPIERRE_NOBILE_BLANC_60x120_01.jpg.250x250_q75_crop.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-12.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-2.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-11.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-10.webp"
-      ]
+      "primary": "/uploads/formamondo/FMO-mapierre-blanc-natural.jpg",
+      "alternates": []
     },
     "skus": {
       "natural-12x24": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQK_MAPIERRE_NOBILE_BLANC_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-blanc-natural.jpg"
       },
       "natural-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQK_MAPIERRE_NOBILE_BLANC_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-blanc-natural.jpg"
       },
       "natural-48x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQK_MAPIERRE_NOBILE_BLANC_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-blanc-natural.jpg"
       },
       "ligne-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELS6_MAPIERRE_LIGNE_BLANC_60x120_06.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-blanc-ligne.jpg"
       }
     }
   },
   "FMO-mapierre-beige": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQL_MAPIERRE_NOBILE_BEIGE_60x120_01.jpg.250x250_q75_crop.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-11.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-1.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-10.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-12.webp"
-      ]
+      "primary": "/uploads/formamondo/FMO-mapierre-beige-natural.jpg",
+      "alternates": []
     },
     "skus": {
       "natural-12x24": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQL_MAPIERRE_NOBILE_BEIGE_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-beige-natural.jpg"
       },
       "natural-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQL_MAPIERRE_NOBILE_BEIGE_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-beige-natural.jpg"
       },
       "natural-48x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQL_MAPIERRE_NOBILE_BEIGE_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-beige-natural.jpg"
       },
       "ligne-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELS7_MAPIERRE_LIGNE_BEIGE_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-beige-ligne.jpg"
       }
     }
   },
   "FMO-mapierre-gris": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQN_MAPIERRE_NOBILE_GRIS_60x120_01.jpg.250x250_q75_crop.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-10.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-7.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-9.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-12.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-11.webp"
-      ]
+      "primary": "/uploads/formamondo/FMO-mapierre-gris-natural.jpg",
+      "alternates": []
     },
     "skus": {
       "natural-12x24": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQN_MAPIERRE_NOBILE_GRIS_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-gris-natural.jpg"
       },
       "natural-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQN_MAPIERRE_NOBILE_GRIS_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-gris-natural.jpg"
       },
       "ligne-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELS9_MAPIERRE_LIGNE_GRIS_60x120_03.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-gris-ligne.jpg"
       }
     }
   },
   "FMO-mapierre-noir": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQP_MAPIERRE_NOBILE_NOIR_60x120_01.jpg.250x250_q75_crop.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-9.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-12.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-2.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-11.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/Mapierre-10.webp"
-      ]
+      "primary": "/uploads/formamondo/FMO-mapierre-noir-natural.jpg",
+      "alternates": []
     },
     "skus": {
       "natural-12x24": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQP_MAPIERRE_NOBILE_NOIR_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-noir-natural.jpg"
       },
       "natural-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELQP_MAPIERRE_NOBILE_NOIR_60x120_01.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-noir-natural.jpg"
       },
       "ligne-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/08/ELSA_MAPIERRE_LIGNE_NOIR_60x120_04.jpg.250x250_q75_crop.webp"
+        "primary": "/uploads/formamondo/FMO-mapierre-noir-ligne.jpg"
       }
     }
   },
   "FMO-matera-stone-white": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/11/MATERA20STONE20NEUTRA20WHITE_0320LAVORATA20DA20ARTILAB.avif",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/11/EN6S_Matera20Stone_Dec20Ritmo_White_60x120_01.avif",
-        "https://formamondo.com/wp-content/uploads/2025/11/EN8J_Matera20Stone_White_60x120_01.avif",
-        "https://formamondo.com/wp-content/uploads/2024/08/CLAY-CL05-120x120-JW17-Kitchen.webp",
-        "https://formamondo.com/wp-content/uploads/2025/11/MATERA20STONE20NEUTRA20WHITE_0320LAVORATA20DA20ARTILAB-1536x768.avif",
-        "https://formamondo.com/wp-content/uploads/2025/11/MATERA20STONE20NEUTRA20BEIGE_0120LAVORATA20DA20ARTILAB-1536x768.avif"
-      ]
+      "primary": "/uploads/formamondo/FMO-matera-stone-white-neutra-r10.jpg",
+      "alternates": []
     },
     "skus": {
+      "neutra-r10-24x48": {
+        "primary": "/uploads/formamondo/FMO-matera-stone-white-neutra-r10.jpg"
+      },
+      "neutra-r11-24x48": {
+        "primary": "/uploads/formamondo/FMO-matera-stone-white-neutra-r11.jpg"
+      },
+      "sassi-24x48": {
+        "primary": "/uploads/formamondo/FMO-matera-stone-white-sassi.jpg"
+      },
       "ritmo-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2025/11/EN6S_Matera20Stone_Dec20Ritmo_White_60x120_01-1536x767.avif"
+        "primary": "/uploads/formamondo/FMO-matera-stone-white-ritmo.jpg"
       }
     }
   },
   "FMO-matera-stone-beige": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/11/EN8G_Matera20Stone_Beige_60x120_01.avif",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/CLAY-CL01-120x278-NN01-Living-1.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/CLAY-CL01-120x120-Living.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/CLAY-CL01-80x80-Bathroom.webp",
-        "https://formamondo.com/wp-content/uploads/2025/11/MATERA20STONE20NEUTRA20BEIGE_0120LAVORATA20DA20ARTILAB-1536x768.avif",
-        "https://formamondo.com/wp-content/uploads/2025/11/MATERA20STONE20NEUTRA20WHITE_0320LAVORATA20DA20ARTILAB-1536x768.avif"
-      ]
+      "primary": "/uploads/formamondo/FMO-matera-stone-beige-neutra-r10.jpg",
+      "alternates": []
     },
     "skus": {
+      "neutra-r10-24x48": {
+        "primary": "/uploads/formamondo/FMO-matera-stone-beige-neutra-r10.jpg"
+      },
+      "neutra-r11-24x48": {
+        "primary": "/uploads/formamondo/FMO-matera-stone-beige-neutra-r11.jpg"
+      },
+      "sassi-24x48": {
+        "primary": "/uploads/formamondo/FMO-matera-stone-beige-sassi.jpg"
+      },
       "ritmo-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2025/11/EN6R_Matera20Stone_Dec20Ritmo_Beige_60x120_01-1536x767.avif"
+        "primary": "/uploads/formamondo/FMO-matera-stone-beige-ritmo.jpg"
       }
     }
   },
   "FMO-marvel-diva-taj-mahal": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/03/AU8C_AtlasConcorde_MarvelDiva_TajMahal_60x120_Polished_3.tif.jpeg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/03/AtlasConcorde_MarvelDiva_007_01_Tajmahal_Gridl.tif-scaled.jpeg",
-        "https://formamondo.com/wp-content/uploads/2025/03/AtlasConcorde_MarvelDiva_007_00_Tajmahal_Wall.tif-scaled.jpeg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled9-scaled.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled8-scaled.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-marvel-diva-taj-mahal-matte.jpg",
+      "alternates": []
     },
     "skus": {
+      "matte-24x48": {
+        "primary": "/uploads/formamondo/FMO-marvel-diva-taj-mahal-matte.jpg"
+      },
       "polished-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2025/03/AU8C_AtlasConcorde_MarvelDiva_TajMahal_60x120_Polished_3.tif-1536x768.jpeg"
+        "primary": "/uploads/formamondo/FMO-marvel-diva-taj-mahal-polished.jpg"
       }
     }
   },
   "FMO-marvel-diva-ice-crystal": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/03/AX8S_AtlasConcorde_MarvelDiva_IceCrystal_60x120_Matt_4.tif.jpeg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled9-scaled.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled8-scaled.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled6-scaled.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-marvel-diva-ice-crystal-matte.jpg",
+      "alternates": []
     },
     "skus": {
       "matte-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2025/03/AX8S_AtlasConcorde_MarvelDiva_IceCrystal_60x120_Matt_4.tif-1536x768.jpeg"
+        "primary": "/uploads/formamondo/FMO-marvel-diva-ice-crystal-matte.jpg"
+      },
+      "polished-24x48": {
+        "primary": "/uploads/formamondo/FMO-marvel-diva-ice-crystal-polished.jpg"
       }
     }
   },
   "FMO-marvel-diva-white-everest": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/03/AX8U_AtlasConcorde_MarvelDiva_WhiteEverest_60x120_Matt_3.tif.jpeg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled9-scaled.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled8-scaled.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled6-scaled.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-marvel-diva-white-everest-matte.jpg",
+      "alternates": []
     },
     "skus": {
       "matte-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2025/03/AX8U_AtlasConcorde_MarvelDiva_WhiteEverest_60x120_Matt_3.tif-1536x768.jpeg"
+        "primary": "/uploads/formamondo/FMO-marvel-diva-white-everest-matte.jpg"
+      },
+      "polished-24x48": {
+        "primary": "/uploads/formamondo/FMO-marvel-diva-white-everest-polished.jpg"
       }
     }
   },
   "FMO-marvel-diva-precious-brown": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/03/AU8H_AtlasConcorde_MarvelDiva_PreciousBrown_60x120_Velvet_2.tif.jpeg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled9-scaled.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled8-scaled.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Untitled6-scaled.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-marvel-diva-precious-brown-silk-matte.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "silk-matte-24x48": {
+        "primary": "/uploads/formamondo/FMO-marvel-diva-precious-brown-silk-matte.jpg"
+      }
+    }
   },
   "FMO-elysian-travertini-pearl": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY12-TRAVERTINO-PEARLY-CROSS.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/10/ELYSIAN-TRAVERTINI-EY11-120x278-EY14-Living.webp",
-        "https://formamondo.com/wp-content/uploads/2024/10/Elysian-Travertini-EY13-80x80-Living.webp",
-        "https://formamondo.com/wp-content/uploads/2024/10/ELYSIAN-TRAVERTINI-EY15-60x60-EY02-Outdoor-P03.webp",
-        "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY12-TRAVERTINO-PEARLY-CROSS-1536x1536.jpg",
-        "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY11-TRAVERTINO-MISTY-1536x1536.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-elysian-travertini-pearl-vein-cut.jpg",
+      "alternates": []
     },
     "skus": {
       "vein-cut-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY10-TRAVERTINO-PEARLY-1536x1536.jpg"
+        "primary": "/uploads/formamondo/FMO-elysian-travertini-pearl-vein-cut.jpg"
       },
       "cross-cut-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY12-TRAVERTINO-PEARLY-CROSS-1536x1536.jpg"
+        "primary": "/uploads/formamondo/FMO-elysian-travertini-pearl-cross-cut.jpg"
       }
     }
   },
   "FMO-elysian-travertini-light": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY13-TRAVERTINO-LIGHT-CROSS.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/10/ELYSIAN-TRAVERTINI-EY10-120x278-Outdoor.webp",
-        "https://formamondo.com/wp-content/uploads/2024/10/ELYSIAN-TRAVERTINI-EY13-EY07-Bathroom-P01.webp",
-        "https://formamondo.com/wp-content/uploads/2024/10/ELYSIAN-TRAVERTINI-EY15-60x60-EY02-Outdoor.webp",
-        "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY13-TRAVERTINO-LIGHT-CROSS-1536x1536.jpg",
-        "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY10-TRAVERTINO-PEARLY-1536x1536.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-elysian-travertini-light-vein-cut.jpg",
+      "alternates": []
     },
     "skus": {
       "vein-cut-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY07-TRAVERTINO-LIGHT.jpg"
+        "primary": "/uploads/formamondo/FMO-elysian-travertini-light-vein-cut.jpg"
       },
       "cross-cut-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY13-TRAVERTINO-LIGHT-CROSS-1536x1536.jpg"
+        "primary": "/uploads/formamondo/FMO-elysian-travertini-light-cross-cut.jpg"
       }
     }
   },
   "FMO-elysian-travertini-misty": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/12/Misty-Cross.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/10/Elysian-Travertini-EY11-Still-Life.webp",
-        "https://formamondo.com/wp-content/uploads/2024/10/ELYSIAN-TRAVERTINI-EY13-EY07-Bathroom.webp",
-        "https://formamondo.com/wp-content/uploads/2024/10/Elysian-Travertini-EY10-60x120-MT04-Fontainbleau-Outdoor.webp",
-        "https://formamondo.com/wp-content/uploads/2024/12/Misty-Cross-1536x1536.jpg",
-        "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY10-TRAVERTINO-PEARLY-1536x1536.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-elysian-travertini-misty-vein-cut.jpg",
+      "alternates": []
     },
     "skus": {
       "vein-cut-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY11-TRAVERTINO-MISTY-1536x1536.jpg"
+        "primary": "/uploads/formamondo/FMO-elysian-travertini-misty-vein-cut.jpg"
       },
       "cross-cut-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/12/Misty-Cross-1536x1536.jpg"
+        "primary": "/uploads/formamondo/FMO-elysian-travertini-misty-cross-cut.jpg"
       }
     }
   },
   "FMO-easylife-vanilla": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/03/780798.jpg-930x620.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-19-C2_Mashroom-80x80-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-18-C1_Mashroom-80x80_Warm-spring-60x120-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-12-Amb-Bagno-Dett-2-Decoro-caffelatte-e-mashroom-30x30-caffelatte-60x120-1-930x620.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-easylife-vanilla-silk-matte.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "silk-matte-24x48": {
+        "primary": "/uploads/formamondo/FMO-easylife-vanilla-silk-matte.jpg"
+      },
+      "silk-matte-48x48": {
+        "primary": "/uploads/formamondo/FMO-easylife-vanilla-silk-matte.jpg"
+      }
+    }
   },
   "FMO-easylife-porridge": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/03/780799.jpg-930x620.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-18-C1_Mashroom-80x80_Warm-spring-60x120-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-11-Amb-Bagno-Dett-1-Caffelatte-80x80-listelli-porridge-75x30-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-10-Amb-Bagno-Caffelatte-porridge-60x120-dec-caffelatte-e-mashroom-30x30-listelli-porridge-75x30-2-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-10-Amb-Bagno-Caffelatte-porridge-60x120-dec-caffelatte-e-mashroom-30x30-listelli-porridge-75x30-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-19-C2_Mashroom-80x80-1-930x620.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-easylife-porridge-silk-matte.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "silk-matte-24x48": {
+        "primary": "/uploads/formamondo/FMO-easylife-porridge-silk-matte.jpg"
+      },
+      "silk-matte-48x48": {
+        "primary": "/uploads/formamondo/FMO-easylife-porridge-silk-matte.jpg"
+      }
+    }
   },
   "FMO-easylife-mushroom": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/03/780802.jpg-930x620.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-12-Amb-Bagno-Dett-2-Decoro-caffelatte-e-mashroom-30x30-caffelatte-60x120-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-18-C1_Mashroom-80x80_Warm-spring-60x120-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-10-Amb-Bagno-Caffelatte-porridge-60x120-dec-caffelatte-e-mashroom-30x30-listelli-porridge-75x30-2-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-10-Amb-Bagno-Caffelatte-porridge-60x120-dec-caffelatte-e-mashroom-30x30-listelli-porridge-75x30-1-930x620.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-easylife-mushroom-silk-matte.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "silk-matte-24x48": {
+        "primary": "/uploads/formamondo/FMO-easylife-mushroom-silk-matte.jpg"
+      }
+    }
   },
   "FMO-easylife-truffle": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/03/780805.jpg-930x620.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-11-Amb-Bagno-Dett-1-Caffelatte-80x80-listelli-porridge-75x30-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-19-C2_Mashroom-80x80-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-18-C1_Mashroom-80x80_Warm-spring-60x120-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-12-Amb-Bagno-Dett-2-Decoro-caffelatte-e-mashroom-30x30-caffelatte-60x120-1-930x620.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-easylife-truffle-silk-matte.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "silk-matte-24x48": {
+        "primary": "/uploads/formamondo/FMO-easylife-truffle-silk-matte.jpg"
+      }
+    }
   },
   "FMO-easylife-cool-spring": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/03/780881.jpg.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-10-Amb-Bagno-Caffelatte-porridge-60x120-dec-caffelatte-e-mashroom-30x30-listelli-porridge-75x30-2-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-19-C2_Mashroom-80x80-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-18-C1_Mashroom-80x80_Warm-spring-60x120-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-12-Amb-Bagno-Dett-2-Decoro-caffelatte-e-mashroom-30x30-caffelatte-60x120-1-930x620.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-easylife-cool-spring-silk-matte.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "silk-matte-24x48": {
+        "primary": "/uploads/formamondo/FMO-easylife-cool-spring-silk-matte.jpg"
+      }
+    }
   },
   "FMO-easylife-warm-spring": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2025/03/780882.jpg.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-10-Amb-Bagno-Caffelatte-porridge-60x120-dec-caffelatte-e-mashroom-30x30-listelli-porridge-75x30-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-18-C1_Mashroom-80x80_Warm-spring-60x120-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-19-C2_Mashroom-80x80-1-930x620.jpg",
-        "https://formamondo.com/wp-content/uploads/2025/03/Easy-life-12-Amb-Bagno-Dett-2-Decoro-caffelatte-e-mashroom-30x30-caffelatte-60x120-1-930x620.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-easylife-warm-spring-silk-matte.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "silk-matte-24x48": {
+        "primary": "/uploads/formamondo/FMO-easylife-warm-spring-silk-matte.jpg"
+      }
+    }
   },
   "FMO-double-white": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/12/Plain-White.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/12/Plain-White-768x768.jpg",
-        "https://formamondo.com/wp-content/uploads/2024/09/B_00-DOUBLE-PLAIN-WHITE-scaled.webp",
-        "https://formamondo.com/wp-content/uploads/2024/09/B_06-DOUBLE-LIN.WHITE-LUX3D-120X280TANGR.WH_.LUX3D-120X2804-SEAS.CHOC_.20X120-scaled.webp",
-        "https://formamondo.com/wp-content/uploads/2024/10/BEIGE-PLAIN-768x768.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-double-white-plain.jpg",
+      "alternates": []
     },
     "skus": {
       "plain-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/12/Plain-White-768x768.jpg"
+        "primary": "/uploads/formamondo/FMO-double-white-plain.jpg"
       },
       "linear-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/12/Linear-White-768x768.jpg"
+        "primary": "/uploads/formamondo/FMO-double-white-linear.jpg"
+      },
+      "linear-3d-lux-24x48": {
+        "primary": "/uploads/formamondo/FMO-double-white-linear-3d-lux.jpg"
       }
     }
   },
   "FMO-double-beige": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/10/BEIGE-PLAIN-768x768.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/12/Linear-White-768x768.jpg",
-        "https://formamondo.com/wp-content/uploads/2024/12/Plain-White-768x768.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-double-beige-plain.jpg",
+      "alternates": []
     },
     "skus": {
       "plain-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/10/BEIGE-PLAIN-768x768.jpg"
+        "primary": "/uploads/formamondo/FMO-double-beige-plain.jpg"
+      },
+      "linear-24x48": {
+        "primary": "/uploads/formamondo/FMO-double-beige-linear.jpg"
+      },
+      "linear-3d-lux-24x48": {
+        "primary": "/uploads/formamondo/FMO-double-beige-linear-3d-lux.jpg"
       }
     }
   },
   "FMO-double-mint": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/10/MINT-PLAIN-768x768.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/12/Linear-Mint-768x768.jpg",
-        "https://formamondo.com/wp-content/uploads/2024/12/Linear-White-768x768.jpg",
-        "https://formamondo.com/wp-content/uploads/2024/12/Plain-White-768x768.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-double-mint-plain.jpg",
+      "alternates": []
     },
     "skus": {
       "plain-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/10/MINT-PLAIN-768x768.jpg"
+        "primary": "/uploads/formamondo/FMO-double-mint-plain.jpg"
       },
       "linear-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/12/Linear-Mint-768x768.jpg"
+        "primary": "/uploads/formamondo/FMO-double-mint-linear.jpg"
       }
     }
   },
   "FMO-double-arrow": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/12/Arrow-e1733524350882-768x806.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/12/Linear-White-768x768.jpg",
-        "https://formamondo.com/wp-content/uploads/2024/12/Plain-White-768x768.jpg",
-        "https://formamondo.com/wp-content/uploads/2024/10/BEIGE-PLAIN-768x768.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-double-arrow-mix.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "mix-24x48": {
+        "primary": "/uploads/formamondo/FMO-double-arrow-mix.jpg"
+      }
+    }
   },
   "FMO-noa-light": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/09/cd18bf80b97a472f83ec24de074725c8.png",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/NOA-12.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/NOA-11.webp"
-      ]
+      "primary": "/uploads/formamondo/FMO-noa-light-natural.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "natural-24x48": {
+        "primary": "/uploads/formamondo/FMO-noa-light-natural.jpg"
+      },
+      "natural-48x48": {
+        "primary": "/uploads/formamondo/FMO-noa-light-natural.jpg"
+      }
+    }
   },
   "FMO-noa-pearl": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/09/1ed397570a7c49373c21e97eb325cc1f.png",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/NOA-11.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/NOA-12.webp"
-      ]
+      "primary": "/uploads/formamondo/FMO-noa-pearl-natural.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "natural-24x48": {
+        "primary": "/uploads/formamondo/FMO-noa-pearl-natural.jpg"
+      },
+      "natural-48x48": {
+        "primary": "/uploads/formamondo/FMO-noa-pearl-natural.jpg"
+      }
+    }
   },
   "FMO-noa-sand": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/09/Noa1Sand-copy-1.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/NOA-112.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/NOA-12.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/NOA-11.webp"
-      ]
+      "primary": "/uploads/formamondo/FMO-noa-sand-natural.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "natural-24x48": {
+        "primary": "/uploads/formamondo/FMO-noa-sand-natural.jpg"
+      },
+      "natural-48x48": {
+        "primary": "/uploads/formamondo/FMO-noa-sand-natural.jpg"
+      }
+    }
   },
   "FMO-volcano-ash": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/09/volcano-b-1.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/Volcano-1.webp",
-        "https://formamondo.com/wp-content/uploads/2024/09/volcano-b-3.webp",
-        "https://formamondo.com/wp-content/uploads/2024/09/volcano-b-2.webp"
-      ]
+      "primary": "/uploads/formamondo/FMO-volcano-ash-natural.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "natural-24x48": {
+        "primary": "/uploads/formamondo/FMO-volcano-ash-natural.jpg"
+      },
+      "rubik-24x48": {
+        "primary": "/uploads/formamondo/FMO-volcano-ash-rubik.jpg"
+      }
+    }
   },
   "FMO-alpi-grigio": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/09/alpi-b-1.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/alpi-3-.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/alpi-5-.webp"
-      ]
+      "primary": "/uploads/formamondo/FMO-alpi-grigio-natural.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "natural-24x48": {
+        "primary": "/uploads/formamondo/FMO-alpi-grigio-natural.jpg"
+      }
+    }
   },
   "FMO-alpi-tesseo": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2024/09/alpi-b-2.webp",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2024/08/alpi-4-.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/alpi-5-.webp",
-        "https://formamondo.com/wp-content/uploads/2024/08/alpi-3-.webp"
-      ]
+      "primary": "/uploads/formamondo/FMO-alpi-tesseo-mix.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "mix-24x48": {
+        "primary": "/uploads/formamondo/FMO-alpi-tesseo-mix.jpg"
+      }
+    }
   },
   "FMO-boost-vision-glow": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2026/04/formamondo-Boost-Vision-2.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2026/04/formamondo-Boost-Vision-10.jpg",
-        "https://formamondo.com/wp-content/uploads/2026/04/formamondo-Boost-Vision-5.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-boost-vision-glow-natural.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "natural-24x48": {
+        "primary": "/uploads/formamondo/FMO-boost-vision-glow-natural.jpg"
+      },
+      "natural-48x48": {
+        "primary": "/uploads/formamondo/FMO-boost-vision-glow-natural.jpg"
+      }
+    }
   },
   "FMO-boost-vision-camel": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2026/04/formamondo-Boost-Vision-3.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2026/04/formamondo-Boost-Vision-10.jpg",
-        "https://formamondo.com/wp-content/uploads/2026/04/formamondo-Boost-Vision-5.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-boost-vision-camel-natural.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "natural-24x48": {
+        "primary": "/uploads/formamondo/FMO-boost-vision-camel-natural.jpg"
+      },
+      "natural-48x48": {
+        "primary": "/uploads/formamondo/FMO-boost-vision-camel-natural.jpg"
+      }
+    }
   },
   "FMO-natural-white": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2026/04/Formamondo-natural-3.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2026/04/Formamondo-natural-3-150x150.jpg",
-        "https://formamondo.com/wp-content/uploads/2026/06/Formamondo-stripe-natural-1024x1024.png"
-      ]
+      "primary": "/uploads/formamondo/FMO-natural-white-field-tile.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "field-tile-24x48": {
+        "primary": "/uploads/formamondo/FMO-natural-white-field-tile.jpg"
+      },
+      "field-tile-48x48": {
+        "primary": "/uploads/formamondo/FMO-natural-white-field-tile.jpg"
+      },
+      "strip-24x48": {
+        "primary": "/uploads/formamondo/FMO-natural-white-strip.jpg"
+      }
+    }
   },
   "FMO-natural-ivory": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2026/04/Formamondo-natural-2.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2026/04/Formamondo-natural-3-150x150.jpg",
-        "https://formamondo.com/wp-content/uploads/2026/06/Formamondo-stripe-natural-1024x1024.png"
-      ]
+      "primary": "/uploads/formamondo/FMO-natural-ivory-field-tile.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "field-tile-24x48": {
+        "primary": "/uploads/formamondo/FMO-natural-ivory-field-tile.jpg"
+      },
+      "field-tile-48x48": {
+        "primary": "/uploads/formamondo/FMO-natural-ivory-field-tile.jpg"
+      },
+      "strip-24x48": {
+        "primary": "/uploads/formamondo/FMO-natural-ivory-strip.jpg"
+      }
+    }
   },
   "FMO-nyra-star": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2026/04/Formamondo-Nyra-collection-1-1.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2026/04/Formamondo-Nyra-collection-2-1-150x150.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-nyra-star-natural.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "natural-24x48": {
+        "primary": "/uploads/formamondo/FMO-nyra-star-natural.jpg"
+      },
+      "natural-48x48": {
+        "primary": "/uploads/formamondo/FMO-nyra-star-natural.jpg"
+      }
+    }
   },
   "FMO-nyra-sunlight": {
     "product": {
-      "primary": "https://formamondo.com/wp-content/uploads/2026/04/Formamondo-Nyra-collection-2-1.jpg",
-      "alternates": [
-        "https://formamondo.com/wp-content/uploads/2026/04/Formamondo-Nyra-collection-2-1-150x150.jpg"
-      ]
+      "primary": "/uploads/formamondo/FMO-nyra-sunlight-natural.jpg",
+      "alternates": []
     },
-    "skus": {}
+    "skus": {
+      "natural-24x48": {
+        "primary": "/uploads/formamondo/FMO-nyra-sunlight-natural.jpg"
+      },
+      "natural-48x48": {
+        "primary": "/uploads/formamondo/FMO-nyra-sunlight-natural.jpg"
+      }
+    }
   }
 }

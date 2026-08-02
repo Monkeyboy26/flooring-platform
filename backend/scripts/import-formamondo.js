@@ -4,8 +4,10 @@
  *
  * Onboarded as its OWN vendor carrying a single house brand (Forma Mondo). Source:
  * backend/data/formamondo/catalog.json (built by build-formamondo-catalog.js from the 2026 price
- * list) + images.json (per-color/finish press swatches + lifestyle room scenes matched from the
- * WordPress site by scrape-formamondo-images.js).
+ * list) + images.json (built by build-formamondo-pdf-images.js). Every (color, finish) uses its own
+ * authoritative swatch cropped from the price-list PDF "IMAGE" column — guaranteeing each image
+ * matches its exact color/finish with NO fallbacks (staged to uploads/formamondo/). + specs.json
+ * (material "Family" scraped from each collection's product-info label).
  *
  * MODEL (see [[variant-pill-independence]] / [[line-item-display]]):
  *   - Each collection = a `collection`; each COLOR within it = ONE product; the finish x size
