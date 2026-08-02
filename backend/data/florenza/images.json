@@ -1,0 +1,1586 @@
+{
+  "FLZ-absolute-brown": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Absolute_Brown_12x24_01.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/MILE_stone_Absolute_Brown_12x24_2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Absolute_Brown_12x24_3-scaled.jpg"
+      ]
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Absolute_Brown_12x24_01.jpg",
+        "alternates": [
+          "https://florenzaceramic.com/wp-content/uploads/2025/02/MILE_stone_Absolute_Brown_12x24_2.jpg",
+          "https://florenzaceramic.com/wp-content/uploads/2025/02/Absolute_Brown_12x24_3-scaled.jpg"
+        ]
+      }
+    }
+  },
+  "FLZ-acropolis-rosso": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Acropolis-Rosso.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-atienza": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/04/Dec-Atienza-11-scaled.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2026/04/Atienza-1-a.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/04/Dec-Atienza-12-scaled.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-alaska": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Alaska-Brillo.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Alaska-Brillo.1.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/AlaskaGrey_12x24_01-pol.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/ALASKA-GREY24X48pol.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/AlaskaGrey_12x24_matte-1.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/ALASKA-GREY24X48matte1.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-alaska-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/ALASKA-GREY24X48pol.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/ALASKA-GREY24X48matte1.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/AlaskaGrey_12x24_01-pol.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/AlaskaGrey_12x24_matte-1.jpg"
+      ]
+    },
+    "skus": {
+      "12x24-matte": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/AlaskaGrey_12x24_matte-1.jpg",
+        "alternates": [
+          "https://florenzaceramic.com/wp-content/uploads/2025/02/AlaskaGrey_12x24_01-pol.jpg"
+        ]
+      }
+    }
+  },
+  "FLZ-altea-cuero": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Altea-Cuero1a.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Altea-Cuero3a.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Altea-Cuero2a.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-antic-cuero": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/ANTIC-CUERO-330x330-1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Antic-Cuero-13x13-1.jpg"
+      ]
+    },
+    "skus": {
+      "13x13": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Antic-Cuero-13x13-1.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-aspen-scatola": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/04/Aspen_Scatola_30x601.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-aspen-trenza": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/04/Aspen_Trenza_30x601.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-at-duna-blanco": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/At.-Duna-Blanco-Brillo.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/At.-Duna-Blanco-Brillo1.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-balsa-wengue": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/04/balsa-wengue.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-belcaire-gris": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/BELCAIRE-GRIS-1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-belgica-bone": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/belgica-bone-12x24-Porcelain.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/belgica-bone-12x24-Porcelain.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-belgica-earth": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/belgica-earth-12x24-porcelain.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/belgica-earth-12x24-porcelain.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-belgica-stone": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/belgica-stone-12x24-porcelain.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/belgica-stone-12x24-porcelain.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-beli-cream": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Beli-Cream-1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-beli-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Beli-Grey-1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-bianco-river": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/bianco-river.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2017/05/bianco-river-polished.jpg"
+      ]
+    },
+    "skus": {
+      "12x24-polished": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/bianco-river-polished.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-blink-black": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/blink-black.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2017/05/blink-black-12-12.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-calco-cemento": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/calco-cemento-3.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-carrara-white": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/carrara-white-20x20.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2017/05/carrera-white-12x24.jpg"
+      ]
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/carrera-white-12x24.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-carrara-gold": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/09/carrara-gold3a.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/09/Carrara-gold4a-scaled.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/09/carrara-gold2-scaled.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/09/carrara-gold-pol.-24x48-1-scaled.webp"
+      ]
+    },
+    "skus": {
+      "24x48-matteorpolished": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/09/carrara-gold-pol.-24x48-1-scaled.webp",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-cassero-carbone": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/cassero-carbone-defini.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-castro-brown": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/02/45x45_castro_brown_1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-castro-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/02/45x45_castro_grey_1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-castro-mix": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/02/45x45-castro_mix_1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-castrum-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2018/11/castrun-grey.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-cedar-nero": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/cedar-nero.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-cedar-rosato": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/cedar-rosato.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-chianca-avorio": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/ch_avorio.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/ch_avorio-12x24-1.jpeg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/ch_avorio-24x241-1.jpeg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_chb_avorio_24x48-e1778094914246.jpeg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/Chianca_Chb_Avorio_24x48.jpg"
+      ]
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/ch_avorio-12x24-1.jpeg",
+        "alternates": []
+      },
+      "24x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/ch_avorio-24x241-1.jpeg",
+        "alternates": []
+      },
+      "24x48": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_chb_avorio_24x48-e1778094914246.jpeg",
+        "alternates": [
+          "https://florenzaceramic.com/wp-content/uploads/2026/05/Chianca_Chb_Avorio_24x48.jpg"
+        ]
+      }
+    }
+  },
+  "FLZ-chianca-beige": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_ch_beige_-12x24-1.jpeg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_ch_beige_-24x24-1.jpeg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_chb_beige_24x48a.jpeg"
+      ]
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_ch_beige_-12x24-1.jpeg",
+        "alternates": []
+      },
+      "24x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_ch_beige_-24x24-1.jpeg",
+        "alternates": []
+      },
+      "24x48": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_chb_beige_24x48a.jpeg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-chestnut-fiber": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/chestnut-Fiber-rotated.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-chestnut-origin": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/chestnut-Origin-rotated.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-crema-marfil": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/crema-Marfil.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/crema-Marfilb.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-cut-safari-perla": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/cut-safari-perla.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-dolomite": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/dolomite1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/dolomite2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/dolomite3.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-domino-cubo": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Domino-Cubo.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-domino-diamante": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Domino-Diamante.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-domino-dorato": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Domino_DORATO.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-domino-enigma": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Domino-Enigma-Deco.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-domino-foglie": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Domino-Foglie-Deco.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-domino-naturale": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Domino_NATURALE.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-domino-petali": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Domino-Petali-Deco.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-domino-riflesso": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Domino-Riflesso-Deco.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-domino-riquadro": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Domino-Riquadro-Deco.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-domino-tabacco": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/EGN9_Domino_TABACCO.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-domino-ventaglio": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Domino-Ventaglio-Deco.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-driftwood-brown": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/04/driftwood-brown-1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-driftwood-honey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/04/driftwood-honey-2.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-durango-beige": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Durango-Beige.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-durango-greige": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Durango-Greige.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-durango-mud": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Durango-Mud.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-durango-taupe": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Durango-Taupe.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-ec-lyon-siena": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/lyon-siena.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-ecuador-nero": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Ecuador-Nero1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Ecuador-Nero2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Ecuador-Nero3.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-epoca-rosso": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2018/11/Epoca_Rosso_16x16.1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-essenza-bianco": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Essenza-Bianco1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Essenza-Bianco4.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-essenza-grigio": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Essenza-Grigio1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Essenza-Grigio4.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-essenza-nero": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Essenza-Nero1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Essenza-Nero2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Essenza-Nero3.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-essenza-tortora": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Essenza-Tortora1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Essenza-Tortora3.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-etna": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/09/Etna1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/09/Etna2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/09/Etna-Gris-Medio1.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/09/Etna-Gris-Medio2-scaled.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-etna-gris": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/09/Etna-Gris-Medio1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/09/Etna-Gris-Medio2-scaled.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-evora-caldera": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/04/Evora-Caldera1-scaled.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2026/04/Evora-Caldera3.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/04/Evora-Caldera2-scaled.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-faenza-terra": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/faenza-terra.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/faenza-terra1.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-fortezza-ash": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Fortezza_Ash_1-1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Fortezza_Earth_2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Fortezza_Earth_3.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-gran-canyon-beige": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/Grand-Canyon-BEIGE.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-gran-canyon-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/Grand-Canyon-Grey.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-heritage-white-graphite-silver": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2018/12/heritage-white-1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2018/12/heritage-silver-1.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2018/12/heritage-graphite-1.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-hickory-wengue": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/hickory-wengue-1-scaled.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-inspire-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/2-inspire-grey-1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/inspire-grey.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-inspire-white": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/inspire-white24x48.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "24x48": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/inspire-white24x48.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-italia-terra": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Italia-Terra-1a.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Italia-Terra-2b-scaled.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-jewel-day": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Kepingan_Roman_dJewel_Day_1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-jewel-white": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Kepingan_Roman_dJewel_White_1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-kalahari-coin": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Kalahari-coin.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/serie-kalahari-in-variante-grigio-formato-modulari.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-kanawa-beige": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/KanawavBeige.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Roman_dKanawa_Beige_50x50.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-karval-wengue": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2018/11/karval-wengue.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-key-cuero": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/KEY-CUERO.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-key-marengo": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/KEY-MARENGO.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-lavagna-black-rock": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Lavagna-Black-Rock-scaled.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-lenci-blanco": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/lenci-blanco1-rotated.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/lenci-blanco2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/lenci-blanco3-rotated.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/pam1900x1773.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-luxury-white": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Luxury-white1-scaled.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Luxury-white2.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-merona-beige": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Merona-Beige.1-rotated.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Merona-Beige.1a.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/60x120-merona_beige.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-marmo-mix": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/marmo-mix-13x13-porcelain-group.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "13x13": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/marmo-mix-13x13-porcelain-group.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-marmorea-almond": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Marmorea-45x45-almond.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-marmorea-beige": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Marmorea-45x45-beige.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-marmorea-taupe": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Marmorea-45x45-taupe.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-mill-ornament": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Kepingan_Roman_dMill_Ornament1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Kepingan_Roman_dMill_Ornament2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Roman_dMill_Grey_Ornament_2_30x60R.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-minuet-bianco": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/dMinuet_Bianco-rotated.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Roman_dMinuet_Giorno_30x60R.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-missouri-noce": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/missouri-nova.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-pave-gubbio": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Pave-Gubbio-2-scaled.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/pave-gubbio-1-scaled.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-pavia-crema": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/pavia-crema-12x24-porcelain.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/pavia-crema-12x24-porcelain.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-piedra-mix": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/PIEDRA-MIX-1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-positano": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/09/Positano1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/09/Positano4-scaled.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/09/Positano2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/09/Positano3.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-quechua-magma": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Quechua-Magma.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-quechua-natural": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Quechua-Natural.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-river-stone-dark-grey-g608": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/Riverstone-Dark-Grey-12x24.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/Riverstone-Dark-Grey-12x24.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-royale-crema": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/royal-crema-24-x-24.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2017/05/royal-crema-crema.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2017/05/royal-crema-marfil-12x24.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-royale-marfil": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/royal-crema-marfil-12x24.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-royale-crema-marfil-perla": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/royal-crema-crema.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2017/05/royal-crema-marfil-12x24.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-rustic-cotto": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/03/RUSTIC-COTTO.jpeg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-rustic-gris": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/03/RUSTIC-GRIS.jpeg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-rustic-natura": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/03/RUSTIC-NATURA.jpeg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-safari-gris": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/safari-gris.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-san-pietrino": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/san-pietrino-13x13-porcelain.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "13x13": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/san-pietrino-13x13-porcelain.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-saturnia-bianco": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/Saturnia-Bianco-13x13-1-scaled.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "13x13": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/Saturnia-Bianco-13x13-1-scaled.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-senesi-ferro": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/senesi-ferro-8x8-porcelain-set1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-sequoia-bruno": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/sequoia-bruno.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-sestino-moka": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Sestino-Moka.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-simply-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2018/11/simply-grey.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-snow-white": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/snow-white-polished.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x12-unpolished": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/snow-white-polished.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-solna-blanco": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2018/11/solna-blanco.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-sorano-rosso": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/sorano-rosso-solo.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-star-crest-gaya-r65": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/starcrest-gaya.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-stromboli-grigio": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Stromboli-grigio-12x24-1.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Stromboli-grigio-12x24-1.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-surf-preto": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/surf-blak.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-tamarindo-gris": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Tamarindo-Gris.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-tamarindo-terra": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Tamarindo-Terra.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-teka-gris": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/teka-gris.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-tempo-black": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/AMB_TEMPO_BLACK.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/AMB_TEMPO_BLACK-hex.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-tempo-mix": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/tempo-mix.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-terrace-brown": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/terrace-brown.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-topstone-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/33.3x33.3_pt_topstone_grey1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-torano-dorado": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Torano-Dorado1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Torano-Dorado2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Torano-Dorado3.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Torano-Dorado4.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-travessa-cube": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/Travessa_Cube_Hex-rotated.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-travessa-dark": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/Travessa_Dark-_hex-rotated.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-travessa-light": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/Travessa_Light_hex-rotated.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-travessa-medium": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2019/10/Travessa_Medium_Hex-rotated.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-tresana-blanco": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Tresana-Blanco1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Tresana-Blanco2-scaled.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Tresana-Blanco3.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Tresana-Blanco1a.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-true-warm-white": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/True-Warm-White-1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-tube-cream": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/tube-cream-1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-umbria-brown": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/Umbria-Brown-12x24-1-scaled.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/Umbria-Brown-12x24-1-scaled.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-vinson-bianco": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Vinson-Bianco-2-rotated.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Vinson-Bianco-1.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-vivo-black": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/vivo-black.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-wells-cream": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/wells-cream1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/wells-cream2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/wells-cream3.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Wells-Cream.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-wells-ivory": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Wells-ivory-1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Wells-ivory-2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Wells-ivory-3.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Wells-ivory-4.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-wells-pearl": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Wells-Pearl-1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Wells-Pearl-2.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Wells-Pearl-3.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-wells-sand": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/wells-sand2.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/wells-sand1.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-andean-red": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Andean-Red-Hex-scaled-e1740177478372.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/Hexagonos-Casablanca-2.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-ashen-gray": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Ashen-gray-quarry-tile_1-e1740700885224.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/6x6_Ashen-Gray-Abrasive.jpg"
+      ]
+    },
+    "skus": {
+      "6x6x12-abrasive": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/6x6_Ashen-Gray-Abrasive.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-baltic-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/BALTIC-GREY-QUARRY-1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-cotto-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/COTTO-GRIS.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/COTTO-GRIS.2.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-mayflower-red-ironspot": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/IronSpot-Mayflower-Red1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/IronSpot-Mayflower-Red1111.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-quarry-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/QuarryCovebase-Grey.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Quarry-Grey-6x6-2.jpg"
+      ]
+    },
+    "skus": {
+      "6x6x12-smooth": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Quarry-Grey-6x6-2.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-quarry-red": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/quarry-red.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-sahara-sand": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/SAHARA-SAND-QUARRY-GRAFILADO-scaled.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/02/SAHARA-SAND-GRAFILADO.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Sahara-Sand-Smooth-6x6-1.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/SAHARA-ABRASIVE-QUARRY-en-zXhP8ajjeNMF33MK.jpg"
+      ]
+    },
+    "skus": {
+      "6x6x38-smooth": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Sahara-Sand-Smooth-6x6-1.jpg",
+        "alternates": []
+      },
+      "6x6x38-abrasive": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/SAHARA-ABRASIVE-QUARRY-en-zXhP8ajjeNMF33MK.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-salmon": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/01/12x12-Salmon-Quarry1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2026/01/12x12-Salmon-Quarry2-scaled.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/01/Alfagres-USA-SALMON-SMOOTH-QUARRY-TILEjpg.jpg"
+      ]
+    },
+    "skus": {
+      "12x12x38-smooth": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/01/12x12-Salmon-Quarry1.jpg",
+        "alternates": [
+          "https://florenzaceramic.com/wp-content/uploads/2026/01/12x12-Salmon-Quarry2-scaled.jpg",
+          "https://florenzaceramic.com/wp-content/uploads/2026/01/Alfagres-USA-SALMON-SMOOTH-QUARRY-TILEjpg.jpg"
+        ]
+      }
+    }
+  },
+  "FLZ-spanish-grey": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/6x6-Spanish-Grey-Smooth-Quarry1a.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/6x6-Spanish-Grey-Abrasive-Quarry1b.jpg"
+      ]
+    },
+    "skus": {
+      "6x6x38-smooth": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/6x6-Spanish-Grey-Smooth-Quarry1a.jpg",
+        "alternates": []
+      },
+      "6x6x38-abrasive": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/6x6-Spanish-Grey-Abrasive-Quarry1b.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-spanish-red": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/SPANISH-RED-QUARRY-GRAFILADO-scaled.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Spanish-Red-Quarry1.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Spanish-Red-Smooth-Quarry-12x121-1.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/SPANISH-RED-ABRASIVE-QUARRY.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/Spanish-Red-Smooth-Quarry-12x122-1.jpg"
+      ]
+    },
+    "skus": {
+      "12x12x38-smooth": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Spanish-Red-Smooth-Quarry-12x121-1.jpg",
+        "alternates": [
+          "https://florenzaceramic.com/wp-content/uploads/2025/01/Spanish-Red-Smooth-Quarry-12x122-1.jpg"
+        ]
+      },
+      "6x6x38-abrasive": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/SPANISH-RED-ABRASIVE-QUARRY.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-porcelagres-gris": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/PORCELAGRES-GRIS-GRIP-QUARRY.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-puritan-grey-ironspot": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/IronSpot-Puritan-Grey-1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-bronx-alga": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/04/bronx-alga-3x12.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "3x12": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2017/04/bronx-alga-3x12.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-cassero-essenza": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/cassero-essenza.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-cassero-legno": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/cemento-legno.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2017/05/cassero-legno-4x12.jpg"
+      ]
+    },
+    "skus": {
+      "4x12": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/cassero-legno-4x12.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-true-mild-grey-light-beige-warm-white-mosaic": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2018/11/True-Mild-Grey-2x2-Mosaic-matte.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2018/11/True-warm-white-2x2-Mosaic-matte.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2018/11/True-Light-Beige-2x2-Mosaic-matte.jpg"
+      ]
+    },
+    "skus": {}
+  },
+  "FLZ-turin-mosaic": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2018/11/Turin-3x3-Mosaic-pol.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-penny-round-carrara-white-big-small-mosaic": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/white-carrara-marble-penny-round-mosaic2-scaled.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-antic-cuero-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Antic-Cuero-Rounded-Stair-Tread.1.jpeg",
+      "alternates": []
+    },
+    "skus": {
+      "stairtread13x13": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Antic-Cuero-Rounded-Stair-Tread.1.jpeg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-andean-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/ANDEAN-STAIRTHREAD-QUARRY-Coping1.jpg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2025/01/ANDEAN-STAIRTHREAD-QUARRY-Coping2.jpg"
+      ]
+    },
+    "skus": {
+      "stairtread12x12": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/ANDEAN-STAIRTHREAD-QUARRY-Coping1.jpg",
+        "alternates": [
+          "https://florenzaceramic.com/wp-content/uploads/2025/01/ANDEAN-STAIRTHREAD-QUARRY-Coping2.jpg"
+        ]
+      }
+    }
+  },
+  "FLZ-ashen-gray-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Ashen-gray-cove-base-1-e1740516702971.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "covebase5x6": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/Ashen-gray-cove-base-1-e1740516702971.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-mayflower-red-ironspot-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Mayflower-Red-Cove-Base1.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "covebase6x6": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Mayflower-Red-Cove-Base1.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-quarry-grey-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Quarry-Grey-Cove-Base-6x4.5.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "covebase6x45": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Quarry-Grey-Cove-Base-6x4.5.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-quarry-red-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/quarry-red-cove-base.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "covebase6x45": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/quarry-red-cove-base.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-sahara-sand-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/SAHARA-COVE-QUARRY1.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "covebase6x6": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/SAHARA-COVE-QUARRY1.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-sahara-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/SAHARA-COVE-QUARRY1.jpg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-spanish-grey-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/SPANISH-GRAY-COVE-1.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "covebase6x6": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/SPANISH-GRAY-COVE-1.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-spanish-red-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/SPANISH-RED-COVE-QUARRY-6x6-1.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "covebase6x6": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/SPANISH-RED-COVE-QUARRY-6x6-1.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-puritan-grey-ironspot-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Puritan-Grey-Cove-Base2.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "covebase6x6": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/01/Puritan-Grey-Cove-Base2.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-white-trim": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/1x6-white-SANITARY-outside-corner1-rotated.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "outsidecovebase1x6": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2025/02/1x6-white-SANITARY-outside-corner1-rotated.jpg",
+        "alternates": []
+      }
+    }
+  }
+}
