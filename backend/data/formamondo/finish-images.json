@@ -1,0 +1,28 @@
+{
+  "_note": "Explicit per-finish (per-SKU) tile-face swatches, applied by merge-formamondo-images.js AFTER the color merge. Keyed by pkey -> { <sku suffix>: <path under /wp-content/uploads/> }. Listing a pkey REPLACES its skus map, so finishes NOT listed fall back to the product (color) primary instead of a stale room-installation shot. Only finishes the site actually has a flat swatch for are listed; the rest (e.g. Double Beige Linear / Linear 3D Lux, White Linear 3D Lux) have no flat swatch on formamondo.com and inherit the color swatch.",
+
+  "FMO-double-white": {
+    "plain-24x48": "2024/12/Plain-White-768x768.jpg",
+    "linear-24x48": "2024/12/Linear-White-768x768.jpg"
+  },
+  "FMO-double-beige": {
+    "plain-24x48": "2024/10/BEIGE-PLAIN-768x768.jpg"
+  },
+  "FMO-double-mint": {
+    "plain-24x48": "2024/10/MINT-PLAIN-768x768.jpg",
+    "linear-24x48": "2024/12/Linear-Mint-768x768.jpg"
+  },
+
+  "FMO-elysian-travertini-pearl": {
+    "vein-cut-24x48": "2024/12/ELYSIAN-EY10-TRAVERTINO-PEARLY-1536x1536.jpg",
+    "cross-cut-24x48": "2024/12/ELYSIAN-EY12-TRAVERTINO-PEARLY-CROSS-1536x1536.jpg"
+  },
+  "FMO-elysian-travertini-light": {
+    "vein-cut-24x48": "2024/12/ELYSIAN-EY07-TRAVERTINO-LIGHT.jpg",
+    "cross-cut-24x48": "2024/12/ELYSIAN-EY13-TRAVERTINO-LIGHT-CROSS-1536x1536.jpg"
+  },
+  "FMO-elysian-travertini-misty": {
+    "vein-cut-24x48": "2024/12/ELYSIAN-EY11-TRAVERTINO-MISTY-1536x1536.jpg",
+    "cross-cut-24x48": "2024/12/Misty-Cross-1536x1536.jpg"
+  }
+}

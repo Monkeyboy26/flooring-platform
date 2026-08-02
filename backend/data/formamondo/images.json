@@ -197,7 +197,14 @@
         "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY11-TRAVERTINO-MISTY-1536x1536.jpg"
       ]
     },
-    "skus": {}
+    "skus": {
+      "vein-cut-24x48": {
+        "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY10-TRAVERTINO-PEARLY-1536x1536.jpg"
+      },
+      "cross-cut-24x48": {
+        "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY12-TRAVERTINO-PEARLY-CROSS-1536x1536.jpg"
+      }
+    }
   },
   "FMO-elysian-travertini-light": {
     "product": {
@@ -210,7 +217,14 @@
         "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY10-TRAVERTINO-PEARLY-1536x1536.jpg"
       ]
     },
-    "skus": {}
+    "skus": {
+      "vein-cut-24x48": {
+        "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY07-TRAVERTINO-LIGHT.jpg"
+      },
+      "cross-cut-24x48": {
+        "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY13-TRAVERTINO-LIGHT-CROSS-1536x1536.jpg"
+      }
+    }
   },
   "FMO-elysian-travertini-misty": {
     "product": {
@@ -223,7 +237,14 @@
         "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY10-TRAVERTINO-PEARLY-1536x1536.jpg"
       ]
     },
-    "skus": {}
+    "skus": {
+      "vein-cut-24x48": {
+        "primary": "https://formamondo.com/wp-content/uploads/2024/12/ELYSIAN-EY11-TRAVERTINO-MISTY-1536x1536.jpg"
+      },
+      "cross-cut-24x48": {
+        "primary": "https://formamondo.com/wp-content/uploads/2024/12/Misty-Cross-1536x1536.jpg"
+      }
+    }
   },
   "FMO-easylife-vanilla": {
     "product": {
@@ -307,7 +328,14 @@
         "https://formamondo.com/wp-content/uploads/2024/10/BEIGE-PLAIN-768x768.jpg"
       ]
     },
-    "skus": {}
+    "skus": {
+      "plain-24x48": {
+        "primary": "https://formamondo.com/wp-content/uploads/2024/12/Plain-White-768x768.jpg"
+      },
+      "linear-24x48": {
+        "primary": "https://formamondo.com/wp-content/uploads/2024/12/Linear-White-768x768.jpg"
+      }
+    }
   },
   "FMO-double-beige": {
     "product": {
@@ -319,13 +347,7 @@
     },
     "skus": {
       "plain-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/09/A_04B-X20-DOUBLE-PLAIN-BEIGE-R11-60X120-20MM-scaled.webp"
-      },
-      "linear-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/09/A_02-DOUBLE-LINEAR-BEIGE-LUX3D120X280120X120SUPR.MEM_.BRECCIA-IMP.-N.120X280-scaled.webp"
-      },
-      "linear-3d-lux-24x48": {
-        "primary": "https://formamondo.com/wp-content/uploads/2024/09/A_02-DOUBLE-LINEAR-BEIGE-LUX3D120X280120X120SUPR.MEM_.BRECCIA-IMP.-N.120X280-scaled.webp"
+        "primary": "https://formamondo.com/wp-content/uploads/2024/10/BEIGE-PLAIN-768x768.jpg"
       }
     }
   },
@@ -338,7 +360,14 @@
         "https://formamondo.com/wp-content/uploads/2024/12/Plain-White-768x768.jpg"
       ]
     },
-    "skus": {}
+    "skus": {
+      "plain-24x48": {
+        "primary": "https://formamondo.com/wp-content/uploads/2024/10/MINT-PLAIN-768x768.jpg"
+      },
+      "linear-24x48": {
+        "primary": "https://formamondo.com/wp-content/uploads/2024/12/Linear-Mint-768x768.jpg"
+      }
+    }
   },
   "FMO-double-arrow": {
     "product": {

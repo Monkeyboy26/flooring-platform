@@ -66,6 +66,19 @@ for (const [pkey, rec] of Object.entries(info)) {
   cur.product.alternates = merged;
 }
 
+// Explicit per-finish (per-SKU) swatches: listing a pkey REPLACES its skus map, so finish SKUs
+// with no site swatch fall back to the color primary instead of a stale room-installation shot.
+let finishApplied = 0, finishSkus = 0;
+try {
+  const finishImg = JSON.parse(fs.readFileSync(path.join(DIR, 'finish-images.json'), 'utf8'));
+  for (const [pkey, map] of Object.entries(finishImg)) {
+    if (pkey.startsWith('_') || !images[pkey]) continue;
+    images[pkey].skus = {};
+    for (const [suffix, rel] of Object.entries(map)) { images[pkey].skus[suffix] = { primary: abs(rel) }; finishSkus++; }
+    finishApplied++;
+  }
+} catch { /* optional */ }
+
 fs.writeFileSync(path.join(DIR, 'images.json'), JSON.stringify(images, null, 2));
 const withPrimary = Object.values(images).filter((r) => r.product && r.product.primary).length;
 console.log(`Merged info-section photos into images.json`);
@@ -74,3 +87,4 @@ console.log(`  rejected as junk (kept filename hero):  ${keptJunk}`);
 console.log(`  rejected as cross-color leak:           ${keptLeak}`);
 console.log(`  products with a primary now:            ${withPrimary}/${Object.keys(images).length}`);
 if (noExisting) console.log(`  ! ${noExisting} rejected AND had no existing primary`);
+console.log(`  per-finish SKU swatches applied:        ${finishSkus} across ${finishApplied} products`);
