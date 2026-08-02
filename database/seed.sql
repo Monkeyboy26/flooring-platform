@@ -957,6 +957,8 @@ INSERT INTO vendor_sources (vendor_id, source_type, name, base_url, config, scra
 ('550e8400-e29b-41d4-a716-446655440008', 'website', 'Opulux', 'https://www.opuluxfloors.com', '{}', 'triwest-opulux', '0 4 1 * *', true),
 -- Roca USA — image & description enrichment from rocatileusa.com
 ('550e8400-e29b-41d4-a716-446655440009', 'website', 'Roca USA', 'https://rocatileusa.com', '{}', 'roca', '0 4 1 * *', true),
+-- Roca USA — Anaheim warehouse stock (public JSON feed /items-inventory/2), daily
+('550e8400-e29b-41d4-a716-446655440009', 'website', 'Roca Anaheim Inventory', 'https://rocatileusa.com', '{"warehouseId": 2, "warehouseName": "Roca-Anaheim", "expectFeedName": "ANAHEIM"}', 'roca-inventory', '0 6 * * *', true),
 -- ── Ottimo Ceramics ──
 ('550e8400-e29b-41d4-a716-446655440010', 'website', 'Ottimo Shopify Catalog', 'https://ottimoceramics.com', '{}', 'ottimo', '0 2 * * 0', true),
 ('550e8400-e29b-41d4-a716-446655440010', 'website', 'Ottimo Stock Check', 'https://ottimostockcheck.netlify.app', '{}', 'ottimo-stockcheck', '0 6 * * *', true),
