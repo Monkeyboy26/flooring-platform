@@ -188,6 +188,11 @@ CREATE TABLE order_items (
     sku_id UUID REFERENCES skus(id),
     product_name TEXT,
     collection TEXT,
+    -- Accessory lines: snapshot of the floor (collection + color) the accessory
+    -- was bought alongside, so it renders "Collection · Color · Accessory"
+    -- (generic accessory SKUs are shared across floors — see [[line-item-display]]).
+    parent_collection TEXT,
+    parent_color TEXT,
     description TEXT,
     sqft_needed DECIMAL(10,2),
     num_boxes INTEGER NOT NULL,
@@ -228,6 +233,10 @@ CREATE TABLE cart_items (
     is_sample BOOLEAN DEFAULT false,
     sell_by TEXT,
     price_tier VARCHAR(10),
+    -- Accessory lines: snapshot of the parent floor (collection + color) the
+    -- accessory was added alongside — see [[line-item-display]].
+    parent_collection TEXT,
+    parent_color TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -400,6 +409,9 @@ CREATE TABLE quote_items (
     sku_id UUID REFERENCES skus(id),
     product_name TEXT,
     collection TEXT,
+    -- Accessory lines: snapshot of the parent floor — see [[line-item-display]].
+    parent_collection TEXT,
+    parent_color TEXT,
     description TEXT,
     sqft_needed DECIMAL(10,2),
     num_boxes INTEGER NOT NULL,

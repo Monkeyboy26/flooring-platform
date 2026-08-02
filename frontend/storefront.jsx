@@ -94,6 +94,27 @@
       return isNaN(n) ? NaN : n;
     }
 
+    // Some vendors (Daltile) stamp every SKU with the full list of thicknesses a
+    // product is offered in ("3/8; 5/16") rather than the specific SKU's value.
+    // Where thickness is a real, per-SKU choice we split it upstream (slabs get a
+    // pill); for tile/stone — where it isn't chosen and no per-SKU value exists —
+    // render the merged spec cleanly (sorted, unit-marked) instead of raw.
+    function formatThicknessSpec(value) {
+      if (!value || typeof value !== 'string' || value.indexOf(';') === -1) return value;
+      const parts = [...new Set(value.split(';').map(s => s.trim()).filter(Boolean))];
+      if (!parts.length) return value;
+      const mag = (s) => {
+        const m = s.match(/^([\d.]+)\s*(mm|cm)$/i);
+        if (m) return parseFloat(m[1]) * (m[2].toLowerCase() === 'cm' ? 10 : 1);
+        const f = parseFractionalInches(s);
+        return isNaN(f) ? 1e9 : f * 25.4;
+      };
+      parts.sort((a, b) => mag(a) - mag(b));
+      const unit = (s) => /mm|cm/i.test(s) ? s : s + '″';
+      if (parts.length <= 3) return parts.map(unit).join(' / ');
+      return unit(parts[0]) + '–' + unit(parts[parts.length - 1]);
+    }
+
     function normalizeSize(val) {
       if (!val || typeof val !== 'string') return '';
       return val
@@ -122,6 +143,23 @@
       const suffix = (m[3] || '').trim();
       const unit = isFeet ? '\u2032' : '\u2033';
       return d1 + unit + ' \u00d7 ' + d2 + unit + (suffix ? ' ' + suffix : '') + (isEZ ? ' Mosaic' : '');
+    }
+    // Prefab-countertop variants ("9'x2' Set", "9'x42\" Piece", "122\"-126\"x63\" Slab")
+    // are cut FORMATS, not plain dimensions, and mix feet + inches. The size
+    // attribute has its unit marks stripped ("9x2 Set"), so formatSizeDim would
+    // wrongly render "9\u2033 \u00d7 2\u2033 Set". Detect these off the size attribute and format
+    // the pill/subtitle from the variant_name, which keeps the correct \u2032/\u2033 marks.
+    function isPrefabFormatSize(val) {
+      return typeof val === 'string' && /\b(set|piece|slab)\b/i.test(val) && /[xX\u00d7]/.test(val);
+    }
+    function formatPrefabVariant(name) {
+      if (!name || typeof name !== 'string') return name || '';
+      return name
+        .replace(/\s*[xX\u00d7]\s*/g, ' \u00d7 ')  // x \u2192 \u00d7
+        .replace(/'/g, '\u2032')                // ' \u2192 \u2032 (feet)
+        .replace(/["]/g, '\u2033')              // " \u2192 \u2033 (inches)
+        .replace(/\s+/g, ' ')
+        .trim();
     }
     function formatCarpetValue(val) {
       if (!val || typeof val !== 'string') return val;
@@ -734,7 +772,10 @@
 
       // Uniform structure whenever color + size are known
       if (colorAttr && colorAttr.value && sizeAttr && sizeAttr.value) {
-        const parts = [formatCarpetValue(colorAttr.value), formatSizeDim(sizeAttr.value)];
+        const sizePart = isPrefabFormatSize(sizeAttr.value)
+          ? formatPrefabVariant(sku.variant_name || sizeAttr.value)
+          : formatSizeDim(sizeAttr.value);
+        const parts = [formatCarpetValue(colorAttr.value), sizePart];
         if (finishAttr && finishAttr.value) parts.push(formatCarpetValue(finishAttr.value));
         return parts.join(', ');
       }
@@ -792,17 +833,52 @@
       return { hoist, title: hoist ? formatCarpetValue(color) : base, base };
     }
 
+    // Lead the PDP H1 with the collection name (e.g. "Bohol Series Verde"), then
+    // the product/color title. Collection used to live in the breadcrumb above the
+    // H1; it now heads the H1. Skip when the collection is empty, is really just the
+    // category/vendor/brand, or already appears inside the title (avoids
+    // "Bohol Series Bohol Series Verde").
+    function pdpH1Title(sku, siblings) {
+      let title = pdpHeroTitle(sku, siblings).title;
+      if (sku.variant_type !== 'accessory') {
+        const col = (sku.collection || '').trim();
+        const distinct = col && col !== sku.category_name && col !== sku.vendor_name && col !== sku.brand_name;
+        if (distinct && !title.toLowerCase().includes(col.toLowerCase())) {
+          title = formatCarpetValue(col) + ' ' + title;
+        }
+      }
+      // Daltile PDPs lead the H1 with the brand name; guard against doubling for
+      // the products whose name already begins with "Daltile".
+      const vend = (sku.vendor_name || '').trim();
+      if (vend === 'Daltile' && !title.toLowerCase().startsWith(vend.toLowerCase() + ' ')) {
+        title = vend + ' ' + title;
+      }
+      return title;
+    }
+
     // Subtitle when the color has been hoisted into the H1: lead with the
     // line/format name, then dimensions and finish (color is already the title).
     function pdpHoistedSubtitle(sku, base) {
       const gradeAttr = (sku.attributes || []).find(a => a.slug === 'grade');
       const sizeAttr = (sku.attributes || []).find(a => a.slug === 'size');
       const finishAttr = (sku.attributes || []).find(a => a.slug === 'finish');
+      // Strip size/finish/grade already embedded in the line name — plus the
+      // collection, which now leads the H1 — so the subtitle doesn't repeat them
+      // (e.g. base "Marmi Lux 24x48, Natural" → "Marmi Lux"; and if the line name
+      // is just the collection, the lead drops out entirely).
+      let lead = base || '';
+      lead = lead.replace(/\b\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?\w*/g, ' ');
+      const strip = [finishAttr && finishAttr.value, gradeAttr && gradeAttr.value, (sku.collection || '').trim()];
+      for (const v of strip) {
+        if (v) lead = lead.replace(new RegExp('\\b' + v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'ig'), ' ');
+      }
+      lead = lead.replace(/\s*,\s*/g, ' ').replace(/\s+/g, ' ').replace(/^[\s,–—-]+|[\s,–—-]+$/g, '').trim();
       const tail = [];
       if (gradeAttr && gradeAttr.value) tail.push(formatCarpetValue(gradeAttr.value));
       if (sizeAttr && sizeAttr.value) tail.push(formatSizeDim(sizeAttr.value));
       if (finishAttr && finishAttr.value) tail.push(formatCarpetValue(finishAttr.value));
-      return tail.length ? `${base} — ${tail.join(', ')}` : base;
+      if (!lead) return tail.join(', ');
+      return tail.length ? `${lead} — ${tail.join(', ')}` : lead;
     }
 
     function fullProductName(sku) {
@@ -825,11 +901,21 @@
       // after variant/size info (avoids "Acqua Ceramic Tile 24x24" → want "Acqua 24x24 Ceramic Tile")
       name = stripTypeSuffix(name, sku.category_name);
 
-      // Append format label (e.g. "4x8", "Hex", "Rombo") for format-grouped products
-      // Skip appending the format word when the name already ends with it
-      // (grouped products named e.g. "Modern Elegance Plank" → avoid "Plank Plank").
-      if (sku.format_label && !name.toLowerCase().endsWith(sku.format_label.toLowerCase())) {
-        name = name + ' ' + sku.format_label;
+      // Append format label (e.g. "4x8", "Hex", "Rombo") for format-grouped products.
+      // For construction formats (Engineered/Solid) the word already lives in the
+      // category suffix ("Engineered Hardwood"/"Solid Hardwood"), so drop a redundant
+      // trailing "(Solid)"/"(Engineered)" from the name and skip the append to avoid
+      // "... Solid Solid Hardwood".
+      if (sku.format_label) {
+        name = name.replace(/\s*\((?:solid|engineered)\)\s*$/i, '').trim();
+        const catLower = (sku.category_name || '').toLowerCase();
+        const fl = sku.format_label.toLowerCase();
+        // Skip the append when the format word is already in the category suffix
+        // ("Engineered Hardwood") or already ends the product name (grouped
+        // products named e.g. "Modern Elegance Plank" → avoid "Plank Plank").
+        if (!catLower.includes(fl) && !name.toLowerCase().endsWith(fl)) {
+          name = name + ' ' + sku.format_label;
+        }
       }
 
       // Vendors that use collection as a browsing taxonomy (not a product-line prefix)
@@ -1057,6 +1143,84 @@
       const result = [brand, showCollection, productLine, orderedName, orderedVariant, subLineNumeral].filter(Boolean).join(' ');
       return appendTypeSuffix(result, sku.category_name);
     }
+
+    // Muted meta line rendered under the name on every cart/order surface:
+    // "Vendor · SKU". The SKU (vendor_sku, else internal_sku) must always appear
+    // so indistinguishable items (e.g. 1,622 "Reducer" accessories) are identifiable.
+    function itemMetaLine(item) {
+      if (!item) return '';
+      const sku = item.vendor_sku || item.internal_sku || item.sku || null;
+      const parts = [item.vendor_name || item.custom_vendor, sku].filter(Boolean);
+      // dedupe while preserving order
+      const seen = new Set();
+      const unique = parts.filter(p => {
+        const key = String(p);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      return unique.join('  ·  ');
+    }
+
+    // Distinguishing tail of product_name (size/finish) once collection + color
+    // are stripped, e.g. "Ecoslate 24x48"/"Ecoslate"/"White" → "24x48". Only when
+    // it carries a real dimension, so a plain product name is never echoed back.
+    function productExtra(product, collection, color) {
+      if (!product) return null;
+      let rem = String(product).trim();
+      if (collection && rem.toLowerCase().indexOf(String(collection).toLowerCase()) === 0) rem = rem.slice(String(collection).length);
+      if (color) rem = rem.replace(new RegExp(String(color).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), ' ');
+      rem = rem.replace(/^[\s,·\-–—]+|[\s,·\-–—]+$/g, '').replace(/\s+/g, ' ').trim();
+      return (rem && /\d\s*(?:[xX×]|["″”'’]|\s*(?:cm|mm|in\b))/.test(rem)) ? rem : null;
+    }
+
+    // Size attr as a fallback descriptor when it's not already in the line and the
+    // item isn't slab-style (no-op until the row carries `size`). Mirrors backend.
+    function sizeFromAttr(sizeAttr, existingText) {
+      if (!sizeAttr) return null;
+      const ex = String(existingText || '').toLowerCase();
+      if (/slab|jumbo|standard|panel|prefab|countertop/.test(ex)) return null;
+      const sd = (String(sizeAttr).match(/\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?/) || [])[0];
+      if (!sd) return null;
+      const norm = (x) => x.toLowerCase().replace(/["″”'’\s]/g, '').replace(/×/g, 'x');
+      if (norm(ex).includes(norm(sd))) return null;
+      return String(sizeAttr).trim();
+    }
+
+    function itemLineName(it) {
+      it = it || {};
+      const isAcc = (it.variant_type || '').toLowerCase() === 'accessory';
+      const accLabel = isAcc ? (it.accessory_label || it.variant_name) : null;
+      // Accessory bought for a specific floor → lead with that floor's
+      // collection + color, then the accessory (e.g. "Metropolitan · Los Angeles
+      // · T-Moulding"). Falls back to the accessory's own name when no parent.
+      const parentCollection = isAcc ? it.parent_collection : null;
+      const parentColor = isAcc ? it.parent_color : null;
+      let title, ordered;
+      if (parentCollection) {
+        title = parentCollection;
+        ordered = [parentColor, accLabel || it.product_name];
+      } else {
+        title = it.collection || it.current_collection || it.product_name || 'Product';
+        const design = it.color || (it.product_name && it.product_name !== title ? it.product_name : null);
+        const sizeInfo = it.color ? productExtra(it.product_name, title, it.color) : null;
+        const sizeDesc = sizeFromAttr(it.size, [title, design, sizeInfo, it.variant_name].filter(Boolean).join(' '));
+        ordered = [design, sizeInfo, sizeDesc, it.variant_name, accLabel];
+      }
+      // Case-insensitive dedup: drop a descriptor that only echoes the title/color
+      // in different case (e.g. color "Shore" + variant_name "SHORE").
+      const seen = new Set([String(title).toLowerCase()]);
+      const descriptors = ordered.filter(v => {
+        if (!v) return false;
+        const k = String(v).toLowerCase();
+        if (seen.has(k)) return false;
+        seen.add(k); return true;
+      });
+      return title + (descriptors.length ? '  ·  ' + descriptors.join('  ·  ') : '');
+    }
+
+    function itemBrand(it) { it = it || {}; return it.vendor_name || it.custom_vendor || ''; }
+    function itemSku(it) { it = it || {}; return it.vendor_sku || it.internal_sku || it.sku || ''; }
 
     function cleanDescription(text, vendorName) {
       if (!text) return '';
@@ -2933,6 +3097,25 @@
         window.scrollTo(0, 0);
       };
 
+      // Browse everything from a brand (customer-facing brand = COALESCE(brand, vendor),
+      // applied via the vendorFilters → `brand=` query param).
+      const handleBrandClick = (brandName) => {
+        if (!brandName) return;
+        setSelectedCategory(null);
+        setSelectedCollection(null);
+        setSearchQuery('');
+        setFilters({});
+        setVendorFilters([brandName]);
+        setTagFilters([]);
+        setUserPriceRange({ min: null, max: null });
+        setCurrentPage(1);
+        setView('browse');
+        fetchSkus({ cat: null, coll: null, activeFilters: {}, vendors: [brandName], priceMin: null, priceMax: null, tags: [], page: 1 });
+        fetchFacets({ cat: null, coll: null, activeFilters: {}, vendors: [brandName], priceMin: null, priceMax: null, tags: [] });
+        pushShopUrl(null, null, '', {}, false, [brandName], null, null, []);
+        window.scrollTo(0, 0);
+      };
+
       // ---- Navigation ----
       const goBrowse = () => {
         setView('browse');
@@ -3643,6 +3826,9 @@
               customer={customer} customerToken={customerToken}
               onShowAuth={() => navigate('/signin')}
               showToast={showToast} categories={categories}
+              onCollectionClick={handleCollectionClick}
+              onBrandClick={handleBrandClick}
+              onCategoryClick={(slug) => { if (slug) { handleCategorySelect(slug); setView('browse'); window.scrollTo(0, 0); } }}
             />
           )}
 
@@ -4603,10 +4789,16 @@
                         {item.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt="" decoding="async" loading="lazy" width={40} height={40} />}
                       </div>
                       <div className="cart-drawer-item-info">
+                        {itemBrand(item) && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{itemBrand(item)}</div>
+                        )}
                         <div className="cart-drawer-item-name">
-                          {fullProductName(item) || 'Product'}
+                          {itemLineName(item) || 'Product'}
                           {item.is_sample && <span className="sample-tag">Sample</span>}
                         </div>
+                        {itemSku(item) && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.125rem' }}>{itemSku(item)}</div>
+                        )}
                         <div className="cart-drawer-item-meta">
                           {item.is_sample ? 'FREE SAMPLE' : item.sell_by === 'unit' ? `Qty: ${item.num_boxes}` : item.sell_by === 'sqft' ? `${parseFloat(item.sqft_needed || 0).toFixed(0)} sqft` : `${item.price_tier ? '' : item.num_boxes + ' box' + (parseInt(item.num_boxes) !== 1 ? 'es' : '') + ' · '}${parseFloat(item.sqft_needed || 0).toFixed(0)} sqft`}
                           {item.price_tier && (
@@ -5888,12 +6080,15 @@
       }, []);
 
       const handleFamilyClick = (familyName) => {
-        const { keywords } = COLOR_FAMILIES[familyName];
         if (!colorFacet) return;
-        const familyRawValues = colorFacet.values.map(v => v.value).filter(v => {
-          const lower = v.toLowerCase().trim();
-          return keywords.some(kw => lower.includes(kw));
-        });
+        // Use the same authority (mapColorToFamily) that computes the family
+        // counts, so each color resolves to exactly one family. Matching by raw
+        // keyword substring here let a color land in several families at once
+        // (e.g. "Silver Beige" → both Gray and Beige), which made one press
+        // select colors that visibly belong to another family.
+        const familyRawValues = colorFacet.values
+          .map(v => v.value)
+          .filter(v => mapColorToFamily(v) === familyName);
         if (familyRawValues.length === 0) return;
         const currentColors = filters.color || [];
         const isActive = familyRawValues.some(v => currentColors.includes(v));
@@ -6448,7 +6643,7 @@
 
     // ==================== SKU Detail View ====================
 
-    function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories }) {
+    function SkuDetailView({ skuId, goBack, addToCart, cart, onSkuClick, onRequestInstall, tradeCustomer, wishlist, toggleWishlist, recentlyViewed, addRecentlyViewed, customer, customerToken, onShowAuth, showToast, categories, onCollectionClick, onBrandClick, onCategoryClick }) {
       const [sku, setSku] = useState(null);
       const [tierInfo, setTierInfo] = useState(null);
       const [media, setMedia] = useState([]);
@@ -7088,6 +7283,55 @@
       if (recentlyViewed && recentlyViewed.filter(r => r.sku_id !== skuId).length > 0) navSections.push({ key: 'recent', label: 'Recently Viewed' });
       navSections.push({ key: 'reviews', label: 'Reviews' });
 
+      // Slab / prefab-countertop Size selector items — computed once here so the
+      // dedicated selector (above the price) and the generic variant selector below
+      // agree on a single Size UI instead of rendering duplicate/mislabeled rows.
+      // True slabs vary only by width → label off the 2nd dimension. Prefab
+      // countertops are distinct cut FORMATS (Set / Piece / full Slab) that mix
+      // feet + inches → label off the full variant_name to keep the ′/″ marks.
+      const _slabSize = (() => {
+        const vn = sku.variant_name || '';
+        const looksSlab = /prefab|slab/i.test(vn) || mainSiblings.some(s => /prefab|slab/i.test(s.variant_name || ''));
+        if (!looksSlab || mainSiblings.length === 0) return { items: [], isPrefab: false };
+        const raw = [{ sku_id: sku.sku_id, name: vn, is_current: true }].concat(
+          mainSiblings.filter(s => s.variant_type !== 'accessory')
+            .map(s => ({ sku_id: s.sku_id, name: s.variant_name, is_current: false }))
+        );
+        const isPrefab = raw.some(it => /\b(set|piece)\b/i.test(it.name || ''));
+        const DIM = /\d+(?:\.\d+)?\s*["″”]?\s*[xX×]\s*(\d+(?:\.\d+)?)/;
+        const sizeLabel = (name) => {
+          const n = name || '';
+          if (isPrefab) return formatPrefabVariant(n);
+          if (/jumbo/i.test(n)) return 'Jumbo Slab';
+          if (/standard/i.test(n)) return 'Standard Slab';
+          const m = n.match(DIM);
+          return m ? m[1].replace(/\.0$/, '') + '″' : formatVariantName(n);
+        };
+        const sortKey = (name) => {
+          const n = name || '';
+          if (isPrefab) {
+            if (/slab/i.test(n)) return 1e9;             // full slab sorts last
+            const m = n.match(/[xX×]\s*(\d+)/);          // order cut pieces by 2nd dim
+            return m ? parseInt(m[1], 10) : 5e8;
+          }
+          if (/jumbo/i.test(n)) return 100000;
+          if (/standard/i.test(n)) return 99999;
+          const m = n.match(DIM);
+          return m ? parseFloat(m[1]) : 99998;
+        };
+        const seen = new Set();
+        const items = raw
+          .map(it => ({ ...it, label: sizeLabel(it.name), sort: sortKey(it.name) }))
+          .sort((a, b) => a.sort - b.sort)
+          .filter(it => { if (seen.has(it.label)) return false; seen.add(it.label); return true; });
+        return { items: items.length >= 2 ? items : [], isPrefab };
+      })();
+      const slabSizeItems = _slabSize.items;
+      // True only for Elite-style prefab COUNTERTOP kits (Set/Piece/full-slab cuts),
+      // where this dedicated selector fully owns the Size UI. Other slab vendors keep
+      // their pre-existing generic size pills untouched (this stays false for them).
+      const slabSizeIsPrefab = _slabSize.isPrefab && slabSizeItems.length > 0;
+
       return (
         <>
           <div className="pdp-section-nav" ref={navRef}>
@@ -7177,7 +7421,7 @@
                     <table className="specs-table">
                       <tbody>
                         {sorted.map((a, i) => (
-                          <tr key={i}><td>{a.name}</td><td>{a.slug === '_sku' ? a.value : formatCarpetValue(a.value)}</td></tr>
+                          <tr key={i}><td>{a.name}</td><td>{a.slug === '_sku' ? a.value : a.slug === 'thickness' ? formatThicknessSpec(a.value) : formatCarpetValue(a.value)}</td></tr>
                         ))}
                       </tbody>
                     </table>
@@ -7218,15 +7462,33 @@
             </div>
 
             <div className="sku-detail-info" ref={infoRef}>
-              {/* Category · Collection label */}
+              {/* Category · Collection label (collection also leads the H1 below) */}
               <div className="pdp-category-label">
-                {sku.category_name}{sku.collection && sku.collection !== sku.category_name && sku.collection !== sku.vendor_name && sku.collection !== sku.brand_name ? ' \u00B7 ' + sku.collection : ''}
+                {(() => {
+                  const linkStyle = { background: 'none', border: 'none', padding: 0, margin: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' };
+                  const showColl = sku.collection && sku.collection !== sku.category_name && sku.collection !== sku.vendor_name && sku.collection !== sku.brand_name;
+                  return (<React.Fragment>
+                    {sku.category_name && sku.category_slug ? (
+                      <button type="button" onClick={() => onCategoryClick && onCategoryClick(sku.category_slug)} title={'Browse all ' + sku.category_name} style={linkStyle}>
+                        {sku.category_name}
+                      </button>
+                    ) : sku.category_name}
+                    {showColl && (
+                      <React.Fragment>
+                        {' · '}
+                        <button type="button" onClick={() => onCollectionClick && onCollectionClick(sku.collection)} title={'Browse the ' + sku.collection + ' collection'} style={linkStyle}>
+                          {sku.collection}
+                        </button>
+                      </React.Fragment>
+                    )}
+                  </React.Fragment>);
+                })()}
               </div>
 
               {/* Title row with wishlist heart */}
               <div className="pdp-title-row">
                 <h1 className="sku-detail-title-row">
-                  {pdpHeroTitle(sku, siblings).title}
+                  {pdpH1Title(sku, siblings)}
                 </h1>
                 <button className={'pdp-wishlist-heart' + (wishlist.includes(sku.sku_id) ? ' active' : '')} onClick={() => toggleWishlist(sku.sku_id)} aria-label={wishlist.includes(sku.sku_id) ? 'Remove from wishlist' : 'Add to wishlist'}>
                   <svg viewBox="0 0 24 24" fill={wishlist.includes(sku.sku_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}>
@@ -7235,7 +7497,7 @@
                 </button>
               </div>
 
-              {/* Variant name (italic) */}
+              {/* Variant name (italic) — when the color is hoisted into the H1, lead with the line/format */}
               {(sku.variant_name || (sku.attributes && sku.attributes.length > 0)) && (() => {
                 const ht = pdpHeroTitle(sku, siblings);
                 return <div className="pdp-variant-name">{ht.hoist ? pdpHoistedSubtitle(sku, ht.base) : pdpSubtitle(sku)}</div>;
@@ -7244,7 +7506,9 @@
               {/* SKU · Vendor line */}
               <div className="pdp-sku-line">
                 {sku.vendor_sku && <><span style={{ color: 'var(--stone-500)' }}>SKU</span> <span style={{ margin: '0 0.25rem', color: 'var(--stone-400)' }}>&middot;</span> <span className="pdp-sku-val">{(sku.vendor_sku || '').toUpperCase()}</span><span className="pdp-sku-sep"></span></>}
-                <span>{sku.brand_name || sku.vendor_name || ''}</span>
+                {(sku.brand_name || sku.vendor_name)
+                  ? <button type="button" onClick={() => onBrandClick && onBrandClick(sku.brand_name || sku.vendor_name)} title={'Browse all ' + (sku.brand_name || sku.vendor_name)} style={{ background: 'none', border: 'none', padding: 0, margin: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}>{sku.brand_name || sku.vendor_name}</button>
+                  : null}
               </div>
 
               {productTags.length > 0 && (
@@ -7310,44 +7574,16 @@
               </div>
 
               {/* Size selector pills — quick size switch for slab/prefab products.
-                  Self-contained: the shared width-based selector keys off the FIRST
-                  dimension, which is a constant 108"/127" for these slabs, so it can't
-                  tell the prefab widths apart. Here the varying (2nd) dimension is the key. */}
-              {(() => {
-                const vn = sku.variant_name || '';
-                const looksSlab = /prefab|slab/i.test(vn) || mainSiblings.some(s => /prefab|slab/i.test(s.variant_name || ''));
-                if (!looksSlab || mainSiblings.length === 0) return null;
-                const DIM = /\d+(?:\.\d+)?\s*["″”]?\s*[xX×]\s*(\d+(?:\.\d+)?)/;
-                const sizeLabel = (name) => {
-                  const n = name || '';
-                  if (/jumbo/i.test(n)) return 'Jumbo Slab';
-                  if (/standard/i.test(n)) return 'Standard Slab';
-                  const m = n.match(DIM);
-                  return m ? m[1].replace(/\.0$/, '') + '″' : formatVariantName(n);
-                };
-                const sortKey = (name) => {
-                  const n = name || '';
-                  if (/jumbo/i.test(n)) return 100000;
-                  if (/standard/i.test(n)) return 99999;
-                  const m = n.match(DIM);
-                  return m ? parseFloat(m[1]) : 99998;
-                };
-                const raw = [{ sku_id: sku.sku_id, name: vn, is_current: true }].concat(
-                  mainSiblings.filter(s => s.variant_type !== 'accessory')
-                    .map(s => ({ sku_id: s.sku_id, name: s.variant_name, is_current: false }))
-                );
-                const seen = new Set();
-                const items = raw
-                  .map(it => ({ ...it, label: sizeLabel(it.name), sort: sortKey(it.name) }))
-                  .sort((a, b) => a.sort - b.sort)
-                  .filter(it => { if (seen.has(it.label)) return false; seen.add(it.label); return true; });
-                if (items.length < 2) return null;
-                const current = items.find(it => it.is_current);
+                  Items are computed once as `slabSizeItems` above the JSX return so
+                  the generic variant selector below can suppress its own size row and
+                  we never render two competing Size UIs. */}
+              {slabSizeItems.length > 0 && (() => {
+                const current = slabSizeItems.find(it => it.is_current);
                 return (
                   <div className="variant-selector-group pdp-size-selector">
                     <div className="variant-selector-label">Size{current ? <span>{current.label}</span> : null}</div>
                     <div className="attr-pills">
-                      {items.map(it => (
+                      {slabSizeItems.map(it => (
                         <button key={it.sku_id} className={'attr-pill' + (it.is_current ? ' active' : '')} onClick={() => { if (!it.is_current) onSkuClick(it.sku_id); }}>{it.label}</button>
                       ))}
                     </div>
@@ -7451,14 +7687,20 @@
                 const thickness = sa.thickness;
                 if (!size && !thickness) return null;
                 const dims = [];
-                if (size && size !== 'Variable') {
+                // Prefab cut formats ("9x2 Set", "122-126x63 Slab") aren't a single
+                // slab dimension — the Size selector already conveys them, and a
+                // "Slab Size" card here would render garbled ("9″ × 2 Set"). Skip the
+                // size card (a thickness card, if present, still shows).
+                if (size && isPrefabFormatSize(size)) {
+                  // no size card
+                } else if (size && size !== 'Variable') {
                   const parts = size.replace(/ Slab$/i, '').split('x');
                   if (parts.length === 2) dims.push({ label: 'Slab Size', value: parts[0].trim() + '" \u00D7 ' + parts[1].trim() + '"' });
                   else dims.push({ label: 'Slab Size', value: size });
                 } else if (size === 'Variable') {
                   dims.push({ label: 'Slab Size', value: 'Variable (natural stone)' });
                 }
-                if (thickness) dims.push({ label: 'Thickness', value: thickness });
+                if (thickness) dims.push({ label: 'Thickness', value: formatThicknessSpec(thickness) });
                 if (dims.length === 0) return null;
                 return (
                   <div className="carpet-specs-band">
@@ -7885,7 +8127,7 @@
 
                 // Size pills from size attribute (tile vendors like Roca: Arena 12X24, Arena 24X48)
                 let attrSizeItems = [];
-                if (!showSizePills && sibSizeItems.length === 0 && mainSiblings.length > 0) {
+                if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && mainSiblings.length > 0) {
                   const _getSizeAttr = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
                   const curSizeVal = _getSizeAttr(sku.attributes);
                   const dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;
@@ -7908,7 +8150,7 @@
                   }
                 }
                 // Augment with collection-wide sizes for consistent pills across the collection
-                if (!showSizePills && sibSizeItems.length === 0 && collectionAttributes.size && (collectionAttributes.size.values || []).length >= 2) {
+                if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && collectionAttributes.size && (collectionAttributes.size.values || []).length >= 2) {
                   const _csa = (attrs) => { const sa = (attrs || []).find(a => a.slug === 'size'); return sa ? sa.value : null; };
                   let curSz = _csa(sku.attributes);
                   const _dimRe = /(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/;
@@ -8123,7 +8365,7 @@
                 // (otherwise the attribute pill may be the only path to those SKUs).
                 // Sub-line is handled upstream: effectiveSiblings are already scoped to it.
                 // 'shape' is judged by color only — it deliberately replaces the size UI.
-                const _sizeSelectorShown = showSizePills || showSibSizes || showAttrSizes;
+                const _sizeSelectorShown = showSizePills || showSibSizes || showAttrSizes || slabSizeIsPrefab;
                 const colorAttrValues = {};
                 const colorSizeAttrValues = {};
                 const _addGroupVal = (store, key, slug, value) => {
@@ -8160,7 +8402,13 @@
                 const _shapeIsSizeMirror = localAttrCounts['shape'] && [...localAttrCounts['shape']].every(v => RECT_SHAPES.has(v.toLowerCase().trim()));
                 // Semicolon-joined values ("3/8; 5/16") are dirty vendor data, not choices
                 const _hasJunkValues = (slug) => [...localAttrCounts[slug]].some(v => v.includes(';'));
-                let attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && !(slug === 'finish' && (showFinishPills || _finishIsColor)) && !(slug === 'shape' && _shapeIsSizeMirror) && (slug === 'countertop_finish' || (!_hasJunkValues(slug) && (collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? isIndependentChoice(slug) : true)))))
+                // Thickness is a genuine purchase decision for planks (LVP/SPC/laminate/
+                // hardwood) and vinyl tile, where 6mm vs 8mm is a real choice. For hard
+                // tile (ceramic/porcelain/stone/mosaic) thickness is dictated by the
+                // format/size — it's a spec, not a choice — so suppress the pill there.
+                const _catText = ((sku.category_slug || '') + ' ' + (sku.category_name || '')).toLowerCase();
+                const _isHardTile = _catText.includes('tile') && !/lvt|vinyl|carpet/.test(_catText);
+                let attrSlugs = _isDecorativeHW ? [] : Object.keys(attrMap).filter(slug => localAttrCounts[slug] && (localAttrCounts[slug].size > 1 || slug === 'countertop_finish') && !NON_SELECTABLE.has(slug) && !(slug === 'finish' && (showFinishPills || _finishIsColor)) && !(slug === 'shape' && _shapeIsSizeMirror) && !(slug === 'thickness' && _isHardTile) && (slug === 'countertop_finish' || (!_hasJunkValues(slug) && (collectionAugmentedSlugs.has(slug) || (localAttrCounts[slug].size > 1 ? isIndependentChoice(slug) : true)))))
                   .sort((a, b) => a === 'finish' ? -1 : b === 'finish' ? 1 : 0);
                 // Collapse mutually locked pills: when two attributes move 1:1 together
                 // across every sibling, picking one fully determines the other — keep the
@@ -8263,19 +8511,6 @@
                 if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings) return null;
                 return (
                   <div className="variant-selectors">
-                    {showFormatSiblings && (
-                      <div className="variant-selector-group">
-                        <div className="variant-selector-label">Style<span>{formatLabel}</span></div>
-                        <div className="attr-pills">
-                          <button className="attr-pill active">{formatLabel}</button>
-                          {formatSiblings.map(fs => (
-                            <button key={fs.sku_id} className="attr-pill" onClick={() => onSkuClick(fs.sku_id)}>
-                              {fs.format_label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                     {showColors && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">{colorLabel}<span>{(() => { const cur = colorItems.find(c => c.is_current); return cur ? (isRomanVariants ? romanPillLabel(cur.product_name) : (cur.color || cur.variant_name || cur.product_name)) : ''; })()}</span></div>
@@ -8292,6 +8527,19 @@
                             </div>
                             );
                           })}
+                        </div>
+                      </div>
+                    )}
+                    {showFormatSiblings && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Style<span>{formatLabel}</span></div>
+                        <div className="attr-pills">
+                          <button className="attr-pill active">{formatLabel}</button>
+                          {formatSiblings.map(fs => (
+                            <button key={fs.sku_id} className="attr-pill" onClick={() => onSkuClick(fs.sku_id)}>
+                              {fs.format_label}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -9037,7 +9285,7 @@
                         )}
                         <div className="accessory-card-sf-header">
                           <div className="accessory-card-sf-name" style={{ cursor: 'pointer' }} onClick={() => onSkuClick(acc.sku_id, acc.accessory_label || acc.variant_name)}>{accLabel}</div>
-                          <div className="accessory-card-sf-price">${accPrice.toFixed(2)} {acc.sell_by === 'box' ? '/sqft' : '/ea'}</div>
+                          <div className="accessory-card-sf-price">${accPrice.toFixed(2)} {priceSuffix(acc)}</div>
                         </div>
                         <div className="accessory-card-sf-actions">
                           <div className="acc-stepper">
@@ -9046,15 +9294,26 @@
                             <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: (prev[acc.sku_id] || 1) + 1 }))}>+</button>
                           </div>
                           <button className="acc-add-btn" onClick={() => {
+                            // Snapshot the floor this accessory is being bought for so
+                            // the line reads "Collection · Color · Accessory". Derive
+                            // collection/color the same way itemLineName does (AFD stores
+                            // the color as the product_name), so the parent matches the
+                            // floor's own title/design — see [[line-item-display]].
+                            const parentTitle = sku.collection || sku.product_name || null;
+                            const parentDesign = sku.color || (sku.product_name && sku.product_name !== parentTitle ? sku.product_name : null);
                             addToCart({
-                              product_id: sku.product_id,
+                              // the accessory's OWN product (not the parent plank being viewed)
+                              // so cart/order lines identify the accessory, not "Viva Las Vegas Tropicana"
+                              product_id: acc.product_id || null,
                               sku_id: acc.sku_id,
                               sqft_needed: 0,
                               num_boxes: accQty,
                               include_overage: false,
                               unit_price: accPrice,
                               subtotal: (accQty * accPrice).toFixed(2),
-                              sell_by: acc.sell_by || 'unit'
+                              sell_by: acc.sell_by || 'unit',
+                              parent_collection: parentTitle,
+                              parent_color: parentDesign
                             });
                           }}>
                             Add ${(accQty * accPrice).toFixed(2)}
@@ -9357,11 +9616,6 @@
     // ==================== Cart Page ====================
 
     function CartPage({ cart, goBrowse, removeFromCart, updateCartItem, goCheckout, deliveryMethod, setDeliveryMethod, liftgateEnabled, setLiftgateEnabled, sessionId, appliedPromoCode, setAppliedPromoCode, goHome }) {
-      const [shippingZip, setShippingZip] = useState('');
-      const [shippingEstimate, setShippingEstimate] = useState(null);
-      const [shippingLoading, setShippingLoading] = useState(false);
-      const [shippingError, setShippingError] = useState('');
-      const [selectedShippingOption, setSelectedShippingOption] = useState(null);
       const [promoCode, setPromoCode] = useState(appliedPromoCode || '');
       const [promoResult, setPromoResult] = useState(null);
       const [promoLoading, setPromoLoading] = useState(false);
@@ -9373,7 +9627,9 @@
       const hasOutOfStock = productItems.some(i => i.stock_status === 'out_of_stock' && i.vendor_has_inventory);
       const productSubtotal = productItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
       const sampleShipping = sampleItems.length > 0 ? 12 : 0;
-      const productShipping = deliveryMethod === 'pickup' ? 0 : (selectedShippingOption ? selectedShippingOption.amount : 0);
+      // Product freight is never charged at checkout — it's quoted by a rep after
+      // the order. Only samples ($12) and pickup ($0) affect the cart total. [[freight-quote-later]]
+      const productShipping = 0;
       const promoDiscount = promoResult ? promoResult.discount_amount : 0;
       const cartTotal = Math.max(0, productSubtotal + productShipping + sampleShipping - promoDiscount);
 
@@ -9433,43 +9689,8 @@
       const unitItems = productItems.filter(i => i.sell_by === 'unit');
       const totalBoxes = boxItems.reduce((sum, i) => sum + (parseInt(i.num_boxes) || 0), 0);
       const totalUnits = unitItems.reduce((sum, i) => sum + (parseInt(i.num_boxes) || 0), 0);
-      const hasPickupOnly = productItems.some(i => i.pickup_only);
-
-      useEffect(() => {
-        if (hasPickupOnly) setDeliveryMethod('pickup');
-      }, [hasPickupOnly]);
-
-      const fetchShippingEstimate = () => {
-        const zip = shippingZip.trim();
-        if (!zip || zip.length < 5) return;
-        setShippingLoading(true);
-        setShippingError('');
-        setSelectedShippingOption(null);
-        fetch(API + '/api/shipping/estimate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId, destination: { zip }, residential: true, liftgate: liftgateEnabled })
-        })
-          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-          .then(data => {
-            if (data.error) {
-              setShippingError(data.error);
-              setShippingEstimate(null);
-              setSelectedShippingOption(null);
-            } else {
-              setShippingEstimate(data);
-              setShippingError('');
-              const opts = data.options || [];
-              const cheapest = opts.find(o => o.is_cheapest) || opts[0];
-              setSelectedShippingOption(cheapest || null);
-            }
-            setShippingLoading(false);
-          })
-          .catch(() => {
-            setShippingError('Unable to estimate shipping');
-            setShippingLoading(false);
-          });
-      };
+      // Product freight is quoted after the order, so nothing here forces slabs to
+      // pickup and no live rate is fetched — the customer just picks pickup vs ship.
 
       const handleQtyChange = (item, delta) => {
         const newBoxes = Math.max(1, (parseInt(item.num_boxes) || 0) + delta);
@@ -9483,8 +9704,6 @@
           const newSubtotal = (newBoxes * sqftPerBox * unitPrice).toFixed(2);
           updateCartItem(item.id, { num_boxes: newBoxes, sqft_needed: newSqft, subtotal: newSubtotal });
         }
-        setShippingEstimate(null);
-        setSelectedShippingOption(null);
       };
 
       const totalSqft = boxItems.reduce((sum, i) => sum + parseFloat(i.sqft_needed || 0), 0);
@@ -9577,7 +9796,7 @@
                 const unitPrice = parseFloat(item.unit_price) || 0;
                 const subtotal = parseFloat(item.subtotal || 0);
                 const canStepper = !item.is_sample && item.sell_by !== 'sqft' && !item.price_tier;
-                const priceSuf = item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft';
+                const priceSuf = priceSuffix(item);
 
                 return (
                   <div key={item.id} className={'ct-line' + (isLast ? ' ct-line-last' : '')}>
@@ -9594,7 +9813,9 @@
                     {/* Middle: title + meta */}
                     <div className="ct-line-info">
                       <div className="ct-line-cat">{item.category_name || ''}</div>
-                      <h3 className="ct-line-name">{fullProductName(item) || 'Product'}</h3>
+                      {itemBrand(item) && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{itemBrand(item)}</div>}
+                      <h3 className="ct-line-name">{itemLineName(item) || 'Product'}</h3>
+                      {itemSku(item) && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.125rem' }}>{itemSku(item)}</div>}
                       {item.variant_name && <div className="ct-line-variant">{item.variant_name}</div>}
 
                       {/* Lead-time / stock */}
@@ -9609,10 +9830,6 @@
                         </div>
                       )}
 
-                      {/* Pickup-only badge */}
-                      {item.pickup_only && (
-                        <div className="ct-line-pickup-badge">Pickup only</div>
-                      )}
 
                       {/* Actions */}
                       <div className="ct-line-actions">
@@ -9720,73 +9937,27 @@
                 {productItems.length > 0 && (
                   <div className="ct-summary-delivery">
                     <div className="ct-summary-delivery-label">Delivery</div>
-                    {hasPickupOnly && (
-                      <div className="ct-summary-pickup-notice">Cart contains pickup-only items.</div>
-                    )}
                     <label className={'ct-delivery-option' + (deliveryMethod === 'pickup' ? ' active' : '')}>
                       <input type="radio" name="ctDelivery" value="pickup" checked={deliveryMethod === 'pickup'}
-                        onChange={() => { setDeliveryMethod('pickup'); setShippingEstimate(null); setSelectedShippingOption(null); }} />
+                        onChange={() => setDeliveryMethod('pickup')} />
                       <div>
                         <div className="ct-delivery-option-title">Showroom pickup</div>
                         <div className="ct-delivery-option-sub">Free · Anaheim</div>
                       </div>
                     </label>
-                    <label className={'ct-delivery-option' + (deliveryMethod === 'shipping' ? ' active' : '') + (hasPickupOnly ? ' disabled' : '')}>
+                    <label className={'ct-delivery-option' + (deliveryMethod === 'shipping' ? ' active' : '')}>
                       <input type="radio" name="ctDelivery" value="shipping" checked={deliveryMethod === 'shipping'}
-                        onChange={() => setDeliveryMethod('shipping')} disabled={hasPickupOnly} />
+                        onChange={() => setDeliveryMethod('shipping')} />
                       <div>
-                        <div className="ct-delivery-option-title">Ship to address</div>
-                        <div className="ct-delivery-option-sub">Enter ZIP for rate</div>
+                        <div className="ct-delivery-option-title">Ship to my address</div>
+                        <div className="ct-delivery-option-sub">Freight quoted separately</div>
                       </div>
                     </label>
 
                     {deliveryMethod === 'shipping' && (
-                      <div className="ct-summary-shipping">
-                        <div className="ct-shipping-zip-row">
-                          <input type="text" placeholder="ZIP Code" value={shippingZip}
-                            onChange={e => setShippingZip(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                            onKeyDown={e => e.key === 'Enter' && fetchShippingEstimate()}
-                            maxLength={5} className="ct-shipping-zip-input" />
-                          <button onClick={fetchShippingEstimate} disabled={shippingLoading || shippingZip.length < 5} className="ct-shipping-zip-btn">
-                            {shippingLoading ? '...' : 'Get rate'}
-                          </button>
-                        </div>
-                        {shippingError && <div className="ct-shipping-error">{shippingError}</div>}
-                        {shippingEstimate && shippingEstimate.options && shippingEstimate.options.length > 0 && shippingEstimate.options[0].amount > 0 && (
-                          <div className="ct-shipping-options">
-                            {shippingEstimate.options.map(opt => (
-                              <label key={opt.id} className={'ct-shipping-opt' + (selectedShippingOption && selectedShippingOption.id === opt.id ? ' active' : '')}
-                                onClick={() => setSelectedShippingOption(opt)}>
-                                <input type="radio" name="ctShipping" checked={selectedShippingOption && selectedShippingOption.id === opt.id}
-                                  onChange={() => setSelectedShippingOption(opt)} />
-                                <div className="ct-shipping-opt-info">
-                                  <span className="ct-shipping-opt-carrier">{opt.carrier}</span>
-                                  {opt.transit_days && <span className="ct-shipping-opt-days">{opt.transit_days} day{opt.transit_days !== 1 ? 's' : ''}</span>}
-                                </div>
-                                <span className="ct-shipping-opt-price">${parseFloat(opt.amount).toFixed(2)}</span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                        {shippingEstimate && shippingEstimate.options && shippingEstimate.options.length > 0 && shippingEstimate.options[0].amount === 0 && shippingEstimate.method === null && (
-                          <div className="ct-summary-line" style={{ marginTop: 8 }}><span>Shipping</span><span>$0.00</span></div>
-                        )}
-                        {shippingEstimate && shippingEstimate.weight_lbs > 0 && (
-                          <div className="ct-shipping-weight">Est. weight: {shippingEstimate.weight_lbs} lbs{shippingEstimate.weight_estimated ? ' *' : ''}</div>
-                        )}
-                        {shippingEstimate && shippingEstimate.weight_estimated && (
-                          <div className="ct-shipping-weight" style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: 2 }}>* Some item weights estimated. Final shipping may vary.</div>
-                        )}
-                        {shippingEstimate && shippingEstimate.method === 'ltl_freight' && (
-                          <label className="ct-liftgate-toggle">
-                            <input type="checkbox" checked={liftgateEnabled} onChange={e => {
-                              setLiftgateEnabled(e.target.checked);
-                              setShippingEstimate(null);
-                              setSelectedShippingOption(null);
-                            }} />
-                            Liftgate delivery (residential)
-                          </label>
-                        )}
+                      <div className="ct-summary-line" style={{ marginTop: 8 }}>
+                        <span>Freight</span>
+                        <span style={{ color: 'var(--stone-500)' }}>Quoted separately</span>
                       </div>
                     )}
 
@@ -9801,7 +9972,7 @@
 
                 {/* Total */}
                 <div className="ct-summary-total">
-                  <span className="ct-summary-total-label">{selectedShippingOption ? 'Estimated total' : 'Subtotal'}</span>
+                  <span className="ct-summary-total-label">{deliveryMethod === 'shipping' ? 'Total (excl. freight)' : 'Subtotal'}</span>
                   <span className="ct-summary-total-value">${cartTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
 
@@ -10636,13 +10807,13 @@
                     <button type="button" className={`co-delivery-card ${!isPickup ? 'selected' : ''}`} onClick={() => { if (typeof setDeliveryMethod === 'function') setDeliveryMethod('shipping'); }}>
                       <div className="co-delivery-card-top">
                         <div>
-                          <div className="co-delivery-card-name">Freight</div>
-                          <div className="co-delivery-card-meta">Orange County</div>
+                          <div className="co-delivery-card-name">Request a Freight Quote</div>
+                          <div className="co-delivery-card-meta">Ship to your address</div>
                         </div>
                         <div className="co-delivery-card-cost">Quoted</div>
                       </div>
-                      <div className="co-delivery-card-sub">We deliver within the greater Anaheim area</div>
-                      <div className="co-delivery-card-eta">Scheduled after order</div>
+                      <div className="co-delivery-card-sub">Enter your address and we’ll quote freight after your order</div>
+                      <div className="co-delivery-card-eta">Shipping cost emailed to approve before delivery</div>
                     </button>
                   </div>
                 </div>
@@ -10903,7 +11074,9 @@
                           {!item.is_sample && <div className="co-summary-thumb-badge">{item.num_boxes}</div>}
                         </div>
                         <div>
-                          <div className="co-summary-item-name">{item.product_name || 'Product'}</div>
+                          {itemBrand(item) && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{itemBrand(item)}</div>}
+                          <div className="co-summary-item-name">{itemLineName(item) || 'Product'}</div>
+                          {itemSku(item) && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.125rem' }}>{itemSku(item)}</div>}
                           <div className="co-summary-item-detail">
                             {item.is_sample ? 'Free sample' : item.sell_by === 'unit' ? `Qty ${item.num_boxes}` : `${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? 'es' : ''}`}
                           </div>
@@ -10946,6 +11119,12 @@
                       <div className="co-summary-row">
                         <span className="label">Delivery</span>
                         <span className="value">Pickup &mdash; Free</span>
+                      </div>
+                    )}
+                    {!isPickup && (
+                      <div className="co-summary-row">
+                        <span className="label">Freight</span>
+                        <span className="value" style={{ color: 'var(--stone-500)', fontStyle: 'italic' }}>Quoted separately</span>
                       </div>
                     )}
                     {creditApplicable > 0 && (
@@ -11004,7 +11183,9 @@
             <h1>Thank You</h1>
             {order && <div className="conf-order-num">Order {order.order_number}</div>}
             <div className="conf-hero-sub">
-              Your order has been placed. We&rsquo;ll send a confirmation to your email with tracking details once your order ships.
+              {order && order.delivery_method !== 'pickup'
+                ? 'Your order has been placed. Freight is quoted and billed separately — we’ll email your shipping cost to approve before delivery.'
+                : 'Your order has been placed. We’ll email a confirmation; your materials will be ready for pickup in 3-5 business days.'}
             </div>
           </div>
 
@@ -11022,7 +11203,9 @@
                     )}
                   </div>
                   <div>
-                    <div className="conf-item-name">{item.product_name || 'Product'}</div>
+                    {itemBrand(item) && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{itemBrand(item)}</div>}
+                    <div className="conf-item-name">{itemLineName(item) || 'Product'}</div>
+                    {itemSku(item) && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.125rem' }}>{itemSku(item)}</div>}
                     <div className="conf-item-detail">
                       {item.sell_by === 'unit' ? `Qty ${item.num_boxes}` : `${item.num_boxes} box${parseInt(item.num_boxes) !== 1 ? 'es' : ''}`}
                     </div>
@@ -11046,7 +11229,11 @@
               </div>
               {sampleItems.map((item, idx) => (
                 <div key={idx} className="conf-sample-item">
-                  <span>{item.product_name || 'Product'}{item.variant_name ? ' \u2014 ' + item.variant_name : ''}</span>
+                  <span>
+                    {itemBrand(item) && <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)' }}>{itemBrand(item)}</span>}
+                    {itemLineName(item) || 'Product'}
+                    {itemSku(item) && <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.125rem' }}>{itemSku(item)}</span>}
+                  </span>
                   <span className="conf-sample-free">Free</span>
                 </div>
               ))}
@@ -11068,7 +11255,7 @@
                 }
               </div>
               <div className="conf-detail-text" style={{ marginTop: '0.5rem' }}>
-                {order && order.delivery_method === 'pickup' ? 'Ready in 3-5 business days' : 'Delivery scheduled after confirmation'}
+                {order && order.delivery_method === 'pickup' ? 'Ready in 3-5 business days' : 'Freight quoted separately — we’ll email your shipping cost to approve'}
               </div>
             </div>
             <div className="conf-detail-card">
@@ -11666,7 +11853,11 @@
               return (
                 <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', padding: '0.5rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: '0.625rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name || item.description || 'Product'}</span>
+                    <span style={{ display: 'flex', flexDirection: 'column' }}>
+                      {!isLabor && itemBrand(item) && <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{itemBrand(item)}</span>}
+                      <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{isLabor ? (item.product_name || item.description || 'Product') : (itemLineName(item) || item.description || 'Product')}</span>
+                      {!isLabor && itemSku(item) && <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.125rem' }}>{itemSku(item)}</span>}
+                    </span>
                     {isLabor ? (
                       <>
                         <span style={{ fontSize: '0.625rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--stone-600)', background: 'rgba(28,25,23,0.06)', padding: '0.1rem 0.4rem', borderRadius: 3 }}>Labor</span>
@@ -12115,7 +12306,7 @@
                                       </div>
                                       <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                                         <span style={{ color: 'var(--warm-muted)', fontSize: '0.75rem', marginRight: '0.75rem' }}>
-                                          ${parseFloat(item.unit_price || 0).toFixed(2)}{item.sell_by === 'unit' ? '/ea' : '/sqft'}
+                                          ${parseFloat(item.unit_price || 0).toFixed(2)}{priceSuffix(item)}
                                         </span>
                                         <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
                                       </div>
@@ -13344,7 +13535,7 @@
                                     <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Materials</div>
                                     {(o.items || []).map((item, idx) => (
                                       <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', padding: '0.5rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
-                                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name}{item.sku_code ? ' · ' + item.sku_code : ''}</span>
+                                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{itemLineName(item)}{item.sku_code ? ' · ' + item.sku_code : ''}</span>
                                         <span style={{ whiteSpace: 'nowrap' }}>{item.quantity} × {tMoney(item.unit_price)}</span>
                                       </div>
                                     ))}
@@ -16202,7 +16393,7 @@
               (item.sqft_needed != null ? parseFloat(item.sqft_needed).toLocaleString() + ' sqft' : null),
               (item.num_boxes != null ? item.num_boxes + ' box' + (Number(item.num_boxes) !== 1 ? 'es' : '') : null)
             ].filter(Boolean).join(' · ');
-        const sub = [item.collection, item.color, item.variant_name].filter(v => v && String(v).trim()).join(' · ');
+        const sub = '';
         return (
           <div key={'m' + idx} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', padding: '0.9rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
             <div style={{ width: 56, height: 56, flexShrink: 0, background: 'var(--stone-100)', borderRadius: 4, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -16211,7 +16402,7 @@
                 : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 22, height: 22, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--stone-800)', lineHeight: 1.3 }}>{item.product_name || 'Material'}</div>
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--stone-800)', lineHeight: 1.3 }}>{itemLineName(item) || 'Material'}</div>
               {sub && <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginTop: '0.15rem' }}>{sub}</div>}
               {qtyLabel && <div style={{ fontSize: '0.8125rem', color: 'var(--warm-muted, var(--stone-500))', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>{qtyLabel}</div>}
             </div>

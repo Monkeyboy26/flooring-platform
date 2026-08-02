@@ -6421,6 +6421,68 @@
       return url;
     }
 
+    // Canonical price-unit suffix — mirrors storefront.jsx priceSuffix() and
+    // admin.html skuPriceSuffix(). Slabs (sell_by='unit' + per-sqft rate + no
+    // known box area) show /sqft since a piece price can't be computed.
+    function skuPriceSuffix(row) {
+      row = row || {};
+      const basis = row.price_basis;
+      const soldPerUnit = row.sell_by ? row.sell_by === 'unit' : basis === 'per_unit';
+      if (soldPerUnit) {
+        if ((basis === 'sqft' || basis === 'per_sqft') && !(parseFloat(row.sqft_per_box) > 0)) return '/sqft';
+        return '/ea';
+      }
+      if ((row.sell_by ? row.sell_by === 'roll' : basis === 'per_sqyd')) return '/sqyd';
+      return '/sqft';
+    }
+
+    // ========== Canonical line-item formatter ==========
+    // Returns { name, meta } for any order/quote/PO/estimate line so accessories
+    // (e.g. bare "Reducer") always carry their parent product + distinguishing info.
+    function formatLineItem(it) {
+      it = it || {};
+      const isAcc = (it.variant_type || '').toLowerCase() === 'accessory';
+      const accLabel = isAcc ? (it.accessory_label || it.variant_name) : null;
+      // Accessory bought for a specific floor → "Collection · Color · Accessory"
+      // (parent snapshot); falls back to the accessory's own name when absent.
+      const parentCollection = isAcc ? it.parent_collection : null;
+      const parentColor = isAcc ? it.parent_color : null;
+      let title, ordered;
+      if (parentCollection) {
+        title = parentCollection;
+        ordered = [parentColor, accLabel || it.product_name];
+      } else {
+        title = it.collection || it.current_collection || it.product_name || 'Product';
+        const design = it.color || (it.product_name && it.product_name !== title ? it.product_name : null);
+        // Size/finish often lives only in product_name (e.g. "Ecoslate 24x48")
+        // when a Color already names the design — surface it as a descriptor.
+        let sizeInfo = null;
+        if (it.color && it.product_name) {
+          let rem = String(it.product_name).trim();
+          if (rem.toLowerCase().indexOf(String(title).toLowerCase()) === 0) rem = rem.slice(String(title).length);
+          rem = rem.replace(new RegExp(String(it.color).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), ' ')
+                   .replace(/^[\s,·\-–—]+|[\s,·\-–—]+$/g, '').replace(/\s+/g, ' ').trim();
+          if (rem && /\d\s*(?:[xX×]|["″”'’]|\s*(?:cm|mm|in\b))/.test(rem)) sizeInfo = rem;
+        }
+        // Fallback: size held only in the size attribute (no-op until query selects it).
+        let sizeDesc = null;
+        const _ex = [title, design, sizeInfo, it.variant_name].filter(Boolean).join(' ');
+        if (it.size && !/slab|jumbo|standard|panel|prefab|countertop/i.test(_ex)) {
+          const sd = (String(it.size).match(/\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?/) || [])[0];
+          const nz = x => x.toLowerCase().replace(/["″”'’\s]/g, '').replace(/×/g, 'x');
+          if (sd && !nz(_ex).includes(nz(sd))) sizeDesc = String(it.size).trim();
+        }
+        ordered = [design, sizeInfo, sizeDesc, it.variant_name, accLabel];
+      }
+      const _seen = new Set([String(title).toLowerCase()]);
+      const descriptors = ordered.filter(v => { if (!v) return false; const k = String(v).toLowerCase(); if (_seen.has(k)) return false; _seen.add(k); return true; });
+      return {
+        brand: it.vendor_name || it.custom_vendor || '',
+        name: title + (descriptors.length ? '  ·  ' + descriptors.join('  ·  ') : ''),
+        sku: it.vendor_sku || it.internal_sku || '',
+      };
+    }
+
     // ========== Rep Fetch Helper ==========
     function repFetch(path, options = {}) {
       const token = sessionStorage.getItem('rep_token');
@@ -10089,7 +10151,7 @@
       // `mPct > 0` (null > 0 is false), so no bogus 0%/100% is shown.
       const mPct = activeSku.margin_pct;
       const isCarpet = activeSku.sell_by === 'roll' || activeSku.price_basis === 'per_sqyd';
-      const unitLabel = activeSku.sell_by === 'unit' ? '/ea' : isCarpet ? '/sqyd' : '/sqft';
+      const unitLabel = skuPriceSuffix(activeSku);
       const price = calcPrice !== null ? calcPrice : retail;
       const calcMargin = price > 0 ? ((price - cost) / price) * 100 : 0;
       const sqftPerBox = activeSku.sqft_per_box ? parseFloat(activeSku.sqft_per_box) : null;
@@ -11001,7 +11063,6 @@
       // margin_pct is null when the SKU has no usable cost — render "—" (a real
       // negative margin, e.g. Mapei, still shows its number).
       const fmtPct = (pct) => pct == null ? '—' : pct.toFixed(1) + '%';
-      const unitLabel = (sell_by) => sell_by === 'box' ? '/sqft' : sell_by === 'roll' ? '/sqyd' : sell_by === 'unit' ? '/ea' : '/ea';
       const fmtSize = (s) => String(s).replace(/(\d)\s*[xX]\s*(\d)/g, '$1×$2');
       // Variant suffix for card titles; disambiguates SKUs of the same product.
       // Starts from the variant/color name (hiding noise + echoes of the product
@@ -11452,7 +11513,7 @@
                     const cost = p.cost ? parseFloat(p.cost) : 0;
                     const mPct = p.margin_pct;
                     const mc = marginCol(mPct);
-                    const unit = unitLabel(p.sell_by);
+                    const unit = skuPriceSuffix(p);
                     const sk = stockDisplay(p);
                     const variantText = skuVariantText(p);
                     return (
@@ -11530,7 +11591,7 @@
                     const cost = p.cost ? parseFloat(p.cost) : 0;
                     const mPct = p.margin_pct;
                     const mc = marginCol(mPct);
-                    const unit = unitLabel(p.sell_by);
+                    const unit = skuPriceSuffix(p);
                     const sk = stockDisplay(p);
                     const variantText = skuVariantText(p);
                     return (
@@ -11598,7 +11659,7 @@
                       const cost = p.cost ? parseFloat(p.cost) : 0;
                       const mPct = p.margin_pct;
                       const mc = marginCol(mPct);
-                      const unit = unitLabel(p.sell_by);
+                      const unit = skuPriceSuffix(p);
                       const sk = stockDisplay(p);
                       const variantText = skuVariantText(p);
                       return (
@@ -12635,8 +12696,21 @@
           taskIdx++;
           await new Promise(r => setTimeout(r, 200));
 
-          // Additional split payments
-          const additionalPayments = paymentMethods.slice(1);
+          // "Send payment link" tender: email the customer a Stripe payment link
+          // + the invoice PDF via the payment-request endpoint (which attaches it).
+          if (paymentMethods.some(pm => pm.method === 'stripe')) {
+            try {
+              await repFetch('/api/rep/orders/' + result.order.id + '/payment-request', {
+                method: 'POST', body: JSON.stringify({})
+              });
+              log.push({ ok: true, message: 'Payment link + invoice PDF emailed to ' + customerEmail, time: now() });
+            } catch (e) {
+              log.push({ ok: false, message: 'Payment link failed: ' + e.message, time: now() });
+            }
+          }
+
+          // Additional split payments (stripe = payment link, already emailed above — not collected here)
+          const additionalPayments = paymentMethods.slice(1).filter(pm => pm.method !== 'stripe');
           for (const pm of additionalPayments) {
             try {
               await repFetch('/api/rep/orders/' + result.order.id + '/collect-payment', {
@@ -13735,12 +13809,19 @@
       const price = p.price ? parseFloat(p.price) : 0;
       const tradeUnit = rofTradeUnit(price, p.retail_locked, discount || 0);
       const discounted = price > 0 && tradeUnit < price;
-      const mPct = p.margin_pct || 0;
+      // Margin must reflect trade pricing: derive cost from the list margin, then
+      // recompute it against the (possibly trade-discounted) selling price so the
+      // badge drops for trade customers instead of showing the retail margin.
+      const _baseMargin = p.margin_pct != null ? parseFloat(p.margin_pct) : null;
+      const _effUnit = discounted ? tradeUnit : price;
+      const mPct = (_baseMargin != null && price > 0 && _effUnit > 0)
+        ? (1 - (price * (1 - _baseMargin / 100)) / _effUnit) * 100
+        : (_baseMargin || 0);
       const sk = stockDisplay(p);
       const active = qty > 0;
       const isUnit = p.sell_by === 'unit' || p.sell_by === 'piece';
       const qtyUnit = isUnit ? 'units' : 'boxes';
-      const priceUnit = isUnit ? '/ea' : p.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft';
+      const priceUnit = skuPriceSuffix(p);
       const hasAcc = (p.accessory_count || 0) > 0;
       const accLoading = accessories === 'loading' || accessories === undefined;
       const accList = Array.isArray(accessories) ? accessories : [];
@@ -13841,7 +13922,7 @@
                 const aPrice = parseFloat(a.retail_price || 0);
                 const aTrade = rofTradeUnit(aPrice, a.retail_locked, discount || 0);
                 const aDiscounted = aPrice > 0 && aTrade < aPrice;
-                const aUnit = (a.sell_by === 'unit' || a.sell_by === 'piece') ? '/ea' : '/sqft';
+                const aUnit = skuPriceSuffix(a);
                 return (
                   <div key={a.sku_id} style={{
                     display: 'grid', gridTemplateColumns: '30px 1fr auto 30px', gap: 10, alignItems: 'center',
@@ -14211,6 +14292,8 @@
           product_name: r.product_name || '',
           color: r.color || '',
           variant_name: r.variant_name || '',
+          variant_type: r.variant_type || '',
+          accessory_label: r.accessory_label || '',
           vendor_id: r.vendor_id,
           vendor_name: r.vendor_name,
           vendor_sku: r.vendor_sku || r.internal_sku || '',
@@ -14331,13 +14414,15 @@
             newItems.push({
               _key: key++,
               sku_id: acc.sku_id,
-              collection: '',
-              product_name: acc.accessory_label || acc.variant_name || '',
-              color: '',
-              variant_name: acc.variant_name && acc.variant_name !== acc.accessory_label ? acc.variant_name : '',
+              collection: acc.collection || parent.collection || '',
+              product_name: parent.display_name || parent.product_name || parent.name || acc.product_name || '',
+              color: acc.color || '',
+              variant_name: acc.variant_name || '',
+              variant_type: 'accessory',
+              accessory_label: acc.accessory_label || '',
               vendor_id: parent.vendor_id,
               vendor_name: parent.brand_name || parent.vendor_name,
-              vendor_sku: acc.vendor_sku || '',
+              vendor_sku: acc.vendor_sku || acc.internal_sku || '',
               retail_price: retailPrice,
               unit_price: unitPrice,
               num_boxes: qty,
@@ -14348,7 +14433,7 @@
               sell_by: acc.sell_by || 'unit',
               cost: parseFloat(acc.cost || 0),
               vendor_cost: acc.cost || null,
-              category_name: '',
+              category_name: acc.category_name || '',
               primary_image: acc.primary_image || null
             });
           }
@@ -14514,14 +14599,11 @@
                           : <div style={{ width: 36, height: 36, ...materialFace(guessKind({ category_name: r.category_name, collection: r.collection }), 50), flexShrink: 0 }} />
                         }
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className="rof-search-item-name">
-                            {r.collection || r.product_name}
-                            {r.color ? ' \u2014 ' + r.color : ''}
-                            {r.variant_name && r.variant_name !== r.color ? ' \u00b7 ' + r.variant_name : ''}
-                          </div>
+                          {formatLineItem(r).brand && <div className="rof-search-item-sub">{formatLineItem(r).brand}</div>}
+                          <div className="rof-search-item-name">{formatLineItem(r).name}</div>
                           <div className="rof-search-item-sub">
-                            {r.vendor_name}{r.vendor_sku ? ' \u00b7 ' + r.vendor_sku : r.internal_sku ? ' \u00b7 ' + r.internal_sku : ''}
-                            {r.retail_price ? ' \u00b7 $' + parseFloat(r.retail_price).toFixed(2) + (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft') : ''}
+                            {formatLineItem(r).sku}
+                            {r.retail_price ? (formatLineItem(r).sku ? '  \u00b7  ' : '') + '$' + parseFloat(r.retail_price).toFixed(2) + skuPriceSuffix(r) : ''}
                           </div>
                         </div>
                       </div>
@@ -14615,14 +14697,13 @@
                   }
                 </div>
                 <div className="rof-item-info">
-                  <div className="rof-item-name">
-                    {item.collection || item.product_name || '\u2014'}
-                    {item.color ? ' ' + item.color : ''}
-                    {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
-                  </div>
-                  <div className="rof-item-meta">
-                    {item.is_custom ? 'Custom' + ((item.vendor_name || item.custom_vendor) ? ' \u00b7 ' + (item.vendor_name || item.custom_vendor) : '') : (item.vendor_name || '') + (item.vendor_sku ? ' \u00b7 ' + item.vendor_sku : '')}
-                  </div>
+                  {item.is_custom
+                    ? ((item.vendor_name || item.custom_vendor) && <div className="rof-item-meta">{item.vendor_name || item.custom_vendor}</div>)
+                    : (formatLineItem(item).brand && <div className="rof-item-meta">{formatLineItem(item).brand}</div>)}
+                  <div className="rof-item-name">{formatLineItem(item).name}</div>
+                  {item.is_custom
+                    ? <div className="rof-item-meta">Custom</div>
+                    : (formatLineItem(item).sku && <div className="rof-item-meta">{formatLineItem(item).sku}</div>)}
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   {editingKey === item._key && editField === 'qty' ? (
@@ -14670,7 +14751,7 @@
                     <button className="rof-edit-cell" onClick={() => startEdit(item._key, 'price', item.unit_price.toFixed(2))}>
                       ${item.unit_price.toFixed(2)}
                       <span style={{ fontSize: '0.5rem', color: '#8a7e68', marginLeft: '0.15rem' }}>
-                        {item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}
+                        {skuPriceSuffix(item)}
                       </span>
                     </button>
                   )}
@@ -14940,31 +15021,6 @@
             )}
           </WizRepCard>
 
-          {/* Fulfillment add-ons */}
-          {deliveryMethod === 'shipping' && (
-            <WizRepCard title="Delivery Add-ons">
-              {[
-                { key: 'liftgate', label: 'Liftgate required', desc: 'Truck with liftgate for residential' },
-                { key: 'insideDelivery', label: 'Inside delivery', desc: 'Carrier brings material inside' },
-                { key: 'callBefore', label: 'Call before delivery', desc: 'Driver calls 30 min ahead' },
-                { key: 'appointmentRequired', label: 'Appointment required', desc: 'Schedule specific delivery window' }
-              ].map(addon => (
-                <div key={addon.key} className="rof-addon-row">
-                  <input type="checkbox" id={'addon-' + addon.key}
-                    checked={!!(data.fulfillmentAddons || {})[addon.key]}
-                    onChange={e => setData(d => ({
-                      ...d,
-                      fulfillmentAddons: { ...(d.fulfillmentAddons || {}), [addon.key]: e.target.checked }
-                    }))} />
-                  <label htmlFor={'addon-' + addon.key} style={{ flex: 1 }}>
-                    {addon.label}
-                    <div style={{ font: '400 0.6875rem/1.3 Inter, sans-serif', color: '#8a7e68', marginTop: '0.1rem' }}>{addon.desc}</div>
-                  </label>
-                </div>
-              ))}
-            </WizRepCard>
-          )}
-
           {/* Delivery notes */}
           <WizRepCard title="Delivery Notes">
             <div className="rof-field" style={{ marginBottom: 0 }}>
@@ -15024,7 +15080,7 @@
                 {data.items.slice(0, 5).map((item, i) => (
                   <div key={i} className="rof-summary-line">
                     <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingRight: '0.5rem' }}>
-                      {item.collection || item.product_name || 'Item'}
+                      {formatLineItem(item).name || 'Item'}
                     </span>
                     <span style={{ flexShrink: 0, font: '300 0.875rem/1 "Cormorant Garamond", serif' }}>${item.subtotal.toFixed(2)}</span>
                   </div>
@@ -15069,13 +15125,10 @@
                   <span>-${discount.toFixed(2)}</span>
                 </div>
               )}
-              {data.deliveryMethod && (
+              {estShipping > 0 && (
                 <div className="rof-summary-line">
-                  <span>Shipping</span>
-                  {data.deliveryMethod === 'pickup'
-                    ? <span style={{ color: 'var(--green)', fontWeight: 500 }}>FREE</span>
-                    : <span>{estShipping > 0 ? '$' + estShipping.toFixed(2) : 'TBD'}</span>
-                  }
+                  <span>Freight</span>
+                  <span>${estShipping.toFixed(2)}</span>
                 </div>
               )}
               {taxableSubtotal > 0 && (
@@ -15282,7 +15335,7 @@
             <div className="rof-pay-grid">
               {[
                 { key: 'card', icon: '\u25A3', label: 'Card \u00B7 Stripe', sub: 'Terminal or manual entry' },
-                { key: 'ach', icon: '\u296F', label: 'ACH', sub: 'Bank transfer \u00B7 3 day clearing' },
+                { key: 'stripe', icon: '\u2197', label: 'Send payment link', sub: 'Emailed \u00B7 customer pays by card' },
                 { key: 'cash', icon: '$', label: 'Cash', sub: 'Drawer logs \u00B7 printed slip' },
                 { key: 'check', icon: '\u270E', label: 'Check', sub: 'Hold for 3 day clearing' }
               ].map(m => {
@@ -15319,9 +15372,12 @@
                 Charge ${(remaining > 0 ? remaining : total).toFixed(2)} by Card
               </button>
             )}
-            {paymentMethod === 'ach' && remaining > 0.01 && (
-              <button className="rof-btn-light primary" onClick={() => setShowAchModal(true)} style={{ width: '100%' }}>
-                Collect ${(remaining > 0 ? remaining : total).toFixed(2)} via ACH
+            {paymentMethod === 'stripe' && remaining > 0.01 && (
+              <button className="rof-btn-light primary" onClick={() => {
+                const amount = remaining > 0 ? remaining : total;
+                setData(d => ({ ...d, paymentMethods: [...(d.paymentMethods || []), { method: 'stripe', amount }] }));
+              }} style={{ width: '100%' }}>
+                Send payment link for ${(remaining > 0 ? remaining : total).toFixed(2)}
               </button>
             )}
             {paymentMethod === 'cash' && remaining > 0.01 && (
@@ -15406,28 +15462,6 @@
             </WizRepCard>
           )}
 
-          {/* Send payment request link (alternative to direct collection) */}
-          {remaining > 0.01 && (
-            <WizRepCard title="Or send a payment link">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ font: '400 0.8125rem/1.4 Inter, sans-serif', color: '#1c1917' }}>
-                    Email a secure Stripe payment link to the customer
-                  </div>
-                  <div style={{ font: '400 0.6875rem/1.3 Inter, sans-serif', color: '#8a7e68', marginTop: '0.125rem' }}>
-                    They can pay with any card at their convenience
-                  </div>
-                </div>
-                <button className="rof-btn-light" onClick={() => {
-                  const amount = remaining > 0 ? remaining : total;
-                  setData(d => ({ ...d, paymentMethods: [...(d.paymentMethods || []), { method: 'stripe', amount }] }));
-                }} style={{ whiteSpace: 'nowrap', padding: '0.375rem 0.875rem' }}>
-                  Send for ${(remaining > 0 ? remaining : total).toFixed(2)}
-                </button>
-              </div>
-            </WizRepCard>
-          )}
-
           {/* Internal notes */}
           <WizRepCard title="Internal Notes">
             <div className="rof-field" style={{ marginBottom: 0 }}>
@@ -15470,15 +15504,6 @@
               terminalRef={terminalRef}
               terminalStatus={terminalStatus}
               connectReader={connectReader}
-            />
-          )}
-          {showAchModal && (
-            <AchPaymentModal
-              amount={remaining > 0 ? remaining : total}
-              customerName={customerName}
-              customerEmail={customerEmail}
-              onSuccess={handleAchSuccess}
-              onCancel={() => setShowAchModal(false)}
             />
           )}
         </div>
@@ -15680,12 +15705,14 @@
                             ? <img src={optimizeImg(item.primary_image, 80)} alt="" loading="lazy" style={{ width: 32, height: 32, objectFit: 'cover' }} />
                             : <div style={{ width: 32, height: 32, ...materialFace(rofCatKind(item)) }} />}
                           <div style={{ minWidth: 0 }}>
+                            {formatLineItem(item).brand && <div style={{ font: '500 8.5px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: MUTED, textTransform: 'uppercase', marginBottom: 2 }}>
+                              {formatLineItem(item).brand}
+                            </div>}
                             <div style={{ font: '400 12.5px/1.2 var(--roma-sans)', color: INK, letterSpacing: '-0.005em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {item.collection || item.product_name} {item.color || ''}
-                              {item.variant_name && item.variant_name !== item.color ? ' \u00b7 ' + item.variant_name : ''}
+                              {formatLineItem(item).name}
                             </div>
                             <div style={{ font: '500 8.5px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: MUTED, textTransform: 'uppercase', marginTop: 2 }}>
-                              {item.vendor_sku || '\u2014'} {item.vendor_sku ? '\u00b7 vendor SKU mapped' : ''}
+                              {formatLineItem(item).sku || '\u2014'}
                             </div>
                           </div>
                           <span style={{ textAlign: 'right', font: '400 12px/1.2 var(--roma-serif)', color: INK }}>
@@ -16519,10 +16546,9 @@
                               : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
                             }
                             <div className="sku-info">
-                              <div className="sku-name">{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
-                              <div className="product-meta">
-                                {r.collection || ''}{r.vendor_name ? ' · ' + r.vendor_name : ''}{r.internal_sku ? ' · ' + r.internal_sku : ''}
-                              </div>
+                              {formatLineItem(r).brand && <div className="product-meta">{formatLineItem(r).brand}</div>}
+                              <div className="sku-name">{formatLineItem(r).name}</div>
+                              {formatLineItem(r).sku && <div className="product-meta">{formatLineItem(r).sku}</div>}
                             </div>
                           </div>
                         ))}
@@ -16544,8 +16570,9 @@
                   }}>
                     <div style={{ width: 44, height: 40, background: 'var(--rod-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}>◫</div>
                     <div>
-                      <div className="rod-line-item-name">{item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}</div>
-                      <div className="rod-line-item-meta">{item.collection || ''}{item.vendor_name ? ' · ' + item.vendor_name : ''}</div>
+                      {formatLineItem(item).brand && <div className="rod-line-item-meta">{formatLineItem(item).brand}</div>}
+                      <div className="rod-line-item-name">{formatLineItem(item).name}</div>
+                      {formatLineItem(item).sku && <div className="rod-line-item-meta">{formatLineItem(item).sku}</div>}
                     </div>
                     <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-green)' }}>Free</span>
                     <button onClick={() => removeItem(item._key)} aria-label="Remove sample" style={{ width: 24, height: 24, border: 'none', background: 'transparent', color: 'var(--rod-muted)', cursor: 'pointer', font: '400 16px/1 Inter, sans-serif', padding: 0 }}>×</button>
@@ -17210,12 +17237,11 @@
                               ? <img className="rod-line-item-thumb" src={optimizeImg(item.primary_image, 120)} alt={item.product_name} loading="lazy" />
                               : <div style={{ width: 48, height: 44, background: 'var(--rod-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}>◫</div>}
                             <div>
+                              {formatLineItem(item).brand && <div className="rod-line-item-meta">{formatLineItem(item).brand}</div>}
                               <div className="rod-line-item-name" style={isCancelled ? { textDecoration: 'line-through', color: 'var(--rod-muted)' } : undefined}>
-                                {item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}
+                                {formatLineItem(item).name}
                               </div>
-                              <div className="rod-line-item-meta">
-                                {item.collection || ''}{item.vendor_sku ? (item.collection ? ' · ' : '') + item.vendor_sku : ''}
-                              </div>
+                              {formatLineItem(item).sku && <div className="rod-line-item-meta">{formatLineItem(item).sku}</div>}
                             </div>
                             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                               {isCancelled
@@ -18344,7 +18370,7 @@
                             <div className="rof-search-item-name">{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
                             <div className="rof-search-item-sub">
                               {r.collection || ''}{r.vendor_name ? ' · ' + r.vendor_name : ''}{r.internal_sku ? ' · ' + r.internal_sku : ''}
-                              {r.retail_price ? ' · $' + parseFloat(r.retail_price).toFixed(2) + (r.price_basis === 'per_sqft' ? '/sqft' : '') : ''}
+                              {r.retail_price ? ' · $' + parseFloat(r.retail_price).toFixed(2) + skuPriceSuffix(r) : ''}
                             </div>
                           </div>
                         </div>
@@ -18373,8 +18399,9 @@
                           }
                         </div>
                         <div className="rof-item-info">
-                          <div className="rof-item-name">{item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}</div>
-                          <div className="rof-item-meta">{[item.collection, item.vendor_name, item.internal_sku].filter(Boolean).join(' · ')}</div>
+                          {formatLineItem(item).brand && <div className="rof-item-meta">{formatLineItem(item).brand}</div>}
+                          <div className="rof-item-name">{formatLineItem(item).name}</div>
+                          {formatLineItem(item).sku && <div className="rof-item-meta">{formatLineItem(item).sku}</div>}
                         </div>
                         <input value={item.rep_note} placeholder="Why they liked it, room, finish..."
                           onChange={e => updateNote(item._key, e.target.value)}
@@ -18622,8 +18649,9 @@
                           }
                         </div>
                         <div className="rof-item-info">
-                          <div className="rof-item-name">{item.product_name}{item.variant_name ? ' — ' + item.variant_name : ''}</div>
-                          <div className="rof-item-meta">{[item.collection, item.vendor_name].filter(Boolean).join(' · ')}</div>
+                          {formatLineItem(item).brand && <div className="rof-item-meta">{formatLineItem(item).brand}</div>}
+                          <div className="rof-item-name">{formatLineItem(item).name}</div>
+                          {formatLineItem(item).sku && <div className="rof-item-meta">{formatLineItem(item).sku}</div>}
                           {item.rep_note && (
                             <div style={{ font: 'italic 400 12px/1.4 Inter, sans-serif', color: '#8a7e68', marginTop: 3, whiteSpace: 'normal' }}>
                               “{item.rep_note}”
@@ -19570,6 +19598,8 @@
       const [deliveryAddress, setDeliveryAddress] = useState({ line1: '', line2: '', city: '', state: '', zip: '' });
       const [shippingOptions, setShippingOptions] = useState(null);
       const [deliveryUpdating, setDeliveryUpdating] = useState(false);
+      const [freightAmount, setFreightAmount] = useState('');
+      const [editingFreight, setEditingFreight] = useState(false);
       const [payments, setPayments] = useState([]);
       const [paymentRequests, setPaymentRequests] = useState([]);
       const [balanceInfo, setBalanceInfo] = useState(null);
@@ -20224,12 +20254,13 @@
                           }
                         </div>
                         <div>
+                          {!isLabor && !isCustom && formatLineItem(item).brand && (
+                            <div className="rod-line-item-meta">{formatLineItem(item).brand}</div>
+                          )}
                           <div className="rod-line-item-name">
                             {isLabor
                               ? (item.product_name || 'Labor')
-                              : (item.collection || item.current_collection || item.product_name || '—')}
-                            {!isLabor && item.color ? ' ' + item.color : ''}
-                            {!isLabor && item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
+                              : formatLineItem(item).name}
                             {isLabor && (
                               <span style={{ marginLeft: 6, font: '500 8px/1 "Inter", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase',
                                 padding: '2px 6px', borderRadius: 3, background: 'rgba(28,25,23,0.08)', color: 'var(--rod-muted)', verticalAlign: 'middle' }}>Labor</span>
@@ -20239,7 +20270,7 @@
                             {isLabor && <span style={{ color: 'var(--rod-muted)' }}>
                               {[item.labor_category ? String(item.labor_category).replace(/_/g, ' ') : null, item.source_estimate_area || null].filter(Boolean).join(' · ') || 'Service'}
                             </span>}
-                            {!isLabor && !isCustom && <>{item.vendor_sku ? 'SKU ' + item.vendor_sku : ''}{item.category_name ? (item.vendor_sku ? ' · ' : '') + item.category_name : ''}</>}
+                            {!isLabor && !isCustom && <>{formatLineItem(item).sku}{item.category_name ? (formatLineItem(item).sku ? '  ·  ' : '') + item.category_name : ''}</>}
                             {!isLabor && isCustom && <span style={{ color: 'var(--rod-accent)' }}>Custom</span>}
                             {item.is_sample && <span style={{ marginLeft: '4px', color: 'var(--rod-muted)' }}>Sample</span>}
                           </div>
@@ -20446,7 +20477,7 @@
                 }}>
                 <div className="rov-fulfill-grid">
                   {[
-                    ['Method', isPickup ? 'Store pickup · will-call' : 'Shipping' + (order.shipping_method ? ' · ' + order.shipping_method : '')],
+                    ['Method', isPickup ? 'Store pickup · will-call' : 'Shipping' + (order.shipping_method === 'quote_pending' ? ' · freight quote pending' : order.shipping_method ? ' · ' + order.shipping_method : '')],
                     ['Carrier', order.shipping_carrier || (isPickup ? 'Customer collects' : 'TBD')],
                     [order.status === 'delivered' ? 'Delivered' : 'Shipped', order.shipped_at ? rodFmtDT(order.shipped_at) : '—'],
                     [isPickup ? 'Pickup at' : 'Deliver to', isPickup
@@ -20466,6 +20497,51 @@
                     <RovMicro>Tracking {order.tracking_number}{order.shipping_carrier ? ' · ' + order.shipping_carrier : ''}</RovMicro>
                   </div>
                 )}
+                {!isPickup && ['pending', 'confirmed'].includes(order.status) && (() => {
+                  const freightSet = order.shipping_method && order.shipping_method !== 'quote_pending';
+                  const showForm = !freightSet || editingFreight;
+                  const currentFreight = parseFloat(order.shipping || 0);
+                  const accent = freightSet ? '#3f7d5a' : 'var(--gold)';
+                  const labelColor = freightSet ? '#356349' : '#8a6d3b';
+                  const submitFreight = async () => {
+                    setDeliveryUpdating(true);
+                    try {
+                      const data = await repFetch('/api/rep/orders/' + editId + '/delivery-method', { method: 'PUT', body: JSON.stringify({ delivery_method: 'shipping', manual_shipping_amount: parseFloat(freightAmount) }) });
+                      if (data.order) { setOrder(data.order); setFreightAmount(''); setEditingFreight(false); }
+                      if (data.balance) setBalanceInfo(data.balance);
+                    } catch (err) {}
+                    setDeliveryUpdating(false);
+                  };
+                  return (
+                    <div style={{ margin: '0 20px 16px', padding: '14px 16px', background: freightSet ? '#f1f5f0' : '#faf3e4', borderLeft: '3px solid ' + accent, border: '0.5px solid var(--rod-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 200, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '5px' }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent, flexShrink: 0 }} />
+                          <span style={{ font: '600 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: labelColor, whiteSpace: 'nowrap' }}>{freightSet ? 'Freight quoted' : 'Freight quote needed'}</span>
+                        </div>
+                        <div style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--rod-muted)' }}>{freightSet ? 'Carrier freight is on this order. Adjust it if the quote changes, then send or resend the payment request.' : 'Materials are paid. Enter the carrier-quoted freight to add it to this order, then send a payment request to collect.'}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+                        {showForm ? (
+                          <>
+                            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                              <span style={{ position: 'absolute', left: 10, fontSize: 13, color: 'var(--rod-muted)', pointerEvents: 'none' }}>$</span>
+                              <input className="rod-input" style={{ width: 116, paddingLeft: 22, textAlign: 'right' }} type="number" min="0" step="0.01" placeholder="0.00"
+                                value={freightAmount} onChange={e => setFreightAmount(e.target.value)} />
+                            </div>
+                            <button className="rod-mini-btn primary" disabled={deliveryUpdating || !(parseFloat(freightAmount) >= 0)} onClick={submitFreight}>{deliveryUpdating ? 'Saving…' : (freightSet ? 'Update' : 'Set freight')}</button>
+                            {freightSet && <button className="rod-mini-btn" disabled={deliveryUpdating} onClick={() => { setEditingFreight(false); setFreightAmount(''); }}>Cancel</button>}
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ font: '400 22px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>{'$' + currentFreight.toFixed(2)}</span>
+                            <button className="rod-mini-btn" disabled={deliveryUpdating} onClick={() => { setFreightAmount(currentFreight ? String(currentFreight) : ''); setEditingFreight(true); }}>Adjust</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
                 {showDeliveryForm && (
                   <div style={{ padding: '0 20px 14px' }}>
                     <div className="rod-inline-panel">
@@ -21382,9 +21458,10 @@
                                 </label>
                                 <div style={{ height: 36, ...materialFace(retMaterialKind(it), retTone(it.product_name)) }} />
                                 <div>
-                                  <div style={{ font: "400 14px/1.3 'Cormorant Garamond', serif", color: 'var(--rod-ink)' }}>{it.product_name}</div>
+                                  {formatLineItem(it).brand && <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginBottom: 3 }}>{formatLineItem(it).brand}</div>}
+                                  <div style={{ font: "400 14px/1.3 'Cormorant Garamond', serif", color: 'var(--rod-ink)' }}>{formatLineItem(it).name}</div>
                                   <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>
-                                    {it.vendor_name || 'Roma'} · {it.num_boxes} box · {(parseInt(it.already_returned, 10) || 0) > 0 ? it.already_returned + ' returned' : 'none returned'}
+                                    {[formatLineItem(it).sku || (it.vendor_name || 'Roma'), it.num_boxes + ' box', (parseInt(it.already_returned, 10) || 0) > 0 ? it.already_returned + ' returned' : 'none returned'].join('  ·  ')}
                                   </div>
                                 </div>
                                 {st.selected ? (
@@ -21566,9 +21643,10 @@
                             <div key={it.id} style={{ padding: '14px 0', display: 'grid', gridTemplateColumns: '40px 1fr auto', gap: 14, alignItems: 'center', borderBottom: i < selectedItems.length - 1 ? '0.5px solid rgba(28,25,23,0.07)' : 'none' }}>
                               <div style={{ height: 34, ...materialFace(retMaterialKind(it), retTone(it.product_name)) }} />
                               <div>
-                                <div style={{ font: "400 14px/1.3 'Cormorant Garamond', serif", color: 'var(--rod-ink)' }}>{it.product_name}</div>
+                                {formatLineItem(it).brand && <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginBottom: 3 }}>{formatLineItem(it).brand}</div>}
+                                <div style={{ font: "400 14px/1.3 'Cormorant Garamond', serif", color: 'var(--rod-ink)' }}>{formatLineItem(it).name}</div>
                                 <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>
-                                  {c.qty} box · {it.vendor_name || 'Roma'} · {st.condition}
+                                  {[c.qty + ' box', formatLineItem(it).sku || (it.vendor_name || 'Roma'), st.condition].join('  ·  ')}
                                 </div>
                               </div>
                               <div style={{ display: 'flex', gap: 6 }}>
@@ -21867,9 +21945,8 @@
                       const released = parseFloat(it.already_released || 0);
                       const ordered = parseFloat(it.num_boxes || 0);
                       const unit = unitFor(it);
-                      const name = (it.collection || it.current_collection || it.product_name || '—')
-                        + (it.color ? ' ' + it.color : '')
-                        + (it.variant_name && it.variant_name !== it.color ? ' ' + it.variant_name : '');
+                      const fli = formatLineItem(it);
+                      const name = fli.name;
                       const done = remaining <= 0;
                       const over = st.selected && (parseFloat(st.qty) > remaining + 0.001 || !(parseFloat(st.qty) > 0));
                       return (
@@ -21880,8 +21957,9 @@
                             ? <img className="rod-line-item-thumb" src={optimizeImg(it.primary_image, 96)} alt="" />
                             : <div className="rod-line-item-thumb" style={materialFace(relMaterialKind(it), relTone(it.product_name || name))} />}
                           <div style={{ minWidth: 0 }}>
+                            {fli.brand && <div className="rod-line-item-meta">{fli.brand}</div>}
                             <div className="rod-line-item-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
-                            <div className="rod-line-item-meta">{it.vendor_name || 'Roma'}</div>
+                            <div className="rod-line-item-meta">{fli.sku || (it.vendor_name || 'Roma')}</div>
                           </div>
                           <div className="rod-line-item-qty">{ordered} <span style={{ color: 'var(--rod-muted)' }}>{ordered === 1 ? unit : unit + 's'}</span></div>
                           <div className="rod-line-item-qty" style={{ color: released > 0 ? 'var(--rod-accent)' : 'var(--rod-muted)' }}>{released > 0 ? released : '—'}</div>
@@ -22017,7 +22095,7 @@
       const genKey = () => 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
       const itemQty = (it) => parseInt(it.num_boxes, 10) || 0;
-      const itemName = (it) => (it.collection || it.current_collection || it.product_name || '—') + (it.color ? ' ' + it.color : '');
+      const itemName = (it) => formatLineItem(it).name || '—';
 
       // Trade pricing: on a trade order, catalog add-lines default to the trade
       // price (same rule as order creation). Cap mirrors the backend.
@@ -22097,7 +22175,7 @@
           const spb = parseFloat(p.sqft_per_box || 0);
           const mult = isUnit ? 1 : isCarpet ? (spb > 0 ? spb / 9 : 1) : (perSqft && spb > 0 ? spb : 1);
           const skuCost = (p.cost != null && p.cost !== '' && parseFloat(p.cost) > 0) ? parseFloat(p.cost) : null;
-          staged.push({ key: genKey(), type: 'add', name: (p.display_name || p.name || p.collection || p.product_name || 'Item') + (p.color ? ' ' + p.color : ''),
+          staged.push({ key: genKey(), type: 'add', name: formatLineItem({ ...p, product_name: p.display_name || p.name || p.product_name || p.collection }).name || 'Item',
             vendorName: p.vendor_name || 'Roma', image: p.primary_image || null, isCustom: false, skuId: p.sku_id, sellBy, isCarpet, spb, mult,
             qty, unitPrice: tradePrice(parseFloat(p.unit_price || p.price || 0), p.retail_locked), cost: skuCost });
         }
@@ -22914,6 +22992,8 @@
               product_name: r.product_name,
               collection: r.collection,
               variant_name: r.variant_name,
+              variant_type: r.variant_type,
+              accessory_label: r.accessory_label,
               color: r.color,
               vendor_name: r.vendor_name,
               vendor_sku: r.vendor_sku,
@@ -22943,11 +23023,6 @@
         const price = tradeUnit(retail, sku.retail_locked, tradeDiscountFor(selectedCustomer));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
         const sellBy = isCarpet ? 'roll' : (sku.sell_by || 'box');
-        const descParts = [sku.color, sku.variant_name && sku.variant_name !== sku.color ? sku.variant_name : null].filter(Boolean).join(' · ');
-        const productName = sku.collection
-          ? (descParts ? sku.collection + ' — ' + descParts : sku.collection)
-          : sku.product_name;
-
         // Qty from the quick-add box; carpet counts sqyd (9 sqft each)
         const qty = Math.max(1, parseInt(addQty) || 1);
         const defaultSqft = isCarpet ? 9 * qty : (sqftPerBox || 0) * qty;
@@ -22958,8 +23033,14 @@
         const newItem = {
           sku_id: sku.sku_id,
           product_id: sku.product_id || null,
-          product_name: productName,
+          product_name: sku.product_name || '',
           collection: sku.collection || '',
+          color: sku.color || '',
+          variant_name: sku.variant_name || '',
+          variant_type: sku.variant_type || '',
+          accessory_label: sku.accessory_label || '',
+          vendor_name: sku.vendor_name || null,
+          vendor_sku: sku.vendor_sku || sku.internal_sku || null,
           sqft_needed: defaultSqft || null,
           num_boxes: isCarpet ? 1 : qty,
           unit_price: price.toFixed(2),
@@ -23008,7 +23089,8 @@
             for (const r of list) {
               await addProductToQuote({
                 sku_id: r.sku_id, product_id: r.product_id, product_name: r.product_name, collection: r.collection,
-                variant_name: r.variant_name, color: r.color, vendor_name: r.vendor_name,
+                variant_name: r.variant_name, variant_type: r.variant_type, accessory_label: r.accessory_label,
+                color: r.color, vendor_name: r.vendor_name,
                 vendor_sku: r.vendor_sku, internal_sku: r.internal_sku,
                 price: r.retail_price, sqft_per_box: r.sqft_per_box, sell_by: r.sell_by || 'box',
                 vendor_id: r.vendor_id, price_basis: r.price_basis || 'per_sqft',
@@ -23361,10 +23443,7 @@
           const price = tradeUnit(retail, p.retail_locked, discount);
           const sqftPerBox = parseFloat(p.sqft_per_box || 0);
           const sellBy = isCarpet ? 'roll' : (p.sell_by || 'box');
-          const baseName = p.display_name || p.name || p.product_name || '';
-          const productName = p.collection
-            ? (p.variant_name ? p.collection + ' — ' + p.variant_name : p.collection)
-            : baseName;
+          const productName = p.display_name || p.name || p.product_name || '';
           const sqftNeeded = isCarpet ? 9 * qty : sqftPerBox * qty;
           const subtotal = isCarpet ? price * qty
             : (sellBy === 'unit' || sellBy === 'piece') ? price * qty
@@ -23380,6 +23459,8 @@
             extra: {
               _sqft_per_box: sqftPerBox, vendor_cost: p.cost || null, primary_image: p.primary_image || null,
               vendor_name: p.brand_name || p.vendor_name || null, vendor_sku: p.vendor_sku || p.internal_sku || null,
+              color: p.color || null, variant_name: p.variant_name || null,
+              variant_type: p.variant_type || null, accessory_label: p.accessory_label || null,
               retail_price: retail, retail_locked: !!p.retail_locked
             }
           });
@@ -23390,15 +23471,20 @@
           toAdd.push({
             item: {
               sku_id: acc.sku_id, product_id: acc.product_id || null,
-              product_name: acc.accessory_label || acc.variant_name || 'Accessory',
-              collection: '', sqft_needed: null, num_boxes: qty,
+              product_name: parent ? (parent.product_name || parent.display_name || parent.name || acc.product_name || 'Accessory') : (acc.product_name || 'Accessory'),
+              collection: acc.collection || (parent ? parent.collection : '') || '',
+              color: acc.color || '', variant_name: acc.variant_name || '',
+              variant_type: 'accessory', accessory_label: acc.accessory_label || '',
+              sqft_needed: null, num_boxes: qty,
               unit_price: price.toFixed(2), subtotal: (price * qty).toFixed(2),
               is_sample: false, sell_by: acc.sell_by || 'unit'
             },
             extra: {
               vendor_cost: acc.cost || null, primary_image: acc.primary_image || null,
               vendor_name: parent ? (parent.brand_name || parent.vendor_name || null) : null,
-              vendor_sku: acc.vendor_sku || null,
+              vendor_sku: acc.vendor_sku || acc.internal_sku || null,
+              color: acc.color || null, variant_name: acc.variant_name || null,
+              variant_type: 'accessory', accessory_label: acc.accessory_label || null,
               retail_price: accRetail, retail_locked: !!acc.retail_locked
             }
           });
@@ -23970,7 +24056,7 @@
                       {showResults && searchResults.length > 0 && (
                         <div className="rof-search-results">
                           {searchResults.slice(0, 20).map((r, i) => {
-                            const rSuffix = (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft');
+                            const rSuffix = skuPriceSuffix(r);
                             const rRetail = parseFloat(r.price || 0);
                             const rTrade = rofTradeUnit(rRetail, r.retail_locked, tradeDiscountFor(selectedCustomer));
                             const rDisc = rRetail > 0 && rTrade < rRetail;
@@ -23981,14 +24067,11 @@
                                 : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: r.collection }), 50), flexShrink: 0 }} />
                               }
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <div className="rof-search-item-name">
-                                  {r.collection || r.product_name}
-                                  {r.color ? ' — ' + r.color : ''}
-                                  {r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
-                                </div>
+                                {formatLineItem(r).brand && <div className="rof-search-item-sub">{formatLineItem(r).brand}</div>}
+                                <div className="rof-search-item-name">{formatLineItem(r).name}</div>
                                 <div className="rof-search-item-sub">
-                                  {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
-                                  {rRetail > 0 && ' · '}
+                                  {formatLineItem(r).sku}
+                                  {rRetail > 0 && '  ·  '}
                                   {rRetail > 0 && rDisc && <span style={{ textDecoration: 'line-through', color: '#8a7e68' }}>${rRetail.toFixed(2)}</span>}
                                   {rRetail > 0 && <span style={{ color: rDisc ? '#a87935' : undefined }}>{rDisc ? ' ' : ''}${rTrade.toFixed(2)}{rSuffix}</span>}
                                 </div>
@@ -24084,12 +24167,12 @@
                   const isEditingQty = editingCell && editingCell.idx === idx && editingCell.field === 'qty';
                   const isEditingPrice = editingCell && editingCell.idx === idx && editingCell.field === 'price';
                   const isEditingCost = editingCell && editingCell.idx === idx && editingCell.field === 'cost';
+                  const fli = formatLineItem(item);
+                  const brandBit = isCustom ? '' : fli.brand;
                   const metaBits = [
-                    isCustom ? 'Custom' : null,
-                    item.vendor_name || item.custom_vendor || null,
-                    item.vendor_sku || null,
+                    isCustom ? 'Custom' : (fli.sku || null),
                     (item.sell_by !== 'unit' && item.sell_by !== 'piece' && item.sqft_needed) ? parseFloat(item.sqft_needed).toFixed(1) + ' sqft' : null,
-                  ].filter(Boolean).join(' · ');
+                  ].filter(Boolean).join('  ·  ');
                   return (
                     <div key={item.id || item._temp_id || idx} className={'rof-item-row' + (showCost ? '' : ' rof-nocost')}>
                       <div className="rof-item-swatch">
@@ -24099,6 +24182,7 @@
                         }
                       </div>
                       <div className="rof-item-info">
+                        {brandBit && <div className="rof-item-meta">{brandBit}</div>}
                         {!isReadonly && isCustom ? (
                           <div style={{ display: 'grid', gap: 3 }}>
                             <input type="text" value={item.product_name || ''}
@@ -24111,11 +24195,7 @@
                               style={{ width: '100%', padding: '0.2rem 0.4rem', border: '0.5px solid rgba(28,25,23,0.12)', background: 'transparent', font: '400 0.6875rem/1.3 Inter, sans-serif', color: '#8a7e68', boxSizing: 'border-box' }} />
                           </div>
                         ) : (
-                          <div className="rof-item-name">
-                            {item.collection || item.current_collection || item.product_name || '—'}
-                            {item.color ? ' ' + item.color : ''}
-                            {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
-                          </div>
+                          <div className="rof-item-name">{fli.name}</div>
                         )}
                         {metaBits && <div className="rof-item-meta">{metaBits}</div>}
                       </div>
@@ -25341,6 +25421,8 @@
               product_name: r.product_name,
               collection: r.collection,
               variant_name: r.variant_name,
+              variant_type: r.variant_type,
+              accessory_label: r.accessory_label,
               color: r.color,
               vendor_name: r.vendor_name,
               vendor_sku: r.vendor_sku,
@@ -25369,10 +25451,6 @@
         const price = tradeUnit(retail, sku.retail_locked, tradeDiscountFor(selectedCustomer));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
         const sellBy = isCarpet ? 'roll' : (sku.sell_by || 'box');
-        const descParts = [sku.color, sku.variant_name && sku.variant_name !== sku.color ? sku.variant_name : null].filter(Boolean).join(' · ');
-        const productName = sku.collection
-          ? (descParts ? sku.collection + ' — ' + descParts : sku.collection)
-          : sku.product_name;
         const numBoxes = 1;
         const sqftNeeded = isCarpet ? 9 : (sqftPerBox || 0);
         const ovFactor = overageEnabled ? 1.10 : 1;
@@ -25383,8 +25461,14 @@
         const newItem = {
           item_type: 'material',
           sku_id: sku.sku_id,
-          product_name: productName,
+          product_name: sku.product_name || '',
           collection: sku.collection || '',
+          color: sku.color || '',
+          variant_name: sku.variant_name || '',
+          variant_type: sku.variant_type || '',
+          accessory_label: sku.accessory_label || '',
+          vendor_name: sku.vendor_name || null,
+          vendor_sku: sku.vendor_sku || sku.internal_sku || null,
           sqft_needed: sqftNeeded,
           num_boxes: numBoxes,
           unit_price: price.toFixed(2),
@@ -25413,6 +25497,9 @@
             if (result.item.vendor_sku == null) result.item.vendor_sku = sku.vendor_sku || null;
             if (result.item.color == null) result.item.color = sku.color || null;
             if (result.item.collection == null) result.item.collection = sku.collection || null;
+            if (result.item.variant_name == null) result.item.variant_name = sku.variant_name || null;
+            if (result.item.variant_type == null) result.item.variant_type = sku.variant_type || null;
+            if (result.item.accessory_label == null) result.item.accessory_label = sku.accessory_label || null;
             setItems(prev => [...prev, result.item]);
             if (result.estimate) setEstimate(result.estimate);
           }
@@ -25434,10 +25521,7 @@
           const price = tradeUnit(retail, p.retail_locked, discount);
           const sqftPerBox = parseFloat(p.sqft_per_box || 0);
           const sellBy = isCarpet ? 'roll' : (p.sell_by || 'box');
-          const baseName = p.display_name || p.name || p.product_name || '';
-          const productName = p.collection
-            ? (p.variant_name ? p.collection + ' — ' + p.variant_name : p.collection)
-            : baseName;
+          const productName = p.display_name || p.name || p.product_name || '';
           const sqftNeeded = isCarpet ? 9 * qty : sqftPerBox * qty;
           const sub = isCarpet ? price * (sqftNeeded / 9) * ovFactor
             : (sellBy === 'unit' || sellBy === 'piece') ? price * qty
@@ -25451,23 +25535,31 @@
               area_id: targetAreaId
             },
             extra: { _sqft_per_box: sqftPerBox, vendor_cost: p.cost || null, primary_image: p.primary_image || null,
-              vendor_name: p.vendor_name || p.brand_name || null, vendor_sku: p.vendor_sku || null,
+              vendor_name: p.vendor_name || p.brand_name || null, vendor_sku: p.vendor_sku || p.internal_sku || null,
               color: p.color || null, variant_name: p.variant_name || null,
+              variant_type: p.variant_type || null, accessory_label: p.accessory_label || null,
               retail_price: retail, retail_locked: !!p.retail_locked }
           });
         }
-        for (const { acc, qty } of accessories) {
+        for (const { acc, parent, qty } of accessories) {
           const accRetail = parseFloat(acc.retail_price || 0);
           const price = tradeUnit(accRetail, acc.retail_locked, discount);
           toAdd.push({
             item: {
               item_type: 'material', sku_id: acc.sku_id, product_id: acc.product_id || null,
-              product_name: acc.accessory_label || acc.variant_name || 'Accessory',
-              collection: '', sqft_needed: null, num_boxes: qty,
+              product_name: parent ? (parent.product_name || parent.display_name || parent.name || acc.product_name || 'Accessory') : (acc.product_name || 'Accessory'),
+              collection: acc.collection || (parent ? parent.collection : '') || '',
+              color: acc.color || '', variant_name: acc.variant_name || '',
+              variant_type: 'accessory', accessory_label: acc.accessory_label || '',
+              sqft_needed: null, num_boxes: qty,
               unit_price: price.toFixed(2), subtotal: (price * qty).toFixed(2), sell_by: acc.sell_by || 'unit',
               area_id: targetAreaId
             },
             extra: { vendor_cost: acc.cost || null, primary_image: acc.primary_image || null,
+              vendor_name: parent ? (parent.vendor_name || parent.brand_name || null) : (acc.vendor_name || null),
+              vendor_sku: acc.vendor_sku || acc.internal_sku || null,
+              color: acc.color || null, variant_name: acc.variant_name || null,
+              variant_type: 'accessory', accessory_label: acc.accessory_label || null,
               retail_price: accRetail, retail_locked: !!acc.retail_locked }
           });
         }
@@ -25943,11 +26035,12 @@
         const unitLabel = isUnit
           ? (item.sell_by === 'piece' ? ('pc' + (nb > 1 ? 's' : '')) : ('unit' + (nb > 1 ? 's' : '')))
           : ('box' + (nb > 1 ? 'es' : ''));
+        const fli = formatLineItem(item);
+        const brandBit = isCustom ? '' : fli.brand;
         const metaBits = [
-          isCustom ? 'Custom' : (item.vendor_name || 'Roma'),
-          (!isCustom && item.vendor_sku) ? 'SKU ' + item.vendor_sku : null,
+          isCustom ? 'Custom' : (fli.sku || 'Roma'),
           (!isCustom && item.category_name) ? item.category_name : null,
-        ].filter(Boolean).join(' · ');
+        ].filter(Boolean).join('  ·  ');
         return (
           <div key={item.id} className={'rof-item-row' + (showCost ? '' : ' rof-nocost')}>
             <div className="rof-item-swatch">
@@ -25957,11 +26050,8 @@
               }
             </div>
             <div className="rof-item-info">
-              <div className="rof-item-name">
-                {item.collection || item.current_collection || item.product_name || '—'}
-                {item.color ? ' ' + item.color : ''}
-                {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
-              </div>
+              {brandBit && <div className="rof-item-meta">{brandBit}</div>}
+              <div className="rof-item-name">{fli.name}</div>
               <div className="rof-item-meta" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: 2 }}>
                 {metaBits && <span>{metaBits}</span>}
                 {moveSelect(item)}
@@ -26060,7 +26150,7 @@
             {showResults && searchResults.length > 0 && (
               <div className="rof-search-results">
                 {searchResults.slice(0, 20).map((r, i) => {
-                  const rSuffix = (r.sell_by === 'unit' ? '/ea' : r.price_basis === 'per_sqyd' ? '/sqyd' : '/sqft');
+                  const rSuffix = skuPriceSuffix(r);
                   const rRetail = parseFloat(r.price || 0);
                   const rTrade = rofTradeUnit(rRetail, r.retail_locked, tradeDiscountFor(selectedCustomer));
                   const rDisc = rRetail > 0 && rTrade < rRetail;
@@ -28433,7 +28523,7 @@
                                 }
                                 <div className="sku-info">
                                   <div className="sku-name">{r.product_name}{r.color ? ' — ' + r.color : ''}{r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}</div>
-                                  <div className="product-meta">{r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}{r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + '/' + (r.sell_by === 'unit' ? 'ea' : 'sqft') : ''}</div>
+                                  <div className="product-meta">{r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}{r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + skuPriceSuffix(r) : ''}</div>
                                 </div>
                               </div>
                             ))}
@@ -28500,7 +28590,9 @@
                   return (
                     <div key={item.id} style={{ padding: '14px 20px', display: 'grid', gridTemplateColumns: editable ? '1fr 100px 56px 84px 80px 22px' : '1fr 100px 56px 84px 80px', gap: 8, alignItems: 'center', borderBottom: i < items.length - 1 ? '0.5px solid ' + INK + '11' : 'none' }}>
                       <div>
-                        <div style={{ font: '400 13px/1.3 Inter, sans-serif', color: INK }}>{item.product_name}</div>
+                        {formatLineItem(item).brand && <div style={{ ...monoLabel, fontSize: 9, marginBottom: 2 }}>{formatLineItem(item).brand}</div>}
+                        <div style={{ font: '400 13px/1.3 Inter, sans-serif', color: INK }}>{formatLineItem(item).name}</div>
+                        {formatLineItem(item).sku && <div style={{ ...monoLabel, fontSize: 9, marginTop: 2 }}>{formatLineItem(item).sku}</div>}
                         {item.description && <div style={{ ...monoLabel, fontSize: 9, marginTop: 2 }}>{item.description}</div>}
                         {editable ? (
                           <input type="text" defaultValue={item.dye_lot || ''} placeholder="Dye lot"
@@ -28563,7 +28655,7 @@
                     return (
                       <div key={item.id} style={{ padding: '13px 20px', display: 'grid', gridTemplateColumns: '1fr 120px 110px', gap: 14, alignItems: 'center', borderBottom: i < items.length - 1 ? '0.5px solid ' + INK + '11' : 'none' }}>
                         <div>
-                          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, lineHeight: 1.3, color: INK }}>{item.product_name}</div>
+                          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 13, lineHeight: 1.3, color: INK }}>{formatLineItem(item).name || item.product_name}</div>
                           <div style={{ height: 4, background: INK + '14', marginTop: 8, position: 'relative' }}>
                             <div style={{ position: 'absolute', inset: 0, right: isReceived ? 0 : '100%', background: isReceived ? GREEN : AMBER }} />
                           </div>

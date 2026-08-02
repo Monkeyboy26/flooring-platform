@@ -1,5 +1,6 @@
 import { emailShell, heroSection, section, sectionLabel, ctaButton, detailList, money, T, SERIF, SANS, MONO, esc } from './_shell.js';
 import { SITE_URL } from './_config.js';
+import { composeItemName } from '../lib/documents.js';
 
 export function generateOrderConfirmationHTML(orderData) {
   const {
@@ -17,8 +18,10 @@ export function generateOrderConfirmationHTML(orderData) {
 
   const itemRows = items.map((item, i) => {
     const isSample = item.is_sample;
-    const name = esc(item.product_name || 'Product');
-    const collection = item.collection ? esc(item.collection) : '';
+    const composed = composeItemName(item);
+    const name = esc(composed.nameLine || item.product_name || 'Product');
+    const brand = composed.vendor ? esc(composed.vendor) : '';
+    const skuText = composed.sku ? esc(composed.sku) : '';
     const isLabor = (item.item_type || 'material') === 'labor';
     const qty = isLabor
       ? (item.rate_type === 'per_sqft' ? `${parseFloat(item.labor_sqft || 0).toFixed(0)} sqft` : 'Service')
@@ -32,8 +35,9 @@ export function generateOrderConfirmationHTML(orderData) {
 
     return `<tr>
       <td style="padding:14px 14px 14px 0;${i < items.length - 1 ? `border-bottom:1px solid ${T.border};` : ''}">
-        ${collection ? `<p style="margin:0 0 3px;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">${collection}</p>` : ''}
+        ${brand ? `<p style="margin:0 0 3px;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">${brand}</p>` : ''}
         <p style="margin:0;font-family:${SERIF};font-size:17px;line-height:1.2;letter-spacing:-0.01em;color:${T.ink};">${name}${sampleBadge}</p>
+        ${skuText ? `<p style="margin:3px 0 0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">${skuText}</p>` : ''}
         <p style="margin:4px 0 0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">${qty}</p>
       </td>
       <td align="right" valign="middle" style="padding:14px 0;${i < items.length - 1 ? `border-bottom:1px solid ${T.border};` : ''}font-family:${SERIF};font-size:20px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};white-space:nowrap;">${price}</td>
@@ -59,16 +63,22 @@ export function generateOrderConfirmationHTML(orderData) {
     { label: isPickup ? 'Pickup at' : 'Ships to', value: addressValue }
   ]);
 
-  const shippingTotal = parseFloat(shipping || 0) + parseFloat(sample_shipping || 0);
+  // Product freight is not charged at order time — a rep quotes it after the order
+  // and bills it separately. Only pickup ($0) and sample shipping affect the paid total.
+  const freightValue = isPickup ? 'Free' : 'Quoted separately';
   const totalsSection = `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
       <tr>
         <td style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.body};">Subtotal</td>
         <td align="right" style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.ink};">${money(subtotal)}</td>
       </tr>
+      ${parseFloat(sample_shipping || 0) > 0 ? `<tr>
+        <td style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.body};">Sample shipping</td>
+        <td align="right" style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.ink};">${money(sample_shipping)}</td>
+      </tr>` : ''}
       <tr>
-        <td style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.body};">Shipping</td>
-        <td align="right" style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.ink};">${shippingTotal > 0 ? money(shippingTotal) : 'Free'}</td>
+        <td style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.body};">${isPickup ? 'Pickup' : 'Freight'}</td>
+        <td align="right" style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.ink};">${freightValue}</td>
       </tr>
       <tr>
         <td style="padding:12px 0 0;border-top:2px solid ${T.ink};font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.ink};">Total</td>
@@ -84,7 +94,7 @@ export function generateOrderConfirmationHTML(orderData) {
       ]
     : [
         { d: 'Now', t: 'Order confirmed', s: 'Our team is pulling your materials.' },
-        { d: 'Next', t: 'Shipping notification', s: 'You’ll get tracking the moment it leaves the warehouse.' },
+        { d: 'Next', t: 'Freight quote', s: 'We’ll email your shipping cost to approve and pay before delivery.' },
         { d: 'Then', t: 'Inspect on arrival', s: 'Check the boxes and report any damage within 48 hours.' }
       ];
 

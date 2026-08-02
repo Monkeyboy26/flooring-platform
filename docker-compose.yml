@@ -5,6 +5,10 @@ services:
     image: postgres:14-alpine
     container_name: flooring-db
     restart: unless-stopped
+    # Postgres uses /dev/shm for parallel-query shared memory; Docker's 64MB default
+    # is too small for this app's large joins (invoice PDFs, 56k-SKU catalog) and
+    # throws "could not resize shared memory segment ... No space left on device".
+    shm_size: 256mb
     environment:
       POSTGRES_DB: ${DB_NAME:-flooring_pim}
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -112,6 +116,8 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@romaflooringdesigns.com}
+      NOREPLY_FROM: ${NOREPLY_FROM:-}
+      SALES_FROM: ${SALES_FROM:-}
     ports:
       - "127.0.0.1:3001:3001"
     depends_on:
