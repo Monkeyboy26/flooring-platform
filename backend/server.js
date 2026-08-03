@@ -15946,14 +15946,27 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
 
         const sku = skuResult.rows[0];
         const numBoxes = parseInt(item.num_boxes) || 1;
-        const retailUnit = parseFloat(sku.retail_price || 0);
+        const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
+        const sqftNeeded = sqftPerBox > 0 ? sqftPerBox * numBoxes : null;
+        // Per-sqft slab sold as a unit with no coverage: the rep entered the slab's
+        // size at line level; that area converts the SKU's per-sqft retail AND cost
+        // into per-slab figures. [[slab-size-entry]]
+        const slabSqft = parseFloat(item.slab_sqft) || 0;
+        const isPerSqftSlab = (sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft')
+          && (sku.sell_by === 'unit' || sku.sell_by === 'piece') && !(sqftPerBox > 0) && slabSqft > 0;
+        const retailUnit = isPerSqftSlab
+          ? parseFloat(sku.retail_price || 0) * slabSqft
+          : parseFloat(sku.retail_price || 0);
         const unitPrice = tradeDiscount > 0
           ? retailUnit * (1 - effTradeDiscount(tradeDiscount, sku.retail_locked) / 100)
           : retailUnit;
-        const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
-        const sqftNeeded = sqftPerBox > 0 ? sqftPerBox * numBoxes : null;
+        const lineCost = isPerSqftSlab
+          ? parseFloat(sku.cost || 0) * slabSqft
+          : parseFloat(sku.cost || 0);
         let subtotal;
-        if (sku.price_basis === 'per_sqyd' && sqftNeeded) {
+        if (isPerSqftSlab) {
+          subtotal = unitPrice * numBoxes;
+        } else if (sku.price_basis === 'per_sqyd' && sqftNeeded) {
           subtotal = unitPrice * (sqftNeeded / 9);
         } else if ((sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft') && sqftNeeded) {
           subtotal = unitPrice * sqftNeeded;
@@ -15976,6 +15989,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
           unit_price: unitPrice,
           subtotal,
           sell_by: sku.sell_by,
+          cost: lineCost,
           is_sample: sku.is_sample || false
         });
       } else if (item.product_name && item.unit_price != null) {

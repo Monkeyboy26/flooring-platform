@@ -6429,7 +6429,8 @@
       const basis = row.price_basis;
       const soldPerUnit = row.sell_by ? row.sell_by === 'unit' : basis === 'per_unit';
       if (soldPerUnit) {
-        if ((basis === 'sqft' || basis === 'per_sqft') && !(parseFloat(row.sqft_per_box) > 0)) return '/sqft';
+        // Once a slab has been sized (slab_sqft set), it's priced per slab → /ea.
+        if ((basis === 'sqft' || basis === 'per_sqft') && !(parseFloat(row.sqft_per_box) > 0) && !(parseFloat(row.slab_sqft) > 0)) return '/sqft';
         return '/ea';
       }
       if ((row.sell_by ? row.sell_by === 'roll' : basis === 'per_sqyd')) return '/sqyd';
@@ -12634,7 +12635,7 @@
 
           // Create the order
           const orderItems = (data.items || []).map(i => {
-            if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, sell_by: i.sell_by };
+            if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, sell_by: i.sell_by, slab_sqft: i.slab_sqft || undefined };
             return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, custom_vendor: i.custom_vendor || undefined, custom_vendor_email: i.custom_vendor_email || undefined, cost: i.cost || undefined, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
           });
 
@@ -14252,6 +14253,22 @@
       const items = data.items || [];
       const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sqft' : 'boxes';
 
+      // Slabs priced per sqft but sold as a unit with no coverage can't produce a
+      // line total (price × qty would be one square foot). Flag them so the rep can
+      // enter the slab's size at line level — that area converts the per-sqft cost
+      // AND retail into per-slab figures. [[slab-size-entry]]
+      const slabNeedsSize = (r) => (r.price_basis === 'per_sqft' || r.price_basis === 'sqft')
+        && (r.sell_by === 'unit' || r.sell_by === 'piece')
+        && !(parseFloat(r.sqft_per_box) > 0);
+      // Accept a plain sqft ("55") or slab dimensions in inches ("126x63", "132\" x 65.5\"").
+      const parseSlabSqft = (raw) => {
+        const s = String(raw == null ? '' : raw).trim();
+        const m = s.match(/([\d.]+)\s*[x×]\s*([\d.]+)/i);
+        if (m) return (parseFloat(m[1]) * parseFloat(m[2])) / 144;
+        const n = parseFloat(s);
+        return n > 0 ? n : 0;
+      };
+
       const searchSku = (q) => {
         setSkuSearch(q);
         if (skuSearchTimer.current) clearTimeout(skuSearchTimer.current);
@@ -14273,6 +14290,7 @@
       const addSkuItem = (r) => {
         const numBoxes = parseInt(addBoxes) || 1;
         const retailPrice = parseFloat(r.retail_price || 0);
+        const rawCost = parseFloat(r.vendor_cost || r.cost || 0);
         const discount = data.customer && data.customer.type === 'trade' ? parseFloat(data.customer.discount_percent || 0) : 0;
         const unitPrice = discount > 0 ? retailPrice * (1 - discount / 100) : retailPrice;
         const sqftPerBox = parseFloat(r.sqft_per_box || 0);
@@ -14280,8 +14298,10 @@
         const sellBy = r.sell_by || 'box';
         const isUnit = sellBy === 'unit' || sellBy === 'piece';
         const isCarpet = r.price_basis === 'per_sqyd';
+        const needsSlab = slabNeedsSize(r);
         let subtotal;
-        if (isUnit) subtotal = unitPrice * numBoxes;
+        if (needsSlab) subtotal = 0;                      // priced once the rep enters slab size
+        else if (isUnit) subtotal = unitPrice * numBoxes;
         else if (isCarpet && sqftNeeded) subtotal = unitPrice * (sqftNeeded / 9);
         else if (sqftNeeded) subtotal = unitPrice * sqftNeeded;
         else subtotal = unitPrice * numBoxes;
@@ -14297,8 +14317,8 @@
           vendor_id: r.vendor_id,
           vendor_name: r.vendor_name,
           vendor_sku: r.vendor_sku || r.internal_sku || '',
-          retail_price: retailPrice,
-          unit_price: unitPrice,
+          retail_price: needsSlab ? 0 : retailPrice,
+          unit_price: needsSlab ? 0 : unitPrice,
           num_boxes: numBoxes,
           subtotal,
           sqft_per_box: sqftPerBox,
@@ -14307,10 +14327,16 @@
           is_sample: false,
           sell_by: sellBy,
           price_basis: r.price_basis || null,
-          cost: parseFloat(r.vendor_cost || r.cost || 0),
+          cost: needsSlab ? 0 : rawCost,
           vendor_cost: r.vendor_cost || null,
           category_name: r.category_name || '',
-          primary_image: r.primary_image || null
+          primary_image: r.primary_image || null,
+          // Slab-size entry: per-sqft cost/retail held here until the rep enters the
+          // slab's area, which converts both to per-slab. [[slab-size-entry]]
+          _needsSlabSize: needsSlab,
+          _perSqftRetail: needsSlab ? retailPrice : null,
+          _perSqftCost: needsSlab ? rawCost : null,
+          slab_sqft: null
         };
         setData(d => ({ ...d, items: [...(d.items || []), newItem], promoResult: null, promoCode: '' }));
         setSkuSearch('');
@@ -14371,14 +14397,17 @@
           let key = Date.now();
           for (const { item: p, qty } of lines) {
             const retailPrice = parseFloat(p.price || 0);
+            const rawCost = parseFloat(p.cost || 0);
             const unitPrice = discount > 0 ? retailPrice * (1 - discount / 100) : retailPrice;
             const sqftPerBox = parseFloat(p.sqft_per_box || 0);
             const sqftNeeded = sqftPerBox ? sqftPerBox * qty : null;
             const sellBy = p.sell_by || 'box';
             const isUnit = sellBy === 'unit' || sellBy === 'piece';
             const isCarpet = p.price_basis === 'per_sqyd';
+            const needsSlab = slabNeedsSize(p);
             let subtotal;
-            if (isUnit) subtotal = unitPrice * qty;
+            if (needsSlab) subtotal = 0;
+            else if (isUnit) subtotal = unitPrice * qty;
             else if (isCarpet && sqftNeeded) subtotal = unitPrice * (sqftNeeded / 9);
             else if (sqftNeeded) subtotal = unitPrice * sqftNeeded;
             else subtotal = unitPrice * qty;
@@ -14392,8 +14421,8 @@
               vendor_id: p.vendor_id,
               vendor_name: p.brand_name || p.vendor_name,
               vendor_sku: p.vendor_sku || p.internal_sku || '',
-              retail_price: retailPrice,
-              unit_price: unitPrice,
+              retail_price: needsSlab ? 0 : retailPrice,
+              unit_price: needsSlab ? 0 : unitPrice,
               num_boxes: qty,
               subtotal,
               sqft_per_box: sqftPerBox,
@@ -14402,10 +14431,14 @@
               is_sample: false,
               sell_by: sellBy,
               price_basis: p.price_basis || null,
-              cost: parseFloat(p.cost || 0),
+              cost: needsSlab ? 0 : rawCost,
               vendor_cost: p.cost || null,
               category_name: p.category_name || '',
-              primary_image: p.primary_image || null
+              primary_image: p.primary_image || null,
+              _needsSlabSize: needsSlab,
+              _perSqftRetail: needsSlab ? retailPrice : null,
+              _perSqftCost: needsSlab ? rawCost : null,
+              slab_sqft: null
             });
           }
           for (const { acc, parent, qty } of accessories) {
@@ -14489,6 +14522,17 @@
               const cost = parseFloat(rawValue);
               if (isNaN(cost) || cost < 0) return item;
               return { ...item, cost };
+            } else if (field === 'slabsize') {
+              // Rep entered the slab's size — convert the held per-sqft cost/retail
+              // into per-slab figures, then price × qty (# slabs). [[slab-size-entry]]
+              const area = parseSlabSqft(rawValue);
+              if (!(area > 0)) return item;
+              const disc = data.customer && data.customer.type === 'trade' ? parseFloat(data.customer.discount_percent || 0) : 0;
+              const perSlabRetail = (parseFloat(item._perSqftRetail) || 0) * area;
+              const unit = disc > 0 ? perSlabRetail * (1 - disc / 100) : perSlabRetail;
+              const cost = (parseFloat(item._perSqftCost) || 0) * area;
+              return { ...item, slab_sqft: area, retail_price: perSlabRetail, unit_price: unit,
+                cost, subtotal: unit * item.num_boxes, _needsSlabSize: false };
             } else if (field === 'qty') {
               const qty = Math.max(1, Math.round(parseFloat(rawValue) || 1));
               const sqft = item.sqft_per_box ? item.sqft_per_box * qty : 0;
@@ -14704,6 +14748,24 @@
                   {item.is_custom
                     ? <div className="rof-item-meta">Custom</div>
                     : (formatLineItem(item).sku && <div className="rof-item-meta">{formatLineItem(item).sku}</div>)}
+                  {item._perSqftRetail != null && (
+                    editingKey === item._key && editField === 'slabsize' ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                        <input className="rof-edit-input" type="text" autoFocus placeholder="sq ft or 126x63"
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') commitEdit(item._key, 'slabsize', editValue); if (e.key === 'Escape') cancelEdit(); }}
+                          onBlur={() => commitEdit(item._key, 'slabsize', editValue)}
+                          style={{ width: 96 }} />
+                        <span style={{ fontSize: '0.5625rem', color: '#8a7e68' }}>@ ${parseFloat(item._perSqftRetail).toFixed(2)}/sf</span>
+                      </span>
+                    ) : (
+                      <button className="rof-edit-cell" onClick={() => startEdit(item._key, 'slabsize', item.slab_sqft ? item.slab_sqft.toFixed(1) : '')}
+                        style={{ marginTop: 4, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 7px', border: '0.5px solid ' + (item.slab_sqft ? 'rgba(28,25,23,0.2)' : 'var(--gold, #c9a668)'), color: item.slab_sqft ? '#8a7e68' : '#8a6d3b', background: item.slab_sqft ? 'transparent' : '#faf3e4' }}>
+                        {item.slab_sqft ? `Slab ${item.slab_sqft.toFixed(1)} sf · $${parseFloat(item._perSqftRetail).toFixed(2)}/sf` : '⚠ Enter slab size'}
+                      </button>
+                    )
+                  )}
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   {editingKey === item._key && editField === 'qty' ? (
