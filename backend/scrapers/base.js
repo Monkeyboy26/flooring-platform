@@ -97,6 +97,97 @@ const VALID_VARIANT_TYPES = [null, 'accessory', 'floor_tile', 'wall_tile', 'mosa
 const VALID_PRICE_BASIS = ['per_sqft', 'per_unit', 'per_sqyd', 'sqft', 'unit'];
 const VALID_ASSET_TYPES = ['primary', 'alternate', 'lifestyle', 'spec_pdf', 'swatch'];
 
+// ──────────────────────────────────────────────
+// Per-sheet selling rule (mosaics / ledger / stacked stone)
+// ──────────────────────────────────────────────
+// Business rule (confirmed by Kian, see selling-conventions): mosaics, ledger
+// panels, and stacked stone are ALWAYS sold per sheet (`sell_by='unit'`,
+// `price_basis='per_unit'`), even when the vendor packs them in boxes and quotes
+// a per-sqft price. Customers buy single sheets. Vendor EDI/pricelist feeds hand
+// us these as SF-priced boxes, so every tile scraper must funnel mosaic/stacked
+// -stone SKUs through applySheetSelling() before writing pricing.
+export const PER_SHEET_CATEGORY_SLUGS = new Set(['mosaic-tile', 'stacked-stone']);
+
+// Largest per-sqft box coverage we'll assume is a single sheet when the feed
+// gives no piece count. Real mosaic sheets top out around 2 sqft (12x24 mesh);
+// anything bigger with no piece count is a multi-sheet box of unknown count and
+// can't be safely converted to a per-sheet price.
+const SINGLE_SHEET_MAX_SQFT = 3;
+
+// Genuine trim/accessory pieces (bullnose, pencil liner, cove base, …) sell per
+// piece, never per sheet — so they're excluded from the per-sheet conversion
+// even when they land in a mosaic category. We detect them by name because
+// variant_type='accessory' is unreliable (e.g. the Emser feed tags whole mosaic
+// sheets as accessory when the manufacturer column isn't "EMSER TILE").
+export const TRIM_NAME_RE = /bullnose|pencil|liner|listell|cove\s*base|quarter\s*round|quarter-round|chair\s*rail|jolly|v-?cap|\bsbn\b|moulding|molding|stair|\btrim\b|beak|\brail\b/i;
+export function isTrimPiece(name) { return TRIM_NAME_RE.test(name || ''); }
+
+/**
+ * Derive the square footage of ONE sheet from box packaging.
+ *   - pieces_per_box > 1  → box coverage ÷ sheet count
+ *   - small box, no count → the box IS one sheet
+ *   - large box, no count → null (ambiguous; caller must not convert price)
+ */
+export function deriveSheetSqft(sqft_per_box, pieces_per_box) {
+  const sb = Number(sqft_per_box) || 0;
+  const pc = Number(pieces_per_box) || 0;
+  if (pc > 1 && sb > 0) return sb / pc;
+  if (sb > 0 && sb <= SINGLE_SHEET_MAX_SQFT) return sb;
+  return null;
+}
+
+const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+/**
+ * Enforce the per-sheet rule for a mosaic/stacked-stone SKU. Given the resolved
+ * category slug plus the vendor's per-sqft pricing + box packaging, returns the
+ * sell_by / price_basis and per-sheet-converted cost/retail/sale prices.
+ *
+ * Pass `name` (product + variant) so genuine trim pieces are excluded.
+ *
+ * Returns `{ ...unchanged, converted:false }` when the rule doesn't apply (not a
+ * per-sheet category, a trim piece, or already sold per unit) and
+ * `{ ...unchanged, converted:false, ambiguous:true }` when the sheet coverage
+ * can't be derived (so the caller leaves it as a box rather than mis-pricing).
+ */
+export function applySheetSelling({
+  categorySlug, sellBy, name,
+  sqft_per_box, pieces_per_box, cost, retail_price, sale_price,
+}) {
+  const passthrough = (extra = {}) => ({
+    sellBy, priceBasis: sellBy === 'box' ? 'per_sqft' : 'per_unit',
+    cost, retail_price, sale_price, converted: false, ...extra,
+  });
+
+  // A product is sold per sheet when it's in a per-sheet category (mosaic-tile /
+  // stacked-stone) OR its name says "mosaic" — some feeds file mosaics under a
+  // field-tile category (Daltile/THD put Marazzi & Hexagon mosaics in
+  // porcelain-tile), so the category alone under-catches. The literal word
+  // "mosaic" is used deliberately (not shape words like "herringbone") to avoid
+  // matching large-format field tile. Substring match so foreign spellings
+  // ("Mosaico", "Mosaici") and plurals are caught, mirroring the migration.
+  const isSheetProduct = PER_SHEET_CATEGORY_SLUGS.has(categorySlug) || /mosaic/i.test(name || '');
+  if (!isSheetProduct) return passthrough();
+  if (isTrimPiece(name)) return passthrough();
+  // Already per-unit (or roll) — nothing to convert, just normalize the basis.
+  if (sellBy && sellBy !== 'box') {
+    return { sellBy, priceBasis: 'per_unit', cost, retail_price, sale_price, converted: false };
+  }
+
+  const sheetSqft = deriveSheetSqft(sqft_per_box, pieces_per_box);
+  if (!sheetSqft) return passthrough({ ambiguous: true });
+
+  return {
+    sellBy: 'unit',
+    priceBasis: 'per_unit',
+    cost: cost != null ? round2(cost * sheetSqft) : cost,
+    retail_price: retail_price != null ? round2(retail_price * sheetSqft) : retail_price,
+    sale_price: sale_price != null ? round2(sale_price * sheetSqft) : sale_price,
+    converted: true,
+    sheetSqft,
+  };
+}
+
 /**
  * Validate product data before upsert. Returns { valid, warnings, cleaned }.
  * `cleaned` contains sanitized values; `warnings` lists issues that were auto-fixed.

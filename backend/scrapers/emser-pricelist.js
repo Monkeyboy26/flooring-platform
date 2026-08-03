@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import {
   upsertProduct, upsertSku, upsertPricing, upsertPackaging, upsertSkuAttribute,
-  appendLog, addJobError
+  appendLog, addJobError, applySheetSelling
 } from './base.js';
 
 /**
@@ -152,11 +152,12 @@ export async function run(pool, job, source) {
   for (let si = 0; si < series.length; si++) {
     const ser = series[si];
     const categoryId = resolveCategory(ser.material, ser.name, catMap);
+    const categorySlug = Object.keys(catMap).find(sl => catMap[sl] === categoryId) || null;
 
     for (const block of ser.sizeBlocks) {
       for (const item of block.items) {
         try {
-          await createItemSku(pool, vendorId, ser, block, item, categoryId, stats);
+          await createItemSku(pool, vendorId, ser, block, item, categoryId, categorySlug, stats);
         } catch (err) {
           stats.errors++;
           if (stats.errors <= 30) {
@@ -191,7 +192,7 @@ export async function run(pool, job, source) {
 
 // ─── Product / SKU creation ──────────────────────────────────────────────────
 
-async function createItemSku(pool, vendorId, series, block, item, categoryId, stats) {
+async function createItemSku(pool, vendorId, series, block, item, categoryId, categorySlug, stats) {
   const collection = titleCase(series.name);
   const productName = titleCase(item.color);
 
@@ -206,11 +207,19 @@ async function createItemSku(pool, vendorId, series, block, item, categoryId, st
 
   const isSqft = block.unit === 'SF';
   const sellBy = isSqft ? 'box' : 'unit';
-  const priceBasis = isSqft ? 'per_sqft' : 'per_unit';
 
   const sizeNorm = normalizeSize(block.size);
   const qualifiers = [item.finish, item.design].filter(Boolean);
   const variantName = [sizeNorm, ...qualifiers].join(', ') || sizeNorm;
+
+  const emCost = parseFloat(item.price) || 0;
+  // Mosaics / stacked stone (LEDGER) sell per sheet — convert the per-sqft price
+  // to per-sheet using the block packaging (see selling-conventions).
+  const sheet = applySheetSelling({
+    categorySlug, sellBy, name: `${collection} ${productName} ${variantName}`,
+    sqft_per_box: block.sqftPerBox, pieces_per_box: block.pcsPerBox,
+    cost: emCost, retail_price: Math.round(emCost * 2 * 100) / 100,
+  });
 
   const skuParts = [VENDOR_CODE, slugify(series.name), slugify(item.color), slugify(block.size)];
   if (item.finish) skuParts.push(slugify(item.finish));
@@ -222,16 +231,15 @@ async function createItemSku(pool, vendorId, series, block, item, categoryId, st
     vendor_sku: item.vendorSku || null,
     internal_sku: internalSku,
     variant_name: variantName,
-    sell_by: sellBy,
+    sell_by: sheet.sellBy,
     variant_type: item.section || null
   });
   if (sku.is_new) stats.skusCreated++;
 
-  const emCost = parseFloat(item.price) || 0;
   await upsertPricing(pool, sku.id, {
-    cost: emCost,
-    retail_price: Math.round(emCost * 2 * 100) / 100,
-    price_basis: priceBasis
+    cost: sheet.cost,
+    retail_price: sheet.retail_price,
+    price_basis: sheet.priceBasis
   });
   stats.pricingSet++;
 

@@ -26,7 +26,7 @@ import {
   appendLog, addJobError,
   upsertProduct, upsertSku,
   upsertSkuAttribute, upsertPackaging, upsertPricing,
-  normalizeAttributeValue,
+  normalizeAttributeValue, applySheetSelling,
 } from './base.js';
 
 // ---------------------------------------------------------------------------
@@ -673,7 +673,11 @@ function groupIntoProducts(items) {
     // profiles and Empervious shower systems) is an installation sundry or
     // hardware — classify as accessory so it stays out of the tile browse.
     const isSundry = collection !== '' && !/^EMSER TILE/i.test(collection);
-    const isAccessory = isSundry
+    // A mosaic sheet is a field product, never an installation sundry — don't let
+    // a non-"EMSER TILE" manufacturer string (isSundry) tag it as accessory.
+    // Genuine mosaic trim (bullnose/pencil/…) is still caught by the trim checks.
+    const looksMosaic = /mosaic/i.test(category) || /mosaic/i.test(item.product_name || '');
+    const isAccessory = (isSundry && !looksMosaic)
       || /accessory|sundries|trim|molding|bullnose|quarter\s*round|grout|caulk|setting\s*material|mortar|adhesive|sealant|membrane|pencil\s*liner|chair\s*rail|v-cap|mud\s*cap|jolly|schluter|elevel|\b(?:sbn|cove|og|tread|riser|skirting|shelf|corner)\b/i.test(category)
       || /accessory|sundries|trim|molding|bullnose|quarter\s*round|grout|caulk|setting\s*material|mortar|adhesive|sealant|membrane|pencil\s*liner|chair\s*rail|v-cap|mud\s*cap|jolly|schluter|elevel|\b(?:sbn|cove|og|tread|riser|skirting|shelf|corner)\b/i.test(item.product_name || '');
 
@@ -798,6 +802,13 @@ export async function run(pool, job, source) {
     if (!id) unmappedCats.set(categoryText, (unmappedCats.get(categoryText) || 0) + 1);
     return id;
   };
+  // Resolve just the canonical category slug (mosaic-tile, stacked-stone, …) so
+  // the per-sheet selling rule can be applied before writing pricing.
+  const resolveCatSlug = (categoryText) => {
+    if (!categoryText) return null;
+    if (catCache[categoryText]) return categoryText;
+    return CATEGORY_MAP[categoryText.toLowerCase().trim()] || null;
+  };
 
   // ── Step 5: Group and import ──
   const productGroups = groupIntoProducts(catalog.items);
@@ -829,6 +840,7 @@ export async function run(pool, job, source) {
    try {
     const group = productGroups[gi];
     const categoryId = resolveCatId(group.category);
+    const categorySlug = resolveCatSlug(group.category);
 
     // SKU-first product resolution: the catalog scraper renames product
     // collections (part of the (vendor, collection, name) upsert key), so an
@@ -901,12 +913,28 @@ export async function run(pool, job, source) {
         if (size) variantName = `${variantName} ${size}`;
       }
 
+      // Pricing — always create a row so downstream scrapers can UPDATE
+      // without hitting the retail_price NOT NULL constraint.
+      const cost = item.cost || 0;
+      // If retail == cost (Emser 832 often has single price tier), apply 2x markup
+      const retail = (item.retail_price && item.retail_price !== cost)
+        ? item.retail_price
+        : Math.round(cost * 2 * 100) / 100;
+      // Mosaics / stacked stone sell per sheet, not by the box — convert the
+      // per-sqft price to a per-sheet price using the box packaging (see
+      // selling-conventions). Ambiguous boxes (no piece count) stay as-is.
+      const sheet = applySheetSelling({
+        categorySlug, sellBy, name: `${group.baseName} ${variantName || ''}`,
+        sqft_per_box: item.sqft_per_box, pieces_per_box: item.pieces_per_box,
+        cost, retail_price: retail,
+      });
+
       const skuRow = await upsertSku(pool, {
         product_id: productId,
         vendor_sku: vendorSku,
         internal_sku: internalSku,
         variant_name: variantName,
-        sell_by: sellBy,
+        sell_by: sheet.sellBy,
         variant_type: variantType,
       });
       const skuId = skuRow.id;
@@ -918,18 +946,10 @@ export async function run(pool, job, source) {
         [skuId]
       );
 
-      // Pricing — always create a row so downstream scrapers can UPDATE
-      // without hitting the retail_price NOT NULL constraint.
-      const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
-      const cost = item.cost || 0;
-      // If retail == cost (Emser 832 often has single price tier), apply 2x markup
-      const retail = (item.retail_price && item.retail_price !== cost)
-        ? item.retail_price
-        : Math.round(cost * 2 * 100) / 100;
       await upsertPricing(pool, skuId, {
-        cost,
-        retail_price: retail,
-        price_basis: priceBasis,
+        cost: sheet.cost,
+        retail_price: sheet.retail_price,
+        price_basis: sheet.priceBasis,
         cut_price: item.cut_price || null,
         roll_price: item.roll_price || null,
         cut_cost: item.cut_cost || null,

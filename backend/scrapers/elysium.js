@@ -4,7 +4,7 @@ import {
   upsertInventorySnapshot,
   appendLog, addJobError, upsertMediaAsset,
   buildVariantName, isLifestyleUrl,
-  saveSkuImages, saveProductImages,
+  saveSkuImages, saveProductImages, applySheetSelling,
 } from './base.js';
 import { elysiumLogin, elysiumFetch, BASE_URL } from './elysium-auth.js';
 
@@ -678,12 +678,22 @@ export async function run(pool, job, source) {
           : buildVariantName(entry.size, finish, mosaicLabel);
         const sellBy = detail.soldBy || (mosaicLabel ? 'unit' : 'box');
 
+        // Mosaics / stacked stone sell per sheet — convert the per-sqft price to
+        // per-sheet from packaging (see selling-conventions). Catches mosaics the
+        // mosaicLabel parser missed (e.g. "Mosaico"). Only touches converted rows.
+        const _elyCost = detail.pricing.price || null;
+        const sheet = applySheetSelling({
+          categorySlug, sellBy, name: `${productName} ${variantName}`,
+          sqft_per_box: detail.packaging.sqftPerBox, pieces_per_box: detail.packaging.piecesPerBox,
+          cost: _elyCost, retail_price: _elyCost != null ? Math.round(_elyCost * 2 * 100) / 100 : null,
+        });
+
         const sku = await upsertSku(pool, {
           product_id: product.id,
           vendor_sku: itemCode || null,
           internal_sku: internalSku,
           variant_name: variantName,
-          sell_by: sellBy,
+          sell_by: sheet.sellBy,
           variant_type: accessoryKeyword ? 'accessory' : null,
         });
         if (sku.is_new) stats.skusCreated++;
@@ -699,9 +709,9 @@ export async function run(pool, job, source) {
         // ── Always: pricing + inventory ──
         if (detail.pricing.price) {
           await upsertPricing(pool, sku.id, {
-            cost: detail.pricing.price,
-            retail_price: Math.round(detail.pricing.price * 2 * 100) / 100,
-            price_basis: detail.pricing.per === 'sqft' ? 'per_sqft' : 'per_unit',
+            cost: sheet.converted ? sheet.cost : detail.pricing.price,
+            retail_price: sheet.converted ? sheet.retail_price : Math.round(detail.pricing.price * 2 * 100) / 100,
+            price_basis: sheet.converted ? 'per_unit' : (detail.pricing.per === 'sqft' ? 'per_sqft' : 'per_unit'),
           });
           stats.priced++;
         }

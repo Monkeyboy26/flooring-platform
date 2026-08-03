@@ -29,7 +29,7 @@ import {
   appendLog, addJobError,
   upsertProduct, upsertSku,
   upsertSkuAttribute, upsertPackaging, upsertPricing,
-  upsertMediaAsset,
+  upsertMediaAsset, applySheetSelling,
 } from './base.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -787,6 +787,7 @@ async function processProduct(pool, ctx) {
 
   // Resolve category per-product from SKU-level productType/bodyType
   const categoryId = resolveProductCategory(colorData.skus || [], seriesName, catMap);
+  const categorySlug = Object.keys(catMap).find(sl => catMap[sl] === categoryId) || null;
 
   // Upsert product: conflict key is (vendor_id, collection, name)
   const productRow = await upsertProduct(pool, {
@@ -857,6 +858,46 @@ async function processProduct(pool, ctx) {
     } else {
       stats.ediMisses++;
     }
+
+    // ── Pricing (from EDI) — computed BEFORE the SKU upsert so the per-sheet
+    // rule for mosaics / stacked stone can also drive sell_by. ──
+    let priceCost = null, priceRetail = null;
+    if (ediItem && (ediItem.cost || ediItem.retail_price)) {
+      let cost = parseFloat(ediItem.cost) || 0;
+      let retail = parseFloat(ediItem.retail_price) || 0;
+      // When EDI has no list price (ST), retail_price = cost (0% margin).
+      // Apply markup to derive a retail price from cost.
+      if (!retail || (cost > 0 && Math.abs(retail - cost) < 0.01)) {
+        retail = retailFromCost(cost);
+      }
+      // Detect per-piece prices mislabeled as per-sqft: if sell_by is box, price > $30,
+      // and no sqft_per_box to trigger the 832 parser's detection, compute sqft from tile dims
+      if (sellBy === 'box' && cost > 30 && !ediItem.sqft_per_box) {
+        const sizeMatch = (sku.size || '').match(/^(\d+)X(\d+)$/i);
+        if (sizeMatch) {
+          const sqftPerPiece = (parseInt(sizeMatch[1]) * parseInt(sizeMatch[2])) / 144;
+          if (sqftPerPiece >= 1) {
+            const adjCost = cost / sqftPerPiece;
+            if (adjCost >= 2 && adjCost <= 50) {
+              cost = parseFloat(adjCost.toFixed(2));
+              retail = parseFloat((retail / sqftPerPiece).toFixed(2));
+            }
+          }
+        }
+      }
+      priceCost = cost;
+      priceRetail = retail;
+    }
+
+    // Mosaics / stacked stone sell per sheet, not by the box — convert the
+    // per-sqft price to a per-sheet price from EDI packaging (see
+    // selling-conventions). Ambiguous boxes (no piece count) stay as boxes.
+    const sheet = applySheetSelling({
+      categorySlug, sellBy, name: `${seriesName} ${colorName} ${variantName}`,
+      sqft_per_box: ediItem?.sqft_per_box, pieces_per_box: ediItem?.pieces_per_box,
+      cost: priceCost, retail_price: priceRetail,
+    });
+    sellBy = sheet.sellBy;
 
     // Upsert SKU
     const skuRow = await upsertSku(pool, {
@@ -939,38 +980,13 @@ async function processProduct(pool, ctx) {
       stats.attributesSet++;
     }
 
-    // ── Pricing (from EDI) ──
-    if (ediItem && (ediItem.cost || ediItem.retail_price)) {
-      let cost = parseFloat(ediItem.cost) || 0;
-      let retail = parseFloat(ediItem.retail_price) || 0;
-      // When EDI has no list price (ST), retail_price = cost (0% margin).
-      // Apply markup to derive a retail price from cost.
-      if (!retail || (cost > 0 && Math.abs(retail - cost) < 0.01)) {
-        retail = retailFromCost(cost);
-      }
-      const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
-
-      // Detect per-piece prices mislabeled as per-sqft: if sell_by is box, price > $30,
-      // and no sqft_per_box to trigger the 832 parser's detection, compute sqft from tile dims
-      if (sellBy === 'box' && cost > 30 && !ediItem.sqft_per_box) {
-        const sizeMatch = (sku.size || '').match(/^(\d+)X(\d+)$/i);
-        if (sizeMatch) {
-          const sqftPerPiece = (parseInt(sizeMatch[1]) * parseInt(sizeMatch[2])) / 144;
-          if (sqftPerPiece >= 1) {
-            const adjCost = cost / sqftPerPiece;
-            if (adjCost >= 2 && adjCost <= 50) {
-              cost = parseFloat(adjCost.toFixed(2));
-              retail = parseFloat((retail / sqftPerPiece).toFixed(2));
-            }
-          }
-        }
-      }
-
+    // ── Pricing (computed above, converted to per-sheet where applicable) ──
+    if (priceCost !== null || priceRetail !== null) {
       await upsertPricing(pool, skuId, {
-        cost,
-        retail_price: retail,
-        price_basis: priceBasis,
-        map_price: ediItem.map_price || null,
+        cost: sheet.cost,
+        retail_price: sheet.retail_price,
+        price_basis: sheet.priceBasis,
+        map_price: ediItem?.map_price || null,
       });
       stats.pricingSet++;
     }

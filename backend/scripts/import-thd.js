@@ -25,6 +25,7 @@ import pg from 'pg';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { applySheetSelling } from '../scrapers/base.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -794,6 +795,21 @@ async function run() {
         const variantType = trimItem ? 'accessory' : null;
         const status = pdf ? pdf.status : 'active';
 
+        // Mosaics / stacked stone sell per sheet, not by the box — convert the
+        // per-sqft PDF price to a per-sheet price using the box packaging
+        // (sfBox = box coverage, eaBx = sheets per box). See selling-conventions.
+        // THD files many mosaics under porcelain-tile, so the name (…"Mosaic")
+        // is what triggers the rule for those; ledger uses the category.
+        const categorySlug = group.categoryId === CAT.mosaic ? 'mosaic-tile'
+          : group.categoryId === CAT.stackedStone ? 'stacked-stone' : null;
+        const sheet = applySheetSelling({
+          categorySlug, sellBy, name: `${group.productName} ${variantName}`,
+          sqft_per_box: pdf ? pdf.sfBox : null, pieces_per_box: pdf ? pdf.eaBx : null,
+          cost: pdf && pdf.price ? pdf.price : null,
+          retail_price: pdf && pdf.price ? pdf.price * MARKUP : null,
+        });
+        sellBy = sheet.sellBy;
+
         const skuRes = await client.query(`
           INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type, status)
           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7)
@@ -807,11 +823,11 @@ async function run() {
         processedSkuIds.add(skuId);
         if (trimItem) totalTrimSkus++; else totalSkus++;
 
-        // ── Pricing (from PDF) ──
+        // ── Pricing (from PDF, per-sheet-adjusted above) ──
         if (pdf && pdf.price) {
-          const cost = pdf.price.toFixed(2);
-          const retail = (pdf.price * MARKUP).toFixed(2);
-          const priceBasis = sellBy === 'unit' ? 'unit' : 'sqft';
+          const cost = sheet.cost.toFixed(2);
+          const retail = sheet.retail_price.toFixed(2);
+          const priceBasis = sheet.priceBasis === 'per_unit' ? 'unit' : 'sqft';
           await client.query(`
             INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
             VALUES ($1, $2, $3, $4)

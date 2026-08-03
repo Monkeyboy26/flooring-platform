@@ -34,7 +34,7 @@ import {
   upsertPackaging, upsertPricing,
   upsertMediaAsset, saveSkuImages,
   preferProductShot, isLifestyleUrl, filterImageUrls, filterImagesByVariant,
-  appendLog, addJobError,
+  appendLog, addJobError, applySheetSelling,
 } from './base.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -982,6 +982,10 @@ async function phase2_edi832(pool, vendorId, source, log) {
       if (sundrySlug && catCache[sundrySlug]) categoryId = catCache[sundrySlug];
     }
 
+    // Final canonical slug after all the overrides above — drives the per-sheet
+    // selling rule for mosaics / stacked stone.
+    const categorySlug = Object.keys(catCache).find(sl => catCache[sl] === categoryId) || null;
+
     const productRow = await upsertProduct(pool, {
       vendor_id: vendorId,
       name: group.baseName,
@@ -1000,10 +1004,21 @@ async function phase2_edi832(pool, vendorId, source, log) {
       const variantType = isItemAccessory ? 'accessory' : null;
       const variantName = buildVariantName(item, isItemAccessory);
 
+      // Mosaics / stacked stone sell per sheet — convert the per-sqft price to a
+      // per-sheet price from box packaging (see selling-conventions). Ambiguous
+      // boxes (no piece count) stay as boxes.
+      const _cost = item.cost || 0;
+      const _retail = item.retail_price || Math.round(_cost * 2 * 100) / 100;
+      const sheet = applySheetSelling({
+        categorySlug, sellBy, name: `${group.baseName} ${variantName || ''}`,
+        sqft_per_box: item.sqft_per_box, pieces_per_box: item.pieces_per_box,
+        cost: _cost, retail_price: _retail,
+      });
+
       const skuRow = await upsertSku(pool, {
         product_id: productId, vendor_sku: vendorSku,
         internal_sku: internalSku, variant_name: variantName,
-        sell_by: sellBy, variant_type: variantType,
+        sell_by: sheet.sellBy, variant_type: variantType,
       });
       const skuId = skuRow.id;
       if (skuRow.is_new) skusCreated++; else skusUpdated++;
@@ -1017,17 +1032,16 @@ async function phase2_edi832(pool, vendorId, source, log) {
       skuIndex.set(internalSku, {
         sku_id: skuId, product_id: productId, vendor_sku: vendorSku,
         collection: group.collection, product_name: group.baseName,
-        category: group.category, color: item.color, sell_by: sellBy,
+        category: group.category, color: item.color, sell_by: sheet.sellBy,
         size: _skuSize, variant_type: variantType,
       });
 
       // Pricing
       if (item.cost || item.retail_price) {
-        const priceBasis = sellBy === 'box' ? 'per_sqft' : 'per_unit';
         await upsertPricing(pool, skuId, {
-          cost: item.cost || 0,
-          retail_price: item.retail_price || Math.round((item.cost || 0) * 2 * 100) / 100,
-          price_basis: priceBasis,
+          cost: sheet.cost,
+          retail_price: sheet.retail_price,
+          price_basis: sheet.priceBasis,
           map_price: item.map_price || null,
         });
         pricingUpserted++;
