@@ -21,6 +21,147 @@ export function itemDescriptionCell(collection, color, variant) {
   return html;
 }
 
+function escDoc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Canonical price-unit suffix for document tables — mirrors the storefront's
+ * priceSuffix() (/sqft rendered as the PDF-style "/sf"). Slabs sold as a unit
+ * but priced per sqft with no known box area show "/sf" since a piece price
+ * can't be computed; carpet (roll / per_sqyd) shows "/sqyd"; everything else
+ * follows sell_by. Requires the item query to carry price_basis + sqft_per_box.
+ */
+function priceUnitSuffix(i) {
+  i = i || {};
+  const basis = i.price_basis;
+  const soldPerUnit = i.sell_by ? (i.sell_by === 'unit' || i.sell_by === 'piece') : basis === 'per_unit';
+  if (soldPerUnit) {
+    if ((basis === 'sqft' || basis === 'per_sqft') && !(parseFloat(i.sqft_per_box) > 0)) return '/sf';
+    return '/ea';
+  }
+  if (i.sell_by ? i.sell_by === 'roll' : basis === 'per_sqyd') return '/sqyd';
+  return '/sf';
+}
+
+/**
+ * The distinguishing tail of a product_name once the collection prefix and color
+ * are removed — typically the size (+ finish), e.g. product_name "Ecoslate 24x48"
+ * / collection "Ecoslate" / color "White" → "24x48"; "Marmi Lux 24x48, Natural" →
+ * "24x48, Natural". Returns null unless the remainder actually carries a
+ * dimension/measurement, so a plain product name is never echoed as a descriptor.
+ */
+/**
+ * A size attribute value as a line-item descriptor — but only when it isn't
+ * already conveyed. Returns null if the row's existing text (title/color/name)
+ * already contains the dimension, or if it's a slab-style item (which shows
+ * "Jumbo Slab 3cm" etc. via variant_name, not raw dimensions). Used as a fallback
+ * for vendors that keep size ONLY in the size attribute (Emser, Bosphorus, planks)
+ * so it shows once the query provides `size` — a no-op until then.
+ */
+export function sizeFromAttr(sizeAttr, existingText) {
+  if (!sizeAttr) return null;
+  const ex = String(existingText || '').toLowerCase();
+  if (/slab|jumbo|standard|panel|prefab|countertop/.test(ex)) return null;
+  const sd = (String(sizeAttr).match(/\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?/) || [])[0];
+  if (!sd) return null;
+  const norm = (x) => x.toLowerCase().replace(/["″”'’\s]/g, '').replace(/×/g, 'x');
+  if (norm(ex).includes(norm(sd))) return null;
+  return String(sizeAttr).trim();
+}
+
+export function productExtra(product, collection, color) {
+  if (!product) return null;
+  let rem = String(product).trim();
+  if (collection && rem.toLowerCase().startsWith(String(collection).toLowerCase())) {
+    rem = rem.slice(String(collection).length);
+  }
+  if (color) rem = rem.replace(new RegExp(String(color).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), ' ');
+  rem = rem.replace(/^[\s,··\-–—]+|[\s,··\-–—]+$/g, '').replace(/\s+/g, ' ').trim();
+  // Require a real dimension (12x24, 2 cm, 8", 100x100) so we don't repeat names.
+  return (rem && /\d\s*(?:[xX×]|["″”'’]|\s*(?:cm|mm|in\b))/.test(rem)) ? rem : null;
+}
+
+/**
+ * Canonical line-item name composition \u2014 the SINGLE source of truth for how a
+ * product/accessory is labeled on every document, email, and screen so items
+ * (especially the 1,622 identically-labeled "Reducer" accessories) are always
+ * distinguishable. Pass any line-item row that may carry: product_name,
+ * collection (or current_collection), color, variant_name, accessory_label,
+ * variant_type, vendor_name, vendor_sku, internal_sku.
+ *
+ * Returns { title, descriptors[], sku, vendor, meta[], nameLine, metaLine, oneLine }.
+ *   nameLine = "Poseidon \u00B7 Zephyr \u00B7 9.4 in x 5 ft Plank"  (title \u00B7 descriptors)
+ *   metaLine = "Pacific Direct Industries \u00B7 PSDN044"       (vendor \u00B7 sku)
+ * Even when the stored snapshot product_name is a bare label ("Reducer"), a live
+ * join to products.collection + skus.accessory_label recovers the full identity.
+ */
+export function composeItemName(it = {}) {
+  const g = (k) => (it[k] != null && String(it[k]).trim() !== '') ? String(it[k]).trim() : null;
+  const product = g('product_name');
+  const collection = g('collection') || g('current_collection');
+  const color = g('color');
+  const variant = g('variant_name');
+  const isAcc = g('variant_type') === 'accessory';
+  const accLabel = isAcc ? (g('accessory_label') || variant) : null;
+  // Accessory bought for a specific floor: lead with that floor's collection +
+  // color, then the accessory itself → "Metropolitan  ·  Los Angeles  ·  T-Moulding".
+  // Generic accessory SKUs are shared across floors, so this parent snapshot is
+  // the only thing that says which floor it's for. Falls back to the accessory's
+  // own collection/name when no parent (see [[line-item-display]]).
+  const parentCollection = isAcc ? g('parent_collection') : null;
+  const parentColor = isAcc ? g('parent_color') : null;
+  let title, ordered;
+  if (parentCollection) {
+    title = parentCollection;
+    ordered = [parentColor, accLabel || product];
+  } else {
+    title = collection || product || 'Product';
+    const design = color || (product && product !== title ? product : null);
+    // When a Color already names the design, the size/finish that distinguishes
+    // this SKU often lives only in product_name (e.g. collection "Ecoslate", color
+    // "White", product_name "Ecoslate 24x48" → "24x48" would otherwise be dropped).
+    const sizeInfo = color ? productExtra(product, collection, color) : null;
+    // Fallback: size held only in the size attribute (no-op until a query selects it).
+    const sizeDesc = sizeFromAttr(g('size'), [title, design, sizeInfo, variant].filter(Boolean).join(' '));
+    ordered = [design, sizeInfo, sizeDesc, variant, accLabel];
+  }
+  // Case-INSENSITIVE dedup so an uppercased variant_name that merely echoes the
+  // color (e.g. color "Shore" + variant_name "SHORE") shows once, not "Shore · SHORE".
+  const seen = new Set([String(title).toLowerCase()]);
+  const descriptors = [];
+  for (const d of ordered) {
+    const k = d != null ? String(d).toLowerCase() : null;
+    if (d && !seen.has(k)) { seen.add(k); descriptors.push(d); }
+  }
+  const sku = g('vendor_sku') || g('internal_sku');
+  const vendor = g('vendor_name') || g('custom_vendor');
+  const meta = [];
+  for (const m of [vendor, sku]) if (m && !meta.includes(m)) meta.push(m);
+  // Separator SEP must stay identical to the frontend helpers (formatLineItem in
+  // rep.html/admin.html, itemLineName/itemMetaLine in storefront.jsx) so a line
+  // item renders identically on every surface \u2014 see [[line-item-display]].
+  const SEP = '  \u00B7  ';
+  const nameLine = descriptors.length ? `${title}${SEP}${descriptors.join(SEP)}` : title;
+  const metaLine = meta.join(SEP);
+  const oneLine = [nameLine, metaLine].filter(Boolean).join(SEP);
+  return { title, descriptors, sku, vendor, meta, nameLine, metaLine, oneLine };
+}
+
+/** Stacked HTML cell: muted brand line (vendor) on top, bold name line in the
+ *  middle, muted sku line on the bottom. `opts.showMeta=false` drops BOTH the
+ *  brand and sku lines (e.g. PO rows that already print the SKU in a column). */
+export function itemNameCell(it, opts = {}) {
+  const { nameLine, vendor, sku } = composeItemName(it);
+  let html = '';
+  if (opts.showMeta !== false && vendor) html += `<div class="item-detail">${escDoc(vendor)}</div>`;
+  html += `<span class="item-name">${escDoc(nameLine)}</span>`;
+  if (opts.showMeta !== false && sku) html += `<div class="item-detail">${escDoc(sku)}</div>`;
+  return html;
+}
+
 export function getDocumentBaseCSS() {
   return `
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
@@ -393,9 +534,17 @@ export async function generatePOHtml(pool, poId) {
   const p = po.rows[0];
 
   const items = await pool.query(`
-    SELECT poi.*, ma.url as primary_image, sk.internal_sku
+    SELECT poi.*, ma.url as primary_image, sk.internal_sku,
+           sk.variant_name, sk.accessory_label, sk.variant_type,
+           pr.collection AS collection,
+           sac.value AS color, sac_sz.value AS size
     FROM purchase_order_items poi
     LEFT JOIN skus sk ON sk.id = poi.sku_id
+    LEFT JOIN products pr ON pr.id = sk.product_id
+    LEFT JOIN sku_attributes sac ON sac.sku_id = poi.sku_id
+      AND sac.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+    LEFT JOIN sku_attributes sac_sz ON sac_sz.sku_id = poi.sku_id
+      AND sac_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
     LEFT JOIN media_assets ma ON ma.sku_id = poi.sku_id AND ma.asset_type = 'primary'
     WHERE poi.purchase_order_id = $1 ORDER BY poi.created_at
   `, [poId]);
@@ -543,7 +692,13 @@ export async function generatePOHtml(pool, poId) {
           const imgHtml = it.primary_image
             ? `<img src="${it.primary_image}" style="width:32px;height:32px;object-fit:cover;flex-shrink:0;border:0.5px solid ${ink}22" />`
             : '';
-          const desc = it.product_name || it.description || '\u2014';
+          const ci = composeItemName(it);
+          let desc = ci.nameLine;
+          if ((!desc || desc === 'Product') && it.description) desc = it.description;
+          desc = escDoc(desc || '\u2014');
+          // Brand line sits ABOVE the name; the vendor SKU already prints in the
+          // left column so it is NOT duplicated beneath the name here.
+          const brand = escDoc(ci.vendor || p.vendor_name || '');
           const dyeLot = it.dye_lot || '\u2014';
           const uom = (it.sell_by || 'unit').toUpperCase();
           const cost = parseFloat(it.cost || 0).toFixed(2);
@@ -558,6 +713,7 @@ export async function generatePOHtml(pool, poId) {
             <div style="display:flex;gap:10px;align-items:flex-start">
               ${imgHtml}
               <div>
+                ${brand ? `<div style="font:400 9px/1.4 ${sans};color:${muted};margin-bottom:2px">${brand}</div>` : ''}
                 <div style="font:500 11px/1.3 ${sans};color:${ink};letter-spacing:-0.004em">${desc}</div>
                 <div style="font:500 9px/1.4 ${mono};letter-spacing:0.12em;color:${muted};text-transform:uppercase;margin-top:3px">Dye lot: ${dyeLot}</div>
               </div>
@@ -667,15 +823,17 @@ export function generateQuoteHtml(q, items) {
   const rowsHtml = items.map((i, idx) => {
     const isUnit = i.sell_by === 'unit';
     const qty = i.num_boxes || i.quantity || 1;
-    const name = i.product_name || i.collection || '—';
-    const suffix = [...new Set([i.color, i.variant_name].filter(Boolean))].filter(v => v !== name).join(' · ');
-    const skuLine = [...new Set([
-      i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
-      i.collection && i.collection !== name ? i.collection : null,
-      i.vendor_name
-    ].filter(Boolean))].join(' · ');
-    const sqft = parseFloat(i.sqft_needed || 0);
-    const perBox = !isUnit && sqft > 0 && qty > 0 ? sqft / qty : null;
+    const ci = composeItemName(i);
+    let baseName = ci.title;
+    if ((!baseName || baseName === 'Product') && i.description) baseName = i.description;
+    const name = escDoc(baseName || '—');
+    const suffix = escDoc(ci.descriptors.join(' · '));
+    const brandLine = escDoc(ci.vendor || '');
+    const skuLine = escDoc(ci.sku || '');
+    const perBoxSqft = parseFloat(i.sqft_per_box || 0);
+    let sqft = parseFloat(i.sqft_needed || 0);
+    if (!(sqft > 0) && !isUnit && perBoxSqft > 0 && qty > 0) sqft = perBoxSqft * qty;
+    const perBox = !isUnit ? (perBoxSqft > 0 ? perBoxSqft : (sqft > 0 && qty > 0 ? sqft / qty : null)) : null;
     const isFree = i.is_sample && parseFloat(i.subtotal || 0) === 0;
     const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
     // Swatch images go through the local resize proxy (small, disk-cached) so
@@ -689,13 +847,14 @@ export function generateQuoteHtml(q, items) {
     return `<div class="grid-row keep" style="padding:12px 0;${idx < items.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
       ${swatch}
       <div>
+        ${brandLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-bottom:2px;">${brandLine}</div>` : ''}
         <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${name}${suffix ? ` <span style="color:var(--muted);font-weight:400;">· ${suffix}</span>` : ''}</div>
         ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
         ${i.is_sample ? `<div style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.12em;color:var(--muted);margin-top:4px;text-transform:uppercase;">Sample</div>` : ''}
       </div>
       <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
       <div class="num">${qty}<div class="numsub">${isUnit ? (qty === 1 ? 'unit' : 'units') : (qty === 1 ? 'box' : 'boxes')}</div></div>
-      <div class="num">${isFree ? 'Free' : money(i.unit_price) + (isUnit ? '/ea' : '/sf')}</div>
+      <div class="num">${isFree ? 'Free' : money(i.unit_price) + priceUnitSuffix(i)}</div>
       <div class="line-total">${isFree ? 'Free' : money(i.subtotal)}</div>
     </div>`;
   }).join('');
@@ -879,14 +1038,17 @@ export function generateEstimateHtml(e, materials = [], labor = []) {
   const materialRows = materials.map((i, idx) => {
     const isUnit = i.sell_by === 'unit' || i.sell_by === 'piece';
     const qty = i.num_boxes || i.quantity || 1;
-    const name = i.collection || i.current_collection || i.product_name || '—';
-    const suffix = [...new Set([i.color, i.variant_name].filter(Boolean))].filter(v => v !== name).join(' · ');
+    const _ci = composeItemName(i);
+    const name = escDoc(_ci.title || '—');
+    const suffix = escDoc(_ci.descriptors.join(' · '));
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.vendor_name
     ].filter(Boolean))].join(' · ');
-    const sqft = parseFloat(i.sqft_needed || 0);
-    const perBox = !isUnit && sqft > 0 && qty > 0 ? sqft / qty : null;
+    const perBoxSqft = parseFloat(i.sqft_per_box || 0);
+    let sqft = parseFloat(i.sqft_needed || 0);
+    if (!(sqft > 0) && !isUnit && perBoxSqft > 0 && qty > 0) sqft = perBoxSqft * qty;
+    const perBox = !isUnit ? (perBoxSqft > 0 ? perBoxSqft : (sqft > 0 && qty > 0 ? sqft / qty : null)) : null;
     const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
     const swatchSrc = i.primary_image
       ? `http://localhost:${process.env.PORT || 3001}/api/img?url=${encodeURIComponent(i.primary_image)}&w=64&f=jpeg`
@@ -902,7 +1064,7 @@ export function generateEstimateHtml(e, materials = [], labor = []) {
       </div>
       <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
       <div class="num">${qty}<div class="numsub">${isUnit ? (qty === 1 ? 'unit' : 'units') : (qty === 1 ? 'box' : 'boxes')}</div></div>
-      <div class="num">${money(i.unit_price)}${isUnit ? '/ea' : '/sf'}</div>
+      <div class="num">${money(i.unit_price)}${priceUnitSuffix(i)}</div>
       <div class="line-total">${money(i.subtotal)}</div>
     </div>`;
   }).join('');
@@ -1127,15 +1289,20 @@ export function generateOrderInvoiceDoc(o, items) {
     }
     const isUnit = i.sell_by === 'unit';
     const qty = i.num_boxes || i.quantity || 1;
-    const name = i.product_name || i.collection || '—';
-    const suffix = [...new Set([i.color, i.variant_name].filter(Boolean))].filter(v => v !== name).join(' · ');
-    const skuLine = [...new Set([
-      i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
-      i.collection && i.collection !== name ? i.collection : null,
-      i.vendor_name
-    ].filter(Boolean))].join(' · ');
-    const sqft = parseFloat(i.sqft_needed || 0);
-    const perBox = !isUnit && sqft > 0 && qty > 0 ? sqft / qty : null;
+    const ci = composeItemName(i);
+    let baseName = ci.title;
+    if ((!baseName || baseName === 'Product') && i.description) baseName = i.description;
+    const name = escDoc(baseName || '—');
+    const suffix = escDoc(ci.descriptors.join(' · '));
+    const brandLine = escDoc(ci.vendor || '');
+    const skuLine = escDoc(ci.sku || '');
+    // Coverage: prefer the captured sqft_needed; otherwise fall back to
+    // qty × sqft/box so box lines aren't blank. Per-box uses the real packaging
+    // figure, not total÷qty. Unit items have no coverage.
+    const perBoxSqft = parseFloat(i.sqft_per_box || 0);
+    let sqft = parseFloat(i.sqft_needed || 0);
+    if (!(sqft > 0) && !isUnit && perBoxSqft > 0 && qty > 0) sqft = perBoxSqft * qty;
+    const perBox = !isUnit ? (perBoxSqft > 0 ? perBoxSqft : (sqft > 0 && qty > 0 ? sqft / qty : null)) : null;
     const isFree = i.is_sample && parseFloat(i.subtotal || 0) === 0;
     const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
     const swatchSrc = i.primary_image
@@ -1147,13 +1314,14 @@ export function generateOrderInvoiceDoc(o, items) {
     return `<div class="grid-row keep" style="padding:12px 0;${idx < items.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
       ${swatch}
       <div>
+        ${brandLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-bottom:2px;">${brandLine}</div>` : ''}
         <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${name}${suffix ? ` <span style="color:var(--muted);font-weight:400;">· ${suffix}</span>` : ''}</div>
         ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
         ${i.is_sample ? `<div style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.12em;color:var(--muted);margin-top:4px;text-transform:uppercase;">Sample</div>` : ''}
       </div>
       <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
       <div class="num">${qty}<div class="numsub">${isUnit ? (qty === 1 ? 'unit' : 'units') : (qty === 1 ? 'box' : 'boxes')}</div></div>
-      <div class="num">${isFree ? 'Free' : money(i.unit_price) + (isUnit ? '/ea' : '/sf')}</div>
+      <div class="num">${isFree ? 'Free' : money(i.unit_price) + priceUnitSuffix(i)}</div>
       <div class="line-total">${isFree ? 'Free' : money(i.subtotal)}</div>
     </div>`;
   }).join('');
@@ -1343,8 +1511,10 @@ export function generateCreditMemoDoc(memo, items, opts = {}) {
 
   const rowsHtml = items.map((i, idx) => {
     const qty = parseFloat(i.qty || 0) || 1;
-    const name = i.description || i.product_name || i.collection || '—';
-    const suffix = [...new Set([i.color, i.variant_name].filter(Boolean))].filter(v => v !== name).join(' · ');
+    const _ci = composeItemName(i);
+    const _manual = _ci.title === 'Product' && !_ci.descriptors.length && i.description;
+    const name = escDoc(_manual ? i.description : (_ci.title || '—'));
+    const suffix = escDoc(_manual ? '' : _ci.descriptors.join(' · '));
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
@@ -1539,8 +1709,9 @@ export function generateReleaseFormDoc(release, items, opts = {}) {
     const qty = parseFloat(i.release_qty || 0) || 0;
     const ordered = parseFloat(i.ordered_qty || 0);
     const unit = i.sell_by === 'unit' ? 'unit' : i.sell_by === 'roll' ? 'roll' : 'box';
-    const name = i.product_name || i.collection || '—';
-    const suffix = [...new Set([i.color, i.variant_name].filter(Boolean))].filter(v => v !== name).join(' · ');
+    const _ci = composeItemName(i);
+    const name = escDoc(_ci.title || '—');
+    const suffix = escDoc(_ci.descriptors.join(' · '));
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,

@@ -15964,7 +15964,11 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         resolvedItems.push({
           product_id: sku.product_id,
           sku_id: sku.sku_id,
-          product_name: sku.product_name + (sku.variant_name ? ' — ' + sku.variant_name : ''),
+          // Store the BASE product name only — composeItemName/formatLineItem append
+          // the variant (size · finish) via the live sku join. Baking the variant in
+          // here doubled it on documents (e.g. "Archi Grey — 12″×24″ · Polished · 12″×24″
+          // · Polished"). [[line-item-display]]
+          product_name: sku.product_name,
           collection: sku.collection,
           category_id: sku.category_id,
           sqft_needed: sqftNeeded,
@@ -16197,9 +16201,23 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     // Recalculate commission for rep-created order
     setImmediate(() => recalculateCommission(pool, order.id));
 
-    // Fire-and-forget: send confirmation email
+    // Fire-and-forget: send confirmation email, plus a paid invoice when payment
+    // was collected in-store (card/cash/check). The invoice PDF renders "Paid in
+    // full" because amount_paid == total on paidInStore orders. [[freight-quote-later]]
     const emailOrder = { ...order, items: orderItems.rows };
-    setImmediate(async () => { await attachRep(emailOrder); sendOrderConfirmation(emailOrder); });
+    setImmediate(async () => {
+      await attachRep(emailOrder);
+      sendOrderConfirmation(emailOrder);
+      if (paidInStore) {
+        try {
+          const invoiceResult = await generateOrderInvoiceHtml(order.id);
+          const pdfBuffer = invoiceResult ? await generatePDFBuffer(invoiceResult.html) : null;
+          await sendPaymentReceived(emailOrder, total, pdfBuffer);
+        } catch (invErr) {
+          console.error(`[Order] Paid invoice email failed for ${orderNumber}:`, invErr.message);
+        }
+      }
+    });
 
     // Fire-and-forget: notify creating rep
     setImmediate(() => createRepNotification(pool, req.rep.id, 'order_created',
