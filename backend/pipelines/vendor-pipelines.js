@@ -13,6 +13,12 @@ const PIPELINES = {
       { type: 'scraper', sourceKey: 'triwest-metroflor', label: 'Metroflor Website Enrichment' },
       { type: 'script',  path: 'scripts/group-metroflor-products.cjs', label: 'Group Metroflor Products' },
       { type: 'script',  path: 'scripts/attach-metroflor-accessories.cjs', label: 'Attach Metroflor Accessories' },
+      // Catch-all safety net: link (and surface) any same-product sibling
+      // accessories the bespoke attach steps above didn't cover — e.g. Tri-West
+      // sub-brands with no dedicated script (Foster, RCGlobal). Insert-only +
+      // idempotent; never deletes. --activate turns on priced accessories that
+      // color-match an active plank in their product.
+      { type: 'script',  path: 'scripts/link-sibling-accessories.cjs', args: ['--vendor', 'Tri-West', '--activate'], label: 'Link Sibling Accessories (catch-all)' },
     ]
   },
 
@@ -25,6 +31,10 @@ const PIPELINES = {
       { type: 'script',  path: 'scripts/reorganize-hartco.cjs', label: 'Reorganize Hartco Products' },
       { type: 'script',  path: 'scripts/attach-hartco-accessories.cjs', label: 'Attach Hartco Accessories' },
       { type: 'script',  path: 'scripts/backfill-hartco-images.cjs', label: 'Backfill Hartco Images' },
+      // Catch-all safety net (see metroflor pipeline) — links/surfaces any
+      // same-product sibling accessories left over from Tri-West sub-brands
+      // without a bespoke attach script. Insert-only, idempotent.
+      { type: 'script',  path: 'scripts/link-sibling-accessories.cjs', args: ['--vendor', 'Tri-West', '--activate'], label: 'Link Sibling Accessories (catch-all)' },
     ]
   },
 
