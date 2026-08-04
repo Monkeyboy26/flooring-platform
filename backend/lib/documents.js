@@ -520,7 +520,7 @@ export const PO_PDF_MARGIN = { margin: { top: '0.5in', bottom: '0.45in', left: '
 export async function generatePOHtml(pool, poId) {
   const po = await pool.query(`
     SELECT po.*,
-      v.name as vendor_name, v.code as vendor_code, v.email as vendor_email, v.edi_config,
+      v.name as vendor_name, v.code as vendor_code, v.email as vendor_email, v.address as vendor_address, v.edi_config,
       COALESCE(sa.first_name || ' ' || sa.last_name, sr_a.first_name || ' ' || sr_a.last_name) as approved_by_name,
       COALESCE(sa.email, sr_a.email) as approver_email,
       o.order_number, o.sales_rep_id, o.job_name,
@@ -676,10 +676,10 @@ export async function generatePOHtml(pool, poId) {
           </div>
         </div>
         <div>
-          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Sold by &middot; ${p.vendor_code}</div>
+          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Vendor &middot; ${p.vendor_code}</div>
           <div style="font:500 11px/1.2 ${sans};color:${ink}">${p.vendor_name}</div>
           <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">
-            ${p.vendor_email || ''}
+            ${p.vendor_address ? `${escDoc(p.vendor_address)}<br>` : ''}${p.vendor_email || ''}
           </div>
         </div>
         <div>
@@ -759,18 +759,6 @@ export async function generatePOHtml(pool, poId) {
               <span style="font:300 26px/1 ${serif};letter-spacing:-0.012em;color:${ink}">$${subtotal.toFixed(2)}</span>
             </div>
             <div style="margin-top:4px;font:500 9px/1 ${mono};letter-spacing:0.14em;color:${muted};text-transform:uppercase;text-align:right">Materials only &middot; Freight + tax billed on 810</div>
-          </div>
-        </div>
-
-        <!-- SIGNATURES -->
-        <div class="avoid-break" style="margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:36px">
-          <div>
-            <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;font:400 12px/1 ${serif};color:${ink};font-style:italic">${(p.approved_at && approverName) || '\u2014'}</div>
-            <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Roma &middot; Approver${p.approved_at ? ` &middot; ${fmtShortDate(p.approved_at)}` : ''}</div>
-          </div>
-          <div>
-            <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;font:400 12px/1 ${serif};color:${muted}">&mdash;</div>
-            <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Vendor acknowledgment &middot; expected within 1 business day</div>
           </div>
         </div>
 
