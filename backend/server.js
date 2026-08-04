@@ -4622,14 +4622,27 @@ app.post('/api/checkout/update-payment-intent-shipping', async (req, res) => {
 
 // ==================== Sequential Number Generation ====================
 
+// One MAX-based allocator for every document number: read the real table, take
+// the highest trailing number for the prefix, +1. A sequence can drift from
+// what's actually in the table (imports, restores, manual rows) and then issue
+// duplicates — the table itself can't. Unique constraints on every number
+// column backstop concurrent allocation. Trailing-digit extraction also covers
+// legacy formats (RDP-ELITESTONE-1074, RMA-2026-0009) so numbering continues
+// from wherever each series stands instead of restarting.
+async function nextDocNumber(db, table, column, prefix, pad = 0) {
+  const result = await db.query(
+    `SELECT COALESCE(MAX((substring(${column} FROM '([0-9]+)$'))::int), 0) AS maxnum
+     FROM ${table} WHERE ${column} LIKE $1`, [prefix + '%']
+  );
+  return prefix + String((result.rows[0].maxnum || 0) + 1).padStart(pad, '0');
+}
+
 async function getNextOrderNumber() {
-  const result = await pool.query("SELECT nextval('order_number_seq')");
-  return 'RD-' + result.rows[0].nextval;
+  return nextDocNumber(pool, 'orders', 'order_number', 'RD-');
 }
 
 async function getNextQuoteNumber() {
-  const result = await pool.query("SELECT nextval('quote_number_seq')");
-  return 'RDQ-' + result.rows[0].nextval;
+  return nextDocNumber(pool, 'quotes', 'quote_number', 'RDQ-');
 }
 
 // Append a lifecycle/engagement event to a quote's thread. Never throws —
@@ -4646,8 +4659,7 @@ async function logQuoteEvent(db, quoteId, eventType, { body = null, meta = {}, a
 }
 
 async function getNextEstimateNumber() {
-  const result = await pool.query("SELECT nextval('estimate_number_seq')");
-  return 'RDE-' + result.rows[0].nextval;
+  return nextDocNumber(pool, 'estimates', 'estimate_number', 'RDE-');
 }
 
 // Same contract as logQuoteEvent: never throws.
@@ -4663,13 +4675,11 @@ async function logEstimateEvent(db, estimateId, eventType, { body = null, meta =
 }
 
 async function getNextSampleNumber() {
-  const result = await pool.query("SELECT nextval('sample_number_seq')");
-  return 'RDS-' + result.rows[0].nextval;
+  return nextDocNumber(pool, 'sample_requests', 'request_number', 'RDS-');
 }
 
-async function getNextPONumber(vendorCode) {
-  const result = await pool.query("SELECT nextval('po_number_seq')");
-  return 'RDP-' + (vendorCode || 'XX') + '-' + result.rows[0].nextval;
+async function getNextPONumber() {
+  return nextDocNumber(pool, 'purchase_orders', 'po_number', 'RDP-');
 }
 
 // ==================== Purchase Order Generation ====================
@@ -4787,7 +4797,7 @@ async function generatePurchaseOrders(orderId, client) {
   const createdPOs = [];
 
   for (const group of Object.values(vendorGroups)) {
-    const poNumber = await getNextPONumber(group.vendor_code);
+    const poNumber = await getNextPONumber();
 
     // Calculate subtotal — cost per box * qty (boxes), or cost per sqyd * sqyd for carpet
     let poSubtotal = 0;
@@ -9009,7 +9019,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         // Create new draft PO for this vendor
         const vendorResult = await client.query('SELECT code FROM vendors WHERE id = $1', [itemVendorId]);
         const vendorCode = vendorResult.rows[0]?.code || 'CUST';
-        const poNumber = await getNextPONumber(vendorCode);
+        const poNumber = await getNextPONumber();
         const newPO = await client.query(
           `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
            VALUES ($1, $2, $3, 'draft', 0) RETURNING id`,
@@ -17039,7 +17049,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       } else {
         const vendorResult = await client.query('SELECT code FROM vendors WHERE id = $1', [itemVendorId]);
         const vendorCode = vendorResult.rows[0]?.code || 'CUST';
-        const poNumber = await getNextPONumber(vendorCode);
+        const poNumber = await getNextPONumber();
         const newPO = await client.query(
           `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
            VALUES ($1, $2, $3, 'draft', 0) RETURNING id`,
@@ -19595,7 +19605,7 @@ app.post('/api/rep/purchase-orders', repAuth, async (req, res) => {
     if (!vendor.rows.length) return res.status(404).json({ error: 'Vendor not found' });
 
     const vendorCode = vendor.rows[0].code || 'XX';
-    const poNumber = await getNextPONumber(vendorCode);
+    const poNumber = await getNextPONumber();
 
     const result = await pool.query(
       `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes, ship_to, expected_delivery, recipient_email, cc_emails)
@@ -24767,7 +24777,7 @@ app.post('/api/admin/purchase-orders', staffAuth, requireRole('admin', 'manager'
     if (!vendor.rows.length) return res.status(404).json({ error: 'Vendor not found' });
 
     const vendorCode = vendor.rows[0].code || 'XX';
-    const poNumber = await getNextPONumber(vendorCode);
+    const poNumber = await getNextPONumber();
 
     const result = await pool.query(
       `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes)
@@ -26319,51 +26329,25 @@ app.get('/api/admin/accounting/expenses/:id/receipt-url', staffAuth, requireRole
 });
 
 // --- Invoices (AR) ---
+// Invoice / RMA / credit-memo / release numbering — same shared MAX-based
+// allocator as orders/quotes/POs (see nextDocNumber). Year scoping was dropped
+// 2026-08-04: new numbers are plain RMA-0010 / CM-0004 / REL-0031, continuing
+// upward from the highest existing number in either format (old RMA-2026-0009
+// rows keep their numbers and still count toward the max).
 async function getNextInvoiceNumber() {
-  // Take MAX of the numeric portion of canonically-formatted invoice numbers,
-  // not the most-recently-created row. This is resilient to out-of-order
-  // creation and ignores stray non-canonical numbers (e.g. manual/imported
-  // ones) that would otherwise poison a "last row + 1" scheme and collide.
-  const result = await pool.query(
-    "SELECT COALESCE(MAX((substring(invoice_number FROM '^INV-([0-9]+)$'))::int), 0) AS maxnum FROM invoices WHERE invoice_number ~ '^INV-[0-9]+$'"
-  );
-  const next = (result.rows[0].maxnum || 0) + 1;
-  return 'INV-' + String(next).padStart(4, '0');
+  return nextDocNumber(pool, 'invoices', 'invoice_number', 'INV-', 4);
 }
 
-// --- Returns & Credit Memos numbering ---
-// Year-scoped, MAX-based (resilient to out-of-order creation, like invoices).
-// Format: RMA-2026-0001 / CM-2026-0001. Accepts an optional tx client so the
-// number is allocated inside the same transaction that inserts the row.
 async function getNextRMANumber(client) {
-  const q = client || pool;
-  const prefix = 'RMA-' + new Date().getFullYear() + '-';
-  const result = await q.query(
-    "SELECT COALESCE(MAX((substring(rma_number FROM $2))::int), 0) AS maxnum FROM returns WHERE rma_number ~ $1",
-    ['^' + prefix + '[0-9]+$', '^' + prefix + '([0-9]+)$']
-  );
-  return prefix + String((result.rows[0].maxnum || 0) + 1).padStart(4, '0');
+  return nextDocNumber(client || pool, 'returns', 'rma_number', 'RMA-', 4);
 }
 
 async function getNextCreditMemoNumber(client) {
-  const q = client || pool;
-  const prefix = 'CM-' + new Date().getFullYear() + '-';
-  const result = await q.query(
-    "SELECT COALESCE(MAX((substring(credit_memo_number FROM $2))::int), 0) AS maxnum FROM credit_memos WHERE credit_memo_number ~ $1",
-    ['^' + prefix + '[0-9]+$', '^' + prefix + '([0-9]+)$']
-  );
-  return prefix + String((result.rows[0].maxnum || 0) + 1).padStart(4, '0');
+  return nextDocNumber(client || pool, 'credit_memos', 'credit_memo_number', 'CM-', 4);
 }
 
-// Material release numbers — REL-2026-0001. Same MAX-based, year-scoped scheme.
 async function getNextReleaseNumber(client) {
-  const q = client || pool;
-  const prefix = 'REL-' + new Date().getFullYear() + '-';
-  const result = await q.query(
-    "SELECT COALESCE(MAX((substring(release_number FROM $2))::int), 0) AS maxnum FROM material_releases WHERE release_number ~ $1",
-    ['^' + prefix + '[0-9]+$', '^' + prefix + '([0-9]+)$']
-  );
-  return prefix + String((result.rows[0].maxnum || 0) + 1).padStart(4, '0');
+  return nextDocNumber(client || pool, 'material_releases', 'release_number', 'REL-', 4);
 }
 
 // Resolve a customer's store-credit identity from the (type, refId) pair used by
