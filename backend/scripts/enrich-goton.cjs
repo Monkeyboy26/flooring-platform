@@ -467,7 +467,7 @@ async function run() {
 
   try {
     // Get vendor ID
-    const vendorRes = await client.query(`SELECT id FROM vendors WHERE code = 'GOTON'`);
+    const vendorRes = await client.query(`SELECT id FROM vendors WHERE code = 'GOT'`);
     if (vendorRes.rowCount === 0) { console.error('Vendor GOTON not found'); return; }
     const vendorId = vendorRes.rows[0].id;
 

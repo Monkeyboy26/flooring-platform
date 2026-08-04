@@ -929,7 +929,7 @@
         name = name + " " + sku.format_label;
       }
     }
-    const TAXONOMY_COLLECTION_VENDORS = /* @__PURE__ */ new Set(["BELLEZZA"]);
+    const TAXONOMY_COLLECTION_VENDORS = /* @__PURE__ */ new Set(["BLZ"]);
     const TAXONOMY_COLLECTION_VENDOR_NAMES = /* @__PURE__ */ new Set(["BELLEZZA CERAMICA"]);
     const skipCollectionInTitle = TAXONOMY_COLLECTION_VENDORS.has((sku.vendor_code || "").toUpperCase()) || TAXONOMY_COLLECTION_VENDOR_NAMES.has((sku.vendor_name || "").toUpperCase());
     let showCollection = "";
@@ -5480,7 +5480,7 @@
         });
         colorItems = [...byColor.values()].sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
       }
-      const _isDecorativeHW = (sku.vendor_code || "").toUpperCase() === "ROM440";
+      const _isDecorativeHW = (sku.vendor_code || "").toUpperCase() === "HR";
       let collectionSizeItems = [];
       if (collectionSiblings.length > 0) {
         const extractDims = (name) => {

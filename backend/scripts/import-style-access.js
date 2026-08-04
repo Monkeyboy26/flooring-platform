@@ -356,7 +356,7 @@ async function main() {
   console.log(`Skipping image fetch (will be handled separately)\n`);
 
   // 3. Create vendor
-  const vendorId = await upsertVendor('Style Access (Lungarno / CommodiTile)', 'STYLEACCESS', 'https://style-access.com');
+  const vendorId = await upsertVendor('Style Access (Lungarno / CommodiTile)', 'SA', 'https://style-access.com');
   console.log(`Vendor ID: ${vendorId}\n`);
 
   // 4. Group rows into products

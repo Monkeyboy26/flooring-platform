@@ -213,7 +213,7 @@ async function main() {
   console.log('=== Bellezza Fix: Images, Accessories & Collections ===\n');
 
   // Get vendor ID
-  const vendorRow = await pool.query("SELECT id FROM vendors WHERE code = 'BELLEZZA'");
+  const vendorRow = await pool.query("SELECT id FROM vendors WHERE code = 'BLZ'");
   if (!vendorRow.rows.length) { console.error('Vendor BELLEZZA not found'); process.exit(1); }
   const vendorId = vendorRow.rows[0].id;
 

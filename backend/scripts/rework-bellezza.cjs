@@ -580,7 +580,7 @@ async function main() {
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
   // ── Get vendor ──────────────────────────────────────────────────────
-  const vendorRow = await pool.query("SELECT id FROM vendors WHERE code = 'BELLEZZA'");
+  const vendorRow = await pool.query("SELECT id FROM vendors WHERE code = 'BLZ'");
   if (!vendorRow.rows.length) { console.error('Vendor BELLEZZA not found'); process.exit(1); }
   const vendorId = vendorRow.rows[0].id;
 

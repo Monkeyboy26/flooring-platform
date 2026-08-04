@@ -172,7 +172,7 @@ async function run() {
 
     // Get vendor ID
     const { rows: [vendor] } = await client.query(
-      `SELECT id FROM vendors WHERE code = 'UNICORN'`
+      `SELECT id FROM vendors WHERE code = 'UN'`
     );
     const vendorId = vendor.id;
 
@@ -338,7 +338,7 @@ async function run() {
       // Product names in DB are stored as "Unicorn Tile Akila Lux" etc.
       const { rows: prods } = await client.query(
         `SELECT p.id FROM products p JOIN vendors v ON v.id = p.vendor_id
-         WHERE v.code = 'UNICORN' AND p.name = $1`,
+         WHERE v.code = 'UN' AND p.name = $1`,
         [mv.product]
       );
       if (prods.length === 0) {

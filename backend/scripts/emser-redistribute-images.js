@@ -27,7 +27,7 @@ const DRY_RUN = process.argv.includes('--dry-run');
 async function main() {
   console.log(`=== Emser Image Redistribution ===${DRY_RUN ? ' [DRY RUN]' : ''}\n`);
 
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'EMSER'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'EMS'");
   if (!vendorRes.rows.length) { console.error('Vendor EMSER not found'); process.exit(1); }
   const vendorId = vendorRes.rows[0].id;
 

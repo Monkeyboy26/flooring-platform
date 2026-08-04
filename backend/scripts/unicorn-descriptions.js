@@ -22,7 +22,7 @@ const products = await pool.query(`
   FROM products p
   JOIN vendors v ON v.id = p.vendor_id
   JOIN categories c ON c.id = p.category_id
-  WHERE v.code = 'UNICORN'
+  WHERE v.code = 'UN'
   ORDER BY p.collection, p.name
 `);
 

@@ -316,12 +316,12 @@ function tierDisplay(tier) {
 
 async function main() {
   // Ensure vendor exists
-  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'CAESARSTONE'");
+  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'CS'");
   let vendorId;
   if (!vendorRes.rows.length) {
     const ins = await pool.query(`
       INSERT INTO vendors (name, code, website)
-      VALUES ('Caesarstone', 'CAESARSTONE', 'https://www.caesarstoneus.com')
+      VALUES ('Caesarstone', 'CS', 'https://www.caesarstoneus.com')
       RETURNING id
     `);
     vendorId = ins.rows[0].id;

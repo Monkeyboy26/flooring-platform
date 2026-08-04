@@ -1659,7 +1659,7 @@ function scoreGalleryImageForVariant(image, skuSize, skuFinish) {
 // ── Main ───────────────────────────────────────────────────────────────
 
 async function run() {
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'MELANGE'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'MLG'");
   if (!vendorRes.rows.length) {
     console.error('Melange vendor not found. Run import-melange.js first.');
     return;
@@ -2362,12 +2362,12 @@ async function run() {
     const coverageRes = await pool.query(`
       SELECT COUNT(DISTINCT s.id) AS with_images,
              (SELECT COUNT(*) FROM skus s2 JOIN products p2 ON s2.product_id = p2.id
-              JOIN vendors v2 ON p2.vendor_id = v2.id WHERE v2.code = 'MELANGE') AS total
+              JOIN vendors v2 ON p2.vendor_id = v2.id WHERE v2.code = 'MLG') AS total
       FROM skus s
       JOIN products p ON s.product_id = p.id
       JOIN vendors v ON p.vendor_id = v.id
       JOIN media_assets ma ON ma.sku_id = s.id
-      WHERE v.code = 'MELANGE'
+      WHERE v.code = 'MLG'
     `);
     if (coverageRes.rows.length > 0) {
       const { with_images, total } = coverageRes.rows[0];

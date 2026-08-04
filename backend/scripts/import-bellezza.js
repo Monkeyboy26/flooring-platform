@@ -733,12 +733,12 @@ function deriveCollection(prod) {
 
 async function main() {
   // Ensure vendor exists
-  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'BELLEZZA'");
+  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'BLZ'");
   let vendorId;
   if (!vendorRes.rows.length) {
     const ins = await pool.query(`
       INSERT INTO vendors (name, code, website)
-      VALUES ('Bellezza Ceramica', 'BELLEZZA', 'https://bellezzaceramica.com')
+      VALUES ('Bellezza Ceramica', 'BLZ', 'https://bellezzaceramica.com')
       RETURNING id
     `);
     vendorId = ins.rows[0].id;

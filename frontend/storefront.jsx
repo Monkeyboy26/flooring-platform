@@ -920,7 +920,7 @@
 
       // Vendors that use collection as a browsing taxonomy (not a product-line prefix)
       // e.g. Bellezza's "Marble Look", "Concrete & Industrial" are grouping concepts, not product names
-      const TAXONOMY_COLLECTION_VENDORS = new Set(['BELLEZZA']);
+      const TAXONOMY_COLLECTION_VENDORS = new Set(['BLZ']);
       const TAXONOMY_COLLECTION_VENDOR_NAMES = new Set(['BELLEZZA CERAMICA']);
       const skipCollectionInTitle = TAXONOMY_COLLECTION_VENDORS.has((sku.vendor_code || '').toUpperCase())
         || TAXONOMY_COLLECTION_VENDOR_NAMES.has((sku.vendor_name || '').toUpperCase());
@@ -7974,7 +7974,7 @@
 
                 // Size pills from collection siblings (vanities where sizes are separate products)
                 // Computed BEFORE the merge so we can skip merging sizes into colorItems
-                const _isDecorativeHW = (sku.vendor_code || '').toUpperCase() === 'ROM440';
+                const _isDecorativeHW = (sku.vendor_code || '').toUpperCase() === 'HR';
                 let collectionSizeItems = [];
                 if (collectionSiblings.length > 0) {
                   const extractDims = (name) => {

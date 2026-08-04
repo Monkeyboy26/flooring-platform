@@ -33,7 +33,7 @@ import {
 // Constants
 // ---------------------------------------------------------------------------
 
-const VENDOR_CODE = 'EMSER';
+const VENDOR_CODE = 'EMS';
 
 // Default credentials (overridden by vendor_sources.config or env vars)
 const DEFAULT_CONN = {

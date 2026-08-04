@@ -20,7 +20,7 @@ const pool = new pg.Pool({
 });
 
 const DRY_RUN = process.argv.includes('--dry-run');
-const VENDOR_CODE = 'EMSER';
+const VENDOR_CODE = 'EMS';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

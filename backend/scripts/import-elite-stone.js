@@ -277,12 +277,12 @@ async function ensureAttribute(slug, name) {
 
 async function main() {
   // Ensure vendor exists
-  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'ELITESTONE'");
+  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'ELS'");
   let vendorId;
   if (!vendorRes.rows.length) {
     const ins = await pool.query(`
       INSERT INTO vendors (name, code, website)
-      VALUES ('Elite Stone', 'ELITESTONE', 'https://www.elitestonegroup.com')
+      VALUES ('Elite Stone', 'ELS', 'https://www.elitestonegroup.com')
       RETURNING id
     `);
     vendorId = ins.rows[0].id;

@@ -480,7 +480,7 @@ async function buildSkuLookup(pool) {
     FROM skus s
     JOIN products p ON p.id = s.product_id
     JOIN vendors v ON v.id = p.vendor_id
-    WHERE v.code = 'MANNINGTON'
+    WHERE v.code = 'MANN'
       AND s.status = 'active'
   `);
 
@@ -570,7 +570,7 @@ async function main() {
     SELECT COUNT(*) FROM media_assets ma
     JOIN products p ON p.id = ma.product_id
     JOIN vendors v ON v.id = p.vendor_id
-    WHERE v.code = 'MANNINGTON'
+    WHERE v.code = 'MANN'
   `);
   console.log(`  Existing media_assets for Mannington: ${existingCount}`);
 
@@ -826,7 +826,7 @@ async function main() {
       SELECT COUNT(*) FROM media_assets ma
       JOIN products p ON p.id = ma.product_id
       JOIN vendors v ON v.id = p.vendor_id
-      WHERE v.code = 'MANNINGTON'
+      WHERE v.code = 'MANN'
     `);
     console.log(`\n  Mannington media_assets total: ${existingCount} → ${finalCount}`);
   }

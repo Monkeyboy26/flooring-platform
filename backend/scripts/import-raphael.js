@@ -461,7 +461,7 @@ async function main() {
   // Create vendor
   const vRes = await pool.query(`
     INSERT INTO vendors (code, name, website)
-    VALUES ('RAPHAEL', 'Raphael Stone Collection', 'https://www.raphaelstoneusa.com')
+    VALUES ('RAPH', 'Raphael Stone Collection', 'https://www.raphaelstoneusa.com')
     ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
     RETURNING id
   `);

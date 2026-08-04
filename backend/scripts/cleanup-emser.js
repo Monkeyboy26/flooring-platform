@@ -12,7 +12,7 @@ const pool = new pg.Pool({
   port: 5432, database: 'flooring_pim', user: 'postgres', password: 'postgres',
 });
 
-const VENDOR_CODE = 'EMSER';
+const VENDOR_CODE = 'EMS';
 
 // ── Step 1: Set display_name ─────────────────────────────────────────────────
 

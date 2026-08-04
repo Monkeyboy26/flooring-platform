@@ -86,7 +86,7 @@ async function upsertPricing(skuId, cost, retail) {
 }
 
 async function main() {
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'VELLICHOR'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'VEL'");
   if (!vendorRes.rows.length) {
     console.error('Vellichor vendor not found');
     process.exit(1);

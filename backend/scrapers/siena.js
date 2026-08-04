@@ -1264,10 +1264,10 @@ async function run() {
   console.log('=== Siena Decor Scraper ===\n');
 
   // ── Step 1: Create/lookup vendor ──
-  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'SIENA'");
+  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'SIEN'");
   if (!vendorRes.rows.length) {
     vendorRes = await pool.query(
-      "INSERT INTO vendors (name, code, website) VALUES ('Siena Decor', 'SIENA', 'https://sienadecor.com') RETURNING id"
+      "INSERT INTO vendors (name, code, website) VALUES ('Siena Decor', 'SIEN', 'https://sienadecor.com') RETURNING id"
     );
     console.log('Created vendor: Siena Decor');
   }

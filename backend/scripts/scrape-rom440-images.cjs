@@ -526,7 +526,7 @@ async function main() {
     JOIN products p ON p.id = s.product_id
     JOIN vendors v ON v.id = p.vendor_id
     LEFT JOIN categories c ON c.id = p.category_id
-    WHERE v.code = 'ROM440'
+    WHERE v.code = 'HR'
       AND NOT EXISTS (
         SELECT 1 FROM media_assets m WHERE m.sku_id = s.id
       )

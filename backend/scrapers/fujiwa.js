@@ -523,7 +523,7 @@ async function scrapeMosaicProduct({ pool, page, productId, label, slugs }) {
 }
 
 async function run() {
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'FUJIWA'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'FUJI'");
   if (!vendorRes.rows.length) { console.error('Fujiwa vendor not found'); return; }
   const vendorId = vendorRes.rows[0].id;
 

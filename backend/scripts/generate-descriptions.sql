@@ -31,7 +31,7 @@ WHERE id IN (
   SELECT p.id FROM products p
   JOIN vendors v ON v.id = p.vendor_id
   JOIN categories c ON c.id = p.category_id
-  WHERE v.code = 'BEDRO' AND p.status = 'active'
+  WHERE v.code = 'BED' AND p.status = 'active'
     AND c.name = 'Porcelain Tile' AND p.description_short IS NULL
 );
 
@@ -59,7 +59,7 @@ WHERE id IN (
   SELECT p.id FROM products p
   JOIN vendors v ON v.id = p.vendor_id
   JOIN categories c ON c.id = p.category_id
-  WHERE v.code = 'BEDRO' AND p.status = 'active'
+  WHERE v.code = 'BED' AND p.status = 'active'
     AND c.name = 'Ceramic Tile' AND p.description_short IS NULL
 );
 
@@ -95,7 +95,7 @@ WHERE id IN (
   SELECT p.id FROM products p
   JOIN vendors v ON v.id = p.vendor_id
   JOIN categories c ON c.id = p.category_id
-  WHERE v.code = 'BEDRO' AND p.status = 'active'
+  WHERE v.code = 'BED' AND p.status = 'active'
     AND c.name = 'Natural Stone' AND p.description_short IS NULL
 );
 
@@ -121,7 +121,7 @@ WHERE id IN (
   SELECT p.id FROM products p
   JOIN vendors v ON v.id = p.vendor_id
   JOIN categories c ON c.id = p.category_id
-  WHERE v.code = 'BEDRO' AND p.status = 'active'
+  WHERE v.code = 'BED' AND p.status = 'active'
     AND c.name = 'Mosaic Tile' AND p.description_short IS NULL
 );
 
@@ -145,7 +145,7 @@ WHERE id IN (
   SELECT p.id FROM products p
   JOIN vendors v ON v.id = p.vendor_id
   JOIN categories c ON c.id = p.category_id
-  WHERE v.code = 'BEDRO' AND p.status = 'active'
+  WHERE v.code = 'BED' AND p.status = 'active'
     AND c.name = 'Engineered Hardwood' AND p.description_short IS NULL
 );
 
@@ -165,7 +165,7 @@ WHERE id IN (
   SELECT p.id FROM products p
   JOIN vendors v ON v.id = p.vendor_id
   JOIN categories c ON c.id = p.category_id
-  WHERE v.code = 'BEDRO' AND p.status = 'active'
+  WHERE v.code = 'BED' AND p.status = 'active'
     AND c.name = 'LVP (Plank)' AND p.description_short IS NULL
 );
 
@@ -199,7 +199,7 @@ WHERE id IN (
   SELECT p.id FROM products p
   JOIN vendors v ON v.id = p.vendor_id
   LEFT JOIN categories c ON c.id = p.category_id
-  WHERE v.code = 'BEDRO' AND p.status = 'active'
+  WHERE v.code = 'BED' AND p.status = 'active'
     AND c.name IS NULL AND p.description_short IS NULL
 );
 

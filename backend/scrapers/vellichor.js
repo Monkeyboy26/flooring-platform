@@ -26,7 +26,7 @@ const pool = new pg.Pool({
 const BASE_URL = 'https://www.vellichorfloors.com';
 
 async function run() {
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'VELLICHOR'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'VEL'");
   if (!vendorRes.rows.length) { console.error('Vellichor vendor not found'); return; }
   const vendorId = vendorRes.rows[0].id;
 

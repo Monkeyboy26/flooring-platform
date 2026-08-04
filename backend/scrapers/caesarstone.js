@@ -143,7 +143,7 @@ async function createPage(browser) {
 }
 
 async function run() {
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'CAESARSTONE'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'CS'");
   if (!vendorRes.rows.length) { console.error('Caesarstone vendor not found'); return; }
   const vendorId = vendorRes.rows[0].id;
 

@@ -278,12 +278,12 @@ async function setAttr(sku_id, slug, value) {
 
 async function main() {
   // Ensure vendor exists
-  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'FUJIWA'");
+  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'FUJI'");
   let vendorId;
   if (!vendorRes.rows.length) {
     const ins = await pool.query(`
       INSERT INTO vendors (name, code, website, email)
-      VALUES ('Fujiwa Tile', 'FUJIWA', 'https://www.fujiwatiles.com', 'info@fujiwatiles.com')
+      VALUES ('Fujiwa Tile', 'FUJI', 'https://www.fujiwatiles.com', 'info@fujiwatiles.com')
       RETURNING id
     `);
     vendorId = ins.rows[0].id;

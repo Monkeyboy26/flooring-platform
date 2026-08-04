@@ -686,12 +686,12 @@ const COLLECTIONS = [
 
 async function main() {
   // Ensure vendor exists
-  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'MELANGE'");
+  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'MLG'");
   let vendorId;
   if (!vendorRes.rows.length) {
     const ins = await pool.query(`
       INSERT INTO vendors (name, code, website)
-      VALUES ('Melange Boutique Tile', 'MELANGE', 'https://www.melangetile.com')
+      VALUES ('Melange Boutique Tile', 'MLG', 'https://www.melangetile.com')
       RETURNING id
     `);
     vendorId = ins.rows[0].id;

@@ -262,7 +262,7 @@ async function extractDetailImages(page, productUrl) {
 }
 
 async function run() {
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'ELITESTONE'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'ELS'");
   if (!vendorRes.rows.length) { console.error('Elite Stone vendor not found'); return; }
   const vendorId = vendorRes.rows[0].id;
 

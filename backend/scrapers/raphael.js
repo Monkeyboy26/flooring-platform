@@ -99,7 +99,7 @@ function normalizeForMatch(name) {
 }
 
 async function run() {
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'RAPHAEL'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'RAPH'");
   if (!vendorRes.rows.length) { console.error('Raphael vendor not found'); await pool.end(); return; }
   const vendorId = vendorRes.rows[0].id;
 

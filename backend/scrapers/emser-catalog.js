@@ -36,7 +36,7 @@ export async function run(pool, job, source) {
     // Resolve vendor ID
     let vendorId = source.vendor_id;
     if (!vendorId) {
-        const r = await pool.query("SELECT id FROM vendors WHERE code = 'EMSER'");
+        const r = await pool.query("SELECT id FROM vendors WHERE code = 'EMS'");
         if (!r.rows.length) throw new Error('Vendor EMSER not found');
         vendorId = r.rows[0].id;
     }

@@ -271,7 +271,7 @@ const BAD_SKUS = [
 async function upsertVendor() {
   const r = await pool.query(`
     INSERT INTO vendors (code, name, website)
-    VALUES ('MEGACLIC', 'MegaClic (AJ Trading)', 'https://www.megaclicfloors.com')
+    VALUES ('MGC', 'MegaClic (AJ Trading)', 'https://www.megaclicfloors.com')
     ON CONFLICT (code) DO UPDATE SET
       name = EXCLUDED.name,
       website = EXCLUDED.website

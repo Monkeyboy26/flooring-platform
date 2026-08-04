@@ -621,7 +621,7 @@ function detectColorMismatch(variantName, imageUrl) {
 }
 
 async function run() {
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'BELLEZZA'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'BLZ'");
   if (!vendorRes.rows.length) {
     console.error('Bellezza vendor not found. Run import-bellezza.js first.');
     return;

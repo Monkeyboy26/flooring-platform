@@ -88,7 +88,7 @@ async function run() {
       JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN sku_attributes sa_color ON sa_color.sku_id = s.id AND sa_color.attribute_id = $1
       LEFT JOIN sku_attributes sa_width ON sa_width.sku_id = s.id AND sa_width.attribute_id = $2
-      WHERE v.code = 'STYLEACCESS'
+      WHERE v.code = 'SA'
       ORDER BY p.collection, p.name, s.variant_name
     `, [attrId.color, attrId.width || attrId.color]);
 

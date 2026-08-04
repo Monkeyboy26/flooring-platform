@@ -24,7 +24,7 @@ function parseFlag(prefix, def) {
   return a ? a.slice(prefix.length) : def;
 }
 
-const VENDOR = parseFlag('--vendor=', 'MANNINGTON').toUpperCase();
+const VENDOR = parseFlag('--vendor=', 'MANN').toUpperCase();
 const CONCURRENCY = parseInt(parseFlag('--concurrency=', '6'), 10);
 const API_BASE = `http://localhost:${process.env.PORT || 3001}`;
 const WIDTHS = [400, 800];

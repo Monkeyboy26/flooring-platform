@@ -27,7 +27,7 @@ const pool = new pg.Pool({
 });
 
 const BASE_URL = 'https://johnsonhardwood.com';
-const VENDOR_CODE = 'JOHNSONHW';
+const VENDOR_CODE = 'JH';
 
 // ──────────────────────────────────────────────
 // Accessory builders — keep SERIES_DATA compact

@@ -140,7 +140,7 @@ async function extractDetailImages(page, url) {
 }
 
 async function run() {
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'ALASKATILE'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'AKT'");
   if (!vendorRes.rows.length) { console.error('Alaska Tile vendor not found'); return; }
   const vendorId = vendorRes.rows[0].id;
 

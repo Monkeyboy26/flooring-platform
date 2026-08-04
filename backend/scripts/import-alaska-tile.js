@@ -220,12 +220,12 @@ function slugify(str) {
 
 async function main() {
   // Ensure vendor exists
-  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'ALASKATILE'");
+  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'AKT'");
   let vendorId;
   if (!vendorRes.rows.length) {
     const ins = await pool.query(`
       INSERT INTO vendors (name, code, website, email)
-      VALUES ('Alaska Tile', 'ALASKATILE', 'https://alaskatileusa.com', 'alaskatilesusa@gmail.com')
+      VALUES ('Alaska Tile', 'AKT', 'https://alaskatileusa.com', 'alaskatilesusa@gmail.com')
       RETURNING id
     `);
     vendorId = ins.rows[0].id;

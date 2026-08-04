@@ -186,7 +186,7 @@ async function setAttr(sku_id, slug, value) {
 
 async function main() {
   // Get vendor
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'VELLICHOR'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'VEL'");
   if (!vendorRes.rows.length) { console.error('Vellichor vendor not found'); process.exit(1); }
   const vendorId = vendorRes.rows[0].id;
 

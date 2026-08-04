@@ -142,7 +142,7 @@ async function upsertPricing(skuId, cost) {
 
 async function main() {
   // Get vendor
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'JOHNSONHW'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'JH'");
   if (!vendorRes.rows.length) {
     console.error('Johnson Hardwood vendor not found. Run import-johnson-hardwood.js first.');
     process.exit(1);

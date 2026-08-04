@@ -944,7 +944,7 @@ async function run() {
     // ── Upsert vendor ──
     const vendorRes = await client.query(`
       INSERT INTO vendors (id, name, code, website)
-      VALUES (gen_random_uuid(), 'Goton Tiles', 'GOTON', 'https://www.gotontiles.com')
+      VALUES (gen_random_uuid(), 'Goton Tiles', 'GOT', 'https://www.gotontiles.com')
       ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, website = EXCLUDED.website
       RETURNING id
     `);

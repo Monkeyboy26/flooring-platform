@@ -281,7 +281,7 @@ async function run() {
   const productMap = JSON.parse(fs.readFileSync(MAP_PATH, 'utf8'));
   console.log(`Loaded product map: ${Object.keys(productMap.products).length} products, ${productMap.summary.totalImages} images\n`);
 
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'UNICORN'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'UN'");
   if (!vendorRes.rows.length) { console.error('UNICORN vendor not found'); return; }
   const vendorId = vendorRes.rows[0].id;
 

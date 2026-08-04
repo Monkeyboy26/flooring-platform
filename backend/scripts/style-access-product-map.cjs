@@ -43,7 +43,7 @@ async function run() {
       AND sa_width.attribute_id = (SELECT id FROM attributes WHERE slug = 'width')
     LEFT JOIN sku_attributes sa_material ON sa_material.sku_id = s.id
       AND sa_material.attribute_id = (SELECT id FROM attributes WHERE slug = 'material')
-    WHERE v.code = 'STYLEACCESS'
+    WHERE v.code = 'SA'
     ORDER BY p.collection, p.name, s.variant_name
   `);
 

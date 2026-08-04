@@ -121,7 +121,7 @@ function fullSizeUrl(url) {
 // ── Database helpers ──────────────────────────────────────────────────────
 
 async function getVendorId() {
-  const r = await pool.query(`SELECT id FROM vendors WHERE code = 'MEGACLIC'`);
+  const r = await pool.query(`SELECT id FROM vendors WHERE code = 'MGC'`);
   return r.rows[0]?.id;
 }
 

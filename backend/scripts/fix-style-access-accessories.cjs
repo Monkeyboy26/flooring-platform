@@ -46,7 +46,7 @@ async function run() {
 
     // Look up vendor
     const { rows: vendorRows } = await client.query(
-      `SELECT id FROM vendors WHERE code = 'STYLEACCESS'`
+      `SELECT id FROM vendors WHERE code = 'SA'`
     );
     if (!vendorRows.length) { console.error('Vendor STYLEACCESS not found!'); return; }
     const vendorId = vendorRows[0].id;

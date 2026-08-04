@@ -113,14 +113,14 @@ export async function run(pool, job, source) {
   if (!vendorId) {
     const vendorResult = await pool.query(`
       INSERT INTO vendors (name, code, website)
-      VALUES ('Emser Tile', 'EMSER', 'https://www.emser.com')
+      VALUES ('Emser Tile', 'EMS', 'https://www.emser.com')
       ON CONFLICT (code) DO NOTHING
       RETURNING id
     `);
     if (vendorResult.rows.length) {
       vendorId = vendorResult.rows[0].id;
     } else {
-      const existing = await pool.query("SELECT id FROM vendors WHERE code = 'EMSER'");
+      const existing = await pool.query("SELECT id FROM vendors WHERE code = 'EMS'");
       vendorId = existing.rows[0].id;
     }
   }

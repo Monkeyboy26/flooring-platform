@@ -99,7 +99,7 @@ async function runStockCheck(pool, jobId, log) {
     JOIN products p ON p.id = s.product_id
     JOIN vendors v ON v.id = p.vendor_id
     LEFT JOIN packaging pkg ON pkg.sku_id = s.id
-    WHERE v.code = 'OTTIMO' AND s.vendor_sku IS NOT NULL AND s.status = 'active'
+    WHERE v.code = 'OTT' AND s.vendor_sku IS NOT NULL AND s.status = 'active'
   `);
 
   const skuLookup = new Map();
@@ -201,7 +201,7 @@ async function main() {
   const jobResult = await pool.query(`
     INSERT INTO scrape_jobs (vendor_source_id, status, log, errors)
     VALUES (
-      (SELECT id FROM vendor_sources WHERE vendor_id = (SELECT id FROM vendors WHERE code = 'OTTIMO') LIMIT 1),
+      (SELECT id FROM vendor_sources WHERE vendor_id = (SELECT id FROM vendors WHERE code = 'OTT') LIMIT 1),
       'running',
       '',
       '[]'::jsonb

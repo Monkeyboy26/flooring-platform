@@ -68,7 +68,7 @@ const XLSX_FILE = 'Hardware_Resources_product_data_2026.xlsx';
 // ==================== Config ====================
 
 const VENDOR = {
-  code: 'ROM440',
+  code: 'HR',
   name: 'Hardware Resources',
   website: 'https://www.hardwareresources.com',
 };

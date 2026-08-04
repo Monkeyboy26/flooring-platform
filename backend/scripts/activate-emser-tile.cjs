@@ -26,7 +26,7 @@ async function main() {
   console.log(`\n=== Activate Emser Tile Products ${DRY_RUN ? '(DRY RUN)' : '(LIVE)'} ===\n`);
 
   // 1. Find the Emser vendor
-  const vendorRes = await pool.query("SELECT id, name FROM vendors WHERE code = 'EMSER'");
+  const vendorRes = await pool.query("SELECT id, name FROM vendors WHERE code = 'EMS'");
   if (vendorRes.rows.length === 0) {
     console.error('Vendor EMSER not found');
     process.exit(1);

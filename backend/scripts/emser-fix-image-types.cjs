@@ -52,7 +52,7 @@ async function main() {
   console.log(`Emser image type fix — ${DRY_RUN ? 'DRY RUN' : 'LIVE'}`);
 
   // Get Emser vendor ID
-  const vr = await pool.query("SELECT id FROM vendors WHERE code = 'EMSER'");
+  const vr = await pool.query("SELECT id FROM vendors WHERE code = 'EMS'");
   if (!vr.rows.length) { console.error('Vendor EMSER not found'); process.exit(1); }
   const vendorId = vr.rows[0].id;
 

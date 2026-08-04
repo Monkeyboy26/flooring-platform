@@ -104,7 +104,7 @@ async function main() {
 
   // Step 1: Find Eternity vendor
   const vendorResult = await pool.query(
-    `SELECT id FROM vendors WHERE code = 'ETERNITY'`
+    `SELECT id FROM vendors WHERE code = 'ET'`
   );
   if (vendorResult.rows.length === 0) {
     console.error('Eternity vendor not found (code=ETERNITY). Run import-eternity.js first.');

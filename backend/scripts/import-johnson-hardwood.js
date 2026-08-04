@@ -493,12 +493,12 @@ function makeInternalSku(itemCode) {
 
 async function main() {
   // Ensure vendor exists
-  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'JOHNSONHW'");
+  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'JH'");
   let vendorId;
   if (!vendorRes.rows.length) {
     const ins = await pool.query(`
       INSERT INTO vendors (name, code, website)
-      VALUES ('Johnson Hardwood', 'JOHNSONHW', 'https://johnsonhardwood.com')
+      VALUES ('Johnson Hardwood', 'JH', 'https://johnsonhardwood.com')
       RETURNING id
     `);
     vendorId = ins.rows[0].id;

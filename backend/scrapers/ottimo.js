@@ -710,7 +710,7 @@ async function run() {
   // Ensure vendor exists
   const vendorRes = await pool.query(`
     INSERT INTO vendors (id, name, code, website)
-    VALUES (gen_random_uuid(), 'Ottimo Ceramics', 'OTTIMO', 'https://ottimoceramics.com')
+    VALUES (gen_random_uuid(), 'Ottimo Ceramics', 'OTT', 'https://ottimoceramics.com')
     ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, website = EXCLUDED.website
     RETURNING id
   `);

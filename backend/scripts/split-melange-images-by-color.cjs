@@ -72,7 +72,7 @@ async function run() {
   console.log(DRY_RUN ? '=== DRY RUN — no changes will be made ===\n' : '=== LIVE RUN ===\n');
 
   // 1. Find the Melange vendor
-  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'MELANGE'");
+  const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'MLG'");
   if (!vendorRes.rows.length) {
     console.error('Melange vendor not found.');
     process.exit(1);

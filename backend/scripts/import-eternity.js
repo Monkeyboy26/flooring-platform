@@ -682,7 +682,7 @@ async function main() {
   console.log(`\nLoaded ${imageMap.size} product images\n`);
 
   // 2. Create vendor
-  const vendorId = await upsertVendor('Eternity Flooring', 'ETERNITY', 'https://eternityflooring.com');
+  const vendorId = await upsertVendor('Eternity Flooring', 'ET', 'https://eternityflooring.com');
   console.log(`Vendor ID: ${vendorId}\n`);
 
   let productsCreated = 0, productsUpdated = 0;

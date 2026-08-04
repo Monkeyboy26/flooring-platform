@@ -48,7 +48,7 @@ async function main() {
     FROM media_assets ma
     JOIN products p ON p.id = ma.product_id
     JOIN vendors v ON v.id = p.vendor_id
-    WHERE v.code = 'ROM440'
+    WHERE v.code = 'HR'
       AND ma.url IS NOT NULL AND ma.url != ''
       AND ma.url LIKE '/uploads/%'
   `);

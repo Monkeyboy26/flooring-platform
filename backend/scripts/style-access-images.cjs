@@ -38,7 +38,7 @@ const pool = new Pool({
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const VERBOSE = process.argv.includes('--verbose');
-const VENDOR_CODE = 'STYLEACCESS';
+const VENDOR_CODE = 'SA';
 const WP_API = 'https://style-access.com/wp-json/wp/v2/product';
 const PER_PAGE = 100;
 
