@@ -26,7 +26,7 @@ import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCom
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers, findExactDuplicate } from './lib/customerHelpers.js';
-import { generatePDF, generatePDFBuffer, generatePOHtml, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateLabelSheetHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
+import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateLabelSheetHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -13342,7 +13342,7 @@ async function generateOrderInvoiceHtml(orderId) {
     SELECT oi.*, p.sqft_per_box, sk.variant_name, sk.accessory_label, sk.variant_type,
       sk.vendor_sku, sk.internal_sku, sa_c.value as color, sa_sz.value as size, v.name as vendor_name,
       pr.collection as collection,
-      (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) AS primary_image
+      (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
     FROM order_items oi
     LEFT JOIN packaging p ON p.sku_id = oi.sku_id
     LEFT JOIN skus sk ON sk.id = oi.sku_id
@@ -13451,7 +13451,7 @@ async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
   const items = await pool.query(`
     SELECT cmi.*, sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name,
       ri.reason, ri.condition,
-      (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) AS primary_image
+      (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
     FROM credit_memo_items cmi
     LEFT JOIN order_items oi ON oi.id = cmi.order_item_id
     LEFT JOIN skus sk ON sk.id = cmi.sku_id
@@ -13518,7 +13518,7 @@ async function generateReleaseFormHtml(releaseId, opts = {}) {
   const items = await pool.query(`
     SELECT ri.*, oi.collection, oi.sell_by, oi.num_boxes AS ordered_qty,
       sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name,
-      (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) AS primary_image
+      (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
     FROM release_items ri
     LEFT JOIN order_items oi ON oi.id = ri.order_item_id
     LEFT JOIN skus sk ON sk.id = ri.sku_id
@@ -19657,9 +19657,15 @@ app.get('/api/rep/purchase-orders/:poId/detail', repAuth, async (req, res) => {
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
         COALESCE(v.name, p_vendor.name) AS vendor_name
       FROM purchase_order_items poi
-      LEFT JOIN media_assets ma ON ma.sku_id = poi.sku_id AND ma.asset_type = 'primary'
       LEFT JOIN skus s ON s.id = poi.sku_id
       LEFT JOIN products p ON p.id = s.product_id
+      LEFT JOIN LATERAL (
+        SELECT url FROM media_assets
+        WHERE asset_type = 'primary'
+          AND (sku_id = poi.sku_id OR (sku_id IS NULL AND product_id = s.product_id))
+        ORDER BY (sku_id IS NOT NULL) DESC
+        LIMIT 1
+      ) ma ON true
       LEFT JOIN vendors p_vendor ON p_vendor.id = p.vendor_id
       LEFT JOIN purchase_orders po_v ON po_v.id = poi.purchase_order_id
       LEFT JOIN vendors v ON v.id = po_v.vendor_id
@@ -20064,8 +20070,7 @@ app.get('/api/rep/purchase-orders/:id/pdf', repAuth, async (req, res) => {
   try {
     const result = await generatePOHtml(pool, req.params.id);
     if (!result) return res.status(404).json({ error: 'Purchase order not found' });
-    const zeroMargin = { margin: { top: '0', bottom: '0', left: '0', right: '0' } };
-    await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res, zeroMargin);
+    await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res, PO_PDF_MARGIN);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -20207,7 +20212,7 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       try {
         const poData = await generatePOHtml(pool, poId);
         if (poData) {
-          const pdfBuffer = await generatePDFBuffer(poData.html, { margin: { top: '0', bottom: '0', left: '0', right: '0' } });
+          const pdfBuffer = await generatePDFBuffer(poData.html, PO_PDF_MARGIN);
           const result = await sendPurchaseOrderToVendor({
             vendor_email: po.vendor_email,
             vendor_name: po.vendor_name,
@@ -25095,7 +25100,7 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
     const updatedData = await generatePOHtml(pool, poId);
     let pdfBuffer;
     try {
-      pdfBuffer = await generatePDFBuffer(updatedData.html, { margin: { top: '0', bottom: '0', left: '0', right: '0' } });
+      pdfBuffer = await generatePDFBuffer(updatedData.html, PO_PDF_MARGIN);
     } catch (pdfErr) {
       console.error('[PO Send] PDF generation failed:', pdfErr.message);
       return res.status(500).json({ error: 'PDF generation failed. Puppeteer may not be available.' });
@@ -25548,8 +25553,7 @@ app.get('/api/staff/purchase-orders/:id/pdf', staffAuth, async (req, res) => {
   try {
     const result = await generatePOHtml(pool, req.params.id);
     if (!result) return res.status(404).json({ error: 'Purchase order not found' });
-    const zeroMargin = { margin: { top: '0', bottom: '0', left: '0', right: '0' } };
-    await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res, zeroMargin);
+    await generatePDF(result.html, `PO-${result.po.po_number}.pdf`, req, res, PO_PDF_MARGIN);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }

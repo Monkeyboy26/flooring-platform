@@ -2984,7 +2984,7 @@
         signin: { title: "Sign In | Roma Flooring Designs", description: "Sign in to your Roma Flooring Designs account.", url: SITE_URL + "/signin" },
         signup: { title: "Create Account | Roma Flooring Designs", description: "Create your Roma Flooring Designs account.", url: SITE_URL + "/signup" },
         "forgot-password": { title: "Forgot Password | Roma Flooring Designs", description: "Reset your Roma Flooring Designs password.", url: SITE_URL + "/forgot-password" },
-        about: { title: "About Us | Roma Flooring Designs", description: "A family flooring house in Anaheim, California \u2014 hardwood, stone, tile, and cabinetry since 2010. Visit our showroom on State College Blvd.", url: SITE_URL + "/about" }
+        about: { title: "About Us | Roma Flooring Designs", description: "A family flooring house in Anaheim, California \u2014 hardwood, stone, tile, and cabinetry since 1999. Visit our showroom on State College Blvd.", url: SITE_URL + "/about" }
       };
       if (view === "browse" && selectedCategory) {
         const rootCat = categories.find((c) => c.slug === selectedCategory || (c.children || []).some((ch) => ch.slug === selectedCategory));
@@ -10038,7 +10038,7 @@
       { v: "10\u201320%", l: "Contracted trade margin", s: "Tiered by annual spend" },
       { v: "$0", l: "Membership fee", s: "Free to apply and join" },
       { v: "2 days", l: "Typical approval", s: "4 hours with a CSLB #" },
-      { v: "Since 2010", l: "Family-owned in Anaheim", s: "License #830966" },
+      { v: "Since 1999", l: "Family-owned in Anaheim", s: "License #830966" },
       { v: "3 ways", l: "To pay every order", s: "Card \xB7 ACH \xB7 Klarna" }
     ];
     return /* @__PURE__ */ React.createElement("section", { style: { borderBottom: `0.5px solid ${ink}22`, padding: "36px 80px" } }, /* @__PURE__ */ React.createElement("div", { "data-tv2-grid": true, style: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)" } }, stats.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: s.l, style: { padding: "0 24px", borderLeft: i === 0 ? "none" : `0.5px solid ${ink}11`, display: "grid", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { font: "400 40px/1 var(--roma-serif)", letterSpacing: "-0.012em", color: ink } }, s.v), /* @__PURE__ */ React.createElement("div", { style: { font: "500 11px/1.2 var(--roma-sans)", letterSpacing: "0.06em", color: ink } }, s.l), /* @__PURE__ */ React.createElement("div", { style: { font: "400 12px/1.3 var(--roma-sans)", color: muted } }, s.s)))));
@@ -10980,7 +10980,7 @@
     } }, "Book a counter visit")))));
   }
   function SiteFooter({ goHome, goBrowse, goCollections, goTrade, onInstallClick, navigate }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "footer" }, /* @__PURE__ */ React.createElement("div", { className: "footer-inner" }, /* @__PURE__ */ React.createElement("div", { className: "footer-brand" }, /* @__PURE__ */ React.createElement("h3", null, "Roma Flooring Designs"), /* @__PURE__ */ React.createElement("p", null, "Premium flooring, tile, stone, and countertop products. Curated collections for designers, builders, and homeowners since 2010.")), /* @__PURE__ */ React.createElement("div", { className: "footer-col" }, /* @__PURE__ */ React.createElement("h4", null, "Shop"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    return /* @__PURE__ */ React.createElement("div", { className: "footer" }, /* @__PURE__ */ React.createElement("div", { className: "footer-inner" }, /* @__PURE__ */ React.createElement("div", { className: "footer-brand" }, /* @__PURE__ */ React.createElement("h3", null, "Roma Flooring Designs"), /* @__PURE__ */ React.createElement("p", null, "Premium flooring, tile, stone, and countertop products. Curated collections for designers, builders, and homeowners since 1999.")), /* @__PURE__ */ React.createElement("div", { className: "footer-col" }, /* @__PURE__ */ React.createElement("h4", null, "Shop"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       goBrowse();
     } }, "All Products"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {

@@ -421,7 +421,7 @@ export function generateResaleCertificateHtml(data = {}) {
   const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const fill = (v, ph) => v ? `<span class="rc-fill">${esc(v)}</span>` : `<span class="rc-blank">${esc(ph || '')}</span>`;
   const addr = [data.address_line1, [data.city, data.state, data.zip].filter(Boolean).join(', ')].filter(Boolean).join(' &middot; ');
-  const dateStr = data.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const dateStr = data.date || new Date().toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric' });
   const propDesc = data.property_description || 'Flooring, tile, stone, and related installation materials';
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     ${getDocumentBaseCSS()}
@@ -513,13 +513,17 @@ export async function generatePDFBuffer(html, options = {}) {
   return Buffer.from(pdf);
 }
 
+// PO pages carry their own horizontal padding; vertical space comes from these
+// PDF margins so every page of a multi-page PO gets the same breathing room.
+export const PO_PDF_MARGIN = { margin: { top: '0.5in', bottom: '0.45in', left: '0', right: '0' } };
+
 export async function generatePOHtml(pool, poId) {
   const po = await pool.query(`
     SELECT po.*,
       v.name as vendor_name, v.code as vendor_code, v.email as vendor_email, v.edi_config,
       COALESCE(sa.first_name || ' ' || sa.last_name, sr_a.first_name || ' ' || sr_a.last_name) as approved_by_name,
       COALESCE(sa.email, sr_a.email) as approver_email,
-      o.order_number, o.sales_rep_id,
+      o.order_number, o.sales_rep_id, o.job_name,
       sr_b.first_name || ' ' || sr_b.last_name as buyer_name,
       sr_b.email as buyer_email
     FROM purchase_orders po
@@ -545,30 +549,35 @@ export async function generatePOHtml(pool, poId) {
       AND sac.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
     LEFT JOIN sku_attributes sac_sz ON sac_sz.sku_id = poi.sku_id
       AND sac_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
-    LEFT JOIN media_assets ma ON ma.sku_id = poi.sku_id AND ma.asset_type = 'primary'
+    LEFT JOIN LATERAL (
+      SELECT url FROM media_assets
+      WHERE asset_type = 'primary'
+        AND (sku_id = poi.sku_id OR (sku_id IS NULL AND product_id = sk.product_id))
+      ORDER BY (sku_id IS NOT NULL) DESC
+      LIMIT 1
+    ) ma ON true
     WHERE poi.purchase_order_id = $1 ORDER BY poi.created_at
   `, [poId]);
 
   // -- Derived values --
   const buyerName = p.buyer_name || p.approved_by_name || '\u2014';
   const buyerEmail = p.buyer_email || p.approver_email || '';
+  // Rep-approved POs leave approved_by NULL (reps aren't staff_accounts) but
+  // still set approved_at \u2014 fall back to the buyer so the signature isn't blank.
+  const approverName = p.approved_by_name || p.buyer_name || '';
 
+  const PT = 'America/Los_Angeles';
   const fmtDate = (d) => {
     if (!d) return '\u2014';
-    const dt = new Date(d);
-    return dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    return new Date(d).toLocaleDateString('en-US', { timeZone: PT, month: 'long', day: 'numeric', year: 'numeric' });
   };
   const fmtShortDate = (d) => {
     if (!d) return '\u2014';
     const dt = new Date(d);
-    const m = dt.toLocaleDateString('en-US', { month: 'short' });
-    const day = dt.getDate();
-    const yr = dt.getFullYear();
-    const h = dt.getHours();
-    const min = dt.getMinutes().toString().padStart(2, '0');
-    const ampm = h >= 12 ? 'p' : 'a';
-    const h12 = h % 12 || 12;
-    return `${m} ${day}, ${yr} &middot; ${h12}:${min}${ampm}`;
+    const date = dt.toLocaleDateString('en-US', { timeZone: PT, month: 'short', day: 'numeric', year: 'numeric' });
+    const time = dt.toLocaleTimeString('en-US', { timeZone: PT, hour: 'numeric', minute: '2-digit', hour12: true })
+      .toLowerCase().replace(/\s*([ap])m$/, '$1');
+    return `${date} &middot; ${time}`;
   };
 
   const statusDotClass = {
@@ -607,13 +616,17 @@ export async function generatePOHtml(pool, poId) {
       --ink:${ink};--muted:${muted};--accent:${accent};--warm:${warm};--cool:${cool};
     }
     *{box-sizing:border-box;margin:0;padding:0}
-    html,body{margin:0;padding:0;height:100%}
+    html,body{margin:0;padding:0}
     body{font-family:var(--roma-sans);color:var(--ink);font-size:11px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
     ol{margin:0;padding-left:14px;display:grid;gap:4px}
+    /* PDF vertical spacing comes from page margins (PO_PDF_MARGIN) so page 2+
+       gets the same breathing room; the iframe preview needs it as padding. */
+    @media screen { .po-page { padding-top:48px; padding-bottom:40px; } }
+    .avoid-break { break-inside:avoid; page-break-inside:avoid; }
     </style>
     <script>document.fonts&&document.fonts.ready.then(function(){})</script>
     </head><body>
-    <div style="width:100%;height:100%;background:#fff;color:${ink};font-family:${sans};padding:48px 56px 40px;box-sizing:border-box;display:grid;grid-template-rows:auto auto auto 1fr auto;gap:0;font-size:11px">
+    <div class="po-page" style="width:100%;background:#fff;color:${ink};font-family:${sans};padding-left:56px;padding-right:56px;box-sizing:border-box;font-size:11px">
 
       <!-- HEADER -->
       <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid ${ink}22">
@@ -624,7 +637,7 @@ export async function generatePOHtml(pool, poId) {
             Roma Flooring Designs, Inc.<br>
             1440 S. State College Blvd, Anaheim, CA 92806<br>
             (714) 999-0009 &middot; orders@romaflooringdesigns.com<br>
-            CSLB #874621
+            License #830966
           </div>
         </div>
         <div style="text-align:right;min-width:240px">
@@ -635,6 +648,7 @@ export async function generatePOHtml(pool, poId) {
             <span style="color:${ink};text-align:right">${fmtDate(p.created_at)}</span>
             ${p.expected_delivery ? `<span style="color:${muted}">Expected</span><span style="color:${ink};text-align:right">${fmtDate(p.expected_delivery)}</span>` : ''}
             ${p.order_number ? `<span style="color:${muted}">Customer ref</span><span style="color:${ink};text-align:right">${p.order_number}</span>` : ''}
+            ${p.job_name ? `<span style="color:${muted}">Sidemark</span><span style="color:${ink};text-align:right">${escDoc(p.job_name)}</span>` : ''}
             <span style="color:${muted}">Revision</span>
             <span style="color:${ink};text-align:right">${p.revision || 0}</span>
             <span style="color:${muted}">Status</span>
@@ -658,7 +672,7 @@ export async function generatePOHtml(pool, poId) {
           <div style="font:500 11px/1.2 ${sans};color:${ink}">${buyerName}</div>
           <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">
             Sales rep<br>${buyerEmail}
-            ${p.approved_by_name ? `<br><br><span style="color:${muted}">Approved by</span><br>${p.approved_by_name}<br>${fmtShortDate(p.approved_at)}` : ''}
+            ${p.approved_at && approverName ? `<br><br><span style="color:${muted}">Approved by</span><br>${approverName}<br>${fmtShortDate(p.approved_at)}` : ''}
           </div>
         </div>
         <div>
@@ -672,7 +686,7 @@ export async function generatePOHtml(pool, poId) {
           <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Ship to</div>
           <div style="font:500 11px/1.2 ${sans};color:${ink}">${shipLines[0] || ''}</div>
           <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${shipLines.slice(1).join('<br>')}</div>
-          <div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Receiving &middot; Mon&ndash;Fri &middot; 7a&ndash;4p PT</div>
+          <div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Receiving &middot; Mon&ndash;Fri &middot; 9a&ndash;5p</div>
           <div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:6px">28&rsquo; truck max &middot; forklift on-site</div>
           ${ediId ? `<div style="margin-top:10px;font:400 10px/1.5 ${sans};color:${muted}">EDI: <span style="color:${ink}">${ediId}</span></div>` : ''}
         </div>
@@ -680,15 +694,14 @@ export async function generatePOHtml(pool, poId) {
 
       <!-- LINE ITEMS -->
       <div style="padding-top:18px">
-        <div style="display:grid;grid-template-columns:28px 110px 1fr 70px 60px 80px 110px;gap:10px;padding:0 0 10px;border-bottom:1px solid ${ink}33;font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted}">
-          <span>Ln</span><span>Vendor SKU</span><span>Description</span>
+        <div style="display:grid;grid-template-columns:28px 1fr 110px 70px 60px 80px 110px;gap:10px;padding:0 0 10px;border-bottom:1px solid ${ink}33;font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted}">
+          <span>Ln</span><span>Description</span><span>Vendor SKU</span>
           <span style="text-align:right">Qty</span><span>UOM</span>
           <span style="text-align:right">Unit cost</span><span style="text-align:right">Line subtotal</span>
         </div>
         ${items.rows.map((it, idx) => {
           const ln = String(idx + 1).padStart(2, '0');
           const vsku = it.vendor_sku || '\u2014';
-          const rsku = it.internal_sku ? `Roma ${it.internal_sku}` : '';
           const imgHtml = it.primary_image
             ? `<img src="${it.primary_image}" style="width:32px;height:32px;object-fit:cover;flex-shrink:0;border:0.5px solid ${ink}22" />`
             : '';
@@ -696,28 +709,25 @@ export async function generatePOHtml(pool, poId) {
           let desc = ci.nameLine;
           if ((!desc || desc === 'Product') && it.description) desc = it.description;
           desc = escDoc(desc || '\u2014');
-          // Brand line sits ABOVE the name; the vendor SKU already prints in the
-          // left column so it is NOT duplicated beneath the name here.
+          // Brand line sits ABOVE the name; the vendor SKU prints in its own
+          // column so it is NOT duplicated beneath the name here.
           const brand = escDoc(ci.vendor || p.vendor_name || '');
-          const dyeLot = it.dye_lot || '\u2014';
+          const lineNote = it.line_note ? escDoc(it.line_note) : '';
           const uom = (it.sell_by || 'unit').toUpperCase();
           const cost = parseFloat(it.cost || 0).toFixed(2);
           const sub = parseFloat(it.subtotal || 0).toFixed(2);
           const isLast = idx === items.rows.length - 1;
-          return `<div style="display:grid;grid-template-columns:28px 110px 1fr 70px 60px 80px 110px;gap:10px;padding:12px 0;border-bottom:${isLast ? 'none' : `1px solid ${ink}11`};align-items:flex-start">
+          return `<div class="avoid-break" style="display:grid;grid-template-columns:28px 1fr 110px 70px 60px 80px 110px;gap:10px;padding:12px 0;border-bottom:${isLast ? 'none' : `1px solid ${ink}11`};align-items:flex-start">
             <span style="font:400 11px/1.4 ${serif};color:${muted}">${ln}</span>
-            <div>
-              <div style="font:500 10px/1.2 ${mono};color:${ink};letter-spacing:0.04em">${vsku}</div>
-              ${rsku ? `<div style="font:400 9px/1.4 ${sans};color:${muted};margin-top:2px">${rsku}</div>` : ''}
-            </div>
             <div style="display:flex;gap:10px;align-items:flex-start">
               ${imgHtml}
               <div>
                 ${brand ? `<div style="font:400 9px/1.4 ${sans};color:${muted};margin-bottom:2px">${brand}</div>` : ''}
                 <div style="font:500 11px/1.3 ${sans};color:${ink};letter-spacing:-0.004em">${desc}</div>
-                <div style="font:500 9px/1.4 ${mono};letter-spacing:0.12em;color:${muted};text-transform:uppercase;margin-top:3px">Dye lot: ${dyeLot}</div>
+                ${lineNote ? `<div style="font:400 9.5px/1.45 ${sans};color:${ink}cc;font-style:italic;margin-top:4px;padding-left:8px;border-left:2px solid ${accent}">${lineNote}</div>` : ''}
               </div>
             </div>
+            <div style="font:500 10px/1.2 ${mono};color:${ink};letter-spacing:0.04em">${vsku}</div>
             <div style="text-align:right;font:400 12px/1.2 ${serif};color:${ink};letter-spacing:-0.005em">${it.qty}</div>
             <div style="font:500 9px/1.4 ${mono};color:${muted};text-transform:uppercase">${uom}</div>
             <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink};letter-spacing:-0.005em">$${cost}</div>
@@ -728,7 +738,7 @@ export async function generatePOHtml(pool, poId) {
 
       <!-- TERMS + TOTALS + SIGNATURES + FOOTER (5th grid row) -->
       <div>
-        <div style="display:grid;grid-template-columns:1fr 220px;gap:28px;margin-top:12px">
+        <div class="avoid-break" style="display:grid;grid-template-columns:1fr 220px;gap:28px;margin-top:12px">
           <div style="padding-top:4px;font:400 9.5px/1.55 ${sans};color:${ink}cc">
             <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Terms</div>
             <ol>
@@ -753,9 +763,9 @@ export async function generatePOHtml(pool, poId) {
         </div>
 
         <!-- SIGNATURES -->
-        <div style="margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:36px">
+        <div class="avoid-break" style="margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:36px">
           <div>
-            <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;font:400 12px/1 ${serif};color:${ink};font-style:italic">${p.approved_by_name || '\u2014'}</div>
+            <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;font:400 12px/1 ${serif};color:${ink};font-style:italic">${(p.approved_at && approverName) || '\u2014'}</div>
             <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Roma &middot; Approver${p.approved_at ? ` &middot; ${fmtShortDate(p.approved_at)}` : ''}</div>
           </div>
           <div>
@@ -765,9 +775,9 @@ export async function generatePOHtml(pool, poId) {
         </div>
 
         <!-- FOOTER -->
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid ${ink}22;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 ${sans};color:${muted}">
-          <span>Roma Flooring Designs, Inc. &middot; 1440 S. State College Blvd &middot; Anaheim, CA 92806 &middot; CSLB #874621</span>
-          <span style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase">${p.po_number} &middot; Rev ${p.revision || 0} &middot; Page 1 / 1</span>
+        <div class="avoid-break" style="margin-top:16px;padding-top:12px;border-top:1px solid ${ink}22;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 ${sans};color:${muted}">
+          <span>Roma Flooring Designs, Inc. &middot; 1440 S. State College Blvd &middot; Anaheim, CA 92806 &middot; License #830966</span>
+          <span style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase">${p.po_number} &middot; Rev ${p.revision || 0}</span>
         </div>
       </div>
     </div>
@@ -786,7 +796,7 @@ export async function generatePOHtml(pool, poId) {
 // company_name (trade). Items may carry primary_image for the swatches.
 export function generateQuoteHtml(q, items) {
   const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric' }) : null;
   const issued = longDate(q.created_at);
   const validUntil = longDate(q.expires_at);
   const isExpired = q.expires_at && new Date(q.expires_at) < new Date();
@@ -1002,7 +1012,7 @@ ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'v
 // rep_name/rep_email/effective_status); `materials`/`labor` are item arrays.
 export function generateEstimateHtml(e, materials = [], labor = []) {
   const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric' }) : null;
   const issued = longDate(e.created_at);
   const validUntil = longDate(e.expires_at);
   const isExpired = e.effective_status === 'expired' || (e.expires_at && new Date(e.expires_at) < new Date());
@@ -1239,7 +1249,7 @@ ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'v
 // items may carry primary_image (swatch), vendor_sku / vendor_name / collection.
 export function generateOrderInvoiceDoc(o, items) {
   const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric' }) : null;
   const issued = longDate(o.created_at);
   const isPickup = o.delivery_method === 'pickup';
   const orderNumber = o.order_number || 'RD-' + String(o.id).substring(0, 8).toUpperCase();
@@ -1474,7 +1484,7 @@ ${totalsRows}
 // opts may carry { orderNumber } to label the tax reversal.
 export function generateCreditMemoDoc(memo, items, opts = {}) {
   const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric' }) : null;
   const issued = longDate(memo.created_at);
   const orderNumber = opts.orderNumber || memo.order_number || (memo.order_id ? 'RD-' + String(memo.order_id).substring(0, 8).toUpperCase() : '—');
   const cmNumber = memo.credit_memo_number || 'CM-' + String(memo.id).substring(0, 8).toUpperCase();
@@ -1681,7 +1691,7 @@ ${totalsRows}
 // credit-memo doc's Brass-Charcoal styling. No pricing — this is a fulfillment
 // authorization, not a financial document.
 export function generateReleaseFormDoc(release, items, opts = {}) {
-  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric' }) : null;
   const issued = longDate(release.released_at || release.created_at);
   const orderNumber = opts.orderNumber || release.order_number || (release.order_id ? 'RD-' + String(release.order_id).substring(0, 8).toUpperCase() : '—');
   const relNumber = release.release_number || 'REL-' + String(release.id).substring(0, 8).toUpperCase();

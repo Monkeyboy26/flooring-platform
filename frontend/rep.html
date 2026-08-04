@@ -6534,6 +6534,38 @@
       });
     }
 
+    // Load a document URL into a hidden iframe and open the browser print
+    // dialog. Chrome blocks in print(), so awaiting this in a loop prints
+    // documents one after another. Falls back to a new tab if the frame
+    // can't be printed (e.g. a cross-origin PDF viewer).
+    function printDocUrl(url, revoke) {
+      return new Promise(resolve => {
+        const frame = document.createElement('iframe');
+        frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        const finish = () => {
+          setTimeout(() => {
+            frame.remove();
+            if (revoke) URL.revokeObjectURL(url);
+          }, 1000);
+          resolve();
+        };
+        frame.onload = () => {
+          // Give the PDF viewer / images a beat to render before printing
+          setTimeout(() => {
+            try {
+              frame.contentWindow.focus();
+              frame.contentWindow.print();
+            } catch (e) {
+              window.open(url, '_blank');
+            }
+            finish();
+          }, 400);
+        };
+        frame.src = url;
+        document.body.appendChild(frame);
+      });
+    }
+
     function repUpload(path, formData) {
       const token = sessionStorage.getItem('rep_token');
       return fetch(API + path, {
@@ -19414,7 +19446,7 @@
               <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: 'var(--stone-500)' }}>{'\u2715'}</button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <iframe ref={iframeRef} src={url} sandbox="allow-same-origin" style={{ width: '100%', height: '100%', border: 'none' }} />
+              <iframe ref={iframeRef} src={url} sandbox="allow-same-origin allow-modals" style={{ width: '100%', height: '100%', border: 'none' }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', padding: '0.75rem 1rem', borderTop: '1px solid var(--stone-200)' }}>
               <button className="btn btn-secondary" onClick={() => {
@@ -19518,7 +19550,7 @@
               width: 816, height: 1056, flexShrink: 0,
               boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
             }}>
-              <iframe ref={iframeRef} src={url} sandbox="allow-same-origin" style={{ width: '100%', height: '100%', border: 'none' }} />
+              <iframe ref={iframeRef} src={url} sandbox="allow-same-origin allow-modals" style={{ width: '100%', height: '100%', border: 'none' }} />
             </div>
           </div>
         </div>
@@ -19596,7 +19628,7 @@
               width: 816, height: 1056, flexShrink: 0,
               boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
             }}>
-              <iframe ref={iframeRef} src={url} sandbox="allow-same-origin" style={{ width: '100%', height: '100%', border: 'none' }} />
+              <iframe ref={iframeRef} src={url} sandbox="allow-same-origin allow-modals" style={{ width: '100%', height: '100%', border: 'none' }} />
             </div>
           </div>
         </div>
@@ -19619,6 +19651,14 @@
           </div>
         </section>
       );
+    }
+
+    // Display label for an uploaded order document (Documents card + print popup)
+    function rovOrderDocLabel(doc) {
+      return doc.doc_type === 'customer_id' ? 'Customer ID'
+        : doc.doc_type === 'check_photo' ? 'Check photo'
+        : doc.doc_type === 'vendor_confirmation' ? 'Order confirmation' + (doc.po_number ? ' · ' + doc.po_number : '')
+        : doc.file_name || doc.doc_type || 'Document';
     }
 
     function RovChip({ tone, children }) {
@@ -19670,6 +19710,9 @@
       const [orderActivity, setOrderActivity] = useState(null);
       const [docPreview, setDocPreview] = useState(null);
       const [orderDocuments, setOrderDocuments] = useState([]);
+      const [showPrintModal, setShowPrintModal] = useState(false);
+      const [printSel, setPrintSel] = useState({}); // doc key → checked
+      const [printBusy, setPrintBusy] = useState(null); // progress label while printing, or null
       const [showSendInvoiceModal, setShowSendInvoiceModal] = useState(false);
       const [invoiceMessage, setInvoiceMessage] = useState('');
       const [sendingInvoice, setSendingInvoice] = useState(false);
@@ -19830,6 +19873,58 @@
           .then(data => setOrderDocuments(data.documents || []))
           .catch(() => {});
       }, [editId]);
+
+      // Every printable document on this order — mirrors the Documents card rows.
+      // Generated docs carry a `path` (fetched as preview HTML); uploads carry
+      // their stored `url` directly.
+      const printableDocs = [
+        ...(orderInvoices.length > 0
+          ? orderInvoices.map(iv => ({
+              key: 'inv-' + iv.id, label: 'Invoice ' + iv.invoice_number,
+              sub: iv.issue_date ? 'Issued ' + new Date(iv.issue_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Draft',
+              path: '/api/rep/orders/' + editId + '/invoice?preview=true'
+            }))
+          : [{ key: 'inv', label: 'Invoice', sub: 'Customer-facing PDF', path: '/api/rep/orders/' + editId + '/invoice?preview=true' }]),
+        ...purchaseOrders.map(po => ({
+          key: 'po-' + po.id, label: po.po_number, sub: po.vendor_name,
+          path: '/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'
+        })),
+        ...releases.filter(rel => rel.status !== 'void').map(rel => ({
+          key: 'rel-' + rel.id, label: 'Release ' + rel.release_number,
+          sub: (rel.release_method === 'delivery' ? 'Delivery' : 'Pickup') + ' · ' + rel.line_count + ' line' + (rel.line_count === 1 ? '' : 's'),
+          path: '/api/rep/releases/' + rel.id + '/release-form'
+        })),
+        ...orderDocuments.filter(doc => doc.url).map(doc => ({
+          key: 'doc-' + doc.id, label: rovOrderDocLabel(doc),
+          sub: 'Uploaded ' + (doc.mime_type ? (doc.mime_type.split('/')[1] || 'file').toUpperCase() : 'file'),
+          url: doc.url
+        }))
+      ];
+
+      const openPrintModal = () => {
+        // Default everything checked — reps usually uncheck the odd one out
+        const sel = {};
+        printableDocs.forEach(d => { sel[d.key] = true; });
+        setPrintSel(sel);
+        setShowPrintModal(true);
+      };
+
+      const printSelectedDocs = async () => {
+        const chosen = printableDocs.filter(d => printSel[d.key]);
+        if (!chosen.length || printBusy) return;
+        for (let i = 0; i < chosen.length; i++) {
+          const d = chosen[i];
+          setPrintBusy(chosen.length > 1 ? 'Printing ' + (i + 1) + ' of ' + chosen.length + '…' : 'Printing…');
+          try {
+            const url = d.url || await repOpenDoc(d.path);
+            await printDocUrl(url, !d.url);
+          } catch (e) {
+            alert('Failed to load ' + d.label);
+          }
+        }
+        setPrintBusy(null);
+        setShowPrintModal(false);
+      };
 
       useEffect(load, [load]);
       useEffect(loadPOs, [loadPOs]);
@@ -20914,7 +21009,7 @@
               )}
 
               {/* Documents — v2 */}
-              <RodCard title="Documents">
+              <RodCard title="Documents" action={'⎙ Print'} onAction={openPrintModal}>
                 <div style={{ padding: '8px 20px 14px' }}>
                   {orderInvoices.length > 0 ? orderInvoices.map(iv => (
                     <div className="rov-doc-row2" key={iv.id}>
@@ -20953,7 +21048,7 @@
                     </div>
                   ))}
                   {orderDocuments.map(doc => {
-                    const docLabel = doc.doc_type === 'customer_id' ? 'Customer ID' : doc.doc_type === 'check_photo' ? 'Check photo' : doc.file_name || doc.doc_type || 'Document';
+                    const docLabel = rovOrderDocLabel(doc);
                     return (
                       <div className="rov-doc-row2" key={doc.id}>
                         <div style={{ minWidth: 0 }}>
@@ -21196,6 +21291,55 @@
               connectReader={connectReader}
             />
           )}
+          {/* Print documents — pick which docs go to the printer, one job per doc */}
+          {showPrintModal && (() => {
+            const selCount = printableDocs.filter(d => printSel[d.key]).length;
+            const allChecked = selCount === printableDocs.length;
+            return (
+              <div onClick={() => !printBusy && setShowPrintModal(false)}
+                style={{ position: 'fixed', inset: 0, zIndex: 1400, background: 'rgba(28,25,23,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                <div onClick={e => e.stopPropagation()}
+                  style={{ width: '100%', maxWidth: 424, background: '#f5f1e8', border: '0.5px solid rgba(28,25,23,0.25)', boxShadow: '0 20px 48px rgba(28,25,23,0.22)' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: '0.5px solid rgba(28,25,23,0.12)', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginBottom: 6 }}>Print documents</div>
+                      <div style={{ font: '400 16px/1.3 "Inter", sans-serif', color: 'var(--rod-ink)' }}>{order ? order.order_number : ''}</div>
+                    </div>
+                    <button className="rod-mini-btn" disabled={!!printBusy}
+                      onClick={() => { const sel = {}; printableDocs.forEach(d => { sel[d.key] = !allChecked; }); setPrintSel(sel); }}>
+                      {allChecked ? 'None' : 'All'}
+                    </button>
+                  </div>
+                  <div style={{ maxHeight: '52vh', overflowY: 'auto', padding: '6px 0' }}>
+                    {printableDocs.map(d => (
+                      <label key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', cursor: printBusy ? 'default' : 'pointer', borderBottom: '0.5px solid rgba(28,25,23,0.07)' }}>
+                        <input type="checkbox" checked={!!printSel[d.key]} disabled={!!printBusy}
+                          onChange={e => setPrintSel(prev => ({ ...prev, [d.key]: e.target.checked }))}
+                          style={{ accentColor: '#1c1917', width: 15, height: 15, flexShrink: 0, margin: 0 }} />
+                        <span style={{ minWidth: 0 }}>
+                          <span style={{ display: 'block', font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
+                          {d.sub && <RovMicro style={{ marginTop: 2 }}>{d.sub}</RovMicro>}
+                        </span>
+                      </label>
+                    ))}
+                    {printableDocs.length === 0 && (
+                      <div style={{ padding: '16px 20px', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-muted)' }}>No documents on this order yet</div>
+                    )}
+                  </div>
+                  <div style={{ padding: '14px 20px', borderTop: '0.5px solid rgba(28,25,23,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <RovMicro>{selCount} selected · one print job each</RovMicro>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="rod-mini-btn" disabled={!!printBusy} onClick={() => setShowPrintModal(false)}>Cancel</button>
+                      <button className="rod-mini-btn primary" disabled={!!printBusy || selCount === 0} onClick={printSelectedDocs}>
+                        {printBusy || ('⎙ Print' + (selCount > 1 ? ' ' + selCount : ''))}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {docPreview && (docPreview.type === 'po'
             ? <PODocumentViewer
                 url={docPreview.url}

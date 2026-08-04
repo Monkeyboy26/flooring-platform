@@ -3656,7 +3656,7 @@
           signin: { title: 'Sign In | Roma Flooring Designs', description: 'Sign in to your Roma Flooring Designs account.', url: SITE_URL + '/signin' },
           signup: { title: 'Create Account | Roma Flooring Designs', description: 'Create your Roma Flooring Designs account.', url: SITE_URL + '/signup' },
           'forgot-password': { title: 'Forgot Password | Roma Flooring Designs', description: 'Reset your Roma Flooring Designs password.', url: SITE_URL + '/forgot-password' },
-          about: { title: 'About Us | Roma Flooring Designs', description: 'A family flooring house in Anaheim, California — hardwood, stone, tile, and cabinetry since 2010. Visit our showroom on State College Blvd.', url: SITE_URL + '/about' },
+          about: { title: 'About Us | Roma Flooring Designs', description: 'A family flooring house in Anaheim, California — hardwood, stone, tile, and cabinetry since 1999. Visit our showroom on State College Blvd.', url: SITE_URL + '/about' },
         };
 
         // Dynamic SEO for filtered browse views
@@ -15409,7 +15409,7 @@
         { v: '10–20%', l: 'Contracted trade margin', s: 'Tiered by annual spend' },
         { v: '$0', l: 'Membership fee', s: 'Free to apply and join' },
         { v: '2 days', l: 'Typical approval', s: '4 hours with a CSLB #' },
-        { v: 'Since 2010', l: 'Family-owned in Anaheim', s: 'License #830966' },
+        { v: 'Since 1999', l: 'Family-owned in Anaheim', s: 'License #830966' },
         { v: '3 ways', l: 'To pay every order', s: 'Card · ACH · Klarna' },
       ];
       return (
@@ -17193,7 +17193,7 @@
           <div className="footer-inner">
             <div className="footer-brand">
               <h3>Roma Flooring Designs</h3>
-              <p>Premium flooring, tile, stone, and countertop products. Curated collections for designers, builders, and homeowners since 2010.</p>
+              <p>Premium flooring, tile, stone, and countertop products. Curated collections for designers, builders, and homeowners since 1999.</p>
             </div>
             <div className="footer-col">
               <h4>Shop</h4>
