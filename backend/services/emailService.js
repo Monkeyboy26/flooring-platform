@@ -882,7 +882,6 @@ export async function sendOrderInvoiceEmail({ order, items, balance, checkout_ur
     return { sent: false };
   }
   try {
-    const LOGO_URL = (process.env.SITE_URL || 'http://localhost:3001') + '/assets/logo/roma-square.png';
     const total = parseFloat(order.total || 0);
     const amountPaid = parseFloat(order.amount_paid || 0);
     const balanceDue = balance > 0.01 ? balance : 0;
@@ -936,7 +935,10 @@ export async function sendOrderInvoiceEmail({ order, items, balance, checkout_ur
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border:1px solid #e7e5e4;">
   <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="100" height="100" style="display:block;margin:0 auto;width:100px;height:100px;" />
+    <div style="text-align:center;">
+<p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;line-height:1;font-weight:400;letter-spacing:0.34em;color:#15120f;">ROMA <span style="font-size:15px;letter-spacing:0.2em;color:#57534e;">FLOORING</span></p>
+<p style="margin:-5px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script','Cormorant Garamond',cursive;font-size:31px;line-height:1;color:#c9a668;">Designs</p>
+</div>
   </td></tr>
   <tr><td style="padding:32px 40px 16px;text-align:center;">
     <h1 style="margin:0 0 8px;font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:400;color:#1c1917;">Invoice</h1>

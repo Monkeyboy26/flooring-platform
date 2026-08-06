@@ -15,7 +15,7 @@
   <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" integrity="sha384-x/ilTFv/u/eu6YSmkFDZl5V5Mm/pkxxcVv2cVJOrr1J0rvILhMvRBCy6yA75wYBj"></script>
   <script src="https://js.stripe.com/terminal/v1/"></script>
   <script src="https://js.stripe.com/v3/"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&family=Pinyon+Script&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -3258,7 +3258,10 @@
       cursor: pointer; padding: 0.5rem;
       -webkit-tap-highlight-color: transparent;
     }
-    .mobile-topbar img { border-radius: 4px; }
+    .mobile-topbar .logo-text { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; padding-bottom: 0.3em; user-select: none; }
+    .mobile-topbar .logo-wordmark { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 400; font-size: 1rem; letter-spacing: 0.26em; text-indent: 0.26em; color: #fff; white-space: nowrap; }
+    .mobile-topbar .logo-wordmark em { font-style: normal; font-size: 0.62em; letter-spacing: 0.2em; text-indent: 0.2em; color: #a09587; }
+    .mobile-topbar .logo-script { font-family: 'Pinyon Script', 'Cormorant Garamond', cursive; font-size: 1.35rem; line-height: 1; color: #c9a668; margin-top: -0.3em; white-space: nowrap; }
 
     /* Sidebar Backdrop */
     .sidebar-backdrop {
@@ -9441,7 +9444,7 @@
                 {sidebarOpen ? <path d="M6 18L18 6M6 6l12 12"/> : <path d="M3 12h18M3 6h18M3 18h18"/>}
               </svg>
             </button>
-            <img src="/assets/logo/roma-square.png" alt="Roma" style={{ height: 32 }} />
+            <span className="logo-text" aria-label="Roma Flooring Designs"><span className="logo-wordmark">ROMA <em>FLOORING</em></span><span className="logo-script">Designs</span></span>
             <div style={{ width: 24 }} />
           </div>
           <div className={'sidebar-backdrop' + (sidebarOpen ? ' visible' : '')} onClick={() => setSidebarOpen(false)} />

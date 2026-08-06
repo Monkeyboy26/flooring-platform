@@ -78,8 +78,10 @@ header { background: var(--warm-bg); position: sticky; top: 0; z-index: var(--z-
 .header-main-right { display: flex; align-items: center; justify-content: flex-end; gap: 0.25rem; }
 .logo { cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .logo img { height: 38px; width: auto; display: block; }
-.logo-text { font-family: var(--font-heading); font-weight: 300; font-size: 30px; color: var(--stone-900); letter-spacing: 0.18em; line-height: 1; user-select: none; white-space: nowrap; }
-.logo-text em { font-style: italic; color: var(--gold); letter-spacing: 0.04em; }
+.logo-text { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; padding-bottom: 0.34em; user-select: none; }
+.logo-wordmark { font-family: var(--font-heading); font-weight: 400; font-size: 1.5rem; letter-spacing: 0.34em; text-indent: 0.34em; color: var(--stone-900); white-space: nowrap; }
+.logo-wordmark em { font-style: normal; font-size: 0.62em; letter-spacing: 0.2em; text-indent: 0.2em; color: var(--stone-600); }
+.logo-script { font-family: 'Pinyon Script', 'Cormorant Garamond', cursive; font-size: 2.05rem; line-height: 1; color: var(--gold); margin-top: -0.30em; align-self: center; white-space: nowrap; }
 .header-actions { display: flex; align-items: center; gap: 0.5rem; }
 .header-action-btn { background: none; border: none; cursor: pointer; color: var(--stone-500); display: flex; align-items: center; justify-content: center; position: relative; transition: color var(--transition-base); -webkit-tap-highlight-color: transparent; min-width: 40px; min-height: 40px; }
 .header-action-btn:hover { color: var(--stone-900); }
@@ -1723,7 +1725,9 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 
 /* Slim checkout header */
 .co-header { padding: 1.25rem clamp(1.5rem, 5vw, 5rem); border-bottom: 0.5px solid rgba(28,25,23,0.13); display: flex; align-items: center; justify-content: space-between; }
-.co-header-logo { font: 300 2rem/1 var(--font-heading); color: var(--stone-800); letter-spacing: -0.014em; text-decoration: none; cursor: pointer; }
+.co-header-logo { text-decoration: none; cursor: pointer; display: inline-flex; }
+.co-header-logo .logo-wordmark { font-size: 1.125rem; }
+.co-header-logo .logo-script { font-size: 1.55rem; }
 .co-header-meta { display: flex; align-items: center; gap: 1.375rem; font: 500 0.6875rem/1 ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--warm-muted); }
 .co-header-meta .co-secure { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--stone-800); font: 400 0.875rem/1 var(--font-body); }
 
@@ -2357,7 +2361,9 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 /* ── FOOTER ── */
 .footer { background: var(--stone-900); color: white; }
 .footer-inner { max-width: var(--max-width); margin: 0 auto; padding: 4rem 3rem; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 2.5rem; }
-.footer-brand h3 { font-family: var(--font-heading); font-size: 2.25rem; font-weight: 400; margin-bottom: 1rem; }
+.footer-brand .logo-text { margin-bottom: 1rem; }
+.footer-brand .logo-wordmark { color: #fff; }
+.footer-brand .logo-wordmark em { color: var(--stone-400); }
 .footer-brand p { font-size: 0.8125rem; color: var(--stone-400); line-height: 1.6; }
 .footer-social { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
 .footer-social a { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--stone-600); color: var(--stone-400); transition: all 0.2s; text-decoration: none; }
@@ -2443,7 +2449,8 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   .header-main { display: flex; padding: 0 1rem; height: var(--header-height-mobile); border-bottom: none; gap: 0; }
   .header-main-left { flex: 1; }
   .header-main-right { flex: 0; }
-  .logo-text { font-size: 22px; }
+  .logo-wordmark { font-size: 1.125rem; letter-spacing: 0.26em; text-indent: 0.26em; }
+  .logo-script { font-size: 1.6rem; }
   .category-hero { height: 200px; padding: 1.5rem; }
   .category-hero h1 { font-size: 2.25rem; }
   .category-hero p { font-size: 0.9rem; }
@@ -3211,7 +3218,8 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 }
 @media (max-width: 768px) {
   .co-header { padding: 1rem 1.25rem; }
-  .co-header-logo { font-size: 1.5rem; }
+  .co-header-logo .logo-wordmark { font-size: 1rem; }
+  .co-header-logo .logo-script { font-size: 1.35rem; }
   .co-header-meta { gap: 0.75rem; }
   .co-header-meta .co-phone { display: none; }
   .co-progress { padding: 1rem 1.25rem 1.25rem; }
@@ -3421,7 +3429,9 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .auth-form-col { background: var(--warm-bg); color: var(--stone-800); padding: 40px 64px; display: grid; grid-template-rows: auto 1fr auto; gap: 24px; overflow: hidden; }
 .auth-form-col-inner { align-self: center; display: grid; gap: 28px; max-width: 460px; }
 .auth-header { display: flex; justify-content: space-between; align-items: center; }
-.auth-header-logo { font: 300 32px/1 var(--font-heading); color: var(--stone-800); letter-spacing: -0.014em; text-decoration: none; cursor: pointer; }
+.auth-header-logo { text-decoration: none; cursor: pointer; display: inline-flex; }
+.auth-header-logo .logo-wordmark { font-size: 1.125rem; }
+.auth-header-logo .logo-script { font-size: 1.55rem; }
 .auth-header-tagline { font: 500 11px/1 ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--warm-muted); }
 .auth-footer { display: flex; justify-content: space-between; align-items: center; font: 400 12px/1.4 var(--font-body); color: var(--warm-muted); }
 .auth-footer a { color: var(--warm-muted); text-decoration: none; cursor: pointer; }

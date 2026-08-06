@@ -4677,7 +4677,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
               </button>
               <div className="logo" onClick={goHome}>
-                <span className="logo-text">R O M A <em>Flooring</em></span>
+                <span className="logo-text"><span className="logo-wordmark">ROMA <em>FLOORING</em></span><span className="logo-script">Designs</span></span>
               </div>
             </div>
 
@@ -10668,7 +10668,7 @@
         <div className="co-wrap">
           {/* Slim checkout header */}
           <div className="co-header">
-            <a className="co-header-logo" onClick={(e) => { e.preventDefault(); goCart(); }} href="#">Roma</a>
+            <a className="co-header-logo" onClick={(e) => { e.preventDefault(); goCart(); }} href="#"><span className="logo-text"><span className="logo-wordmark">ROMA <em>FLOORING</em></span><span className="logo-script">Designs</span></span></a>
             <div className="co-header-meta">
               <span className="co-phone">(714) 999-0009</span>
               <span className="co-secure">
@@ -14545,7 +14545,12 @@
       return /* @__PURE__ */ React.createElement("div", { className: "auth-page" },
         /* @__PURE__ */ React.createElement("div", { className: "auth-form-col" },
           /* @__PURE__ */ React.createElement("div", { className: "auth-header" },
-            /* @__PURE__ */ React.createElement("a", { className: "auth-header-logo", onClick: goHome }, "Roma"),
+            /* @__PURE__ */ React.createElement("a", { className: "auth-header-logo", onClick: goHome },
+              /* @__PURE__ */ React.createElement("span", { className: "logo-text" },
+                /* @__PURE__ */ React.createElement("span", { className: "logo-wordmark" }, "ROMA ", /* @__PURE__ */ React.createElement("em", null, "FLOORING")),
+                /* @__PURE__ */ React.createElement("span", { className: "logo-script" }, "Designs")
+              )
+            ),
             /* @__PURE__ */ React.createElement("span", { className: "auth-header-tagline" }, "Anaheim, CA \xb7 Since 1999")
           ),
           /* @__PURE__ */ React.createElement("div", { className: "auth-form-col-inner" }, children),
@@ -17192,7 +17197,7 @@
         <div className="footer">
           <div className="footer-inner">
             <div className="footer-brand">
-              <h3>Roma Flooring Designs</h3>
+              <span className="logo-text" aria-label="Roma Flooring Designs"><span className="logo-wordmark">ROMA <em>FLOORING</em></span><span className="logo-script">Designs</span></span>
               <p>Premium flooring, tile, stone, and countertop products. Curated collections for designers, builders, and homeowners since 1999.</p>
             </div>
             <div className="footer-col">

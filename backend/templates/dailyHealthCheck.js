@@ -1,4 +1,4 @@
-import { LOGO_URL } from './_config.js';
+import { LOGO_LOCKUP } from './_config.js';
 
 function esc(str) {
   return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -47,7 +47,7 @@ export function generateDailyHealthCheckHTML(data) {
 
   <!-- Header -->
   <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="60" height="60" style="display:block;margin:0 auto 8px;width:60px;height:60px;" />
+    <div style="margin:0 0 8px;">${LOGO_LOCKUP}</div>
     <h1 style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;font-weight:400;color:#1c1917;">Scraper Health Report</h1>
     <p style="margin:4px 0 0;font-size:13px;color:#78716c;">${dateStr}</p>
   </td></tr>

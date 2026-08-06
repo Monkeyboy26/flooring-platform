@@ -164,7 +164,7 @@ export function itemNameCell(it, opts = {}) {
 
 export function getDocumentBaseCSS() {
   return `
-    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap');
 
     * { box-sizing: border-box; }
 
@@ -186,12 +186,14 @@ export function getDocumentBaseCSS() {
       border-bottom: 2px solid #a87935;
     }
     .header-left { display: flex; align-items: center; gap: 14px; }
-    .header-logo { width: 52px; height: 52px; object-fit: contain; }
-    .company-name {
+    .logo-lockup { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; padding-bottom: 0.3em; margin-bottom: 3px; }
+    .logo-wordmark {
       font-family: 'Cormorant Garamond', Georgia, serif;
-      font-size: 1.5rem; font-weight: 400; letter-spacing: 0.02em;
-      color: #1c1917; margin: 0 0 3px;
+      font-size: 1.35rem; font-weight: 400; letter-spacing: 0.34em; text-indent: 0.34em;
+      color: #1c1917; white-space: nowrap;
     }
+    .logo-wordmark em { font-style: normal; font-size: 0.62em; letter-spacing: 0.2em; text-indent: 0.2em; color: #57534e; }
+    .logo-script { font-family: 'Pinyon Script', 'Cormorant Garamond', cursive; font-size: 1.8rem; line-height: 1; color: #c9a668; margin-top: -0.3em; align-self: center; white-space: nowrap; }
     .company-info { font-size: 0.6875rem; color: #78716c; line-height: 1.65; }
 
     .header-right { text-align: right; }
@@ -380,13 +382,11 @@ export function getDocumentBaseCSS() {
 }
 
 export function getDocumentHeader(title) {
-  const logoImg = LOGO_DATA_URI ? `<img src="${LOGO_DATA_URI}" class="header-logo" alt="Roma Flooring Designs"/>` : '';
   return `
     <div class="header">
       <div class="header-left">
-        ${logoImg}
         <div>
-          <p class="company-name">Roma Flooring Designs</p>
+          <div class="logo-lockup"><span class="logo-wordmark">ROMA <em>FLOORING</em></span><span class="logo-script">Designs</span></div>
           <div class="company-info">
             1440 S. State College Blvd #6M, Anaheim, CA 92806<br/>
             (714) 999-0009 &nbsp;&middot;&nbsp; Sales@romaflooringdesigns.com

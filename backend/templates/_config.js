@@ -2,6 +2,13 @@ const BASE = process.env.SITE_URL || 'http://localhost:3001';
 export const LOGO_URL = BASE + '/assets/logo/roma-square.png';
 export const SITE_URL = BASE;
 
+// Text logo lockup — email-safe inline styles, centered, for light backgrounds.
+// Pinyon Script degrades to Brush Script MT / serif in clients without web fonts.
+export const LOGO_LOCKUP = `<div style="text-align:center;">
+<p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;line-height:1;font-weight:400;letter-spacing:0.34em;color:#15120f;">ROMA <span style="font-size:15px;letter-spacing:0.2em;color:#57534e;">FLOORING</span></p>
+<p style="margin:-5px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script','Cormorant Garamond',cursive;font-size:31px;line-height:1;color:#c9a668;">Designs</p>
+</div>`;
+
 // CAN-SPAM: every MARKETING email must include the physical address and a
 // working unsubscribe link (transactional emails are exempt). Pass the
 // subscriber's unsubscribe_token from newsletter_subscribers.

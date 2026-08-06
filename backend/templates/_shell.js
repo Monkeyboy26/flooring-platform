@@ -92,8 +92,8 @@ export function warmCard(inner, padding = '18px 22px') {
 
 function brandHeader() {
   return `<tr><td style="padding:32px 40px 22px;text-align:center;border-bottom:1px solid ${T.border};">
-    <p style="margin:0;font-family:${SERIF};font-size:40px;line-height:1;font-weight:300;letter-spacing:-0.018em;color:${T.ink};">Roma</p>
-    <p style="margin:6px 0 0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.24em;text-transform:uppercase;color:${T.muted};">Flooring &middot; Surfaces &middot; Anaheim</p>
+    <p style="margin:0;font-family:${SERIF};font-size:26px;line-height:1;font-weight:400;letter-spacing:0.34em;color:${T.ink};">ROMA <span style="font-size:16px;letter-spacing:0.2em;color:${T.muted};">FLOORING</span></p>
+    <p style="margin:-6px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script',${SERIF};font-size:34px;line-height:1;color:#c9a668;">Designs</p>
   </td></tr>`;
 }
 
@@ -123,7 +123,7 @@ export function emailShell({ title, preheader, content }) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${esc(title || 'Roma Flooring Designs')}</title>
-<style>@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');</style>
+<style>@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap');</style>
 </head>
 <body style="margin:0;padding:0;background-color:${T.inbox};font-family:${SANS};">
 ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${esc(preheader)}</div>` : ''}

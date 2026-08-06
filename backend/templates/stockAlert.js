@@ -1,4 +1,4 @@
-import { LOGO_URL } from './_config.js';
+import { LOGO_LOCKUP } from './_config.js';
 
 export function generateStockAlertHTML(data) {
   const { product_name, variant_name, sku_code, primary_image, product_url } = data;
@@ -11,7 +11,7 @@ export function generateStockAlertHTML(data) {
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
   <tr><td style="padding:40px 40px 24px;text-align:center;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" style="height:48px;margin-bottom:24px;" />
+    <div style="margin:0 0 24px;">${LOGO_LOCKUP}</div>
     <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:300;color:#1c1917;margin:0 0 8px;">Good News!</h1>
     <p style="color:#57534e;font-size:16px;margin:0 0 24px;">An item on your wish list is back in stock.</p>
   </td></tr>

@@ -1,4 +1,4 @@
-import { LOGO_URL } from './_config.js';
+import { LOGO_LOCKUP } from './_config.js';
 
 export function generateProductShareHTML(data) {
   const {
@@ -43,7 +43,7 @@ export function generateProductShareHTML(data) {
 
   <!-- Header -->
   <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
-    <img src="${LOGO_URL}" alt="Roma Flooring Designs" width="120" height="120" style="display:block;margin:0 auto;width:120px;height:120px;" />
+    ${LOGO_LOCKUP}
   </td></tr>
 
   <!-- Title -->
