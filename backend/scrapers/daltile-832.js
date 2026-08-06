@@ -49,15 +49,17 @@ const REMOTE_DIRS = [
   '/',
 ];
 
-// Map EDI category text → category slugs in our DB
+// Map EDI category text → LEAF category slugs in our DB. 'tile'/'luxury-vinyl'
+// are parent categories and 'mosaic' doesn't exist — the old values left 8,351
+// products with NULL/parent categories (backfilled 2026-08-06).
 const CATEGORY_MAP = {
-  'porcelain':             'tile',
-  'porcelain tile':        'tile',
-  'ceramic':               'tile',
-  'ceramic tile':          'tile',
-  'tile':                  'tile',
-  'floor tile':            'tile',
-  'wall tile':             'tile',
+  'porcelain':             'porcelain-tile',
+  'porcelain tile':        'porcelain-tile',
+  'ceramic':               'ceramic-tile',
+  'ceramic tile':          'ceramic-tile',
+  'tile':                  'porcelain-tile',
+  'floor tile':            'porcelain-tile',
+  'wall tile':             'ceramic-tile',
   'natural stone':         'natural-stone',
   'stone':                 'natural-stone',
   'marble':                'natural-stone',
@@ -66,37 +68,37 @@ const CATEGORY_MAP = {
   'granite':               'natural-stone',
   'limestone':             'natural-stone',
   'quartzite':             'natural-stone',
-  'mosaic':                'mosaic',
-  'glass':                 'mosaic',
-  'glass tile':            'mosaic',
-  'glass mosaic':          'mosaic',
-  'stone mosaic':          'mosaic',
-  'metal mosaic':          'mosaic',
-  'luxury vinyl':          'luxury-vinyl',
-  'luxury vinyl plank':    'luxury-vinyl',
-  'luxury vinyl tile':     'luxury-vinyl',
-  'lvp':                   'luxury-vinyl',
-  'lvt':                   'luxury-vinyl',
-  'spc':                   'luxury-vinyl',
-  'wpc':                   'luxury-vinyl',
-  'vinyl plank':           'luxury-vinyl',
-  'vinyl tile':            'luxury-vinyl',
-  'grout':                 'installation-sundries',
-  'setting material':      'installation-sundries',
-  'setting materials':     'installation-sundries',
-  'caulk':                 'installation-sundries',
-  'sealant':               'installation-sundries',
-  'adhesive':              'installation-sundries',
-  'mortar':                'installation-sundries',
-  'backer board':          'installation-sundries',
-  'membrane':              'installation-sundries',
-  'accessory':             'installation-sundries',
-  'accessories':           'installation-sundries',
-  'trim':                  'installation-sundries',
-  'molding':               'installation-sundries',
-  'bullnose':              'installation-sundries',
-  'quarter round':         'installation-sundries',
-  'underlayment':          'installation-sundries',
+  'mosaic':                'mosaic-tile',
+  'glass':                 'mosaic-tile',
+  'glass tile':            'mosaic-tile',
+  'glass mosaic':          'mosaic-tile',
+  'stone mosaic':          'mosaic-tile',
+  'metal mosaic':          'mosaic-tile',
+  'luxury vinyl':          'lvp-plank',
+  'luxury vinyl plank':    'lvp-plank',
+  'luxury vinyl tile':     'lvp-plank',
+  'lvp':                   'lvp-plank',
+  'lvt':                   'lvp-plank',
+  'spc':                   'lvp-plank',
+  'wpc':                   'lvp-plank',
+  'vinyl plank':           'lvp-plank',
+  'vinyl tile':            'lvp-plank',
+  'grout':                 'grout',
+  'setting material':      'adhesives-sealants',
+  'setting materials':     'adhesives-sealants',
+  'caulk':                 'adhesives-sealants',
+  'sealant':               'adhesives-sealants',
+  'adhesive':              'adhesives-sealants',
+  'mortar':                'adhesives-sealants',
+  'backer board':          'surface-prep-levelers',
+  'membrane':              'surface-prep-levelers',
+  'accessory':             'trim-accessories',
+  'accessories':           'trim-accessories',
+  'trim':                  'trim-accessories',
+  'molding':               'trim-accessories',
+  'bullnose':              'trim-accessories',
+  'quarter round':         'trim-accessories',
+  'underlayment':          'underlayment',
 };
 
 // PID characteristic codes → human-readable
@@ -368,22 +370,22 @@ function parse832(raw) {
 
 // MAC (material class) → category slug mapping for Daltile
 const MAC_CATEGORY_MAP = {
-  PORTILR: 'tile',             // Porcelain Tile Residential
-  PORTILC: 'tile',             // Porcelain Tile Commercial
-  CERTILR: 'tile',             // Ceramic Tile Residential
-  CERTILC: 'tile',             // Ceramic Tile Commercial
+  PORTILR: 'porcelain-tile',   // Porcelain Tile Residential
+  PORTILC: 'porcelain-tile',   // Porcelain Tile Commercial
+  CERTILR: 'ceramic-tile',     // Ceramic Tile Residential
+  CERTILC: 'ceramic-tile',     // Ceramic Tile Commercial
   STNTILR: 'natural-stone',    // Stone Tile Residential
   STNTILC: 'natural-stone',    // Stone Tile Commercial
-  MOSTILR: 'mosaic',           // Mosaic Tile Residential
-  MOSTILC: 'mosaic',           // Mosaic Tile Commercial
-  GLSTILR: 'mosaic',           // Glass Tile Residential
-  GLSTILC: 'mosaic',           // Glass Tile Commercial
-  VINTILR: 'luxury-vinyl',     // Vinyl Tile/LVP Residential
-  VINTILC: 'luxury-vinyl',     // Vinyl Tile/LVP Commercial
-  VINMISR: 'installation-sundries', // Vinyl Misc (accessories)
-  SETMTL:  'installation-sundries', // Setting Materials
-  GRTCAU:  'installation-sundries', // Grout & Caulk
-  TRMACC:  'installation-sundries', // Trim & Accessories
+  MOSTILR: 'mosaic-tile',      // Mosaic Tile Residential
+  MOSTILC: 'mosaic-tile',      // Mosaic Tile Commercial
+  GLSTILR: 'mosaic-tile',      // Glass Tile Residential
+  GLSTILC: 'mosaic-tile',      // Glass Tile Commercial
+  VINTILR: 'lvp-plank',        // Vinyl Tile/LVP Residential
+  VINTILC: 'lvp-plank',        // Vinyl Tile/LVP Commercial
+  VINMISR: 'transitions-moldings', // Vinyl Misc (moldings/accessories)
+  SETMTL:  'adhesives-sealants',   // Setting Materials
+  GRTCAU:  'grout',                // Grout & Caulk
+  TRMACC:  'trim-accessories',     // Trim & Accessories
 };
 
 /**
@@ -870,6 +872,39 @@ export async function run(pool, job, source) {
     const slug = CATEGORY_MAP[categoryText.toLowerCase().trim()];
     return slug ? (catCache[slug] || null) : null;
   };
+  // Third-party sundry brands in the feed carry only a coarse EDI category
+  // (TRMACC/accessories), so classify them by collection + the product-code
+  // token at the end of the name. Mirrors the 2026-08-06 backfill — upserts
+  // overwrite category, so re-runs must reproduce the same assignments.
+  const refineSundryCategory = (collection, name, fallbackId) => {
+    const coll = (collection || '').toLowerCase();
+    const tokMatch = (name || '').match(/(\S+)\s*$/);
+    const tok = tokMatch ? tokMatch[1].toLowerCase().replace(/[^a-z].*$/, '') : '';
+    let slug = null;
+    if (coll.startsWith('schluter')) {
+      if (/kerdi|kereck|tubkit/i.test(name) || /^(k|ses|sns|sew)/.test(tok)) slug = 'shower-systems';
+      else if (/^dh/.test(tok)) slug = 'floor-heating';
+      else if (/ditra/i.test(name) || /^dit/.test(tok)) slug = 'surface-prep-levelers';
+      else if (/^t/.test(tok)) slug = 'stair-treads-nosing';   // Trep stair profiles
+      else slug = 'transitions-moldings';                       // metal edge profiles
+    } else if (coll.startsWith('noble')) {
+      slug = 'shower-systems';
+    } else if (coll.startsWith('custom building')) {
+      if (/^cc/.test(tok)) slug = 'adhesives-sealants';         // color caulk
+      else if (/^(tl|aq)/.test(tok)) slug = 'care-maintenance'; // TileLab / Aqua Mix
+      else if (/^(lq|rlf|sp)/.test(tok)) slug = 'surface-prep-levelers'; // LevelQuik
+      else slug = 'grout';                                      // color-coded grout
+    } else if (coll.startsWith('color fast') || coll.startsWith('bostik')) {
+      slug = 'adhesives-sealants';
+    } else if (coll.startsWith('rubi tools') || coll.startsWith('primo tool')) {
+      slug = 'tools-trowels';
+    } else if (/\b(bullnose|cove base|quarter round|jolly|universal trim|v-?cap|mud cap|chair rail|pencil liner)\b/i.test(name || '')) {
+      // Tile trim decoded from the vendor SKU (daltileSkuDescriptors) — the EDI
+      // category text still says wall/floor tile, so override by name.
+      slug = 'trim-accessories';
+    }
+    return slug ? (catCache[slug] || fallbackId) : fallbackId;
+  };
 
   // Track all imported SKUs across all files for deactivation at the end
   const allImportedSkusByCollection = new Map(); // collection → Set of internal_skus
@@ -901,7 +936,8 @@ export async function run(pool, job, source) {
     let pricingUpserted = 0, packagingUpserted = 0, attrsUpserted = 0;
 
     for (const group of productGroups) {
-      const categoryId = resolveCatId(group.category);
+      const categoryId = refineSundryCategory(
+        group.collection, group.baseName, resolveCatId(group.category));
 
       const productRow = await upsertProduct(pool, {
         vendor_id: vendorId,

@@ -529,7 +529,9 @@ function resolveProductCategory(skus, seriesName, catMap) {
 
   // ── Natural stone tile ──
   else if (productType === 'Stone Tile') {
-    slug = 'natural-stone';
+    // Ledger panel series ("Stacked Stone") sell as stacked stone, not field tile
+    if (/stacked stone|ledger/i.test(seriesName)) slug = 'stacked-stone';
+    else slug = 'natural-stone';
   }
 
   // ── Mosaic ──
@@ -548,7 +550,10 @@ function resolveProductCategory(skus, seriesName, catMap) {
 
   // ── Wall tile ──
   else if (/Wall.*Bathroom.*Access/i.test(productType)) {
-    slug = 'backsplash-wall';
+    // This productType mixes wall tile with bath fixtures (Armor grab bars,
+    // ceramic Bath Accessories) — route the fixtures to bath-accessories
+    if (/\barmor\b|bath accessories/i.test(seriesName)) slug = 'bath-accessories';
+    else slug = 'backsplash-wall';
   } else if (/Wall Tile/i.test(productType)) {
     // Check body type for ceramic vs porcelain wall tile
     if (/ceramic|wall\s*body/i.test(bodyStr)) slug = 'ceramic-tile';
