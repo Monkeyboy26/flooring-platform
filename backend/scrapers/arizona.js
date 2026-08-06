@@ -232,8 +232,8 @@ const ACCESSORY_KEYWORDS = /\b(trim|molding|moulding|reducer|stair\s*nose|transi
 
 // Name-based format patterns — catch products whose AZ tags don't include format categories
 // but whose collection name clearly indicates the format (e.g., "Basalt Hex" → mosaic)
-const MOSAIC_NAME_PATTERN = /\b(hex|chevron|herringbone|basketweave|penny|geometric|labyrinth|fishing\s*net|combhex|arabesque|thin\s*brick)\b/i;
-const STACKED_NAME_PATTERN = /\b(ledger|splitface|split\s*face)\b/i;
+const MOSAIC_NAME_PATTERN = /\b(hex|chevron|herringbone|basketweave|penny|geometric|labyrinth|fishing\s*net|combhex|arabesque|thin\s*brick|geometro|skywalk|trove|looming\s*stream|artistic\s*expression|fraser\s*river)\b/i;
+const STACKED_NAME_PATTERN = /\b(ledger|splitface|split[-\s]?face)\b/i;
 
 // WooCommerce product pages that list colors by format rather than by series.
 // Colors on these pages usually also have their own WC product page, creating duplicates.
@@ -258,6 +258,34 @@ function extractMosaicShape(sizeAttr) {
 const FIELD_SIZE = /(\d{2,})-?x-?(\d{2,})|8-?x-?48|8-?x-?36|6-?x-?36|6-?x-?24/;
 // Mosaic keywords in size attribute — these sizes are NOT field tile even if dimensions are large
 const MOSAIC_KW = /mosaic|mesh|hex|penny|basketweave|herringbone|stack|sheet/i;
+
+// Parse a size string into numeric [w, h] inches. Handles raw ("13-3/4x10-9/16")
+// and WC-slugified ("13-3-4-x-10-9-16") forms, including fractional parts.
+function parseSizeDims(s) {
+  if (!s) return null;
+  const t = String(s).toLowerCase().replace(/\//g, '-').replace(/-x-/g, 'x').replace(/\s+/g, '');
+  const m = t.match(/(?:^|[^\d])(\d+)(?:-(\d+)-(\d+))?x(\d+)(?:-(\d+)-(\d+))?(?=[^\d]|$)/);
+  if (!m) return null;
+  const a = parseInt(m[1], 10) + (m[2] ? parseInt(m[2], 10) / parseInt(m[3], 10) : 0);
+  const b = parseInt(m[4], 10) + (m[5] ? parseInt(m[5], 10) / parseInt(m[6], 10) : 0);
+  if (!isFinite(a) || !isFinite(b)) return null;
+  return [a, b];
+}
+
+// True field-tile size: both dims integer and ≥12, or a large plank format.
+// Fractional dims (11-7/16x11-7/8, 13-3/4x10-9/16) are mesh-mounted sheet sizes,
+// NOT field tile — the old FIELD_SIZE regex false-matched inside slugified
+// sixteenths ("...-7-16-x-11-..." → "16-x-11") and demoted whole mosaic pages
+// (Geometro, Geo-Tulle, Geo-Belfort) to their material category.
+function isFieldTileSize(s) {
+  if (!s || MOSAIC_KW.test(s)) return false;
+  const dims = parseSizeDims(s);
+  if (!dims) return false;
+  const [a, b] = [Math.min(dims[0], dims[1]), Math.max(dims[0], dims[1])];
+  if (!Number.isInteger(a) || !Number.isInteger(b)) return false;
+  if (a >= 12 && b >= 12) return true;
+  return (a === 8 && (b === 48 || b === 36)) || (a === 6 && (b === 36 || b === 24));
+}
 
 // Categories sold per piece/sheet (not per sqft in boxes)
 const UNIT_CATEGORIES = new Set([
@@ -809,7 +837,7 @@ export async function run(pool, job, source) {
           const varSizes = detail.variations
             .map(v => (v.attributes?.attribute_pa_size || ''))
             .filter(Boolean);
-          const hasFieldTileSize = varSizes.some(s => FIELD_SIZE.test(s) && !MOSAIC_KW.test(s));
+          const hasFieldTileSize = varSizes.some(s => isFieldTileSize(s));
 
           if (hasFieldTileSize) {
             // Re-resolve: find best non-mosaic category
@@ -828,7 +856,12 @@ export async function run(pool, job, source) {
                 altSlug = slug;
               }
             }
-            if (altCatId) {
+            // Only demote to a SPECIFIC material category (priority ≥80, e.g.
+            // porcelain-and-ceramic, marble-tile). Generic special-order/OL tags
+            // ('stone' 70, 'special-order-series' 20) must not steal glass-SO
+            // mosaic sheets whose sizes look field-like (Geo-Solid Square 12x12,
+            // Geo-Highland 15x15).
+            if (altCatId && altPriority >= 80) {
               categoryId = altCatId;
               pimCatSlug = altSlug;
             }
@@ -864,8 +897,7 @@ export async function run(pool, job, source) {
             .map(v => (v.attributes?.attribute_pa_size || ''))
             .filter(s => s && s !== 'sample');
           // Check if ANY variant has a field-tile size (≥12 in both dims)
-          const hasFieldSize = varSizes.some(s =>
-            FIELD_SIZE.test(s) && !MOSAIC_KW.test(s));
+          const hasFieldSize = varSizes.some(s => isFieldTileSize(s));
           // Check if at least one variant has a recognized wall-tile size
           // Handles raw (4x16), WC-slugified (4-x-16), and fractional (2-1-4-x-9-3-4)
           const WALL_PATTERN = /\b(3-?x-?6|4-?x-?12|4-?x-?16|2-?x-?6|3-?x-?12|3-?x-?9|2\.?5-?x-?8|6-?x-?6|8-?x-?24)\b|\d-\d+-?\d*-x-\d/;
@@ -881,10 +913,18 @@ export async function run(pool, job, source) {
         // porcelain-and-ceramic) but whose collection name clearly indicates a specific
         // format (mosaic, stacked stone) get reclassified here.
         if (!FORMAT_CATS.has(pimCatSlug) && !SLAB_CATEGORIES.has(pimCatSlug)) {
+          // Ledger products aren't always named "Ledger" — Haisa Blue's only
+          // size is "Split Honed Ledger 6x24". Treat as stacked stone when
+          // every variant size is a ledger/splitface size.
+          const nonSampleSizes = detail.variations
+            .map(v => (v.attributes?.attribute_pa_size || ''))
+            .filter(s => s && s !== 'sample');
+          const allLedgerSizes = nonSampleSizes.length > 0
+            && nonSampleSizes.every(s => STACKED_NAME_PATTERN.test(s));
           if (MOSAIC_NAME_PATTERN.test(apiProduct.title)) {
             const mosaicId = categoryLookup.get('mosaic-tile');
             if (mosaicId) { categoryId = mosaicId; pimCatSlug = 'mosaic-tile'; }
-          } else if (STACKED_NAME_PATTERN.test(apiProduct.title)) {
+          } else if (STACKED_NAME_PATTERN.test(apiProduct.title) || allLedgerSizes) {
             const stackedId = categoryLookup.get('stacked-stone');
             if (stackedId) { categoryId = stackedId; pimCatSlug = 'stacked-stone'; }
           }
