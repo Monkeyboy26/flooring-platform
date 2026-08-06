@@ -873,7 +873,8 @@
     const color = ca && ca.value ? ca.value.trim() : null;
     const colorSet = new Set((siblings || []).flatMap((s) => (s.attributes || []).filter((a) => a.slug === "color").map((a) => (a.value || "").toLowerCase())).filter(Boolean));
     if (color) colorSet.add(color.toLowerCase());
-    const hoist = colorSet.size > 1 && color && !base.toLowerCase().includes(color.toLowerCase());
+    const inBase = color && base.toLowerCase().includes(color.toLowerCase());
+    const hoist = !!color && (colorSet.size > 1 || inBase);
     return { hoist, title: hoist ? formatCarpetValue(color) : base, base };
   }
   function pdpH1Title(sku, siblings) {
@@ -895,9 +896,10 @@
     const gradeAttr = (sku.attributes || []).find((a) => a.slug === "grade");
     const sizeAttr = (sku.attributes || []).find((a) => a.slug === "size");
     const finishAttr = (sku.attributes || []).find((a) => a.slug === "finish");
+    const colorAttr = (sku.attributes || []).find((a) => a.slug === "color");
     let lead = base || "";
     lead = lead.replace(/\b\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?\w*/g, " ");
-    const strip = [finishAttr && finishAttr.value, gradeAttr && gradeAttr.value, (sku.collection || "").trim()];
+    const strip = [finishAttr && finishAttr.value, gradeAttr && gradeAttr.value, colorAttr && colorAttr.value, (sku.collection || "").trim()];
     for (const v of strip) {
       if (v) lead = lead.replace(new RegExp("\\b" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "ig"), " ");
     }

@@ -813,13 +813,14 @@
       return parts.join(', ');
     }
 
-    // For products that group MANY colors under one product (e.g. Patina Modern
-    // Elegance Plank, Fujiwa Joya) the product name is the line/format, not the
-    // color, so the H1 would read "Modern Elegance Plank" for every color. When
-    // the product genuinely carries more than one color AND the current color
-    // isn't already in the name, lead the title with the color instead and let
-    // the line/format drop to the subtitle. Single-color products (name already
-    // is the identity, color is just a spec) are untouched.
+    // The H1 is "Collection Color" (collection prepended by pdpH1Title); all
+    // other variant info (line, grade, size, finish) belongs in the subtitle.
+    // Hoist the color into the title whenever the product carries multiple
+    // colors (grouped products — Patina Modern Elegance, Fujiwa Joya — whose
+    // name is the line/format) OR the product is named after its color (one
+    // product per color: the name would otherwise drag size/finish words into
+    // the H1). Only a single-color product whose name is unrelated to the
+    // color keeps its name as the identity.
     function pdpHeroTitle(sku, siblings) {
       const base = cleanProductTitle(sku.product_name, sku) || fullProductName(sku);
       if (sku.variant_type === 'accessory') return { hoist: false, title: base, base };
@@ -829,7 +830,8 @@
         .flatMap(s => (s.attributes || []).filter(a => a.slug === 'color').map(a => (a.value || '').toLowerCase()))
         .filter(Boolean));
       if (color) colorSet.add(color.toLowerCase());
-      const hoist = colorSet.size > 1 && color && !base.toLowerCase().includes(color.toLowerCase());
+      const inBase = color && base.toLowerCase().includes(color.toLowerCase());
+      const hoist = !!color && (colorSet.size > 1 || inBase);
       return { hoist, title: hoist ? formatCarpetValue(color) : base, base };
     }
 
@@ -862,13 +864,14 @@
       const gradeAttr = (sku.attributes || []).find(a => a.slug === 'grade');
       const sizeAttr = (sku.attributes || []).find(a => a.slug === 'size');
       const finishAttr = (sku.attributes || []).find(a => a.slug === 'finish');
+      const colorAttr = (sku.attributes || []).find(a => a.slug === 'color');
       // Strip size/finish/grade already embedded in the line name — plus the
-      // collection, which now leads the H1 — so the subtitle doesn't repeat them
-      // (e.g. base "Marmi Lux 24x48, Natural" → "Marmi Lux"; and if the line name
-      // is just the collection, the lead drops out entirely).
+      // collection and color, which now lead the H1 — so the subtitle doesn't
+      // repeat them (e.g. base "Marmi Lux 24x48, Natural" → "Marmi Lux"; and if
+      // the line name is just the collection/color, the lead drops out entirely).
       let lead = base || '';
       lead = lead.replace(/\b\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?\w*/g, ' ');
-      const strip = [finishAttr && finishAttr.value, gradeAttr && gradeAttr.value, (sku.collection || '').trim()];
+      const strip = [finishAttr && finishAttr.value, gradeAttr && gradeAttr.value, colorAttr && colorAttr.value, (sku.collection || '').trim()];
       for (const v of strip) {
         if (v) lead = lead.replace(new RegExp('\\b' + v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'ig'), ' ');
       }
