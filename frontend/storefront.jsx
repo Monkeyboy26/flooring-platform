@@ -846,7 +846,20 @@
         const col = (sku.collection || '').trim();
         const distinct = col && col !== sku.category_name && col !== sku.vendor_name && col !== sku.brand_name;
         if (distinct && !title.toLowerCase().includes(col.toLowerCase())) {
-          title = formatCarpetValue(col) + ' ' + title;
+          // Format-split collections repeat the line/color name plus a format word
+          // ("Bianco Carrara Mosaics", "Canyon Stacked Stone"). Blind prepending
+          // doubles the shared words ("Bianco Carrara Mosaics Bianco Carrara") —
+          // when the collection shares words with the title, append only its
+          // non-shared words instead ("Bianco Carrara Mosaics", "Canyon Brown
+          // Stacked Stone"). Disjoint collections still lead ("Bohol Series Verde").
+          const colWords = formatCarpetValue(col).split(/\s+/);
+          const titleWords = new Set(title.toLowerCase().split(/\s+/));
+          if (colWords.some(w => titleWords.has(w.toLowerCase()))) {
+            const rest = colWords.filter(w => !titleWords.has(w.toLowerCase())).join(' ');
+            if (rest) title = title + ' ' + rest;
+          } else {
+            title = formatCarpetValue(col) + ' ' + title;
+          }
         }
       }
       // Daltile PDPs lead the H1 with the brand name; guard against doubling for

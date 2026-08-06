@@ -883,7 +883,14 @@
       const col = (sku.collection || "").trim();
       const distinct = col && col !== sku.category_name && col !== sku.vendor_name && col !== sku.brand_name;
       if (distinct && !title.toLowerCase().includes(col.toLowerCase())) {
-        title = formatCarpetValue(col) + " " + title;
+        const colWords = formatCarpetValue(col).split(/\s+/);
+        const titleWords = new Set(title.toLowerCase().split(/\s+/));
+        if (colWords.some((w) => titleWords.has(w.toLowerCase()))) {
+          const rest = colWords.filter((w) => !titleWords.has(w.toLowerCase())).join(" ");
+          if (rest) title = title + " " + rest;
+        } else {
+          title = formatCarpetValue(col) + " " + title;
+        }
       }
     }
     const vend = (sku.vendor_name || "").trim();
