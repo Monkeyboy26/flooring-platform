@@ -1314,7 +1314,7 @@ function resolveCategory(material, lookType, seriesName, catMap) {
   if (combined.includes('paver')) return catMap['pavers'] || null;
   if (combined.includes('mosaic')) return catMap['mosaic-tile'] || null;
   if (combined.includes('subway look') || combined.includes('picket look'))
-    return catMap['backsplash-tile'] || null;
+    return catMap['backsplash-wall'] || null;
   if (combined.includes('marble') || combined.includes('travertine') ||
       combined.includes('limestone') || combined.includes('natural stone'))
     return catMap['natural-stone'] || null;

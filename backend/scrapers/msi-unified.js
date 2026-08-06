@@ -111,14 +111,15 @@ const CATEGORY_MAP = {
   'membrane': 'surface-prep-levelers', 'accessory': 'installation-sundries',
   'accessories': 'installation-sundries', 'underlayment': 'underlayment',
   'trim': 'transitions-moldings', 'molding': 'transitions-moldings',
-  'bullnose': 'transitions-moldings', 'quarter round': 'transitions-moldings',
+  'bullnose': 'trim-accessories', 'quarter round': 'trim-accessories',
   'threshold': 'transitions-moldings', 'transition': 'transitions-moldings',
 };
 
 // Name patterns that indicate a mosaic product regardless of EDI material classification
 const MOSAIC_NAME_PATTERN = /mosaic|hexagon|herringbone|basketweave|chevron|arabesque|pinwheel|octagon|penny\s*round|picket|pencil|dotty|lynx|fretwork|interlocking|peel.*stick/i;
 
-// Backsplash/subway product series — override 'mosaic' → 'backsplash-tile'
+// Backsplash/subway product series — override 'mosaic' → 'backsplash-wall'
+// (platform-wide canonical wall-tile slug; 'backsplash-tile' is retired)
 const BACKSPLASH_NAME_PATTERN = /^(renzo|urbano|dymo|adella|marza)\b/i;
 
 // Paver/coping products — override to 'hardscaping'
@@ -939,14 +940,25 @@ async function phase2_edi832(pool, vendorId, source, log) {
     let categoryId = resolveCatId(group.category);
 
     // Override: mosaic products miscategorized by material (EDI GEN/MAC says "Natural Stone" or "Porcelain")
+    // Ledger accent pieces (Rockmount "Pencil L Panel") match 'pencil' but are
+    // stacked stone, not mosaics — keep them out of this override.
     const _resolvedSlug = CATEGORY_MAP[(group.category || '').toLowerCase().trim()] || group.category;
-    if (/^(natural-stone|porcelain-tile|ceramic-tile)$/.test(_resolvedSlug) && MOSAIC_NAME_PATTERN.test(group.baseName)) {
+    const _isLedgerPiece = /\b(ledger|rockmount)\b|l panel/i.test(group.baseName);
+    if (/^(natural-stone|porcelain-tile|ceramic-tile)$/.test(_resolvedSlug) && MOSAIC_NAME_PATTERN.test(group.baseName) && !_isLedgerPiece) {
       categoryId = catCache['mosaic-tile'] || categoryId;
+    }
+    if (_isLedgerPiece && /^(natural-stone|porcelain-tile|ceramic-tile)$/.test(_resolvedSlug)) {
+      categoryId = catCache['stacked-stone'] || categoryId;
+    }
+    // Ceramic/porcelain trim pieces (bullnose etc.) → trim-accessories
+    if (/\b(bullnose|quarter round|v-?cap|cove base)\b/i.test(group.baseName) && !/adh/i.test(group.baseName)
+        && /^(natural-stone|porcelain-tile|ceramic-tile|mosaic-tile)$/.test(_resolvedSlug)) {
+      categoryId = catCache['trim-accessories'] || categoryId;
     }
 
     // Override: backsplash/subway series miscategorized as mosaic (EDI says "Glass" or "Decorative")
     if (_resolvedSlug === 'mosaic-tile' && BACKSPLASH_NAME_PATTERN.test(group.baseName)) {
-      categoryId = catCache['backsplash-tile'] || categoryId;
+      categoryId = catCache['backsplash-wall'] || categoryId;
     }
 
     // Override: paver/coping products miscategorized as stacked-stone or natural-stone

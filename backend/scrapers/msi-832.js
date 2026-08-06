@@ -59,8 +59,8 @@ const CATEGORY_MAP = {
   'wood look tile':         'wood-look-tile',
   'large format':           'large-format-tile',
   'large format tile':      'large-format-tile',
-  'backsplash':             'backsplash-tile',
-  'backsplash tile':        'backsplash-tile',
+  'backsplash':             'backsplash-wall',
+  'backsplash tile':        'backsplash-wall',
   'fluted tile':            'fluted-tile',
   'commercial tile':        'commercial-tile',
   // ── Natural Stone ──
@@ -164,16 +164,6 @@ const CATEGORY_MAP = {
 
 // Name patterns that indicate a mosaic product regardless of EDI material classification
 const MOSAIC_NAME_PATTERN = /mosaic|hexagon|herringbone|basketweave|chevron|arabesque|pinwheel|octagon|penny\s*round|picket|pencil|dotty|lynx|fretwork|interlocking|peel.*stick/i;
-
-// Clean up EDI product names: strip packaging info, encoding artifacts, extra whitespace
-function cleanProductName(name) {
-  return name
-    .replace(/\uFFFD/g, '')                             // remove replacement chars (�)
-    .replace(/\(\s*[\d.]+\s*Sf\s*Per\s*Box\s*\)/gi, '') // strip "( 23.77 Sf Per Box )"
-    .replace(/\s*-\s*$/, '')                             // strip trailing " -"
-    .replace(/\s{2,}/g, ' ')                             // collapse multiple spaces
-    .trim();
-}
 
 // MSI material class codes → category slugs (must match actual DB category slugs)
 // Codes observed in actual EDI files: VINTIL, VIN, INS, BLE, STO, STOMIS, STOMOS,
@@ -512,11 +502,16 @@ function parse832(raw) {
 // Item finalization — resolve names, pricing, packaging, sell_by
 // ---------------------------------------------------------------------------
 
+// Clean up EDI product names: strip packaging info, dims, encoding artifacts.
+// (Merged from a duplicate declaration that made this ESM module unloadable.)
 function cleanProductName(raw) {
   if (!raw) return null;
   let name = raw
+    .replace(/�/g, '')                             // remove replacement chars (�)
+    .replace(/\(\s*[\d.]+\s*Sf\s*Per\s*Box\s*\)/gi, '') // strip "( 23.77 Sf Per Box )"
     .replace(/\s*\([^)]*sq(?:ft|yd)[^)]*\)/gi, '')
     .replace(/\s+\d+\.?\d*[xX]\d+\.?\d*/g, '')
+    .replace(/\s*-\s*$/, '')                             // strip trailing " -"
     .replace(/\s{2,}/g, ' ')
     .trim();
   name = name.replace(/\b\w+/g, w =>
