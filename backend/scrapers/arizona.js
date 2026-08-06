@@ -349,6 +349,46 @@ function isAccessory(title, description) {
 }
 
 /**
+ * Resolve the best PIM category for a product from its AZ category tags.
+ * Highest CATEGORY_MAP priority wins; parent categories get a -5 penalty.
+ */
+function resolveBestCategory(apiProduct, azCategoryMap, categoryLookup) {
+  let categoryId = null, pimCatSlug = null, bestPriority = -1;
+  for (const catId of apiProduct.categoryIds) {
+    const azCat = azCategoryMap.get(catId);
+    if (!azCat || CATEGORY_SKIP.has(azCat.slug)) continue;
+
+    const mapping = CATEGORY_MAP[azCat.slug];
+    if (mapping) {
+      const [slug, priority] = mapping;
+      if (priority > bestPriority && categoryLookup.has(slug)) {
+        bestPriority = priority;
+        categoryId = categoryLookup.get(slug);
+        pimCatSlug = slug;
+      }
+    }
+    // Also check parent category (lower priority since less specific)
+    if (azCat.parent) {
+      const parentCat = azCategoryMap.get(azCat.parent);
+      if (parentCat && !CATEGORY_SKIP.has(parentCat.slug)) {
+        const parentMapping = CATEGORY_MAP[parentCat.slug];
+        if (parentMapping) {
+          const [slug, priority] = parentMapping;
+          // Parent match gets a small penalty
+          const adjPriority = priority - 5;
+          if (adjPriority > bestPriority && categoryLookup.has(slug)) {
+            bestPriority = adjPriority;
+            categoryId = categoryLookup.get(slug);
+            pimCatSlug = slug;
+          }
+        }
+      }
+    }
+  }
+  return { categoryId, pimCatSlug, bestPriority };
+}
+
+/**
  * Classify a single variation by format based on its size attribute.
  * Used to sub-group variants within a color group so each format gets its own PIM product.
  * Returns 'mosaic', 'stacked', 'tile', or 'default'.
@@ -361,6 +401,12 @@ function classifyVariation(sizeAttr, originalFormatSlug, originalSlabSlug) {
   // Mosaic-explicit sizes always win — even inside stacked-stone products,
   // a "2x2 Hex Mosaic" is a mosaic, not a ledger panel.
   if (MOSAIC_EXPLICIT.test(size)) return 'mosaic';
+  // Tiny chips (1x1, 1x2, 5/8x1-1/4) are mesh-mounted mosaic sheets even when
+  // the size attr carries no mosaic keyword — nothing ≤2.5" is sold loose.
+  {
+    const dims = parseSizeDims(size);
+    if (dims && Math.max(dims[0], dims[1]) <= 2.5) return 'mosaic';
+  }
   // Stacked stone: if product originally won stacked-stone, keep variants as
   // stacked unless BOTH dimensions are >=12 (real field tile).
   if (originalFormatSlug === 'stacked-stone') {
@@ -778,6 +824,20 @@ export async function run(pool, job, source) {
     // ── Full mode: upsert products + SKUs ──
     await appendLog(pool, job.id, 'Phase 3: Upserting products and SKUs...');
 
+    // AZ lists some stones as separate WC pages for tile and slab with IDENTICAL
+    // titles (e.g. "Bianco Carrara" tile page + slab page). Both resolve to the
+    // same (vendor, collection, name) product row, merging tile SKUs into the
+    // slab product with the slab category clobbering the tile category. Track
+    // which titles also have a non-slab page so colliding slab pages get a
+    // distinct " Slab" collection (and thus their own product row).
+    const titleHasNonSlab = new Set();
+    for (const p of allProducts) {
+      const raw = resolveBestCategory(p, azCategoryMap, categoryLookup);
+      if (raw.pimCatSlug && !SLAB_CATEGORIES.has(raw.pimCatSlug)) {
+        titleHasNonSlab.add(p.title.toLowerCase());
+      }
+    }
+
     let idx = 0;
     for (const apiProduct of allProducts) {
       const detail = detailCache.get(apiProduct.wpId);
@@ -789,41 +849,7 @@ export async function run(pool, job, source) {
 
       try {
         // Resolve PIM category — score all AZ categories and pick highest priority
-        let categoryId = null;
-        let pimCatSlug = null;
-        let bestPriority = -1;
-
-        for (const catId of apiProduct.categoryIds) {
-          const azCat = azCategoryMap.get(catId);
-          if (!azCat || CATEGORY_SKIP.has(azCat.slug)) continue;
-
-          const mapping = CATEGORY_MAP[azCat.slug];
-          if (mapping) {
-            const [slug, priority] = mapping;
-            if (priority > bestPriority && categoryLookup.has(slug)) {
-              bestPriority = priority;
-              categoryId = categoryLookup.get(slug);
-              pimCatSlug = slug;
-            }
-          }
-          // Also check parent category (lower priority since less specific)
-          if (azCat.parent) {
-            const parentCat = azCategoryMap.get(azCat.parent);
-            if (parentCat && !CATEGORY_SKIP.has(parentCat.slug)) {
-              const parentMapping = CATEGORY_MAP[parentCat.slug];
-              if (parentMapping) {
-                const [slug, priority] = parentMapping;
-                // Parent match gets a small penalty
-                const adjPriority = priority - 5;
-                if (adjPriority > bestPriority && categoryLookup.has(slug)) {
-                  bestPriority = adjPriority;
-                  categoryId = categoryLookup.get(slug);
-                  pimCatSlug = slug;
-                }
-              }
-            }
-          }
-        }
+        let { categoryId, pimCatSlug } = resolveBestCategory(apiProduct, azCategoryMap, categoryLookup);
 
         // Save pre-guard category state for variant-level format splitting
         const originalFormatSlug = FORMAT_CATS.has(pimCatSlug) ? pimCatSlug : null;
@@ -935,6 +961,10 @@ export async function run(pool, job, source) {
         // For variable products, group by color — each color becomes its own product
         // For simple products, keep title as name with collection
         const collectionName = apiProduct.title;
+        // Slab page whose title collides with a tile/mosaic page — needs its own
+        // collection so it doesn't share a product row with the tile product.
+        // (collectionName itself stays pristine: price-list lookups key off it.)
+        const slabCollision = SLAB_CATEGORIES.has(pimCatSlug) && titleHasNonSlab.has(apiProduct.title.toLowerCase());
 
         // ── Gallery images data ──
         const galleryData = detail.gallery; // { flat: [...], shared: [...], byVariationId: { 8683: [...], ... } }
@@ -1021,6 +1051,8 @@ export async function run(pool, job, source) {
                   }
                 }
                 if (needsSuffix) effectiveCollection += ' Tile';
+              } else if (slabCollision && SLAB_CATEGORIES.has(effectiveCatSlug)) {
+                effectiveCollection += ' Slab';
               }
 
             // ── Mosaic shape sub-grouping ──
@@ -1176,16 +1208,29 @@ export async function run(pool, job, source) {
               });
 
               // ── Packaging: price list first, then HTML-parsed fallback ──
-              if (plEntry && plEntry.sfPerBox) {
+              // Some price-list rows only give sf/pc + pcs/box — derive box sqft
+              // from those, but only when the result is a plausible BOX (≤60 sqft):
+              // large-format rows put CRATE counts in pcs/box (24x24 = 98 pcs =
+              // 392 sqft), which must not be stored as a box.
+              const plSfPerBox = plEntry
+                ? (plEntry.sfPerBox
+                    || ((plEntry.sfPerPc && plEntry.pcsPerBox && plEntry.sfPerPc * plEntry.pcsPerBox <= 60)
+                        ? Math.round(plEntry.sfPerPc * plEntry.pcsPerBox * 10000) / 10000 : null))
+                : null;
+              if (plSfPerBox) {
                 await upsertPackaging(pool, sku.id, {
-                  sqft_per_box: plEntry.sfPerBox || null,
+                  sqft_per_box: plSfPerBox,
                   pieces_per_box: plEntry.pcsPerBox || null,
                   weight_per_box_lbs: null,
                   boxes_per_pallet: plEntry.boxesPerPallet || null,
                   sqft_per_pallet: plEntry.sfPerPallet || null,
                   weight_per_pallet_lbs: null,
                 });
-              } else if (detail.packaging && Object.keys(detail.packaging).length > 0 && !NO_BOX_CATEGORIES.has(effectiveCatSlug)) {
+              } else if (detail.packaging && Object.keys(detail.packaging).length > 0 && !NO_BOX_CATEGORIES.has(effectiveCatSlug)
+                         && detail.variations.length === 1) {
+                // Page-level packaging block describes ONE variant — only safe to
+                // apply when the page has a single variation (it used to smear the
+                // default variant's box info across every size on the page).
                 await upsertPackaging(pool, sku.id, {
                   sqft_per_box: detail.packaging.sqftPerBox || null,
                   pieces_per_box: detail.packaging.piecesPerBox || null,
@@ -1212,7 +1257,7 @@ export async function run(pool, job, source) {
               }
 
               // ── Product-level specs as SKU attributes ──
-              await upsertAllSpecAttributes(pool, sku.id, detail.specs, detail.technicalSpecs);
+              await upsertAllSpecAttributes(pool, sku.id, detail.specs, detail.technicalSpecs, { skipFinish: !!v.attributes?.attribute_pa_finishes });
 
               // ── Per-variant images ──
               // Gallery first (first = primary), variation.image as fallback only
@@ -1267,7 +1312,7 @@ export async function run(pool, job, source) {
           const product = await upsertProduct(pool, {
             vendor_id,
             name: apiProduct.title,
-            collection: collectionName,
+            collection: slabCollision ? `${collectionName} Slab` : collectionName,
             category_id: categoryId,
             description_short: apiProduct.description ? apiProduct.description.slice(0, 255) : null,
             description_long: apiProduct.description
@@ -2028,7 +2073,7 @@ function parseVariations(html) {
 /**
  * Upsert all spec + technical spec attributes for a SKU.
  */
-async function upsertAllSpecAttributes(pool, skuId, specs, technicalSpecs) {
+async function upsertAllSpecAttributes(pool, skuId, specs, technicalSpecs, { skipFinish = false } = {}) {
   // General specs → attribute slugs
   // Note: 'colors' (Stocked Colors) is intentionally excluded — it lists all
   // colors in the collection, not the SKU's actual color.  The accurate color
@@ -2043,7 +2088,19 @@ async function upsertAllSpecAttributes(pool, skuId, specs, technicalSpecs) {
     look: 'look',
   };
   for (const [specKey, attrSlug] of Object.entries(specMap)) {
-    if (specs[specKey]) await upsertSkuAttribute(pool, skuId, attrSlug, specs[specKey]);
+    if (!specs[specKey]) continue;
+    // "Stocked Finish(es)" has the same hazard as Stocked Colors: it lists every
+    // finish in the collection (e.g. "Honed (H), Polished (P)"), not this SKU's
+    // finish. Never overwrite a variation-supplied finish with it, and never
+    // write a multi-finish list at all — only a single finish (markers stripped).
+    if (attrSlug === 'finish') {
+      if (skipFinish) continue;
+      const single = specs[specKey].replace(/\s*\([A-Z]\)/g, '').trim();
+      if (single.includes(',')) continue;
+      await upsertSkuAttribute(pool, skuId, 'finish', single);
+      continue;
+    }
+    await upsertSkuAttribute(pool, skuId, attrSlug, specs[specKey]);
   }
 
   // Technical specs → attribute slugs
