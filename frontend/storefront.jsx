@@ -7466,7 +7466,7 @@
               <div className="pdp-category-label">
                 {(() => {
                   const linkStyle = { background: 'none', border: 'none', padding: 0, margin: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' };
-                  const showColl = sku.collection && sku.collection !== sku.category_name && sku.collection !== sku.vendor_name && sku.collection !== sku.brand_name;
+                  const showColl = sku.collection && sku.collection !== sku.category_name;
                   return (<React.Fragment>
                     {sku.category_name && sku.category_slug ? (
                       <button type="button" onClick={() => onCategoryClick && onCategoryClick(sku.category_slug)} title={'Browse all ' + sku.category_name} style={linkStyle}>
