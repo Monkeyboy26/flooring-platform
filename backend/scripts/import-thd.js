@@ -45,6 +45,9 @@ const CAT = {
   pavers:       '650e8400-e29b-41d4-a716-446655440062',
   largeFormat:  '650e8400-e29b-41d4-a716-446655440016',
   backsplash:   '650e8400-e29b-41d4-a716-446655440051',
+  woodLook:     '650e8400-e29b-41d4-a716-446655440015',
+  hardscaping:  '650e8400-e29b-41d4-a716-446655440060',
+  trim:         '650e8400-e29b-41d4-a716-446655440119',
 };
 
 // ─── Attribute IDs ───
@@ -60,17 +63,28 @@ const MARKUP = 1.6;
 const SHOPIFY_DOMAIN = 'thdistributors.com';
 const FETCH_DELAY_MS = 500;
 
-// ─── Category mapping from collection name ───
-function getCategoryId(collectionName) {
+// ─── Category mapping from collection + product name ───
+// The collection alone under-catches: mosaics ("Hex Mosaics" under Metro) and
+// trim ("Jolly", "Rounded Edge", "Cove Base") are named at the product level
+// inside field-tile collections.
+function getCategoryId(collectionName, productName) {
   const c = (collectionName || '').toUpperCase();
+  const n = (productName || '').toUpperCase();
+  const both = c + ' ' + n;
+  // Stair coping (Mexican paver steps) is outdoor hardscape, not a field paver
+  if (n.includes('COPING')) return CAT.hardscaping;
+  if (c.includes('LEDGESTONE') || c.includes('LEDGER') || c.includes('STACKED')) return CAT.stackedStone;
+  // Trim pieces — checked before materials so a marble cove base is still trim
+  if (/\b(JOLLY|BULLNOSE|ROUNDED EDGE|QUARTER ROUND|PENCIL|COVE BASE|CORNER|SANITARY)\b/.test(n)
+      || n === 'EDGE' || c.includes('SANITARY')) return CAT.trim;
+  if (both.includes('MOSAIC') || c.includes('ONIX') || c.includes('VIDROFINA')) return CAT.mosaic;
+  if (c.includes('PAVER')) return CAT.pavers;
+  if (c.includes('QUARRY')) return CAT.ceramic;
+  if (both.includes('WOOD LOOK')) return CAT.woodLook;
   if (c.includes('MARBLE') || c.includes('AURORA') || c.includes('EXOTIC STONE') ||
       c.includes('SELECT WHITE')) return CAT.naturalStone;
   if (c.includes('LIMESTONE') || c.includes('ALOHA') || c.includes('JERUSALEM')) return CAT.naturalStone;
   if (c.includes('TRAVERTINE')) return CAT.naturalStone;
-  if (c.includes('ONIX') || c.includes('VIDROFINA') || c.includes('GLASS MOSAIC') ||
-      c.includes('MOSAIC')) return CAT.mosaic;
-  if (c.includes('LEDGESTONE') || c.includes('LEDGER') || c.includes('STACKED')) return CAT.stackedStone;
-  if (c.includes('PAVER')) return CAT.pavers;
   return CAT.porcelain;
 }
 
@@ -715,7 +729,7 @@ async function run() {
       productGroups.set(key, {
         collection,
         productName,
-        categoryId: getCategoryId(collection),
+        categoryId: getCategoryId(collection, productName),
         items: [],
       });
     }

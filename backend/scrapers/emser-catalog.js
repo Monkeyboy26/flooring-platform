@@ -360,7 +360,7 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
     // ── Product update (collection + category + description) ──
     const productType = (props.productType || '').toLowerCase();
     const structuredMaterial = (extractAttributeValue(attrTypes, 'Material Type') || '').toLowerCase();
-    const catId = resolveCategory(productType, materialVal, collectionName, catMap, structuredMaterial);
+    const catId = resolveCategory(productType, materialVal, collectionName, catMap, structuredMaterial, isTrim);
 
     // Extract description from content.htmlContent
     let descShort = null;
@@ -994,12 +994,25 @@ async function loadCategoryMap(pool) {
 
 // ─── Category Resolution ─────────────────────────────────────────────────────
 
-function resolveCategory(productType, material, collectionName, catMap, structuredMaterial) {
+function resolveCategory(productType, material, collectionName, catMap, structuredMaterial, isTrim) {
     const combined = (productType + ' ' + (material || '') + ' ' + (collectionName || '')).toLowerCase();
+
+    // Trim/profile pieces first — a bullnose from a mosaic or stone collection is
+    // still trim. Coping and stair treads get their own leaves.
+    if (/coping/.test(combined)) return catMap['hardscaping'] || null;
+    if (/stair\s*(tread|nose)/.test(combined)) return catMap['stair-treads-nosing'] || null;
+    if (isTrim || /\b(bullnose|sbn|sbncer|cove\s*(base|corner)|jolly|v-?cap|mud\s*cap|quarter\s*round|pencil|chair\s*rail|skirting|beak|liner)\b/.test(combined)) {
+        if (/emcore|vinyl|lvt|lvp/.test(combined)) return catMap['transitions-moldings'] || null;
+        return catMap['trim-accessories'] || null;
+    }
 
     // Mosaic/glass in the name always wins — even if structured material says porcelain/ceramic
     if (combined.includes('mosaic') || combined.includes('glass') || combined.includes('pebble'))
         return catMap['mosaic-tile'] || null;
+
+    // Ledger panels are stacked stone regardless of material
+    if (combined.includes('ledger') || combined.includes('stacked'))
+        return catMap['stacked-stone'] || null;
 
     // Prefer structured Material Type/IC1 attribute when available
     if (structuredMaterial) {
@@ -1010,16 +1023,14 @@ function resolveCategory(productType, material, collectionName, catMap, structur
             sm === 'granite' || sm === 'slate' || sm === 'quartzite' || sm === 'limestone')
             return catMap['natural-stone'] || null;
         if (sm === 'glass' || sm === 'mosaic') return catMap['mosaic-tile'] || null;
-        if (sm === 'lvt' || sm === 'luxury vinyl') return catMap['luxury-vinyl'] || catMap['lvp-plank'] || null;
+        if (sm === 'lvt' || sm === 'luxury vinyl') return catMap['lvp-plank'] || catMap['luxury-vinyl'] || null;
     }
 
     // Fallback to combined text matching
     if (combined.includes('lvt') || combined.includes('luxury vinyl') || combined.includes('plank'))
-        return catMap['luxury-vinyl'] || catMap['lvp-plank'] || null;
+        return catMap['lvp-plank'] || catMap['luxury-vinyl'] || null;
     if (combined.includes('quarry'))
         return catMap['ceramic-tile'] || null;
-    if (combined.includes('ledger') || combined.includes('stacked'))
-        return catMap['natural-stone'] || null;
     if (combined.includes('marble') || combined.includes('travertine') ||
         combined.includes('granite') || combined.includes('slate') ||
         combined.includes('quartzite') || combined.includes('limestone') ||

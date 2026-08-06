@@ -1008,13 +1008,13 @@ function resolveCategory(material, seriesName, catMap) {
   const combined = ((material || '') + ' ' + (seriesName || '')).toLowerCase();
 
   if (combined.includes('lvt') || combined.includes('emcore') || combined.includes('vinyl'))
-    return catMap['luxury-vinyl'] || null;
+    return catMap['lvp-plank'] || catMap['luxury-vinyl'] || null;
   if (combined.includes('mosaic') || combined.includes('glass') || combined.includes('pebble'))
     return catMap['mosaic-tile'] || null;
   if (combined.includes('quarry'))
     return catMap['ceramic-tile'] || null;
   if (combined.includes('ledger'))
-    return catMap['natural-stone'] || null;
+    return catMap['stacked-stone'] || null;
   if (combined.includes('marble') || combined.includes('travertine') ||
       combined.includes('granite') || combined.includes('slate') ||
       combined.includes('quartzite') || combined.includes('limestone') ||
