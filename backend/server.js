@@ -9302,6 +9302,10 @@ app.post('/api/admin/orders/:id/payment-request', staffAuth, requireRole('admin'
           quantity: 1
         }],
         metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+        // Require the customer to accept our Terms of Service before paying, so the
+        // email/link flow captures agreement the same way storefront checkout does.
+        // Needs a "Terms of service URL" set in the Stripe Dashboard (Settings → Branding).
+        consent_collection: { terms_of_service: 'required' },
         success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
         cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
         // Stripe caps Checkout Session expiry at 24h (72h here made session creation fail)
@@ -11974,6 +11978,15 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                   'UPDATE orders SET amount_paid = amount_paid + $1 WHERE id = $2',
                   [paidAmount.toFixed(2), order_id]
                 );
+                // The hosted page required Terms-of-Service acceptance — record the
+                // agreement on the order (mirrors storefront checkout's terms_accepted_at),
+                // preserving any earlier acceptance from the original online checkout.
+                if (session.consent && session.consent.terms_of_service === 'accepted') {
+                  await client.query(
+                    'UPDATE orders SET terms_accepted_at = COALESCE(terms_accepted_at, NOW()) WHERE id = $1',
+                    [order_id]
+                  );
+                }
                 await logOrderActivity(client, order_id, 'payment_received', null, 'System',
                   { method: 'payment_request', amount: paidAmount.toFixed(2), stripe_session_id: session.id });
               }
@@ -12945,6 +12958,9 @@ app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) =
             quantity: 1
           }],
           metadata: { order_id: order.id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+          // Require Terms-of-Service acceptance on the hosted page (needs a "Terms of
+          // service URL" set in the Stripe Dashboard → Settings → Branding).
+          consent_collection: { terms_of_service: 'required' },
           success_url: `${frontendUrl}/account/orders?payment=success`,
           cancel_url: `${frontendUrl}/account/quotes?payment=cancelled`,
           // Stripe caps Checkout Session expiry at 24h; re-entry mints a new one
@@ -13620,6 +13636,9 @@ app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
             quantity: 1
           }],
           metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+          // Require Terms-of-Service acceptance on the hosted page (needs a "Terms of
+          // service URL" set in the Stripe Dashboard → Settings → Branding).
+          consent_collection: { terms_of_service: 'required' },
           success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
           cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
           expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
@@ -17350,6 +17369,9 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
           quantity: 1
         }],
         metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+        // Require Terms-of-Service acceptance on the hosted page (needs a "Terms of
+        // service URL" set in the Stripe Dashboard → Settings → Branding).
+        consent_collection: { terms_of_service: 'required' },
         success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
         cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
         expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
@@ -19422,6 +19444,9 @@ app.post('/api/rep/orders/:id/send-invoice', repAuth, async (req, res) => {
             quantity: 1
           }],
           metadata: { order_id: id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+          // Require Terms-of-Service acceptance on the hosted page (needs a "Terms of
+          // service URL" set in the Stripe Dashboard → Settings → Branding).
+          consent_collection: { terms_of_service: 'required' },
           success_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=success`,
           cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/account?order=${id}&payment=cancelled`,
           expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
@@ -22884,6 +22909,9 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
             quantity: 1
           }],
           metadata: { order_id: order.id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+          // Require Terms-of-Service acceptance on the hosted page (needs a "Terms of
+          // service URL" set in the Stripe Dashboard → Settings → Branding).
+          consent_collection: { terms_of_service: 'required' },
           success_url: `${frontendUrl}/estimate/${req.params.token}?deposit=success`,
           cancel_url: `${frontendUrl}/estimate/${req.params.token}?deposit=cancelled`,
           expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
