@@ -128,6 +128,17 @@ export async function run(pool, job, source) {
     // Non-fatal — products will just have null category_id
   }
 
+  // Bedrosians is a manufacturer-brand — stamp every product with the "Bedrosians" brand so the
+  // storefront brand filter (COALESCE(brand, vendor)) shows one entry, not a "Bedrosians Tile"
+  // (vendor-name) fallback for any product left brand-less.
+  let brandId = null;
+  try {
+    const brandRow = await pool.query("SELECT id FROM brands WHERE name = 'Bedrosians' LIMIT 1");
+    brandId = brandRow.rows[0] ? brandRow.rows[0].id : null;
+  } catch (err) {
+    // Non-fatal — products just keep their existing brand
+  }
+
   // Track product IDs touched in this run for bulk activation
   const touchedProductIds = [];
 
@@ -182,6 +193,9 @@ export async function run(pool, job, source) {
         const categoryId = resolveCategoryId(mapped.materialType, categoryLookup, mapped.collection, {
           shape: mapped.shape,
           isSlab: mapped.isSlab,
+          name: mapped.name,
+          size: mapped.size,
+          application: mapped.attributes && mapped.attributes.application,
         });
         if (mapped.materialType && !categoryId) {
           await appendLog(pool, job.id, `Unmapped MaterialType "${mapped.materialType}" for ${productCode} — product will have no category`);
@@ -194,6 +208,9 @@ export async function run(pool, job, source) {
         const baseCategoryId = resolveCategoryId(mapped.materialType, categoryLookup, mapped.collection, {
           shape: null,
           isSlab: mapped.isSlab,
+          name: mapped.name,
+          size: mapped.size,
+          application: mapped.attributes && mapped.attributes.application,
         });
         let productName = mapped.name;
         let productCollection = mapped.collection;
@@ -211,6 +228,7 @@ export async function run(pool, job, source) {
           name: productName,
           collection: productCollection,
           category_id: categoryId,
+          brand_id: brandId,
           description_short: mapped.description ? mapped.description.slice(0, 255) : null,
           description_long: mapped.description
         });
@@ -245,6 +263,12 @@ export async function run(pool, job, source) {
             price_basis: mapped.pricing.priceBasis || 'per_sqft',
           });
           stats.pricingSet++;
+        }
+
+        // Slab area derived from its dimensions — backs the per-piece price above and
+        // lets the reconcile pass tell converted slabs from area-less ones.
+        if (mapped.slabSqft) {
+          await upsertPackaging(pool, sku.id, { sqft_per_box: mapped.slabSqft, pieces_per_box: 1 });
         }
 
         // ── Inventory ──
@@ -417,6 +441,25 @@ export async function run(pool, job, source) {
       );
       const activatedCount = activateResult.rowCount;
       await appendLog(pool, job.id, `Activated ${activatedCount} products (${touchedProductIds.length} total touched)`);
+    }
+
+    // ── Phase 5: Reconcile — the authoritative post-scrape pass over fully-scraped products ──
+    // Fixes category (holistically, from all SKUs + application), color, display_name, sell_by /
+    // price basis, marks bundled liner SKUs as accessories, prunes orphans, and attaches
+    // cross-product accessories. Guarded on stats.found > 0 so a failed/empty run never mutates
+    // the catalog. Idempotent — safe to re-run.
+    if (stats.found > 0) {
+      try {
+        const rec = await reconcileBedProducts(pool, vendor_id);
+        await appendLog(pool, job.id,
+          `Reconcile: ${rec.categoryFixed} categories, ${rec.colorFixed} colors, ` +
+          `${rec.displayNameFixed} display names, ${rec.sellByFixed} sell_by/price, ` +
+          `${rec.slabPriceConverted} slab prices converted to per-piece, ` +
+          `${rec.accessorySkus} accessory SKUs, ${rec.pruned} orphans pruned, ` +
+          `${rec.accessoryLinks} accessory links${rec.nullPrice ? `, ${rec.nullPrice} with NO price` : ''}`);
+      } catch (err) {
+        await appendLog(pool, job.id, `Reconcile skipped: ${err.message}`);
+      }
     }
 
     // Final summary
@@ -1012,11 +1055,19 @@ function mapListingProduct(raw) {
   // ── Sell by ──
   // Slabs are sold per piece regardless of UOM
   const materialLower = (raw.MaterialType || '').toLowerCase();
-  const slabSizeMatch = parsed.size && parsed.size.match(/(\d{2,3})x(\d{2,3})/);
-  const isSlabSize = slabSizeMatch && (parseFloat(slabSizeMatch[1]) > 50 || parseFloat(slabSizeMatch[2]) > 50);
+  // Slab size = BOTH dimensions large. A lone >50" side is not enough: wood-look planks run
+  // 10x60–12x72 and are field tile sold by the box (Timberline, Planx, Yorkwood), while true
+  // slab/panel formats (30.63x86 Fusion, 60x126 Magnifica) are wide as well as long.
+  const slabDims = parseDims(parsed.size || raw.Size);
+  const isSlabSize = !!slabDims && slabDims.min > 24 && slabDims.max > 50;
+  // Bedrosians' slab catalog codes its collections SLABGRA/SLABQTE/SLAB3MRE/etc. (stone slabs), and
+  // names porcelain slabs "... Porcelain Slab" / "Bookmatched Slab". ProductCode is a numeric id for
+  // these, so the collection prefix and product name are the reliable signals.
+  const isSlabCollection = /^SLAB/i.test(collection || '');
+  const isSlabName = /\b(slab|bookmatch)/i.test(productName || '');
   const isSlab = materialLower === 'mineral surface' || materialLower === 'quartz'
     || (raw.ProductCode && String(raw.ProductCode).toUpperCase().includes('SLAB'))
-    || isSlabSize;
+    || isSlabCollection || isSlabName || isSlabSize;
   // Mosaics are sold per piece/sheet, not per sqft
   const isMosaic = classifyShapeSuffix(parsed.shape || raw.Shape) === 'Mosaic';
   const sellBy = (isSlab || isMosaic) ? 'unit' : mapUomToSellBy(raw.SellingUom);
@@ -1031,6 +1082,22 @@ function mapListingProduct(raw) {
       pricing.priceBasis = sellBy === 'unit' ? 'per_unit' : 'per_sqft';
     } else {
       pricing.retailPrice = null;
+    }
+  }
+
+  // Bedrosians quotes some slab lines per sqft (SellingUom "SF" — e.g. Magnifica Fusion
+  // $13.95/sqft) while we sell every slab per piece. Convert using the slab's own
+  // dimensions. When the size won't parse, keep the honest per_sqft basis instead of
+  // mislabeling a per-sqft figure per_unit — a unit-sold SKU with per_sqft basis and no
+  // box area renders "/sqft" and the rep enters the slab size at line level.
+  let slabSqft = null;
+  if (isSlab && pricing.retailPrice && isSqftUom(raw.SellingUom)) {
+    const d = parseDims(parsed.size || raw.Size);
+    if (d && d.min > 0) {
+      slabSqft = Math.round((d.min * d.max / 144) * 10000) / 10000;
+      pricing.retailPrice = Math.round(pricing.retailPrice * slabSqft * 100) / 100;
+    } else {
+      pricing.priceBasis = 'per_sqft';
     }
   }
 
@@ -1056,6 +1123,7 @@ function mapListingProduct(raw) {
     materialType: raw.MaterialType || null,
     shape: parsed.shape || raw.Shape || null,
     isSlab,
+    slabSqft,
     pricing,
     inventory,
     imageUrls,
@@ -1153,12 +1221,17 @@ function classifyShapeSuffix(shape) {
 }
 
 /**
- * Resolve a Bedrosians MaterialType to a PIM category_id.
- * Uses shape and slab context to override the base MaterialType mapping
- * for mosaics (→ mosaic-tile), wall tiles (→ backsplash-wall),
- * and slabs (→ porcelain-slabs / countertop categories).
+ * Categorize a Bedrosians product to a PIM category SLUG (pure — no DB).
+ *
+ * This is the SINGLE source of categorization truth, used both by the scrape
+ * insert (per-SKU, provisional — gives products a sane category immediately and
+ * drives shape-splitting) and by reconcileBedProducts (per-product AGGREGATE,
+ * authoritative — `application` merged across SKUs, `name` the product name).
+ *
+ * Priority: slab → ledger → tile-trim (name-based) → mosaic-shape → wall-only
+ * (application) → floor moldings → material default (CATEGORY_MAP).
  */
-function resolveCategoryId(materialType, categoryLookup, collection, { shape, isSlab } = {}) {
+function categorizeBedSlug(materialType, collection, { shape, isSlab, name, application } = {}) {
   if (!materialType) return null;
   const mt = materialType.toLowerCase();
   let slug = CATEGORY_MAP[mt];
@@ -1168,6 +1241,13 @@ function resolveCategoryId(materialType, categoryLookup, collection, { shape, is
   }
   if (!slug) return null;
 
+  const nameLower = (name || '').toLowerCase();
+  // An explicit field/wall "Tile" type-word marks a single tile, not a mosaic sheet — so it must
+  // not be pulled into mosaic-tile by a pattern-shaped name (e.g. "Hexagon Porcelain Tile",
+  // "Fan Deco Porcelain Tile"). Bare collection+color mosaics (e.g. "360 Beige") have no such word.
+  const hasFieldTileWord = !nameLower.includes('mosaic')
+    && /(field tile|floor ?& ?wall tile|floor and wall tile|porcelain tile\b|ceramic tile\b|wall tile)/.test(nameLower);
+
   // ── Shape override: mosaic shapes → mosaic-tile ──
   if (shape) {
     const shapeLower = shape.toLowerCase();
@@ -1175,13 +1255,48 @@ function resolveCategoryId(materialType, categoryLookup, collection, { shape, is
       'mosaic', 'penny round', 'hexagon', 'herringbone', 'basketweave',
       'arabesque', 'picket', 'diamond', 'lantern', 'fan', 'chevron',
     ];
-    if (MOSAIC_SHAPES.some(s => shapeLower.includes(s))) {
+    if (!hasFieldTileWord && MOSAIC_SHAPES.some(s => shapeLower.includes(s))) {
       slug = 'mosaic-tile';
     }
-    // Wall tile override: small-format ceramic/porcelain wall tiles → backsplash-wall
-    if (shapeLower.includes('wall tile') || shapeLower.includes('subway')) {
+    // Wall tile override: a "Wall Tile" / "Subway" SHAPE → backsplash-wall, but ONLY when the tile
+    // is not floor-rated. Bedrosians tags some floor planks (e.g. Othello 8"×48") with a "Wall Tile"
+    // format variant; those stay in their field-tile category since Applications include "Floors".
+    const floorRated = /floor/i.test(application || '');
+    if ((shapeLower.includes('wall tile') || shapeLower.includes('subway')) && !floorRated) {
       slug = 'backsplash-wall';
     }
+  }
+
+  // ── Wall-tile override: wall-only field tiles → backsplash-wall. Detected from the name
+  // ("Wall Tile" and not "Floor & Wall") OR the Applications attribute being wall-only
+  // ("Walls, Shower Walls" with no "Floors"), which catches lines named plainly "Ceramic Tile"
+  // (e.g. Cloe, Donna, Grace). ──
+  const appLower = (application || '').toLowerCase();
+  const wallOnlyApp = /wall/.test(appLower) && !/floor/.test(appLower);
+  if (['porcelain-tile', 'ceramic-tile'].includes(slug)
+      && ((/wall tile/.test(nameLower) && !/floor/.test(nameLower)) || (application && wallOnlyApp))) {
+    slug = 'backsplash-wall';
+  }
+
+  // ── Tile/stone trim override: bullnose / jolly / v-cap / liner / edge trim → trim-accessories.
+  // NAME-based only: a thin-strip SIZE must NOT reclassify a product, because a wall/field tile
+  // line commonly bundles a liner SKU (e.g. Cloe = 0.5"×8" jolly + 2.5"×8" + 5"×5" tiles) and the
+  // product must stay a tile. Exclude pool coping ("Bullnose Edge" = the coping's profile). ──
+  if (['porcelain-tile', 'ceramic-tile', 'mosaic-tile', 'backsplash-wall', 'backsplash-tile', 'natural-stone'].includes(slug)
+      && /(bullnose|jolly|v-?cap|\bliner\b|\btrim\b|pencil|listello|cove base|chair rail|cane trim)/.test(nameLower)
+      && !/coping|\bpool/.test(nameLower)) {
+    slug = 'trim-accessories';
+  }
+
+  // ── Ledger override: ledger / stacked-stone panels → stacked-stone ──
+  if (/\bledger\b/.test(nameLower) || /\bledger\b/i.test(collection || '')) {
+    slug = 'stacked-stone';
+  }
+
+  // ── Floor molding override: transition pieces on wood/vinyl → transitions-moldings ──
+  if (['engineered-hardwood', 'lvp-plank'].includes(slug)
+      && /(t-mold|reducer|stair nose|threshold|quarter round|end cap|\bmolding\b|\btrim\b)/.test(nameLower)) {
+    slug = 'transitions-moldings';
   }
 
   // ── Slab override: route to slab/countertop categories ──
@@ -1200,7 +1315,422 @@ function resolveCategoryId(materialType, categoryLookup, collection, { shape, is
     // quartz / mineral surface already map to quartz-countertops via CATEGORY_MAP
   }
 
-  return categoryLookup.get(slug) || null;
+  return slug;
+}
+
+/**
+ * Resolve a Bedrosians product to a PIM category_id (slug → id via categoryLookup).
+ * Thin wrapper over categorizeBedSlug used by the scrape insert.
+ */
+function resolveCategoryId(materialType, categoryLookup, collection, opts = {}) {
+  const slug = categorizeBedSlug(materialType, collection, opts);
+  return slug ? (categoryLookup.get(slug) || null) : null;
+}
+
+// ══════════════════════════════════════════════════════════════
+// Reconcile — authoritative post-scrape pass (see Phase 5 in run())
+// ══════════════════════════════════════════════════════════════
+
+const ACCESSORY_CATEGORY_SLUGS = ['trim-accessories', 'transitions-moldings'];
+// Categories whose items are sold per piece/sheet (sell_by='unit', price_basis='per_unit').
+const UNIT_CATEGORY_SLUGS = new Set([
+  'porcelain-slabs', 'quartz-countertops', 'granite-countertops', 'quartzite-countertops',
+  'marble-countertops', 'soapstone-countertops', 'mosaic-tile', 'stacked-stone',
+  'trim-accessories', 'transitions-moldings',
+]);
+// Trailing type labels the display_name may have baked in (storefront/docs derive type from the
+// live category, so the suffix must never be stored). Longest first so "Natural Stone Tile" wins.
+const TYPE_SUFFIXES = [
+  'Natural Stone Tile', 'Wood Look Tile', 'Large Format Tile', 'Commercial Tile', 'Decorative Tile',
+  'Backsplash Tile', 'Fluted Tile', 'Porcelain Tile', 'Ceramic Tile', 'Mosaic Tile', 'Pool Tile',
+  'Wall Tile', 'Carpet Tile', 'Engineered Hardwood', 'Solid Hardwood', 'Waterproof Wood', 'Hardwood',
+  'Porcelain Slab', 'Quartz Countertop', 'Granite Countertop', 'Quartzite Countertop',
+  'Marble Countertop', 'Soapstone Countertop', 'Countertop', 'Luxury Vinyl Plank',
+  'Luxury Vinyl Tile', 'Luxury Vinyl', 'SPC Vinyl', 'WPC Vinyl', 'Sheet Vinyl', 'Laminate', 'Carpet',
+  'Stacked Stone', 'Wall Base', 'Molding', 'Stair Tread', 'Paver',
+].sort((a, b) => b.length - a.length);
+const FINISH_WORDS = /\b(gloss(?:y)?|matte|honed|polished|satin|glazed|natural|brushed|tumbled|chiseled|lappato|textured|flamed|leathered|sandblasted)\b/ig;
+// Words that are never a color: format, finish, shape, material, part types.
+const NONCOLOR_WORDS = /\b(wall|floor|subway|shower|countertop|tile|mosaic|field|deco(?:rative)?|pattern|slab|sheet|plank|ceramic|porcelain|marble|glass|stone|granite|quartzite|travertine|limestone|bullnose|jolly|liner|pencil|molding|trim|chair ?rail|v-?cap|cove ?base|listello|cane|edge|round|corner|honed|matte|glossy|polished|satin|glazed|brushed|tumbled|chiseled)\b/ig;
+const esc = (s) => (s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Parse "0.5x8" / '10.25" x 11.75"' → {min,max} inches, or null. */
+function parseDims(sizeStr) {
+  const m = (sizeStr || '').match(/(\d+(?:\.\d+)?)\s*["”]?\s*[xX×]\s*(\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const a = parseFloat(m[1]), b = parseFloat(m[2]);
+  return { min: Math.min(a, b), max: Math.max(a, b) };
+}
+
+/** A long, ≤1"-wide piece is a pencil/liner/edge-trim strip, not a tile. */
+function isThinStrip(dims) { return dims && dims.min <= 1 && dims.max >= 4; }
+
+/**
+ * Short accessory label from a trim/liner SKU. Reads the variant_name FIRST (it carries the real
+ * type, e.g. "Reducer 1.75x76.75", "Stair Nose", "Quarter Round"), then the name, then falls back
+ * to size (a ≤0.75"-wide strip is a pencil liner). Specific molding types before generic.
+ */
+function accessoryLabelFor(name, variantName, vendorSku, dims) {
+  const s = `${name || ''} ${variantName || ''} ${vendorSku || ''}`;
+  if (/flush\s*stair\s*nos/i.test(s)) return 'Flush Stairnose';
+  if (/stair\s*nos|nosing/i.test(s)) return 'Stairnose';
+  if (/t[-\s]?mold/i.test(s)) return 'T-Mold';
+  if (/reducer/i.test(s)) return 'Reducer';
+  if (/threshold/i.test(s)) return 'Threshold';
+  if (/quarter\s*round/i.test(s)) return 'Quarter Round';
+  if (/end\s*cap/i.test(s)) return 'End Cap';
+  if (/chair\s*rail/i.test(s)) return 'Chair Rail';
+  if (/v-?cap/i.test(s)) return 'V-Cap';
+  if (/cove\s*base/i.test(s)) return 'Cove Base';
+  if (/jolly/i.test(s)) return 'Jolly Trim';
+  if (/bull?nos/i.test(s)) return 'Bullnose';
+  if (/listello/i.test(s)) return 'Listello';
+  if (/pencil/i.test(s)) return 'Pencil Liner';
+  if (dims && dims.min <= 0.75 && dims.max >= 4) return 'Pencil Liner';  // 0.5"/0.75"-wide strip
+  if (dims && dims.min <= 2 && dims.max >= 6) return 'Liner';
+  return 'Trim';
+}
+
+/** Product color from name minus collection, stripped of size/finish/format/type words. */
+function deriveProductColor(name, collection) {
+  let s = (name || '').replace(new RegExp('^' + esc(collection), 'i'), '');
+  const inMatch = s.match(/\bin\s+([A-Za-z][A-Za-z0-9 &/'-]+?)\s*$/);
+  if (inMatch) s = inMatch[1];
+  s = s.replace(/\d[\d.]*\s*["”]?\s*[xX×]\s*[\d.]+\s*["”]?/g, '')  // sizes
+       .replace(FINISH_WORDS, '').replace(NONCOLOR_WORDS, '')
+       .replace(/(^|\s)[xX](?=\s|$)/g, ' ')                       // leftover standalone dimension "x"
+       .replace(/\s+/g, ' ').trim();
+  // Fallback for mangled accessory names ("x 2.73\" Sand", "x 1.77\" x .28\" Canvas"): if the
+  // result still has digits/quotes or is empty, take the trailing color word(s) — moldings always
+  // end with their color, which matches the parent plank.
+  if (!s || /[0-9"”]/.test(s)) {
+    const m = (name || '').match(/([A-Za-z][A-Za-z '&/-]*?)\s*$/);
+    if (m) s = m[1].trim();
+  }
+  return s && s.replace(/[^a-z]/ig, '').length >= 2 ? s : null;
+}
+
+/** Strip a trailing baked type-suffix so the type stays category-driven. */
+function stripTypeSuffix(text) {
+  let s = text || '';
+  for (let pass = 0; pass < 2; pass++) {
+    let changed = false;
+    for (const suf of TYPE_SUFFIXES) {
+      const re = new RegExp('\\s+' + esc(suf) + '\\s*$', 'i');
+      if (re.test(s)) { s = s.replace(re, '').trim(); changed = true; break; }
+    }
+    if (!changed) break;
+  }
+  return s;
+}
+
+/**
+ * Reconcile every Bedrosians product against its fully-scraped SKUs.
+ * Returns a stats object. Idempotent.
+ */
+export async function reconcileBedProducts(pool, vendor_id) {
+  const stats = { categoryFixed: 0, colorFixed: 0, displayNameFixed: 0, sellByFixed: 0,
+    slabPriceConverted: 0, accessorySkus: 0, pruned: 0, accessoryLinks: 0, nullPrice: 0 };
+
+  const slugToId = new Map();
+  for (const r of (await pool.query('SELECT id, slug FROM categories WHERE is_active = true')).rows) {
+    slugToId.set(r.slug, r.id);
+  }
+
+  // Products
+  const prods = (await pool.query(
+    `SELECT p.id, p.name, p.collection, p.display_name, c.slug AS cat
+     FROM products p LEFT JOIN categories c ON c.id = p.category_id
+     WHERE p.vendor_id = $1`, [vendor_id])).rows;
+  const byId = new Map(prods.map(p => [p.id, { ...p, skus: [] }]));
+
+  // SKUs + pivoted attributes + latest price
+  const skus = (await pool.query(
+    `SELECT s.id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.variant_type, s.accessory_label,
+       max(CASE WHEN a.slug='size' THEN sa.value END) AS size,
+       max(CASE WHEN a.slug='material' THEN sa.value END) AS material,
+       max(CASE WHEN a.slug='application' THEN sa.value END) AS application,
+       max(CASE WHEN a.slug='shape' THEN sa.value END) AS shape,
+       max(CASE WHEN a.slug='color' THEN sa.value END) AS color,
+       pr.price_basis, pr.retail_price, pk.sqft_per_box
+     FROM skus s
+     JOIN products p ON p.id = s.product_id
+     LEFT JOIN sku_attributes sa ON sa.sku_id = s.id
+     LEFT JOIN attributes a ON a.id = sa.attribute_id
+       AND a.slug IN ('size','material','application','shape','color')
+     LEFT JOIN pricing pr ON pr.sku_id = s.id
+     LEFT JOIN packaging pk ON pk.sku_id = s.id
+     WHERE p.vendor_id = $1
+     GROUP BY s.id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.variant_type, s.accessory_label,
+       pr.price_basis, pr.retail_price, pk.sqft_per_box`, [vendor_id])).rows;
+  for (const s of skus) { const p = byId.get(s.product_id); if (p) p.skus.push(s); }
+
+  const colorAttrId = (await pool.query("SELECT id FROM attributes WHERE slug='color'")).rows[0]?.id;
+
+  for (const p of byId.values()) {
+    if (!p.skus.length) continue;
+
+    // ── Aggregate context ──
+    const mergedApp = [...new Set(p.skus.map(s => s.application).filter(Boolean))].join(', ');
+    const materials = p.skus.map(s => s.material).filter(Boolean);
+    const material = materials.sort((a, b) =>
+      materials.filter(x => x === b).length - materials.filter(x => x === a).length)[0] || null;
+    // A SKU is a slab if its vendor_sku is SLAB-coded or its size is slab-sized — large in
+    // BOTH dimensions (a lone >50" side would sweep in 10x60–12x72 wood-look planks).
+    const isSlabSku = (s) => {
+      if (/SLAB/i.test(s.vendor_sku || '')) return true;
+      const d = parseDims(s.size);
+      return !!d && d.min > 24 && d.max > 50;
+    };
+    // The PRODUCT is a slab only from product-level signals (SLAB collection/name, quartz/mineral
+    // material) OR when EVERY non-accessory SKU is a slab (e.g. Magnifica Encore, all 63"×126").
+    // Requiring "every" — not "some" — stops a grab-bag marble line like "Calacatta" (12x24/3x12
+    // tiles + a couple SLAB SKUs) from being mis-filed as a countertop slab.
+    const tileSkus = p.skus.filter(s => s.variant_type !== 'accessory');
+    const isSlab = /^SLAB/i.test(p.collection || '') || /\b(slab|bookmatch)/i.test(p.name || '')
+      || ['mineral surface', 'quartz'].includes((material || '').toLowerCase())
+      || (tileSkus.length > 0 && tileSkus.every(isSlabSku));
+    // A "real tile" SKU: non-accessory, not a slab, with a normal tile size (2"–50"). Its presence
+    // means a product sitting in a slab/countertop category is really a grab-bag tile line.
+    const hasRealTile = p.skus.some(s => {
+      if (s.variant_type === 'accessory' || isSlabSku(s)) return false;
+      const d = parseDims(s.size);
+      return d && d.min >= 2 && d.max <= 50;
+    });
+
+    // ── a. Category (CORRECTIVE, not from-scratch) ──
+    // The scrape-time category used rich raw data (esp. shape, which is sparse once stored — 60%+
+    // of mosaics have no shape attribute), so re-deriving from stored attributes would collapse
+    // mosaics into field tile. Instead, keep the existing category and only fix high-confidence
+    // issues detectable from the aggregate: slabs, wall-only field tiles, floor tiles stuck in
+    // wall, and ledgers.
+    const mt = (material || '').toLowerCase();
+    const floorCapable = /floor/i.test(mergedApp);
+    const wallOnly = /wall/i.test(mergedApp) && !floorCapable;
+    const namedWallTile = /wall tile/i.test(p.name) && !/floor/i.test(p.name);
+    const slabSlug = mt === 'porcelain' || mt === 'cement' ? 'porcelain-slabs'
+      : mt === 'quartzite' ? 'quartzite-countertops'
+      : mt === 'granite' ? 'granite-countertops'
+      : mt === 'soapstone' ? 'soapstone-countertops'
+      : ['marble', 'travertine', 'limestone', 'onyx'].includes(mt) ? 'marble-countertops'
+      : ['quartz', 'mineral surface'].includes(mt) ? 'quartz-countertops' : null;
+    const SLAB_CATS = new Set(['porcelain-slabs', 'quartz-countertops', 'granite-countertops',
+      'quartzite-countertops', 'marble-countertops', 'soapstone-countertops']);
+    const explicitSlab = /^SLAB/i.test(p.collection || '') || /\b(slab|bookmatch)/i.test(p.name || '');
+    let target = p.cat;
+    if (isSlab && slabSlug) {
+      target = slabSlug;                                           // Magnifica Encore, SLAB*, >50"
+    } else if (SLAB_CATS.has(p.cat) && hasRealTile && !explicitSlab) {
+      // Wrongly in a slab/countertop category but has real tile SKUs → grab-bag tile line (Calacatta,
+      // White Carrara). Route to its material's tile category. Real slabs (no tile SKU) are untouched.
+      target = mt === 'porcelain' || mt === 'cement' ? 'porcelain-tile'
+        : mt === 'ceramic' ? 'ceramic-tile'
+        : /marble|travertine|limestone|granite|quartzite|slate|onyx/.test(mt) ? 'natural-stone' : p.cat;
+    } else if (['porcelain-tile', 'ceramic-tile'].includes(p.cat) && (wallOnly || namedWallTile)) {
+      target = 'backsplash-wall';                                  // Cloe, Traditions, Donna
+    } else if (p.cat === 'backsplash-wall' && floorCapable && !namedWallTile && !wallOnly) {
+      target = mt === 'ceramic' ? 'ceramic-tile'                   // Othello (floor plank, "Wall Tile" format)
+        : /marble|travertine|limestone|granite|quartzite|slate|onyx/.test(mt) ? 'natural-stone'
+        : 'porcelain-tile';
+    } else if ((/\bledger\b/i.test(p.name) || /\bledger\b/i.test(p.collection || '')) && p.cat === 'natural-stone') {
+      target = 'stacked-stone';
+    } else if (['engineered-hardwood', 'lvp-plank'].includes(p.cat) && p.skus.length
+        && p.skus.every(s => /t-mold|reducer|stair\s*nos|nosing|threshold|quarter\s*round|end\s*cap|\bmolding\b|\btrim\b/i.test(`${p.name} ${s.variant_name || ''}`))) {
+      // A wood/vinyl product whose EVERY SKU is a molding is an accessory, not a plank. The scraper
+      // mangles some names ("x 2.73\" Sand") so the type is only in the variant_name — detect from
+      // there so it lands in transitions-moldings and gets attached to its parent planks.
+      target = 'transitions-moldings';
+    }
+    if (target && target !== p.cat && slugToId.has(target)) {
+      await pool.query('UPDATE products SET category_id=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$1',
+        [p.id, slugToId.get(target)]);
+      p.cat = target;
+      stats.categoryFixed++;
+    }
+    const unitSold = UNIT_CATEGORY_SLUGS.has(p.cat);
+
+    // ── b. Color — fix missing / format-word / type-word colors from the name ──
+    if (colorAttrId) {
+      const derived = deriveProductColor(p.name, p.collection)
+        || (p.collection && p.name && p.name.toLowerCase() === p.collection.toLowerCase() ? p.collection : null);
+      for (const s of p.skus) {
+        const cur = (s.color || '').trim();
+        // Replace a clearly-bad color: missing, a bare format/finish word ("Wall"/"Gloss"), or
+        // garbage from a mangled accessory name (contains digits/quotes, or a leading "x " like
+        // "x Sand"). Never churn a real multi-word color that merely contains such a word.
+        const bad = !cur || /^(walls?|floors?|subway|shower ?walls?|tile|n\/?a|gloss(?:y)?|matte|honed|polished|satin|glazed|natural|brushed|tumbled)$/i.test(cur)
+          || /["”]/.test(cur) || /^x\s/i.test(cur);  // quote or leading-"x" = mangled; NOT a bare digit (legit "Design 4")
+        if (bad && derived) {
+          await pool.query(
+            `INSERT INTO sku_attributes (sku_id, attribute_id, value) VALUES ($1,$2,$3)
+             ON CONFLICT (sku_id, attribute_id) DO UPDATE SET value=EXCLUDED.value`,
+            [s.id, colorAttrId, derived]);
+          s.color = derived;
+          stats.colorFixed++;
+        }
+      }
+    }
+
+    // ── c. Accessory-variant marking (authoritative) ──
+    // A SKU is an accessory iff it's a thin strip (0.5"×8" liner) OR its name/variant explicitly
+    // names a trim piece. Decision does NOT use the vendor_sku (codes like "SN"/"ATC" are too
+    // ambiguous and would mis-mark field tiles). Clear a stale accessory flag on a real tile SKU.
+    const TILE_CATS = new Set(['porcelain-tile', 'ceramic-tile', 'mosaic-tile', 'backsplash-wall', 'natural-stone', 'backsplash-tile']);
+    for (const s of p.skus) {
+      const dims = parseDims(s.size);
+      const nameTrim = /bull?nos|jolly|\bliner\b|pencil|t[-\s]?mold|reducer|stair\s*nos|nosing|threshold|end\s*cap|quarter\s*round|chair\s*rail|v-?cap|cove\s*base|listello/i.test(`${p.name} ${s.variant_name || ''}`);
+      const shouldBeAcc = isThinStrip(dims) || nameTrim;
+      if (shouldBeAcc) {
+        // Derive the specific type label authoritatively (fixes generic "Trim"/"Molding").
+        const label = accessoryLabelFor(p.name, s.variant_name, s.vendor_sku, dims);
+        if (s.variant_type !== 'accessory' || s.accessory_label !== label) {
+          await pool.query(
+            'UPDATE skus SET variant_type=$2, accessory_label=$3, updated_at=CURRENT_TIMESTAMP WHERE id=$1',
+            [s.id, 'accessory', label]);
+          if (s.variant_type !== 'accessory') stats.accessorySkus++;
+          s.variant_type = 'accessory';
+          s.accessory_label = label;
+        }
+      } else if (s.variant_type === 'accessory' && TILE_CATS.has(p.cat)) {
+        await pool.query('UPDATE skus SET variant_type=NULL, accessory_label=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=$1', [s.id]);
+        s.variant_type = null;
+      }
+    }
+
+    // ── d. display_name — strip baked type-suffix (fallback to name minus collection). For
+    // accessory products the name is often mangled ("Trim in Chambord"), so use the derived color
+    // (the type is shown separately via accessory_label + category suffix). ──
+    const nameMinusColl = (p.name || '').replace(new RegExp('^' + esc(p.collection) + '\\s*', 'i'), '').trim();
+    const dnBase = (ACCESSORY_CATEGORY_SLUGS.includes(p.cat) && deriveProductColor(p.name, p.collection))
+      || (p.display_name && p.display_name.trim())
+      || nameMinusColl || p.name;
+    const dn = stripTypeSuffix(dnBase);
+    if (dn && dn !== p.display_name) {
+      await pool.query('UPDATE products SET display_name=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$1', [p.id, dn]);
+      stats.displayNameFixed++;
+    }
+
+    // ── e. sell_by + price_basis (accessory + slab SKUs are always per-piece) ──
+    for (const s of p.skus) {
+      const slabSku = isSlabSku(s);
+      const wantUnit = unitSold || s.variant_type === 'accessory' || slabSku;
+      const wantSellBy = wantUnit ? 'unit' : 'box';
+      if (s.sell_by !== wantSellBy) {
+        await pool.query('UPDATE skus SET sell_by=$2, updated_at=CURRENT_TIMESTAMP WHERE id=$1', [s.id, wantSellBy]);
+        stats.sellByFixed++;
+      }
+      // A slab still carrying a per-sqft price can only go per-piece by converting the
+      // price with its area (the listing pass does this when the slab size parses; Box SF
+      // from the detail page covers the rest here). With no area at all the per-sqft
+      // basis stands — unit+per_sqft+no-box renders "/sqft" and the rep enters the slab
+      // size at line level. Relabeling a per-sqft figure as per_unit without converting
+      // is how Magnifica Fusion ended up at "$13.95/ea".
+      const slabArea = parseFloat(s.sqft_per_box);
+      if (slabSku && s.price_basis === 'per_sqft' && s.retail_price != null && slabArea > 0) {
+        await pool.query(
+          `UPDATE pricing SET retail_price = ROUND(retail_price * $2, 2),
+             cost = ROUND(cost * $2, 2), price_basis = 'per_unit' WHERE sku_id = $1`,
+          [s.id, slabArea]);
+        s.price_basis = 'per_unit';
+        stats.slabPriceConverted++;
+      }
+      const wantBasis = !wantUnit ? 'per_sqft'
+        : (slabSku && s.price_basis === 'per_sqft') ? 'per_sqft' : 'per_unit';
+      if (s.retail_price != null && s.price_basis && s.price_basis !== wantBasis) {
+        await pool.query('UPDATE pricing SET price_basis=$2 WHERE sku_id=$1', [s.id, wantBasis]);
+      }
+      if (s.retail_price == null) stats.nullPrice++;
+    }
+  }
+
+  // ── f. Prune orphan products (no SKU, no media) ──
+  const pruneRes = await pool.query(
+    `DELETE FROM products p WHERE p.vendor_id=$1
+       AND NOT EXISTS (SELECT 1 FROM skus s WHERE s.product_id=p.id)
+       AND NOT EXISTS (SELECT 1 FROM media_assets m WHERE m.product_id=p.id)`, [vendor_id]);
+  stats.pruned = pruneRes.rowCount;
+
+  // ── g. Cross-product accessory attachment (collection + color) ──
+  stats.accessoryLinks = await attachBedAccessories(pool, vendor_id);
+
+  return stats;
+}
+
+/** Normalize a collection so accessory + main lines align ("Marin Mosaics" ↔ "Marin"). */
+function normColl(c) { return (c || '').toLowerCase().replace(/\s*(mosaics?|slabs?)\s*$/i, '').trim(); }
+
+/**
+ * Link Bedrosians trim/molding products to parent tiles by normalized collection + color.
+ * Color-specific accessories link only to same-color parents; color-less (T-Moldings) link
+ * collection-wide. Idempotent (ON CONFLICT DO NOTHING). Returns links written.
+ */
+async function attachBedAccessories(pool, vendor_id) {
+  const acc = (await pool.query(
+    `SELECT s.id, p.name, p.collection,
+       (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id=sa.attribute_id
+         WHERE sa.sku_id=s.id AND a.slug='color' LIMIT 1) AS color
+     FROM skus s JOIN products p ON p.id=s.product_id JOIN categories c ON c.id=p.category_id
+     WHERE p.vendor_id=$1 AND c.slug = ANY($2) AND s.status IN ('active','draft') AND s.is_sample=false
+       AND p.collection <> ''`, [vendor_id, ACCESSORY_CATEGORY_SLUGS])).rows;
+  const mains = (await pool.query(
+    `SELECT s.id, p.name, p.collection
+     FROM skus s JOIN products p ON p.id=s.product_id JOIN categories c ON c.id=p.category_id
+     WHERE p.vendor_id=$1 AND NOT (c.slug = ANY($2)) AND s.status IN ('active','draft') AND s.is_sample=false
+       AND p.collection <> ''`, [vendor_id, ACCESSORY_CATEGORY_SLUGS])).rows;
+
+  const mainsByColl = new Map();
+  for (const m of mains) {
+    const k = normColl(m.collection);
+    if (!mainsByColl.has(k)) mainsByColl.set(k, []);
+    mainsByColl.get(k).push(m);
+  }
+
+  const links = [];
+  for (const a of acc) {
+    const pool2 = mainsByColl.get(normColl(a.collection));
+    if (!pool2 || !pool2.length) continue;
+    const color = deriveProductColor(a.name, a.collection);
+    let matched;
+    if (color && color.replace(/[^a-z]/ig, '').length >= 3) {
+      const re = new RegExp('(^|[^a-z])' + esc(color) + '([^a-z]|$)', 'i');
+      matched = pool2.filter(m => re.test(m.name));
+      if (!matched.length) continue; // don't pollute other colors
+    } else {
+      matched = pool2; // collection-wide (color-less T-Molding etc.)
+    }
+    let sort = 0;
+    for (const m of matched) if (m.id !== a.id) links.push([m.id, a.id, sort++]);
+  }
+
+  let written = 0;
+  const BATCH = 500;
+  for (let i = 0; i < links.length; i += BATCH) {
+    const batch = links.slice(i, i + BATCH);
+    const values = [], params = [];
+    batch.forEach((b, j) => { const o = j * 3; values.push(`($${o+1},$${o+2},$${o+3})`); params.push(b[0], b[1], b[2]); });
+    const res = await pool.query(
+      `INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order)
+       VALUES ${values.join(',')} ON CONFLICT (parent_sku_id, accessory_sku_id) DO NOTHING`, params);
+    written += res.rowCount;
+  }
+  return written;
+}
+
+/**
+ * True when Bedrosians' SellingUom is a square-foot unit, i.e. PriceToDisplay is a
+ * per-sqft figure. Handles both object {Id: "SF", ...} and string formats.
+ */
+function isSqftUom(uom) {
+  if (!uom) return false;
+  if (typeof uom === 'object') {
+    const id = (uom.Id || uom.id || '').toUpperCase();
+    if (id === 'SF' || id === 'SQFT') return true;
+    const name = (uom.Name || uom.name || '').toLowerCase();
+    return name.includes('sq') || name.includes('foot') || name.includes('feet');
+  }
+  const lower = String(uom).toLowerCase().trim();
+  return lower === 'sf' || lower.includes('sqft') || lower.includes('sq ft')
+    || lower.includes('square') || lower.includes('foot') || lower.includes('feet');
 }
 
 /**
