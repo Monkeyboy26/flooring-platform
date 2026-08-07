@@ -38,12 +38,15 @@ const PIPELINES = {
     ]
   },
 
+  // Bosphorus is a small catalog (~270 products), so a single daily run of the
+  // authenticated catalog scraper is cheap (~4 min) and refreshes pricing +
+  // inventory as a byproduct of the crawl (variant_groups JS). No price list.
   bosphorus: {
     label: 'Bosphorus',
-    description: 'Scrape Bosphorus catalog, import pricing, group colors into attributes',
+    schedule: '0 17 * * *',
+    description: 'Daily: crawl the Bosphorus catalog (products, images, specs) with dealer pricing + inventory, then group colors into attributes',
     steps: [
-      { type: 'scraper', sourceKey: 'bosphorus', label: 'Bosphorus Catalog Scrape' },
-      { type: 'scraper', sourceKey: 'bosphorus-pricelist', label: 'Bosphorus Price List' },
+      { type: 'scraper', sourceKey: 'bosphorus', label: 'Bosphorus Catalog + Price + Inventory' },
       { type: 'script',  path: 'scripts/group-bosphorus-colors.cjs', label: 'Group Bosphorus Colors' },
     ]
   },
@@ -67,7 +70,8 @@ const PIPELINES = {
 
   msi: {
     label: 'MSI',
-    description: 'Scrape MSI product pages, import pricing, group products, link accessories',
+    schedule: '0 1 * * 0',
+    description: 'Weekly: scrape MSI product pages, import pricing, group products, link accessories (inventory also refreshes daily via the standalone msi-inventory source)',
     steps: [
       { type: 'scraper', sourceKey: 'msi', label: 'MSI Product Scrape' },
       { type: 'scraper', sourceKey: 'msi-inventory', label: 'MSI Inventory Update' },
