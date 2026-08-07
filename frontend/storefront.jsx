@@ -10658,6 +10658,85 @@
         }
       };
 
+      // Pay by bank (ACH) — Stripe Financial Connections verifies the bank instantly,
+      // then the debit settles in a few business days. The order is placed as
+      // "payment processing" (awaiting_payment) and auto-confirms when funds clear
+      // via the payment_intent.succeeded webhook. No card fees.
+      const handleAchPay = async () => {
+        setError('');
+        const nameParts = customerName.trim().split(/\s+/);
+        if (nameParts.length < 2 || nameParts[0].length < 2 || nameParts[1].length < 1) { setError('Please enter your full name (first and last).'); return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customerEmail)) { setError('Please enter a valid email address.'); return; }
+        if (phone.replace(/\D/g, '').length < 10) { setError('Please enter a valid 10-digit phone number.'); return; }
+        if (!isPickup) {
+          if (!line1.trim()) { setError('Please enter a street address.'); return; }
+          if (!city.trim()) { setError('Please enter a city.'); return; }
+          if (!state) { setError('Please select a state.'); return; }
+          if (!/^\d{5}(-\d{4})?$/.test(zip.trim())) { setError('Please enter a valid ZIP code.'); return; }
+        }
+        if (!requireTermsAccepted()) return;
+        setProcessing(true);
+        try {
+          const stripe = await ensureStripe();
+          if (!stripe) { setError('Payment system is still loading — please try again in a moment.'); setProcessing(false); return; }
+          const piBody = { session_id: sessionId, delivery_method: deliveryMethod, promo_code: appliedPromoCode || undefined };
+          if (!isPickup) { piBody.destination = { zip, city, state }; piBody.residential = true; piBody.liftgate = liftgateEnabled; }
+          const piHeaders = { 'Content-Type': 'application/json' };
+          if (customerToken) piHeaders['X-Customer-Token'] = customerToken;
+          const piRes = await fetch(API + '/api/checkout/create-payment-intent', { method: 'POST', headers: piHeaders, body: JSON.stringify(piBody) });
+          const piData = await piRes.json();
+          if (piData.error) {
+            setError(piData.error); setProcessing(false);
+            if (piData.out_of_stock_sku_ids) { setTimeout(() => { if (typeof goCart === 'function') goCart(); }, 3000); }
+            return;
+          }
+          // Collect + verify the customer's bank (Stripe Financial Connections modal)
+          const collectResult = await stripe.collectBankAccountForPayment({
+            clientSecret: piData.clientSecret,
+            params: {
+              payment_method_type: 'us_bank_account',
+              payment_method_data: { billing_details: { name: customerName, email: customerEmail } },
+            },
+            expand: ['payment_method'],
+          });
+          if (collectResult.error) { setError(collectResult.error.message); setProcessing(false); return; }
+          let achPi = collectResult.paymentIntent;
+          if (achPi.status === 'requires_confirmation') {
+            const confirmResult = await stripe.confirmUsBankAccountPayment(piData.clientSecret);
+            if (confirmResult.error) { setError(confirmResult.error.message); setProcessing(false); return; }
+            achPi = confirmResult.paymentIntent;
+          }
+          // ACH now sits in 'processing' — place the order as payment-processing.
+          const orderBody = {
+            session_id: sessionId, payment_intent_id: achPi.id, payment_method: 'ach',
+            customer_name: customerName, customer_email: customerEmail, phone, company_name: companyName,
+            delivery_method: deliveryMethod,
+            shipping: isPickup ? null : { line1, line2, city, state, zip },
+            residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
+            create_account: createAccount || undefined,
+            account_password: createAccount ? accountPassword : undefined,
+            notes: orderNotes || undefined,
+            measure_requested: measureRequested || undefined,
+            preferred_measure_date: measureRequested && preferredDate ? preferredDate : undefined,
+            preferred_measure_time: measureRequested && preferredTime ? preferredTime : undefined,
+            terms_accepted: true
+          };
+          const orderHeaders = { 'Content-Type': 'application/json' };
+          if (tradeToken) orderHeaders['X-Trade-Token'] = tradeToken;
+          if (customerToken) orderHeaders['X-Customer-Token'] = customerToken;
+          const orderRes = await fetch(API + '/api/checkout/place-order', { method: 'POST', headers: orderHeaders, body: JSON.stringify(orderBody) });
+          const orderData = await orderRes.json();
+          if (orderData.error) { setError(orderData.error); setProcessing(false); return; }
+          if (orderData.customer_token && orderData.customer && onCustomerLogin) {
+            onCustomerLogin(orderData.customer_token, orderData.customer);
+          }
+          handleOrderComplete({ order: orderData.order, sample_request: orderData.sample_request || null });
+        } catch (err) {
+          setError(err.message || 'Bank payment could not be completed. Please try again or pay by card.');
+          setProcessing(false);
+        }
+      };
+
       const contactSaved = customerName.trim().length > 2 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customerEmail) && phone.replace(/\D/g, '').length >= 10;
       const addressSaved = isPickup || (line1.trim() && city.trim() && state && /^\d{5}(-\d{4})?$/.test(zip.trim()));
       const initials = customerName.trim().split(/\s+/).map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
@@ -11033,6 +11112,12 @@
                       Pay with <span className="co-klarna-word">Klarna.</span>
                     </button>
                     <div className="co-klarna-note">Split into 4 interest-free payments. You'll finish on Klarna, then come right back.</div>
+                    <button type="button" onClick={handleAchPay} disabled={processing}
+                      style={{ width: '100%', padding: '0.85rem', marginTop: '0.9rem', background: '#fff', color: 'var(--stone-800, #1c1917)', border: '1px solid var(--stone-300, rgba(28,25,23,0.22))', font: '500 0.9rem/1 var(--font-body, Inter, system-ui, sans-serif)', letterSpacing: '0.01em', cursor: processing ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.55rem' }}>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"><path d="M3 21h18M5 21V10M9.5 21V10M14.5 21V10M19 21V10M12 3l8 4.5H4L12 3z"/></svg>
+                      Pay by bank &mdash; ACH
+                    </button>
+                    <div className="co-klarna-note">Pay directly from your checking account &mdash; no card fees. Your bank is verified instantly, and your order is confirmed once the transfer clears (about 4&ndash;5 business days).</div>
                   </>}
                 </div>
 
@@ -11280,10 +11365,13 @@
                 {order && order.card_last4
                   ? (order.card_brand ? order.card_brand.charAt(0).toUpperCase() + order.card_brand.slice(1) + ' ' : 'Card ') + 'ending in ' + order.card_last4
                   : order && order.payment_method === 'klarna' ? 'Klarna'
+                  : order && order.payment_method === 'ach' ? 'Bank payment (ACH)'
                   : order && order.payment_method === 'bank_transfer' ? 'Bank transfer' : 'Card payment'}
               </div>
               <div className="conf-detail-text">
-                Total charged: ${orderTotal.toFixed(2)}
+                {order && order.payment_method === 'ach'
+                  ? `Bank transfer of $${orderTotal.toFixed(2)} initiated — your order is confirmed once it clears (about 4–5 business days).`
+                  : `Total charged: $${orderTotal.toFixed(2)}`}
               </div>
               {order && order.tax_amount > 0 && (
                 <div className="conf-detail-text">
