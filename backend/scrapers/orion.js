@@ -22,9 +22,22 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 const CATEGORY_MAP = {
   'porcelain':        'porcelain-tile',
   'vinyl':            'lvp-plank',
-  'countertop slab':  'quartz-countertops',
-  'countertop slabs': 'quartz-countertops',
+  'countertop slab':  'porcelain-slabs',
+  'countertop slabs': 'porcelain-slabs',
   'kitchen cabinets': null,  // skip
+};
+
+// Products whose name would otherwise resolve to the wrong category
+// (slab-named tiles, tile-named slabs, deco wall panels). Keyed by
+// normalized product name — checked before all other rules.
+const CATEGORY_OVERRIDES = {
+  'calacatta black':         'porcelain-tile',   // 24x48 tile twin of the slab name
+  'rosso verona':            'porcelain-tile',   // Marmorea 24x24 tile twin
+  'aurelius white':          'porcelain-slabs',
+  'cristallo illuminates':   'porcelain-slabs',
+  'gvx desert silver jumbo': 'porcelain-slabs',
+  'blue forest':             'backsplash-wall',  // deco/wall-paper porcelain panel
+  'palma':                   'backsplash-wall',  // deco/wall-paper porcelain panel
 };
 
 // Title keywords that override category to wood-look-tile
@@ -320,6 +333,7 @@ const APP_BY_SLUG = {
   'porcelain-tile': 'Floor & Wall',
   'wood-look-tile': 'Floor & Wall',
   'porcelain-slabs': 'Countertop',
+  'backsplash-wall': 'Wall',
   'lvp-plank': 'Floor',
 };
 
@@ -328,6 +342,7 @@ const MATERIAL_BY_SLUG = {
   'porcelain-tile': 'Porcelain',
   'wood-look-tile': 'Porcelain',
   'porcelain-slabs': 'Sintered Stone',
+  'backsplash-wall': 'Porcelain',
   'lvp-plank': 'SPC Vinyl',
 };
 
@@ -707,8 +722,19 @@ function resolveCategory(wcCategory, title, categoryLookup, productName) {
   const catLower = (wcCategory || '').toLowerCase().trim();
   const nameLower = (productName || '').toLowerCase().trim();
 
-  // 1. Check slab names first (most reliable — from the dealer price list)
-  if (SLAB_PRODUCT_NAMES.has(nameLower)) {
+  // 0. Explicit overrides (slab-named tiles, tile-named slabs, wall panels)
+  const override = CATEGORY_OVERRIDES[nameLower];
+  if (override) {
+    return { id: categoryLookup.get(override) || null, slug: override };
+  }
+
+  // 1. Check slab names (from the dealer price list). Prefix match so color
+  //    suffixes still resolve ("Aurelius White" → 'aurelius'), but a tile size
+  //    in the title means it's the boxed-tile twin of a slab name — skip.
+  const hasTileSize = TITLE_SIZE_RE.test(title || '');
+  const isSlabName = SLAB_PRODUCT_NAMES.has(nameLower)
+    || [...SLAB_PRODUCT_NAMES].some(s => nameLower.startsWith(s + ' '));
+  if (isSlabName && !hasTileSize) {
     return { id: categoryLookup.get('porcelain-slabs') || categoryLookup.get('porcelain-tile') || null, slug: 'porcelain-slabs' };
   }
 
@@ -720,6 +746,11 @@ function resolveCategory(wcCategory, title, categoryLookup, productName) {
   // 3. Wood-look detection from title
   if (WOOD_LOOK_RE.test(title)) {
     return { id: categoryLookup.get('wood-look-tile') || null, slug: 'wood-look-tile' };
+  }
+
+  // 3b. Wall tile / deco panels → backsplash-wall (platform canonical wall bucket)
+  if (/\bwall\s*(tile|paper)\b/i.test(title || '')) {
+    return { id: categoryLookup.get('backsplash-wall') || null, slug: 'backsplash-wall' };
   }
 
   // 4. WooCommerce breadcrumb mapping
