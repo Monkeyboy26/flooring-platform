@@ -1,7 +1,6 @@
 import {
   delay, upsertProduct, upsertSku,
   upsertSkuAttribute, upsertPackaging, upsertPricing,
-  upsertInventorySnapshot,
   appendLog, addJobError,
   downloadImage, upsertMediaAsset, resolveImageExtension,
   deslugify, buildVariantName, filterImageUrls,
@@ -429,14 +428,17 @@ function classifyVariation(sizeAttr, originalFormatSlug, originalSlabSlug) {
  * No auth needed — catalog is public.
  *
  * Modes (set via source.config.mode):
- *   'full'      — (default) Full catalog scrape: products, SKUs, images, specs, packaging, pricing, inventory
- *   'inventory' — Lightweight pass: updates only inventory + pricing for existing AZT- SKUs
+ *   'full'      — (default) Full catalog scrape: products, SKUs, images, specs, packaging, pricing
+ *   'inventory' — Lightweight pass: updates only pricing for existing AZT- SKUs
+ *
+ * No inventory data is written — Arizona Tile's site stock flags are not
+ * meaningful for our warehouse, so inventory_snapshots is left untouched.
  *
  * Flow:
  *   1. Fetch products via WP REST API
  *   2. Fetch detail pages, parse specs/gallery/variations/packaging/pricing
- *   3. Full mode: upsert products/SKUs/images/specs/packaging/pricing/inventory + activate
- *      Inventory mode: update inventory + pricing for existing SKUs only
+ *   3. Full mode: upsert products/SKUs/images/specs/packaging/pricing + activate
+ *      Inventory mode: update pricing for existing SKUs only
  */
 export async function run(pool, job, source) {
   const config = { ...DEFAULT_CONFIG, ...(source.config || {}) };
@@ -446,7 +448,7 @@ export async function run(pool, job, source) {
   const stats = {
     found: 0, created: 0, updated: 0, skusCreated: 0,
     imagesSet: 0, skipped: 0, errors: 0,
-    inventoryUpdated: 0, pricingUpdated: 0,
+    pricingUpdated: 0,
     priceListHits: 0, priceListMisses: 0,
     deactivated: 0,
   };
@@ -718,8 +720,8 @@ export async function run(pool, job, source) {
   // ── Phase 3 ──
 
   if (isInventoryMode) {
-    // ── Inventory mode: update existing SKUs only ──
-    await appendLog(pool, job.id, 'Phase 3: Updating inventory + pricing for existing SKUs...');
+    // ── Inventory mode: update pricing for existing SKUs only ──
+    await appendLog(pool, job.id, 'Phase 3: Updating pricing for existing SKUs...');
 
     // Build internal_sku → sku record lookup for all AZT- SKUs
     const existingSkus = await pool.query(`
@@ -766,14 +768,6 @@ export async function run(pool, job, source) {
               });
               stats.pricingUpdated++;
             }
-
-            // Update inventory from variation stock status
-            const qtyOnHand = v.max_qty ? parseInt(v.max_qty) : (v.is_in_stock ? 1 : 0);
-            await upsertInventorySnapshot(pool, skuId, 'default', {
-              qty_on_hand_sqft: qtyOnHand,
-              qty_in_transit_sqft: 0,
-            });
-            stats.inventoryUpdated++;
           }
         } else {
           const internalSku = `AZT-${apiProduct.wpId}`;
@@ -796,13 +790,6 @@ export async function run(pool, job, source) {
             });
             stats.pricingUpdated++;
           }
-
-          // Update inventory from stock status
-          await upsertInventorySnapshot(pool, skuId, 'default', {
-            qty_on_hand_sqft: apiProduct.isInStock ? 1 : 0,
-            qty_in_transit_sqft: 0,
-          });
-          stats.inventoryUpdated++;
         }
       } catch (err) {
         stats.errors++;
@@ -810,13 +797,13 @@ export async function run(pool, job, source) {
 
       processIdx++;
       if (processIdx % 100 === 0) {
-        await appendLog(pool, job.id, `Inventory progress: ${processIdx}/${allProducts.length}, updated: ${stats.inventoryUpdated}`);
+        await appendLog(pool, job.id, `Pricing progress: ${processIdx}/${allProducts.length}, updated: ${stats.pricingUpdated}`);
       }
     }
 
     await appendLog(pool, job.id,
-      `Inventory scrape complete. Entries: ${stats.found}, ` +
-      `Inventory updated: ${stats.inventoryUpdated}, Pricing updated: ${stats.pricingUpdated}, ` +
+      `Pricing scrape complete. Entries: ${stats.found}, ` +
+      `Pricing updated: ${stats.pricingUpdated}, ` +
       `Errors: ${stats.errors}`,
       { products_found: stats.found }
     );
@@ -1200,13 +1187,6 @@ export async function run(pool, job, source) {
                 stats.priceListMisses++;
               }
 
-              // ── Inventory from variation ──
-              const qtyOnHand = v.max_qty ? parseInt(v.max_qty) : (v.is_in_stock ? 1 : 0);
-              await upsertInventorySnapshot(pool, sku.id, 'default', {
-                qty_on_hand_sqft: qtyOnHand,
-                qty_in_transit_sqft: 0,
-              });
-
               // ── Packaging: price list first, then HTML-parsed fallback ──
               // Some price-list rows only give sf/pc + pcs/box — derive box sqft
               // from those, but only when the result is a plausible BOX (≤60 sqft):
@@ -1371,12 +1351,6 @@ export async function run(pool, job, source) {
               });
               stats.priceListHits++;
 
-              // Inventory per SKU
-              await upsertInventorySnapshot(pool, sku.id, 'default', {
-                qty_on_hand_sqft: apiProduct.isInStock ? 1 : 0,
-                qty_in_transit_sqft: 0,
-              });
-
               // Spec attributes (shared across gauges)
               await upsertAllSpecAttributes(pool, sku.id, detail.specs, detail.technicalSpecs);
               // Override thickness with the specific gauge value
@@ -1429,12 +1403,6 @@ export async function run(pool, job, source) {
             } else {
               stats.priceListMisses++;
             }
-
-            // ── Inventory ──
-            await upsertInventorySnapshot(pool, sku.id, 'default', {
-              qty_on_hand_sqft: apiProduct.isInStock ? 1 : 0,
-              qty_in_transit_sqft: 0,
-            });
 
             // ── Packaging: price list first, then HTML-parsed ──
             if (plEntry && plEntry.sfPerBox) {
