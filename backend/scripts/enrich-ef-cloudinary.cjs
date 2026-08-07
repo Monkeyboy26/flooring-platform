@@ -283,47 +283,86 @@ async function main() {
   console.log(`  Swatches skipped:  ${swatchSkipped} (already had image)`);
   console.log(`  No DB match:       ${swatchNoMatch}`);
 
-  // ── Process room scenes: assign as product-level lifestyle ──
+  // ── Process room scenes: assign to the specific COLOR they depict ──
+  // Each room scene's product_color metadata names the exact color shown
+  // ("3905 Eminent Oak"), so attach it to that color's SKU as a SKU-level
+  // lifestyle image. The old behavior grouped scenes by style only and pooled
+  // every color's scenes onto every product (sku_id NULL), so a shopper viewing
+  // one color saw room shots of unrelated colors in the same gallery.
+  //   - color matched to a stocked SKU  → SKU-level lifestyle (that color only)
+  //   - no color in metadata (generic)  → product-level lifestyle fallback
+  //   - color present but not stocked   → dropped (we don't sell it)
   console.log('\n' + '═'.repeat(60));
-  console.log('Phase 2: Room Scenes → Product Lifestyle Images');
+  console.log('Phase 2: Room Scenes → Color-Matched Lifestyle Images');
   console.log('═'.repeat(60));
 
-  // Group room scenes by style (product-level, not SKU-level)
-  const roomScenesByStyle = {};
+  const scenesBySku = new Map();   // sku_id → { product_id, urls: [] }
+  const genericByStyle = {};       // style  → [url]  (no color → product-level)
+  let rsDropped = 0;               // color present but not stocked
+
   for (const img of roomScenes) {
     const folder = img.asset_folder || '';
     const style = extractStyleFromFolder(folder);
-    if (!style) continue;
+    if (!style || !skuIndex[style]) continue;
     const url = img.secure_url || img.url || '';
     if (!url) continue;
-    if (!roomScenesByStyle[style]) roomScenesByStyle[style] = [];
-    roomScenesByStyle[style].push(url);
+
+    const colorCode = extractColorCode((img.metadata || {}).product_color);
+    if (!colorCode) {
+      (genericByStyle[style] = genericByStyle[style] || []).push(url);
+      continue;
+    }
+    const matchedSkus = (skuIndex[style] || {})[colorCode] || [];
+    if (matchedSkus.length === 0) { rsDropped++; continue; }
+    for (const sku of matchedSkus) {
+      if (!scenesBySku.has(sku.id)) scenesBySku.set(sku.id, { product_id: sku.product_id, urls: [] });
+      const bucket = scenesBySku.get(sku.id);
+      if (!bucket.urls.includes(url)) bucket.urls.push(url);
+    }
   }
 
-  let rsAssigned = 0, rsStyles = 0;
+  // Purge the old style-pooled product-level lifestyle rows for every product we
+  // touch, so the previous contamination is cleared before we re-place scenes.
+  const touchedProductIds = new Set();
+  for (const v of scenesBySku.values()) touchedProductIds.add(v.product_id);
+  for (const style of Object.keys(genericByStyle)) {
+    for (const skus of Object.values(skuIndex[style] || {})) {
+      for (const s of skus) touchedProductIds.add(s.product_id);
+    }
+  }
+  if (!DRY_RUN && touchedProductIds.size) {
+    await pool.query(
+      `DELETE FROM media_assets WHERE sku_id IS NULL AND asset_type = 'lifestyle' AND product_id = ANY($1)`,
+      [[...touchedProductIds]]
+    );
+  }
 
-  // For each style, find all product_ids and assign room scenes
-  for (const [style, urls] of Object.entries(roomScenesByStyle)) {
-    const colorMap = skuIndex[style];
-    if (!colorMap) continue;
+  let rsAssigned = 0, rsGeneric = 0;
 
-    // Collect unique product_ids for this style
+  // Color-matched scenes → SKU-level lifestyle
+  for (const [skuId, { product_id, urls }] of scenesBySku) {
+    for (let i = 0; i < urls.length; i++) {
+      if (DRY_RUN) { rsAssigned++; continue; }
+      await upsertMediaAsset({
+        product_id,
+        sku_id: skuId,
+        asset_type: 'lifestyle',
+        url: urls[i],
+        sort_order: i,
+      });
+      rsAssigned++;
+    }
+  }
+
+  // Generic (no-color) scenes → product-level lifestyle across the style's products
+  for (const [style, urls] of Object.entries(genericByStyle)) {
     const productIds = new Set();
-    for (const skus of Object.values(colorMap)) {
+    for (const skus of Object.values(skuIndex[style] || {})) {
       for (const sku of skus) productIds.add(sku.product_id);
     }
-
-    if (productIds.size === 0) continue;
-    rsStyles++;
-
     for (const pid of productIds) {
       for (let i = 0; i < urls.length; i++) {
-        if (DRY_RUN) {
-          if (rsAssigned === 0) console.log(`  [DRY] ${style}: ${urls.length} room scenes → ${productIds.size} products`);
-          rsAssigned++;
-          continue;
-        }
-
+        if (DRY_RUN) { rsGeneric++; continue; }
         await upsertMediaAsset({
           product_id: pid,
           sku_id: null,
@@ -331,12 +370,14 @@ async function main() {
           url: urls[i],
           sort_order: i,
         });
-        rsAssigned++;
+        rsGeneric++;
       }
     }
   }
 
-  console.log(`\n  Room scenes assigned: ${rsAssigned} across ${rsStyles} styles`);
+  console.log(`\n  Color-matched scenes: ${rsAssigned} (SKU-level, ${scenesBySku.size} colors)`);
+  console.log(`  Generic scenes:       ${rsGeneric} (product-level fallback)`);
+  console.log(`  Dropped (unstocked):  ${rsDropped}`);
 
   // ── Activate drafts ──
   console.log('\n' + '═'.repeat(60));

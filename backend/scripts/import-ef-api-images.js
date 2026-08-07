@@ -96,6 +96,25 @@ async function main() {
     dbByCollection.get(key).push(row);
   }
 
+  // Load SKUs for these products so variant/scene images can be matched to the
+  // specific color they depict. EF vendor_sku encodes the color code as its
+  // 3rd segment ("1-8746-3903-1200-A" → "3903"), which equals the API variant's
+  // variant_identifier — letting us attach each swatch/scene to its own SKU
+  // instead of pooling every color at the product level (which contaminated
+  // the storefront gallery with unrelated colors).
+  const productIds = dbRes.rows.map(r => r.id);
+  const skusByProduct = new Map();
+  if (productIds.length) {
+    const skuRows = await pool.query(
+      `SELECT id, product_id, vendor_sku FROM skus WHERE product_id = ANY($1)`,
+      [productIds]
+    );
+    for (const s of skuRows.rows) {
+      if (!skusByProduct.has(s.product_id)) skusByProduct.set(s.product_id, []);
+      skusByProduct.get(s.product_id).push(s);
+    }
+  }
+
   // ── Fetch API products ──
   // Primary: /all-products returns array with full variant/scene/board data
   console.log('\nFetching full EF catalog (all-products)...');
@@ -210,12 +229,11 @@ async function main() {
       }
     }
 
-    // Get additional variant swatches
-    const alternateUrls = [];
-    for (let i = 1; i < Math.min(variants.length, 4); i++) {
-      if (variants[i].image_url) {
-        alternateUrls.push(ensureHiRes(variants[i].image_url));
-      }
+    // Map each variant to its color code so it can be attached to its own SKU.
+    //   variant.id → variant_identifier   (scenes reference variants by id)
+    const variantById = new Map();
+    for (const v of variants) {
+      if (v && v.id != null) variantById.set(String(v.id), v);
     }
 
     if (!primaryUrl && lifestyleUrls.length === 0) {
@@ -225,8 +243,16 @@ async function main() {
 
     // Apply to all matching DB products
     for (const dbProduct of dbProducts) {
-      let sortOrder = 0;
+      // Build color-code → sku_id map from this product's SKUs (vendor_sku 3rd segment)
+      const codeToSku = new Map();
+      for (const s of skusByProduct.get(dbProduct.id) || []) {
+        const parts = (s.vendor_sku || '').split('-');
+        const code = parts[2];
+        if (code && !codeToSku.has(code)) codeToSku.set(code, s.id);
+      }
 
+      // One representative product-level primary: a thumbnail for browse cards
+      // and the fallback when a color has no swatch of its own.
       if (primaryUrl) {
         await upsertMediaAsset(pool, {
           product_id: dbProduct.id,
@@ -234,35 +260,61 @@ async function main() {
           asset_type: 'primary',
           url: primaryUrl,
           original_url: primaryUrl,
-          sort_order: sortOrder++,
+          sort_order: 0,
         });
         imagesAdded++;
       }
 
-      // Add alternate variant swatches
-      for (const url of alternateUrls) {
+      // Each variant swatch → its own SKU (SKU-level primary), keyed by color code.
+      for (const v of variants) {
+        if (!v.image_url) continue;
+        const code = (v.variant_identifier || '').toString().trim();
+        const skuId = code && codeToSku.get(code);
+        if (!skuId) continue;
         await upsertMediaAsset(pool, {
           product_id: dbProduct.id,
-          sku_id: null,
-          asset_type: 'alternate',
-          url,
-          original_url: url,
-          sort_order: sortOrder++,
+          sku_id: skuId,
+          asset_type: 'primary',
+          url: ensureHiRes(v.image_url),
+          original_url: ensureHiRes(v.image_url),
+          sort_order: 0,
         });
         imagesAdded++;
       }
 
-      // Add lifestyle/room scenes (max 3)
-      for (let i = 0; i < Math.min(lifestyleUrls.length, 3); i++) {
-        await upsertMediaAsset(pool, {
-          product_id: dbProduct.id,
-          sku_id: null,
-          asset_type: 'lifestyle',
-          url: lifestyleUrls[i],
-          original_url: lifestyleUrls[i],
-          sort_order: sortOrder++,
-        });
-        lifestyleAdded++;
+      // Room scenes → the specific color they depict (SKU-level lifestyle) when the
+      // scene names a color; otherwise a product-level lifestyle fallback.
+      const sceneSortBySku = new Map();
+      let genericScene = 0;
+      for (const scene of scenes) {
+        if (!scene.image_url) continue;
+        const url = ensureHiRes(scene.image_url);
+        const variant = scene.color_id != null ? variantById.get(String(scene.color_id)) : null;
+        const code = variant ? (variant.variant_identifier || '').toString().trim() : '';
+        const skuId = code && codeToSku.get(code);
+        if (skuId) {
+          const so = sceneSortBySku.get(skuId) || 0;
+          await upsertMediaAsset(pool, {
+            product_id: dbProduct.id,
+            sku_id: skuId,
+            asset_type: 'lifestyle',
+            url,
+            original_url: url,
+            sort_order: so,
+          });
+          sceneSortBySku.set(skuId, so + 1);
+          lifestyleAdded++;
+        } else if (genericScene < 3) {
+          await upsertMediaAsset(pool, {
+            product_id: dbProduct.id,
+            sku_id: null,
+            asset_type: 'lifestyle',
+            url,
+            original_url: url,
+            sort_order: genericScene++,
+          });
+          lifestyleAdded++;
+        }
       }
     }
 
@@ -307,12 +359,21 @@ function ensureHiRes(url) {
 }
 
 async function upsertMediaAsset(pool, asset) {
-  await pool.query(`
-    INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
-    VALUES ($1, $2, $3, $4, $5, $6)
-    ON CONFLICT (product_id, asset_type, sort_order) WHERE sku_id IS NULL
-    DO UPDATE SET url = EXCLUDED.url, original_url = EXCLUDED.original_url
-  `, [asset.product_id, asset.sku_id, asset.asset_type, asset.url, asset.original_url, asset.sort_order]);
+  if (asset.sku_id) {
+    await pool.query(`
+      INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (product_id, sku_id, asset_type, sort_order) WHERE sku_id IS NOT NULL
+      DO UPDATE SET url = EXCLUDED.url, original_url = EXCLUDED.original_url
+    `, [asset.product_id, asset.sku_id, asset.asset_type, asset.url, asset.original_url, asset.sort_order]);
+  } else {
+    await pool.query(`
+      INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (product_id, asset_type, sort_order) WHERE sku_id IS NULL
+      DO UPDATE SET url = EXCLUDED.url, original_url = EXCLUDED.original_url
+    `, [asset.product_id, asset.sku_id, asset.asset_type, asset.url, asset.original_url, asset.sort_order]);
+  }
 }
 
 main().catch(err => {
