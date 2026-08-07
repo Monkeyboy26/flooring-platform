@@ -1,8 +1,10 @@
 import { delay, appendLog, addJobError } from './base.js';
 
 const DEFAULT_CONFIG = {
-  delayMs: 500,
-  batchSize: 20
+  delayMs: 200,      // politeness delay applied per worker between requests
+  concurrency: 8,    // number of SKUs fetched in parallel
+  maxRetries: 8,     // per-SKU retries when the endpoint returns HTTP 429
+  cooldownMs: 30000  // shared pause after a 429 so MSI's rate window can reset (~20-25s observed)
 };
 
 const INVENTORY_API = 'https://www.msisurfaces.com/inventory/tiledetails/?handler=CatagoryPartial&ItemId=';
@@ -47,15 +49,63 @@ export async function run(pool, job, source) {
   let found = 0;
   let updated = 0;
   let errors = 0;
+  let processed = 0;
+  let lastLogged = 0;
+  let throttleHits = 0;      // count of 429 responses observed
+  let dropped = 0;           // SKUs abandoned after exhausting retries
 
-  for (let i = 0; i < skus.length; i++) {
-    const sku = skus[i];
+  // Concurrent worker pool: fetch `concurrency` SKUs in parallel rather than
+  // one-at-a-time. The old sequential loop spent ~27 min just sleeping between
+  // SKUs; batching cuts a full run to a few minutes. JS is single-threaded so
+  // the shared counters increment safely.
+  //
+  // MSI's endpoint rate-limits with HTTP 429 after ~500 requests in a rolling
+  // window (~60s). A 429 is IP-wide, so when one worker sees it we set a SHARED
+  // cooldown that every worker waits out — hammering during the window only
+  // keeps it tripped. The SKU that hit the 429 is then retried (it was NOT
+  // missing data). Earlier this was swallowed as "no inventory", capping
+  // coverage at ~350 of 3235.
+  const concurrency = Math.max(1, Math.min(config.concurrency || 8, 16));
+  const maxRetries = config.maxRetries ?? 8;
+  const cooldownMs = config.cooldownMs ?? 30000;
+  let cursor = 0;
+  let cooldownUntil = 0;
 
-    try {
-      const data = await fetchInventory(sku.vendor_sku);
+  async function waitOutCooldown() {
+    let remaining;
+    while ((remaining = cooldownUntil - Date.now()) > 0) {
+      await delay(Math.min(remaining, 2000));
+    }
+  }
+
+  async function processSku(sku) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      await waitOutCooldown();
+
+      let data;
+      try {
+        data = await fetchInventory(sku.vendor_sku);
+      } catch (err) {
+        errors++;
+        if (errors <= 10) {
+          await appendLog(pool, job.id, `Error fetching inventory for ${sku.vendor_sku}: ${err.message}`);
+          await addJobError(pool, job.id, `SKU ${sku.vendor_sku}: ${err.message}`);
+        }
+        return;
+      }
+
+      if (data && data.throttled) {
+        // Rate limited — set a shared cooldown so every worker backs off, then retry this SKU.
+        throttleHits++;
+        cooldownUntil = Math.max(cooldownUntil, Date.now() + cooldownMs);
+        if (throttleHits === 1 || throttleHits % 25 === 0) {
+          await appendLog(pool, job.id, `Rate limited (429) — pausing all workers ${Math.round(cooldownMs / 1000)}s to let MSI's window reset (hit #${throttleHits})`);
+        }
+        continue;
+      }
 
       if (!data) {
-        continue; // No inventory data for this SKU
+        return; // Genuinely no inventory data for this SKU
       }
 
       found++;
@@ -85,26 +135,41 @@ export async function run(pool, job, source) {
       }
 
       updated++;
-    } catch (err) {
-      errors++;
-      if (errors <= 10) {
-        await appendLog(pool, job.id, `Error fetching inventory for ${sku.vendor_sku}: ${err.message}`);
-        await addJobError(pool, job.id, `SKU ${sku.vendor_sku}: ${err.message}`);
-      }
+      return;
     }
 
-    // Progress logging every 50 SKUs
-    if ((i + 1) % 50 === 0 || i === skus.length - 1) {
-      await appendLog(pool, job.id, `Progress: ${i + 1}/${skus.length} SKUs checked, ${found} found, ${updated} updated`, {
-        products_found: found,
-        products_updated: updated
-      });
-    }
-
-    await delay(config.delayMs);
+    // Exhausted retries while still being throttled — leave prior snapshot intact.
+    dropped++;
   }
 
-  await appendLog(pool, job.id, `Inventory scrape complete. Checked: ${skus.length}, Found: ${found}, Updated: ${updated}, Errors: ${errors}`, {
+  async function worker() {
+    while (true) {
+      const i = cursor++;
+      if (i >= skus.length) return;
+
+      await processSku(skus[i]);
+      processed++;
+
+      // Progress logging every ~200 SKUs
+      if (processed - lastLogged >= 200 || processed === skus.length) {
+        lastLogged = processed;
+        await appendLog(pool, job.id, `Progress: ${processed}/${skus.length} SKUs checked, ${found} found, ${updated} updated, ${throttleHits} throttled`, {
+          products_found: found,
+          products_updated: updated
+        });
+      }
+
+      if (config.delayMs) await delay(config.delayMs);
+    }
+  }
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+  if (dropped > 0) {
+    await appendLog(pool, job.id, `${dropped} SKU(s) abandoned after exhausting ${maxRetries} retries under sustained rate limiting`);
+  }
+
+  await appendLog(pool, job.id, `Inventory scrape complete. Checked: ${skus.length}, Found: ${found}, Updated: ${updated}, Errors: ${errors}, Throttled: ${throttleHits}, Dropped: ${dropped}`, {
     products_found: found,
     products_updated: updated
   });
@@ -112,8 +177,9 @@ export async function run(pool, job, source) {
 
 /**
  * Fetch inventory data from MSI's public API for a single SKU.
- * Returns { regions: [{ geography, qtyInWhsePcs, qtyInTransitPcs, qtyInWhseSqft, qtyInTransitSqft }] }
- * or null if no data found.
+ * Returns { regions: [...] } when data is present, { throttled: true } on HTTP 429
+ * (caller should back off and retry — the SKU is NOT missing data), or null when
+ * there is genuinely no inventory record.
  */
 async function fetchInventory(skuCode) {
   const url = INVENTORY_API + encodeURIComponent(skuCode);
@@ -123,6 +189,7 @@ async function fetchInventory(skuCode) {
     signal: AbortSignal.timeout(15000)
   });
 
+  if (resp.status === 429) return { throttled: true };
   if (!resp.ok) return null;
 
   const html = await resp.text();
