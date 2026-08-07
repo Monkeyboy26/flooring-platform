@@ -298,7 +298,11 @@ function extractProductEntries(html) {
   const seen = new Set();
 
   // Pattern: <img src="/uploads/..."> ... <h3>Name</h3> optionally followed by <p>size<br>SKU</p>
-  const entryRegex = /<img\s+[^>]*src="(\/uploads\/[^"]+)"[^>]*>[\s\S]*?<h3[^>]*>([^<]+)<\/h3>(?:\s*<p[^>]*>([\s\S]*?)<\/p>)?/gi;
+  // The gap between the img and its <h3> must not cross another <img>: decorative header
+  // images (e.g. a "lux2" luxury thumbnail + collection logo sitting in the description <p>
+  // above the product cards) would otherwise get lazily bound to the first product <h3> and
+  // shadow the real per-color card image. Restricting the gap ties each card image to its own h3.
+  const entryRegex = /<img\s+[^>]*src="(\/uploads\/[^"]+)"[^>]*>(?:(?!<img)[\s\S])*?<h3[^>]*>([^<]+)<\/h3>(?:\s*<p[^>]*>([\s\S]*?)<\/p>)?/gi;
   let m;
   while ((m = entryRegex.exec(html)) !== null) {
     const imgPath = m[1];
