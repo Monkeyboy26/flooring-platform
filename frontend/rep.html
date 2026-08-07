@@ -15463,44 +15463,71 @@
               })}
             </div>
 
-            {/* Method-specific actions */}
-            {paymentMethod === 'card' && remaining > 0.01 && (
-              <button className="rof-btn-light primary" onClick={handleCardPayment} style={{ width: '100%' }}>
-                Charge ${(remaining > 0 ? remaining : total).toFixed(2)} by Card
-              </button>
-            )}
-            {paymentMethod === 'stripe' && remaining > 0.01 && (
-              <button className="rof-btn-light primary" onClick={() => {
-                const amount = remaining > 0 ? remaining : total;
-                setData(d => ({ ...d, paymentMethods: [...(d.paymentMethods || []), { method: 'stripe', amount }] }));
-              }} style={{ width: '100%' }}>
-                Send payment link for ${(remaining > 0 ? remaining : total).toFixed(2)}
-              </button>
-            )}
-            {paymentMethod === 'cash' && remaining > 0.01 && (
-              <div>
-                {cashDrawerOpen === false && (
-                  <div className="rof-alert warn">No cash drawer open. Open one from the Cash Drawer tab first.</div>
-                )}
-                {cashDrawerOpen !== false && (
-                  <button className="rof-btn-light primary" onClick={setCashPayment} style={{ width: '100%' }}>
-                    Record ${(remaining > 0 ? remaining : total).toFixed(2)} Cash Payment
+            {/* Amount to collect on this tender — supports partial deposits */}
+            {paymentMethod && remaining > 0.01 && (
+              <div style={{ marginTop: '0.25rem' }}>
+                <div className="rof-field" style={{ marginBottom: '0.5rem' }}>
+                  <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span>Amount to collect now</span>
+                    <button type="button" onClick={() => setCollectNow('')}
+                      style={{ font: '500 8.5px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a7e68', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                      Full balance ${defaultCollect.toFixed(2)}
+                    </button>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', font: '400 14px/1 var(--roma-serif)', color: '#8a7e68', pointerEvents: 'none' }}>$</span>
+                    <input type="number" min="0" step="0.01" value={collectNow}
+                      onChange={e => setCollectNow(e.target.value)}
+                      placeholder={defaultCollect.toFixed(2)}
+                      style={{ paddingLeft: 22 }} />
+                  </div>
+                  {isDeposit && (
+                    <div style={{ font: '500 8.5px/1.4 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#a87935', marginTop: 5 }}>
+                      Deposit {'·'} ${(defaultCollect - collectAmt).toFixed(2)} balance stays due
+                    </div>
+                  )}
+                </div>
+                {paymentMethod === 'card' && (
+                  <button className="rof-btn-light primary" onClick={handleCardPayment} disabled={collectAmt <= 0} style={{ width: '100%' }}>
+                    Charge ${collectAmt.toFixed(2)} by Card
                   </button>
                 )}
-              </div>
-            )}
-            {paymentMethod === 'check' && remaining > 0.01 && (
-              <div>
-                <div className="rof-field">
-                  <label>Check Number *</label>
-                  <input type="text" maxLength={20} value={data.checkNumber || ''}
-                    onChange={e => setData(d => ({ ...d, checkNumber: e.target.value }))}
-                    placeholder="Enter check number" />
-                </div>
-                <button className="rof-btn-light primary" onClick={setCheckPayment}
-                  disabled={!data.checkNumber || !data.checkNumber.trim()} style={{ width: '100%' }}>
-                  Record ${(remaining > 0 ? remaining : total).toFixed(2)} Check Payment
-                </button>
+                {paymentMethod === 'ach' && (
+                  <button className="rof-btn-light primary" onClick={() => setShowAchModal(true)} disabled={collectAmt <= 0} style={{ width: '100%' }}>
+                    Collect ${collectAmt.toFixed(2)} by bank (ACH)
+                  </button>
+                )}
+                {paymentMethod === 'stripe' && (
+                  <button className="rof-btn-light primary" onClick={setStripeRequest} disabled={collectAmt <= 0} style={{ width: '100%' }}>
+                    Send payment link for ${collectAmt.toFixed(2)}
+                  </button>
+                )}
+                {paymentMethod === 'cash' && (
+                  <div>
+                    {cashDrawerOpen === false && (
+                      <div className="rof-alert warn">No cash drawer open. Open one from the Cash Drawer tab first.</div>
+                    )}
+                    {cashDrawerOpen !== false && (
+                      <button className="rof-btn-light primary" onClick={setCashPayment} disabled={collectAmt <= 0} style={{ width: '100%' }}>
+                        Record ${collectAmt.toFixed(2)} Cash Payment
+                      </button>
+                    )}
+                  </div>
+                )}
+                {paymentMethod === 'check' && (
+                  <div>
+                    <div className="rof-field">
+                      <label>Check Number *</label>
+                      <input type="text" maxLength={20} value={data.checkNumber || ''}
+                        onChange={e => setData(d => ({ ...d, checkNumber: e.target.value }))}
+                        placeholder="Enter check number" />
+                    </div>
+                    <button className="rof-btn-light primary" onClick={setCheckPayment}
+                      disabled={!data.checkNumber || !data.checkNumber.trim() || collectAmt <= 0} style={{ width: '100%' }}>
+                      Record ${collectAmt.toFixed(2)} Check Payment
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </WizRepCard>
@@ -15601,6 +15628,15 @@
               terminalRef={terminalRef}
               terminalStatus={terminalStatus}
               connectReader={connectReader}
+            />
+          )}
+          {showAchModal && (
+            <AchPaymentModal
+              amount={collectAmt > 0 ? collectAmt : (remaining > 0 ? remaining : total)}
+              customerName={customerName}
+              customerEmail={customerEmail}
+              onSuccess={handleAchSuccess}
+              onCancel={() => setShowAchModal(false)}
             />
           )}
         </div>
