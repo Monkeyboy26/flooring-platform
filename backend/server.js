@@ -4389,7 +4389,13 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
     const piParams = {
       amount: totalCents,
       currency: 'usd',
-      payment_method_types: ['card', 'klarna'],
+      // ACH (us_bank_account) is a delayed-settlement bank debit — far cheaper than
+      // cards on large orders. Financial Connections lets the customer verify their
+      // bank instantly at checkout; card/Klarna confirm client-side as before.
+      payment_method_types: ['card', 'klarna', 'us_bank_account'],
+      payment_method_options: {
+        us_bank_account: { financial_connections: { permissions: ['payment_method'] } },
+      },
       shipping: piShipping,
       metadata: { store_credit_applied: String(storeCreditApplied) },
     };
@@ -4435,7 +4441,7 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
         const stripeCustomerId = await resolveStripeCustomerForAccount(req.customer.id, req.customer.email);
         if (stripeCustomerId) {
           piParams.customer = stripeCustomerId;
-          piParams.payment_method_options = { card: { setup_future_usage: 'off_session' } };
+          piParams.payment_method_options.card = { setup_future_usage: 'off_session' };
         }
       } catch (e) {
         console.error('Checkout save-card attach failed:', e.message);
@@ -4945,6 +4951,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // Fully-covered orders have no PaymentIntent — treat them as confirmed.
     const isBankTransfer = !fullyCovered && reqPaymentMethod === 'bank_transfer';
     const isKlarna = !fullyCovered && reqPaymentMethod === 'klarna';
+    const isAch = !fullyCovered && reqPaymentMethod === 'ach';
     let paymentIntent = null;
     let cardBrand = null, cardLast4 = null;
     if (!fullyCovered) {
@@ -4956,6 +4963,12 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       } else if (isKlarna) {
         if (paymentIntent.status !== 'succeeded' && paymentIntent.status !== 'processing') {
           return res.status(400).json({ error: 'Klarna payment was not authorized' });
+        }
+      } else if (isAch) {
+        // ACH bank debit authorizes to 'processing' and settles in a few business
+        // days; the payment_intent.succeeded webhook confirms the order + cuts POs.
+        if (paymentIntent.status !== 'processing' && paymentIntent.status !== 'succeeded') {
+          return res.status(400).json({ error: 'Bank payment was not authorized' });
         }
       } else if (paymentIntent.status !== 'succeeded') {
         return res.status(400).json({ error: 'Payment has not been completed' });
@@ -5131,11 +5144,13 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
 
     await client.query('BEGIN');
 
-    const orderStatus = isBankTransfer ? 'awaiting_payment' : 'confirmed';
+    // ACH sits in awaiting_payment like a bank transfer — it settles days later and
+    // the payment_intent.succeeded webhook flips it to confirmed + cuts POs.
+    const orderStatus = (isBankTransfer || isAch) ? 'awaiting_payment' : 'confirmed';
     // amount_paid here is the STRIPE-charged portion only. redeemStoreCredit()
     // (called after the order exists) bumps it by storeCreditApplied so the
-    // final amount_paid equals total. Bank transfer stays 0 until funds land.
-    const amountPaid = isBankTransfer ? '0.00' : (total - storeCreditApplied).toFixed(2);
+    // final amount_paid equals total. Bank transfer / ACH stay 0 until funds land.
+    const amountPaid = (isBankTransfer || isAch) ? '0.00' : (total - storeCreditApplied).toFixed(2);
     const orderPaymentIntentId = fullyCovered ? null : payment_intent_id;
     const bankInstructions = isBankTransfer ? (req.body.bank_instructions || null) : null;
     const bankExpiresAt = isBankTransfer ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null;
@@ -5187,13 +5202,17 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // store_credit tender inserted by redeemStoreCredit is the only tender.
     const stripeChargeAmount = parseFloat((total - storeCreditApplied).toFixed(2));
     if (!fullyCovered) {
-      const paymentStatus = isBankTransfer ? 'pending' : 'completed';
-      const paymentDesc = isBankTransfer ? 'Bank transfer payment (awaiting funds)' : 'Original payment';
+      // ACH records a 'processing' tender that the settlement webhook flips to
+      // 'completed' — release/ship gates block while it's processing.
+      const paymentStatus = isBankTransfer ? 'pending' : isAch ? 'processing' : 'completed';
+      const paymentDesc = isBankTransfer ? 'Bank transfer payment (awaiting funds)'
+        : isAch ? 'ACH bank payment (awaiting settlement)' : 'Original payment';
+      const paymentMethodCol = isAch ? 'ach' : null;
       const opResult = await client.query(`
-        INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status)
-        VALUES ($1, 'charge', $2, $3, $4, $5) RETURNING id
-      `, [order.id, stripeChargeAmount.toFixed(2), payment_intent_id, paymentDesc, paymentStatus]);
-      if (!isBankTransfer) {
+        INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status, payment_method)
+        VALUES ($1, 'charge', $2, $3, $4, $5, $6) RETURNING id
+      `, [order.id, stripeChargeAmount.toFixed(2), payment_intent_id, paymentDesc, paymentStatus, paymentMethodCol]);
+      if (!isBankTransfer && !isAch) {
         await syncOrderPaymentToInvoice(opResult.rows[0].id, order.id, client);
       }
     }
@@ -12117,11 +12136,22 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               "UPDATE orders SET status = 'confirmed', amount_paid = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
               [settledAmount.toFixed(2), order.id]
             );
-            const achOpRes = await pool.query(`
-              INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status, payment_method)
-              VALUES ($1, 'charge', $2, $3, 'ACH bank transfer payment', 'completed', 'ach') RETURNING id
-            `, [order.id, settledAmount.toFixed(2), pi.id]);
-            await syncOrderPaymentToInvoice(achOpRes.rows[0].id, order.id, pool);
+            // Settle the 'processing' tender recorded at checkout (storefront ACH)
+            // rather than inserting a duplicate; fall back to a fresh row if none.
+            let achOpId;
+            const achUpd = await pool.query(
+              "UPDATE order_payments SET status = 'completed', payment_method = 'ach', description = 'ACH bank payment settled' WHERE order_id = $1 AND stripe_payment_intent_id = $2 AND status = 'processing' RETURNING id",
+              [order.id, pi.id]);
+            if (achUpd.rows.length) {
+              achOpId = achUpd.rows[0].id;
+            } else {
+              const achOpRes = await pool.query(`
+                INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status, payment_method)
+                VALUES ($1, 'charge', $2, $3, 'ACH bank transfer payment', 'completed', 'ach') RETURNING id
+              `, [order.id, settledAmount.toFixed(2), pi.id]);
+              achOpId = achOpRes.rows[0].id;
+            }
+            await syncOrderPaymentToInvoice(achOpId, order.id, pool);
             await logOrderActivity(pool, order.id, 'payment_received', null, 'System',
               { method: 'ach', amount: settledAmount.toFixed(2) });
             // Generate purchase orders now that payment is confirmed
