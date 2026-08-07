@@ -15492,11 +15492,6 @@
                     Charge ${collectAmt.toFixed(2)} by Card
                   </button>
                 )}
-                {paymentMethod === 'ach' && (
-                  <button className="rof-btn-light primary" onClick={() => setShowAchModal(true)} disabled={collectAmt <= 0} style={{ width: '100%' }}>
-                    Collect ${collectAmt.toFixed(2)} by bank (ACH)
-                  </button>
-                )}
                 {paymentMethod === 'stripe' && (
                   <button className="rof-btn-light primary" onClick={setStripeRequest} disabled={collectAmt <= 0} style={{ width: '100%' }}>
                     Send payment link for ${collectAmt.toFixed(2)}
@@ -15628,15 +15623,6 @@
               terminalRef={terminalRef}
               terminalStatus={terminalStatus}
               connectReader={connectReader}
-            />
-          )}
-          {showAchModal && (
-            <AchPaymentModal
-              amount={collectAmt > 0 ? collectAmt : (remaining > 0 ? remaining : total)}
-              customerName={customerName}
-              customerEmail={customerEmail}
-              onSuccess={handleAchSuccess}
-              onCancel={() => setShowAchModal(false)}
             />
           )}
         </div>

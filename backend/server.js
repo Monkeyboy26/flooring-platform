@@ -16347,16 +16347,6 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
           );
         }
       }
-    } else if (payment_method === 'ach' && stripePaymentIntentId) {
-      // ACH bank debit — not paid in store; record a 'processing' tender so the
-      // release/ship gates block until the payment_intent.succeeded webhook settles
-      // it to 'completed' (which also flips the order to confirmed + cuts POs).
-      const achAmt = (payment_amount != null && !isNaN(parseFloat(payment_amount)))
-        ? parseFloat(parseFloat(payment_amount).toFixed(2)) : total;
-      await client.query(`
-        INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, description, status, payment_method, initiated_by, initiated_by_name)
-        VALUES ($1, 'charge', $2, $3, 'ACH bank payment (awaiting settlement)', 'processing', 'ach', $4, $5)
-      `, [order.id, achAmt.toFixed(2), stripePaymentIntentId, req.rep.id, req.rep.first_name + ' ' + req.rep.last_name]);
     }
 
     // Record promo usage
