@@ -50,29 +50,46 @@ const ATTR = {
 
 const MARKUP = 1.6;
 
-// ─── Category mapping from material string + SKU type ───
-function getCategoryId(material, collectionName, skuType) {
-  const m = material.toUpperCase();
-  const c = collectionName.toUpperCase();
-  const t = (skuType || '').toUpperCase();
-  // Collection-level overrides first (these are definitive)
-  if (c.startsWith('CC MOSAICS') || c.startsWith('CC PORCELAIN')) return CAT.mosaic;
-  if (c.includes('ROCKART') || c.includes('METALS')) return CAT.mosaic;
-  if (c === 'SLABS' || c === 'XL SLABS') return CAT.porcelain;
-  if (c === 'PAVERS') return CAT.pavers;
-  if (c === 'BATH FIXTURES') return CAT.bathAccessories;
-  // SKU-level type overrides: mosaic items in non-mosaic collections
-  if (t === 'MOSAIC') return CAT.mosaic;
-  // SKU-level type overrides: ceramic wall items
-  if (t === 'CERAMIC WALL' || t === 'PORCELAIN WALL' || t === 'WALL') return CAT.wallTile;
-  if (m.includes('NATURAL STONE') || m.includes('GLASS MOSAIC')) return CAT.mosaic;
-  if (m.includes('ALUMINUM')) return CAT.mosaic;
-  if (c === 'PINE' || c === 'NORTHWOOD' || c === 'WESTON') return CAT.woodLook;
-  if (m.includes('CERAMIC WALL')) return CAT.wallTile;
-  if (m.includes('PORCELAIN')) return CAT.porcelain;
+// ─── Category classification: material + actual tile FORMAT ───
+// Category is derived from the material plus the product's real field sizes — NOT from the
+// pricebook's per-SKU FLOOR/WALL label, which mislabels a whole product when its first SKU
+// happens to be a trim/wall piece. Keeps small decorative/subway/brick tile in Backsplash &
+// Wall, routes floor-size porcelain to Porcelain Tile, slab-scale panels to Porcelain Slabs,
+// and detects wood-look plank collections. Mirrored in scripts/roca-recategorize.mjs.
+const WOOD_COLLECTIONS = new Set(['PINE', 'NORTHWOOD', 'WESTON', 'ABBEY', 'BOHEME', 'COLONIAL', 'INDIANA', 'LAGOM']);
+
+function parseDim(s) {
+  s = String(s).replace(/["']/g, '').trim();
+  const m = s.match(/(\d+(?:\.\d+)?|\d+\/\d+)\s*[xX]\s*(\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const num = x => x.includes('/') ? parseInt(x.split('/')[0]) / parseInt(x.split('/')[1]) : parseFloat(x);
+  return [num(m[1]), num(m[2])];
+}
+
+// @param fieldSizes  array of size labels across the product's SKUs
+// @param flags       { isMosaic, isPaver, isBath }
+function classifyRocaCategory(collection, material, fieldSizes, flags = {}) {
+  const c = (collection || '').toUpperCase().trim();
+  const m = (material || '').toUpperCase();
+  const dims = (fieldSizes || []).map(parseDim).filter(Boolean);
+  const maxDim = dims.length ? Math.max(...dims.flatMap(d => d)) : 0;
+
+  // Slab / large panel: dedicated collections or slab-scale format (>=90" longest side).
+  // Longest side keeps planks (10.5x64) out; only wide+long panels (48x98, 63x126) qualify.
+  if (c === 'SLABS' || c === 'XL SLABS' || maxDim >= 90) return CAT.porcelainSlab;
+  if (flags.isBath || c === 'BATH FIXTURES') return CAT.bathAccessories;
+  if (flags.isPaver || c === 'PAVERS' || m.includes('FULL BODY PORCELAIN STONEWARE')) return CAT.pavers;
+  if (flags.isMosaic || /^CC\s+(MOSAICS?|PORCELAIN)/.test(c) || c === 'ROCKART' || c === 'METALS'
+      || m.includes('GLASS MOSAIC') || m.includes('NATURAL STONE') || m.includes('ALUMINUM')) return CAT.mosaic;
+  if (WOOD_COLLECTIONS.has(c)) return CAT.woodLook;
   if (m.includes('QUARRY')) return CAT.ceramic;
+  // Decorative / brick / subway / pencil wall: every field size is narrow (<=24" long AND <=6" short).
+  // A tile with a short side >6" (8x8, 12x24, 24x48, 35x35) counts as a floor tile.
+  const hasFloorTile = dims.some(([a, b]) => Math.max(a, b) > 24 || Math.min(a, b) > 6);
+  if (dims.length > 0 && !hasFloorTile) return CAT.wallTile;
+  if (m.includes('CERAMIC WALL') && !/PORCELAIN|GRES|STONEWARE/.test(m)) return CAT.wallTile;
+  if (/PORCELAIN|GRES|STONEWARE|COLOR BODY/.test(m)) return CAT.porcelain;
   if (m.includes('CERAMIC')) return CAT.wallTile;
-  if (m.includes('STONEWARE')) return CAT.porcelain;
   return CAT.porcelain; // default
 }
 
@@ -468,7 +485,11 @@ function isTrim(record) {
 // ─── Extract a clean size string from the size label ───
 function cleanSize(sizeLabel) {
   if (!sizeLabel) return '';
-  return sizeLabel.replace(/\s+(FIELD|BULLNOSE|PENCIL|HEXAGON|MOSAIC|COVE|COVE BASE|V-CAP|RADIUS|CORNER|QUARTER ROUND|CHAIR RAIL).*$/i, '').trim();
+  return sizeLabel.replace(/\s+(FIELD|BULLNOSE|PENCIL|HEXAGON|MOSAIC|COVE|COVE BASE|V-CAP|RADIUS|CORNER|QUARTER ROUND|CHAIR RAIL).*$/i, '')
+    // Direction words belong to the trim type ("Left Cove Corner"), not the size —
+    // leaving them here produced "… Left Cove Corner 3 3/4X6 LEFT"
+    .replace(/\s+(LEFT|RIGHT)$/i, '')
+    .trim();
 }
 
 // ─── Normalize collection names for merging ───
@@ -516,11 +537,23 @@ async function run() {
         collection: titleCase(normCol),
         material: rec.material,
         color: titleCase(color),
-        categoryId: getCategoryId(rec.material, rec.collection, effectiveType),
+        isMosaicProduct: isMosaicCol || (isMosaicItem && !/\bMosaic\b/i.test(color)),
+        categoryId: null, // computed after all SKUs are grouped
         skus: [],
       });
     }
-    productMap.get(key).skus.push(rec);
+    const prodEntry = productMap.get(key);
+    if (effectiveType === 'MOSAIC') prodEntry.isMosaicProduct = true;
+    prodEntry.skus.push(rec);
+  }
+
+  // Classify each product from material + all its SKU sizes (not the first SKU's type label)
+  for (const prod of productMap.values()) {
+    prod.categoryId = classifyRocaCategory(prod.collection, prod.material, prod.skus.map(s => s.sizeLabel), {
+      isMosaic: prod.isMosaicProduct || /mosaic/i.test(prod.color),
+      isPaver: prod.collection.toUpperCase() === 'PAVERS',
+      isBath: prod.collection.toUpperCase() === 'BATH FIXTURES',
+    });
   }
 
   console.log(`Grouped into ${productMap.size} products\n`);
@@ -686,7 +719,13 @@ async function run() {
         const internalSku = 'ROCA-' + rec.sku;
         const size = cleanSize(rec.sizeLabel);
         const trimType = rec.sizeLabel.replace(/^[\d\s\/]+[xX][\d\s\/]+\s*/, '').trim() || 'Trim';
-        const variantName = `${productName} ${titleCase(trimType)} ${size}`.replace(/\s+/g, ' ').trim();
+        // Collapse echoes the concatenation creates: a product already named
+        // "White Bullnose" + trimType "Bullnose" would otherwise render
+        // "White Bullnose Bullnose 6X18". Letters-only so sizes ("3 3/4X6") are safe.
+        const variantName = `${productName} ${titleCase(trimType)} ${size}`
+          .replace(/\s+/g, ' ')
+          .replace(/\b([A-Za-z]{2,})( +\1\b)+/gi, '$1')
+          .trim();
 
         const skuRes = await client.query(`
           INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type, status)
