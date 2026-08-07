@@ -8434,6 +8434,16 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
       return res.status(400).json({ error: 'Cannot uncancel an order that has been refunded' });
     }
 
+    // Bank (ACH) payments settle days after authorization; don't let goods ship
+    // while funds are still clearing (a failed debit bounces later).
+    if (status === 'shipped') {
+      const pend = await unsettledPaymentInfo(id, client);
+      if (pend.unsettled) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `A bank (ACH) payment of $${pend.amount.toFixed(2)} is still clearing. This order can ship once the payment settles.` });
+      }
+    }
+
     // For shipped status with shipping delivery, require tracking info
     let result;
     if (status === 'shipped' && tracking_number) {
@@ -11905,6 +11915,60 @@ app.get('/api/trade/membership', tradeAuth, async (req, res) => {
 });
 
 // Stripe webhook handler
+// Post-commit side effects when a payment_request payment has SETTLED — instant
+// card/wallet/Klarna at checkout, or an ACH bank debit once it clears days later.
+// Extracted so both the instant path and checkout.session.async_payment_succeeded
+// run the identical receipt email + invoice sync + rep notification + deposit nudge.
+// The caller runs this ONLY when a payment row was newly settled (idempotent).
+async function finalizeSettledPayment(order_id, payment_request_id, paidAmount, opId) {
+  await syncOrderPaymentToInvoice(opId, order_id, pool);
+  const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [order_id]);
+  if (!orderResult.rows.length) return;
+  const paidOrder = orderResult.rows[0];
+  // Confirmation email carries the updated invoice PDF (balance due $0 / paid-in-full).
+  // PDF render is heavy (Puppeteer) and degrades gracefully to a no-attachment send.
+  setImmediate(async () => {
+    let pdfBuffer = null;
+    try {
+      const invoiceResult = await generateOrderInvoiceHtml(order_id);
+      if (invoiceResult) pdfBuffer = await generatePDFBuffer(invoiceResult.html);
+    } catch (pdfErr) {
+      console.error(`[Webhook] Payment received: invoice PDF failed for ${paidOrder.order_number}, sending without attachment:`, pdfErr.message);
+    }
+    await attachRep(paidOrder);
+    sendPaymentReceived(paidOrder, paidAmount, pdfBuffer);
+  });
+  setImmediate(() => autoGenerateAndSendInvoice(order_id, { sendEmail: false }));
+  if (paidOrder.sales_rep_id) {
+    setImmediate(() => createRepNotification(pool, paidOrder.sales_rep_id, 'payment_received',
+      'Payment received for ' + paidOrder.order_number,
+      '$' + paidAmount.toFixed(2) + ' payment received for order ' + paidOrder.order_number,
+      'order', order_id));
+    // Estimate-deposit nudge: when a deposit lands on a still-pending order, prompt
+    // the rep to confirm it so vendor POs get cut. Scoped by the 'Estimate deposit'
+    // request label so ordinary balance-collection payments don't spawn a task.
+    if (paidOrder.status === 'pending' && payment_request_id) {
+      setImmediate(async () => {
+        try {
+          const prMeta = await pool.query('SELECT sent_by_name FROM payment_requests WHERE id = $1', [payment_request_id]);
+          if (prMeta.rows[0]?.sent_by_name !== 'Estimate deposit') return;
+          const bal = await recalculateBalance(pool, order_id);
+          if (!bal || bal.balance_status !== 'balance_due') return;
+          await createAutoTask(pool, paidOrder.sales_rep_id, 'order_deposit_paid', order_id,
+            `Deposit received on Order ${paidOrder.order_number} — confirm to order materials`, {
+              description: `A $${paidAmount.toFixed(2)} deposit was paid online. Confirm the order to generate vendor POs and start the job; the $${bal.balance.toFixed(2)} balance can be collected later.`,
+              priority: 'high',
+              customer_name: paidOrder.customer_name, customer_email: paidOrder.customer_email, customer_phone: paidOrder.phone,
+              linked_order_id: order_id
+            });
+        } catch (taskErr) {
+          console.error('[AutoTask] order_deposit_paid error:', taskErr.message);
+        }
+      });
+    }
+  }
+}
+
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
     let event;
@@ -11943,52 +12007,59 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         if (session.metadata && session.metadata.type === 'payment_request') {
           const { order_id, payment_request_id } = session.metadata;
           const paidAmount = (session.amount_total || 0) / 100;
+          // Delayed-settlement methods (ACH bank debit) complete the Checkout Session
+          // with payment_status !== 'paid' and clear days later via
+          // checkout.session.async_payment_succeeded. Only instant methods
+          // (card / wallet / Klarna) are 'paid' here. We record an unsettled ACH
+          // payment as 'processing' and DON'T count it toward amount_paid until it
+          // clears — so the order never looks paid (and materials can't be released)
+          // on money still in flight.
+          const settledNow = session.payment_status === 'paid';
 
-          // Idempotency guard: Stripe may redeliver this event (retries, at-least-once
-          // delivery). Process the settlement exactly once inside a transaction —
-          // (1) atomically claim the payment_request (only the first delivery flips it
-          // to 'paid'), and (2) rely on the unique index on stripe_checkout_session_id
-          // so the ledger insert no-ops on a duplicate. If neither records new work,
-          // we skip the balance bump, email, invoice, and rep notification.
+          // Idempotency: the unique index on stripe_checkout_session_id makes the
+          // INSERT a no-op on redelivery, so opId is null and side effects are skipped.
           const client = await pool.connect();
           let opId = null;
           try {
             await client.query('BEGIN');
+            const ins = await client.query(`
+              INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, stripe_checkout_session_id, description, status, payment_method)
+              VALUES ($1, 'additional_charge', $2, $3, $4, $5, $6, $7)
+              ON CONFLICT (stripe_checkout_session_id) WHERE stripe_checkout_session_id IS NOT NULL DO NOTHING
+              RETURNING id
+            `, [order_id, paidAmount.toFixed(2), session.payment_intent || null, session.id,
+                settledNow ? 'Additional payment via checkout' : 'ACH bank payment initiated — awaiting settlement',
+                settledNow ? 'completed' : 'processing',
+                settledNow ? null : 'ach']);
 
-            let claimed = true;
-            if (payment_request_id) {
-              const claim = await client.query(
-                "UPDATE payment_requests SET status = 'paid', paid_at = NOW() WHERE id = $1 AND status <> 'paid' RETURNING id",
-                [payment_request_id]
-              );
-              claimed = claim.rows.length > 0;
-            }
-
-            if (claimed) {
-              const ins = await client.query(`
-                INSERT INTO order_payments (order_id, payment_type, amount, stripe_checkout_session_id, description, status)
-                VALUES ($1, 'additional_charge', $2, $3, 'Additional payment via checkout', 'completed')
-                ON CONFLICT (stripe_checkout_session_id) WHERE stripe_checkout_session_id IS NOT NULL DO NOTHING
-                RETURNING id
-              `, [order_id, paidAmount.toFixed(2), session.id]);
-
-              if (ins.rows.length) {
-                opId = ins.rows[0].id;
+            if (ins.rows.length) {
+              opId = ins.rows[0].id;
+              // Terms-of-Service acceptance (the hosted page required it) is recorded
+              // for both settled and pending payments — consent was given either way.
+              if (session.consent && session.consent.terms_of_service === 'accepted') {
+                await client.query(
+                  'UPDATE orders SET terms_accepted_at = COALESCE(terms_accepted_at, NOW()) WHERE id = $1',
+                  [order_id]
+                );
+              }
+              if (settledNow) {
                 await client.query(
                   'UPDATE orders SET amount_paid = amount_paid + $1 WHERE id = $2',
                   [paidAmount.toFixed(2), order_id]
                 );
-                // The hosted page required Terms-of-Service acceptance — record the
-                // agreement on the order (mirrors storefront checkout's terms_accepted_at),
-                // preserving any earlier acceptance from the original online checkout.
-                if (session.consent && session.consent.terms_of_service === 'accepted') {
-                  await client.query(
-                    'UPDATE orders SET terms_accepted_at = COALESCE(terms_accepted_at, NOW()) WHERE id = $1',
-                    [order_id]
-                  );
+                if (payment_request_id) {
+                  await client.query("UPDATE payment_requests SET status = 'paid', paid_at = NOW() WHERE id = $1 AND status <> 'paid'", [payment_request_id]);
                 }
                 await logOrderActivity(client, order_id, 'payment_received', null, 'System',
                   { method: 'payment_request', amount: paidAmount.toFixed(2), stripe_session_id: session.id });
+              } else {
+                // ACH pending — do NOT bump amount_paid. Mark the request 'processing'
+                // so it isn't treated as unpaid and re-sent.
+                if (payment_request_id) {
+                  await client.query("UPDATE payment_requests SET status = 'processing' WHERE id = $1 AND status <> 'paid'", [payment_request_id]);
+                }
+                await logOrderActivity(client, order_id, 'payment_processing', null, 'System',
+                  { method: 'ach', amount: paidAmount.toFixed(2), stripe_session_id: session.id });
               }
             }
 
@@ -12000,62 +12071,18 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             client.release();
           }
 
-          if (opId) {
-            // Post-commit side effects — invoice sync, emails, and notifications
-            // run only when this delivery actually recorded the payment.
-            await syncOrderPaymentToInvoice(opId, order_id, pool);
-
-            const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [order_id]);
-            if (orderResult.rows.length) {
-              const paidOrder = orderResult.rows[0];
-              // Confirmation email carries the updated invoice PDF, which now
-              // reflects the payment (balance due $0 / paid-in-full). PDF render
-              // is heavy (Puppeteer) and degrades gracefully to a no-attachment send.
-              setImmediate(async () => {
-                let pdfBuffer = null;
-                try {
-                  const invoiceResult = await generateOrderInvoiceHtml(order_id);
-                  if (invoiceResult) pdfBuffer = await generatePDFBuffer(invoiceResult.html);
-                } catch (pdfErr) {
-                  console.error(`[Webhook] Payment received: invoice PDF failed for ${paidOrder.order_number}, sending without attachment:`, pdfErr.message);
-                }
-                await attachRep(paidOrder);
-                sendPaymentReceived(paidOrder, paidAmount, pdfBuffer);
-              });
-              // Create the invoice record but don't email — the Payment Received
-              // email above already reaches the customer with the invoice PDF.
-              setImmediate(() => autoGenerateAndSendInvoice(order_id, { sendEmail: false }));
-              if (paidOrder.sales_rep_id) {
-                setImmediate(() => createRepNotification(pool, paidOrder.sales_rep_id, 'payment_received',
-                  'Payment received for ' + paidOrder.order_number,
-                  '$' + paidAmount.toFixed(2) + ' payment received for order ' + paidOrder.order_number,
-                  'order', order_id));
-
-                // Estimate-deposit nudge: when a deposit lands on a still-pending
-                // order, prompt the rep to confirm it so vendor POs get cut.
-                // Confirming stays a human decision — this just surfaces the step.
-                // Scoped by the 'Estimate deposit' request label so ordinary
-                // balance-collection payments don't spawn a task.
-                if (paidOrder.status === 'pending' && payment_request_id) {
-                  setImmediate(async () => {
-                    try {
-                      const prMeta = await pool.query('SELECT sent_by_name FROM payment_requests WHERE id = $1', [payment_request_id]);
-                      if (prMeta.rows[0]?.sent_by_name !== 'Estimate deposit') return;
-                      const bal = await recalculateBalance(pool, order_id);
-                      if (!bal || bal.balance_status !== 'balance_due') return;
-                      await createAutoTask(pool, paidOrder.sales_rep_id, 'order_deposit_paid', order_id,
-                        `Deposit received on Order ${paidOrder.order_number} — confirm to order materials`, {
-                          description: `A $${paidAmount.toFixed(2)} deposit was paid online. Confirm the order to generate vendor POs and start the job; the $${bal.balance.toFixed(2)} balance can be collected later.`,
-                          priority: 'high',
-                          customer_name: paidOrder.customer_name, customer_email: paidOrder.customer_email, customer_phone: paidOrder.phone,
-                          linked_order_id: order_id
-                        });
-                    } catch (taskErr) {
-                      console.error('[AutoTask] order_deposit_paid error:', taskErr.message);
-                    }
-                  });
-                }
-              }
+          if (opId && settledNow) {
+            await finalizeSettledPayment(order_id, payment_request_id, paidAmount, opId);
+          } else if (opId && !settledNow) {
+            // ACH initiated — tell the rep it's clearing so they don't re-send the
+            // request or ship early. The full receipt fires on async settlement.
+            const o = await pool.query('SELECT order_number, sales_rep_id FROM orders WHERE id = $1', [order_id]);
+            const row = o.rows[0];
+            if (row && row.sales_rep_id) {
+              setImmediate(() => createRepNotification(pool, row.sales_rep_id, 'payment_processing',
+                'Bank payment initiated for ' + row.order_number,
+                `A $${paidAmount.toFixed(2)} ACH bank payment was started and typically clears in a few business days. Materials can't be released until it settles.`,
+                'order', order_id));
             }
           } else {
             console.log(`[Webhook] Duplicate payment_request completion (order ${order_id}, session ${session.id}) — already processed, skipping`);
@@ -12182,6 +12209,93 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                   customer_name: order.customer_name, customer_email: order.customer_email,
                   customer_phone: order.customer_phone,
                   linked_order_id: order.id
+                }));
+            }
+          }
+        }
+        break;
+      }
+      case 'checkout.session.async_payment_succeeded': {
+        // An ACH bank debit from a payment_request Checkout has cleared. Flip the
+        // pending row to settled, count it toward amount_paid now, and run the same
+        // receipt + invoice + notification side effects as an instant payment.
+        const session = event.data.object;
+        if (session.metadata && session.metadata.type === 'payment_request') {
+          const { order_id, payment_request_id } = session.metadata;
+          const paidAmount = (session.amount_total || 0) / 100;
+          const client = await pool.connect();
+          let opId = null;
+          try {
+            await client.query('BEGIN');
+            // Normal path: settle the 'processing' row created at checkout.completed.
+            const upd = await client.query(
+              "UPDATE order_payments SET status = 'completed', description = 'ACH bank payment settled' WHERE stripe_checkout_session_id = $1 AND status = 'processing' RETURNING id",
+              [session.id]);
+            if (upd.rows.length) {
+              opId = upd.rows[0].id;
+            } else {
+              // Fallback: if we somehow missed 'completed', record a settled row now.
+              // ON CONFLICT keeps this idempotent against event redelivery.
+              const ins = await client.query(`
+                INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, stripe_checkout_session_id, description, status, payment_method)
+                VALUES ($1, 'additional_charge', $2, $3, $4, 'ACH bank payment settled', 'completed', 'ach')
+                ON CONFLICT (stripe_checkout_session_id) WHERE stripe_checkout_session_id IS NOT NULL DO NOTHING
+                RETURNING id
+              `, [order_id, paidAmount.toFixed(2), session.payment_intent || null, session.id]);
+              opId = ins.rows.length ? ins.rows[0].id : null;
+            }
+            if (opId) {
+              await client.query('UPDATE orders SET amount_paid = amount_paid + $1 WHERE id = $2', [paidAmount.toFixed(2), order_id]);
+              if (session.consent && session.consent.terms_of_service === 'accepted') {
+                await client.query('UPDATE orders SET terms_accepted_at = COALESCE(terms_accepted_at, NOW()) WHERE id = $1', [order_id]);
+              }
+              if (payment_request_id) {
+                await client.query("UPDATE payment_requests SET status = 'paid', paid_at = NOW() WHERE id = $1 AND status <> 'paid'", [payment_request_id]);
+              }
+              await logOrderActivity(client, order_id, 'payment_received', null, 'System',
+                { method: 'ach_settled', amount: paidAmount.toFixed(2), stripe_session_id: session.id });
+            }
+            await client.query('COMMIT');
+          } catch (txErr) {
+            await client.query('ROLLBACK');
+            throw txErr;
+          } finally {
+            client.release();
+          }
+          if (opId) await finalizeSettledPayment(order_id, payment_request_id, paidAmount, opId);
+        }
+        break;
+      }
+      case 'checkout.session.async_payment_failed': {
+        // An ACH bank debit bounced (insufficient funds, etc.). We never bumped
+        // amount_paid for a pending ACH, so there's nothing to reverse — the balance
+        // simply stays due. Mark the row failed and put the rep on it.
+        const session = event.data.object;
+        if (session.metadata && session.metadata.type === 'payment_request') {
+          const { order_id, payment_request_id } = session.metadata;
+          const failedAmount = (session.amount_total || 0) / 100;
+          const upd = await pool.query(
+            "UPDATE order_payments SET status = 'failed', description = 'ACH bank payment failed' WHERE stripe_checkout_session_id = $1 AND status = 'processing' RETURNING order_id",
+            [session.id]);
+          if (upd.rows.length) {
+            if (payment_request_id) {
+              await pool.query("UPDATE payment_requests SET status = 'failed' WHERE id = $1", [payment_request_id]);
+            }
+            await logOrderActivity(pool, order_id, 'payment_failed', null, 'System',
+              { method: 'ach', amount: failedAmount.toFixed(2), stripe_session_id: session.id });
+            const o = await pool.query('SELECT order_number, sales_rep_id, customer_name, customer_email, phone FROM orders WHERE id = $1', [order_id]);
+            const row = o.rows[0];
+            if (row && row.sales_rep_id) {
+              setImmediate(() => createRepNotification(pool, row.sales_rep_id, 'payment_failed',
+                'Bank payment failed for ' + row.order_number,
+                `The $${failedAmount.toFixed(2)} ACH bank payment did not clear. The balance remains due — follow up to collect.`,
+                'order', order_id));
+              setImmediate(() => createAutoTask(pool, row.sales_rep_id, 'payment_failed', order_id,
+                'Resolve failed bank payment on ' + row.order_number, {
+                  description: `The $${failedAmount.toFixed(2)} ACH payment bounced. Contact the customer to re-collect (card or another method).`,
+                  priority: 'high',
+                  customer_name: row.customer_name, customer_email: row.customer_email, customer_phone: row.phone,
+                  linked_order_id: order_id
                 }));
             }
           }
@@ -16444,6 +16558,16 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'Cannot reopen an order that has been refunded' });
     }
 
+    // Bank (ACH) payments settle days after authorization; don't let goods ship
+    // while funds are still clearing (a failed debit bounces later).
+    if (status === 'shipped') {
+      const pend = await unsettledPaymentInfo(id, client);
+      if (pend.unsettled) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `A bank (ACH) payment of $${pend.amount.toFixed(2)} is still clearing. This order can ship once the payment settles.` });
+      }
+    }
+
     let result;
     if (status === 'shipped' && tracking_number) {
       result = await client.query(`
@@ -18028,6 +18152,27 @@ app.get('/api/staff/orders/:id/returns', staffAuth, async (req, res) => {
 
 const RELEASABLE_STATUSES = ['confirmed', 'shipped', 'ready_for_pickup', 'delivered'];
 
+// Materials may only leave the warehouse once the order is paid in full (a fully
+// credited/overpaid balance also qualifies). Shared by the release-context and
+// create-release endpoints (rep + admin twins).
+async function isOrderPaidInFull(orderId, client) {
+  const bal = await recalculateBalance(pool, orderId, client);
+  return !!(bal && (bal.balance_status === 'paid' || bal.balance_status === 'credit'));
+}
+
+// A payment recorded but not yet cleared by the bank (ACH debit) sits in
+// 'processing'. Materials must not leave the warehouse — nor an order ship —
+// while funds are in flight, because a failed ACH bounces days later. Returns
+// { unsettled, amount } for gating release/ship and messaging the rep.
+async function unsettledPaymentInfo(orderId, client) {
+  const db = client || pool;
+  const r = await db.query(
+    "SELECT COALESCE(SUM(amount), 0) AS amount FROM order_payments WHERE order_id = $1 AND status = 'processing'",
+    [orderId]);
+  const amount = parseFloat(r.rows[0].amount);
+  return { unsettled: amount > 0, amount };
+}
+
 // Sum of qty already released for one order item (excludes void releases).
 async function priorReleasedQty(queryable, orderItemId) {
   const r = await queryable.query(
@@ -18152,7 +18297,12 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor' ORDER BY oi.id`, [id]);
-    res.json({ order, items: itemsRes.rows, releasable: RELEASABLE_STATUSES.includes(order.status) });
+    const bal = await recalculateBalance(pool, id);
+    const paid = !!(bal && (bal.balance_status === 'paid' || bal.balance_status === 'credit'));
+    const pend = await unsettledPaymentInfo(id);
+    res.json({ order, items: itemsRes.rows, paid, balance: bal ? bal.balance : null,
+      unsettled: pend.unsettled, unsettled_amount: pend.amount,
+      releasable: RELEASABLE_STATUSES.includes(order.status) && paid && !pend.unsettled });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
@@ -18167,6 +18317,13 @@ app.post('/api/rep/orders/:id/releases', repAuth, async (req, res) => {
     const order = oRes.rows[0];
     if (!RELEASABLE_STATUSES.includes(order.status)) {
       return res.status(400).json({ error: 'Materials can only be released once the order is confirmed (paid).' });
+    }
+    const pend = await unsettledPaymentInfo(id);
+    if (pend.unsettled) {
+      return res.status(400).json({ error: `A bank (ACH) payment of $${pend.amount.toFixed(2)} is still clearing. Materials can be released once it settles — this usually takes a few business days.` });
+    }
+    if (!(await isOrderPaidInFull(id))) {
+      return res.status(400).json({ error: 'Materials can only be released once the order is paid in full.' });
     }
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await client.query('BEGIN');
@@ -18270,7 +18427,12 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor' ORDER BY oi.id`, [id]);
-    res.json({ order, items: itemsRes.rows, releasable: RELEASABLE_STATUSES.includes(order.status) });
+    const bal = await recalculateBalance(pool, id);
+    const paid = !!(bal && (bal.balance_status === 'paid' || bal.balance_status === 'credit'));
+    const pend = await unsettledPaymentInfo(id);
+    res.json({ order, items: itemsRes.rows, paid, balance: bal ? bal.balance : null,
+      unsettled: pend.unsettled, unsettled_amount: pend.amount,
+      releasable: RELEASABLE_STATUSES.includes(order.status) && paid && !pend.unsettled });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
@@ -18284,6 +18446,13 @@ app.post('/api/admin/orders/:id/releases', staffAuth, requireRole('admin', 'mana
     const order = oRes.rows[0];
     if (!RELEASABLE_STATUSES.includes(order.status)) {
       return res.status(400).json({ error: 'Materials can only be released once the order is confirmed (paid).' });
+    }
+    const pend = await unsettledPaymentInfo(id);
+    if (pend.unsettled) {
+      return res.status(400).json({ error: `A bank (ACH) payment of $${pend.amount.toFixed(2)} is still clearing. Materials can be released once it settles — this usually takes a few business days.` });
+    }
+    if (!(await isOrderPaidInFull(id))) {
+      return res.status(400).json({ error: 'Materials can only be released once the order is paid in full.' });
     }
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
     await client.query('BEGIN');
