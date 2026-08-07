@@ -77,6 +77,9 @@ const PIPELINES = {
       { type: 'scraper', sourceKey: 'msi-inventory', label: 'MSI Inventory Update' },
       { type: 'script',  path: 'scripts/group-msi-products.cjs', label: 'Group MSI Products' },
       { type: 'script',  path: 'scripts/msi-link-accessories.cjs', label: 'Link MSI Accessories' },
+      // Runs after names are finalized: link each look's field tile / versailles /
+      // ledger panel / mosaic products so the storefront shows them as format pills.
+      { type: 'script',  path: 'scripts/group-msi-formats.cjs', label: 'Group MSI Formats' },
     ]
   },
 
