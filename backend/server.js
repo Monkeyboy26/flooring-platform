@@ -8392,6 +8392,105 @@ async function syncPickupReady(client, orderId) {
   return { changed: false, total, ready };
 }
 
+// Receiving requires the goods to have actually been ordered from the vendor:
+// a line with PO coverage can't be marked received until at least one of its
+// POs has been transmitted (status moved off 'draft'). Stock lines (no PO) are
+// unaffected — they come from existing inventory. Returns true when the line is
+// still waiting on a transmit and must NOT be receivable.
+async function lineAwaitingTransmit(db, itemId) {
+  const r = await db.query(`
+    SELECT COUNT(*)::int AS total,
+           COUNT(*) FILTER (WHERE po.status <> 'draft')::int AS transmitted
+    FROM purchase_order_items poi
+    JOIN purchase_orders po ON po.id = poi.purchase_order_id
+    WHERE poi.order_item_id = $1 AND poi.status <> 'cancelled'`, [itemId]);
+  const { total, transmitted } = r.rows[0];
+  return total > 0 && transmitted === 0;
+}
+
+// Order status forms a linear stepper. ready_for_pickup and shipped are the same
+// rank — they're the fulfillment stage for pickup vs shipping orders.
+const STATUS_RANK = { pending: 0, confirmed: 1, ready_for_pickup: 2, shipped: 2, delivered: 3 };
+
+// Guards a manual order status change (rep/admin). Ties the status stepper to
+// the receive→release chain and enforces the linear flow:
+//   • delivery method must match the fulfillment status (pickup↔ready, ship↔shipped)
+//   • no skipping stages on the way forward (reverts are always allowed)
+//   • can't reach a fulfillment stage until every material line is RECEIVED
+//   • a pickup is only 'delivered' once every line is RELEASED (customer took it)
+// No-op for cancel/refund and for reverts. Throws Error(user-facing) on violation.
+async function assertOrderTransition(db, order, newStatus) {
+  const cur = order.status;
+  if (newStatus === cur || newStatus === 'cancelled' || newStatus === 'refunded') return;
+  const curRank = STATUS_RANK[cur] ?? 0;
+  const newRank = STATUS_RANK[newStatus] ?? 0;
+  const method = order.delivery_method;
+
+  if (newStatus === 'ready_for_pickup' && method === 'shipping')
+    throw new Error('This is a shipping order — use “Shipped”, not “Ready for pickup”.');
+  if (newStatus === 'shipped' && method === 'pickup')
+    throw new Error('This is a pickup order — use “Ready for pickup”, not “Shipped”.');
+
+  const forward = newRank > curRank;
+  if (forward && newRank - curRank > 1)
+    throw new Error(`Can’t jump from ${cur} to ${newStatus.replace(/_/g, ' ')} — advance one step at a time.`);
+
+  // Goods-on-hand / handoff gates only apply moving forward into a fulfillment stage.
+  if (forward && newRank >= 2) {
+    const r = await db.query(`
+      SELECT COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE oi.qty_received IS NOT NULL AND oi.qty_received + 0.001 >= oi.num_boxes)::int AS received,
+        COUNT(*) FILTER (WHERE COALESCE((
+          SELECT SUM(ri.release_qty) FROM release_items ri
+          JOIN material_releases mr ON mr.id = ri.release_id
+          WHERE ri.order_item_id = oi.id AND mr.status <> 'void'), 0) + 0.001 >= oi.num_boxes)::int AS released
+      FROM order_items oi
+      WHERE oi.order_id = $1 AND NOT COALESCE(oi.is_sample, false)
+        AND COALESCE(oi.item_type, 'material') <> 'labor'`, [order.id]);
+    const { total, received, released } = r.rows[0];
+    if (total > 0 && received < total)
+      throw new Error(`Can’t mark ${newStatus.replace(/_/g, ' ')} — ${total - received} line${total - received === 1 ? '' : 's'} not fully received yet.`);
+    if (newStatus === 'delivered' && method === 'pickup' && total > 0 && released < total)
+      throw new Error(`Can’t mark delivered — ${total - released} line${total - released === 1 ? '' : 's'} haven’t been released to the customer yet.`);
+  }
+}
+
+// Receiving vendor goods drives order-line readiness: an order line whose PO
+// item(s) are all received is marked ready (and reverts if a receipt is undone).
+// Stock lines (no linked PO item) are untouched — a rep still marks those ready.
+// Then re-syncs pickup status, so a pickup order auto-advances to
+// ready_for_pickup once every line is here. Runs inside the caller's txn.
+async function syncOrderReadyFromPoReceipts(client, orderId) {
+  if (!orderId) return { changed: false };
+  // Fully-received lines → ready (only newly, so manual partials aren't clobbered)
+  await client.query(`
+    UPDATE order_items oi
+    SET ready_at = NOW(), qty_received = oi.num_boxes
+    WHERE oi.order_id = $1 AND oi.ready_at IS NULL
+      AND EXISTS (SELECT 1 FROM purchase_order_items p WHERE p.order_item_id = oi.id AND p.status <> 'cancelled')
+      AND NOT EXISTS (SELECT 1 FROM purchase_order_items p WHERE p.order_item_id = oi.id AND p.status NOT IN ('received','cancelled'))
+  `, [orderId]);
+  // A PO-fulfilled line with an un-received item → not ready (reverses an undo)
+  await client.query(`
+    UPDATE order_items oi
+    SET ready_at = NULL
+    WHERE oi.order_id = $1 AND oi.ready_at IS NOT NULL
+      AND EXISTS (SELECT 1 FROM purchase_order_items p WHERE p.order_item_id = oi.id AND p.status NOT IN ('received','cancelled'))
+  `, [orderId]);
+  return syncPickupReady(client, orderId);
+}
+
+// Post-commit side effects when receiving goods advanced a pickup order: the
+// "your order is ready" email + commission recalc (mirrors the manual ready flow).
+function firePickupAdvanceEffects(sync, orderId) {
+  if (!(sync && sync.changed && sync.newStatus === 'ready_for_pickup')) return;
+  setImmediate(async () => {
+    const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    if (fresh.rows.length) { const o = fresh.rows[0]; await attachRep(o); sendOrderStatusUpdate(o, 'ready_for_pickup'); }
+  });
+  setImmediate(() => recalculateCommission(pool, orderId));
+}
+
 // Toggle a single line item's pickup readiness (goods arrived at the store).
 // When the last line becomes ready, the pickup order auto-advances to
 // ready_for_pickup and the customer gets the "ready" email.
@@ -8399,18 +8498,33 @@ app.put('/api/admin/orders/:id/items/:itemId/ready', staffAuth, requireRole('adm
   const client = await pool.connect();
   try {
     const { id, itemId } = req.params;
-    const ready = !!req.body.ready;
     await client.query('BEGIN');
     const it = await client.query(
-      'SELECT id, product_name, collection FROM order_items WHERE id = $1 AND order_id = $2 FOR UPDATE',
+      'SELECT id, product_name, collection, num_boxes FROM order_items WHERE id = $1 AND order_id = $2 FOR UPDATE',
       [itemId, id]
     );
     if (!it.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Item not found' }); }
-    await client.query('UPDATE order_items SET ready_at = $1 WHERE id = $2', [ready ? new Date() : null, itemId]);
+    const ordered = parseFloat(it.rows[0].num_boxes || 0);
+    // Accept the "Mark received" quantity (number) or the legacy { ready } boolean.
+    let received;
+    if (req.body.qty_received !== undefined && req.body.qty_received !== null && req.body.qty_received !== '') {
+      received = Math.max(0, Math.min(ordered, parseFloat(req.body.qty_received) || 0));
+    } else {
+      received = req.body.ready ? ordered : null;
+    }
+    // Can't receive goods that were never ordered from the vendor: block until
+    // the line's PO has been transmitted. (Un-receiving is always allowed.)
+    if (received != null && received > 0 && await lineAwaitingTransmit(client, itemId)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Can\'t receive this line yet — its purchase order hasn\'t been sent to the vendor.' });
+    }
+    const readyAt = (received != null && received + 0.001 >= ordered && ordered > 0) ? new Date() : null;
+    await client.query('UPDATE order_items SET qty_received = $1, ready_at = $2 WHERE id = $3', [received, readyAt, itemId]);
     const sync = await syncPickupReady(client, id);
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
-    await logOrderActivity(client, id, ready ? 'item_ready' : 'item_unready', req.staff.id, staffName,
-      { product_name: it.rows[0].collection || it.rows[0].product_name, ...(sync.changed ? { order_status: sync.newStatus } : {}) });
+    await logOrderActivity(client, id, readyAt ? 'item_ready' : 'item_unready', req.staff.id, staffName,
+      { product_name: it.rows[0].collection || it.rows[0].product_name,
+        qty_received: received, ...(sync.changed ? { order_status: sync.newStatus } : {}) });
     await client.query('COMMIT');
     const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const order = fresh.rows[0];
@@ -8422,7 +8536,7 @@ app.put('/api/admin/orders/:id/items/:itemId/ready', staffAuth, requireRole('adm
           'Order ' + order.order_number + ' → ready for pickup', 'All items are ready at the store', 'order', id));
       }
     }
-    res.json({ order, item_id: itemId, ready_at: ready ? order.updated_at || new Date() : null, ready_summary: { total: sync.total, ready: sync.ready } });
+    res.json({ order, item_id: itemId, qty_received: received, ready_at: readyAt, ready_summary: { total: sync.total, ready: sync.ready } });
   } catch (err) {
     await client.query('ROLLBACK'); console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally { client.release(); }
@@ -8447,10 +8561,20 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
     await client.query('BEGIN');
 
     // Block uncancelling a refunded order
-    const currentOrder = await client.query('SELECT status, stripe_refund_id FROM orders WHERE id = $1', [id]);
+    const currentOrder = await client.query('SELECT status, stripe_refund_id, delivery_method FROM orders WHERE id = $1', [id]);
     if (currentOrder.rows.length && currentOrder.rows[0].status === 'cancelled' && currentOrder.rows[0].stripe_refund_id) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Cannot uncancel an order that has been refunded' });
+    }
+
+    // Stage order, delivery-method match, and the receive→release gates.
+    if (currentOrder.rows.length) {
+      try {
+        await assertOrderTransition(client, { id, status: currentOrder.rows[0].status, delivery_method: currentOrder.rows[0].delivery_method }, status);
+      } catch (e) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: e.message });
+      }
     }
 
     // Bank (ACH) payments settle days after authorization; don't let goods ship
@@ -16522,26 +16646,164 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
   }
 });
 
+// Rep: the draft purchase orders generated for an order, each with its real EDI
+// capability (vendors.edi_config.enabled) and line items. Powers the order-entry
+// "Send POs" step so the transmit channel reflects whether the vendor actually
+// has EDI, and so line costs can be adjusted before the PO is transmitted.
+app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ord = await pool.query(
+      'SELECT id FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)',
+      [id, req.rep.id]
+    );
+    if (!ord.rows.length) return res.status(404).json({ error: 'Order not found' });
+
+    const pos = await pool.query(`
+      SELECT po.id, po.po_number, po.status, po.subtotal, po.vendor_id, po.recipient_email, po.cc_emails, po.notes, po.sent_via,
+        v.name AS vendor_name, v.code AS vendor_code, v.email AS vendor_email,
+        (SELECT vc.email FROM vendor_contacts vc WHERE vc.vendor_id = po.vendor_id AND vc.email IS NOT NULL
+           ORDER BY vc.is_primary DESC, vc.name LIMIT 1) AS vendor_contact_email,
+        (COALESCE(v.edi_config->>'enabled', 'false') = 'true') AS edi_enabled
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      WHERE po.order_id = $1
+      ORDER BY v.name
+    `, [id]);
+
+    const poIds = pos.rows.map(p => p.id);
+    const itemsByPo = {};
+    if (poIds.length) {
+      const items = await pool.query(`
+        SELECT poi.id, poi.purchase_order_id, poi.sku_id, poi.product_name, poi.vendor_sku,
+          poi.description, poi.sell_by, poi.qty, poi.cost, poi.subtotal, poi.line_note
+        FROM purchase_order_items poi
+        WHERE poi.purchase_order_id = ANY($1)
+        ORDER BY poi.created_at
+      `, [poIds]);
+      for (const it of items.rows) {
+        (itemsByPo[it.purchase_order_id] = itemsByPo[it.purchase_order_id] || []).push(it);
+      }
+    }
+    res.json({
+      rep_email: req.rep.email,
+      purchase_orders: pos.rows.map(p => ({ ...p, items: itemsByPo[p.id] || [] }))
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ── Order-scoped internal notes (rep) ───────────────────────────────────────
+// These live in customer_notes with order_id set, so a note added on an order is
+// shown only on that order — never on the customer profile or the customer's
+// other orders. Ownership-scoped to the rep's own (or unassigned) orders.
+async function repOwnsOrder(orderId, repId) {
+  const r = await pool.query(
+    'SELECT id, trade_customer_id, customer_id, customer_email FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)',
+    [orderId, repId]);
+  return r.rows[0] || null;
+}
+
+app.get('/api/rep/orders/:id/notes', repAuth, async (req, res) => {
+  try {
+    const order = await repOwnsOrder(req.params.id, req.rep.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const notes = await pool.query(`
+      SELECT cn.*, COALESCE(
+        (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
+        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = cn.staff_id),
+        'Staff') AS staff_name
+      FROM customer_notes cn WHERE cn.order_id = $1 ORDER BY cn.created_at DESC`, [req.params.id]);
+    res.json({ notes: notes.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/rep/orders/:id/notes', repAuth, async (req, res) => {
+  try {
+    const order = await repOwnsOrder(req.params.id, req.rep.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
+    if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const ct = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
+    const cref = String(order.trade_customer_id || order.customer_id || order.customer_email || req.params.id);
+    const result = await pool.query(`
+      INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
+      VALUES ($1, $2, $3, $4, $5) RETURNING *`, [ct, cref, req.params.id, req.rep.id, note.slice(0, 4000)]);
+    const newNote = result.rows[0];
+    newNote.staff_name = req.rep.first_name + ' ' + req.rep.last_name;
+    res.json({ note: newNote });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.put('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
+  try {
+    const order = await repOwnsOrder(req.params.id, req.rep.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
+    if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const result = await pool.query(
+      'UPDATE customer_notes SET note = $1 WHERE id = $2 AND order_id = $3 RETURNING *',
+      [note.slice(0, 4000), req.params.noteId, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    const upd = result.rows[0];
+    upd.staff_name = (await pool.query(`SELECT COALESCE(
+        (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = $1),
+        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = $1), 'Staff') AS n`,
+      [upd.staff_id])).rows[0].n;
+    res.json({ note: upd });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.delete('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
+  try {
+    const order = await repOwnsOrder(req.params.id, req.rep.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const result = await pool.query(
+      'DELETE FROM customer_notes WHERE id = $1 AND order_id = $2 RETURNING id',
+      [req.params.noteId, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 // Rep: toggle a line item's pickup readiness (ownership-scoped). Same auto-flip
 // to ready_for_pickup + customer email as the admin endpoint.
 app.put('/api/rep/orders/:id/items/:itemId/ready', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id, itemId } = req.params;
-    const ready = !!req.body.ready;
     await client.query('BEGIN');
     const own = await client.query('SELECT id FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
     if (!own.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
     const it = await client.query(
-      'SELECT id, product_name, collection FROM order_items WHERE id = $1 AND order_id = $2 FOR UPDATE',
+      'SELECT id, product_name, collection, num_boxes FROM order_items WHERE id = $1 AND order_id = $2 FOR UPDATE',
       [itemId, id]
     );
     if (!it.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Item not found' }); }
-    await client.query('UPDATE order_items SET ready_at = $1 WHERE id = $2', [ready ? new Date() : null, itemId]);
+    const ordered = parseFloat(it.rows[0].num_boxes || 0);
+    // Two request shapes: the new "Mark received" popup sends qty_received (a
+    // number); the legacy boolean toggle sends { ready }. A full receive sets
+    // ready_at so pickup orders can still auto-advance to ready_for_pickup.
+    let received;
+    if (req.body.qty_received !== undefined && req.body.qty_received !== null && req.body.qty_received !== '') {
+      received = Math.max(0, Math.min(ordered, parseFloat(req.body.qty_received) || 0));
+    } else {
+      received = req.body.ready ? ordered : null;
+    }
+    // Can't receive goods that were never ordered from the vendor: block until
+    // the line's PO has been transmitted. (Un-receiving is always allowed.)
+    if (received != null && received > 0 && await lineAwaitingTransmit(client, itemId)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Can\'t receive this line yet — its purchase order hasn\'t been sent to the vendor.' });
+    }
+    const readyAt = (received != null && received + 0.001 >= ordered && ordered > 0) ? new Date() : null;
+    await client.query('UPDATE order_items SET qty_received = $1, ready_at = $2 WHERE id = $3', [received, readyAt, itemId]);
     const sync = await syncPickupReady(client, id);
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
-    await logOrderActivity(client, id, ready ? 'item_ready' : 'item_unready', req.rep.id, repName,
-      { product_name: it.rows[0].collection || it.rows[0].product_name, ...(sync.changed ? { order_status: sync.newStatus } : {}) });
+    await logOrderActivity(client, id, readyAt ? 'item_ready' : 'item_unready', req.rep.id, repName,
+      { product_name: it.rows[0].collection || it.rows[0].product_name,
+        qty_received: received, ...(sync.changed ? { order_status: sync.newStatus } : {}) });
     await client.query('COMMIT');
     const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const order = fresh.rows[0];
@@ -16549,7 +16811,7 @@ app.put('/api/rep/orders/:id/items/:itemId/ready', repAuth, async (req, res) => 
       setImmediate(async () => { await attachRep(order); sendOrderStatusUpdate(order, 'ready_for_pickup'); });
       setImmediate(() => recalculateCommission(pool, id));
     }
-    res.json({ order, item_id: itemId, ready_at: ready ? new Date() : null, ready_summary: { total: sync.total, ready: sync.ready } });
+    res.json({ order, item_id: itemId, qty_received: received, ready_at: readyAt, ready_summary: { total: sync.total, ready: sync.ready } });
   } catch (err) {
     await client.query('ROLLBACK'); console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally { client.release(); }
@@ -16586,6 +16848,14 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
     if (currentOrder.rows[0].status === 'cancelled' && currentOrder.rows[0].stripe_refund_id) {
       await client.query('ROLLBACK');
       return res.status(400).json({ error: 'Cannot reopen an order that has been refunded' });
+    }
+
+    // Stage order, delivery-method match, and the receive→release gates.
+    try {
+      await assertOrderTransition(client, { id, status: currentOrder.rows[0].status, delivery_method: currentOrder.rows[0].delivery_method }, status);
+    } catch (e) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: e.message });
     }
 
     // Bank (ACH) payments settle days after authorization; don't let goods ship
@@ -18238,11 +18508,19 @@ async function processRelease(client, { id, order, lines, release_method, recipi
     if (oi.is_sample) throw new Error('Samples cannot be released');
     if ((oi.item_type || 'material') === 'labor') throw new Error('Labor lines cannot be released — releases cover physical goods only');
     const orderedQty = parseFloat(oi.num_boxes || 0);
+    // Can't release more than has been received. Received drives release: a line
+    // that hasn't been marked received (NULL qty_received) has nothing to give
+    // out, so it caps at 0. Partial receipts release partially — you can only
+    // hand out what has actually arrived.
+    const receivedCap = oi.qty_received != null ? Math.min(parseFloat(oi.qty_received), orderedQty) : 0;
     const prior = await priorReleasedQty(client, l.order_item_id);
     const qty = parseFloat(l.release_qty);
     if (!(qty > 0)) throw new Error('Release quantity must be positive');
-    if (prior + qty > orderedQty + 0.001) {
-      throw new Error(`Cannot release ${qty} of "${oi.product_name}" — only ${parseFloat((orderedQty - prior).toFixed(2))} remain to release`);
+    if (prior + qty > receivedCap + 0.001) {
+      const avail = parseFloat((receivedCap - prior).toFixed(2));
+      throw new Error(receivedCap <= 0
+        ? `Cannot release "${oi.product_name}" — none of it has been marked received yet`
+        : `Cannot release ${qty} of "${oi.product_name}" — only ${avail} received and available to release`);
     }
     computed.push({ oi, qty });
   }
@@ -18308,7 +18586,7 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
     const itemsRes = await pool.query(`
-      SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.sqft_needed, oi.sell_by, oi.sku_id,
+      SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.qty_received, oi.sqft_needed, oi.sell_by, oi.sku_id,
         COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
         s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, sa_sz.value AS size, cat.name AS category_name,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
@@ -18438,7 +18716,7 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
     const itemsRes = await pool.query(`
-      SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.sqft_needed, oi.sell_by, oi.sku_id,
+      SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.qty_received, oi.sqft_needed, oi.sell_by, oi.sku_id,
         COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
         s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, sa_sz.value AS size, cat.name AS category_name,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
@@ -20146,7 +20424,10 @@ app.put('/api/rep/purchase-orders/:poId/items/bulk-status', repAuth, async (req,
       [poId, JSON.stringify({ status, derived_po_status: newPOStatus }), repName]
     );
 
+    const readySync = await syncOrderReadyFromPoReceipts(client, po.rows[0].order_id);
+
     await client.query('COMMIT');
+    firePickupAdvanceEffects(readySync, po.rows[0].order_id);
 
     // Notify assigned rep if items received or PO fulfilled
     if (status === 'received' || newPOStatus === 'fulfilled') {
@@ -20208,7 +20489,12 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId/status', repAuth, async (r
       [poId, JSON.stringify({ item_id: itemId, status, derived_po_status: newPOStatus }), repName]
     );
 
+    // Receiving goods marks the linked order line ready; a pickup order
+    // auto-advances to ready_for_pickup once every line is in.
+    const readySync = await syncOrderReadyFromPoReceipts(client, po.rows[0].order_id);
+
     await client.query('COMMIT');
+    firePickupAdvanceEffects(readySync, po.rows[0].order_id);
 
     // Notify assigned rep when items received or PO fulfilled
     if (status === 'received' || newPOStatus === 'fulfilled') {
@@ -25602,7 +25888,10 @@ app.put('/api/admin/purchase-orders/:poId/items/bulk-status', staffAuth, require
       await client.query('UPDATE purchase_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newPOStatus, poId]);
     }
 
+    const readySync = await syncOrderReadyFromPoReceipts(client, po.rows[0].order_id);
+
     await client.query('COMMIT');
+    firePickupAdvanceEffects(readySync, po.rows[0].order_id);
     res.json({ success: true, derived_po_status: newPOStatus });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -25775,7 +26064,10 @@ app.put('/api/admin/purchase-orders/:poId/items/:itemId/status', staffAuth, requ
       await client.query('UPDATE purchase_orders SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [newPOStatus, poId]);
     }
 
+    const readySync = await syncOrderReadyFromPoReceipts(client, po.rows[0].order_id);
+
     await client.query('COMMIT');
+    firePickupAdvanceEffects(readySync, po.rows[0].order_id);
     res.json({ success: true, derived_po_status: newPOStatus });
   } catch (err) {
     await client.query('ROLLBACK');

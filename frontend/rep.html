@@ -19732,12 +19732,21 @@
       const [balanceInfo, setBalanceInfo] = useState(null);
       const [showPaymentRequestModal, setShowPaymentRequestModal] = useState(false);
       const [paymentRequestMessage, setPaymentRequestMessage] = useState('');
+      const [paymentRequestEmail, setPaymentRequestEmail] = useState('');
       const [orderActivity, setOrderActivity] = useState(null);
+      const [poMenuOpen, setPoMenuOpen] = useState(null); // po.id whose ⋯ menu is open, or null
+      const [openLines, setOpenLines] = useState({}); // line-item ids expanded to show detail
+      const [receiveItem, setReceiveItem] = useState(null); // order item whose "Mark received" popup is open
+      const [receiveQty, setReceiveQty] = useState('');
+      const [receiveSaving, setReceiveSaving] = useState(false);
       const [docPreview, setDocPreview] = useState(null);
       const [orderDocuments, setOrderDocuments] = useState([]);
       const [showPrintModal, setShowPrintModal] = useState(false);
       const [printSel, setPrintSel] = useState({}); // doc key → checked
       const [printBusy, setPrintBusy] = useState(null); // progress label while printing, or null
+      const confirmFileRef = useRef(null);
+      const confirmPoIdRef = useRef(null);
+      const [confirmUploadingPoId, setConfirmUploadingPoId] = useState(null);
       const [showSendInvoiceModal, setShowSendInvoiceModal] = useState(false);
       const [invoiceMessage, setInvoiceMessage] = useState('');
       const [sendingInvoice, setSendingInvoice] = useState(false);
@@ -20130,6 +20139,12 @@
       const posDone = purchaseOrders.length > 0 && sentPOCount === purchaseOrders.length;
       const inFulfillment = ['confirmed', 'ready_for_pickup', 'shipped'].includes(order.status);
       const isDeliveredOrder = order.status === 'delivered';
+      // Warehouse receipt — every material line (non-sample, non-labor) fully
+      // received at the warehouse (ready_at is set when the received qty covers
+      // the ordered qty). A delivered order implies received (legacy orders).
+      const recvLines = items.filter(i => !i.is_sample && i.item_type !== 'labor');
+      const recvLinesIn = recvLines.filter(i => i.ready_at).length;
+      const allReceived = recvLines.length > 0 && recvLinesIn === recvLines.length;
       const orderStages = [
         { label: 'Placed', done: true, meta: rodFmtDT(order.created_at) },
         { label: 'Paid', done: paidDone, meta: paidDone
@@ -20138,11 +20153,14 @@
         { label: 'POs sent', done: posDone, meta: purchaseOrders.length > 0
             ? sentPOCount + ' of ' + purchaseOrders.length + ' transmitted'
             : (order.status === 'pending' ? 'Generated on confirmation' : 'No POs') },
-        { label: 'In fulfillment', done: isDeliveredOrder, meta:
-            order.tracking_number ? (order.shipping_carrier ? order.shipping_carrier + ' · ' : '') + order.tracking_number
-            : isPickup ? 'Will-call · Anaheim' : inFulfillment ? 'Awaiting fulfillment' : 'Pending' },
+        { label: 'Order received', done: isDeliveredOrder || allReceived, meta:
+            (isDeliveredOrder || allReceived) ? 'All materials in'
+            : recvLinesIn > 0 ? recvLinesIn + ' of ' + recvLines.length + ' lines in'
+            : inFulfillment ? 'Awaiting materials' : 'Pending' },
         { label: isPickup ? 'Picked up' : 'Delivered', done: isDeliveredOrder, meta:
-            isDeliveredOrder ? 'Complete' : 'Pending' },
+            isDeliveredOrder ? 'Complete'
+            : order.tracking_number ? (order.shipping_carrier ? order.shipping_carrier + ' · ' : '') + order.tracking_number
+            : isPickup ? 'Will-call · Anaheim' : 'Pending' },
       ];
       const currentStageIdx = orderStages.findIndex(s => !s.done);
       // Per-tender refund bookkeeping — counter refunds only for 24h tenders
@@ -20172,11 +20190,22 @@
         : { tone: 'soft', label: 'Pending' };
       // Map each order line to the vendor PO that carries it
       const poForItem = (itemId) => purchaseOrders.find(po => (po.items || []).some(pi => pi.order_item_id === itemId));
-      const poChannel = (po) => po.edi_interchange_id ? 'EDI' : 'Email';
+      // A line can't be received until its PO has actually been transmitted to
+      // the vendor. Stock lines (no covering PO) are unaffected. Mirrors the
+      // backend lineAwaitingTransmit gate. [[material-releases]]
+      const lineAwaitingTransmit = (itemId) => {
+        const covering = purchaseOrders.filter(po => po.status !== 'cancelled' && (po.items || []).some(pi => pi.order_item_id === itemId));
+        return covering.length > 0 && !covering.some(po => po.status !== 'draft');
+      };
+      const poChannel = (po) => po.sent_via === 'phone' ? 'Phone order' : po.sent_via === 'online' ? 'Online order'
+        : (po.sent_via === 'edi' || po.edi_interchange_id) ? 'EDI' : 'Email';
       const poAckLine = (po) => {
         if (po.status === 'draft') return 'Draft · not yet sent';
-        if (po.edi_ack_status === 'accepted') return 'Acknowledged · EDI 855';
+        // A rejected/partial EDI 855 keeps the PO 'sent' and is flagged here.
         if (po.edi_ack_status === 'rejected') return 'Rejected · EDI 855';
+        if (po.edi_ack_status === 'partial') return 'Backordered/changed · EDI 855';
+        if (po.status === 'acknowledged' || po.status === 'fulfilled') return 'Acknowledged by vendor';
+        if (po.edi_ack_status === 'accepted') return 'Acknowledged · EDI 855';
         if (po.edi_interchange_id) return 'Awaiting acknowledgment';
         return 'Sent · awaiting confirmation';
       };
@@ -20184,9 +20213,19 @@
         if (po.status === 'cancelled') return { tone: 'hot', label: 'Cancelled' };
         if (po.status === 'received' || po.status === 'delivered') return { tone: 'done', label: 'Closed' };
         if (po.status === 'draft') return { tone: 'soft', label: 'Draft' };
-        if (po.edi_ack_status === 'accepted') return { tone: 'live', label: 'Acked' };
         if (po.edi_ack_status === 'rejected') return { tone: 'hot', label: 'Rejected' };
+        if (po.edi_ack_status === 'partial') return { tone: 'hold', label: 'Backordered' };
+        if (po.status === 'acknowledged' || po.status === 'fulfilled') return { tone: 'live', label: 'Acknowledged' };
+        if (po.edi_ack_status === 'accepted') return { tone: 'live', label: 'Acknowledged' };
         return { tone: 'soft', label: 'Sent' };
+      };
+      // Per-line EDI 855 acknowledgment summary, e.g. "2 accepted · 1 backordered".
+      const poLineAckSummary = (po) => {
+        const counts = {};
+        for (const it of (po.items || [])) { if (it.edi_line_status) counts[it.edi_line_status] = (counts[it.edi_line_status] || 0) + 1; }
+        const keys = Object.keys(counts);
+        if (!keys.length || (keys.length === 1 && keys[0] === 'accepted')) return null;
+        return keys.map(k => counts[k] + ' ' + k).join(' · ');
       };
       const custId = order.trade_customer_id || order.customer_id || order.customer_email;
       const custType = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
@@ -20194,16 +20233,40 @@
       // Per-item pickup readiness (check items off as they arrive at the store;
       // the last one auto-advances the order to Ready for Pickup + emails customer).
       const showReady = isPickup && ['confirmed', 'ready_for_pickup'].includes(order.status);
+      // The "Mark received" affordance applies to any releasable line while the
+      // order is being fulfilled (pickup or shipping), so received qty can cap
+      // what's available to release. [[material-releases]]
+      const showReceive = ['confirmed', 'shipped', 'ready_for_pickup'].includes(order.status);
       const readyTotal = items.filter(i => !i.is_sample).length;
       const readyCount = items.filter(i => !i.is_sample && i.ready_at).length;
-      const toggleItemReady = async (item) => {
+      // True while releasable lines (non-sample, non-labor) still have material
+      // left to release. The "Close" action is withheld until this clears so a
+      // rep finishes releasing before closing the order out. [[material-releases]]
+      const hasUnreleasedMaterials = paidDone
+        && ['confirmed', 'shipped', 'ready_for_pickup', 'delivered'].includes(order.status)
+        && items.some(it => !it.is_sample && it.item_type !== 'labor' && (parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0)) > 0.001);
+      // Open the "Mark received" popup, defaulting the input to the full ordered
+      // qty (or whatever was already recorded).
+      const openReceive = (item) => {
+        const ordered = parseFloat(item.num_boxes || 0);
+        const current = item.qty_received != null ? parseFloat(item.qty_received) : ordered;
+        setReceiveItem(item);
+        setReceiveQty(String(current));
+      };
+      const submitReceive = async () => {
+        if (!receiveItem) return;
+        const ordered = parseFloat(receiveItem.num_boxes || 0);
+        const qty = Math.max(0, Math.min(ordered, parseFloat(receiveQty) || 0));
+        setReceiveSaving(true);
         try {
-          const data = await repFetch('/api/rep/orders/' + editId + '/items/' + item.id + '/ready', {
-            method: 'PUT', body: JSON.stringify({ ready: !item.ready_at })
+          const data = await repFetch('/api/rep/orders/' + editId + '/items/' + receiveItem.id + '/ready', {
+            method: 'PUT', body: JSON.stringify({ qty_received: qty })
           });
           if (data.order) setOrder(data.order);
-          setItems(prev => prev.map(i => i.id === item.id ? { ...i, ready_at: data.ready_at } : i));
+          setItems(prev => prev.map(i => i.id === receiveItem.id ? { ...i, qty_received: data.qty_received, ready_at: data.ready_at } : i));
+          setReceiveItem(null); setReceiveQty('');
         } catch (err) { alert(err.message || 'Failed to update item'); }
+        setReceiveSaving(false);
       };
 
       return (
@@ -20379,107 +20442,73 @@
                     setCatalogOpen(true);
                   }
                 }}>
-                <div className="rod-line-items-header">
-                  <span></span>
+                <div className={'rod-li-head' + (showCost ? '' : ' nocost')}>
+                  <span>Status</span>
                   <span>Item</span>
-                  <span>Vendor · PO</span>
                   <span style={{ textAlign: 'right' }}>Qty</span>
                   <span style={{ textAlign: 'right' }}>Unit $</span>
-                  <span style={{ textAlign: 'right' }}>Cost</span>
-                  <span style={{ textAlign: 'right' }}>Ext.</span>
+                  {showCost && <span style={{ textAlign: 'right' }}>Cost</span>}
+                  <span style={{ textAlign: 'right' }}>Total</span>
+                  <span></span>
                 </div>
                 {(() => {
-                  const itemMaterialKind = (item) => {
-                    const cat = (item.category_name || '').toLowerCase();
-                    const vt = (item.variant_type || '').toLowerCase();
-                    const s = cat + ' ' + vt;
-                    if (/hardwood|wood/.test(s)) return 'wood';
-                    if (/lvp|lvt|vinyl|spc/.test(s)) return 'lvp';
-                    if (/laminate/.test(s)) return 'laminate';
-                    if (/marble/.test(s)) return 'marble';
-                    if (/tile|porcelain|ceramic|mosaic/.test(s)) return 'tile';
-                    if (/stone|travertine|slate/.test(s)) return 'stone';
-                    if (/quartz/.test(s)) return 'quartz';
-                    if (/carpet/.test(s)) return 'carpet';
-                    if (vt === 'accessory') return 'tile';
-                    return '';
-                  };
-                  // Generate {a,b,c} hex tone from item name for deterministic swatch colors
-                  const itemTone = (name) => {
-                    let h = 0;
-                    for (let i = 0; i < (name || '').length; i++) h = ((h << 5) - h + name.charCodeAt(i)) | 0;
-                    h = Math.abs(h);
-                    const hue = 20 + (h % 30); // warm range 20-50
-                    const satA = 20 + (h >> 4) % 25;
-                    const litA = 60 + (h >> 8) % 18;
-                    const litB = 35 + (h >> 12) % 15;
-                    const litC = 14 + (h >> 16) % 12;
-                    const hsl2hex = (hh, s, l) => {
-                      s /= 100; l /= 100;
-                      const a = s * Math.min(l, 1 - l);
-                      const f = n => { const k = (n + hh / 30) % 12; return l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)); };
-                      return '#' + [f(0), f(8), f(4)].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
-                    };
-                    return { a: hsl2hex(hue, satA, litA), b: hsl2hex(hue, satA + 5, litB), c: hsl2hex(hue, satA + 8, litC) };
-                  };
                   return items.map(item => {
                   const itemAdj = adjustments.filter(a => a.order_item_id === item.id);
                   const isLabor = item.item_type === 'labor';
                   const isCustom = !isLabor && !item.product_id;
+                  const fli = formatLineItem(item);
+                  const open = !!openLines[item.id];
+                  const po = isLabor ? null : poForItem(item.id);
+                  const ordered = parseFloat(item.num_boxes || 0);
+                  const released = parseFloat(item.already_released || 0);
+                  const badge = (label, accent) => (
+                    <span style={{ marginLeft: 6, font: '500 8px/1 "Inter", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase',
+                      padding: '2px 6px', borderRadius: 3, background: accent ? 'rgba(168,121,53,0.12)' : 'rgba(28,25,23,0.08)',
+                      color: accent ? 'var(--rod-accent)' : 'var(--rod-muted)', verticalAlign: 'middle' }}>{label}</span>
+                  );
                   return (
                     <React.Fragment key={item.id}>
-                      <div className="rod-line-item-row">
+                      {/* Collapsed summary — thumb · name · qty · total. Click for detail. */}
+                      <div className={'rod-li-sum' + (open ? ' open' : '') + (showCost ? '' : ' nocost')} onClick={() => setOpenLines(p => ({ ...p, [item.id]: !p[item.id] }))}>
+                        {/* Fulfillment status chip — one most-advanced state per line.
+                            During fulfillment it doubles as the "mark received" entry. */}
                         <div>
-                          {item.primary_image
-                            ? <img className="rod-line-item-thumb" src={optimizeImg(item.primary_image, 96)} alt="" />
-                            : <div className="rod-line-item-thumb" style={{ ...materialFace(itemMaterialKind(item), itemTone(item.product_name || item.collection)), borderRadius: '3px' }} />
-                          }
+                          {(() => {
+                            if (isLabor || item.is_sample) return <span style={{ color: 'var(--rod-muted)', font: '400 11px/1 "Inter", sans-serif' }}>—</span>;
+                            const recv = item.qty_received != null ? parseFloat(item.qty_received) : null;
+                            const fullRel = released + 0.001 >= ordered && ordered > 0;
+                            const fullRecv = recv != null && recv + 0.001 >= ordered && ordered > 0;
+                            let label, color, bg;
+                            if (fullRel) { label = '● Released'; color = 'var(--rod-green)'; bg = 'rgba(75,138,86,0.1)'; }
+                            else if (released > 0) { label = parseFloat(released.toFixed(2)) + '/' + parseFloat(ordered.toFixed(2)) + ' released'; color = 'var(--rod-accent)'; bg = 'rgba(168,121,53,0.1)'; }
+                            else if (fullRecv) { label = '✓ Received'; color = 'var(--rod-green)'; bg = 'rgba(75,138,86,0.1)'; }
+                            else if (recv != null && recv > 0) { label = '◑ ' + parseFloat(recv.toFixed(2)) + '/' + parseFloat(ordered.toFixed(2)) + ' in'; color = '#a87935'; bg = 'rgba(168,121,53,0.1)'; }
+                            else if (showReceive) { label = 'On order'; color = 'var(--rod-muted)'; bg = 'transparent'; }
+                            else return <span style={{ color: 'var(--rod-muted)', font: '400 11px/1 "Inter", sans-serif' }}>—</span>;
+                            // Can't receive a line until its PO is transmitted.
+                            const awaitingT = showReceive && !(recv != null && recv > 0) && lineAwaitingTransmit(item.id);
+                            if (awaitingT) { label = 'PO not sent'; color = 'var(--rod-muted)'; bg = 'transparent'; }
+                            const canReceive = showReceive && !awaitingT;
+                            return canReceive ? (
+                              <button className="rod-li-chip" title="Record received quantity"
+                                onClick={e => { e.stopPropagation(); openReceive(item); }}
+                                style={{ borderColor: label === 'On order' ? 'rgba(28,25,23,0.22)' : color, background: bg, color }}>
+                                {label}
+                              </button>
+                            ) : (
+                              <span className="rod-li-chip" title={awaitingT ? 'Send this line’s purchase order to the vendor first' : undefined} style={{ background: bg, color, borderColor: awaitingT ? 'rgba(28,25,23,0.22)' : undefined }}>{label}</span>
+                            );
+                          })()}
                         </div>
                         <div>
-                          {!isLabor && !isCustom && formatLineItem(item).brand && (
-                            <div className="rod-line-item-meta">{formatLineItem(item).brand}</div>
+                          {!isLabor && !isCustom && fli.brand && (
+                            <div className="rod-line-item-meta">{fli.brand}</div>
                           )}
                           <div className="rod-line-item-name">
-                            {isLabor
-                              ? (item.product_name || 'Labor')
-                              : formatLineItem(item).name}
-                            {isLabor && (
-                              <span style={{ marginLeft: 6, font: '500 8px/1 "Inter", sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase',
-                                padding: '2px 6px', borderRadius: 3, background: 'rgba(28,25,23,0.08)', color: 'var(--rod-muted)', verticalAlign: 'middle' }}>Labor</span>
-                            )}
-                          </div>
-                          <div className="rod-line-item-meta">
-                            {isLabor && <span style={{ color: 'var(--rod-muted)' }}>
-                              {[item.labor_category ? String(item.labor_category).replace(/_/g, ' ') : null, item.source_estimate_area || null].filter(Boolean).join(' · ') || 'Service'}
-                            </span>}
-                            {!isLabor && !isCustom && <>{formatLineItem(item).sku}{item.category_name ? (formatLineItem(item).sku ? '  ·  ' : '') + item.category_name : ''}</>}
-                            {!isLabor && isCustom && <span style={{ color: 'var(--rod-accent)' }}>Custom</span>}
-                            {item.is_sample && <span style={{ marginLeft: '4px', color: 'var(--rod-muted)' }}>Sample</span>}
-                          </div>
-                          {showReady && !item.is_sample && !isLabor && (
-                            <button onClick={() => toggleItemReady(item)}
-                              style={{ marginTop: 5, font: '500 10px/1 "Inter", sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase',
-                                padding: '3px 8px', borderRadius: 3, cursor: 'pointer',
-                                border: '1px solid ' + (item.ready_at ? 'var(--rod-green)' : 'rgba(28,25,23,0.2)'),
-                                background: item.ready_at ? 'rgba(75,138,86,0.12)' : 'transparent',
-                                color: item.ready_at ? 'var(--rod-green)' : 'var(--rod-muted)' }}>
-                              {item.ready_at ? '✓ At store' : 'Mark ready'}
-                            </button>
-                          )}
-                        </div>
-                        <div>
-                          <div style={{ font: '400 13px/1.2 "Inter", sans-serif', color: 'var(--rod-ink)' }}>{isLabor ? 'Roma' : (item.vendor_name || (isCustom ? 'Custom' : 'Roma'))}</div>
-                          <div className="rod-line-item-meta" style={{ marginTop: 3 }}>
-                            {isLabor ? 'Labor · no PO' : (() => {
-                              const po = poForItem(item.id);
-                              if (po) return (
-                                <a style={{ color: 'var(--rod-muted)', textDecoration: 'underline rgba(28,25,23,0.2)', cursor: 'pointer' }} onClick={() => {
-                                  const poEl = document.querySelector('.rod-po-section');
-                                  if (poEl) poEl.scrollIntoView({ behavior: 'smooth' });
-                                }}>{po.po_number}</a>
-                              );
-                              return item.is_sample ? 'Sample · no PO' : 'No PO';
-                            })()}
+                            {isLabor ? (item.product_name || 'Labor') : fli.name}
+                            {isLabor && badge('Labor')}
+                            {!isLabor && isCustom && badge('Custom', true)}
+                            {item.is_sample && badge('Sample')}
                           </div>
                         </div>
                         <div className="rod-line-item-qty" style={{ textAlign: 'right' }}>
@@ -20525,25 +20554,93 @@
                                 style={{ padding: '0.1rem 0.3rem', font: '400 13px/1.2 "Inter", sans-serif', border: 'none', borderBottom: '1px dashed rgba(28,25,23,0.3)', background: 'transparent', cursor: 'pointer', color: 'var(--rod-ink)' }}>
                                 {item.cost != null ? '$' + parseFloat(item.cost).toFixed(2) : (item.vendor_cost ? '$' + parseFloat(item.vendor_cost).toFixed(2) : '—')}
                               </button>
-                            )
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--rod-muted)' }}>{item.cost != null ? '$' + parseFloat(item.cost).toFixed(2) : (item.vendor_cost ? '$' + parseFloat(item.vendor_cost).toFixed(2) : '—')}</span>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
                         <div className="rod-line-item-subtotal" style={{ textAlign: 'right', font: '400 14px/1 "Cormorant Garamond", serif', letterSpacing: '-0.008em' }}>
                           {item.is_sample ? 'Free' : item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}
                         </div>
+                        <span className={'rod-li-chev' + (open ? ' open' : '')}>▾</span>
                       </div>
-                      {itemAdj.length > 0 && (
-                        <div style={{ padding: '4px 18px 8px 62px', fontSize: '0.6875rem', color: 'var(--stone-500)' }}>
-                          <div style={{ fontWeight: 600, marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.625rem' }}>Price History</div>
-                          {itemAdj.map(a => (
-                            <div key={a.id} style={{ marginBottom: '0.15rem' }}>
-                              ${parseFloat(a.previous_unit_price).toFixed(2)} → ${parseFloat(a.new_unit_price).toFixed(2)}
-                              {a.reason && <span> — {a.reason}</span>}
-                              <span style={{ marginLeft: '0.5rem', color: 'var(--stone-400)' }}>by {a.rep_name} on {new Date(a.created_at).toLocaleDateString()}</span>
+                      {/* Expanded detail — SKU, vendor/PO, pricing, coverage, receiving */}
+                      {open && (
+                        <div className="rod-li-detail">
+                          <div className="rod-li-detail-grid">
+                            <div>
+                              <div className="rod-li-cell-label">{isLabor ? 'Service' : 'SKU'}</div>
+                              <div className="rod-li-cell-value">
+                                {isLabor
+                                  ? ([item.labor_category ? String(item.labor_category).replace(/_/g, ' ') : null, item.source_estimate_area || null].filter(Boolean).join(' · ') || 'Service')
+                                  : isCustom ? 'Custom item' : (fli.sku || '—')}
+                              </div>
                             </div>
-                          ))}
+                            {!isLabor && item.category_name && (
+                              <div>
+                                <div className="rod-li-cell-label">Category</div>
+                                <div className="rod-li-cell-value">{item.category_name}</div>
+                              </div>
+                            )}
+                            <div>
+                              <div className="rod-li-cell-label">Vendor</div>
+                              <div className="rod-li-cell-value">{isLabor ? 'Roma' : (item.vendor_name || (isCustom ? 'Custom' : 'Roma'))}</div>
+                            </div>
+                            <div>
+                              <div className="rod-li-cell-label">PO</div>
+                              <div className="rod-li-cell-value">
+                                {isLabor ? 'Labor · no PO' : po ? (
+                                  <a style={{ color: 'var(--rod-ink)', textDecoration: 'underline rgba(28,25,23,0.25)', cursor: 'pointer' }} onClick={() => {
+                                    const poEl = document.querySelector('.rod-po-section');
+                                    if (poEl) poEl.scrollIntoView({ behavior: 'smooth' });
+                                  }}>{po.po_number}</a>
+                                ) : (item.is_sample ? 'Sample · no PO' : 'No PO')}
+                              </div>
+                            </div>
+                            {!isLabor && item.sell_by !== 'unit' && item.sell_by !== 'piece' && item.sqft_needed && parseFloat(item.sqft_needed) > 0 && (
+                              <div>
+                                <div className="rod-li-cell-label">Coverage</div>
+                                <div className="rod-li-cell-value">{parseFloat(item.sqft_needed).toFixed(0)} sf</div>
+                              </div>
+                            )}
+                            {!item.is_sample && !isLabor && (() => {
+                              const recv = item.qty_received != null ? parseFloat(item.qty_received) : null;
+                              const cap = recv != null ? Math.min(recv, ordered) : 0;
+                              const avail = Math.max(0, cap - released);
+                              return (
+                                <React.Fragment>
+                                  <div>
+                                    <div className="rod-li-cell-label">Received</div>
+                                    <div className="rod-li-cell-value" style={{ color: recv == null ? 'var(--rod-muted)' : undefined }}>
+                                      {recv == null ? 'Not recorded' : parseFloat(recv.toFixed(2)) + ' of ' + parseFloat(ordered.toFixed(2))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="rod-li-cell-label">To release</div>
+                                    <div className="rod-li-cell-value" style={{ color: avail > 0 ? undefined : 'var(--rod-muted)' }}>
+                                      {parseFloat(avail.toFixed(2))}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="rod-li-cell-label">Released</div>
+                                    <div className="rod-li-cell-value" style={{ color: released > 0 ? (released + 0.001 >= ordered ? 'var(--rod-green)' : 'var(--rod-accent)') : 'var(--rod-muted)' }}>
+                                      {released > 0 ? parseFloat(released.toFixed(2)) + ' of ' + parseFloat(ordered.toFixed(2)) : 'None'}
+                                    </div>
+                                  </div>
+                                </React.Fragment>
+                              );
+                            })()}
+                          </div>
+                          {itemAdj.length > 0 && (
+                            <div style={{ marginTop: 12, fontSize: '0.6875rem', color: 'var(--stone-500)' }}>
+                              <div className="rod-li-cell-label">Price history</div>
+                              {itemAdj.map(a => (
+                                <div key={a.id} style={{ marginBottom: '0.15rem' }}>
+                                  ${parseFloat(a.previous_unit_price).toFixed(2)} → ${parseFloat(a.new_unit_price).toFixed(2)}
+                                  {a.reason && <span> — {a.reason}</span>}
+                                  <span style={{ marginLeft: '0.5rem', color: 'var(--stone-400)' }}>by {a.rep_name} on {new Date(a.created_at).toLocaleDateString()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </React.Fragment>
@@ -20679,6 +20776,37 @@
                     <RovMicro>Tracking {order.tracking_number}{order.shipping_carrier ? ' · ' + order.shipping_carrier : ''}</RovMicro>
                   </div>
                 )}
+                {/* Fulfillment advance — only the real steps live here. Pending
+                    confirms on payment; pickup reaches Ready via marking lines
+                    ready. Shipping enters through the tracking form; the final
+                    delivered/picked-up is a receipt confirmation. */}
+                {(() => {
+                  const showShip = !isPickup && order.status === 'confirmed';
+                  const showDelivered = !isPickup && order.status === 'shipped';
+                  if (!showShip && !showDelivered) return null;
+                  return (
+                    <div style={{ padding: '2px 20px 16px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {showShip && !showTrackingForm && (
+                        <button className="rod-mini-btn primary" disabled={updating || !allReceived}
+                          title={!allReceived ? 'Receive all materials before shipping' : undefined}
+                          onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); updateStatus('shipped'); }}>
+                          Add tracking &amp; mark shipped
+                        </button>
+                      )}
+                      {showShip && !allReceived && (
+                        <span style={{ font: '400 11px/1.4 "Inter", sans-serif', color: 'var(--rod-muted)' }}>
+                          {recvLinesIn} of {recvLines.length} lines received
+                        </span>
+                      )}
+                      {showDelivered && (
+                        <button className="rod-mini-btn primary" disabled={updating}
+                          onClick={() => { if (confirm('Mark this order as delivered?')) updateStatus('delivered'); }}>
+                          Mark delivered
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
                 {!isPickup && ['pending', 'confirmed'].includes(order.status) && (() => {
                   const freightSet = order.shipping_method && order.shipping_method !== 'quote_pending';
                   const showForm = !freightSet || editingFreight;
@@ -21365,19 +21493,75 @@
             );
           })()}
 
-          {docPreview && (docPreview.type === 'po'
-            ? <PODocumentViewer
-                url={docPreview.url}
-                po={docPreview.po}
-                onClose={() => setDocPreview(null)}
-                onSend={async () => {
-                  await repFetch('/api/rep/purchase-orders/' + docPreview.po.id + '/approve', { method: 'POST' });
-                  setDocPreview(null);
-                  loadPOs();
-                }}
-              />
-            : <DocumentPreviewModal url={docPreview.url} title={docPreview.title} onClose={() => setDocPreview(null)} />
+          {/* PO send dialog — adjustable To / CC + notes printed on the PO PDF */}
+          {poEmailModal && (
+            <RofPoEmailModal
+              vendorName={poEmailModal.vendor_name}
+              ediOn={!!poEmailModal.edi_enabled}
+              isResend={poEmailModal.status && poEmailModal.status !== 'draft'}
+              defaultTo={poEmailModal.recipient_email || poEmailModal.vendor_email || ''}
+              defaultCc={(poEmailModal.cc_emails && poEmailModal.cc_emails.length)
+                ? poEmailModal.cc_emails
+                : [poRepEmail, poEmailModal.vendor_contact_email].filter(Boolean)}
+              defaultNotes={poEmailModal.notes || ''}
+              lines={(poEmailModal.items || []).map(it => ({
+                id: it.id,
+                label: [it.vendor_sku, it.product_name].filter(Boolean).join(' · ') || 'Line',
+                note: it.line_note || ''
+              }))}
+              sending={poUpdating}
+              onCancel={() => setPoEmailModal(null)}
+              onSend={async (overrides) => { const ok = await doApprovePO(poEmailModal, overrides); if (ok) setPoEmailModal(null); }}
+            />
           )}
+
+          {/* Mark received — enter how many units arrived; caps what can be released */}
+          {receiveItem && (() => {
+            const ordered = parseFloat(receiveItem.num_boxes || 0);
+            const released = parseFloat(receiveItem.already_released || 0);
+            const q = Math.max(0, Math.min(ordered, parseFloat(receiveQty) || 0));
+            const avail = Math.max(0, q - released);
+            const unit = receiveItem.sell_by === 'unit' ? 'units' : receiveItem.sell_by === 'roll' ? 'rolls' : receiveItem.sell_by === 'piece' ? 'pcs' : 'boxes';
+            const belowReleased = q + 0.001 < released;
+            return (
+              <div onClick={() => !receiveSaving && setReceiveItem(null)}
+                style={{ position: 'fixed', inset: 0, zIndex: 1400, background: 'rgba(28,25,23,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+                <div onClick={e => e.stopPropagation()}
+                  style={{ width: '100%', maxWidth: 424, background: '#f5f1e8', border: '0.5px solid rgba(28,25,23,0.25)', boxShadow: '0 20px 48px rgba(28,25,23,0.22)' }}>
+                  <div style={{ padding: '16px 20px', borderBottom: '0.5px solid rgba(28,25,23,0.12)' }}>
+                    <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginBottom: 6 }}>Mark received</div>
+                    <div style={{ font: '400 16px/1.3 "Inter", sans-serif', color: 'var(--rod-ink)' }}>{formatLineItem(receiveItem).name || receiveItem.product_name}</div>
+                  </div>
+                  <div style={{ padding: '18px 20px' }}>
+                    <label className="rod-field-label">How many {unit} were received?</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+                      <input className="rod-input" type="number" min="0" max={ordered} step="0.01" autoFocus value={receiveQty}
+                        onChange={e => setReceiveQty(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !receiveSaving) submitReceive(); }}
+                        style={{ width: 120, textAlign: 'right' }} />
+                      <span style={{ font: '400 13px/1 "Inter", sans-serif', color: 'var(--rod-muted)' }}>of {parseFloat(ordered.toFixed(2))} ordered</span>
+                      <button className="rod-mini-btn" onClick={() => setReceiveQty(String(ordered))}>All</button>
+                    </div>
+                    <div style={{ marginTop: 14, padding: '10px 12px', background: 'rgba(28,25,23,0.04)', border: '0.5px solid rgba(28,25,23,0.08)' }}>
+                      <div style={{ font: '400 12.5px/1.5 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
+                        {released > 0 ? parseFloat(released.toFixed(2)) + ' already released · ' : ''}
+                        <strong>{parseFloat(avail.toFixed(2))} available to release</strong>
+                      </div>
+                      {belowReleased && (
+                        <div style={{ marginTop: 6, font: '400 12px/1.4 "Inter", sans-serif', color: 'var(--rod-red)' }}>
+                          Below the {parseFloat(released.toFixed(2))} already released — nothing more can be released until more arrives.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ padding: '14px 20px', borderTop: '0.5px solid rgba(28,25,23,0.12)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    <button className="rod-mini-btn" disabled={receiveSaving} onClick={() => setReceiveItem(null)}>Cancel</button>
+                    <button className="rod-mini-btn primary" disabled={receiveSaving} onClick={submitReceive}>{receiveSaving ? 'Saving…' : 'Save'}</button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       );
     }
@@ -22018,7 +22202,9 @@
             setCtx(data);
             const seed = {};
             (data.items || []).forEach(it => {
-              const remaining = Math.max(0, parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0));
+              const ordered = parseFloat(it.num_boxes || 0);
+              const cap = it.qty_received != null ? Math.min(parseFloat(it.qty_received), ordered) : 0;
+              const remaining = Math.max(0, cap - parseFloat(it.already_released || 0));
               seed[it.id] = { selected: remaining > 0, qty: remaining };
             });
             setLineState(seed);
@@ -22031,7 +22217,15 @@
       const order = ctx && ctx.order;
       const items = (ctx && ctx.items) || [];
       const setLine = (id, patch) => setLineState(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
-      const remainingFor = (it) => Math.max(0, parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0));
+      // Available to release = received (capped at ordered) − already released.
+      // Release can't exceed received: qty_received NULL = nothing recorded as
+      // arrived yet → 0 available. Partial receipts release partially.
+      // [[material-releases]]
+      const receivedCap = (it) => {
+        const ordered = parseFloat(it.num_boxes || 0);
+        return it.qty_received != null ? Math.min(parseFloat(it.qty_received), ordered) : 0;
+      };
+      const remainingFor = (it) => Math.max(0, receivedCap(it) - parseFloat(it.already_released || 0));
       const unitFor = (it) => it.sell_by === 'unit' ? 'unit' : it.sell_by === 'roll' ? 'roll' : it.sell_by === 'piece' ? 'pc' : 'box';
 
       const releasable = items.filter(it => remainingFor(it) > 0);
@@ -22179,6 +22373,7 @@
                       const fli = formatLineItem(it);
                       const name = fli.name;
                       const done = remaining <= 0;
+                      const awaitingReceipt = receivedCap(it) <= 0;
                       const over = st.selected && (parseFloat(st.qty) > remaining + 0.001 || !(parseFloat(st.qty) > 0));
                       return (
                         <div key={it.id} className="rod-line-item-row" style={{ ...LI_GRID, opacity: done ? 0.5 : 1 }}>
@@ -22191,12 +22386,19 @@
                             {fli.brand && <div className="rod-line-item-meta">{fli.brand}</div>}
                             <div className="rod-line-item-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
                             <div className="rod-line-item-meta">{fli.sku || (it.vendor_name || 'Roma')}</div>
+                            {it.qty_received == null ? (
+                              <div className="rod-line-item-meta" style={{ color: '#a87935' }}>Not yet received</div>
+                            ) : parseFloat(it.qty_received) < ordered && (
+                              <div className="rod-line-item-meta" style={{ color: '#a87935' }}>
+                                {parseFloat(parseFloat(it.qty_received).toFixed(2))} of {ordered} received
+                              </div>
+                            )}
                           </div>
                           <div className="rod-line-item-qty">{ordered} <span style={{ color: 'var(--rod-muted)' }}>{ordered === 1 ? unit : unit + 's'}</span></div>
                           <div className="rod-line-item-qty" style={{ color: released > 0 ? 'var(--rod-accent)' : 'var(--rod-muted)' }}>{released > 0 ? released : '—'}</div>
                           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                             {done ? (
-                              <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-green)' }}>● Released</span>
+                              <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: awaitingReceipt ? 'var(--rod-muted)' : 'var(--rod-green)' }}>{awaitingReceipt ? '● Awaiting receipt' : '● Released'}</span>
                             ) : (
                               <div style={{ display: 'inline-flex', alignItems: 'center', border: '0.5px solid ' + (over ? 'var(--rod-red)' : 'rgba(28,25,23,0.3)'), background: st.selected ? '#fff' : 'rgba(28,25,23,0.03)' }}>
                                 <input type="number" min="0" max={remaining} step="1" value={st.qty} disabled={!st.selected}

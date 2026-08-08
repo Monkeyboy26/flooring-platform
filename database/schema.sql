@@ -206,9 +206,15 @@ CREATE TABLE order_items (
     vendor_id UUID REFERENCES vendors(id),
     custom_vendor TEXT,
     cost DECIMAL(10,2),
-    -- Pickup readiness: set when this line's goods are at the store. When every
-    -- non-sample line is ready, a pickup order auto-advances to ready_for_pickup.
+    -- Pickup readiness: set when this line's goods are at the store (i.e. fully
+    -- received). When every non-sample line is ready, a pickup order
+    -- auto-advances to ready_for_pickup.
     ready_at TIMESTAMP,
+    -- How many of this line's ordered units have physically been received at the
+    -- warehouse. NULL = not yet recorded (treated as the full ordered qty for
+    -- legacy orders). Caps how much can be released. ready_at is set once this
+    -- reaches num_boxes. Entered via the "Mark received" popup on the order.
+    qty_received DECIMAL(10,2),
     -- Labor lines (from estimate conversion): item_type 'labor' lines are billed
     -- through the order but excluded from POs, releases, returns, and readiness
     item_type VARCHAR(20) DEFAULT 'material',

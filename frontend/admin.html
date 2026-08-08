@@ -6170,7 +6170,7 @@
             setTrackingData({ tracking_number: '', carrier: '', shipped_at: new Date().toISOString().slice(0, 10) });
             setUpdating(false);
           })
-          .catch(() => setUpdating(false));
+          .catch(err => { alert(err.message || 'Failed to update status'); setUpdating(false); });
       };
 
       const assignRep = (repId) => {
@@ -6218,6 +6218,12 @@
           if (data.order) setOrder(data.order);
           setItems(prev => prev.map(i => i.id === item.id ? { ...i, ready_at: data.ready_at } : i));
         } catch (err) { alert(err.message || 'Failed to update item'); }
+      };
+      // A line can't be received/readied until its PO has been transmitted to the
+      // vendor. Stock lines (no covering PO) are unaffected. Mirrors the backend.
+      const lineAwaitingTransmit = (itemId) => {
+        const covering = purchaseOrders.filter(po => po.status !== 'cancelled' && (po.items || []).some(pi => pi.order_item_id === itemId));
+        return covering.length > 0 && !covering.some(po => po.status !== 'draft');
       };
 
       // ---- Console record header derivation (mirrors the ledger's logic) ----
@@ -6558,11 +6564,13 @@
                     </td>
                     <td data-label="SqFt">{item.sell_by === 'unit' || item.sell_by === 'piece' ? <span style={{ color: 'var(--stone-400)' }}>—</span> : item.sqft_needed ? parseFloat(item.sqft_needed).toFixed(1) : '—'}</td>
                     <td data-label="Qty">{item.sell_by === 'roll' ? (item.sqft_needed || 0) : item.num_boxes} <span style={{ fontSize: '0.7rem', color: 'var(--stone-400)' }}>{qtyLabel}</span></td>
-                    <td data-label="Unit Price">{item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '—'} <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>{item.sell_by === 'unit' ? '/ea' : item.sell_by === 'roll' ? '/sqyd' : '/sqft'}</span></td>
+                    <td data-label="Unit Price">{item.unit_price ? '$' + parseFloat(item.unit_price).toFixed(2) : '—'} <span style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>{skuPriceSuffix(item)}</span></td>
                     <td data-label="Subtotal" style={{ textAlign: 'right', fontWeight: 500 }}>{item.subtotal ? '$' + parseFloat(item.subtotal).toFixed(2) : '—'}</td>
                     {showReadyCol && (
                       <td data-label="Store Pickup">
-                        {item.is_sample ? <span style={{ color: 'var(--stone-400)' }}>—</span> : (
+                        {item.is_sample ? <span style={{ color: 'var(--stone-400)' }}>—</span> : (!item.ready_at && lineAwaitingTransmit(item.id)) ? (
+                          <span style={{ color: 'var(--stone-400)', fontSize: 12 }} title="Send this line's purchase order to the vendor first">PO not sent</span>
+                        ) : (
                           <button
                             className={item.ready_at ? 'btn btn-sm' : 'btn btn-secondary btn-sm'}
                             style={item.ready_at ? { background: 'var(--green-light)', color: 'var(--green)', borderColor: 'var(--green)' } : {}}
@@ -8031,7 +8039,13 @@
 
       const order = ctx && ctx.order;
       const items = (ctx && ctx.items) || [];
-      const remainingFor = (it) => Math.max(0, parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0));
+      // Release can't exceed received: a line caps at its received qty (NULL =
+      // nothing arrived yet → 0), minus what's already been released.
+      const receivedCap = (it) => {
+        const ordered = parseFloat(it.num_boxes || 0);
+        return it.qty_received != null ? Math.min(parseFloat(it.qty_received), ordered) : 0;
+      };
+      const remainingFor = (it) => Math.max(0, receivedCap(it) - parseFloat(it.already_released || 0));
       const unitFor = (it) => it.sell_by === 'unit' ? 'units' : it.sell_by === 'roll' ? 'rolls' : it.sell_by === 'piece' ? 'pcs' : 'boxes';
       const setLine = (id, patch) => setLineState(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
       const selectedLines = items.filter(it => {
@@ -8096,18 +8110,20 @@
                       const remaining = remainingFor(it);
                       const released = parseFloat(it.already_released || 0);
                       const done = remaining <= 0;
+                      const awaitingReceipt = receivedCap(it) <= 0;
                       return (
                         <label key={it.id} className={'relm-line' + (done ? ' done' : '')}>
                           <input type="checkbox" disabled={done} checked={!!st.selected} onChange={e => setLine(it.id, { selected: e.target.checked })} />
                           <span style={{ flex: 1, minWidth: 0 }}>
-                            <span className="relm-line-name">{it.collection || it.current_collection || it.product_name}{it.color ? ' ' + it.color : ''}</span>
+                            {formatLineItem(it).brand && <span className="relm-line-sub">{formatLineItem(it).brand}</span>}
+                            <span className="relm-line-name">{formatLineItem(it).name}</span>
                             <span className="relm-line-sub">
-                              {it.vendor_name || ''}{it.vendor_sku ? ' · ' + it.vendor_sku : ''}
-                              {' · ' + released + ' of ' + parseFloat(it.num_boxes || 0) + ' released'}
+                              {formatLineItem(it).sku}
+                              {(formatLineItem(it).sku ? ' · ' : '') + released + ' of ' + parseFloat(it.num_boxes || 0) + ' released'}
                             </span>
                           </span>
                           {done ? (
-                            <span style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.1em', color: 'var(--green)', flexShrink: 0 }}>FULLY RELEASED</span>
+                            <span style={{ font: '400 9px/1 var(--mono)', letterSpacing: '0.1em', color: awaitingReceipt ? 'var(--faint)' : 'var(--green)', flexShrink: 0 }}>{awaitingReceipt ? 'AWAITING RECEIPT' : 'FULLY RELEASED'}</span>
                           ) : (
                             <span style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexShrink: 0 }}>
                               <input type="number" min="0.01" step="any" max={remaining} value={st.qty} disabled={!st.selected}
