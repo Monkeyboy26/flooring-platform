@@ -978,12 +978,7 @@ ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'v
 </div>
 </div>
 
-<div class="keep" style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:26px;">
-<div><div style="border-bottom:0.5px solid var(--ink);height:26px;"></div><div class="mono" style="margin-top:5px;letter-spacing:0.16em;">Customer acceptance · date</div></div>
-<div><div style="border-bottom:0.5px solid var(--ink);height:26px;"></div><div class="mono" style="margin-top:5px;letter-spacing:0.16em;">Roma Flooring Designs · date</div></div>
-</div>
-
-<div style="margin-top:18px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
 <span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Quote ${quoteNumber}</span>
 </div>
