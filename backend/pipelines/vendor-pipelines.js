@@ -65,6 +65,9 @@ const PIPELINES = {
       // Repair any primary image that doesn't resolve on Scene7 (the map lists
       // unpublished URLs the importer writes blind). Liveness-validated.
       { type: 'script',  path: 'scripts/daltile-fix-broken-images.cjs', label: 'Repair Dead Primary Images (catalog-wide)' },
+      // NOTE: authoritative EDI pricing runs DECOUPLED from this pipeline — the
+      // daltile-edi-overlay source is cron-scheduled on its own so a failure in the
+      // clear-and-rebuild importer above can't block pricing. See daltile-edi-overlay.js.
     ]
   },
 

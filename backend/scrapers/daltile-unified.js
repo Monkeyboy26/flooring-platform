@@ -228,14 +228,9 @@ function finalizeEdiItem(item) {
     else if (puom === 'EA' || puom === 'PC') item.sell_by = 'unit';
   }
 
-  // Detect per-box prices disguised as per-sqft
-  if (item.sell_by === 'box' && item.sqft_per_box >= 3 && item.cost > 30) {
-    const perSqft = item.cost / item.sqft_per_box;
-    if (perSqft >= 3 && perSqft <= 30) {
-      item.cost = parseFloat(perSqft.toFixed(4));
-      if (item.retail_price) item.retail_price = parseFloat((item.retail_price / item.sqft_per_box).toFixed(4));
-    }
-  }
+  // (Removed: a "per-box price disguised as per-sqft" divide hack. With per-color CTP
+  // now bound correctly, the EDI CTP is authoritative per-SF; the hack only mis-divided
+  // legitimately expensive per-SF tile — marble ~$53/SF, metal mosaic ~$39/SF.)
 }
 
 function parse832(raw) {
@@ -307,7 +302,9 @@ function parse832(raw) {
         break;
       }
       case 'CTP': {
-        const target = productContext || currentItem;
+        // Per-color CTP (following an SLN, e.g. marble Calacatta vs Carrara) must bind to
+        // the current color line, not the shared LIN context. See daltile-832.js for detail.
+        const target = currentItem || productContext;
         if (target) target.pricing.push(parseCTP(seg));
         break;
       }

@@ -312,7 +312,12 @@ function parse832(raw) {
         break;
       }
       case 'CTP': {
-        const target = productContext || currentItem;
+        // Bind the price to the CURRENT line first. A CTP that follows an SLN is a
+        // per-color price (e.g. marble: Calacatta vs Carrara) and must attach to that
+        // color's item, not the shared LIN context. A CTP before the first SLN has no
+        // currentItem override issue (currentItem IS the LIN item) and lands LIN-level,
+        // which SLN colors without their own CTP inherit via mergeProductContext.
+        const target = currentItem || productContext;
         if (target) target.pricing.push(parseCTP(seg));
         break;
       }
@@ -527,18 +532,11 @@ function finalizeItem(item) {
     if (!item.sell_by) item.sell_by = 'unit';
   }
 
-  // Detect per-box prices disguised as per-sqft. Some mosaic/multi-sheet items have
-  // the box price in the CTP but UOM = SF. If cost ÷ sqft_per_box gives a reasonable
-  // per-sqft figure ($3-30) while the raw cost seems too high, convert to true per-sqft.
-  if (item.sell_by === 'box' && item.sqft_per_box >= 3 && item.cost > 30) {
-    const perSqft = item.cost / item.sqft_per_box;
-    if (perSqft >= 3 && perSqft <= 30) {
-      item.cost = parseFloat(perSqft.toFixed(4));
-      if (item.retail_price) {
-        item.retail_price = parseFloat((item.retail_price / item.sqft_per_box).toFixed(4));
-      }
-    }
-  }
+  // NOTE: a former "per-box price disguised as per-sqft" heuristic (divide cost by
+  // sqft_per_box when cost > $30) used to live here. With the CTP price now bound to
+  // the correct line (per-color pricing fixed), the EDI CTP is authoritative and
+  // already per-SF — that heuristic only mis-divided legitimately expensive per-SF
+  // tile (marble ~$53/SF, metal mosaic ~$39/SF). Removed; trust the feed's UOM.
 }
 
 
@@ -1210,3 +1208,8 @@ export async function run(pool, job, source) {
   });
   await appendLog(pool, job.id, `  Pricing: ${totalPricing}, Packaging: ${totalPackaging}, Attributes: ${totalAttrs}`);
 }
+
+// Reusable pieces for the EDI price-overlay module (daltile-edi-overlay.js) and the
+// offline validation harness. parse832 is the fixed authoritative parser.
+export { parse832, getFtpConfig, findRemote832Files };
+export const __test__ = { parse832, finalizeItem, makeInternalSku };
