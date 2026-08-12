@@ -303,8 +303,8 @@ async function main() {
             [skuId]
           );
           if (priceCheck.rows.length === 0) {
-            // retail_price is NOT NULL — use 2.5x cost markup if no retail price from 832
-            const retailPrice = pricing.retail_price || (pricing.cost * 2.5);
+            // retail_price is NOT NULL — use 1.6x keystone if no retail price from 832
+            const retailPrice = pricing.retail_price || (Math.round(pricing.cost * 1.6 / 0.05) * 0.05);
             await client.query(`
               INSERT INTO pricing (sku_id, cost, retail_price, map_price)
               VALUES ($1, $2, $3, $4)

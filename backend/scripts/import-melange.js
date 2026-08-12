@@ -12,7 +12,7 @@
  *   Wall Tile: Evolution, Memory, Pearl
  *   Porcelain Paver: Quartz Outdoor
  *
- * Pricing: PDF lists dealer cost. Retail = cost × 2.5 (standard tile markup).
+ * Pricing: PDF lists dealer cost. Retail = cost × 1.6 keystone.
  * All tiles sold per sqft unless noted (mosaico sheets SH, bullnose PC).
  *
  * Draft collections (no pricing in Q2-2025 PDF): Shellstone, Sicily, Caprice,
@@ -31,7 +31,7 @@ const pool = new pg.Pool({
   password: 'postgres',
 });
 
-const RETAIL_MARKUP = 2.5;
+const RETAIL_MARKUP = 1.6;
 
 // ==================== Helpers ====================
 
@@ -766,7 +766,7 @@ async function main() {
         });
         if (sku.is_new) skusCreated++; else skusUpdated++;
 
-        // Pricing: PDF price = dealer cost, retail = cost × 2.5
+        // Pricing: PDF price = dealer cost, retail = cost × 1.6 keystone
         // Skip pricing for draft collections (not in price list yet)
         if (!coll.draft) {
           const cost = group.price;
