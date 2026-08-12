@@ -1,0 +1,343 @@
+CODE,STOCK NAME,FINISH,PRICE PER SQ.FT,PRICE PER BOX/SLAB,SQ.FT PER BOX,PIECES PER BOX,COLLECTION,THICKNESS
+MXCER-101,Pantheon Porcelain Tile 12x24,Honed,$4.00,$46.48,11.62,6,Antique Marble Series/Florim,10mm
+MXCER-102,Pantheon Porcelain Tile 12x24,Polished,$4.10,$47.64,11.62,6,Antique Marble Series/Florim,10mm
+MXCER-103,Calacatta Pure Porcelain Tile 12x24,Honed,$4.00,$46.48,11.62,6,Antique Marble Series/Florim,10mm
+MXCER-97,Carrara Ghost Porcelain Tile 12x24,Honed,$4.00,$46.48,11.62,6,Antique Marble Series/Florim,10mm
+MXCER-99,Imperial White Porcelain Tile 12x24,Honed,$4.00,$46.48,11.62,6,Antique Marble Series/Florim,10mm
+MXCER-104,Calacatta Pure Porcelain Tile 12x24,Polished,$4.10,$47.64,11.62,6,Antique Marble Series/Florim,10mm
+MXCER-98,Carrara Ghost Porcelain Tile 12x24,Polished,$4.10,$47.64,11.62,6,Antique Marble Series/Florim,10mm
+MXCER-100,Imperial White Porcelain Tile 12x24,Polished,$4.10,$47.64,11.62,6,Antique Marble Series/Florim,10mm
+MXCER23,Ardennes Blanco Porcelain Tile 10X40,Honed,$2.25,$17.91,7.96,3,Ardennes Century Series/Keraben,10.3mm
+MXCER-50,Ardennes Tortora Porcelain Tile 10X40,Honed,$2.25,$17.91,7.96,3,Ardennes Century Series/Keraben,10.3mm
+MXCER-5-1,Ardennes Century Porcelain Tile 10X40,Honed,$2.25,$17.91,7.96,3,Ardennes Century Series/Keraben,10.3mm
+MXCER-51,Ardennes Castano Porcelain Tile 10X40,Honed,$2.25,$17.91,7.96,3,Ardennes Century Series/Keraben,10.3mm
+MXCER-63,Ardesie Dark Porcelain Tile 12x24,R11,$4.15,$48.22,11.62,6,Ardesie Series/Rondine,9.5mm
+MXCER-60,Ardesie Dark Porcelain Tile 24x48,Honed,$4.25,$65.88,15.50,2,Ardesie Series/Rondine,9.5mm
+MXCER-64,Ardesie Grey Porcelain Tile 12x24,R11,$4.15,$48.22,11.62,6,Ardesie Series/Rondine,9.5mm
+MXCER-62,Ardesie Grey Porcelain Tile 24x48,Honed,$4.25,$65.88,15.50,2,Ardesie Series/Rondine,9.5mm
+MXCER-65,Ardesie Taupe Porcelain Tile 12x24,R11,$4.15,$48.22,11.62,6,Ardesie Series/Rondine,9.5mm
+MXCER-59,Ardesie Taupe Porcelain Tile 24x48,Honed,$4.25,$65.88,15.50,2,Ardesie Series/Rondine,9.5mm
+MXCER-66,Ardesie White Porcelain Tile 12x24,R11,$4.15,$48.22,11.62,6,Ardesie Series/Rondine,9.5mm
+MXCER-61,Ardesie White Porcelain Tile 24x48,Honed,$4.25,$65.88,15.50,2,Ardesie Series/Rondine,9.5mm
+MXAZU-103,Atlantis Beige Matte Porcelain Tile 24x48,Matte,$4.40,$68.11,15.48,2,Atlantis Series / Azuvi,8.5mm
+MXAZU-103R,Atlantis Beige R11 Porcelain Tile 24x48,R11,$4.40,$68.11,15.48,2,Atlantis Series / Azuvi,8.5mm
+MXAZU-102,Atlantis Taupe Matte Porcelain Tile 24x48,Matte,$4.40,$68.11,15.48,2,Atlantis Series / Azuvi,8.5mm
+MXAZU-102R,Atlantis Taupe R11 Porcelain Tile 24x48,R11,$4.40,$68.11,15.48,2,Atlantis Series / Azuvi,8.5mm
+MXAZU-101,Atlantis White Matte Porcelain Tile 24x48,Matte,$4.40,$68.11,15.48,2,Atlantis Series / Azuvi,8.5mm
+MXAZU-101R,Atlantis White R11 Porcelain Tile 24x48,R11,$4.40,$68.11,15.48,2,Atlantis Series / Azuvi,8.5mm
+MXCER-170,Baltic Beige Porcelain Tile 24x48,Honed,$5.40,$83.59,15.48,2,Baltic Series/Rondine,8.5mm
+MXCER-169,Baltic Beige Strong Porcelain Tile 24x48,R11,$5.50,$85.14,15.48,2,Baltic Series/Rondine,8.5mm
+MXCER-215,Baltic Grey Porcelain Tile 40x40,Honed,$5.60,$120.40,21.50,2,Baltic Series/Rondine,8.5mm
+MXCER-172,Baltic Taupe Porcelain Tile 24x48,Honed,$5.40,$83.59,15.48,2,Baltic Series/Rondine,8.5mm
+MXCER-171,Baltic Taupe Strong Porcelain Tile 24x48,R11,$5.50,$85.14,15.48,2,Baltic Series/Rondine,8.5mm
+MXCER-168,Baltic White Porcelain Tile 24x48,Honed,$5.65,$87.46,15.48,2,Baltic Series/Rondine,8.5mm
+MXCER-216,Baltic White Porcelain Tile 40x40,Honed,$5.60,$120.40,21.50,2,Baltic Series/Rondine,8.5mm
+MXCER-167,Baltic White Strong Porcelain Tile 24x48,R11,$5.75,$89.01,15.48,2,Baltic Series/Rondine,8.5mm
+MXCER-250,Buildtech Mud (CE) Porcelain Tile 24x24,Soft,$4.60,$53.41,11.61,3,Buildtech Series/Florim,8.5mm
+MXCER-153,Buildtech White (CE) Porcelain Tile 12x24,Soft,$4.50,$52.25,11.61,6,Buildtech Series/Florim,8.5mm
+MXCER-154,Buildtech White (CE) Porcelain Tile 24x24,Soft,$4.60,$53.41,11.61,3,Buildtech Series/Florim,8.5mm
+MXCER-49,Azulev Calacatta Branches Porcelain Tile 10X25,Matte,$2.25,$33.86,15.05,9,Calacatta Series/Azulev,8.5mm
+MXCER-48,Azulev Calacatta Porcelain Tile 10X25,Matte,$2.25,$33.86,15.05,9,Calacatta Series/Azulev,8.5mm
+MXCER-47,Azulev Calacatta Porcelain Tile 24X24,Matte,$2.25,$26.12,11.61,3,Calacatta Series/Azulev,8.5mm
+MXCERSLB-107,Florim White Finish 63X126 Matte Porcelain Slab | 12Mm,Matte,$16.35,,SLAB,1,"Color Slab Series / Florim, Florim Porcelain Slabs",12mm
+MX12203-400,Cosmopolitan Steel Grey Mix 4X16 Polished Porcelain Tile | 8.5Mm,Polished,$2.00,$25.84,12.92,30,Cosmopolitan Series / Cinca,8.5mm
+MX12303-400,Cosmopolitan Steel Grey Mix Semi 4X16 Polished Porcelain Tile | 8.5Mm,Semi Polished,$2.00,$25.84,12.92,30,Cosmopolitan Series / Cinca,8.5mm
+MX12203,Cosmopolitan Steel Grey 4X16 Polished Porcelain Tile | 8.5Mm,Polished,$2.00,$25.84,12.92,30,Cosmopolitan Series / Cinca,8.5mm
+MX12303,Cosmopolitan Steel Grey Semi 4X16 Polished Porcelain Tile | 8.5Mm,Semi Polished,$2.00,$25.84,12.92,30,Cosmopolitan Series / Cinca,8.5mm
+MX12200-400,Cosmopolitan White Mix 4X16 Polished Porcelain Tile | 8.5Mm,Polished,$2.00,$25.84,12.92,30,Cosmopolitan Series / Cinca,8.5mm
+MX12300-400,Cosmopolitan White Mix Semi 4X16 Polished Porcelain Tile | 8.5Mm,Semi Polished,$2.00,$25.84,12.92,30,Cosmopolitan Series / Cinca,8.5mm
+MX12200,Cosmopolitan White 4X16 Polished Porcelain Tile | 8.5Mm,Polished,$2.00,$25.84,12.92,30,Cosmopolitan Series / Cinca,8.5mm
+MX12300,Cosmopolitan White Semi 4X16 Polished Porcelain Tile | 8.5Mm,Semi Polished,$2.00,$25.84,12.92,30,Cosmopolitan Series / Cinca,8.5mm
+MXCER-191,Crackle Beige Porcelain Tile 4x12,Polished,$2.00,$27.10,13.55,42,Crackle Series/Cinca,8mm
+MXCER-192,Crackle Blue Porcelain Tile 4x12,Polished,$2.00,$27.10,13.55,42,Crackle Series/Cinca,8mm
+MXCER-193,Crackle Electric Blue Porcelain Tile 4x12,Polished,$2.00,$27.10,13.55,42,Crackle Series/Cinca,8mm
+MXCER-194,Crackle White Porcelain Tile 4x12,Polished,$2.00,$27.10,13.55,42,Crackle Series/Cinca,8mm
+MXCER-162,Crayons Mist Porcelain Tile 16x48,Matte,$2.75,$85.14,30.96,6,Crayons Series/Florim,6mm
+MXCER-158,Crayons Old Lace Porcelain Tile 16x48,Matte,$2.75,$85.14,30.96,6,Crayons Series/Florim,6mm
+MXCER-157,Crayons Hazelnut Porcelain Tile 16x48,Matte,$2.75,$85.14,30.96,6,Crayons Series/Florim,6mm
+MXCER-159,Crayons Primrose Porcelain Tile 16x48,Matte,$2.75,$85.14,30.96,6,Crayons Series/Florim,6mm
+MXCER-163,Crayons Milk Porcelain Tile 16x48,Matte,$2.75,$85.14,30.96,6,Crayons Series/Florim,6mm
+MXCER-160,Crayons Buttercream Porcelain Tile 16x48,Matte,$2.75,$85.14,30.96,6,Crayons Series/Florim,6mm
+MXCER-221,Cruda Brick Beige Porcelain Tile 2X8 R10B (4.8x20cm),Matte,$5.60,$28.90,5.16,50,Cruda Brick Series / Rondine,0.374 (9.5 mm)
+MXCER-222,Cruda Brick Sabbia Porcelain Tile 2X8 R10B (4.8x20cm),Matte,$5.60,$28.90,5.16,50,Cruda Brick Series / Rondine,0.374 (9.5 mm)
+MXCER-223,Cruda Brick Tortora Porcelain Tile 2X8 R10B (4.8x20cm),Matte,$5.60,$28.90,5.16,50,Cruda Brick Series / Rondine,9.5mm
+MXCER-224,Cruda Brick Bianco Porcelain Tile 2X8 R10B (4.8x20cm),Matte,$5.60,$28.90,5.16,50,Cruda Brick Series / Rondine,9.5mm
+MXCER-217,Cruda Beige Porcelain Tile 24x48 R10B (60x120cm),Matte,$5.50,$85.14,15.48,2,Cruda Series / Rondine,8.5mm
+MXCER-218,Cruda Sabbia Porcelain Tile 24x48 R10B (60x120cm),Matte,$5.50,$85.14,15.48,2,Cruda Series / Rondine,8.5mm
+MXCER-219,Cruda Tortora Porcelain Tile 24x48 R10B (60x120cm),Matte,$5.50,$85.14,15.48,2,Cruda Series / Rondine,8.5mm
+MXCER-220,Cruda Bianco Porcelain Tile 24x48 R10B (60x120cm),Matte,$5.50,$85.14,15.48,2,Cruda Series / Rondine,8.5mm
+MXAB-100,Crumble Beige Porcelain Tile PRO Finish 24×24,Pro,$4.20,$65.02,15.48,4,Crumble Stone Series / Abitare,"5/16""(8.2mm)"
+MXAB-103,Crumble Mud Porcelain Tile PRO Finish 24×24,Pro,$4.20,$65.02,15.48,4,Crumble Stone Series / Abitare,"5/16""(8.2mm)"
+MXAB-102,Crumble Greige Porcelain Tile PRO Finish 24×24,Pro,$4.20,$65.02,15.48,4,Crumble Stone Series / Abitare,"5/16""(8.2mm)"
+MXAB-101,Crumble Grey Porcelain Tile PRO Finish 24×24,Pro,$4.20,$65.02,15.48,4,Crumble Stone Series / Abitare,"5/16""(8.2mm)"
+MXCER-212,Dream Havana Porcelain Tile 8x48,Matte,$4.40,$45.41,10.32,4,Dream Series/Rondine,8.5mm
+MXCER-211,Dream Nut Porcelain Tile 8x48,Matte,$4.40,$45.41,10.32,4,Dream Series/Rondine,8.5mm
+MXCER-213,Dream Ecru Porcelain Tile 8x48,Matte,$4.50,$46.44,10.32,4,Dream Series/Rondine,8.5mm
+MXCER-214,Dream Ivory Porcelain Tile 8x48,Matte,$4.50,$46.44,10.32,4,Dream Series/Rondine,8.5mm
+MXCER-166,Encode Grey Porcelain Tile 24x48,R11,$2.00,$31.00,15.50,2,Encode Series/Marca Corona,8.5mm
+MXCER-165-1,Encode White Porcelain Tile 24x48,R11,$2.00,$31.00,15.50,2,Encode Series/Marca Corona,8.5mm
+MXCER-8-1,Evoque Blanco Brillo Porcelain Tile 15X30,Polished,$2.25,$27.34,12.15,4,Evoque Series/Keraben,10mm
+MXCER-22,Evoque Blanco Mate Mosaic Porcelain Tile 12X12,Matte,$2.25,$24.19,10.75,11,Evoque Series/Keraben,10mm
+MXCER-9-1,Evoque Blanco Mate Porcelain Tile 15X30,Matte,$2.25,$27.34,12.15,4,Evoque Series/Keraben,10mm
+MXCER-111,Fap Maple Porcelain Tile 8x48,Matte,$4.20,$65.10,15.50,6,Fapnest Series/Fap Ceramiche,8.5mm
+MXCER-112,Fap Natural Porcelain Tile 8x48,Matte,$2.52,$39.06,15.50,6,Fapnest Series/Fap Ceramiche,8.5mm
+MXCER-43,Firenze Paglierino Hexagon Tile 8.5x10,Matte,$2.50,$31.63,12.65,29,Firenze Heritage Series/Fap,9mm
+MXCER-44,Firenze Paglierino Porcelain Tile 8x8,Matte,$2.50,$32.25,12.90,30,Firenze Heritage Series/Fap,9mm
+MXCER-46,Firenze Carbone Porcelain Tile 8x8,Matte,$2.50,$32.25,12.90,30,Firenze Heritage Series/Fap,9mm
+MXCER-42,Firenze Antico Deco Porcelain Tile 8x8,Matte,$2.50,$32.25,12.90,30,Firenze Heritage Series/Fap,9mm
+MXCER-41,Firenze Antico Porcelain Tile 8x8,Matte,$2.50,$32.25,12.90,30,Firenze Heritage Series/Fap,9mm
+MXCER-189,Florim Yamuna Finish 63X126 Matte Porcelain Slab | 12Mm,Honed,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-190,Florim Yamuna Finish 63X126 Polished Porcelain Slab | 12Mm,Polished,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-156,Florim Black Finish 63X126 Matte Porcelain Slab | 12Mm,Honed,$16.35,,SLAB,1,Color Slab Series / Florim,12mm
+MXCER-155,Florim Black Finish 63X126 Polished Porcelain Slab | 12Mm,Polished,$16.35,,SLAB,1,Color Slab Series / Florim,12mm
+MXCER-115,Florim Laurent Finish 63X126 Matte Porcelain Slab | 12Mm,Honed,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-94,Florim Marquinia Finish 63X126 Matte Porcelain Slab | 12Mm,Honed,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-93,Florim Marquinia Finish 63X126 Polished Porcelain Slab | 12Mm,Polished,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-96,Florim Cement Dark Grey Velvet Finish 63X126 Porcelain Slab | 12Mm,Velvet,$16.35,,SLAB,1,Cement Slab Series / Florim,12mm
+MXCER-186,Florim Eternal Gold Finish 63X126 Matte Porcelain Slab | 12Mm,Honed,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-187,Florim Eternal Gold Finish 63X126 Polished Porcelain Slab | 12Mm,Polished,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-95,Florim Cement Light Grey Finish 63X126 Matte Porcelain Slab | 12Mm,Honed,$16.35,,SLAB,1,Cement Slab Series / Florim,12mm
+MXCER-113,Florim Gray Finish 63X126 Matte Porcelain Slab | 12Mm,Honed,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-114,Florim Gray Finish 63X126 Polished Porcelain Slab | 12Mm,Polished,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-90,Florim Calacatta Gold Finish 63X126 Matte Porcelain Slab | 12Mm,Honed,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-89,Florim Calacatta Gold Finish 63X126 Polished Porcelain Slab | 12Mm,Polished,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-92,Florim Statuario Finish 63X126 Matte Porcelain Slab | 12Mm,Honed,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-91,Florim Statuario Finish 63X126 Polished Porcelain Slab | 12Mm,Polished,$16.35,,SLAB,1,Marble Slab Series / Florim,12mm
+MXCER-86,Genova Beige Honed Porcelain Tile 12x24,Polished,$1.50,$17.43,11.62,6,Genova Series / Bellacasa,8.5mm
+MXCER-88,Genova Galena Honed Porcelain Tile 12x24,Honed,$1.50,$17.43,11.62,6,Genova Series / Bellacasa,8.5mm
+MXCER-87,Genova Taupe Honed Porcelain Tile 12x24,Honed,$1.50,$17.43,11.62,6,Genova Series / Bellacasa,8.5mm
+MXCER-85,Genova Blanco Honed Porcelain Tile 12x24,Honed,$1.50,$17.43,11.62,6,Genova Series / Bellacasa,8.5mm
+MXCER-17,Greenwood Beige Porcelain Tile 3x18,Matte,$2.00,$19.38,9.69,26,Greenwood Series/Rondine,8.5mm
+MXCER-75,Greenwood Beige Porcelain Tile 10x48,R11,$4.65,$58.08,12.49,4,Greenwood Series/Rondine,10mm
+MXCER-21-1,Greenwood Beige Porcelain Tile 10x48,Matte,$4.00,$49.96,12.49,4,Greenwood Series/Rondine,8.5mm
+MXCER-58,Greenwood Beige Porcelain Paver 16x48,R11,$4.80,$24.77,5.16,1,Greenwood Series/Rondine,20mm
+MXCER-14,Greenwood Bruno Porcelain Tile 3x18,Matte,$2.00,$19.38,9.69,26,Greenwood Series/Rondine,8.5mm
+MXCER-74,Greenwood Bruno Porcelain Tile 10x48,R11,$4.65,$58.08,12.49,4,Greenwood Series/Rondine,10mm
+MXCER-18-1,Greenwood Bruno Porcelain Tile 10x48,Matte,$4.00,$49.96,12.49,4,Greenwood Series/Rondine,8.5mm
+MXCER-56,Greenwood Bruno Porcelain Paver 16x48,R11,$4.80,$24.77,5.16,1,Greenwood Series/Rondine,20mm
+MXCER-15,Greenwood Greige Porcelain Tile 3x18,Matte,$2.00,$19.38,9.69,26,Greenwood Series/Rondine,8.5mm
+MXCER-19-1,Greenwood Greige Porcelain Tile 10x48,Matte,$4.00,$49.96,12.49,4,Greenwood Series/Rondine,8.5mm
+MXCER-76,Greenwood Greige Strong Porcelain Tile 10x48,R11,$4.25,$53.08,12.49,4,Greenwood Series/Rondine,10mm
+MXCER-16,Greenwood Noce Porcelain Tile 3x18,Matte,$2.00,$19.38,9.69,26,Greenwood Series/Rondine,8.5mm
+MXCER-77,Greenwood Noce Porcelain Tile 10x48,R11,$4.25,$53.08,12.49,4,Greenwood Series/Rondine,10mm
+MXCER-20,Greenwood Noce Porcelain Tile 10x48,Matte,$4.15,$51.83,12.49,4,Greenwood Series/Rondine,8.5mm
+MXCER-57,Greenwood Noce Porcelain Paver 16x48,R11,$4.80,$24.77,5.16,1,Greenwood Series/Rondine,20mm
+MXCER-147,Heritage Sable Décor Porcelain Tile 13x13,Matte,$2.00,$26.22,13.11,11,Heritage (Ricchetti) Series,8.5mm
+MXCER-145,Heritage Sable Porcelain Tile 13x20,Matte,$2.00,$21.50,10.75,6,Heritage (Ricchetti) Series,8.5mm
+MXCER-146,Heritage Sable Porcelain Tile 20x40,Matte,$2.00,$32.26,16.13,3,Heritage (Ricchetti) Series,8.5mm
+MXCER-150,Heritage Blanc Décor Porcelain Tile 13x13,Matte,$2.00,$26.22,13.11,11,Heritage (Ricchetti) Series,8.5mm
+MXCER-148,Heritage Blanc Porcelain Tile 13x20,Matte,$2.00,$21.50,10.75,6,Heritage (Ricchetti) Series,8.5mm
+MXCER-149,Heritage Blanc Porcelain Tile 20x40,Matte,$2.00,$32.26,16.13,3,Heritage (Ricchetti) Series,8.5mm
+MXCER-109,Long Hexagon Marfil Porcelain Tile 9x19,Polished,$1.75,$21.21,12.12,12,Impero Series/Cinca,8.5mm
+MXCER-108,Long Hexagon Travertino Porcelain Tile 9x19,Polished,$1.75,$21.21,12.12,12,Impero Series/Cinca,8.5mm
+MXCER-110,Long Hexagon Dolomite Porcelain Tile 9x19,Polished,$1.75,$21.21,12.12,12,Impero Series/Cinca,8.5mm
+MXCER-208,Talco Travertine Look Porcelain Pattern,R11,$4.25,$32.94,7.75,6,Lumiere Series/Novabell,9mm
+MXCER-209,Cenere Travertine Look Porcelain Pattern,R11,$4.25,$32.94,7.75,6,Lumiere Series/Novabell,9mm
+MXCER-210,Sabbia Travertine Look Porcelain Pattern,R11,$4.25,$32.94,7.75,6,Lumiere Series/Novabell,9mm
+MXRON-123,Lutezia Brick Beige Porcelain Tile 2x8,Matte,$5.50,$28.38,5.16,50,Lutezia Brick Series/Rondine,9.5mm
+MXRON-125,Lutezia Brick Grey Porcelain Tile 2x8,Matte,$5.50,$28.38,5.16,50,Lutezia Brick Series/Rondine,9.5mm
+MXRON-124,Lutezia Brick Ivory Porcelain Tile 2x8,Matte,$5.50,$28.38,5.16,50,Lutezia Brick Series/Rondine,9.5mm
+MXRON-122,Lutezia Brick Taupe Porcelain Tile 2x8,Matte,$5.50,$28.38,5.16,50,Lutezia Brick Series/Rondine,9.5mm
+MXRON-105-R,Lutezia Beige Grip Porcelain Tile 24X48,R11,$5.75,$89.01,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-101,Lutezia Beige Matte Porcelain Tile 12x24,Matte,$4.50,$60.98,13.55,7,Lutezia Series/Rondine,8.5mm
+MXRON-105,Lutezia Beige Matte Porcelain Tile 24X48,Matte,$5.50,$85.14,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-113,Lutezia Decoro Senna Beige Porcelain Tile 24X48,Matte,$0.00,$0.00,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-109,Lutezia Loira Beige Porcelain Tile 24X48,Matte,$7.50,$116.10,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-117,Lutezia Mosaico Beige Porcelain Tile 12x12,Matte,$10.50,$60.90,5.80,6,Lutezia Series/Rondine,8.5mm
+MXRON-126,Lutezia Mosaico Calatrava Beige Porcelain Tile 12x12,Matte,$11.25,$67.73,6.02,6,Lutezia Series/Rondine,8.5mm
+MXRON-115,Lutezia Decoro Senna Grey Porcelain Tile 24X48,Matte,$0.00,$0.00,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-107-R,Lutezia Grey Grip Porcelain Tile 24X48,R11,$5.75,$89.01,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-103,Lutezia Grey Matte Porcelain Tile 12x24,Matte,$4.50,$60.98,13.55,7,Lutezia Series/Rondine,8.5mm
+MXRON-107,Lutezia Grey Matte Porcelain Tile 24X48,Matte,$5.50,$85.14,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-111,Lutezia Loira Grey Porcelain Tile 24X48,Matte,$7.50,$116.10,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-129,Lutezia Mosaico Calatrava Grey Porcelain Tile 12x12,Matte,$11.25,$67.73,6.02,6,Lutezia Series/Rondine,8.5mm
+MXRON-119,Lutezia Mosaico Grey Porcelain Tile 12x12,Matte,$10.50,$60.90,5.80,6,Lutezia Series/Rondine,8.5mm
+MXRON-106-R,Lutezia Ivory Grip Porcelain Tile 24X48,R11,$5.75,$89.01,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-102,Lutezia Ivory Matte Porcelain Tile 12x24,Matte,$4.50,$60.98,13.55,7,Lutezia Series/Rondine,8.5mm
+MXRON-106,Lutezia Ivory Matte Porcelain Tile 24X48,Matte,$5.50,$85.14,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-110,Lutezia Loira Ivory Porcelain Tile 24X48,Matte,$7.50,$116.10,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-128,Lutezia Mosaico Calatrava Ivory Porcelain Tile 12x12,Matte,$11.25,$67.73,6.02,6,Lutezia Series/Rondine,8.5mm
+MXRON-118,Lutezia Mosaico Ivory Porcelain Tile 12x12,Matte,$10.50,$60.90,5.80,6,Lutezia Series/Rondine,8.5mm
+MXRON-121,Lutezia Mosaico Star Ivory Porcelain Tile 16x13.8,Matte,$21.00,$126.42,6.02,4,Lutezia Series/Rondine,8.5mm
+MXRON-108,Lutezia Loira Taupe Porcelain Tile 24X48,Matte,$7.50,$116.10,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-127,Lutezia Mosaico Calatrava Taupe Porcelain Tile 12x12,Matte,$11.25,$67.73,6.02,6,Lutezia Series/Rondine,8.5mm
+MXRON-120,Lutezia Mosaico Star Taupe Porcelain Tile 16x13.8,Matte,$21.00,$126.42,6.02,4,Lutezia Series/Rondine,8.5mm
+MXRON-116,Lutezia Mosaico Taupe Porcelain Tile 12x12,Matte,$10.50,$60.90,5.80,6,Lutezia Series/Rondine,8.5mm
+MXRON-104-R,Lutezia Taupe Grip Porcelain Tile 24X48,R11,$5.75,$89.01,15.48,2,Lutezia Series/Rondine,8.5mm
+MXRON-100,Lutezia Taupe Matte Porcelain Tile 12x24,Matte,$4.50,$60.98,13.55,7,Lutezia Series/Rondine,8.5mm
+MXRON-104,Lutezia Taupe Matte Porcelain Tile 24X48,Matte,$5.50,$85.14,15.48,2,Lutezia Series/Rondine,8.5mm
+MXCER-195,Manhattan Black Porcelain Tile 3x10,Matte,$2.00,$24.18,12.09,60,Manhattan Series/Cinca,"7mm (0.28"")"
+MXCER-196,Manhattan Breeze Porcelain Tile 3x10,Matte,$2.00,$24.18,12.09,60,Manhattan Series/Cinca,"7mm (0.28"")"
+MXCER-197,Manhattan Caramel Porcelain Tile 3x10,Matte,$2.00,$24.18,12.09,60,Manhattan Series/Cinca,"7mm (0.28"")"
+MXCER-198,Manhattan Silver Porcelain Tile 3x10,Matte,$2.00,$24.18,12.09,60,Manhattan Series/Cinca,"7mm (0.28"")"
+MXCER-199,Manhattan White Porcelain Tile 3x10,Matte,$2.00,$24.18,12.09,60,Manhattan Series/Cinca,"7mm (0.28"")"
+MXCERSLB-102,Florim Brun -Look Silk Finish 63X126 Porcelain Slab | 12Mm,Silk,$16.50,,SLAB,1,Marble Slab Series / Florim,12mm
+MXTAG-102,Marmi Imperiali Zenobia Porcelain Tile 12x12,Matte,$4.00,$23.24,5.81,6,Marmi Imperiali Series/Tagina,10mm
+MXTAG-103,Marmi Imperiali Zenobia Porcelain Tile 24x24,Matte,$4.75,$55.15,11.61,3,Marmi Imperiali Series/Tagina,10mm
+MXTAG-104,Marmi Imperiali Decoro Danum Porcelain Tile 24x24,Matte,$5.75,$66.76,11.61,3,Marmi Imperiali Series/Tagina,10mm
+MXTAG-100,Marmi Imperiali Aurelia Porcelain Tile 12x12,Matte,$4.00,$23.24,5.81,6,Marmi Imperiali Series/Tagina,10mm
+MXTAG-101,Marmi Imperiali Aurelia Porcelain Tile 24x24,Matte,$4.75,$55.15,11.61,3,Marmi Imperiali Series/Tagina,10mm
+MXTAG-105,Marmi Imperiali Decoro Valentia Porcelain Tile 24x24,Matte,$5.75,$66.76,11.61,3,Marmi Imperiali Series/Tagina,10mm
+MXPMS-102,Crystal White Matte Porcelain Tile 24x48,Matte,$4.20,$65.02,15.48,2,Marmoles Series/Pamesa,8.5mm
+MXPMS-103,Crystal White Polished Porcelain Tile 24x48,Polished,$4.50,$69.66,15.48,2,Marmoles Series/Pamesa,8.5mm
+MXPMS-101,Dolomite Bianco Polished Porcelain Tile 12x24,Polished,$4.50,$52.29,11.62,6,Marmoles Series/Pamesa,8.5mm
+MXCER-201,Match Up Cookie Mix Comfort Porcelain Tile 24x24,Matte,$4.50,$52.29,11.62,3,Match Up Series/Florim,8.5mm
+MXCER-202,Match Up Cookie Mix Porcelain Tile 24x48,Polished,$5.75,$133.52,23.22,3,Match Up Series/Florim,9mm
+MXCER-308,Match Up Sugar Comfort Porcelain Tile 24x24,Matte,$4.50,$52.29,11.62,3,Match Up Series/Florim,8.5mm
+MXCER-200,Match Up Sugar Mix Comfort Porcelain Tile 24x24,Matte,$4.50,$52.29,11.62,3,Match Up Series/Florim,8.5mm
+MXCER-307,Match Up Sugar Mix Porcelain Tile 24x48,Polished,$5.75,$133.52,23.22,3,Match Up Series/Florim,9mm
+MXCER-203-1,Match up Earl Grey Comfort Porcelain Tile 24x24,Matte,$4.50,$52.29,11.62,3,Match Up Series/Florim,8.5mm
+MXCER-203,Match up Earl Grey Mix Comfort Porcelain Tile 24x24,Matte,$4.50,$52.29,11.62,3,Match Up Series/Florim,8.5mm
+MXCER-204,Match up Earl Grey Mix Porcelain Tile 24x48,Polished,$5.75,$133.52,23.22,3,Match Up Series/Florim,9mm
+MX9207,Heritage Anthracite Porcelain Tile 8x8,Matte,$2.00,$16.88,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9268,Heritage Braga 9268 Porcelain Tile 8x8,Matte,$2.25,$18.99,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9275,Heritage Braga 9275 Porcelain Tile 8x8,Matte,$2.25,$18.99,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9276,Heritage Braga 9276 Porcelain Tile 8x8,Matte,$2.25,$18.99,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9277,Heritage Braga 9277 Porcelain Tile 8x8,Matte,$2.25,$18.99,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9209,Heritage Coimbra 9209 Porcelain Tile 8x8,Matte,$2.25,$18.99,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9210,Heritage Coimbra 9210 Porcelain Tile 8x8,Matte,$2.25,$18.99,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9214,Heritage Coimbra 9214 Porcelain Tile 8x8,Matte,$2.50,$21.10,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9206,Heritage Grey Porcelain Tile 8x8,Matte,$2.00,$16.88,8.44,9,Mix & Match Series/Cinca,8.5mm
+MX9215,Heritage Porto 9215 Porcelain Tile 8x8,Matte,$2.25,$18.99,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9216,Heritage Porto 9216 Porcelain Tile 8x8,Matte,$2.25,$18.99,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9221,Heritage Porto 9221 Porcelain Tile 8x8,Matte,$2.25,$18.99,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9380,Heritage Cascais Pastel 9380 Porcelain Tile 8x8,Matte,$2.25,$18.99,8.44,19,Mix & Match Series/Cinca,8.5mm
+MX9205,Heritage White Porcelain Tile 8x8,Matte,$2.00,$16.88,8.44,9,Mix & Match Series/Cinca,8.5mm
+MXFAB-10,Noble Stone Beige Porcelain Tile 24X48,Matte,$5.25,$81.27,15.48,2,Noble Stone/La Fabbrica Ava,8.8mm
+MXFAB-12,Noble Stone Grey Porcelain Tile 24X48,Matte,$5.25,$81.27,15.48,2,Noble Stone/La Fabbrica Ava,8.8mm
+MXFAB-11,Noble Stone White Porcelain Tile 24X48,Matte,$5.25,$81.27,15.48,2,Noble Stone/La Fabbrica Ava,8.8mm
+MXCER-26,Ontario Beige Porcelain Tile 10x48,Matte,$2.52,$31.45,12.48,4,Ontario Series/Rondine,10mm
+MXCER-24,Ontario Brown Porcelain Tile 10x48,Matte,$2.52,$31.45,12.48,4,Ontario Series/Rondine,10mm
+MXCER-27,Ontario Tobacco Porcelain Tile 10x48,Matte,$2.52,$31.45,12.48,4,Ontario Series/Rondine,10mm
+MXCER-25,Ontario Silver Porcelain Tile 10x48,Matte,$2.52,,12.48,4,Ontario Series/Rondine,10mm
+MX207201,Newker QStone Porcelain Tile 16x48,Matte,$2.75,,15.50,3,Qstone Series/Newker,8.5mm
+MX207207,Newker QStone Strip Porcelain Tile 16x48,Matte,$2.75,,15.50,3,Qstone Series/Newker,8.5mm
+MX207205,Newker QStone Work Porcelain Tile 16x48,Matte,$2.75,,15.50,3,Qstone Series/Newker,8.5mm
+MXCER-29,Rivamancina Terra Porcelain Tile 8x48,Matte,$2.50,,10.32,4,Rivamancina Series/Tagina,10mm
+MXCER-28,Rivamancina Cenere Porcelain Tile 8x48,Matte,$2.50,,10.32,4,Rivamancina Series/Tagina,10mm
+MX209201,Newker Garden Porcelain Tile 12x36,Semi Polished,$2.50,$28.53,11.41,4,Shine Series/Newker,8.5mm
+MXCER-53,Soft Sugar Porcelain Tile Matte 6x48,Matte,$4.00,$46.48,11.62,6,Soft Series / Richetti,8.5mm
+MXCER-52,Soft Sugar Porcelain Tile Matte 8x48,Polished,$4.00,$51.68,12.92,6,Soft Series / Richetti,8.5mm
+MXCER-55,Soft Cendre Porcelain Tile Matte 6x48,Matte,$4.00,$46.48,11.62,6,Soft Series / Richetti,8.5mm
+MXCER-54,Soft Cendre Porcelain Tile Matte 8x48,Matte,$4.00,$51.68,12.92,6,Soft Series / Richetti,8.5mm
+MXCER-175,Pris Light (Start Light) Porcelain Tile 24x24,Matte,$3.00,$24.00,8.00,2,Start Series/Prissma Cer,20mm
+MXCERSLB-108,Florim Marfil Finish 63X126 Matte Porcelain Slab | 12Mm,Matte,$16.50,,SLAB,1,"Stone Slab Series / Florim, Florim Porcelain Slabs",12mm
+MXCERSLB-109,Florim Marfil Glossy Finish 63X126 Porcelain Slab | 12Mm,Glossy,$16.50,,SLAB,1,"Stone Slab Series / Florim, Florim Porcelain Slabs",12mm
+MXCERSLB-103,Florim Luciana Stone-Look Finish 63X126 Leather Porcelain Slab | 12Mm,Leather,$16.35,,SLAB,1,Stone Slab Series / Florim,12mm
+MXCERSLB-100,Florim Pearl Silk Finish 63X126 Porcelain Slab | 12Mm,Silk,$16.35,,SLAB,1,Stone Slab Series / Florim,12mm
+MXCERSLB-110,Florim Jura Silk Finish 63X126 Porcelain Slab | 12Mm,Silk,$16.50,,SLAB,1,"Stone Slab Series / Florim, Florim Porcelain Slabs",12mm
+MXCERSLB-106,Florim Dijon -Look Lithos Finish 63X126 Porcelain Slab | 12Mm,Lithos,$16.35,,SLAB,1,Stone Slab Series / Florim,12mm
+MXCERSLB-101,Florim Gold Silk Finish 63X126 Porcelain Slab | 12Mm,Silk,$16.35,,SLAB,1,Stone Slab Series / Florim,12mm
+MXCERSLB-104,Florim Mont Pellie -Look Finish 63X126 Leather Porcelain Slab | 12Mm,Leather,$16.35,,SLAB,1,Stone Slab Series / Florim,12mm
+MXCERSLB-105,Florim Chablis -Look Finish 63X126 Leather Porcelain Slab | 12Mm,Leather,$16.50,,SLAB,1,Stone Slab Series / Florim,12mm
+MXCER-206,Stonetech Black-Stone-06 Porcelain Tile 24x48,R11,$5.75,$89.13,15.50,2,Stonetech Series/Florim,9mm
+MXCER-205,Stonetech Grey-Stone-05 Porcelain Tile 24x48,R11,$5.75,$89.13,15.50,2,Stonetech Series/Florim,9mm
+MXCER-151,Casamood Rubber Porcelain Tile 24x24,Matte,$4.75,$55.20,11.62,3,Studios Series/Florim,8.5mm
+MXCER-152,Casamood Chalk Porcelain Tile 24x24,Matte,$4.75,$55.20,11.62,3,Studios Series/Florim,8.5mm
+MXCER-139,Tempo Decor Basket (Grey) Porcelain Tile 10x30,Matte,$2.00,$32.32,16.16,8,Tempo Series/Newker,8.5mm
+MXCER-140,Tempo Decor Wave (Wall) Porcelain Tile 10x30,Matte,$2.00,$32.32,16.16,8,Tempo Series/Newker,8.5mm
+MXCER-138,Tempo Grey Porcelain Tile 10x30,Matte,$2.00,$32.32,16.16,8,Tempo Series/Newker,8.5mm
+MXCER-141,Tempo Grey Porcelain Tile 36x36,Matte,$2.50,$43.55,17.42,2,Tempo Series/Newker,8.5mm
+MXCER-142,Tempo Decor Basket (White) Porcelain Tile 10x30,Matte,$2.00,$32.32,16.16,8,Tempo Series/Newker,8.5mm
+MXCER-143,Tempo Decor Wave (Wall) Porcelain Tile 10x30,Matte,$2.00,$32.32,16.16,8,Tempo Series/Newker,8.5mm
+MXCER-144,Tempo White Porcelain Tile 10x30,Matte,$2.00,$32.32,16.16,8,Tempo Series/Newker,8.5mm
+MXMC-211,Argilla Hexagon Porcelain Tile 8.5x10,Honed,$5.50,$69.80,12.69,29,Terracreta Series/Marca Corona,9mm
+MXMC-219,Argilla Porcelain Tile 8x8,Honed,$5.50,$70.95,12.90,30,Terracreta Series/Marca Corona,9mm
+MXMC-222,Forma Argilla Porcelain Tile 8x8,Honed,$5.50,$61.49,11.18,26,Terracreta Series/Marca Corona,9mm
+MXMC-223,Rilievo Argilla Porcelain Tile 8x8,Honed,$5.50,$61.49,11.18,26,Terracreta Series/Marca Corona,9mm
+MXMC-217,Intarsio Argilla Hexagon Porcelain Tile 8.5x10,Honed,$5.50,$69.80,12.69,29,Terracreta Series/Marca Corona,9mm
+MXMC-214,Oltremare Hexagon Porcelain Tile 8.5x10,Honed,$5.50,$69.80,12.69,29,Terracreta Series/Marca Corona,9mm
+MXMC-221,Oltremare Porcelain Tile 8x8,Honed,$5.50,$70.95,12.90,30,Terracreta Series/Marca Corona,9mm
+MXMC-226,Dipinto Chamotte Hexagon Porcelain Tile 8.5x10,Honed,$5.50,$69.80,12.69,29,Terracreta Series/Marca Corona,9mm
+MXMC-225,Dipinto Marna Hexagon Porcelain Tile 8.5x10,Honed,$5.50,$69.80,12.69,29,Terracreta Series/Marca Corona,9mm
+MXMC-212,Chamotte Hexagon Porcelain Tile 8.5x10,Honed,$5.50,$69.80,12.69,29,Terracreta Series/Marca Corona,9mm
+MXMC-216,Cesello Chamotte Hexagon Porcelain Tile 8.5x10,Honed,$5.50,$69.80,12.69,29,Terracreta Series/Marca Corona,9mm
+MXMC-224,Intarsio Chamotte Hexagon Porcelain Tile 8.5x10,Honed,$5.50,$69.80,12.69,29,Terracreta Series/Marca Corona,9mm
+MXMC-213,Marna Hexagon Porcelain Tile 8.5x10,Honed,$5.50,$69.80,12.69,29,Terracreta Series/Marca Corona,9mm
+MXMC-220,Marna Porcelain Tile 8x8,Honed,$5.50,$70.95,12.90,30,Terracreta Series/Marca Corona,9mm
+MXMC-215,Cesello Argilla Hexagon Porcelain Tile 8.5x10,Honed,$5.50,$69.80,12.69,29,Terracreta Series/Marca Corona,9mm
+MX208207,Newker Tevere Decor Porcelain Tile 12x36,Matte,$2.75,$31.93,11.61,4,Tevere Series/Newker,10mm
+MXCER-38,Timeless Travertino Antique Porcelain Tile 12x24,R11,$4.65,$53.99,11.61,6,Timeless Series/Florim,9mm
+MXCER-37,Timeless Travertino Matte Porcelain Tile 12x24,Matte,$4.65,$53.99,11.61,6,Timeless Series/Florim,9mm
+MXCER-72,Timeless Travertino Matte Porcelain Tile 24x48,Matte,$5.25,$81.38,15.50,2,Timeless Series/Florim,9mm
+MXCER-39,Timeless Travertino Polished Porcelain Tile 12x24,Polished,$5.00,$58.05,11.61,6,Timeless Series/Florim,9mm
+MXCER-73,Timeless Travertino Polished Porcelain Tile 24x48,Polished,$6.00,$93.00,15.50,2,Timeless Series/Florim,9mm
+MXCER-31,Timeless Black Deep Porcelain Tile 12x24,Matte,$4.25,$49.34,11.61,6,Timeless Series/Florim,9mm
+MXCER-33,Timeless Black Deep Porcelain Tile 12x24,Polished,$5.00,$58.05,11.61,6,Timeless Series/Florim,9mm
+MXCER-32,Timeless Black Deep Porcelain Tile 12x24,R11,$4.25,$49.34,11.61,6,Timeless Series/Florim,9mm
+MXCER-35,Timeless Amani Grey Porcelain Tile 12x24,R11,$4.65,$53.99,11.61,6,Timeless Series/Florim,9mm
+MXCER-34,Timeless Amani Grey Porcelain Tile 12x24,Matte,$4.25,$49.34,11.61,6,Timeless Series/Florim,9mm
+MXCER-36,Timeless Amani Grey Porcelain Tile 12x24,Polished,$5.00,$58.05,11.61,6,Timeless Series/Florim,9mm
+MXCER-71,Timeless Amani Grey Porcelain Tile 24x48,Polished,$6.00,$93.00,15.50,2,Timeless Series/Florim,9mm
+MXCER-70,Timeless Amani Grey Porcelain Tile 24x48,Matte,$5.50,$85.25,15.50,2,Timeless Series/Florim,9mm
+MXCER-105,Timeless Calacatta Porcelain Tile 24x24,Polished,$5.50,$63.86,11.61,3,Timeless Series/Florim,9mm
+MXCER-106,Timeless Calacatta Porcelain Tile 24x48,Polished,$6.25,$96.88,15.50,2,Timeless Series/Florim,9mm
+MXCER-164,Timeless Calacatta Porcelain Tile 24x48,Honed,$5.50,$85.25,15.50,2,Timeless Series/Florim,9mm
+MX210206,Newker Tresor Décor Silver Porcelain Tile 13x36,Matte,$2.50,$30.35,12.14,4,Tresor Series/Newker,8.5mm
+MX210204,Newker Tresor Décor White Porcelain Tile 13x36,Matte,$2.50,$30.35,12.14,4,Tresor Series/Newker,8.5mm
+MX210200,Newker Tresor White Porcelain Tile 13x36,Matte,$2.50,$30.35,12.14,4,Tresor Series/Newker,8.5mm
+MXCER-69,Trinity Lux Black 12X24 Polished Porcelain Tile | 8.5Mm,Polished,$2.00,$23.24,11.62,6,Trinity Series / Azteca,8.5mm
+MXCER-68,Trinity Lux Graphite 12X24 Polished Porcelain Tile | 8.5Mm,Polished,$2.00,$23.24,11.62,6,Trinity Series / Azteca,8.5mm
+MXCER-67,Trinity Lux Superwhite 12X24 Polished Porcelain Tile | 8.5Mm,Polished,$2.00,$23.24,11.62,6,Trinity Series / Azteca,8.5mm
+MXCER-78,Trust Black Honed Porcelain Tile 12x24,Honed,$2.50,$38.70,15.48,8,Trust Series/Abitare La Ceramica,8.2mm
+MXCER-79,Trust Black Brushed Porcelain Tile 12x24,Brushed,$2.50,$38.95,15.58,8,Trust Series/Abitare La Ceramica,8.2mm
+MXCER-81,Trust Grey Brushed Porcelain Tile 12x24,Brushed,$2.50,$38.95,15.58,8,Trust Series/Abitare La Ceramica,8.2mm
+MXCER-80,Trust Grey Porcelain Tile 12x24,Honed,$2.50,$38.70,15.48,8,Trust Series/Abitare La Ceramica,8.2mm
+MXCER-82,Trust Muretto Mix Porcelain Tile 12x24,Honed,$2.50,$33.88,13.55,7,Trust Series/Abitare La Ceramica,9mm
+MXCER-84,Trust White Brushed Porcelain Tile 12x24,Brushed,$2.50,$38.95,15.58,8,Trust Series/Abitare La Ceramica,8.2mm
+MXCER-83,Trust White Porcelain Tile 12x24,Honed,$2.50,$38.70,15.48,8,Trust Series/Abitare La Ceramica,8.2mm
+MXCER-118,Century Desert Porcelain Paver 20x40,R11,$3.00,$16.26,5.42,1,Two 20 Mm Series/Century (Fincibec),20mm
+MXCER-119,Century Grey Porcelain Paver 20x40,R11,$3.00,$16.26,5.42,1,Two 20 Mm Series/Century (Fincibec),20mm
+MXRON-132,Vibe Bone Glossy Wall Tile 2x8,Glossy,$6.00,$30.96,5.16,50,Vibe Series / Rondine,9.5mm
+MXRON-130,Vibe Ocean Blue Glossy Wall Tile 2x8,Glossy,$6.00,$30.96,5.16,50,Vibe Series / Rondine,9.5mm
+MXRON-131,Vibe Sea Water Glossy Wall Tile 2x8,Glossy,$6.00,$30.96,5.16,50,Vibe Series / Rondine,9.5mm
+MXRON-134,Vibe Tuscan Clay Glossy Wall Tile 2x8,Glossy,$6.00,$30.96,5.16,50,Vibe Series / Rondine,9.5mm
+MXRON-133,Vibe Forest Green Glossy Wall Tile 2x8,Glossy,$6.00,$30.96,5.16,50,Vibe Series / Rondine,9.5mm
+MXRON-135,Vibe Artic Snow Glossy Wall Tile 2x8,Glossy,$6.00,$30.96,5.16,50,Vibe Series / Rondine,9.5mm
+MXCER-176,Victoria Almond Porcelain Tile 24x24,Matte,$2.50,$29.03,11.61,3,Victoria Series/Bottega,8.5mm
+MXCER-181,Victoria Almond Hexagon Porcelain Mosaic 3.6x3.6,Matte,$16.00,$104.80,6.55,6,Victoria Series/Bottega,8.5mm
+MXCER-177,Victoria Beige Porcelain Tile 24x24,Matte,$2.50,$29.03,11.61,3,Victoria Series/Bottega,8.5mm
+MXCER-182,Victoria Beige Hexagon Porcelain Mosaic 3.6x3.6,Matte,$16.00,$104.80,6.55,6,Victoria Series/Bottega,8.5mm
+MXCER-183,Victoria Charcoal Hexagon Porcelain Mosaic 3.6x3.6,Matte,$16.00,$104.80,6.55,6,Victoria Series/Bottega,8.5mm
+MXCER-178,Victoria Charcoal Porcelain Tile 24x24,Matte,$2.50,$29.03,11.61,3,Victoria Series/Bottega,8.5mm
+MXCER-179,Victoria Turtledove Porcelain Tile 24x24,Matte,$2.50,$29.03,11.61,3,Victoria Series/Bottega,8.5mm
+MXCER-184,Victoria Turtledove Hexagon Porcelain Mosaic 3.6x3.6,Matte,$16.00,$104.80,6.55,6,Victoria Series/Bottega,8.5mm
+MXCER-180,Victoria White Porcelain Tile 24x24,Matte,$2.50,$29.03,11.61,3,Victoria Series/Bottega,8.5mm
+MXCER-185,Victoria White Hexagon Porcelain Mosaic 3.6x3.6,Matte,$16.00,$104.80,6.55,6,Victoria Series/Bottega,8.5mm
+MXCER-174,Polis Marsili Porcelain Paver 18x36,R11,$3.25,$28.28,8.70,2,Volcano (Polis),20mm
+MCER-175,Polis Etna Porcelain Paver 18x36,"Antique, R11",$3.25,$28.28,8.70,2,Volcano (Polis),20mm
+MXCER-173,Polis Salina Porcelain Paver 18x36,R11,$3.25,$28.28,8.70,2,Volcano (Polis),20mm
+MXCER-121,Volcano Beige Porcelain Tile 12x24,Matte,$4.20,$48.89,11.64,6,Volcano Series (Rondine),8.5mm
+MXCER-120,Volcano Beige Porcelain Tile 24x48,Matte,$5.00,$77.40,15.48,2,Volcano Series (Rondine),8.5mm
+MXCER-123-1,Volcano Dark Porcelain Tile 12x24,Matte,$4.20,$48.89,11.64,6,Volcano Series (Rondine),8.5mm
+MXCER-122,Volcano Dark Porcelain Tile 24x48,Matte,$5.50,$85.14,15.48,2,Volcano Series (Rondine),8.5mm
+MXCER-125,Volcano Grey Porcelain Tile 12x24,Matte,$4.20,$48.89,11.64,6,Volcano Series (Rondine),8.5mm
+MXCER-124,Volcano Grey Porcelain Tile 24x48,Matte,$5.50,$85.14,15.48,2,Volcano Series (Rondine),8.5mm
+MXCER-127,Volcano Taupe Porcelain Tile 12x24,Matte,$4.50,$52.38,11.64,6,Volcano Series (Rondine),8.5mm
+MXCER-126,Volcano Taupe Porcelain Tile 24x48,Matte,$5.00,$77.40,15.48,2,Volcano Series (Rondine),8.5mm
+MXCER-129,Volcano White Porcelain Tile 12x24,Matte,$4.20,$48.89,11.64,6,Volcano Series (Rondine),8.5mm
+MXCER-128,Volcano White Porcelain Tile 24x48,Matte,$5.50,$85.14,15.48,2,Volcano Series (Rondine),8.5mm
+MXCER-229,Volume Light Blue Bamboo Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-230,Volume Light Blue Ladder Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-231,Volume Light Blue Porcelain Tile 2 1/3 x10,Matte,$5.00,$25.80,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-232,Volume Light Blue Pyramid Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-225,Volume Ivory Bamboo Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-226,Volume Ivory Ladder Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-227,Volume Ivory Porcelain Tile 2 1/3 x10,Matte,$5.00,$25.80,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-228,Volume Ivory Pyramid Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-237,Volume Sage Bamboo Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-238,Volume Sage Ladder Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-239,Volume Sage Porcelain Tile 2 1/3 x10,Matte,$5.00,$25.80,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-240,Volume Sage Pyramid Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-233,Volume Ocean Bamboo Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-234,Volume Ocean Ladder Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-235,Volume Ocean Porcelain Tile 2 1/3 x10,Matte,$5.00,$25.80,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-236,Volume Ocean Pyramid Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-241,Volume White Bamboo Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-242,Volume White Ladder Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-243,Volume White Porcelain Tile 2 1/3 x10,Matte,$5.00,$25.80,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-244,Volume White Pyramid Porcelain Tile 2 1/3 x10,Matte,$5.50,$28.38,5.16,32,Volume Series / Rondine,9.5mm
+MXCER-13,Woodstock Sand (Ab-L8) 9X35 Matte Porcelain Tile | 8.5Mm,Matte,$2.25,$19.69,8.75,4,Woodstock Series / Tau,8.5mm
+MXCER-12,Woodstock Almond (Ab-L8) 9X35 Matte Porcelain Tile | 8.5Mm,Matte,$2.25,$19.69,8.75,4,Woodstock Series / Tau,8.5mm
+MXCER-11,Woodstock Brown (Ab-L8) 9X35 Matte Porcelain Tile | 8.5Mm,Matte,$2.25,$19.69,8.75,4,Woodstock Series / Tau,8.5mm
+MXCER-10,Woodstock Graphite (Ab-L8) 9X35 Matte Porcelain Tile | 8.5Mm,Matte,$2.25,$19.69,8.75,4,Woodstock Series / Tau,8.5mm
