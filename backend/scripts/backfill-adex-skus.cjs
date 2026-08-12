@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PRODUCT_MAP_PATH = path.join(__dirname, '..', 'data', 'adex-product-map.json');
-const RETAIL_MARKUP = 2.5;
+const RETAIL_MARKUP = 1.6;
 
 const FINISHES = ['Glossy', 'Matte', 'Satin', 'Polished', 'Honed', 'Textured', 'Crackle', 'Metallic'];
 

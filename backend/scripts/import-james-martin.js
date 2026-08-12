@@ -357,15 +357,16 @@ async function main() {
         // 3.7 Upsert pricing
         if (mapPrice && mapPrice > 0) {
           const cost = parseFloat((mapPrice * 0.5).toFixed(2));
-          const retail = parseFloat(mapPrice.toFixed(2));
+          const retail = parseFloat(mapPrice.toFixed(2)); // retail = MAP
           await db.query(`
-            INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
-            VALUES ($1, $2, $3, 'per_unit')
+            INSERT INTO pricing (sku_id, cost, retail_price, map_price, price_basis)
+            VALUES ($1, $2, $3, $4, 'per_unit')
             ON CONFLICT (sku_id) DO UPDATE SET
               cost = EXCLUDED.cost,
               retail_price = EXCLUDED.retail_price,
+              map_price = EXCLUDED.map_price,
               price_basis = EXCLUDED.price_basis
-          `, [skuId, cost, retail]);
+          `, [skuId, cost, retail, retail]);
           stats.pricing++;
         } else {
           stats.skipped_no_map++;

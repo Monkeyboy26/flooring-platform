@@ -24,7 +24,7 @@ import XLSX from 'xlsx';
 
 // ==================== Config ====================
 
-const RETAIL_MARKUP = 2.5;
+const RETAIL_MARKUP = 1.6;
 
 const CAT = {
   ceramic:  '650e8400-e29b-41d4-a716-446655440013',
