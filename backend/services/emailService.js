@@ -27,6 +27,8 @@ import { generatePaymentRequestHTML } from '../templates/paymentRequest.js';
 import { generatePaymentReceivedHTML } from '../templates/paymentReceived.js';
 import { generateCreditMemoIssuedHTML } from '../templates/creditMemoIssued.js';
 import { generateMaterialReleaseHTML } from '../templates/materialRelease.js';
+import { generateInstallScheduledHTML } from '../templates/installScheduled.js';
+import { generateInstallCompleteHTML } from '../templates/installComplete.js';
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -37,6 +39,13 @@ const SMTP_FROM = process.env.SMTP_FROM || 'noreply@romaflooringdesigns.com';
 const SALES_FROM = process.env.SALES_FROM || 'sales@romaflooringdesigns.com';
 const BRAND_NAME = 'Roma Flooring Designs';
 const DEFAULT_FROM = `"${BRAND_NAME}" <${SMTP_FROM}>`;
+
+// Minimal HTML escaper for interpolating user/staff-entered text into email HTML.
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 // Automated security (2FA, password reset, welcome) and bulk/system notifications
 // (stock alerts, internal digests, scraper alerts) send from the no-reply address.
 // No real noreply@ mailbox exists yet, so this defaults to the authenticated
@@ -196,11 +205,15 @@ export async function sendMaterialRelease(data, opts = {}) {
   try {
     const html = generateMaterialReleaseHTML(data);
     const isDelivery = data.release_method === 'delivery';
+    const isWillCall = data.release_method === 'will_call';
+    const subjectState = isDelivery ? 'released for delivery'
+      : isWillCall ? `ready to pick up at ${data.distributor_name || 'the distributor'}`
+      : 'ready for pickup';
     await deliver({
       from: repFrom(data),
       to: data.customer_email,
       replyTo: data.rep_email,
-      subject: `Material release ${data.release_number} — your order is ${isDelivery ? 'released for delivery' : 'ready for pickup'}`,
+      subject: `Material release ${data.release_number} — your order is ${subjectState}`,
       html,
       ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {})
     });
@@ -242,6 +255,58 @@ export async function sendOrderStatusUpdate(orderData, status) {
     console.log(`[Email] Status update (${status}) sent to ${orderData.customer_email} for ${orderData.order_number}`);
   } catch (err) {
     console.error(`[Email] Failed to send status update (${status}) for ${orderData.order_number}:`, err.message);
+  }
+}
+
+/**
+ * Send "installation scheduled" email to the customer (rep booked the date).
+ */
+export async function sendInstallScheduled(orderData) {
+  if (!transporter) {
+    console.log(`[Email] Skipping install-scheduled email for ${orderData.order_number} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateInstallScheduledHTML(orderData);
+    if (!html) return { sent: false };
+    await deliver({
+      from: repFrom(orderData),
+      to: orderData.customer_email,
+      replyTo: orderData.rep_email,
+      subject: `Your Installation Is Scheduled — ${orderData.order_number}`,
+      html
+    });
+    console.log(`[Email] Install-scheduled sent to ${orderData.customer_email} for ${orderData.order_number}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send install-scheduled for ${orderData.order_number}:`, err.message);
+    return { sent: false };
+  }
+}
+
+/**
+ * Send "installation complete" email to the customer (job marked complete).
+ */
+export async function sendInstallComplete(orderData, balance) {
+  if (!transporter) {
+    console.log(`[Email] Skipping install-complete email for ${orderData.order_number} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateInstallCompleteHTML(orderData, balance);
+    if (!html) return { sent: false };
+    await deliver({
+      from: repFrom(orderData),
+      to: orderData.customer_email,
+      replyTo: orderData.rep_email,
+      subject: `Your Installation Is Complete — ${orderData.order_number}`,
+      html
+    });
+    console.log(`[Email] Install-complete sent to ${orderData.customer_email} for ${orderData.order_number}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send install-complete for ${orderData.order_number}:`, err.message);
+    return { sent: false };
   }
 }
 
@@ -416,7 +481,7 @@ export async function sendInstallationInquiryConfirmation(inquiry) {
 /**
  * Send purchase order PDF to vendor via email.
  */
-export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_number, is_revised, pdf_buffer, rep_email, rep_name, vendor_contact_email }) {
+export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_number, is_revised, pdf_buffer, rep_email, rep_name, vendor_contact_email, cc_list, notes }) {
   if (!transporter) {
     console.log(`[Email] Skipping PO email for ${po_number} to ${vendor_email} — SMTP not configured`);
     return { sent: false };
@@ -440,6 +505,10 @@ export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_
     <div style="background:#f5f5f4;display:inline-block;padding:12px 32px;margin:0 0 24px;font-size:18px;font-weight:500;color:#1c1917;">
       ${po_number}
     </div>
+    ${notes && String(notes).trim() ? `<div style="text-align:left;background:#faf7f2;border:1px solid #e7e0d4;border-left:3px solid #a87935;padding:14px 18px;margin:0 0 24px;">
+      <div style="font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#a87935;margin:0 0 6px;">Notes</div>
+      <div style="color:#57534e;font-size:14px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(String(notes).trim())}</div>
+    </div>` : ''}
     <p style="color:#78716c;font-size:13px;margin:0;">
       If you have any questions, please contact us at (714) 999-0009 or Sales@romaflooringdesigns.com
     </p>
@@ -451,7 +520,11 @@ export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_
 </td></tr></table>
 </body></html>`;
 
-    const cc = [rep_email, vendor_contact_email].filter(Boolean);
+    // An explicit cc_list (from the send dialog) overrides the default CC set of
+    // rep + vendor primary contact. Dedupe against the To address.
+    const cc = (Array.isArray(cc_list) ? cc_list : [rep_email, vendor_contact_email])
+      .filter(Boolean)
+      .filter(addr => addr.toLowerCase() !== String(vendor_email || '').toLowerCase());
     await deliver({
       from: `"${BRAND_NAME} Purchasing" <${SALES_FROM}>`,
       to: vendor_email,
@@ -936,8 +1009,8 @@ export async function sendOrderInvoiceEmail({ order, items, balance, checkout_ur
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border:1px solid #e7e5e4;">
   <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
     <div style="text-align:center;">
-<p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;line-height:1;font-weight:400;letter-spacing:0.34em;color:#15120f;">ROMA <span style="font-size:15px;letter-spacing:0.2em;color:#57534e;">FLOORING</span></p>
-<p style="margin:-5px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script','Cormorant Garamond',cursive;font-size:31px;line-height:1;color:#c9a668;">Designs</p>
+<p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;line-height:1;font-weight:400;letter-spacing:0.34em;color:#1c1917;">ROMA <span style="font-size:15px;letter-spacing:0.2em;color:#57534e;">FLOORING</span></p>
+<p style="margin:-10px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script','Cormorant Garamond',cursive;font-size:33px;line-height:1;color:#a87935;">Designs</p>
 </div>
   </td></tr>
   <tr><td style="padding:32px 40px 16px;text-align:center;">

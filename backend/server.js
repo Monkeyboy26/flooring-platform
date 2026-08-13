@@ -8,7 +8,7 @@ import XLSX from 'xlsx';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -26,7 +26,7 @@ import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCom
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers, findExactDuplicate } from './lib/customerHelpers.js';
-import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateLabelSheetHtml, generateLabelRollHtml, renderLabelPngs, generateLabelImageRollHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
+import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateWorkOrderDoc, generateLabelSheetHtml, generateLabelRollHtml, renderLabelPngs, generateLabelImageRollHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -16833,6 +16833,46 @@ app.put('/api/rep/orders/:id/items/:itemId/ready', repAuth, async (req, res) => 
   } finally { client.release(); }
 });
 
+// Set / update the installation schedule on an order (rep). Books the date/
+// window/crew, logs it, and (unless notify=false) emails the customer.
+app.put('/api/rep/orders/:id/install-schedule', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { install_scheduled_at, install_window, install_crew, install_notes, notify = true } = req.body || {};
+
+    if (install_scheduled_at && isNaN(new Date(install_scheduled_at).getTime())) {
+      return res.status(400).json({ error: 'Invalid install date' });
+    }
+
+    const result = await pool.query(`
+      UPDATE orders SET
+        install_scheduled_at = $1::timestamp,
+        install_window = $2,
+        install_crew = $3,
+        install_notes = $4
+      WHERE id = $5 AND sales_rep_id = $6
+      RETURNING *`,
+      [install_scheduled_at || null, install_window || null, install_crew || null,
+       install_notes || null, id, req.rep.id]);
+
+    if (!result.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = result.rows[0];
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(pool, id, 'install_scheduled', req.rep.id, repName,
+      { install_scheduled_at: order.install_scheduled_at, install_window: order.install_window, install_crew: order.install_crew });
+
+    res.json({ order });
+
+    // Fire-and-forget: notify the customer of the booked date.
+    if (notify && order.install_scheduled_at) {
+      setImmediate(async () => { await attachRep(order); sendInstallScheduled(order); });
+    }
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -16892,8 +16932,12 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
         RETURNING *
       `, [status, tracking_number, carrier || null, shipped_at || null, id]);
     } else if (status === 'shipped') {
+      // Install jobs (labor lines) advance to "Installing" without a carrier —
+      // the crew goes to the job site. Only true shipping orders need tracking.
       const orderCheck = await client.query('SELECT delivery_method FROM orders WHERE id = $1', [id]);
-      if (orderCheck.rows.length && orderCheck.rows[0].delivery_method === 'shipping') {
+      const laborCheck = await client.query("SELECT 1 FROM order_items WHERE order_id = $1 AND item_type = 'labor' LIMIT 1", [id]);
+      const isInstallOrder = laborCheck.rows.length > 0;
+      if (orderCheck.rows.length && orderCheck.rows[0].delivery_method === 'shipping' && !isInstallOrder) {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Tracking number is required for shipping orders' });
       }
@@ -17004,8 +17048,21 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
     // Recalculate commission on status change
     setImmediate(() => recalculateCommission(pool, id));
 
-    // Fire-and-forget: send status update email for shipped/delivered/cancelled
-    setImmediate(async () => { await attachRep(updatedOrder); sendOrderStatusUpdate(updatedOrder, status); });
+    // Fire-and-forget: send status update email. An install job (labor lines)
+    // marked delivered gets the "installation complete" email + final balance
+    // instead of the generic "delivered" note.
+    setImmediate(async () => {
+      await attachRep(updatedOrder);
+      if (status === 'delivered') {
+        const laborCheck = await pool.query("SELECT 1 FROM order_items WHERE order_id = $1 AND item_type = 'labor' LIMIT 1", [id]);
+        if (laborCheck.rows.length) {
+          const bal = await recalculateBalance(pool, id);
+          sendInstallComplete(updatedOrder, bal ? bal.balance : null);
+          return;
+        }
+      }
+      sendOrderStatusUpdate(updatedOrder, status);
+    });
 
     // Notify assigned rep if a different rep made the change
     if (updatedOrder.sales_rep_id && updatedOrder.sales_rep_id !== req.rep.id) {
@@ -20191,6 +20248,44 @@ app.delete('/api/rep/orders/documents/:docId', repAuth, async (req, res) => {
 app.get('/api/rep/orders/:id/invoice', repAuth, async (req, res) => {
   try {
     const result = await generateOrderInvoiceHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Order not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Build the installation work-order (crew job sheet) for an order. Scoped to
+// the rep's own orders when repId is passed.
+async function generateWorkOrderHtml(orderId, { repId } = {}) {
+  const params = repId ? [orderId, repId] : [orderId];
+  const o = await pool.query(
+    'SELECT * FROM orders WHERE id = $1' + (repId ? ' AND sales_rep_id = $2' : ''), params);
+  if (!o.rows.length) return null;
+  const items = await pool.query(`
+    SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku,
+      sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
+      COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name
+    FROM order_items oi
+    LEFT JOIN skus s ON s.id = oi.sku_id
+    LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+    LEFT JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+    LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
+      AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
+    WHERE oi.order_id = $1 ORDER BY oi.item_type DESC, oi.id`, [orderId]);
+  return {
+    html: generateWorkOrderDoc(o.rows[0], items.rows),
+    filename: `work-order-${o.rows[0].order_number}.pdf`,
+  };
+}
+
+// Installation work-order PDF (rep) — only for the rep's own orders.
+app.get('/api/rep/orders/:id/work-order', repAuth, async (req, res) => {
+  try {
+    const result = await generateWorkOrderHtml(req.params.id, { repId: req.rep.id });
     if (!result) return res.status(404).json({ error: 'Order not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {

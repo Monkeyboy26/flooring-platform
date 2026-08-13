@@ -128,13 +128,66 @@ export function composeItemName(it = {}) {
     const sizeDesc = sizeFromAttr(g('size'), [title, design, sizeInfo, variant].filter(Boolean).join(' '));
     ordered = [design, sizeInfo, sizeDesc, variant, accLabel];
   }
-  // Case-INSENSITIVE dedup so an uppercased variant_name that merely echoes the
-  // color (e.g. color "Shore" + variant_name "SHORE") shows once, not "Shore · SHORE".
-  const seen = new Set([String(title).toLowerCase()]);
+  // Containment-aware dedup: drop a descriptor already present in what has been
+  // assembled so far — an exact echo (color "Shore" + variant "SHORE") or an
+  // embedded phrase (color "Arabescato Gold" inside product "Arabescato Gold
+  // Quartz Countertop"). Word-bounded + punctuation-insensitive so 9'x52" and
+  // 9 x 52 match. Mirrored in formatLineItem (rep/admin) + itemLineName (storefront).
+  const normSeg = (s) => (' ' + String(s).toLowerCase()
+    .replace(/(\d)\.(\d)/g, '$1§$2')     // protect decimal points (7.5)
+    .replace(/[^a-z0-9§]+/g, ' ')        // "Ave." ≈ "Ave", "&" drops
+    .replace(/§/g, '.')
+    .replace(/(\d(?:\.\d+)?)\s*x\s*(?=\d)/g, '$1x')
+    .replace(/\bmou?ldings?\b/g, 'mold') // trim-term stem: "T-Molding" ≈ "T-Mold"
+    .replace(/\s+/g, ' ').trim() + ' ');
+  let acc = normSeg(title);
+  // Partial overlap: iteratively strip already-covered LEADING and TRAILING
+  // phrases from a descriptor ("Grafito Bullnose 3X12" after color "Grafito" →
+  // "Bullnose 3X12"; "Blanco 2.5x5 Bullnose 2.5X5" → "Bullnose"). A phrase may
+  // strip when it's multi-word, digit-bearing, or exactly equals a WHOLE earlier
+  // segment — a single plain word inside a longer segment never strips, so
+  // "White" (from "White Oak Herringbone") can't truncate color "White Smoke".
+  const segsWhole = new Set([normSeg(title)]);
+  const stripCovered = (d) => {
+    let toks = String(d).trim().split(/\s+/);
+    const canStrip = (phrase, k) => {
+      const pn = normSeg(phrase);
+      if (!pn.trim() || !acc.includes(pn)) return false;
+      return k >= 2 || /\d/.test(phrase) || segsWhole.has(pn);
+    };
+    // Remove ANY covered window (leading, trailing, or interior — Daltile-style
+    // comma lists repeat the color mid-descriptor), longest first, until stable.
+    let changed = true;
+    outer: while (changed && toks.length > 1) {
+      changed = false;
+      for (let k = toks.length - 1; k >= 1; k--) {
+        for (let i = 0; i + k <= toks.length; i++) {
+          if (toks.length - k < 1) break;
+          if (canStrip(toks.slice(i, i + k).join(' '), k)) {
+            toks = toks.slice(0, i).concat(toks.slice(i + k));
+            changed = true; continue outer;
+          }
+        }
+      }
+    }
+    return toks.join(' ');
+  };
+  // Compound-word echoes ("Stair Nose" vs "Stairnose"): whole-segment equality
+  // on space-stripped forms only — never substring, so "Rose" ≠ "Primrose".
+  const noSpace = (s) => normSeg(s).replace(/ /g, '');
+  const segsNoSpace = new Set([noSpace(title)]);
   const descriptors = [];
   for (const d of ordered) {
-    const k = d != null ? String(d).toLowerCase() : null;
-    if (d && !seen.has(k)) { seen.add(k); descriptors.push(d); }
+    if (!d) continue;
+    const p = normSeg(d);
+    if (p.trim() === '' || acc.includes(p) || segsNoSpace.has(noSpace(d))) continue;
+    const kept = stripCovered(d).replace(/^[\s·\-–—,]+|[\s·\-–—,]+$/g, '').trim();
+    const kp = normSeg(kept);
+    if (kp.trim() === '' || acc.includes(kp) || segsNoSpace.has(noSpace(kept))) continue;
+    descriptors.push(kept);
+    acc += kp;
+    segsWhole.add(kp);
+    segsNoSpace.add(noSpace(kept));
   }
   const sku = g('vendor_sku') || g('internal_sku');
   const vendor = g('vendor_name') || g('custom_vendor');
@@ -186,14 +239,14 @@ export function getDocumentBaseCSS() {
       border-bottom: 2px solid #a87935;
     }
     .header-left { display: flex; align-items: center; gap: 14px; }
-    .logo-lockup { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; padding-bottom: 0.3em; margin-bottom: 3px; }
+    .logo-lockup { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; padding-bottom: 0.34em; margin-bottom: 3px; }
     .logo-wordmark {
       font-family: 'Cormorant Garamond', Georgia, serif;
       font-size: 1.35rem; font-weight: 400; letter-spacing: 0.34em; text-indent: 0.34em;
       color: #1c1917; white-space: nowrap;
     }
     .logo-wordmark em { font-style: normal; font-size: 0.62em; letter-spacing: 0.2em; text-indent: 0.2em; color: #57534e; }
-    .logo-script { font-family: 'Pinyon Script', 'Cormorant Garamond', cursive; font-size: 1.8rem; line-height: 1; color: #c9a668; margin-top: -0.3em; align-self: center; white-space: nowrap; }
+    .logo-script { font-family: 'Pinyon Script', 'Cormorant Garamond', cursive; font-size: 1.85rem; line-height: 1; color: #a87935; margin-top: -0.3em; align-self: center; white-space: nowrap; }
     .company-info { font-size: 0.6875rem; color: #78716c; line-height: 1.65; }
 
     .header-right { text-align: right; }
@@ -494,7 +547,11 @@ export async function generatePDF(html, filename, req, res, options = {}) {
     // with whatever has loaded rather than degrading to raw HTML.
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 15000 })
       .catch(err => console.warn('generatePDF: assets still loading at timeout, rendering anyway:', err.message));
-    const pdf = await page.pdf({ format: 'Letter', margin });
+    // Custom page size (e.g. a 4in x 2in roll label) overrides the default Letter format.
+    const pdfOpts = (options.width && options.height)
+      ? { width: options.width, height: options.height, margin }
+      : { format: 'Letter', margin };
+    const pdf = await page.pdf(pdfOpts);
     await browser.close();
     res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${filename}"` });
     res.send(pdf);
@@ -527,13 +584,26 @@ export async function generatePDFBuffer(html, options = {}) {
 // PDF margins so every page of a multi-page PO gets the same breathing room.
 export const PO_PDF_MARGIN = { margin: { top: '0.5in', bottom: '0.45in', left: '0', right: '0' } };
 
+// Circular "Customer will call / No paperwork" rubber stamp, absolutely positioned
+// inside a `position:relative` header. Shared by the material-release form and the
+// purchase order so both marks stay identical. [[will-call-distributor]]
+export function willCallStamp({ accent = '#a87935', top = '16px', left = '52%' } = {}) {
+  return `<div style="position:absolute;top:${top};left:${left};transform:translateX(-50%) rotate(-8deg);width:110px;height:110px;border-radius:50%;border:2px solid ${accent};background:#fff;display:flex;align-items:center;justify-content:center;">
+<div style="width:92px;height:92px;border-radius:50%;border:1px solid ${accent};display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:${accent};">
+<div style="font:700 11.5px/1.15 ui-monospace,monospace;letter-spacing:0.06em;text-transform:uppercase;">Customer<br/>Will Call</div>
+<div style="width:34px;border-top:1px solid ${accent};margin:6px 0;opacity:0.55;"></div>
+<div style="font:400 7px/1.15 ui-monospace,monospace;letter-spacing:0.12em;text-transform:uppercase;">No Paperwork</div>
+</div>
+</div>`;
+}
+
 export async function generatePOHtml(pool, poId) {
   const po = await pool.query(`
     SELECT po.*,
       v.name as vendor_name, v.code as vendor_code, v.email as vendor_email, v.address as vendor_address, v.edi_config,
       COALESCE(sa.first_name || ' ' || sa.last_name, sr_a.first_name || ' ' || sr_a.last_name) as approved_by_name,
       COALESCE(sa.email, sr_a.email) as approver_email,
-      o.order_number, o.sales_rep_id, o.job_name,
+      o.order_number, o.sales_rep_id, o.job_name, o.delivery_method,
       sr_b.first_name || ' ' || sr_b.last_name as buyer_name,
       sr_b.email as buyer_email
     FROM purchase_orders po
@@ -615,10 +685,27 @@ export async function generatePOHtml(pool, poId) {
   const showApprovedStamp = ['sent', 'acknowledged', 'fulfilled'].includes(p.status);
   const stampLabel = p.status === 'acknowledged' ? 'Acknowledged' : 'Approved &amp; sent';
 
+  // Will-call: mark the PO so the distributor knows the customer collects directly.
+  // True when the order is a will-call order, or a will-call release already exists
+  // for this distributor on the order. [[will-call-distributor]]
+  let isWillCall = p.delivery_method === 'will_call';
+  if (!isWillCall && p.order_id) {
+    const wc = await pool.query(
+      `SELECT 1 FROM material_releases WHERE order_id = $1 AND vendor_id = $2 AND release_method = 'will_call' AND status <> 'void' LIMIT 1`,
+      [p.order_id, p.vendor_id]);
+    isWillCall = wc.rows.length > 0;
+  }
+
+  // Roma pickup: Roma collects the material at the distributor instead of having
+  // it shipped in. Distinct from will-call (which is the CUSTOMER collecting).
+  // Pickup location defaults to the vendor/distributor address.
+  const isPickup = !isWillCall && p.fulfillment_method === 'pickup';
+  const pickupLines = (p.ship_to || p.vendor_address || 'At distributor location').split('\n');
+
   const html = `<!DOCTYPE html><html><head>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet" />
     <style>
     :root{
       --roma-serif:${serif};
@@ -639,10 +726,13 @@ export async function generatePOHtml(pool, poId) {
     <div class="po-page" style="width:100%;background:#fff;color:${ink};font-family:${sans};padding-left:56px;padding-right:56px;box-sizing:border-box;font-size:11px">
 
       <!-- HEADER -->
-      <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid ${ink}22">
+      <div style="position:relative;display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid ${ink}22">
+        ${isWillCall ? willCallStamp({ accent, top: '16px', left: '50%' }) : ''}
         <div>
-          <div style="font:300 36px/1 ${serif};letter-spacing:-0.014em;color:${ink}">Roma</div>
-          <div style="margin-top:4px;font:500 8px/1 ${mono};letter-spacing:0.22em;text-transform:uppercase;color:${muted}">Flooring &middot; Surfaces &middot; Since 1999</div>
+          <div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em">
+            <span style="font-family:${serif};font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:${ink};white-space:nowrap">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:${muted}">FLOORING</em></span>
+            <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:${accent};margin-top:-11px;white-space:nowrap">Designs</span>
+          </div>
           <div style="margin-top:14px;font:400 10px/1.5 ${sans};color:${ink}cc">
             Roma Flooring Designs, Inc.<br>
             1440 S. State College Blvd, Anaheim, CA 92806<br>
@@ -693,11 +783,23 @@ export async function generatePOHtml(pool, poId) {
           </div>
         </div>
         <div>
-          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Ship to</div>
+          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">${isWillCall ? 'Fulfillment' : (isPickup ? 'Pickup' : 'Ship to')}</div>
+          ${isWillCall ? `
+          <div style="font:500 11px/1.2 ${sans};color:${ink}">Customer will-call</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">Hold at your warehouse for customer pickup.</div>
+          <div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Do not ship &middot; pickup only</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:6px">Customer references PO ${p.po_number} at pickup.</div>
+          ` : isPickup ? `
+          <div style="font:500 11px/1.2 ${sans};color:${ink}">Roma will pick up</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${escDoc(pickupLines[0] || '')}${pickupLines.length > 1 ? '<br>' + pickupLines.slice(1).map(escDoc).join('<br>') : ''}</div>
+          <div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Do not ship &middot; Roma pickup</div>
+          <div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:6px">Hold for Roma pickup &middot; reference PO ${p.po_number}. Call ${'(714) 999-0009'} when ready.</div>
+          ` : `
           <div style="font:500 11px/1.2 ${sans};color:${ink}">${shipLines[0] || ''}</div>
           <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${shipLines.slice(1).join('<br>')}</div>
           <div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Receiving &middot; Mon&ndash;Fri &middot; 9a&ndash;5p</div>
           <div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:6px">28&rsquo; truck max &middot; forklift on-site</div>
+          `}
           ${ediId ? `<div style="margin-top:10px;font:400 10px/1.5 ${sans};color:${muted}">EDI: <span style="color:${ink}">${ediId}</span></div>` : ''}
         </div>
       </div>
@@ -907,7 +1009,7 @@ export function generateQuoteHtml(q, items) {
 <head>
 <meta charset="UTF-8" />
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap');
 :root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
 *{box-sizing:border-box}
 body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
@@ -926,8 +1028,10 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
-<div style="font:300 36px/1 var(--serif);letter-spacing:-0.014em;">Roma</div>
-<div class="mono" style="font-size:8px;letter-spacing:0.22em;margin-top:4px;">Flooring · Surfaces · Anaheim</div>
+<div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
+</div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
@@ -1143,7 +1247,7 @@ ${laborRows}` : ''}
 <head>
 <meta charset="UTF-8" />
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap');
 :root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
 *{box-sizing:border-box}
 body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
@@ -1163,8 +1267,10 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
-<div style="font:300 36px/1 var(--serif);letter-spacing:-0.014em;">Roma</div>
-<div class="mono" style="font-size:8px;letter-spacing:0.22em;margin-top:4px;">Flooring · Surfaces · Anaheim</div>
+<div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
+</div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
@@ -1240,17 +1346,33 @@ ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'v
 // line items, terms + totals columns), adapted for an invoice: Bill To / Ship
 // To, an Amount Paid line, and an emphasized Balance Due. `o` is the order row;
 // items may carry primary_image (swatch), vendor_sku / vendor_name / collection.
-export function generateOrderInvoiceDoc(o, items) {
+export function generateOrderInvoiceDoc(o, items, payment) {
   const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric' }) : null;
   const issued = longDate(o.created_at);
   const isPickup = o.delivery_method === 'pickup';
+  const isWillCall = o.delivery_method === 'will_call';
   const orderNumber = o.order_number || 'RD-' + String(o.id).substring(0, 8).toUpperCase();
 
   const total = parseFloat(o.total || 0);
   const amountPaid = parseFloat(o.amount_paid || 0);
   const balanceDue = parseFloat((total - amountPaid).toFixed(2));
   const hasBalance = balanceDue > 0.01;
+
+  // Compact "paid via" line for the totals block. `payment` is the most recent
+  // settled Stripe payment (card/ACH). The receipt NUMBER goes on the printed
+  // invoice; the receipt URL is linked from the digital documents list instead.
+  const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  const paidVia = (payment && amountPaid > 0) ? (() => {
+    const method = payment.card_brand
+      ? cap(payment.card_brand) + (payment.card_last4 ? ' ····' + payment.card_last4 : '')
+      : payment.payment_method === 'ach' ? 'bank account (ACH)'
+      : payment.payment_method === 'bank_transfer' ? 'bank transfer'
+      : 'card';
+    const when = longDate(payment.created_at);
+    const rcpt = payment.stripe_receipt_number ? ' · Stripe receipt #' + payment.stripe_receipt_number : '';
+    return `Paid via ${method}${when ? ' on ' + when : ''}${rcpt}`;
+  })() : null;
 
   const statusLabel = hasBalance ? 'Balance Due' : 'Paid';
   const stampText = hasBalance ? 'Balance Due' : 'Paid in full';
@@ -1342,6 +1464,13 @@ export function generateOrderInvoiceDoc(o, items) {
         <div class="small" style="margin-top:4px;">1440 S. State College Blvd Suite 6M<br />Anaheim, CA 92806</div>
         <div style="margin-top:8px;padding:6px 10px;background:var(--warm);font:500 9px/1.4 ui-monospace,monospace;letter-spacing:0.14em;text-transform:uppercase;display:inline-block;">● Anaheim showroom</div>
       </div>`
+    : isWillCall
+    ? `<div>
+        <div class="mono" style="margin-bottom:8px;">Fulfillment</div>
+        <div style="font:500 11px/1.2 var(--sans);">Will-call at distributor</div>
+        <div class="small" style="margin-top:4px;">Pickup location and PO release details are on your material release form.</div>
+        <div style="margin-top:8px;padding:6px 10px;background:var(--warm);font:500 9px/1.4 ui-monospace,monospace;letter-spacing:0.14em;text-transform:uppercase;display:inline-block;">● Distributor will-call</div>
+      </div>`
     : `<div>
         <div class="mono" style="margin-bottom:8px;">Ship to</div>
         <div style="font:500 11px/1.2 var(--sans);">${o.customer_name || 'Local delivery'}</div>
@@ -1372,7 +1501,7 @@ export function generateOrderInvoiceDoc(o, items) {
 <head>
 <meta charset="UTF-8" />
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap');
 :root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
 *{box-sizing:border-box}
 body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
@@ -1391,8 +1520,10 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
-<div style="font:300 36px/1 var(--serif);letter-spacing:-0.014em;">Roma</div>
-<div class="mono" style="font-size:8px;letter-spacing:0.22em;margin-top:4px;">Flooring · Surfaces · Anaheim</div>
+<div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
+</div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
@@ -1401,6 +1532,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
 <span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
 ${o.po_number ? `<span style="color:var(--muted);">PO ref</span><span style="text-align:right;">${o.po_number}</span>` : ''}
+${o.job_name ? `<span style="color:var(--muted);">Job / Sidemark</span><span style="text-align:right;">${escDoc(o.job_name)}</span>` : ''}
 <span style="color:var(--muted);">Status</span><span class="mono" style="color:${stampColor};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
 </div>
 </div>
@@ -1449,6 +1581,7 @@ ${totalsRows}
 <span style="font:300 28px/1 var(--serif);letter-spacing:-0.012em;">${money(total)}</span>
 </div>
 <div style="display:flex;justify-content:space-between;padding:8px 0 0;font:400 10px/1.4 var(--sans);"><span style="color:var(--muted);">Amount paid</span><span>${amountPaid > 0 ? '−' + money(amountPaid) : money(0)}</span></div>
+${paidVia ? `<div style="display:flex;justify-content:flex-end;padding:2px 0 0;font:400 8.5px/1.4 var(--sans);color:var(--muted);">${paidVia}</div>` : ''}
 <div style="margin-top:6px;padding-top:8px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:baseline;">
 <span class="mono" style="color:${stampColor};letter-spacing:0.18em;">Balance due</span>
 <span style="font:400 22px/1 var(--serif);letter-spacing:-0.012em;color:var(--ink);">${money(hasBalance ? balanceDue : 0)}</span>
@@ -1625,7 +1758,7 @@ export function generateCreditMemoDoc(memo, items, opts = {}) {
 <head>
 <meta charset="UTF-8" />
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap');
 :root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
 *{box-sizing:border-box}
 body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
@@ -1644,8 +1777,10 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
-<div style="font:300 36px/1 var(--serif);letter-spacing:-0.014em;">Roma</div>
-<div class="mono" style="font-size:8px;letter-spacing:0.22em;margin-top:4px;">Flooring · Surfaces · Anaheim</div>
+<div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
+</div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
@@ -1729,7 +1864,9 @@ export function generateReleaseFormDoc(release, items, opts = {}) {
   const orderNumber = opts.orderNumber || release.order_number || (release.order_id ? 'RD-' + String(release.order_id).substring(0, 8).toUpperCase() : '—');
   const relNumber = release.release_number || 'REL-' + String(release.id).substring(0, 8).toUpperCase();
   const isDelivery = release.release_method === 'delivery';
-  const methodLabel = isDelivery ? 'Delivery' : 'Warehouse pickup';
+  const isWillCall = release.release_method === 'will_call';
+  const methodLabel = isDelivery ? 'Delivery' : isWillCall ? 'Will-call at distributor' : 'Warehouse pickup';
+  const poNumber = release.po_number || null;
 
   const statusMap = { released: 'Authorized', completed: isDelivery ? 'Delivered' : 'Picked up', void: 'Voided' };
   const statusLabel = statusMap[release.status] || 'Authorized';
@@ -1785,7 +1922,7 @@ export function generateReleaseFormDoc(release, items, opts = {}) {
 <head>
 <meta charset="UTF-8" />
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap');
 :root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
 *{box-sizing:border-box}
 body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
@@ -1802,10 +1939,13 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 </head>
 <body>
 
-<div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
+<div style="position:relative;display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
+${isWillCall ? willCallStamp({ top: '16px', left: '52%' }) : ''}
 <div>
-<div style="font:300 36px/1 var(--serif);letter-spacing:-0.014em;">Roma</div>
-<div class="mono" style="font-size:8px;letter-spacing:0.22em;margin-top:4px;">Flooring · Surfaces · Anaheim</div>
+<div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
+</div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
@@ -1814,6 +1954,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
 <span style="color:var(--muted);">Released</span><span style="text-align:right;">${issued || '—'}</span>
 <span style="color:var(--muted);">Order</span><span style="text-align:right;">${orderNumber}</span>
+${isWillCall && poNumber ? `<span style="color:var(--muted);">Release against PO</span><span style="text-align:right;font-weight:500;color:var(--ink);">${escDoc(poNumber)}</span>` : ''}
 <span style="color:var(--muted);">Method</span><span style="text-align:right;">${methodLabel}</span>
 <span style="color:var(--muted);">Status</span><span class="mono" style="color:${stampColor};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
 </div>
@@ -1822,7 +1963,9 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 
 <div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:8px;border-bottom:1px solid #1c191711;align-items:center;">
 <div style="font:500 9px/1.4 var(--sans);letter-spacing:0.06em;color:#1c1917cc;">
-This document authorizes the materials below to be ${isDelivery ? 'delivered' : 'released for pickup'} against order ${orderNumber}. Present it at the Anaheim warehouse. Quantities are in cartons/units as sold.
+${isWillCall
+  ? `This authorizes the customer to collect the materials below at <b>${escDoc(release.vendor_name || 'the distributor')}</b> against order ${orderNumber}${poNumber ? ` under Roma purchase order <b>${escDoc(poNumber)}</b>` : ''}. Present this form and reference the PO number to release the order. Quantities are in cartons/units as sold.`
+  : `This document authorizes the materials below to be ${isDelivery ? 'delivered' : 'released for pickup'} against order ${orderNumber}. Present it at the Anaheim warehouse. Quantities are in cartons/units as sold.`}
 </div>
 <div style="padding:8px 14px;border:1.5px solid ${stampColor};color:${stampColor};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</div>
 </div>
@@ -1835,8 +1978,8 @@ This document authorizes the materials below to be ${isDelivery ? 'delivered' : 
 </div>
 <div>
 <div class="mono" style="margin-bottom:8px;">${isDelivery ? 'Deliver to' : 'Pickup at'}</div>
-<div style="font:500 11px/1.2 var(--sans);">${isDelivery ? (deliveryAddr || 'Delivery address on file') : 'Roma — Anaheim'}</div>
-<div class="small" style="margin-top:4px;">${isDelivery ? '' : '1440 S. State College Blvd #6M<br />Anaheim, CA 92806'}</div>
+<div style="font:500 11px/1.2 var(--sans);">${isDelivery ? (deliveryAddr || 'Delivery address on file') : isWillCall ? escDoc(release.vendor_name || 'Distributor') : 'Roma — Anaheim'}</div>
+<div class="small" style="margin-top:4px;">${isDelivery ? '' : isWillCall ? [release.vendor_address ? escDoc(release.vendor_address) : 'Contact your Roma rep for the pickup address', release.vendor_phone ? escDoc(release.vendor_phone) : null].filter(Boolean).join('<br />') : '1440 S. State College Blvd #6M<br />Anaheim, CA 92806'}</div>
 </div>
 <div>
 <div class="mono" style="margin-bottom:8px;">Authorized by</div>
@@ -1876,6 +2019,137 @@ ${release.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div 
 <div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
 <span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Release ${relNumber}</span>
+</div>
+
+</body>
+</html>`;
+}
+
+// Installation work order — the crew's job sheet. Job-site address + schedule,
+// the materials to bring (pull list, from material lines), the scope of work
+// (labor lines), notes, and a completion sign-off. `order` is the order row
+// (+ install_* fields); `items` are order_items with composed names.
+export function generateWorkOrderDoc(order, items, opts = {}) {
+  const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' }) : null;
+  const orderNumber = order.order_number || 'RD-' + String(order.id).substring(0, 8).toUpperCase();
+  const scheduled = [longDate(order.install_scheduled_at), order.install_window].filter(Boolean).join(' · ');
+  const jobSite = [order.shipping_address_line1, order.shipping_address_line2,
+    [order.shipping_city, order.shipping_state, order.shipping_zip].filter(Boolean).join(', ')]
+    .filter(Boolean).map(escDoc).join('<br />');
+
+  const materials = (items || []).filter(i => !i.is_sample && (i.item_type || 'material') !== 'labor');
+  const labor = (items || []).filter(i => (i.item_type || 'material') === 'labor');
+
+  const matRows = materials.map((i, idx) => {
+    const _ci = composeItemName(i);
+    const name = escDoc(_ci.title || i.product_name || '—');
+    const suffix = escDoc(_ci.descriptors.join(' · '));
+    const unit = i.sell_by === 'unit' ? 'unit' : i.sell_by === 'roll' ? 'roll' : 'box';
+    const qty = parseFloat(i.num_boxes || i.quantity || 0) || 0;
+    const skuLine = [...new Set([
+      i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
+      i.collection && i.collection !== name ? i.collection : null,
+      i.vendor_name
+    ].filter(Boolean))].join(' · ');
+    return `<div class="grid-row keep" style="padding:11px 0;${idx < materials.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+      <div>
+        <div style="font:500 11px/1.25 var(--sans);">${name}${suffix ? ` <span style="color:var(--muted);font-weight:400;">· ${suffix}</span>` : ''}</div>
+        ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
+      </div>
+      <div class="line-total">${qty}<div class="numsub" style="font-weight:400;">${qty === 1 ? unit : unit + 's'}</div></div>
+    </div>`;
+  }).join('') || `<div style="font:400 10px/1.5 var(--sans);color:var(--muted);padding:11px 0;">No material lines on this order.</div>`;
+
+  const laborRows = labor.map((i, idx) => {
+    const cat = escDoc((i.labor_category || 'Labor').replace(/_/g, ' '));
+    const desc = escDoc(i.description || i.product_name || '');
+    const area = i.source_estimate_area ? ` <span style="color:var(--muted);">· ${escDoc(i.source_estimate_area)}</span>` : '';
+    const qty = i.labor_sqft ? `${parseFloat(i.labor_sqft)} sqft` : (i.quantity ? `${parseFloat(i.quantity)}` : '');
+    return `<div class="grid-row keep" style="padding:11px 0;${idx < labor.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+      <div>
+        <div style="font:500 11px/1.25 var(--sans);text-transform:capitalize;">${cat}${area}</div>
+        ${desc ? `<div style="font:400 10px/1.5 var(--sans);color:#1c1917cc;margin-top:3px;">${desc}</div>` : ''}
+      </div>
+      <div class="line-total" style="font-weight:400;">${qty}</div>
+    </div>`;
+  }).join('') || `<div style="font:400 10px/1.5 var(--sans);color:var(--muted);padding:11px 0;">Scope of work — see estimate / rep notes.</div>`;
+
+  const metaRows = [
+    ['Order', orderNumber],
+    ['Install date', scheduled || 'Not yet scheduled'],
+    ...(order.install_window ? [['Window', escDoc(order.install_window)]] : []),
+    ['Crew', escDoc(order.install_crew || 'Roma install crew')],
+    ...(order.job_name ? [['Job', escDoc(order.job_name)]] : []),
+  ];
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap');
+:root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
+*{box-sizing:border-box}
+body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
+@media screen{body{padding:48px 56px;max-width:816px;margin:0 auto}}
+.mono{font:500 9px/1 ui-monospace,monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted)}
+.small{font:400 10px/1.5 var(--sans);color:#1c1917cc}
+.grid-row{display:grid;grid-template-columns:1fr 120px;gap:12px;align-items:flex-start}
+.line-total{text-align:right;font:500 12px/1.2 var(--serif)}
+.numsub{font:400 9px/1.4 var(--sans);color:var(--muted);margin-top:2px}
+.keep{break-inside:avoid;orphans:3;widows:3}
+.sec-label{font:500 9px/1 ui-monospace,monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent);margin:26px 0 10px}
+</style>
+</head>
+<body>
+
+<div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
+<div>
+<div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
+</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+</div>
+<div style="text-align:right;min-width:220px;">
+<div class="mono" style="letter-spacing:0.22em;">Installation Work Order</div>
+<div style="font:300 32px/1 var(--serif);letter-spacing:-0.014em;margin-top:6px;">${orderNumber}</div>
+<div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
+${metaRows.map(([l, v]) => `<span style="color:var(--muted);">${l}</span><span style="text-align:right;">${v}</span>`).join('')}
+</div>
+</div>
+</div>
+
+<div class="keep" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:16px 0 20px;border-bottom:1px solid #1c191722;">
+<div>
+<div class="mono" style="margin-bottom:8px;">Customer</div>
+<div style="font:500 11px/1.2 var(--sans);">${escDoc(order.customer_name || '—')}</div>
+<div class="small" style="margin-top:4px;">${[order.company_name, order.phone, order.customer_email].filter(Boolean).map(escDoc).join('<br />')}</div>
+</div>
+<div>
+<div class="mono" style="margin-bottom:8px;">Job site</div>
+<div class="small" style="color:var(--ink);">${jobSite || '—'}</div>
+</div>
+</div>
+
+<div class="sec-label">Materials to bring</div>
+${matRows}
+
+<div class="sec-label">Scope of work</div>
+${laborRows}
+
+${order.install_notes ? `<div class="sec-label">Notes for the crew</div>
+<div style="font:400 11px/1.6 var(--sans);color:#1c1917cc;white-space:pre-wrap;">${escDoc(order.install_notes)}</div>` : ''}
+
+<div class="keep" style="margin-top:34px;padding-top:18px;border-top:1px solid #1c191722;display:grid;grid-template-columns:1fr 1fr;gap:40px;">
+<div>
+<div style="border-bottom:1px solid #1c191755;height:34px;"></div>
+<div class="mono" style="margin-top:6px;">Crew lead signature</div>
+</div>
+<div>
+<div style="border-bottom:1px solid #1c191755;height:34px;"></div>
+<div class="mono" style="margin-top:6px;">Customer sign-off · date</div>
+</div>
 </div>
 
 </body>
@@ -1975,4 +2249,147 @@ export function generateLabelSheetHtml(labels) {
   .l-brand { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 8pt; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: #a87935; }
   .l-web { font-size: 5.6pt; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: #b3a89a; }
   </style></head><body>${pagesHtml}</body></html>`;
+}
+
+// Roll-label variant of the sample label: one 4in x 2in label per page, sized for
+// a thermal label printer (e.g. Zebra ZD230) that dispenses labels individually.
+// Rendered in pure black on white — thermal heads print ~203 dpi with no color, so
+// every accent that is gold on the sheet version becomes solid black here, and the
+// faint gold gradient rule becomes a crisp black hairline. Same content/QR as the
+// sheet labels; only the page geometry and ink change.
+export function generateLabelRollHtml(labels) {
+  const esc = (s) => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const renderLabel = (l, isLast) => {
+    const rawName = String(l.productName || l.collection || '—');
+    const vendor = String(l.vendorName || '');
+    let title = rawName;
+    if (vendor && title.toLowerCase().startsWith(vendor.toLowerCase() + ' ')) {
+      title = title.slice(vendor.length).trim();
+    }
+    const variant = esc(l.variantLabel || '');
+    const acc = (l.accessories || []).filter(Boolean);
+    const colors = (l.colors || []).filter(Boolean);
+    const sizes = (l.sizes || []).filter(Boolean);
+    const sku = esc(l.internalSku || '');
+
+    const variantParts = [];
+    if (colors.length > 1) variantParts.push(...colors);
+    if (sizes.length > 1) variantParts.push(...sizes);
+    const variantList = variantParts.join(' · ');
+
+    const availBody = [];
+    if (variantList) availBody.push(`<div class="rl-availv">${esc(variantList)}</div>`);
+    if (acc.length) availBody.push(`<div class="rl-availv rl-availacc">+ ${esc(acc.join(', '))}</div>`);
+
+    return `
+      <div class="rl-page${isLast ? ' last' : ''}">
+        <div class="rl-body">
+          ${vendor ? `<div class="rl-eyebrow">${esc(vendor)}</div>` : ''}
+          <div class="rl-title">${esc(title)}</div>
+          ${variant ? `<div class="rl-variant">${variant}</div>` : ''}
+          ${availBody.length ? `<div class="rl-rule"></div><div class="rl-availk">Available</div>${availBody.join('')}` : ''}
+        </div>
+        <div class="rl-qr">
+          <div class="rl-qrbox"><img src="${l.qrDataUri}" alt="Scan for product details" /></div>
+          ${sku ? `<div class="rl-sku">${sku}</div>` : ''}
+          <div class="rl-scan">Scan · details &amp; pricing</div>
+        </div>
+        <div class="rl-foot">
+          <span class="rl-brand">Roma Flooring Designs</span>
+          <span class="rl-web">romaflooringdesigns.com</span>
+        </div>
+      </div>`;
+  };
+
+  const pagesHtml = (labels.length ? labels : [{}])
+    .map((l, i) => renderLabel(l, i === labels.length - 1)).join('');
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+  @page { size: 4in 2in; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, Arial, sans-serif; color: #000; -webkit-font-smoothing: antialiased; }
+  /* One label per page. Break after each except the last so no trailing blank label. */
+  .rl-page { position: relative; width: 4in; height: 2in; padding: 0.15in 0.17in 0.26in; display: flex; gap: 0.15in; overflow: hidden; page-break-after: always; }
+  .rl-page.last { page-break-after: auto; }
+  .rl-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .rl-eyebrow { font-size: 6.5pt; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: #000; }
+  .rl-title { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 700; font-size: 19pt; line-height: 1.0; letter-spacing: 0.004em; color: #000; margin-top: 2px; max-height: 0.55in; overflow: hidden; }
+  .rl-variant { font-size: 9.5pt; font-weight: 600; color: #222; margin-top: 4px; }
+  .rl-rule { width: 66%; height: 1.4px; background: #000; margin: 7px 0 5px; }
+  .rl-availk { font-size: 6.3pt; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #000; margin-bottom: 2px; }
+  .rl-availv { font-size: 7pt; line-height: 1.32; color: #222; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .rl-availacc { color: #444; margin-top: 1px; }
+  .rl-qr { width: 1.02in; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .rl-qrbox { padding: 3px; border: 1px solid #000; background: #fff; }
+  .rl-qr img { width: 0.84in; height: 0.84in; display: block; }
+  .rl-sku { font-family: ui-monospace, 'SF Mono', monospace; font-size: 6pt; font-weight: 700; letter-spacing: 0.02em; color: #000; margin-top: 4px; word-break: break-all; }
+  .rl-scan { font-size: 5.3pt; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #000; margin-top: 3px; }
+  .rl-foot { position: absolute; left: 0.17in; right: 0.17in; bottom: 0.1in; display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid #000; padding-top: 3px; }
+  .rl-brand { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 8pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #000; }
+  .rl-web { font-size: 5.6pt; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #333; }
+  </style></head><body>${pagesHtml}</body></html>`;
+}
+
+// Render each roll label to a crisp bitmap at the thermal head's native resolution
+// (203 dpi -> an 812x406 px PNG per 4in x 2in label). Feeding the printer a
+// pre-rasterized image removes all driver font-rasterization / scaling guesswork, so
+// hairlines and small type land exactly on the pixel grid. Returns PNG data URIs in
+// label order. Reuses generateLabelRollHtml so the image is pixel-identical to the
+// vector layout; on screen the labels stack flush (page breaks are print-only), so we
+// clip each 2in band in turn.
+export async function renderLabelPngs(labels, { dpi = 203 } = {}) {
+  if (!labels.length) return [];
+  const LABEL_W_CSS = 384, LABEL_H_CSS = 192; // 4in x 2in at 96 CSS dpi
+  const dsf = dpi / 96;                       // 96 CSS dpi -> 203 device dpi (exact: 4*203, 2*203)
+  const html = generateLabelRollHtml(labels);
+  const puppeteer = await import('puppeteer');
+  const browser = await puppeteer.default.launch({
+    headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: LABEL_W_CSS, height: LABEL_H_CSS * labels.length, deviceScaleFactor: dsf });
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 15000 })
+      .catch(err => console.warn('renderLabelPngs: assets still loading at timeout, rendering anyway:', err.message));
+    // Wait for the web fonts to actually apply so the raster uses Cormorant/Inter, not a
+    // fallback. Await inside the page (returns undefined) so nothing non-serializable escapes.
+    await page.evaluate(async () => { if (document.fonts && document.fonts.ready) await document.fonts.ready; }).catch(() => {});
+    const out = [];
+    for (let i = 0; i < labels.length; i++) {
+      const buf = await page.screenshot({
+        type: 'png',
+        clip: { x: 0, y: i * LABEL_H_CSS, width: LABEL_W_CSS, height: LABEL_H_CSS }
+      });
+      out.push('data:image/png;base64,' + Buffer.from(buf).toString('base64'));
+    }
+    return out;
+  } finally {
+    await browser.close();
+  }
+}
+
+// Wrap pre-rendered 203-dpi label PNGs into a one-4x2-label-per-page document for a
+// thermal roll printer. Each page holds exactly one bitmap, filling the label 1:1.
+export function generateLabelImageRollHtml(pngDataUris) {
+  const list = pngDataUris.length ? pngDataUris : [null];
+  const pages = list.map((src, i) => {
+    const last = i === list.length - 1;
+    return `<div class="ip${last ? ' last' : ''}">${src ? `<img src="${src}" alt=""/>` : ''}</div>`;
+  }).join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+  <style>
+  @page { size: 4in 2in; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  .ip { width: 4in; height: 2in; overflow: hidden; page-break-after: always; }
+  .ip.last { page-break-after: auto; }
+  .ip img { width: 4in; height: 2in; display: block; }
+  </style></head><body>${pages}</body></html>`;
 }

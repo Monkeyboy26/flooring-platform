@@ -155,6 +155,9 @@ CREATE TABLE orders (
     customer_email TEXT NOT NULL,
     customer_name TEXT NOT NULL,
     company_name TEXT,
+    -- Job name / sidemark: the customer's project reference, printed on vendor
+    -- POs and warehouse docs so material is identifiable per job
+    job_name TEXT,
     phone TEXT,
     shipping_address_line1 TEXT,
     shipping_address_line2 TEXT,
@@ -177,6 +180,13 @@ CREATE TABLE orders (
     measure_requested BOOLEAN DEFAULT false,
     preferred_measure_date DATE,
     preferred_measure_time VARCHAR(20),
+    -- Installation scheduling (orders converted from estimates that carry labor
+    -- lines): the booked install date/time, optional arrival window, crew
+    -- assignment, and crew/customer notes. Set via the rep "Schedule install" card.
+    install_scheduled_at TIMESTAMP,
+    install_window VARCHAR(50),
+    install_crew TEXT,
+    install_notes TEXT,
     terms_accepted_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -478,6 +488,7 @@ CREATE TABLE purchase_orders (
     notes TEXT,
     approved_by UUID REFERENCES staff_accounts(id),
     approved_at TIMESTAMP,
+    fulfillment_method VARCHAR(20) DEFAULT 'ship', -- 'ship' (to Roma) | 'pickup' (Roma picks up at distributor); see migration 036
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -898,6 +909,13 @@ CREATE TABLE IF NOT EXISTS order_payments (
     check_number VARCHAR(50),
     payment_method VARCHAR(20),
     refund_of_payment_id UUID REFERENCES order_payments(id),
+    -- Stripe receipt data, captured from the charge after a payment settles
+    -- (charge.receipt_url is the customer-facing Stripe-hosted receipt).
+    stripe_charge_id TEXT,
+    stripe_receipt_url TEXT,
+    stripe_receipt_number TEXT,
+    card_brand VARCHAR(20),
+    card_last4 VARCHAR(4),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -938,6 +956,10 @@ CREATE TABLE IF NOT EXISTS customer_notes (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_customer_notes_ref ON customer_notes(customer_type, customer_ref);
+-- Order-scoped internal notes: when set, the note belongs to one order and is
+-- shown only on that order (not on the customer profile / other orders).
+ALTER TABLE customer_notes ADD COLUMN IF NOT EXISTS order_id UUID REFERENCES orders(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_customer_notes_order ON customer_notes(order_id);
 
 -- ==================== Rep Notifications ====================
 
@@ -1190,10 +1212,16 @@ ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS edi_interchange_id BIGINT;
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS edi_ack_status VARCHAR(30);
 ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS edi_ack_received_at TIMESTAMP;
 
+-- How the PO reached the vendor: 'edi' | 'email' (automated) or 'phone' | 'online'
+-- (rep placed the order manually with the vendor, no automated transmission).
+ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS sent_via VARCHAR(20);
+
 -- Purchase order items: line-level EDI data
 ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS edi_line_status VARCHAR(30);
 ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS dye_lot TEXT;
 ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS qty_shipped INTEGER;
+-- Per-line note printed under the line on the PO PDF (set from the send dialog)
+ALTER TABLE purchase_order_items ADD COLUMN IF NOT EXISTS line_note TEXT;
 
 -- Vendors: EDI config
 ALTER TABLE vendors ADD COLUMN IF NOT EXISTS edi_config JSONB;
@@ -1425,7 +1453,14 @@ CREATE TABLE IF NOT EXISTS material_releases (
     release_number TEXT UNIQUE NOT NULL,
     order_id UUID NOT NULL REFERENCES orders(id),
     status VARCHAR(20) DEFAULT 'released' CHECK (status IN ('released','completed','void')),
-    release_method VARCHAR(20) DEFAULT 'pickup',   -- 'pickup' | 'delivery'
+    release_method VARCHAR(20) DEFAULT 'pickup',   -- 'pickup' | 'delivery' | 'will_call'
+    -- will_call = customer picks up directly at the DISTRIBUTOR's warehouse (not Roma).
+    -- vendor_id names that distributor; po_number snapshots the Roma PO the distributor
+    -- releases against (they require it). Both NULL for 'pickup'/'delivery'. Roma never
+    -- receives will_call goods, so the release caps on ORDERED qty, not qty_received —
+    -- gated instead on that vendor's PO having been sent. [[material-releases]]
+    vendor_id UUID REFERENCES vendors(id),          -- distributor (will_call only)
+    po_number TEXT,                                 -- Roma PO # printed for the distributor (will_call only)
     recipient_name TEXT,                            -- who picks up / receives
     notes TEXT,
     released_by UUID REFERENCES staff_accounts(id), -- staff only; rep rows use released_by_name
@@ -1596,6 +1631,9 @@ CREATE INDEX IF NOT EXISTS idx_cash_drawer_txns_drawer ON cash_drawer_transactio
 CREATE TABLE IF NOT EXISTS order_documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+    -- Optional link to a PO: e.g. a vendor's order-confirmation / sales-order
+    -- document attached against the purchase order it acknowledges.
+    purchase_order_id UUID REFERENCES purchase_orders(id) ON DELETE SET NULL,
     doc_type VARCHAR(50) NOT NULL,
     file_name TEXT NOT NULL,
     file_key TEXT NOT NULL,
@@ -1605,6 +1643,7 @@ CREATE TABLE IF NOT EXISTS order_documents (
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_order_documents_order ON order_documents(order_id);
+ALTER TABLE order_documents ADD COLUMN IF NOT EXISTS purchase_order_id UUID REFERENCES purchase_orders(id) ON DELETE SET NULL;
 
 -- ==================== Site Analytics ====================
 

@@ -20589,6 +20589,9 @@
       const [showSendInvoiceModal, setShowSendInvoiceModal] = useState(false);
       const [invoiceMessage, setInvoiceMessage] = useState('');
       const [sendingInvoice, setSendingInvoice] = useState(false);
+      const [showScheduleForm, setShowScheduleForm] = useState(false);
+      const [scheduleForm, setScheduleForm] = useState({ date: '', window: '', crew: '', notes: '', notify: true });
+      const [savingSchedule, setSavingSchedule] = useState(false);
       const [showCollectPayment, setShowCollectPayment] = useState(false);
       const [collectMethod, setCollectMethod] = useState(null);
       const [showCollectCardModal, setShowCollectCardModal] = useState(false);
@@ -20731,6 +20734,42 @@
           })
           .catch(() => setLoading(false));
       }, [editId]);
+
+      // Open the "Schedule install" form, pre-filled from the current schedule.
+      const openScheduleForm = () => {
+        const iso = order && order.install_scheduled_at;
+        setScheduleForm({
+          date: iso ? String(iso).substring(0, 10) : '',
+          window: (order && order.install_window) || '',
+          crew: (order && order.install_crew) || '',
+          notes: (order && order.install_notes) || '',
+          notify: true,
+        });
+        setShowScheduleForm(true);
+      };
+
+      // Save the install schedule. Date is stored at noon (tz-stable day); the
+      // window free-text carries the time of day.
+      const saveSchedule = async () => {
+        if (!scheduleForm.date) { alert('Pick an install date.'); return; }
+        setSavingSchedule(true);
+        try {
+          const data = await repFetch('/api/rep/orders/' + editId + '/install-schedule', {
+            method: 'PUT',
+            body: JSON.stringify({
+              install_scheduled_at: scheduleForm.date + 'T12:00:00',
+              install_window: scheduleForm.window || null,
+              install_crew: scheduleForm.crew || null,
+              install_notes: scheduleForm.notes || null,
+              notify: scheduleForm.notify,
+            })
+          });
+          if (data.order) setOrder(data.order);
+          setShowScheduleForm(false);
+          loadOrderActivity();
+        } catch (err) { alert(err.message || 'Failed to save schedule'); }
+        setSavingSchedule(false);
+      };
 
       // Manager-only: reassign just this order to another rep. Never touches
       // the customer's own rep assignment.
@@ -21798,6 +21837,78 @@
                 </RodCard>
               )}
 
+              {/* Installation schedule — install jobs only */}
+              {isInstall && (
+                <RodCard title="Installation"
+                  action={!isDeliveredOrder && !orderIsDead && !showScheduleForm ? (order.install_scheduled_at ? 'Reschedule' : '＋ Schedule') : undefined}
+                  onAction={openScheduleForm}>
+                  {showScheduleForm ? (
+                    <div style={{ padding: '10px 20px 16px' }}>
+                      <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
+                        <div>
+                          <label className="rod-field-label">Install date *</label>
+                          <input className="rod-input" type="date" value={scheduleForm.date}
+                            onChange={e => setScheduleForm({ ...scheduleForm, date: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="rod-field-label">Arrival window</label>
+                          <input className="rod-input" type="text" maxLength={50} placeholder="e.g. 8:00 AM – 12:00 PM"
+                            value={scheduleForm.window} onChange={e => setScheduleForm({ ...scheduleForm, window: e.target.value })} />
+                        </div>
+                      </div>
+                      <div style={{ marginTop: '0.75rem' }}>
+                        <label className="rod-field-label">Crew</label>
+                        <input className="rod-input" type="text" maxLength={120} placeholder="Roma install crew"
+                          value={scheduleForm.crew} onChange={e => setScheduleForm({ ...scheduleForm, crew: e.target.value })} />
+                      </div>
+                      <div style={{ marginTop: '0.75rem' }}>
+                        <label className="rod-field-label">Notes (crew + customer)</label>
+                        <textarea className="rod-input" rows={2} maxLength={2000} placeholder="Access, parking, prep, anything the crew or customer should know…"
+                          value={scheduleForm.notes} onChange={e => setScheduleForm({ ...scheduleForm, notes: e.target.value })} />
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: '0.75rem', font: '400 12px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                        <input type="checkbox" checked={scheduleForm.notify} onChange={e => setScheduleForm({ ...scheduleForm, notify: e.target.checked })} />
+                        Email the customer the scheduled date
+                      </label>
+                      <div style={{ marginTop: '0.85rem', display: 'flex', gap: '0.5rem' }}>
+                        <button className="rod-mini-btn primary" onClick={saveSchedule} disabled={savingSchedule || !scheduleForm.date}>
+                          {savingSchedule ? 'Saving…' : (scheduleForm.notify ? 'Save & notify customer' : 'Save schedule')}
+                        </button>
+                        <button className="rod-mini-btn" onClick={() => setShowScheduleForm(false)} disabled={savingSchedule}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : order.install_scheduled_at ? (
+                    <React.Fragment>
+                      <div className="rov-fulfill-grid">
+                        {[
+                          ['Install date', new Date(order.install_scheduled_at).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'long', day: 'numeric' })],
+                          ['Window', order.install_window || '—'],
+                          ['Crew', order.install_crew || 'Roma install crew'],
+                          ['Notes', order.install_notes || '—'],
+                        ].map(([k, v]) => (
+                          <div key={k} className="rov-fulfill-cell">
+                            <RovMicro>{k}</RovMicro>
+                            <div className="rov-fulfill-value">{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ padding: '2px 20px 16px' }}>
+                        <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/work-order?preview=true'); setDocPreview({ url, title: 'Work order · ' + order.order_number, downloadPath: '/api/rep/orders/' + editId + '/work-order' }); } catch(e) { alert('Failed to load work order'); } }}>
+                          Crew work order PDF ↓
+                        </button>
+                      </div>
+                    </React.Fragment>
+                  ) : (
+                    <div style={{ padding: '10px 20px 18px' }}>
+                      <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-muted)', marginBottom: 10 }}>
+                        No install date yet. Book the date to put it on the customer's calendar and generate the crew work order.
+                      </div>
+                      <button className="rod-mini-btn primary" onClick={openScheduleForm}>＋ Schedule install</button>
+                    </div>
+                  )}
+                </RodCard>
+              )}
+
               {/* Fulfillment — v2 */}
               <RodCard title="Fulfillment"
                 action={!isInstall && ['pending', 'confirmed'].includes(order.status) ? (noFreight ? 'Switch to Shipping' : 'Switch to Pickup') : undefined}
@@ -22347,6 +22458,15 @@
               {/* Documents — v2 */}
               <RodCard title="Documents" action={'⎙ Print'} onAction={openPrintModal}>
                 <div style={{ padding: '8px 20px 14px' }}>
+                  {isInstall && (
+                    <div className="rov-doc-row2">
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Work order</div>
+                        <RovMicro style={{ marginTop: 2 }}>Crew job sheet · materials + scope</RovMicro>
+                      </div>
+                      <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/work-order?preview=true'); setDocPreview({ url, title: 'Work order · ' + order.order_number, downloadPath: '/api/rep/orders/' + editId + '/work-order' }); } catch(e) { alert('Failed to load work order'); } }}>PDF ↓</button>
+                    </div>
+                  )}
                   {orderInvoices.length > 0 ? orderInvoices.map(iv => (
                     <div className="rov-doc-row2" key={iv.id}>
                       <div style={{ minWidth: 0 }}>
