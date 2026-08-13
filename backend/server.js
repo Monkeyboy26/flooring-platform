@@ -11738,11 +11738,22 @@ async function storeResaleCertificate(fields, tradeCustomerId) {
   const fileKey = `trade-docs/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf`;
   await uploadToS3(fileKey, buffer, 'application/pdf');
   const result = await pool.query(
-    `INSERT INTO trade_documents (trade_customer_id, doc_type, file_name, file_key, file_size, mime_type)
-     VALUES ($1, 'resale_certificate', 'California Resale Certificate.pdf', $2, $3, 'application/pdf') RETURNING id`,
-    [tradeCustomerId || null, fileKey, buffer.length]
+    `INSERT INTO trade_documents (trade_customer_id, doc_type, file_name, file_key, file_size, mime_type,
+       sellers_permit, signed_name, signed_title, signed_ip, signed_at, certified)
+     VALUES ($1, 'resale_certificate', 'California Resale Certificate.pdf', $2, $3, 'application/pdf',
+       $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [tradeCustomerId || null, fileKey, buffer.length,
+     fields.sellers_permit || null, fields.signature || fields.signer_name || null,
+     fields.signer_title || null, fields.signed_ip || null, fields.signed_at || null,
+     fields.certified === true]
   );
   return { document_id: result.rows[0].id, file_key: fileKey };
+}
+
+// Pull the client IP, trusting the first X-Forwarded-For hop (nginx sets it).
+function clientIp(req) {
+  const fwd = (req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return fwd || req.ip || null;
 }
 
 // Applicant fills out the resale certificate during registration (no account yet).
@@ -11753,7 +11764,13 @@ app.post('/api/trade/register/resale-certificate', registrationLimiter, async (r
     if (!f.sellers_permit || !f.business_name) {
       return res.status(400).json({ error: "Seller's permit number and business name are required" });
     }
-    const out = await storeResaleCertificate(f, null);
+    if (!f.signature || !String(f.signature).trim()) {
+      return res.status(400).json({ error: 'An electronic signature (your typed full legal name) is required' });
+    }
+    if (f.certified !== true) {
+      return res.status(400).json({ error: 'You must certify the statements before generating the certificate' });
+    }
+    const out = await storeResaleCertificate({ ...f, signed_ip: clientIp(req), signed_at: new Date() }, null);
     res.json({ document_id: out.document_id });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Failed to generate resale certificate' });
@@ -11765,12 +11782,20 @@ app.post('/api/trade/resale-certificate', tradeAuth, async (req, res) => {
   try {
     const f = req.body || {};
     if (!f.sellers_permit) return res.status(400).json({ error: "Seller's permit number is required" });
+    if (!f.signature || !String(f.signature).trim()) {
+      return res.status(400).json({ error: 'An electronic signature (your typed full legal name) is required' });
+    }
+    if (f.certified !== true) {
+      return res.status(400).json({ error: 'You must certify the statements before generating the certificate' });
+    }
     const tc = req.tradeCustomer;
     const merged = {
       ...f,
       business_name: f.business_name || tc.company_name,
       signer_name: f.signer_name || tc.contact_name,
       email: f.email || tc.email,
+      signed_ip: clientIp(req),
+      signed_at: new Date(),
     };
     const out = await storeResaleCertificate(merged, tc.id);
     res.json({ document_id: out.document_id });

@@ -423,6 +423,11 @@ export function generateResaleCertificateHtml(data = {}) {
   const addr = [data.address_line1, [data.city, data.state, data.zip].filter(Boolean).join(', ')].filter(Boolean).join(' &middot; ');
   const dateStr = data.date || new Date().toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric' });
   const propDesc = data.property_description || 'Flooring, tile, stone, and related installation materials';
+  // Typed name is the purchaser's electronic signature; fall back to the signer name.
+  const signature = data.signature || data.signer_name || '';
+  const signedAt = data.signed_at
+    ? new Date(data.signed_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
+    : '';
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
     ${getDocumentBaseCSS()}
     .rc-lead { font-family:'Cormorant Garamond',Georgia,serif; font-size:0.72rem; letter-spacing:0.18em; text-transform:uppercase; color:#a87935; margin:0 0 0.5rem; font-weight:500; }
@@ -434,7 +439,10 @@ export function generateResaleCertificateHtml(data = {}) {
     .rc-blank { display:inline-block; min-width:180px; border-bottom:1px solid #78716c; }
     .rc-sign { display:flex; gap:1.5rem; margin-top:1.5rem; }
     .rc-sign .info-card { flex:1; }
-    .rc-sign-line { border-top:1px solid #1c1917; margin-top:2rem; padding-top:4px; font-size:0.6rem; text-transform:uppercase; letter-spacing:0.1em; color:#78716c; }
+    .rc-sign-mark { font-family:'Cormorant Garamond',Georgia,serif; font-style:italic; font-size:1.5rem; color:#1c1917; line-height:1.1; min-height:1.6rem; }
+    .rc-sign-line { border-top:1px solid #1c1917; margin-top:0.35rem; padding-top:4px; font-size:0.6rem; text-transform:uppercase; letter-spacing:0.1em; color:#78716c; }
+    .rc-esign { font-size:0.625rem; color:#57534e; line-height:1.6; margin-top:0.6rem; }
+    .rc-esign strong { color:#1c1917; }
     .rc-note { font-size:0.6875rem; color:#78716c; line-height:1.6; margin-top:1.25rem; }
   </style></head><body><div class="page">
     ${getDocumentHeader('Resale Certificate')}
@@ -455,11 +463,13 @@ export function generateResaleCertificateHtml(data = {}) {
       </div>
       <div class="info-card">
         <h3>Signature</h3>
-        <p><strong>${esc(data.signer_name) || '&mdash;'}</strong>${data.signer_title ? '<br/>' + esc(data.signer_title) : ''}<br/>Date: ${esc(dateStr)}</p>
+        <div class="rc-sign-mark">${esc(signature)}</div>
         <div class="rc-sign-line">Signature of purchaser</div>
+        <p><strong>${esc(data.signer_name || signature) || '&mdash;'}</strong>${data.signer_title ? '<br/>' + esc(data.signer_title) : ''}<br/>Date: ${esc(dateStr)}</p>
       </div>
     </div>
-    <p class="rc-note">Provided to Roma Flooring Designs under the California Sales and Use Tax Law. By submitting it electronically, the purchaser affirms the statements above are true and correct.</p>
+    <p class="rc-esign">Electronically signed by <strong>${esc(signature) || '&mdash;'}</strong>${signedAt ? ' on ' + esc(signedAt) : ''}${data.signed_ip ? ' from IP ' + esc(data.signed_ip) : ''}. This constitutes a legally binding electronic signature under Cal. Civ. Code &sect; 1633.7.</p>
+    <p class="rc-note">Provided to Roma Flooring Designs under the California Sales and Use Tax Law. By typing their name and submitting this form, the purchaser certifies under penalty of perjury under the laws of the State of California that they hold a valid seller's permit and that the statements above are true and correct.</p>
     ${getDocumentFooter('')}
   </div></body></html>`;
 }

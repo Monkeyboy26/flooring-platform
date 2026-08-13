@@ -1527,6 +1527,16 @@ ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS payment_terms VARCHAR(20) D
 -- Removes sales tax on materials for this customer's orders/estimates.
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS tax_exempt BOOLEAN DEFAULT false;
 
+-- Electronic signature / attestation captured when a CDTFA-230 resale certificate
+-- is generated in-app. Makes the generated PDF a genuinely signed certificate and
+-- preserves an audit trail of the affirmation (name, IP, time) for good-faith proof.
+ALTER TABLE trade_documents ADD COLUMN IF NOT EXISTS sellers_permit TEXT;
+ALTER TABLE trade_documents ADD COLUMN IF NOT EXISTS signed_name TEXT;
+ALTER TABLE trade_documents ADD COLUMN IF NOT EXISTS signed_title TEXT;
+ALTER TABLE trade_documents ADD COLUMN IF NOT EXISTS signed_ip TEXT;
+ALTER TABLE trade_documents ADD COLUMN IF NOT EXISTS signed_at TIMESTAMP;
+ALTER TABLE trade_documents ADD COLUMN IF NOT EXISTS certified BOOLEAN DEFAULT false;
+
 -- Tax columns on orders
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS tax_rate DECIMAL(5,4) DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(10,2) DEFAULT 0;

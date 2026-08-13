@@ -13128,7 +13128,7 @@
       const [expandedVisit, setExpandedVisit] = useState(null);
       const [visitDetail, setVisitDetail] = useState(null);
 
-      const [certForm, setCertForm] = useState({ sellers_permit: '', business_type: '', property_description: 'Flooring, tile, stone, and related installation materials', signer_title: 'Owner' });
+      const [certForm, setCertForm] = useState({ sellers_permit: '', business_type: '', property_description: 'Flooring, tile, stone, and related installation materials', signer_title: 'Owner', signature: '', certified: false });
       const [showCertForm, setShowCertForm] = useState(false);
       const [certBusy, setCertBusy] = useState(false);
       const [certDone, setCertDone] = useState(false);
@@ -13140,7 +13140,7 @@
       // Generate/refresh the CDTFA-230 resale certificate on file (business name,
       // contact, and email are filled from the account server-side).
       const submitCert = async () => {
-        if (!certForm.sellers_permit.trim()) return;
+        if (!certForm.sellers_permit.trim() || !certForm.signature.trim() || !certForm.certified) return;
         setCertBusy(true);
         try {
           const resp = await fetch(API + '/api/trade/resale-certificate', {
@@ -13150,6 +13150,8 @@
               business_type: certForm.business_type.trim(),
               property_description: certForm.property_description.trim(),
               signer_title: certForm.signer_title.trim(),
+              signature: certForm.signature.trim(),
+              certified: certForm.certified,
             }),
           });
           const data = await resp.json();
@@ -13952,13 +13954,15 @@
                     </div>
                     {showCertForm ? (
                       <div>
-                        <div className="acct-input-field"><label className="acct-input-label">CA seller's permit number</label><input className="acct-input" value={certForm.sellers_permit} onChange={e => setCertForm({ ...certForm, sellers_permit: e.target.value })} placeholder="SR AA 000000" /></div>
+                        <div className="acct-input-field"><label className="acct-input-label">CA seller's permit number</label><input className="acct-input" value={certForm.sellers_permit} onChange={e => setCertForm({ ...certForm, sellers_permit: formatSellersPermit(e.target.value) })} placeholder="SR AA 000000" /></div>
                         <div className="acct-input-field"><label className="acct-input-label">Type of business</label><input className="acct-input" value={certForm.business_type} onChange={e => setCertForm({ ...certForm, business_type: e.target.value })} placeholder="e.g. interior design" /></div>
                         <div className="acct-input-field"><label className="acct-input-label">Property purchased for resale</label><input className="acct-input" value={certForm.property_description} onChange={e => setCertForm({ ...certForm, property_description: e.target.value })} /></div>
                         <div className="acct-input-field"><label className="acct-input-label">Your title</label><input className="acct-input" value={certForm.signer_title} onChange={e => setCertForm({ ...certForm, signer_title: e.target.value })} placeholder="Owner" /></div>
+                        <div className="acct-input-field"><label className="acct-input-label">Signature — type your full legal name</label><input className="acct-input" value={certForm.signature} onChange={e => setCertForm({ ...certForm, signature: e.target.value })} placeholder="Full legal name" style={{ fontStyle: 'italic' }} /></div>
+                        <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', margin: '0.25rem 0 0.5rem', fontSize: '0.75rem', lineHeight: 1.5, cursor: 'pointer' }}><input type="checkbox" checked={certForm.certified} onChange={e => setCertForm({ ...certForm, certified: e.target.checked })} style={{ marginTop: '0.15rem', flexShrink: 0 }} /><span>I certify under penalty of perjury under the laws of the State of California that I hold a valid seller's permit, that the property described will be purchased for resale, and that the statements above are true and correct.</span></label>
                         <div className="tacct-btn-row">
                           <button type="button" className="acct-btn acct-btn--outline" onClick={() => setShowCertForm(false)}>Cancel</button>
-                          <button className="acct-btn" onClick={submitCert} disabled={certBusy || !certForm.sellers_permit.trim()}>{certBusy ? 'Generating…' : 'Generate certificate'}</button>
+                          <button className="acct-btn" onClick={submitCert} disabled={certBusy || !certForm.sellers_permit.trim() || !certForm.signature.trim() || !certForm.certified}>{certBusy ? 'Generating…' : 'Sign & generate certificate'}</button>
                         </div>
                       </div>
                     ) : (
@@ -13966,16 +13970,16 @@
                         <div>{certDone ? 'A resale certificate is on file with your account.' : 'Optional — file a CDTFA-230 so materials you buy for resale are billed without sales tax.'}</div>
                       </div>
                     )}
-                    <p className="tacct-note">We generate a signed CDTFA-230 PDF from these details, using your company name and address on file.</p>
+                    <p className="tacct-note">Typing your name and certifying applies a legally binding electronic signature; we generate the signed CDTFA-230 PDF from these details, using your company name and address on file.</p>
                   </div>
                   <div className="acct-profile-section">
                     <h3 className="acct-profile-title">Trade tier</h3>
                     <div className="tacct-info">
                       <div>Tier: <span className="trade-tier-badge">{account.tier_name || curTierName}</span></div>
-                      <div>Discount: {Math.round(parseFloat(account.discount_percent || 0) * 100) / 100}% off list</div>
+                      <div>Discount: {parseFloat(account.discount_percent || 0)}% off list</div>
                       <div>Spend (last 12 mo): ${parseFloat(account.total_spend || 0).toLocaleString()}</div>
                       {membership && membership.next_tier && membership.amount_to_next_tier != null && (
-                        <div>${parseFloat(membership.amount_to_next_tier).toLocaleString()} more to reach <strong>{membership.next_tier.name}</strong> ({Math.round(parseFloat(membership.next_tier.discount_percent) * 100) / 100}% off)</div>
+                        <div>${parseFloat(membership.amount_to_next_tier).toLocaleString()} more to reach <strong>{membership.next_tier.name}</strong> ({parseFloat(membership.next_tier.discount_percent)}% off)</div>
                       )}
                     </div>
                     <p className="tacct-note">Your tier is based on product spend over the trailing 12 months and updates automatically.</p>
@@ -15731,6 +15735,20 @@
       return <div style={{ font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: color || theme.muted, ...style }}>{children}</div>;
     }
 
+    // CA seller's permit / CDTFA account number. Formats vary — the lettered form
+    // (e.g. SR AA 12345678) carries an 8-digit account, while many accounts are
+    // purely numeric — so we normalize lightly rather than force a fixed length:
+    // uppercase, drop stray separators, and only group when it starts with the
+    // two-letter tax-type + district prefix. Numeric-only permits are left as typed.
+    function formatSellersPermit(val) {
+      const s = String(val || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16);
+      if (!/^[A-Z]{2}/.test(s)) return s; // numeric account — no grouping
+      const parts = [s.slice(0, 2)];
+      if (s.length > 2) parts.push(s.slice(2, 4));
+      if (s.length > 4) parts.push(s.slice(4));
+      return parts.join(' ');
+    }
+
     function TapInput({ theme, label, type = 'text', value, onChange, onBlur, placeholder, mono, required, invalid, maxLength, textarea, autoComplete, style, error, hint, valid }) {
       const { ink, accent, muted } = theme;
       const [reveal, setReveal] = useState(false);
@@ -15843,7 +15861,8 @@
       // PDF attached to the application in place of uploading an existing one.
       const [showCert, setShowCert] = useState(false);
       const [certBusy, setCertBusy] = useState(false);
-      const [cert, setCert] = useState({ sellers_permit: '', business_type: '', property_description: 'Flooring, tile, stone, and related installation materials', signer_title: 'Owner' });
+      const [cert, setCert] = useState({ sellers_permit: '', business_type: '', property_description: 'Flooring, tile, stone, and related installation materials', signer_title: 'Owner', signature: '', certified: false });
+      const [certErr, setCertErr] = useState('');
       const [touched, setTouched] = useState({});
       const touch = (k) => setTouched(t => (t[k] ? t : { ...t, [k]: true }));
 
@@ -15889,8 +15908,13 @@
       // Generate a CDTFA-230 PDF from the inline form; it fills the resale_cert
       // slot so it's linked to the application like an uploaded document.
       const generateCert = async () => {
-        if (!cert.sellers_permit.trim()) { setError("Enter your California seller's permit number to generate the certificate."); return; }
-        setCertBusy(true); setError('');
+        // The certificate is filled from the application above; guard the fields it
+        // needs so a missing business name surfaces here instead of a silent 400.
+        if (!companyName.trim()) { setCertErr('Add your business name near the top of the application before generating the certificate.'); return; }
+        if (!cert.sellers_permit.trim()) { setCertErr("Enter your California seller's permit number to generate the certificate."); return; }
+        if (!cert.signature.trim()) { setCertErr('Type your full legal name to sign the certificate.'); return; }
+        if (!cert.certified) { setCertErr('Check the certification box to sign the certificate.'); return; }
+        setCertBusy(true); setCertErr('');
         try {
           const resp = await fetch(API + '/api/trade/register/resale-certificate', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -15901,14 +15925,16 @@
               property_description: cert.property_description.trim(),
               signer_name: `${firstName.trim()} ${lastName.trim()}`.trim(),
               signer_title: cert.signer_title.trim(),
+              signature: cert.signature.trim(),
+              certified: cert.certified,
               address_line1: addressLine1, city, state: addrState, zip, phone, email,
             }),
           });
           const data = await resp.json();
-          if (!resp.ok) { setError(data.error || 'Could not generate the certificate.'); setCertBusy(false); return; }
+          if (!resp.ok) { setCertErr(data.error || 'Could not generate the certificate.'); setCertBusy(false); return; }
           setDocUploads(prev => ({ ...prev, resale_cert: { id: data.document_id, file_name: 'California Resale Certificate.pdf' } }));
           setShowCert(false);
-        } catch (err) { setError('Network error while generating the certificate.'); }
+        } catch (err) { setCertErr('Network error while generating the certificate.'); }
         setCertBusy(false);
       };
 
@@ -16075,17 +16101,23 @@
                       ) : (
                         <div style={{ padding: '20px 22px', border: `0.5px solid ${ink}22`, background: warm, display: 'grid', gap: 20 }}>
                           <TapMicro theme={theme} color={accent}>California resale certificate · CDTFA-230</TapMicro>
-                          <TapInput theme={theme} label="CA seller's permit number" required mono value={cert.sellers_permit} onChange={e => setCert({ ...cert, sellers_permit: e.target.value })} placeholder="SR AA 000000" />
+                          <TapInput theme={theme} label="CA seller's permit number" required mono value={cert.sellers_permit} onChange={e => setCert({ ...cert, sellers_permit: formatSellersPermit(e.target.value) })} placeholder="SR AA 000000" />
                           <TapRow>
                             <TapInput theme={theme} label="Type of business" value={cert.business_type} onChange={e => setCert({ ...cert, business_type: e.target.value })} placeholder={businessType || 'e.g. interior design'} />
                             <TapInput theme={theme} label="Your title" value={cert.signer_title} onChange={e => setCert({ ...cert, signer_title: e.target.value })} placeholder="Owner" />
                           </TapRow>
                           <TapInput theme={theme} label="Property purchased for resale" value={cert.property_description} onChange={e => setCert({ ...cert, property_description: e.target.value })} />
+                          <TapInput theme={theme} label="Signature — type your full legal name" required value={cert.signature} onChange={e => setCert({ ...cert, signature: e.target.value })} placeholder="Full legal name" style={{ fontStyle: 'italic' }} />
+                          <label style={{ display: 'flex', gap: 9, alignItems: 'flex-start', cursor: 'pointer', font: `400 12px/1.5 var(--roma-sans)`, color: ink }}>
+                            <input type="checkbox" checked={cert.certified} onChange={e => setCert({ ...cert, certified: e.target.checked })} style={{ marginTop: 3, flexShrink: 0 }} />
+                            <span>I certify under penalty of perjury under the laws of the State of California that I hold a valid seller's permit, that the property described will be purchased for resale, and that the statements above are true and correct.</span>
+                          </label>
+                          {certErr && <div style={{ padding: '10px 12px', background: '#c0392b12', border: `0.5px solid #c0392b55`, font: '400 12px/1.5 var(--roma-sans)', color: '#8a2a1e' }}>{certErr}</div>}
                           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', alignItems: 'center' }}>
                             <button type="button" onClick={() => setShowCert(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: muted, font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', padding: 0 }}>Cancel</button>
-                            <button type="button" onClick={generateCert} disabled={certBusy} style={{ padding: '11px 20px', background: ink, color: paper, border: 'none', font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: certBusy ? 'default' : 'pointer', opacity: certBusy ? 0.6 : 1 }}>{certBusy ? 'Generating…' : 'Generate certificate'}</button>
+                            <button type="button" onClick={generateCert} disabled={certBusy || !cert.sellers_permit.trim() || !cert.signature.trim() || !cert.certified} style={{ padding: '11px 20px', background: ink, color: paper, border: 'none', font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: certBusy ? 'default' : 'pointer', opacity: (certBusy || !cert.sellers_permit.trim() || !cert.signature.trim() || !cert.certified) ? 0.5 : 1 }}>{certBusy ? 'Signing…' : 'Sign & generate certificate'}</button>
                           </div>
-                          <TapMicro theme={theme}>Uses your business name, contact, and address from above. We generate a signed CDTFA-230 PDF and attach it to your application.</TapMicro>
+                          <TapMicro theme={theme}>Typing your name and certifying applies a legally binding electronic signature. Uses your business name, contact, and address from above; we generate the signed CDTFA-230 PDF and attach it to your application.</TapMicro>
                         </div>
                       )}
                     </div>
