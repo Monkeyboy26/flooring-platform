@@ -18785,6 +18785,10 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
     const bal = await recalculateBalance(pool, id);
     const paid = !!(bal && (bal.balance_status === 'paid' || bal.balance_status === 'credit'));
     const pend = await unsettledPaymentInfo(id);
+    // Install job? (labor lines exist) — the release flow defaults to delivery to
+    // the job site for these. Labor is filtered out of `items` above, so check here.
+    const laborRes = await pool.query("SELECT 1 FROM order_items WHERE order_id = $1 AND item_type = 'labor' LIMIT 1", [id]);
+    const isInstall = laborRes.rows.length > 0;
     // Distributors on this order — for the will-call flow. Each carries its Roma PO
     // and whether that PO has been sent (the distributor releases against a sent PO).
     const distRes = await pool.query(`
@@ -18796,7 +18800,7 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
       WHERE po.order_id = $1 AND po.status <> 'cancelled'
       ORDER BY v.name`, [id]);
     res.json({ order, items: itemsRes.rows, paid, balance: bal ? bal.balance : null,
-      unsettled: pend.unsettled, unsettled_amount: pend.amount, distributors: distRes.rows,
+      unsettled: pend.unsettled, unsettled_amount: pend.amount, distributors: distRes.rows, is_install: isInstall,
       releasable: RELEASABLE_STATUSES.includes(order.status) && paid && !pend.unsettled });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -19034,6 +19038,10 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
     const bal = await recalculateBalance(pool, id);
     const paid = !!(bal && (bal.balance_status === 'paid' || bal.balance_status === 'credit'));
     const pend = await unsettledPaymentInfo(id);
+    // Install job? (labor lines exist) — the release flow defaults to delivery to
+    // the job site for these. Labor is filtered out of `items` above, so check here.
+    const laborRes = await pool.query("SELECT 1 FROM order_items WHERE order_id = $1 AND item_type = 'labor' LIMIT 1", [id]);
+    const isInstall = laborRes.rows.length > 0;
     // Distributors on this order — for the will-call flow. Each carries its Roma PO
     // and whether that PO has been sent (the distributor releases against a sent PO).
     const distRes = await pool.query(`
@@ -19045,7 +19053,7 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
       WHERE po.order_id = $1 AND po.status <> 'cancelled'
       ORDER BY v.name`, [id]);
     res.json({ order, items: itemsRes.rows, paid, balance: bal ? bal.balance : null,
-      unsettled: pend.unsettled, unsettled_amount: pend.amount, distributors: distRes.rows,
+      unsettled: pend.unsettled, unsettled_amount: pend.amount, distributors: distRes.rows, is_install: isInstall,
       releasable: RELEASABLE_STATUSES.includes(order.status) && paid && !pend.unsettled });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });

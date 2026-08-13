@@ -21103,6 +21103,9 @@
       // schedule and complete (with a running balance), not a retail shipment,
       // so it gets job-oriented lifecycle labels/actions throughout.
       const isInstall = items.some(i => i.item_type === 'labor');
+      // Whether any materials have been released (out to the job site) yet — used to
+      // warn before starting an install with nothing released.
+      const anyReleased = releases.some(rel => rel.status !== 'void');
       // Pickup orders advance Confirmed → Ready for Pickup → Picked Up (real
       // ready_for_pickup status + "your order is ready" email); shipping keeps
       // Confirmed → Shipped → Delivered. Will-call completes via the release flow.
@@ -21962,7 +21965,11 @@
                       {showShip && !showTrackingForm && (
                         <button className="rod-mini-btn primary" disabled={updating || !allReceived}
                           title={!allReceived ? (isInstall ? 'Receive all materials before starting the install' : 'Receive all materials before shipping') : undefined}
-                          onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); updateStatus('shipped'); }}>
+                          onClick={() => {
+                            if (isInstall && !anyReleased && !confirm('No materials have been released to the job site yet. Start the install anyway?')) return;
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                            updateStatus('shipped');
+                          }}>
                           {isInstall ? 'Start install' : 'Add tracking & mark shipped'}
                         </button>
                       )}
@@ -23557,6 +23564,9 @@
         repFetch('/api/rep/orders/' + editId + '/release-context')
           .then(data => {
             setCtx(data);
+            // Install jobs fulfill by delivery to the job site — default the method
+            // there (unless the caller pre-set one, e.g. will-call).
+            if (data.is_install && !initialMethod) setMethod('delivery');
             const seed = {};
             (data.items || []).forEach(it => {
               const ordered = parseFloat(it.num_boxes || 0);
