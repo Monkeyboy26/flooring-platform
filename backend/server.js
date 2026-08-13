@@ -26,7 +26,7 @@ import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCom
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers, findExactDuplicate } from './lib/customerHelpers.js';
-import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateLabelSheetHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
+import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateLabelSheetHtml, generateLabelRollHtml, renderLabelPngs, generateLabelImageRollHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -5214,6 +5214,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       `, [order.id, stripeChargeAmount.toFixed(2), payment_intent_id, paymentDesc, paymentStatus, paymentMethodCol]);
       if (!isBankTransfer && !isAch) {
         await syncOrderPaymentToInvoice(opResult.rows[0].id, order.id, client);
+        scheduleReceiptCapture(opResult.rows[0].id);
       }
     }
 
@@ -6664,21 +6665,45 @@ async function buildLabels(rows) {
 
 // Shared label handlers — mounted under both /api/admin (staff) and /api/rep (sales reps).
 const LABEL_ZERO_MARGIN = { margin: { top: '0', bottom: '0', left: '0', right: '0' } };
+// Roll format: one 4in x 2in label per page for a thermal label printer (?format=roll).
+const LABEL_ROLL_OPTS = { width: '4in', height: '2in', margin: { top: '0', bottom: '0', left: '0', right: '0' } };
 
-// Single SKU label (prints top-left of one Avery 5163 sheet).
+// Render the requested label format and send it. Formats:
+//   (default)      Avery 5163 sheet PDF (10-up on Letter)
+//   ?format=roll   vector 4in x 2in one-label-per-page PDF for a thermal roll printer
+//   ?format=image  203-dpi rasterized 4x2-per-page PDF — crispest output on a thermal
+//                  head; falls back to the vector roll PDF if rasterization fails.
+// Honors ?preview=true (generatePDF returns raw HTML) for every format.
+async function sendLabels(labels, req, res, filenameBase) {
+  const format = req.query.format;
+  if (format === 'image') {
+    try {
+      const pngs = await renderLabelPngs(labels);
+      const html = generateLabelImageRollHtml(pngs);
+      return await generatePDF(html, `${filenameBase}-roll.pdf`, req, res, LABEL_ROLL_OPTS);
+    } catch (imgErr) {
+      console.warn('label image render failed, falling back to vector roll:', imgErr.message);
+    }
+  }
+  const roll = format === 'roll' || format === 'image';
+  const html = roll ? generateLabelRollHtml(labels) : generateLabelSheetHtml(labels);
+  await generatePDF(html, roll ? `${filenameBase}-roll.pdf` : `${filenameBase}.pdf`, req, res, roll ? LABEL_ROLL_OPTS : LABEL_ZERO_MARGIN);
+}
+
+// Single SKU label. See sendLabels() for the ?format options.
 async function respondWithSingleLabel(req, res) {
   try {
     const rows = await getLabelData([req.params.skuId]);
     if (!rows.length) return res.status(404).json({ error: 'SKU not found' });
-    const html = generateLabelSheetHtml(await buildLabels(rows));
-    await generatePDF(html, `label-${rows[0].internal_sku || 'sku'}.pdf`, req, res, LABEL_ZERO_MARGIN);
+    const labels = await buildLabels(rows);
+    await sendLabels(labels, req, res, `label-${rows[0].internal_sku || 'sku'}`);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-// Batch label sheet — accepts ?skuIds=a,b,c and/or ?productIds=x,y (products expand to
-// their labelable SKUs). Supports ?preview=true (generatePDF returns raw HTML).
+// Batch labels — accepts ?skuIds=a,b,c and/or ?productIds=x,y (products expand to their
+// labelable SKUs). See sendLabels() for the ?format options.
 async function respondWithLabelSheet(req, res) {
   try {
     let skuIds = String(req.query.skuIds || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -6689,8 +6714,8 @@ async function respondWithLabelSheet(req, res) {
     if (skuIds.length > MAX_LABELS) return res.status(400).json({ error: `Too many labels (${skuIds.length}); max ${MAX_LABELS}. Narrow your selection.` });
     const rows = await getLabelData(skuIds);
     if (!rows.length) return res.status(404).json({ error: 'No matching SKUs found' });
-    const html = generateLabelSheetHtml(await buildLabels(rows));
-    await generatePDF(html, 'roma-labels.pdf', req, res, LABEL_ZERO_MARGIN);
+    const labels = await buildLabels(rows);
+    await sendLabels(labels, req, res, 'roma-labels');
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -9559,7 +9584,7 @@ async function searchSkus(pool, rawQuery) {
     s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
     COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
     v.name as vendor_name, COALESCE(br.name, v.name) as brand_name,
-    pr.retail_price, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
+    pr.retail_price, pr.retail_locked, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
     pk.sqft_per_box, pk.roll_width_ft,
     sa_c.value as color, sa_sz.value as size`;
   const baseJoins = `
@@ -11897,7 +11922,7 @@ app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { margin_tier_id } = req.body;
+    const { margin_tier_id, tax_exempt } = req.body;
 
     const cust = await client.query('SELECT * FROM trade_customers WHERE id = $1', [id]);
     if (!cust.rows.length) return res.status(404).json({ error: 'Customer not found' });
@@ -12092,8 +12117,43 @@ app.get('/api/trade/membership', tradeAuth, async (req, res) => {
 // Extracted so both the instant path and checkout.session.async_payment_succeeded
 // run the identical receipt email + invoice sync + rep notification + deposit nudge.
 // The caller runs this ONLY when a payment row was newly settled (idempotent).
+// After a Stripe payment settles, pull the charge's hosted receipt (receipt_url +
+// receipt_number) and card details onto the order_payments row so it can be linked
+// from the order's documents. Idempotent + fail-safe: no-ops when the row has no
+// payment intent, already has a receipt, or the charge can't be fetched.
+async function enrichPaymentReceipt(opId) {
+  try {
+    if (!opId || !process.env.STRIPE_SECRET_KEY) return;
+    const r = await pool.query(
+      'SELECT stripe_payment_intent_id, stripe_receipt_url FROM order_payments WHERE id = $1', [opId]);
+    const row = r.rows[0];
+    if (!row || row.stripe_receipt_url || !row.stripe_payment_intent_id) return;
+    const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id, { expand: ['latest_charge'] });
+    const ch = pi && pi.latest_charge;
+    if (!ch || typeof ch !== 'object') return;
+    const card = ch.payment_method_details && ch.payment_method_details.card;
+    await pool.query(
+      `UPDATE order_payments
+         SET stripe_charge_id = $1, stripe_receipt_url = $2, stripe_receipt_number = $3,
+             card_brand = COALESCE($4, card_brand), card_last4 = COALESCE($5, card_last4)
+       WHERE id = $6`,
+      [ch.id || null, ch.receipt_url || null, ch.receipt_number || null,
+       card ? card.brand : null, card ? card.last4 : null, opId]);
+  } catch (e) {
+    console.error('[Receipt] enrichPaymentReceipt failed for op', opId, e.message);
+  }
+}
+// Schedule receipt capture to run after the enclosing DB transaction commits — the
+// delay keeps the Stripe HTTP call out of the transaction and avoids racing an
+// uncommitted row. Fire-and-forget; the backfill script is the catch-all.
+function scheduleReceiptCapture(opId) {
+  if (!opId) return;
+  setTimeout(() => { enrichPaymentReceipt(opId).catch(() => {}); }, 4000);
+}
+
 async function finalizeSettledPayment(order_id, payment_request_id, paidAmount, opId) {
   await syncOrderPaymentToInvoice(opId, order_id, pool);
+  scheduleReceiptCapture(opId);
   const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [order_id]);
   if (!orderResult.rows.length) return;
   const paidOrder = orderResult.rows[0];
@@ -12305,6 +12365,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               achOpId = achOpRes.rows[0].id;
             }
             await syncOrderPaymentToInvoice(achOpId, order.id, pool);
+            scheduleReceiptCapture(achOpId);
             await logOrderActivity(pool, order.id, 'payment_received', null, 'System',
               { method: 'ach', amount: settledAmount.toFixed(2) });
             // Generate purchase orders now that payment is confirmed
@@ -12333,6 +12394,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             const opRow = await pool.query('SELECT id FROM order_payments WHERE order_id = $1 AND stripe_payment_intent_id = $2 LIMIT 1', [order.id, pi.id]);
             if (opRow.rows.length) {
               await syncOrderPaymentToInvoice(opRow.rows[0].id, order.id, pool);
+              scheduleReceiptCapture(opRow.rows[0].id);
             }
             await logOrderActivity(pool, order.id, 'payment_received', null, 'System',
               { method: 'bank_transfer', amount: settledAmount.toFixed(2) });
@@ -13277,6 +13339,10 @@ app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) =
       const orderRes = await pool.query('SELECT * FROM orders WHERE id = $1', [q.converted_order_id]);
       if (!orderRes.rows.length) return res.status(400).json({ error: 'Quote already converted' });
       const order = orderRes.rows[0];
+      // Record the customer's in-app Terms-of-Sale agreement (checkbox on the quote).
+      if (req.body && req.body.terms_accepted) {
+        await pool.query('UPDATE orders SET terms_accepted_at = COALESCE(terms_accepted_at, NOW()) WHERE id = $1', [order.id]);
+      }
       const pending = await pool.query(
         "SELECT * FROM payment_requests WHERE order_id = $1 AND status = 'pending' AND stripe_checkout_url IS NOT NULL AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at DESC LIMIT 1",
         [order.id]);
@@ -13308,6 +13374,11 @@ app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) =
         q.subtotal, q.shipping || 0, q.total, q.sales_rep_id, q.id, q.delivery_method || 'shipping',
         q.promo_code_id || null, q.promo_code || null, q.discount_amount || 0, req.customer.id]);
     const order = orderResult.rows[0];
+    // Record the customer's in-app Terms-of-Sale agreement (checkbox on the quote)
+    // right away, alongside Stripe's own consent capture on the hosted checkout.
+    if (req.body && req.body.terms_accepted) {
+      await client.query('UPDATE orders SET terms_accepted_at = NOW() WHERE id = $1', [order.id]);
+    }
 
     for (const item of qItems.rows) {
       await client.query(`
@@ -13414,244 +13485,7 @@ app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
   }
 });
 
-// ==================== Packing Slip & Invoice Helpers ====================
-
-async function generateOrderPackingSlipHtml(orderId) {
-  const order = await pool.query(`
-    SELECT o.*,
-      sr.first_name || ' ' || sr.last_name as sales_rep_name
-    FROM orders o
-    LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
-    WHERE o.id = $1
-  `, [orderId]);
-  if (!order.rows.length) return null;
-  const items = await pool.query(`
-    SELECT oi.*, p.sqft_per_box, p.weight_per_box_lbs, sk.variant_name, sk.internal_sku,
-      sk.accessory_label, sk.variant_type,
-      sa_c.value as color, sa_sz.value as size,
-      COALESCE(br.name, v.name) as vendor_name,
-      c.name as category_name
-    FROM order_items oi
-    LEFT JOIN packaging p ON p.sku_id = oi.sku_id
-    LEFT JOIN skus sk ON sk.id = oi.sku_id
-    LEFT JOIN products pr ON pr.id = COALESCE(sk.product_id, oi.product_id)
-    LEFT JOIN vendors v ON v.id = pr.vendor_id
-    LEFT JOIN brands br ON br.id = pr.brand_id
-    LEFT JOIN categories c ON c.id = pr.category_id
-    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
-      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-    LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
-      AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
-    WHERE oi.order_id = $1 AND COALESCE(oi.item_type, 'material') != 'labor' ORDER BY oi.id
-  `, [orderId]);
-  const o = order.rows[0];
-  const isPickup = o.delivery_method === 'pickup';
-
-  // Design tokens (matching PO document)
-  const ink = '#1c1917';
-  const muted = '#8a7e68';
-  const accent = '#a87935';
-  const warm = '#d8cdb6';
-  const mono = "ui-monospace, monospace";
-  const serif = "'Cormorant Garamond', 'Times New Roman', serif";
-  const sans = "'Inter', system-ui, sans-serif";
-
-  const fmtDate = (d) => {
-    if (!d) return '\u2014';
-    return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  };
-
-  const shipDate = fmtDate(o.shipped_at || o.created_at);
-  const psNumber = `PS-${o.order_number}`;
-  const deliveryLabel = isPickup ? 'Will Call / Pickup' : (o.shipping_method || 'Standard Shipping');
-
-  // Ship-to address
-  const shipToName = isPickup ? 'Roma Flooring Designs' : (o.customer_name || '\u2014');
-  const shipToAddr = isPickup
-    ? '1440 S. State College Blvd, Suite 6M<br>Anaheim, CA 92806'
-    : `${o.shipping_address_line1 || ''}${o.shipping_address_line2 ? '<br>' + o.shipping_address_line2 : ''}<br>${o.shipping_city || ''}, ${o.shipping_state || ''} ${o.shipping_zip || ''}`;
-
-  // Swatch color palette for placeholder boxes
-  const swatchColors = ['#c4b5a0', '#a89882', '#d6c8b4', '#b8a68e', '#e0d4c0', '#9c8c74', '#cbbfa9'];
-
-  // Compute totals
-  let totalUnits = 0;
-  let totalWeight = 0;
-  let totalCartons = 0;
-  let hasWeight = false;
-  items.rows.forEach(i => {
-    totalUnits += (i.num_boxes || 0);
-    totalCartons += (i.num_boxes || 0);
-    if (i.weight_per_box_lbs) {
-      totalWeight += parseFloat(i.weight_per_box_lbs) * (i.num_boxes || 0);
-      hasWeight = true;
-    }
-  });
-
-  const html = `<!DOCTYPE html><html><head>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-    <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{margin:0;padding:0;height:100%}
-    body{font-family:${sans};color:${ink};font-size:11px;-webkit-font-smoothing:antialiased}
-    </style>
-    </head><body>
-    <div style="width:100%;height:100%;background:#fff;color:${ink};font-family:${sans};padding:48px 56px 40px;box-sizing:border-box;display:grid;grid-template-rows:auto auto auto 1fr auto;gap:0;font-size:11px">
-
-      <!-- HEADER -->
-      <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid ${ink}22">
-        <div>
-          <div style="font:300 36px/1 ${serif};letter-spacing:-0.014em;color:${ink}">Roma</div>
-          <div style="margin-top:4px;font:500 8px/1 ${mono};letter-spacing:0.22em;text-transform:uppercase;color:${muted}">Flooring &middot; Surfaces &middot; Since 1999</div>
-          <div style="margin-top:14px;font:400 10px/1.5 ${sans};color:${ink}cc">
-            Roma Flooring Designs, Inc.<br>
-            1440 S. State College Blvd, Anaheim, CA 92806<br>
-            (714) 999-0009 &middot; orders@romaflooringdesigns.com<br>
-            CSLB #874621
-          </div>
-        </div>
-        <div style="text-align:right;min-width:240px">
-          <div style="font:500 9px/1 ${mono};letter-spacing:0.22em;text-transform:uppercase;color:${muted}">Packing slip</div>
-          <div style="font:300 30px/1 ${serif};letter-spacing:-0.014em;color:${ink};margin-top:6px">${psNumber}</div>
-          <div style="margin-top:12px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 ${sans};text-align:left">
-            <span style="color:${muted}">Order</span>
-            <span style="color:${ink};text-align:right">${o.order_number}</span>
-            <span style="color:${muted}">Ship date</span>
-            <span style="color:${ink};text-align:right">${shipDate}</span>
-            ${o.po_number ? `<span style="color:${muted}">Customer PO</span><span style="color:${ink};text-align:right">${o.po_number}</span>` : ''}
-            ${o.tracking_number ? `<span style="color:${muted}">Tracking</span><span style="color:${ink};text-align:right;font:500 9px/1.4 ${mono};letter-spacing:0.04em">${o.tracking_number}</span>` : ''}
-          </div>
-        </div>
-      </div>
-
-      <!-- INTRO BAND -->
-      <div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:4px;border-bottom:1px solid ${ink}11">
-        <div style="font:500 9px/1.4 ${sans};letter-spacing:0.06em;color:${ink}cc">
-          Please verify all items against invoice <strong style="color:${ink}">${o.order_number}</strong>. Report any discrepancies within 48 hours of receipt to orders@romaflooringdesigns.com or (714) 999-0009.
-        </div>
-        <div style="display:flex;align-items:center;gap:0;padding:8px 14px;border:1.5px solid ${accent};color:${accent};font:500 11px/1 ${mono};letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg)">Packing list</div>
-      </div>
-
-      <!-- SHIP-FROM / SHIP-TO / DELIVERY -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:16px 0 20px;border-bottom:1px solid ${ink}22">
-        <div>
-          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Ship from</div>
-          <div style="font:500 11px/1.2 ${sans};color:${ink}">Roma Flooring Designs</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">
-            1440 S. State College Blvd<br>Anaheim, CA 92806
-          </div>
-        </div>
-        <div>
-          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">${isPickup ? 'Pickup by' : 'Ship to'}</div>
-          <div style="font:500 11px/1.2 ${sans};color:${ink}">${shipToName}</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${shipToAddr}</div>
-          ${o.phone ? `<div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:4px">${o.phone}</div>` : ''}
-        </div>
-        <div>
-          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Delivery</div>
-          <div style="font:500 11px/1.2 ${sans};color:${ink}">${o.shipping_carrier || '\u2014'}</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${deliveryLabel}</div>
-          ${o.sales_rep_name ? `<div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:4px">Rep: ${o.sales_rep_name}</div>` : ''}
-          ${isPickup ? `<div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Pickup &middot; Mon&ndash;Fri &middot; 7a&ndash;4p PT</div>` : ''}
-        </div>
-      </div>
-
-      <!-- LINE ITEMS -->
-      <div style="padding-top:18px">
-        <div style="display:grid;grid-template-columns:32px 1fr 70px 60px 60px 44px 70px;gap:8px;padding:0 0 10px;border-bottom:1px solid ${ink}33;font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted}">
-          <span></span><span>Description</span>
-          <span style="text-align:right">Coverage</span>
-          <span style="text-align:right">Ordered</span>
-          <span style="text-align:right">Shipped</span>
-          <span style="text-align:right">B/O</span>
-          <span style="text-align:right">Cartons</span>
-        </div>
-        ${items.rows.map((i, idx) => {
-          const isUnit = i.sell_by === 'unit';
-          const sqftPerBox = i.sqft_per_box ? parseFloat(i.sqft_per_box) : null;
-          const totalSqft = i.sqft_needed ? parseFloat(i.sqft_needed) : (sqftPerBox ? sqftPerBox * i.num_boxes : null);
-          const itemWeight = i.weight_per_box_lbs ? (parseFloat(i.weight_per_box_lbs) * i.num_boxes).toFixed(1) : null;
-          const swatchColor = swatchColors[idx % swatchColors.length];
-          const _ci = composeItemName(i);
-          const desc = _ci.title || '\u2014';
-          const detail = _ci.descriptors.join(' \u00b7 ');
-          const skuCode = i.internal_sku || '';
-          const catVendor = [i.category_name, i.vendor_name].filter(Boolean).join(' \u00b7 ');
-          const isLast = idx === items.rows.length - 1;
-          return `<div style="display:grid;grid-template-columns:32px 1fr 70px 60px 60px 44px 70px;gap:8px;padding:12px 0;border-bottom:${isLast ? 'none' : `1px solid ${ink}11`};align-items:flex-start">
-            <div style="width:28px;height:28px;background:${swatchColor};flex-shrink:0;border:0.5px solid ${ink}22"></div>
-            <div>
-              <div style="font:500 11px/1.3 ${sans};color:${ink};letter-spacing:-0.004em">${desc}${i.is_sample ? ` <span style="font:400 9px/1 ${sans};color:${muted}">(Sample)</span>` : ''}</div>
-              ${detail ? `<div style="font:400 10px/1.4 ${sans};color:${ink}99;margin-top:2px">${detail}</div>` : ''}
-              ${skuCode ? `<div style="font:500 9px/1.4 ${mono};letter-spacing:0.08em;color:${muted};margin-top:2px">${skuCode}</div>` : ''}
-              ${catVendor ? `<div style="font:400 9px/1.4 ${sans};color:${ink}88;margin-top:2px">${catVendor}</div>` : ''}
-            </div>
-            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink}">${isUnit ? '\u2014' : (totalSqft ? totalSqft.toFixed(1) + ' sqft' : '\u2014')}</div>
-            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink}">${i.num_boxes}</div>
-            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink}">${i.num_boxes}</div>
-            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${muted}">0</div>
-            <div style="text-align:right">
-              <div style="font:400 11px/1.2 ${serif};color:${ink}">${i.num_boxes}</div>
-              ${itemWeight ? `<div style="font:400 9px/1.4 ${sans};color:${muted};margin-top:2px">${itemWeight} lbs</div>` : ''}
-            </div>
-          </div>`;
-        }).join('')}
-      </div>
-
-      <!-- FOOTER AREA -->
-      <div>
-        <div style="display:grid;grid-template-columns:1fr 220px;gap:28px;margin-top:12px">
-          <!-- Left: Handling notes + sign-off -->
-          <div style="padding-top:4px">
-            <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Handling notes</div>
-            <div style="font:400 9.5px/1.55 ${sans};color:${ink}cc">
-              ${o.notes ? o.notes : 'Handle with care. Inspect all cartons for damage before signing. Tile and stone are fragile \u2014 do not drop or stack improperly.'}
-            </div>
-            <div style="margin-top:20px">
-              <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:14px">Receiving sign-off</div>
-              <div style="margin-bottom:16px">
-                <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;min-width:200px;font:400 12px/1 ${serif};color:${muted}">&nbsp;</div>
-                <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Signature</div>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-                <div>
-                  <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;font:400 12px/1 ${serif};color:${muted}">&nbsp;</div>
-                  <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Date received</div>
-                </div>
-                <div>
-                  <div style="border-bottom:1px solid ${ink}66;padding-bottom:4px;font:400 12px/1 ${serif};color:${muted}">&nbsp;</div>
-                  <div style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted};margin-top:6px">Print name</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Right: Package totals -->
-          <div>
-            <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:10px">Package totals</div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Lines</span><span style="color:${ink}">${items.rows.length}</span></div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Units shipped</span><span style="color:${ink}">${totalUnits}</span></div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Backordered</span><span style="color:${muted}">0</span></div>
-            ${hasWeight ? `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Total weight</span><span style="color:${ink}">${totalWeight.toFixed(1)} lbs</span></div>` : ''}
-            <div style="margin-top:8px;padding-top:8px;border-top:1.5px solid ${ink};display:flex;justify-content:space-between;align-items:baseline">
-              <span style="font:500 10px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${ink}">Total cartons</span>
-              <span style="font:300 26px/1 ${serif};letter-spacing:-0.012em;color:${ink}">${totalCartons}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- DOCUMENT FOOTER -->
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid ${ink}22;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 ${sans};color:${muted}">
-          <span>Roma Flooring Designs, Inc. &middot; 1440 S. State College Blvd &middot; Anaheim, CA 92806 &middot; CSLB #874621</span>
-          <span style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase">${psNumber} &middot; Page 1 / 1</span>
-        </div>
-      </div>
-    </div>
-  </body></html>`;
-
-  return { html, filename: `packing-slip-${o.order_number}.pdf` };
-}
+// ==================== Invoice Helpers ====================
 
 async function generateOrderInvoiceHtml(orderId) {
   const order = await pool.query(`
@@ -13677,8 +13511,16 @@ async function generateOrderInvoiceHtml(orderId) {
       AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
     WHERE oi.order_id = $1 ORDER BY oi.id
   `, [orderId]);
+  // Most recent settled Stripe payment (card/ACH) with a captured receipt — drives
+  // the "Paid via …" line on the invoice.
+  const payRow = await pool.query(
+    `SELECT card_brand, card_last4, stripe_receipt_number, stripe_receipt_url, payment_method, created_at
+       FROM order_payments
+      WHERE order_id = $1 AND payment_type IN ('charge','additional_charge')
+        AND status = 'completed' AND stripe_receipt_url IS NOT NULL
+      ORDER BY created_at DESC LIMIT 1`, [orderId]);
   const o = order.rows[0];
-  return { html: generateOrderInvoiceDoc(o, items.rows), filename: `invoice-${o.order_number}.pdf` };
+  return { html: generateOrderInvoiceDoc(o, items.rows, payRow.rows[0]), filename: `invoice-${o.order_number}.pdf` };
 }
 
 async function generateSampleRequestConfirmationHtml(sampleRequestId) {
@@ -13727,18 +13569,7 @@ async function generateSampleRequestConfirmationHtml(sampleRequestId) {
   </body></html>`, filename: `sample-request-${s.request_number}.pdf` };
 }
 
-// ==================== Packing Slip & Invoice Endpoints (Phase 7) ====================
-
-// Packing slip PDF
-app.get('/api/staff/orders/:id/packing-slip', staffDocAuth, async (req, res) => {
-  try {
-    const result = await generateOrderPackingSlipHtml(req.params.id);
-    if (!result) return res.status(404).json({ error: 'Order not found' });
-    await generatePDF(result.html, result.filename, req, res);
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// ==================== Invoice Endpoints (Phase 7) ====================
 
 // Invoice PDF
 app.get('/api/staff/orders/:id/invoice', staffDocAuth, async (req, res) => {
@@ -13830,10 +13661,12 @@ async function generateReleaseFormHtml(releaseId, opts = {}) {
   const rel = await pool.query(`
     SELECT mr.*, o.order_number, o.customer_name, o.customer_email, o.phone,
       o.shipping_address_line1, o.shipping_address_line2, o.shipping_city, o.shipping_state, o.shipping_zip,
-      sr.first_name || ' ' || sr.last_name AS rep_name, sr.email AS rep_email
+      sr.first_name || ' ' || sr.last_name AS rep_name, sr.email AS rep_email,
+      dv.name AS vendor_name, dv.address AS vendor_address, dv.phone AS vendor_phone
     FROM material_releases mr
     JOIN orders o ON o.id = mr.order_id
     LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+    LEFT JOIN vendors dv ON dv.id = mr.vendor_id
     WHERE mr.id = $1 ${opts.repId ? 'AND o.sales_rep_id = $2' : ''}`,
     opts.repId ? [releaseId, opts.repId] : [releaseId]);
   if (!rel.rows.length) return null;
@@ -14142,7 +13975,7 @@ app.post('/api/rep/trade-customers/:id/approve', repAuth, requireRepManager, asy
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { margin_tier_id } = req.body;
+    const { margin_tier_id, tax_exempt } = req.body;
 
     const cust = await client.query('SELECT * FROM trade_customers WHERE id = $1', [id]);
     if (!cust.rows.length) return res.status(404).json({ error: 'Customer not found' });
@@ -14234,6 +14067,126 @@ app.post('/api/rep/trade-customers/:id/deny', repAuth, requireRepManager, async 
 
     const { password_hash, password_salt, ...customer } = tc;
     res.json({ customer });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== Manager: rep reassignment ====================
+// Managers (sales_reps.is_manager) can reassign a retail customer or an
+// individual order to another rep. Reassigning a customer cascades ONLY to
+// their open orders (closed orders keep their original rep). Reassigning an
+// order is standalone and never changes the customer's assignment.
+
+const OPEN_ORDER_STATUSES = ['pending', 'confirmed', 'ready_for_pickup', 'shipped'];
+
+// List active reps (for the reassign dropdown).
+app.get('/api/rep/reps', repAuth, requireRepManager, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, first_name, last_name, first_name || ' ' || last_name AS name, email, is_manager
+       FROM sales_reps WHERE is_active = true ORDER BY first_name, last_name`
+    );
+    res.json({ reps: result.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Reassign a retail customer to another rep. Open orders follow the customer;
+// closed orders (delivered/cancelled/refunded) are left with their old rep.
+app.put('/api/rep/customers/:id/assign-rep', repAuth, requireRepManager, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { rep_id } = req.body;
+    if (!rep_id) return res.status(400).json({ error: 'rep_id required' });
+
+    const repRow = await client.query('SELECT id, first_name, last_name FROM sales_reps WHERE id = $1 AND is_active = true', [rep_id]);
+    if (!repRow.rows.length) return res.status(400).json({ error: 'Rep not found or inactive' });
+    const newRep = repRow.rows[0];
+    const newRepName = `${newRep.first_name} ${newRep.last_name}`.trim();
+
+    await client.query('BEGIN');
+
+    const custRes = await client.query(
+      `UPDATE customers SET assigned_rep_id = $1, assigned_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING id, first_name || ' ' || last_name AS name, email`,
+      [rep_id, id]
+    );
+    if (!custRes.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    // Cascade to open orders only.
+    const orderRes = await client.query(
+      `UPDATE orders SET sales_rep_id = $1
+       WHERE customer_id = $2 AND status = ANY($3::text[])
+       RETURNING id, order_number`,
+      [rep_id, id, OPEN_ORDER_STATUSES]
+    );
+
+    await client.query('COMMIT');
+
+    const manager = `${req.rep.first_name} ${req.rep.last_name}`.trim();
+    await logAudit(null, 'customer.reassign', 'customers', id,
+      { new_rep_id: rep_id, new_rep_name: newRepName, reassigned_open_orders: orderRes.rows.length, by_rep: req.rep.id, by_name: manager }, req.ip);
+
+    res.json({ customer: custRes.rows[0], reassigned_orders: orderRes.rows.length });
+
+    // Log activity on each reassigned order + notify the new rep.
+    setImmediate(async () => {
+      for (const o of orderRes.rows) {
+        try { await logOrderActivity(pool, o.id, 'rep_assigned', req.rep.id, manager, { rep_name: newRepName, via: 'customer_reassign' }); } catch {}
+      }
+      if (orderRes.rows.length) {
+        createRepNotification(pool, rep_id, 'customer_assigned',
+          custRes.rows[0].name + ' reassigned to you',
+          'You now handle ' + custRes.rows[0].name + ' and their ' + orderRes.rows.length + ' open order' + (orderRes.rows.length !== 1 ? 's' : '') + '.',
+          'customer', id);
+      } else {
+        createRepNotification(pool, rep_id, 'customer_assigned',
+          custRes.rows[0].name + ' reassigned to you',
+          'You now handle ' + custRes.rows[0].name + '.',
+          'customer', id);
+      }
+    });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Reassign a single order to another rep. Does NOT touch the customer's assignment.
+app.put('/api/rep/orders/:id/assign-rep', repAuth, requireRepManager, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rep_id } = req.body;
+    if (!rep_id) return res.status(400).json({ error: 'rep_id required' });
+
+    const repRow = await pool.query('SELECT id, first_name, last_name FROM sales_reps WHERE id = $1 AND is_active = true', [rep_id]);
+    if (!repRow.rows.length) return res.status(400).json({ error: 'Rep not found or inactive' });
+    const newRep = repRow.rows[0];
+    const newRepName = `${newRep.first_name} ${newRep.last_name}`.trim();
+
+    const result = await pool.query(
+      'UPDATE orders SET sales_rep_id = $1 WHERE id = $2 RETURNING *',
+      [rep_id, id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Order not found' });
+
+    const manager = `${req.rep.first_name} ${req.rep.last_name}`.trim();
+    await logOrderActivity(pool, id, 'rep_assigned', req.rep.id, manager, { rep_name: newRepName });
+    res.json({ order: result.rows[0] });
+
+    setImmediate(() => createRepNotification(pool, rep_id, 'order_assigned',
+      'Order ' + result.rows[0].order_number + ' assigned to you',
+      'You have been assigned to order ' + result.rows[0].order_number + '.',
+      'order', id));
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -16183,8 +16136,9 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { customer_name, customer_email, phone, company_name, delivery_method, shipping_address,
-            payment_method, items, promo_code, document_ids } = req.body;
+            payment_method, items, promo_code, document_ids, payment_amount } = req.body;
     const companyName = (company_name || '').trim() || null;
+    const jobName = (req.body.job_name || '').trim().slice(0, 200) || null;
 
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Customer name and email are required' });
@@ -16216,12 +16170,16 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     }
 
     const isPickup = delivery_method === 'pickup';
-    if (!isPickup && (!shipping_address || !shipping_address.line1 || !shipping_address.city || !shipping_address.state || !shipping_address.zip)) {
+    // Will-call = customer picks up at the distributor. Like pickup, it carries no
+    // freight and needs no Roma-side shipping address. [[material-releases]]
+    const isWillCall = delivery_method === 'will_call';
+    const noFreight = isPickup || isWillCall;
+    if (!noFreight && (!shipping_address || !shipping_address.line1 || !shipping_address.city || !shipping_address.state || !shipping_address.zip)) {
       return res.status(400).json({ error: 'Shipping address is required for delivery orders' });
     }
 
     // Optional rep-entered freight estimate (delivery orders only) and notes
-    const shippingCost = !isPickup && req.body.shipping_cost != null && !isNaN(parseFloat(req.body.shipping_cost))
+    const shippingCost = !noFreight && req.body.shipping_cost != null && !isNaN(parseFloat(req.body.shipping_cost))
       ? Math.max(0, parseFloat(req.body.shipping_cost)) : 0;
     const notesParts = [];
     if (req.body.notes) notesParts.push(String(req.body.notes).slice(0, 2000));
@@ -16413,6 +16371,27 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
     const orderStatus = paidInStore ? 'confirmed' : 'pending';
 
+    // Partial-payment support: the rep may collect a deposit (less than the full
+    // total) at order entry. `payment_amount` is the amount actually collected by
+    // this in-store tender; when omitted we default to the full total (pay in
+    // full). The remaining balance stays tracked via amount_paid vs total and can
+    // be collected later through the collect-payment / payment-request flows.
+    let collectedNow = total;
+    if (paidInStore) {
+      if (payment_amount != null && !isNaN(parseFloat(payment_amount))) {
+        collectedNow = parseFloat(parseFloat(payment_amount).toFixed(2));
+      }
+      if (collectedNow <= 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Payment amount must be greater than zero' });
+      }
+      if (collectedNow > total + 0.01) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: `Payment amount cannot exceed the order total of $${total.toFixed(2)}` });
+      }
+      collectedNow = Math.min(collectedNow, total);
+    }
+
     let stripePaymentIntentId = null;
     if (payment_method === 'card' && stripe_payment_intent_id) {
       // Verify the Terminal payment was successful
@@ -16440,17 +16419,17 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
         subtotal, shipping, total, status, sales_rep_id, payment_method, delivery_method,
         stripe_payment_intent_id, promo_code_id, promo_code, discount_amount,
-        amount_paid, customer_id, tax_rate, tax_amount, notes, trade_customer_id, company_name)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25, $26, $27)
+        amount_paid, customer_id, tax_rate, tax_amount, notes, trade_customer_id, company_name, job_name)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25, $26, $27, $28)
       RETURNING *
     `, [orderNumber, customer_email.toLowerCase().trim(), customer_name, phone || null,
-        isPickup ? null : shipping_address.line1, isPickup ? null : (shipping_address.line2 || null),
-        isPickup ? null : shipping_address.city, isPickup ? null : shipping_address.state, isPickup ? null : shipping_address.zip,
+        noFreight ? null : shipping_address.line1, noFreight ? null : (shipping_address.line2 || null),
+        noFreight ? null : shipping_address.city, noFreight ? null : shipping_address.state, noFreight ? null : shipping_address.zip,
         subtotal.toFixed(2), total.toFixed(2), orderStatus, req.rep.id, payment_method,
-        isPickup ? 'pickup' : 'shipping',
+        isWillCall ? 'will_call' : isPickup ? 'pickup' : 'shipping',
         stripePaymentIntentId, promoCodeId, promoCodeStr, discountAmount.toFixed(2),
-        paidInStore ? total.toFixed(2) : '0.00', cust.id, taxRate, taxAmount.toFixed(2),
-        shippingCost.toFixed(2), orderNotes, tradeCustomer ? tradeCustomer.id : null, companyName]);
+        paidInStore ? collectedNow.toFixed(2) : '0.00', cust.id, taxRate, taxAmount.toFixed(2),
+        shippingCost.toFixed(2), orderNotes, tradeCustomer ? tradeCustomer.id : null, companyName, jobName]);
 
     const order = orderResult.rows[0];
 
@@ -16481,10 +16460,11 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       else if (payment_method === 'check') payDesc = 'Check payment — #' + check_number;
       else if (payment_method === 'card') payDesc = 'In-store card payment';
 
+      if (collectedNow < total - 0.01) payDesc += ' (deposit)';
       const repPayOpRes = await client.query(`
         INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, check_number, payment_method)
         VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6, $7) RETURNING id
-      `, [order.id, total.toFixed(2), payDesc, req.rep.id, repFullName, check_number || null, payment_method]);
+      `, [order.id, collectedNow.toFixed(2), payDesc, req.rep.id, repFullName, check_number || null, payment_method]);
       await syncOrderPaymentToInvoice(repPayOpRes.rows[0].id, order.id, client);
 
       // Record cash drawer transaction for cash payments
@@ -16523,7 +16503,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     // Log activity
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await logOrderActivity(client, order.id, 'order_created', req.rep.id, repName,
-      { payment_method, item_count: resolvedItems.length, total: total.toFixed(2) });
+      { payment_method, item_count: resolvedItems.length, total: total.toFixed(2),
+        amount_paid: paidInStore ? collectedNow.toFixed(2) : '0.00' });
 
     await client.query('COMMIT');
 
@@ -16548,7 +16529,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
 
     // Fire-and-forget: send confirmation email, plus a paid invoice when payment
     // was collected in-store (card/cash/check). The invoice PDF renders "Paid in
-    // full" because amount_paid == total on paidInStore orders. [[freight-quote-later]]
+    // full" only when amount_paid == total; a partial deposit renders the balance
+    // still due. The receipt reflects the amount actually collected. [[freight-quote-later]]
     const emailOrder = { ...order, items: orderItems.rows };
     setImmediate(async () => {
       await attachRep(emailOrder);
@@ -16557,7 +16539,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         try {
           const invoiceResult = await generateOrderInvoiceHtml(order.id);
           const pdfBuffer = invoiceResult ? await generatePDFBuffer(invoiceResult.html) : null;
-          await sendPaymentReceived(emailOrder, total, pdfBuffer);
+          await sendPaymentReceived(emailOrder, collectedNow, pdfBuffer);
         } catch (invErr) {
           console.error(`[Order] Paid invoice email failed for ${orderNumber}:`, invErr.message);
         }
@@ -16584,8 +16566,8 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       SELECT o.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM orders o
       LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
-      WHERE o.id = $1 AND (o.sales_rep_id = $2 OR o.sales_rep_id IS NULL)
-    `, [id, req.rep.id]);
+      WHERE o.id = $1 AND (o.sales_rep_id = $2 OR o.sales_rep_id IS NULL OR $3::boolean = true)
+    `, [id, req.rep.id, !!req.rep.is_manager]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
 
     // Attach the trade tier discount (if this is a trade order) so change-order
@@ -16874,7 +16856,7 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
     await client.query('BEGIN');
 
     // Block uncancelling a refunded order + verify rep ownership
-    const currentOrder = await client.query('SELECT status, stripe_refund_id FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const currentOrder = await client.query('SELECT status, stripe_refund_id, delivery_method FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
     if (!currentOrder.rows.length) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Order not found' });
@@ -17051,6 +17033,21 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
 });
 
 // Change delivery method on existing order (rep)
+// Set / update the order's job name (sidemark) — printed on vendor POs + docs
+app.put('/api/rep/orders/:id/job-name', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const jobName = (req.body.job_name || '').trim().slice(0, 200) || null;
+    const own = await pool.query('SELECT id, job_name FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)', [id, req.rep.id]);
+    if (!own.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const updated = await pool.query('UPDATE orders SET job_name = $1 WHERE id = $2 RETURNING *', [jobName, id]);
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(pool, id, 'job_name_updated', req.rep.id, repName,
+      { previous: own.rows[0].job_name || null, job_name: jobName });
+    res.json({ order: updated.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -17066,12 +17063,35 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'Can only change delivery method on pending or confirmed orders' });
     }
 
-    if (!['pickup', 'shipping'].includes(delivery_method)) {
-      return res.status(400).json({ error: 'delivery_method must be "pickup" or "shipping"' });
+    if (!['pickup', 'shipping', 'will_call'].includes(delivery_method)) {
+      return res.status(400).json({ error: 'delivery_method must be "pickup", "shipping", or "will_call"' });
     }
 
     const oldDeliveryMethod = order.delivery_method;
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
+
+    // Switch to will-call at distributor — no freight, no Roma address (like pickup,
+    // but the customer collects at the distributor). [[material-releases]]
+    if (delivery_method === 'will_call') {
+      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const updated = await pool.query(`
+        UPDATE orders SET delivery_method = 'will_call', shipping = 0, shipping_method = 'will_call',
+          shipping_carrier = NULL, shipping_transit_days = NULL, shipping_residential = false,
+          shipping_liftgate = false, shipping_is_fallback = false,
+          shipping_address_line1 = NULL, shipping_address_line2 = NULL,
+          shipping_city = NULL, shipping_state = NULL, shipping_zip = NULL,
+          total = $2
+        WHERE id = $1 RETURNING *
+      `, [id, newTotal]);
+      await logOrderActivity(pool, id, 'delivery_method_changed', req.rep.id, repName,
+        { from: oldDeliveryMethod, to: 'will_call' });
+      if (order.sales_rep_id && order.sales_rep_id !== req.rep.id) {
+        setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'delivery_method_changed',
+          `${order.order_number} delivery → will-call`, `${repName} changed delivery to will-call at distributor`, 'order', id));
+      }
+      const balanceInfo = await recalculateBalance(pool, id);
+      return res.json({ order: updated.rows[0], balance: balanceInfo });
+    }
 
     // Switch to pickup
     if (delivery_method === 'pickup') {
@@ -17099,11 +17119,19 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
     // the auto-estimator (not trusted for LTL/slab freight). This is how a
     // 'quote_pending' shipping order gets its freight priced. Uses the address
     // already on the order; optionally accepts an updated one. [[freight-quote-later]]
-    const { manual_shipping_amount, shipping_carrier } = req.body;
+    const { manual_shipping_amount, shipping_carrier, delivery_window } = req.body;
     if (manual_shipping_amount !== undefined && manual_shipping_amount !== null && manual_shipping_amount !== '') {
       const amt = parseFloat(manual_shipping_amount);
       if (!(amt >= 0)) return res.status(400).json({ error: 'manual_shipping_amount must be a non-negative number' });
       const addr = shipping_address || {};
+      // Delivery window lives in the order notes (matching order creation, which
+      // folds "Window: X" into notes) — replace any prior window line, don't stack.
+      let newNotes;
+      if (delivery_window !== undefined) {
+        const stripped = String(order.notes || '').replace(/\s*·?\s*Window: [^\n·]*/g, '').trim();
+        const win = String(delivery_window || '').trim();
+        newNotes = win ? (stripped ? stripped + ' · Window: ' + win : 'Window: ' + win) : (stripped || null);
+      }
       const newTotal = (parseFloat(order.subtotal) + amt + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
       const updated = await pool.query(`
         UPDATE orders SET delivery_method = 'shipping', shipping = $2, shipping_method = 'ltl_freight',
@@ -17113,11 +17141,12 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
           shipping_city = COALESCE($6, shipping_city),
           shipping_state = COALESCE($7, shipping_state),
           shipping_zip = COALESCE($8, shipping_zip),
+          notes = CASE WHEN $10 THEN $11 ELSE notes END,
           total = $9
         WHERE id = $1 RETURNING *
       `, [id, amt.toFixed(2), shipping_carrier || null,
           addr.line1 || null, addr.line2 || null, addr.city || null, addr.state || null, addr.zip || null,
-          newTotal]);
+          newTotal, delivery_window !== undefined, newNotes !== undefined ? newNotes : null]);
       await logOrderActivity(pool, id, 'delivery_method_changed', req.rep.id, repName,
         { from: oldDeliveryMethod, to: 'shipping', shipping_cost: amt.toFixed(2), manual: true });
       if (order.sales_rep_id && order.sales_rep_id !== req.rep.id) {
@@ -17790,12 +17819,25 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
 app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const { message } = req.body || {};
+    const { message, recipient_email } = req.body || {};
     // Include unassigned (self-checkout) orders so a rep can collect freight on a
     // storefront freight-quote order (sales_rep_id NULL). [[freight-quote-later]]
     const order = await pool.query('SELECT * FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)', [id, req.rep.id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
     const o = order.rows[0];
+
+    // The rep can send the request to a different address than the order's
+    // customer email (e.g. an AP/billing contact). Overriding o.customer_email
+    // here flows it into the Stripe session, the payment_requests row, the
+    // activity log, the notification, and the email.
+    if (recipient_email && String(recipient_email).trim()) {
+      const re = String(recipient_email).trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(re)) return res.status(400).json({ error: 'Enter a valid recipient email' });
+      o.customer_email = re;
+    }
+    if (!(o.customer_email && String(o.customer_email).trim())) {
+      return res.status(400).json({ error: 'No recipient email — enter one to send the payment request' });
+    }
 
     const balanceInfo = await recalculateBalance(pool, id);
     if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') {
@@ -17951,6 +17993,7 @@ app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
       VALUES ($1, 'additional_charge', $2, $3, $4, $5, $6, 'completed', $7, $8) RETURNING id
     `, [id, payAmount.toFixed(2), stripePaymentIntentId, description, req.rep.id, repName, payment_method === 'check' ? check_number : null, payment_method]);
     await syncOrderPaymentToInvoice(addPayOpRes.rows[0].id, id, client);
+    scheduleReceiptCapture(addPayOpRes.rows[0].id);
 
     // Update amount_paid
     await client.query('UPDATE orders SET amount_paid = amount_paid + $1 WHERE id = $2', [payAmount, id]);
@@ -18516,17 +18559,41 @@ async function priorReleasedQty(queryable, orderItemId) {
   return parseFloat(r.rows[0].q);
 }
 
-async function processRelease(client, { id, order, lines, release_method, recipient_name, notes, actor }) {
+async function processRelease(client, { id, order, lines, release_method, recipient_name, notes, vendor_id, actor }) {
   if (!Array.isArray(lines) || !lines.length) throw new Error('Select at least one line to release');
   const { performerId, name: actorName, staffId: actorStaffId } = actor;
-  const method = release_method === 'delivery' ? 'delivery' : 'pickup';
+  const method = release_method === 'delivery' ? 'delivery'
+    : release_method === 'will_call' ? 'will_call' : 'pickup';
+  const isWillCall = method === 'will_call';
+
+  // Will-call = customer picks up directly at the distributor. Every line on the
+  // form must belong to that one distributor, and Roma's PO to them must already
+  // be sent (that's what they release against). We snapshot the PO number onto
+  // the release so the printed form/email carry it. [[material-releases]]
+  let willCallVendorId = null, willCallPoNumber = null;
+  if (isWillCall) {
+    willCallVendorId = vendor_id || null;
+    if (!willCallVendorId) throw new Error('Select the distributor for this will-call release');
+    const poRes = await client.query(
+      `SELECT po_number, status FROM purchase_orders
+       WHERE order_id = $1 AND vendor_id = $2 AND status <> 'cancelled'
+       ORDER BY created_at DESC LIMIT 1`, [id, willCallVendorId]);
+    if (!poRes.rows.length) {
+      throw new Error('No purchase order exists for this distributor yet — create it before authorizing will-call.');
+    }
+    if (!['sent', 'acknowledged', 'fulfilled'].includes(poRes.rows[0].status)) {
+      throw new Error('Send the purchase order to the distributor first — they can only release against a sent PO.');
+    }
+    willCallPoNumber = poRes.rows[0].po_number;
+  }
 
   const computed = [];
   for (const l of lines) {
     const oiRes = await client.query(`
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+        COALESCE(p.vendor_id, oi.vendor_id) AS line_vendor_id
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
@@ -18541,29 +18608,36 @@ async function processRelease(client, { id, order, lines, release_method, recipi
     const oi = oiRes.rows[0];
     if (oi.is_sample) throw new Error('Samples cannot be released');
     if ((oi.item_type || 'material') === 'labor') throw new Error('Labor lines cannot be released — releases cover physical goods only');
+    if (isWillCall && String(oi.line_vendor_id || '') !== String(willCallVendorId)) {
+      throw new Error(`"${oi.product_name}" is from a different distributor — a will-call form covers one distributor. Create a separate release for it.`);
+    }
     const orderedQty = parseFloat(oi.num_boxes || 0);
-    // Can't release more than has been received. Received drives release: a line
-    // that hasn't been marked received (NULL qty_received) has nothing to give
-    // out, so it caps at 0. Partial receipts release partially — you can only
-    // hand out what has actually arrived.
-    const receivedCap = oi.qty_received != null ? Math.min(parseFloat(oi.qty_received), orderedQty) : 0;
+    // Cap on what can be released. For pickup/delivery, Roma must have RECEIVED it
+    // first (NULL qty_received = nothing arrived → 0). For will-call the customer
+    // picks up straight from the distributor and Roma never receives, so the cap
+    // is the ORDERED qty (gated instead on the vendor PO being sent, above).
+    const receivedCap = isWillCall
+      ? orderedQty
+      : (oi.qty_received != null ? Math.min(parseFloat(oi.qty_received), orderedQty) : 0);
     const prior = await priorReleasedQty(client, l.order_item_id);
     const qty = parseFloat(l.release_qty);
     if (!(qty > 0)) throw new Error('Release quantity must be positive');
     if (prior + qty > receivedCap + 0.001) {
       const avail = parseFloat((receivedCap - prior).toFixed(2));
-      throw new Error(receivedCap <= 0
-        ? `Cannot release "${oi.product_name}" — none of it has been marked received yet`
-        : `Cannot release ${qty} of "${oi.product_name}" — only ${avail} received and available to release`);
+      throw new Error(isWillCall
+        ? `Cannot release ${qty} of "${oi.product_name}" — only ${avail} remain unreleased on this order`
+        : receivedCap <= 0
+          ? `Cannot release "${oi.product_name}" — none of it has been marked received yet`
+          : `Cannot release ${qty} of "${oi.product_name}" — only ${avail} received and available to release`);
     }
     computed.push({ oi, qty });
   }
 
   const releaseNumber = await getNextReleaseNumber(client);
   const relRes = await client.query(`
-    INSERT INTO material_releases (release_number, order_id, status, release_method, recipient_name, notes, released_by, released_by_name)
-    VALUES ($1,$2,'released',$3,$4,$5,$6,$7) RETURNING *`,
-    [releaseNumber, id, method, recipient_name || null, notes || null, actorStaffId || null, actorName]);
+    INSERT INTO material_releases (release_number, order_id, status, release_method, recipient_name, notes, released_by, released_by_name, vendor_id, po_number)
+    VALUES ($1,$2,'released',$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [releaseNumber, id, method, recipient_name || null, notes || null, actorStaffId || null, actorName, willCallVendorId, willCallPoNumber]);
   const release = relRes.rows[0];
 
   for (const c of computed) {
@@ -18594,11 +18668,22 @@ async function processRelease(client, { id, order, lines, release_method, recipi
 async function emailMaterialRelease({ order, release, computed, actorName, actorEmail }) {
   if (!order.customer_email) return;
   try {
+    // Will-call: pull the distributor's name/address so the email tells the
+    // customer where to pick up and which PO to reference.
+    let distributor = null;
+    if (release.release_method === 'will_call' && release.vendor_id) {
+      const dv = await pool.query('SELECT name, address, phone FROM vendors WHERE id = $1', [release.vendor_id]);
+      if (dv.rows.length) distributor = dv.rows[0];
+    }
     await sendMaterialRelease({
       release_number: release.release_number, order_number: order.order_number,
       customer_name: order.customer_name, customer_email: order.customer_email,
       release_method: release.release_method, recipient_name: release.recipient_name,
       created_at: release.released_at, notes: release.notes,
+      po_number: release.po_number,
+      distributor_name: distributor ? distributor.name : null,
+      distributor_address: distributor ? distributor.address : null,
+      distributor_phone: distributor ? distributor.phone : null,
       rep_name: actorName, rep_email: actorEmail,
       items: computed.map(c => ({
         product_name: c.oi.product_name, collection: c.oi.collection, current_collection: c.oi.current_collection,
@@ -18624,6 +18709,7 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
         COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
         s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, sa_sz.value AS size, cat.name AS category_name,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+        COALESCE(p.vendor_id, oi.vendor_id) AS vendor_id,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
           JOIN material_releases mr ON mr.id = ri.release_id
           WHERE ri.order_item_id = oi.id AND mr.status != 'void'), 0) AS already_released,
@@ -18642,8 +18728,18 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
     const bal = await recalculateBalance(pool, id);
     const paid = !!(bal && (bal.balance_status === 'paid' || bal.balance_status === 'credit'));
     const pend = await unsettledPaymentInfo(id);
+    // Distributors on this order — for the will-call flow. Each carries its Roma PO
+    // and whether that PO has been sent (the distributor releases against a sent PO).
+    const distRes = await pool.query(`
+      SELECT po.vendor_id, v.name AS vendor_name, po.po_number, po.status AS po_status,
+        (po.status IN ('sent','acknowledged','fulfilled')) AS po_sent,
+        v.address AS vendor_address, v.phone AS vendor_phone
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      WHERE po.order_id = $1 AND po.status <> 'cancelled'
+      ORDER BY v.name`, [id]);
     res.json({ order, items: itemsRes.rows, paid, balance: bal ? bal.balance : null,
-      unsettled: pend.unsettled, unsettled_amount: pend.amount,
+      unsettled: pend.unsettled, unsettled_amount: pend.amount, distributors: distRes.rows,
       releasable: RELEASABLE_STATUSES.includes(order.status) && paid && !pend.unsettled });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -18653,7 +18749,7 @@ app.post('/api/rep/orders/:id/releases', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { lines, release_method, recipient_name, notes } = req.body || {};
+    const { lines, release_method, recipient_name, notes, vendor_id } = req.body || {};
     const oRes = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
@@ -18670,7 +18766,7 @@ app.post('/api/rep/orders/:id/releases', repAuth, async (req, res) => {
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await client.query('BEGIN');
     const result = await processRelease(client, {
-      id, order, lines, release_method, recipient_name, notes,
+      id, order, lines, release_method, recipient_name, notes, vendor_id,
       actor: { performerId: req.rep.id, name: repName, staffId: null },
     });
     await client.query('COMMIT');
@@ -18680,6 +18776,63 @@ app.post('/api/rep/orders/:id/releases', repAuth, async (req, res) => {
     await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(400).json({ error: err.message || 'Failed to create release' });
+  } finally {
+    client.release();
+  }
+});
+
+// Shared: if an order was auto-closed by the release flow (status 'delivered')
+// but its material lines are no longer fully covered by COMPLETED releases —
+// because a rep just undid or voided a completed release — reopen it to a
+// fulfillment status. Returns the reopened order row (for commission recalc) or
+// null when nothing changed. Runs inside the caller's transaction (client).
+async function reopenOrderIfReleaseUndone(client, orderId, actorId, actorName) {
+  const ordRes = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [orderId]);
+  const ord = ordRes.rows[0];
+  if (!ord || ord.status !== 'delivered') return null;
+  const cov = await client.query(`
+    SELECT COUNT(*) FILTER (WHERE NOT COALESCE(is_sample, false) AND COALESCE(item_type, 'material') <> 'labor'
+      AND num_boxes - COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
+            JOIN material_releases mr ON mr.id = ri.release_id
+            WHERE ri.order_item_id = order_items.id AND mr.status = 'completed'), 0) > 0.001)::int AS unmet_lines
+    FROM order_items WHERE order_id = $1
+  `, [orderId]);
+  if (cov.rows[0].unmet_lines === 0) return null; // still fully covered — leave closed
+  const newStatus = ord.delivery_method === 'pickup' ? 'ready_for_pickup' : 'confirmed';
+  const upd = await client.query(
+    'UPDATE orders SET status = $1, delivered_at = NULL WHERE id = $2 RETURNING *', [newStatus, orderId]);
+  await logOrderActivity(client, orderId, 'status_changed', actorId, actorName,
+    { from: 'delivered', to: newStatus, reason: 'Reopened — release undone' });
+  return upd.rows[0];
+}
+
+// Undo a completed release — reverts it to authorized ("released") in case the
+// pickup/delivery was marked by mistake, and reopens the order if that
+// completion had auto-closed it.
+app.post('/api/rep/releases/:releaseId/uncomplete', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { releaseId } = req.params;
+    await client.query('BEGIN');
+    const rRes = await client.query(`
+      SELECT mr.*, o.sales_rep_id, o.order_number FROM material_releases mr
+      JOIN orders o ON o.id = mr.order_id
+      WHERE mr.id = $1 AND o.sales_rep_id = $2 FOR UPDATE OF mr`, [releaseId, req.rep.id]);
+    if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Release not found' }); }
+    const rel = rRes.rows[0];
+    if (rel.status !== 'completed') { await client.query('ROLLBACK'); return res.status(400).json({ error: `Only a completed release can be undone (this one is ${rel.status})` }); }
+    const upd = await client.query(
+      "UPDATE material_releases SET status = 'released', completed_at = NULL WHERE id = $1 RETURNING *", [releaseId]);
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, rel.order_id, 'release_uncompleted', req.rep.id, repName,
+      { release: rel.release_number, method: rel.release_method });
+    const reopened = await reopenOrderIfReleaseUndone(client, rel.order_id, req.rep.id, repName);
+    await client.query('COMMIT');
+    res.json({ success: true, release: upd.rows[0], order_reopened: !!reopened });
+    if (reopened) setImmediate(() => recalculateCommission(pool, rel.order_id));
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
   }
@@ -18703,8 +18856,54 @@ app.post('/api/rep/releases/:releaseId/complete', repAuth, async (req, res) => {
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await logOrderActivity(client, rel.order_id, 'release_completed', req.rep.id, repName,
       { release: rel.release_number, method: rel.release_method });
+
+    // Auto-close: once every material line is fully covered by COMPLETED releases
+    // and the balance is paid, advance the order to delivered ("Picked up" /
+    // "Delivered") so the release flow finishes the order without a separate
+    // stepper click. Releases otherwise never touch order status. [[material-releases]]
+    let autoClosed = false;
+    let closedOrder = null;
+    const ordRes = await client.query('SELECT * FROM orders WHERE id = $1 FOR UPDATE', [rel.order_id]);
+    const ord = ordRes.rows[0];
+    if (ord && ['confirmed', 'ready_for_pickup', 'shipped'].includes(ord.status)) {
+      const bal = await recalculateBalance(pool, rel.order_id, client);
+      const paid = bal && (bal.balance_status === 'paid' || bal.balance_status === 'credit');
+      if (paid) {
+        const cov = await client.query(`
+          SELECT
+            COUNT(*) FILTER (WHERE NOT COALESCE(is_sample, false) AND COALESCE(item_type, 'material') <> 'labor')::int AS material_lines,
+            COUNT(*) FILTER (WHERE NOT COALESCE(is_sample, false) AND COALESCE(item_type, 'material') <> 'labor'
+              AND num_boxes - COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
+                    JOIN material_releases mr ON mr.id = ri.release_id
+                    WHERE ri.order_item_id = order_items.id AND mr.status = 'completed'), 0) > 0.001)::int AS unmet_lines
+          FROM order_items WHERE order_id = $1
+        `, [rel.order_id]);
+        const { material_lines, unmet_lines } = cov.rows[0];
+        if (material_lines > 0 && unmet_lines === 0) {
+          const closed = await client.query(
+            "UPDATE orders SET status = 'delivered', delivered_at = NOW() WHERE id = $1 RETURNING *", [rel.order_id]);
+          closedOrder = closed.rows[0];
+          await logOrderActivity(client, rel.order_id, 'status_changed', req.rep.id, repName,
+            { from: ord.status, to: 'delivered', reason: 'Auto-closed — all materials released & received, balance paid' });
+          autoClosed = true;
+        }
+      }
+    }
+
     await client.query('COMMIT');
-    res.json({ success: true, release: upd.rows[0] });
+    res.json({ success: true, release: upd.rows[0], order_auto_closed: autoClosed });
+
+    // Fire the same side effects as a manual "Mark picked up / delivered".
+    if (autoClosed && closedOrder) {
+      setImmediate(() => recalculateCommission(pool, rel.order_id));
+      setImmediate(async () => { await attachRep(closedOrder); sendOrderStatusUpdate(closedOrder, 'delivered'); });
+      setImmediate(() => createAutoTask(pool, req.rep.id, 'order_delivered', rel.order_id,
+        `Post-delivery follow-up — ${closedOrder.customer_name} (${closedOrder.order_number})`, {
+          priority: 'low', customer_name: closedOrder.customer_name,
+          customer_email: closedOrder.customer_email, customer_phone: closedOrder.phone,
+          linked_order_id: rel.order_id
+        }).catch(err => console.error('[AutoTask] order_delivered (auto-close) error:', err.message)));
+    }
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -18726,12 +18925,17 @@ app.post('/api/rep/releases/:releaseId/void', repAuth, async (req, res) => {
     if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Release not found' }); }
     const rel = rRes.rows[0];
     if (rel.status === 'void') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Release is already void' }); }
+    const wasCompleted = rel.status === 'completed';
     const upd = await client.query("UPDATE material_releases SET status = 'void' WHERE id = $1 RETURNING *", [releaseId]);
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await logOrderActivity(client, rel.order_id, 'release_void', req.rep.id, repName,
       { release: rel.release_number, reason: (req.body && req.body.reason) || null });
+    // Voiding a completed release can drop the order out of full coverage — if it
+    // had been auto-closed, reopen it.
+    const reopened = wasCompleted ? await reopenOrderIfReleaseUndone(client, rel.order_id, req.rep.id, repName) : null;
     await client.query('COMMIT');
-    res.json({ success: true, release: upd.rows[0] });
+    res.json({ success: true, release: upd.rows[0], order_reopened: !!reopened });
+    if (reopened) setImmediate(() => recalculateCommission(pool, rel.order_id));
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -18754,6 +18958,7 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
         COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
         s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, sa_sz.value AS size, cat.name AS category_name,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+        COALESCE(p.vendor_id, oi.vendor_id) AS vendor_id,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
           JOIN material_releases mr ON mr.id = ri.release_id
           WHERE ri.order_item_id = oi.id AND mr.status != 'void'), 0) AS already_released,
@@ -18772,8 +18977,18 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
     const bal = await recalculateBalance(pool, id);
     const paid = !!(bal && (bal.balance_status === 'paid' || bal.balance_status === 'credit'));
     const pend = await unsettledPaymentInfo(id);
+    // Distributors on this order — for the will-call flow. Each carries its Roma PO
+    // and whether that PO has been sent (the distributor releases against a sent PO).
+    const distRes = await pool.query(`
+      SELECT po.vendor_id, v.name AS vendor_name, po.po_number, po.status AS po_status,
+        (po.status IN ('sent','acknowledged','fulfilled')) AS po_sent,
+        v.address AS vendor_address, v.phone AS vendor_phone
+      FROM purchase_orders po
+      JOIN vendors v ON v.id = po.vendor_id
+      WHERE po.order_id = $1 AND po.status <> 'cancelled'
+      ORDER BY v.name`, [id]);
     res.json({ order, items: itemsRes.rows, paid, balance: bal ? bal.balance : null,
-      unsettled: pend.unsettled, unsettled_amount: pend.amount,
+      unsettled: pend.unsettled, unsettled_amount: pend.amount, distributors: distRes.rows,
       releasable: RELEASABLE_STATUSES.includes(order.status) && paid && !pend.unsettled });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -19048,7 +19263,7 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
           s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
           COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
           v.name as vendor_name, COALESCE(br.name, v.name) as brand_name,
-          pr.retail_price, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
+          pr.retail_price, pr.retail_locked, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
           pk.sqft_per_box, pk.roll_width_ft,
           sa_c.value as color, sa_sz.value as size,
           COALESCE(
@@ -19863,7 +20078,10 @@ app.get('/api/rep/orders/:id/documents', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      'SELECT * FROM order_documents WHERE order_id = $1 ORDER BY uploaded_at',
+      `SELECT od.*, po.po_number
+       FROM order_documents od
+       LEFT JOIN purchase_orders po ON po.id = od.purchase_order_id
+       WHERE od.order_id = $1 ORDER BY od.uploaded_at`,
       [id]
     );
     const docs = [];
@@ -19878,21 +20096,101 @@ app.get('/api/rep/orders/:id/documents', repAuth, async (req, res) => {
   }
 });
 
-// ==================== Rep Invoice & Packing Slip ====================
-
-app.get('/api/rep/orders/:id/invoice', repAuth, async (req, res) => {
+// Attach a vendor's order-confirmation / sales-order document against a PO. It's
+// stored as an order document linked to both the order and the PO, so it appears
+// in the order's Documents section tagged with the PO number.
+app.post('/api/rep/purchase-orders/:poId/documents', repAuth, docUpload.single('file'), async (req, res) => {
   try {
-    const result = await generateOrderInvoiceHtml(req.params.id);
-    if (!result) return res.status(404).json({ error: 'Order not found' });
-    await generatePDF(result.html, result.filename, req, res);
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const { poId } = req.params;
+    const poRes = await pool.query(`
+      SELECT po.id, po.po_number, po.order_id, po.status, o.sales_rep_id
+      FROM purchase_orders po LEFT JOIN orders o ON o.id = po.order_id
+      WHERE po.id = $1`, [poId]);
+    if (!poRes.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    const po = poRes.rows[0];
+    if (po.sales_rep_id && po.sales_rep_id !== req.rep.id) {
+      return res.status(403).json({ error: 'This PO belongs to another rep' });
+    }
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const hex = crypto.randomBytes(8).toString('hex');
+    const fileKey = `order-docs/${Date.now()}-${hex}${ext}`;
+    await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
+    const ins = await pool.query(
+      `INSERT INTO order_documents (order_id, purchase_order_id, doc_type, file_name, file_key, file_size, mime_type)
+       VALUES ($1, $2, 'vendor_confirmation', $3, $4, $5, $6) RETURNING id`,
+      [po.order_id || null, poId, req.file.originalname, fileKey, req.file.size, req.file.mimetype]
+    );
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await pool.query(
+      `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, details)
+       VALUES ($1, 'confirmation_attached', $2, $3)`,
+      [poId, repName, JSON.stringify({ file_name: req.file.originalname })]
+    );
+    // Attaching the vendor's confirmation means the vendor confirmed the order,
+    // so advance a still-'sent' PO to 'acknowledged' (shown as "Confirmed").
+    let newStatus = null;
+    if (po.status === 'sent') {
+      await pool.query(`UPDATE purchase_orders SET status = 'acknowledged', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [poId]);
+      await pool.query(
+        `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, details)
+         VALUES ($1, 'acknowledged', $2, $3)`,
+        [poId, repName, JSON.stringify({ via: 'confirmation_attached' })]
+      );
+      newStatus = 'acknowledged';
+    }
+    res.json({ success: true, document_id: ins.rows[0].id, po_number: po.po_number, po_status: newStatus });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-app.get('/api/rep/orders/:id/packing-slip', repAuth, async (req, res) => {
+// Delete an uploaded order document (e.g. a wrongly-attached confirmation). Scoped
+// to the rep's own orders. Removes the row; the S3 object is left (no delete helper).
+app.delete('/api/rep/orders/documents/:docId', repAuth, async (req, res) => {
   try {
-    const result = await generateOrderPackingSlipHtml(req.params.id);
+    const { docId } = req.params;
+    const del = await pool.query(`
+      DELETE FROM order_documents od
+      USING orders o
+      WHERE od.id = $1 AND od.order_id = o.id AND (o.sales_rep_id = $2 OR o.sales_rep_id IS NULL)
+      RETURNING od.id, od.doc_type, od.purchase_order_id`, [docId, req.rep.id]);
+    if (!del.rows.length) return res.status(404).json({ error: 'Document not found' });
+
+    // Deleting the vendor's confirmation removes the proof it was confirmed, so
+    // revert an 'acknowledged' PO back to 'sent' — but only once no other
+    // confirmation remains attached to that PO.
+    const gone = del.rows[0];
+    let poReverted = false;
+    if (gone.doc_type === 'vendor_confirmation' && gone.purchase_order_id) {
+      const remaining = await pool.query(
+        `SELECT 1 FROM order_documents WHERE purchase_order_id = $1 AND doc_type = 'vendor_confirmation' LIMIT 1`,
+        [gone.purchase_order_id]);
+      if (!remaining.rows.length) {
+        const upd = await pool.query(
+          `UPDATE purchase_orders SET status = 'sent', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'acknowledged' RETURNING id`,
+          [gone.purchase_order_id]);
+        if (upd.rows.length) {
+          const repName = req.rep.first_name + ' ' + req.rep.last_name;
+          await pool.query(
+            `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, details)
+             VALUES ($1, 'reverted', $2, $3)`,
+            [gone.purchase_order_id, repName, JSON.stringify({ from: 'acknowledged', to: 'sent', via: 'confirmation_deleted' })]);
+          poReverted = true;
+        }
+      }
+    }
+    res.json({ success: true, po_reverted: poReverted });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ==================== Rep Invoice ====================
+
+app.get('/api/rep/orders/:id/invoice', repAuth, async (req, res) => {
+  try {
+    const result = await generateOrderInvoiceHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
@@ -20134,7 +20432,7 @@ app.get('/api/rep/purchase-orders', repAuth, async (req, res) => {
 // Create standalone PO (no order)
 app.post('/api/rep/purchase-orders', repAuth, async (req, res) => {
   try {
-    const { vendor_id, notes, order_id, ship_to, expected_delivery, recipient_email, cc_emails } = req.body;
+    const { vendor_id, notes, order_id, ship_to, expected_delivery, recipient_email, cc_emails, fulfillment_method } = req.body;
     if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required' });
 
     const vendor = await pool.query('SELECT id, code, name FROM vendors WHERE id = $1', [vendor_id]);
@@ -20144,9 +20442,9 @@ app.post('/api/rep/purchase-orders', repAuth, async (req, res) => {
     const poNumber = await getNextPONumber();
 
     const result = await pool.query(
-      `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes, ship_to, expected_delivery, recipient_email, cc_emails)
-       VALUES ($1, $2, $3, 'draft', 0, $4, $5, $6, $7, $8) RETURNING *`,
-      [order_id || null, vendor_id, poNumber, notes || null, ship_to || null, expected_delivery || null, recipient_email || null, cc_emails || '{}']
+      `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes, ship_to, expected_delivery, recipient_email, cc_emails, fulfillment_method)
+       VALUES ($1, $2, $3, 'draft', 0, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [order_id || null, vendor_id, poNumber, notes || null, ship_to || null, expected_delivery || null, recipient_email || null, cc_emails || '{}', fulfillment_method === 'pickup' ? 'pickup' : 'ship']
     );
 
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
@@ -20241,7 +20539,7 @@ app.get('/api/rep/purchase-orders/:poId/detail', repAuth, async (req, res) => {
 app.put('/api/rep/purchase-orders/:poId', repAuth, async (req, res) => {
   try {
     const { poId } = req.params;
-    const { vendor_id, ship_to, expected_delivery, notes, recipient_email, cc_emails } = req.body;
+    const { vendor_id, ship_to, expected_delivery, notes, recipient_email, cc_emails, fulfillment_method } = req.body;
 
     const po = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
@@ -20252,6 +20550,7 @@ app.put('/api/rep/purchase-orders/:poId', repAuth, async (req, res) => {
     let idx = 1;
 
     if (vendor_id !== undefined) { sets.push(`vendor_id = $${idx++}`); params.push(vendor_id); }
+    if (fulfillment_method !== undefined) { sets.push(`fulfillment_method = $${idx++}`); params.push(fulfillment_method === 'pickup' ? 'pickup' : 'ship'); }
     if (ship_to !== undefined) { sets.push(`ship_to = $${idx++}`); params.push(ship_to || null); }
     if (expected_delivery !== undefined) { sets.push(`expected_delivery = $${idx++}`); params.push(expected_delivery || null); }
     if (notes !== undefined) { sets.push(`notes = $${idx++}`); params.push(notes || null); }
@@ -20642,8 +20941,11 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       WHERE po.id = $1
     `, [poId]);
     if (!poCheck.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
-    if (poCheck.rows[0].status !== 'draft') {
-      return res.status(400).json({ error: 'Only draft POs can be approved' });
+    // Draft → initial send (EDI/email/phone/online). Already-sent → resend, which
+    // reps may only do as an email re-send (handled below). Terminal states can't.
+    const isResend = poCheck.rows[0].status !== 'draft';
+    if (isResend && !['sent', 'acknowledged'].includes(poCheck.rows[0].status)) {
+      return res.status(400).json({ error: 'This PO can no longer be sent to the vendor.' });
     }
 
     const po = poCheck.rows[0];
@@ -20651,18 +20953,122 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
     const ediEnabled = ediConfig && ediConfig.enabled;
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
 
-    if (!ediEnabled && !po.vendor_email) {
+    // Optional recipient overrides from the send dialog. `recipient_email` sets
+    // the To address for the email copy; `cc_emails` (array) replaces the default
+    // CC (rep + vendor primary contact). Validate loosely; persist to the PO.
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const toOverride = typeof req.body.recipient_email === 'string' && emailRe.test(req.body.recipient_email.trim())
+      ? req.body.recipient_email.trim() : null;
+    let ccOverride = null;
+    if (Array.isArray(req.body.cc_emails)) {
+      ccOverride = req.body.cc_emails
+        .map(e => String(e || '').trim())
+        .filter(e => emailRe.test(e))
+        .slice(0, 20);
+    }
+    // Notes to the vendor: persisted before the PDF is generated so they render
+    // in the PO document. An empty string clears them; omitting keeps existing.
+    const notesOverride = typeof req.body.notes === 'string' ? req.body.notes.slice(0, 2000) : null;
+    const toEmail = toOverride || po.vendor_email;
+    if (toOverride || ccOverride || notesOverride !== null) {
+      await pool.query(
+        'UPDATE purchase_orders SET recipient_email = COALESCE($2, recipient_email), cc_emails = COALESCE($3, cc_emails), notes = COALESCE($4, notes) WHERE id = $1',
+        [poId, toOverride, ccOverride, notesOverride]);
+    }
+    // Per-line notes printed under each line on the PDF. Map of { po_item_id: text };
+    // scoped to this PO so a caller can't write to another PO's items.
+    if (req.body.line_notes && typeof req.body.line_notes === 'object') {
+      for (const [itemId, text] of Object.entries(req.body.line_notes)) {
+        if (!/^[0-9a-f-]{36}$/i.test(itemId)) continue;
+        const note = typeof text === 'string' ? text.slice(0, 1000) : null;
+        await pool.query('UPDATE purchase_order_items SET line_note = $1 WHERE id = $2 AND purchase_order_id = $3',
+          [note && note.trim() ? note : null, itemId, poId]);
+      }
+    }
+    // The overall notes value that will ride in the email body (post-persist).
+    const emailNotes = notesOverride !== null ? notesOverride : po.notes;
+
+    // Resend: the PO was already sent. Reps may only RE-EMAIL the PDF copy — never
+    // re-transmit EDI or re-mark it phone/online — so status, revision and the
+    // original sent_via are all left untouched; we just email again and log it.
+    if (isResend) {
+      if (!toEmail) {
+        return res.status(400).json({ error: 'Vendor has no email on file to resend the PO to.' });
+      }
+      let emailSent = false;
+      try {
+        const poData = await generatePOHtml(pool, poId);
+        if (poData) {
+          const pdfBuffer = await generatePDFBuffer(poData.html, PO_PDF_MARGIN);
+          const result = await sendPurchaseOrderToVendor({
+            vendor_email: toEmail,
+            vendor_name: po.vendor_name,
+            po_number: po.po_number,
+            is_revised: (po.revision || 0) > 1,
+            pdf_buffer: pdfBuffer,
+            rep_email: req.rep.email,
+            rep_name: repName,
+            vendor_contact_email: po.vendor_contact_email,
+            cc_list: ccOverride || undefined,
+            notes: emailNotes || undefined
+          });
+          emailSent = result.sent;
+        }
+      } catch (emailErr) {
+        console.error('[Rep PO Resend] Email send failed:', emailErr.message);
+      }
+      await pool.query(
+        `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, recipient_email, revision, details)
+         VALUES ($1, 'resent', $2, $3, $4, $5)`,
+        [poId, repName, toEmail || null, po.revision || 0,
+         JSON.stringify({ email_sent: emailSent, sent_via: 'email', approved_via: 'rep_portal' })]);
+      const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+      return res.json({ purchase_order: updatedPO.rows[0], email_sent: emailSent, sent_via: 'email', resent: true });
+    }
+
+    // Manual placement: the rep called the vendor or ordered on the vendor's
+    // website. No EDI/email transmission — we just record how the order was
+    // placed and mark the PO sent. [[po-manual-placement]]
+    const manualMethod = req.body.method === 'phone' || req.body.method === 'online' ? req.body.method : null;
+    if (manualMethod) {
+      const mRevision = (po.revision || 0) + 1;
+      const mIsRevised = mRevision > 1;
+      const updated = await pool.query(`
+        UPDATE purchase_orders SET status = 'sent', revision = $1, is_revised = $2, sent_via = $3,
+          approved_by = NULL, approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $4 RETURNING *
+      `, [mRevision, mIsRevised, manualMethod, poId]);
+      await pool.query(
+        `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, revision, details)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [poId, mIsRevised ? 'revised_and_sent' : 'sent', repName, mRevision,
+         JSON.stringify({ sent_via: manualMethod, manual: true, approved_via: 'rep_portal' })]);
+
+      const poOrder = await pool.query('SELECT order_number, sales_rep_id FROM orders WHERE id = $1', [po.order_id]);
+      if (poOrder.rows.length && poOrder.rows[0].sales_rep_id && poOrder.rows[0].sales_rep_id !== req.rep.id) {
+        const phrase = manualMethod === 'phone' ? 'over the phone' : 'online';
+        setImmediate(() => createRepNotification(pool, poOrder.rows[0].sales_rep_id, 'po_approved',
+          `PO ${po.po_number} placed with ${po.vendor_name} ${phrase}`,
+          `${repName} placed the PO for ${poOrder.rows[0].order_number} ${phrase}`,
+          'order', po.order_id));
+      }
+      return res.json({ purchase_order: updated.rows[0], sent_via: manualMethod });
+    }
+
+    if (!ediEnabled && !toEmail) {
       return res.status(400).json({ error: 'Vendor has no email configured and EDI is not enabled.' });
     }
 
     const newRevision = (po.revision || 0) + 1;
     const isRevised = newRevision > 1;
 
+    // Reps are not in staff_accounts (approved_by is a staff FK), so it stays
+    // null; the approving rep is attributed via po_activity_log.performer_name.
     const result = await pool.query(`
       UPDATE purchase_orders SET status = 'sent', revision = $1, is_revised = $2,
-        approved_by = $3, approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $4 RETURNING *
-    `, [newRevision, isRevised, req.rep.id, poId]);
+        approved_by = NULL, approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $3 RETURNING *
+    `, [newRevision, isRevised, poId]);
 
     let sentVia = 'email';
     let emailSent = false;
@@ -20735,6 +21141,7 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       }
 
       if (ediSuccess) {
+        await pool.query(`UPDATE purchase_orders SET sent_via = 'edi' WHERE id = $1`, [poId]);
         const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
         const action = isRevised ? 'revised_and_sent' : 'edi_sent';
         await pool.query(
@@ -20756,26 +21163,28 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       }
 
       // EDI failed — fall through to email
-      if (!po.vendor_email) {
+      if (!toEmail) {
         return res.status(500).json({ error: 'EDI send failed and vendor has no email configured for fallback.' });
       }
     }
 
-    // Email path (default or EDI fallback)
-    if (po.vendor_email) {
+    // Email path (default or EDI fallback) — To/CC honor the send-dialog overrides.
+    if (toEmail) {
       try {
         const poData = await generatePOHtml(pool, poId);
         if (poData) {
           const pdfBuffer = await generatePDFBuffer(poData.html, PO_PDF_MARGIN);
           const result = await sendPurchaseOrderToVendor({
-            vendor_email: po.vendor_email,
+            vendor_email: toEmail,
             vendor_name: po.vendor_name,
             po_number: po.po_number,
             is_revised: isRevised,
             pdf_buffer: pdfBuffer,
             rep_email: req.rep.email,
             rep_name: repName,
-            vendor_contact_email: po.vendor_contact_email
+            vendor_contact_email: po.vendor_contact_email,
+            cc_list: ccOverride || undefined,
+            notes: emailNotes || undefined
           });
           emailSent = result.sent;
         }
@@ -20789,8 +21198,9 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
     await pool.query(
       `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, recipient_email, revision, details)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [poId, action, repName, po.vendor_email || null, newRevision,
-       JSON.stringify({ email_sent: emailSent, approved_via: 'rep_portal', edi_fallback: ediDetails })]
+      [poId, action, repName, toEmail || null, newRevision,
+       JSON.stringify({ email_sent: emailSent, approved_via: 'rep_portal', edi_fallback: ediDetails,
+         cc: ccOverride || undefined })]
     );
 
     // Notify assigned rep on the order if different from the one approving
@@ -20802,6 +21212,7 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
         'order', po.order_id));
     }
 
+    await pool.query(`UPDATE purchase_orders SET sent_via = $2 WHERE id = $1`, [poId, sentVia]);
     const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     res.json({ purchase_order: updatedPO.rows[0], email_sent: emailSent, sent_via: sentVia });
   } catch (err) {
@@ -22200,11 +22611,19 @@ app.get('/api/rep/estimates', repAuth, async (req, res) => {
       SELECT e.*,
         CASE WHEN e.status = 'sent' AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
         sr.first_name || ' ' || sr.last_name as rep_name,
+        o.order_number as converted_order_number,
+        o.total as order_total,
+        o.amount_paid as order_amount_paid,
+        o.status as order_status,
+        CASE WHEN o.id IS NOT NULL
+          THEN GREATEST(ROUND(o.total::numeric - COALESCE(o.amount_paid, 0)::numeric, 2), 0)
+          ELSE NULL END as order_balance_due,
         (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count,
         (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id AND ei.item_type = 'material') as material_count,
         (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id AND ei.item_type = 'labor') as labor_count
       FROM estimates e
       LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+      LEFT JOIN orders o ON o.id = e.converted_order_id
       WHERE e.sales_rep_id = $1
     `;
     const params = [req.rep.id];
@@ -23081,7 +23500,8 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
 // paidInStore, flips the estimate to 'converted', closes its open follow-up tasks,
 // and generates POs for confirmed orders. Returns the new order row.
 async function convertEstimateToOrderTx(client, e, materialItems, laborItems, opts) {
-  const { paymentMethod, salesRepId, actor = 'system', actorId = null, actorName = 'System' } = opts;
+  const { paymentMethod, salesRepId, actor = 'system', actorId = null, actorName = 'System',
+    depositAmount = null, onTerms = false } = opts;
 
   // Auto-create / link the customer
   const nameParts = (e.customer_name || '').split(' ');
@@ -23093,10 +23513,13 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
   });
 
   const orderNumber = await getNextOrderNumber();
-  // paidInStore = the rep collected the full amount at convert. Online deposits
-  // use 'stripe' → not paid-in-full here; the deposit lands via the webhook.
-  const paidInStore = ['cash', 'check', 'card', 'offline'].includes(paymentMethod);
-  const orderStatus = paidInStore ? 'confirmed' : 'pending';
+  // A rep either collects money now (in-store methods) or starts the job "on
+  // terms" (no payment yet, bill the balance later) — both commit the job, so
+  // the order is 'confirmed' and POs draft. Online deposits use 'stripe' → the
+  // order stays 'pending' until the Stripe webhook settles the deposit.
+  // `collected` (how much lands now) is finalized below, once orderTotal known.
+  const inStore = !onTerms && ['cash', 'check', 'card', 'offline'].includes(paymentMethod);
+  const orderStatus = (inStore || onTerms) ? 'confirmed' : 'pending';
 
   // Subtotal covers materials + labor; sales tax applies to materials only,
   // and is zeroed for resale-exempt trade customers.
@@ -23106,6 +23529,14 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
   const taxExempt = await isTradeTaxExempt(client, { email: e.customer_email });
   const tax = calculateSalesTax(matSubtotal, e.project_zip, taxExempt);
   const orderTotal = parseFloat((orderSubtotal + tax.amount).toFixed(2));
+
+  // How much the rep collects at conversion. On terms → $0. In-store with no
+  // explicit deposit → the full amount (legacy paid-in-full). A deposit is
+  // clamped to [0, orderTotal]; the remainder becomes the order's balance due
+  // and rides the normal payment-request flow.
+  const collected = inStore
+    ? (depositAmount == null ? orderTotal : Math.max(0, Math.min(parseFloat(depositAmount) || 0, orderTotal)))
+    : 0;
 
   const orderResult = await client.query(`
     INSERT INTO orders (order_number, customer_email, customer_name, phone,
@@ -23119,8 +23550,9 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
       e.project_address_line1 || '', e.project_address_line2 || null,
       e.project_city || '', e.project_state || '', e.project_zip || '',
       orderSubtotal.toFixed(2), orderTotal.toFixed(2), orderStatus, salesRepId, paymentMethod, cust.id,
-      `Converted from Estimate ${e.estimate_number}.`, tax.rate, tax.amount.toFixed(2),
-      paidInStore ? orderTotal.toFixed(2) : '0.00']);
+      `Converted from Estimate ${e.estimate_number}.${onTerms ? ' Started on terms — balance due.' : ''}`,
+      tax.rate, tax.amount.toFixed(2),
+      collected.toFixed(2)]);
 
   const order = orderResult.rows[0];
 
@@ -23151,14 +23583,16 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
         item.quantity || 1, item.area_name || null]);
   }
 
-  // Record payment for in-store (full amount). Online-deposit orders record
-  // nothing here — the deposit is captured by the payment_request webhook.
-  if (paidInStore) {
-    const payDesc = `${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)} payment (estimate conversion)`;
+  // Record the money collected now. A deposit records a partial charge and the
+  // remaining balance rides the payment-request flow. On-terms and online-
+  // deposit orders record nothing here (online is captured by the webhook).
+  if (collected > 0) {
+    const isDeposit = collected < orderTotal;
+    const payDesc = `${paymentMethod.charAt(0).toUpperCase() + paymentMethod.slice(1)} ${isDeposit ? 'deposit' : 'payment'} (estimate conversion)`;
     await client.query(`
       INSERT INTO order_payments (order_id, payment_type, amount, description, initiated_by, initiated_by_name, status, payment_method)
       VALUES ($1, 'charge', $2, $3, $4, $5, 'completed', $6)
-    `, [order.id, orderTotal.toFixed(2), payDesc, actorId, actorName, paymentMethod]);
+    `, [order.id, collected.toFixed(2), payDesc, actorId, actorName, paymentMethod]);
   }
 
   // Update estimate status
@@ -23166,9 +23600,13 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
     "UPDATE estimates SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
     [order.id, e.id]
   );
+  const convertNote = onTerms
+    ? 'on terms — balance due'
+    : (collected > 0 && collected < orderTotal ? `deposit $${collected.toFixed(2)}` : null);
   await logEstimateEvent(client, e.id, 'converted', {
-    body: `Converted to Order ${orderNumber} (materials + labor)`,
-    meta: { order_id: order.id, order_number: orderNumber, payment_method: paymentMethod },
+    body: `Converted to Order ${orderNumber} (materials + labor)${convertNote ? ' · ' + convertNote : ''}`,
+    meta: { order_id: order.id, order_number: orderNumber, payment_method: paymentMethod,
+      collected: collected.toFixed(2), on_terms: !!onTerms },
     actor, actorName
   });
 
@@ -23194,7 +23632,7 @@ app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) =>
   const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { payment_method, force } = req.body;
+    const { payment_method, force, deposit_amount, on_terms } = req.body;
 
     if (!payment_method || !['cash', 'check', 'card', 'stripe', 'offline', 'ach'].includes(payment_method)) {
       return res.status(400).json({ error: 'payment_method must be cash, check, card, stripe, offline, or ach' });
@@ -23229,6 +23667,8 @@ app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) =>
     await client.query('BEGIN');
     const order = await convertEstimateToOrderTx(client, e, materialItems, laborItems, {
       paymentMethod: payment_method, salesRepId: req.rep.id,
+      depositAmount: on_terms ? 0 : (deposit_amount != null ? deposit_amount : null),
+      onTerms: !!on_terms,
       actor: 'rep', actorId: req.rep.id, actorName: req.rep.first_name + ' ' + req.rep.last_name
     });
     await client.query('COMMIT');
@@ -23569,9 +24009,14 @@ app.get('/api/rep/customers/search', repAuth, async (req, res) => {
         (SELECT COUNT(*)::int FROM orders o WHERE o.customer_id = c.id) as order_count,
         (SELECT COALESCE(SUM(o.total), 0) FROM orders o WHERE o.customer_id = c.id) as lifetime_value
       FROM customers c
-      WHERE LOWER(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')) LIKE $1
+      WHERE (LOWER(COALESCE(c.first_name, '') || ' ' || COALESCE(c.last_name, '')) LIKE $1
         OR LOWER(c.email) LIKE $1
-        OR ($2::text IS NOT NULL AND regexp_replace(COALESCE(c.phone, ''), '[^0-9]', '', 'g') LIKE $2)
+        OR ($2::text IS NOT NULL AND regexp_replace(COALESCE(c.phone, ''), '[^0-9]', '', 'g') LIKE $2))
+        -- Never surface the retail identity of an email that belongs to a trade
+        -- account: order pricing is keyed by email and always applies the trade
+        -- discount, so selecting "retail" here would desync the wizard total from
+        -- the backend and get the payment rejected as exceeding the (discounted) total.
+        AND NOT EXISTS (SELECT 1 FROM trade_customers tc WHERE LOWER(tc.email) = LOWER(c.email))
       ORDER BY c.updated_at DESC NULLS LAST
       LIMIT 10
     `, [term, phoneTerm]);
@@ -23677,18 +24122,8 @@ app.get('/api/config/stripe-key', (req, res) => {
   res.json({ key: process.env.STRIPE_PUBLISHABLE_KEY || '' });
 });
 
-// GET /api/config/google-places-key — public API key for Google Places autocomplete
-app.get('/api/config/google-places-key', (req, res) => {
-  res.json({ key: process.env.GOOGLE_PLACES_API_KEY || '' });
-});
-
 app.get('/api/config/google-client-id', (req, res) => {
   res.json({ clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '' });
-});
-
-// GET /api/rep/config/google-places-key — API key for Google Places autocomplete
-app.get('/api/rep/config/google-places-key', repAuth, async (req, res) => {
-  res.json({ key: process.env.GOOGLE_PLACES_API_KEY || '' });
 });
 
 // GET /api/rep/customers — unified list (mirrors admin endpoint)
@@ -23719,6 +24154,9 @@ app.get('/api/rep/customers', repAuth, async (req, res) => {
         FROM customers c
         LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
         LEFT JOIN orders o ON o.customer_id = c.id
+        -- Hide the retail identity of anyone who also has a trade account — they
+        -- are listed once, as trade (which drives their pricing). [[duplicate-customer-detection]]
+        WHERE NOT EXISTS (SELECT 1 FROM trade_customers tc WHERE LOWER(tc.email) = LOWER(c.email))
         GROUP BY c.id, sr.first_name, sr.last_name
       `));
     }
@@ -24020,7 +24458,7 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
         'Staff'
       ) as staff_name
       FROM customer_notes cn
-      WHERE cn.customer_type = $1 AND cn.customer_ref = $2
+      WHERE cn.customer_type = $1 AND cn.customer_ref = $2 AND cn.order_id IS NULL
       ORDER BY cn.created_at DESC
     `, [type, noteRef]);
 
@@ -24414,7 +24852,7 @@ app.get('/api/rep/customers/:id/timeline', repAuth, async (req, res) => {
           'Staff'
         ) as staff_name
       FROM customer_notes cn
-      WHERE cn.customer_type = $1 AND cn.customer_ref = $2
+      WHERE cn.customer_type = $1 AND cn.customer_ref = $2 AND cn.order_id IS NULL
     `, [type, noteRef]);
     for (const n of notesRes.rows) {
       timeline.push({
@@ -25317,7 +25755,7 @@ app.get('/api/admin/purchase-orders', staffAuth, async (req, res) => {
 // Create standalone PO (no order)
 app.post('/api/admin/purchase-orders', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { vendor_id, notes } = req.body;
+    const { vendor_id, notes, fulfillment_method } = req.body;
     if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required' });
 
     const vendor = await pool.query('SELECT id, code, name FROM vendors WHERE id = $1', [vendor_id]);
@@ -25327,9 +25765,9 @@ app.post('/api/admin/purchase-orders', staffAuth, requireRole('admin', 'manager'
     const poNumber = await getNextPONumber();
 
     const result = await pool.query(
-      `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes)
-       VALUES (NULL, $1, $2, 'draft', 0, $3) RETURNING *`,
-      [vendor_id, poNumber, notes || null]
+      `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal, notes, fulfillment_method)
+       VALUES (NULL, $1, $2, 'draft', 0, $3, $4) RETURNING *`,
+      [vendor_id, poNumber, notes || null, fulfillment_method === 'pickup' ? 'pickup' : 'ship']
     );
 
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
@@ -25488,13 +25926,15 @@ app.put('/api/admin/purchase-orders/:poId/status', staffAuth, requireRole('admin
 app.put('/api/admin/purchase-orders/:poId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { poId } = req.params;
-    const { notes } = req.body;
+    const { notes, fulfillment_method } = req.body;
     const po = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
     if (po.rows[0].status !== 'draft') return res.status(400).json({ error: 'Only draft POs can be edited' });
+    const fm = fulfillment_method === undefined ? po.rows[0].fulfillment_method
+      : (fulfillment_method === 'pickup' ? 'pickup' : 'ship');
     const result = await pool.query(
-      'UPDATE purchase_orders SET notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
-      [notes || null, poId]
+      'UPDATE purchase_orders SET notes = $1, fulfillment_method = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *',
+      [notes || null, fm, poId]
     );
     res.json({ purchase_order: result.rows[0] });
   } catch (err) {
@@ -25524,16 +25964,43 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
     const ediConfig = po.edi_config;
     const ediEnabled = ediConfig && ediConfig.enabled;
 
-    if (!ediEnabled && !po.vendor_email) {
-      return res.status(400).json({ error: 'Vendor has no email configured and EDI is not enabled. Edit the vendor to add an email address.' });
-    }
-
     if (!['draft', 'sent'].includes(po.status)) {
       return res.status(400).json({ error: 'Only draft or sent POs can be sent to vendors' });
     }
 
-    let action = 'sent';
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+
+    // Manual placement: staff placed the order with the vendor by phone or on the
+    // vendor's website. No EDI/email transmission — just record how it was placed.
+    const manualMethod = req.body.method === 'phone' || req.body.method === 'online' ? req.body.method : null;
+    if (manualMethod) {
+      let mAction = 'resent';
+      let mRevision = po.revision || 0;
+      if (po.status === 'draft') {
+        mRevision = (po.revision || 0) + 1;
+        const mIsRevised = mRevision > 1;
+        await pool.query(`
+          UPDATE purchase_orders SET status = 'sent', revision = $1, is_revised = $2, sent_via = $3,
+            approved_by = COALESCE(approved_by, $4), approved_at = COALESCE(approved_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP
+          WHERE id = $5
+        `, [mRevision, mIsRevised, manualMethod, req.staff.id, poId]);
+        mAction = mIsRevised ? 'revised_and_sent' : 'sent';
+      } else {
+        await pool.query(`UPDATE purchase_orders SET sent_via = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [poId, manualMethod]);
+      }
+      await pool.query(
+        `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, revision, details)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [poId, mAction, req.staff.id, staffName, mRevision, JSON.stringify({ sent_via: manualMethod, manual: true })]);
+      const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+      return res.json({ purchase_order: updatedPO.rows[0], sent_via: manualMethod });
+    }
+
+    if (!ediEnabled && !po.vendor_email) {
+      return res.status(400).json({ error: 'Vendor has no email configured and EDI is not enabled. Edit the vendor to add an email address.' });
+    }
+
+    let action = 'sent';
 
     if (po.status === 'draft') {
       const newRevision = (po.revision || 0) + 1;
@@ -25635,6 +26102,7 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
 
       if (ediSuccess) {
         // Log activity and return
+        await pool.query(`UPDATE purchase_orders SET sent_via = 'edi' WHERE id = $1`, [poId]);
         const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
         await pool.query(
           `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, revision, details)
@@ -25675,6 +26143,7 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
     });
 
     // Log activity
+    await pool.query(`UPDATE purchase_orders SET sent_via = $2 WHERE id = $1`, [poId, sentVia]);
     const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     await pool.query(
       `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, recipient_email, revision, details)
@@ -25818,64 +26287,80 @@ app.put('/api/admin/edi/invoices/:id/status', staffAuth, requireRole('admin', 'm
   }
 });
 
+// Poll every EDI-enabled vendor (or one) for inbound 855/856/810. Shared by the
+// manual "poll now" endpoint and the scheduled cron. Returns the launched jobs.
+async function pollAllEdiVendors(vendorId) {
+  let query = `SELECT v.id as vendor_id, v.code as vendor_code, v.name as vendor_name, v.edi_config
+               FROM vendors v WHERE v.edi_config IS NOT NULL AND (v.edi_config->>'enabled')::boolean = true`;
+  const params = [];
+  if (vendorId) { query += ` AND v.id = $1`; params.push(vendorId); }
+  const vendorResult = await pool.query(query, params);
+  if (!vendorResult.rows.length) return [];
+
+  const pollerModule = await import('./scrapers/edi-poller.js');
+  const jobs = [];
+  for (const vendor of vendorResult.rows) {
+    const jobResult = await pool.query(
+      `INSERT INTO scrape_jobs (vendor_source_id, status, started_at)
+       VALUES ((SELECT id FROM vendor_sources WHERE vendor_id = $1 AND scraper_key LIKE '%edi%' LIMIT 1), 'running', CURRENT_TIMESTAMP) RETURNING id`,
+      [vendor.vendor_id]
+    );
+    const jobId = jobResult.rows[0]?.id;
+    if (!jobId) continue;
+    const source = { vendor_id: vendor.vendor_id, vendor_code: vendor.vendor_code, config: { edi: vendor.edi_config } };
+    pollerModule.run(pool, { id: jobId }, source).then(async (stats) => {
+      await pool.query(
+        `UPDATE scrape_jobs SET status = 'completed', completed_at = CURRENT_TIMESTAMP, products_found = $2, products_created = $3 WHERE id = $1`,
+        [jobId, stats.files_found || 0, stats.processed || 0]);
+    }).catch(async (err) => {
+      console.error(`[EDI Poll:${vendor.vendor_code}] Error:`, err.message);
+      // scrape_jobs has no `error` column — the prior write to it threw inside this
+      // catch, so the job was never marked failed and stayed stuck 'running' (blocking
+      // future polls via the already-running guard). Use the `errors` jsonb column.
+      try {
+        await pool.query(
+          `UPDATE scrape_jobs SET status = 'failed', completed_at = CURRENT_TIMESTAMP,
+             errors = COALESCE(errors, '[]'::jsonb) || $2::jsonb WHERE id = $1`,
+          [jobId, JSON.stringify([{ message: err.message, time: new Date().toISOString() }])]);
+      } catch (e) {
+        console.error(`[EDI Poll:${vendor.vendor_code}] Failed to record job failure:`, e.message);
+      }
+    });
+    jobs.push({ vendor_id: vendor.vendor_id, vendor_code: vendor.vendor_code, job_id: jobId });
+  }
+  return jobs;
+}
+
 // Trigger immediate EDI poll for a vendor (or all EDI vendors)
 app.post('/api/admin/edi/poll-now', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { vendor_id } = req.body;
-
-    // Find all EDI-enabled vendors (or a specific one)
-    let query = `SELECT v.id as vendor_id, v.code as vendor_code, v.name as vendor_name, v.edi_config
-                 FROM vendors v WHERE v.edi_config IS NOT NULL AND (v.edi_config->>'enabled')::boolean = true`;
-    const params = [];
-    if (vendor_id) {
-      query += ` AND v.id = $1`;
-      params.push(vendor_id);
+    const jobs = await pollAllEdiVendors(req.body.vendor_id);
+    if (!jobs.length) {
+      return res.status(404).json({ error: req.body.vendor_id ? 'Vendor not found or EDI not enabled' : 'No EDI-enabled vendors found' });
     }
-    const vendorResult = await pool.query(query, params);
-
-    if (!vendorResult.rows.length) {
-      return res.status(404).json({ error: vendor_id ? 'Vendor not found or EDI not enabled' : 'No EDI-enabled vendors found' });
-    }
-
-    const pollerModule = await import('./scrapers/edi-poller.js');
-    const jobs = [];
-
-    for (const vendor of vendorResult.rows) {
-      const jobResult = await pool.query(
-        `INSERT INTO scrape_jobs (vendor_source_id, status, started_at)
-         VALUES ((SELECT id FROM vendor_sources WHERE vendor_id = $1 AND scraper_key LIKE '%edi%' LIMIT 1), 'running', CURRENT_TIMESTAMP) RETURNING id`,
-        [vendor.vendor_id]
-      );
-      const jobId = jobResult.rows[0]?.id;
-      if (!jobId) continue;
-
-      const source = {
-        vendor_id: vendor.vendor_id,
-        vendor_code: vendor.vendor_code,
-        config: { edi: vendor.edi_config },
-      };
-
-      pollerModule.run(pool, { id: jobId }, source).then(async (stats) => {
-        await pool.query(
-          `UPDATE scrape_jobs SET status = 'completed', completed_at = CURRENT_TIMESTAMP,
-           products_found = $2, products_created = $3
-           WHERE id = $1`,
-          [jobId, stats.files_found || 0, stats.processed || 0]
-        );
-      }).catch(async (err) => {
-        console.error(`[EDI Poll Now:${vendor.vendor_code}] Error:`, err.message);
-        await pool.query(
-          `UPDATE scrape_jobs SET status = 'failed', completed_at = CURRENT_TIMESTAMP, error = $2 WHERE id = $1`,
-          [jobId, err.message]
-        );
-      });
-
-      jobs.push({ vendor_id: vendor.vendor_id, vendor_code: vendor.vendor_code, job_id: jobId });
-    }
-
     res.json({ message: `EDI poll triggered for ${jobs.length} vendor(s)`, jobs });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Manual test-ingest: parse a raw X12 payload for a vendor and run it through the
+// same handlers as the scheduled poller (855/856/810). Lets us feed a sample 855
+// without a live vendor SFTP outbox. [[edi-855]]
+app.post('/api/admin/edi/ingest', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { vendor_id, raw } = req.body || {};
+    if (!vendor_id || !raw || typeof raw !== 'string') {
+      return res.status(400).json({ error: 'vendor_id and raw (X12 string) are required' });
+    }
+    const v = await pool.query('SELECT id, code FROM vendors WHERE id = $1', [vendor_id]);
+    if (!v.rows.length) return res.status(404).json({ error: 'Vendor not found' });
+    const { processRawEdi } = await import('./scrapers/edi-poller.js');
+    const source = { vendor_id: v.rows[0].id, vendor_code: v.rows[0].code };
+    const summary = await processRawEdi(pool, raw, source, { filename: null });
+    res.json({ success: true, summary });
+  } catch (err) {
+    console.error(err); res.status(400).json({ error: err.message || 'Ingest failed' });
   }
 });
 
@@ -26269,6 +26754,9 @@ app.get('/api/admin/customers', staffAuth, requireRole('admin', 'manager', 'sale
         FROM customers c
         LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
         LEFT JOIN orders o ON o.customer_id = c.id
+        -- Hide the retail identity of anyone who also has a trade account — they
+        -- are listed once, as trade (which drives their pricing). [[duplicate-customer-detection]]
+        WHERE NOT EXISTS (SELECT 1 FROM trade_customers tc WHERE LOWER(tc.email) = LOWER(c.email))
         GROUP BY c.id, sr.first_name, sr.last_name
       `));
     }
@@ -26616,7 +27104,7 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
         'Staff'
       ) as staff_name
       FROM customer_notes cn
-      WHERE cn.customer_type = $1 AND cn.customer_ref = $2
+      WHERE cn.customer_type = $1 AND cn.customer_ref = $2 AND cn.order_id IS NULL
       ORDER BY cn.created_at DESC
     `, [type, noteRef]);
 
@@ -28548,6 +29036,16 @@ app.post('/api/admin/orders/:id/tracking/refresh', staffAuth, async (req, res) =
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// Cron: poll EDI vendors' outboxes for inbound 855/856/810 every 30 minutes
+cron.schedule('*/30 * * * *', async () => {
+  try {
+    const jobs = await pollAllEdiVendors();
+    if (jobs.length) console.log(`[Cron] EDI poll launched for ${jobs.length} vendor(s)`);
+  } catch (err) {
+    console.error('[Cron] EDI poll error:', err.message);
+  }
+});
+
 // Cron: poll tracking for shipped orders every 4 hours
 cron.schedule('0 */4 * * *', async () => {
   console.log('[Cron] Polling tracking for shipped orders...');
@@ -29223,6 +29721,7 @@ async function runMigrations() {
         uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
       CREATE INDEX IF NOT EXISTS idx_order_documents_order ON order_documents(order_id);
+      ALTER TABLE order_documents ADD COLUMN IF NOT EXISTS purchase_order_id UUID REFERENCES purchase_orders(id) ON DELETE SET NULL;
     `);
     console.log('Migrations: Order documents table applied');
   } catch (err) {
