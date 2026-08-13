@@ -8392,11 +8392,17 @@
         loadDocs(id);
       };
 
-      const approveCustomer = async (id) => {
-        if (!confirm('Approve this trade customer? They will start at the Silver tier with spend-based pricing.')) return;
+      const approveCustomer = async (id, taxExempt) => {
+        const taxNote = taxExempt
+          ? '\n\nThis customer will be TAX EXEMPT (no sales tax on materials). Only do this if you have verified the resale certificate.'
+          : '\n\nThis customer will be charged sales tax. Tick "Tax exempt (resale)" first if you have verified their resale certificate.';
+        if (!confirm('Approve this trade customer? They will start at the Silver tier with spend-based pricing.' + taxNote)) return;
         setActionLoading(true);
         try {
-          await adminFetch('/api/admin/trade-customers/' + id + '/approve', { method: 'POST' });
+          await adminFetch('/api/admin/trade-customers/' + id + '/approve', {
+            method: 'POST',
+            body: JSON.stringify({ tax_exempt: !!taxExempt })
+          });
           fetchCustomers();
           setExpandedId(null);
         } catch (err) {
@@ -8526,7 +8532,7 @@
                       <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                         {c.status === 'pending' && (
                           <>
-                            <button className="btn-link" onClick={() => approveCustomer(c.id)} disabled={actionLoading}>Approve</button>
+                            <button className="btn-link" onClick={() => approveCustomer(c.id, c.tax_exempt)} disabled={actionLoading}>Approve</button>
                             <button className="btn-link btn-link-danger" onClick={() => { setExpandedId(c.id); loadDocs(c.id); }}>Review</button>
                           </>
                         )}
@@ -8534,7 +8540,7 @@
                           <button className="btn-link btn-link-danger" onClick={() => updateCustomer(c.id, { status: 'rejected' })}>Revoke</button>
                         )}
                         {c.status === 'rejected' && (
-                          <button className="btn-link" onClick={() => approveCustomer(c.id)} disabled={actionLoading}>Approve</button>
+                          <button className="btn-link" onClick={() => approveCustomer(c.id, c.tax_exempt)} disabled={actionLoading}>Approve</button>
                         )}
                         <button className="btn-link btn-link-danger" onClick={() => deleteCustomer(c.id, c.company_name)}>Delete</button>
                       </div>
@@ -8571,22 +8577,31 @@
                               {reps.map(r => <option key={r.id} value={r.id}>{r.first_name} {r.last_name}</option>)}
                             </select>
                           </div>
-                          <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
-                            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', cursor: 'pointer' }}>
-                              <input type="checkbox" checked={!!c.tax_exempt} onChange={e => updateCustomer(c.id, { tax_exempt: e.target.checked })} style={{ marginTop: '0.15rem' }} />
-                              <span>
-                                <strong>Tax exempt (resale)</strong>
-                                <span style={{ display: 'block', color: 'var(--stone-500)', fontSize: '0.75rem' }}>Removes sales tax on materials. Set only after verifying the resale certificate.</span>
-                              </span>
-                            </label>
-                          </div>
+                          {c.status !== 'pending' && (
+                            <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
+                              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={!!c.tax_exempt} onChange={e => updateCustomer(c.id, { tax_exempt: e.target.checked })} style={{ marginTop: '0.15rem' }} />
+                                <span>
+                                  <strong>Tax exempt (resale)</strong>
+                                  <span style={{ display: 'block', color: 'var(--stone-500)', fontSize: '0.75rem' }}>Removes sales tax on materials. Set only after verifying the resale certificate.</span>
+                                </span>
+                              </label>
+                            </div>
+                          )}
                         </div>
                         <div>
                           {c.status === 'pending' && (
                             <>
                               <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>Actions</h4>
+                              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', cursor: 'pointer', marginBottom: '0.75rem', fontSize: '0.8125rem' }}>
+                                <input type="checkbox" checked={!!c.tax_exempt} onChange={e => updateCustomer(c.id, { tax_exempt: e.target.checked })} style={{ marginTop: '0.15rem' }} />
+                                <span>
+                                  <strong>Tax exempt (resale)</strong>
+                                  <span style={{ display: 'block', color: 'var(--stone-500)', fontSize: '0.75rem' }}>Removes sales tax on materials. Tick only after verifying the resale certificate above.</span>
+                                </span>
+                              </label>
                               <div style={{ marginBottom: '1rem' }}>
-                                <button className="btn btn-primary btn-sm" onClick={() => approveCustomer(c.id)} disabled={actionLoading} style={{ marginRight: '0.5rem' }}>
+                                <button className="btn btn-primary btn-sm" onClick={() => approveCustomer(c.id, c.tax_exempt)} disabled={actionLoading} style={{ marginRight: '0.5rem' }}>
                                   {actionLoading ? 'Processing...' : 'Approve'}
                                 </button>
                               </div>

@@ -11890,20 +11890,24 @@ app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin
     }
 
     const staffId = req.staff ? req.staff.id : null;
+    // Resale tax exemption is set here only when staff explicitly check it after
+    // verifying the resale certificate; omitting it leaves the customer taxed.
+    const taxExempt = !!tax_exempt;
 
     await client.query(`
       UPDATE trade_customers SET
         status = 'approved',
         margin_tier_id = COALESCE($1, margin_tier_id),
-        approved_by = $2,
+        tax_exempt = $2,
+        approved_by = $3,
         approved_at = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $3
-    `, [tierId, staffId, id]);
+      WHERE id = $4
+    `, [tierId, taxExempt, staffId, id]);
 
     await client.query('COMMIT');
 
-    if (staffId) await logAudit(staffId, 'trade.approve', 'trade_customers', id, { margin_tier_id: tierId }, req.ip);
+    if (staffId) await logAudit(staffId, 'trade.approve', 'trade_customers', id, { margin_tier_id: tierId, tax_exempt: taxExempt }, req.ip);
 
     // Send approval email
     try {
@@ -14130,22 +14134,27 @@ app.post('/api/rep/trade-customers/:id/approve', repAuth, requireRepManager, asy
       if (silver.rows.length) tierId = silver.rows[0].id;
     }
 
+    // Resale tax exemption is set here only when the manager explicitly checks it
+    // after verifying the resale certificate; omitting it leaves the customer taxed.
+    const taxExempt = !!tax_exempt;
+
     // Reps are not in staff_accounts, so approved_by (a staff FK) stays null.
     await client.query(`
       UPDATE trade_customers SET
         status = 'approved',
         margin_tier_id = COALESCE($1, margin_tier_id),
+        tax_exempt = $2,
         approved_by = NULL,
         approved_at = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
-    `, [tierId, id]);
+      WHERE id = $3
+    `, [tierId, taxExempt, id]);
 
     await client.query('COMMIT');
 
     const repName = `${req.rep.first_name} ${req.rep.last_name}`.trim();
     await logAudit(null, 'trade.approve', 'trade_customers', id,
-      { margin_tier_id: tierId, approved_by_rep: req.rep.id, approved_by_name: repName }, req.ip);
+      { margin_tier_id: tierId, tax_exempt: taxExempt, approved_by_rep: req.rep.id, approved_by_name: repName }, req.ip);
 
     // Send approval email
     try {

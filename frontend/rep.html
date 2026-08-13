@@ -7469,6 +7469,7 @@
       const [docs, setDocs] = useState([]);
       const [docsLoading, setDocsLoading] = useState(false);
       const [note, setNote] = useState('');
+      const [taxExempt, setTaxExempt] = useState(false); // resale exemption; off unless the cert is verified
       const [busy, setBusy] = useState(false);
 
       // Fill the viewport below the sticky top bar; neutralize the padded,
@@ -7500,7 +7501,7 @@
 
       // Load documents for the selected applicant; reset the per-applicant inputs.
       useEffect(() => {
-        setTierChoice(null); setNote(''); setDocs([]);
+        setTierChoice(null); setNote(''); setDocs([]); setTaxExempt(false);
         if (!sel) return;
         setDocsLoading(true);
         repFetch('/api/rep/trade-customers/' + sel + '/documents')
@@ -7519,7 +7520,7 @@
         if (!a || busy) return;
         setBusy(true);
         const path = verdict === 'approve' ? '/approve' : '/deny';
-        const body = verdict === 'approve' ? { margin_tier_id: chosen } : { denial_reason: note };
+        const body = verdict === 'approve' ? { margin_tier_id: chosen, tax_exempt: taxExempt } : { denial_reason: note };
         repFetch('/api/rep/trade-customers/' + a.id + path, { method: 'POST', body: JSON.stringify(body) })
           .then(() => {
             setBusy(false);
@@ -7569,7 +7570,7 @@
               : <div className="ta-body" style={{ flex: 1, gridTemplateRows: 'minmax(0,1fr)', minHeight: 0, overflow: 'hidden' }}>
                   <TaQueue list={customers} sel={sel} setSel={setSel} lowestTier={lowestTier} />
                   {a
-                    ? <TaReview a={a} rec={rec} tiers={tiers} chosen={chosen} chosenTier={chosenTier} recTierId={recTierId} setTierChoice={setTierChoice} checks={checks} passCount={passCount} submitted={submitted} docs={docs} docsLoading={docsLoading} note={note} setNote={setNote} busy={busy} decide={decide} />
+                    ? <TaReview a={a} rec={rec} tiers={tiers} chosen={chosen} chosenTier={chosenTier} recTierId={recTierId} setTierChoice={setTierChoice} checks={checks} passCount={passCount} submitted={submitted} docs={docs} docsLoading={docsLoading} note={note} setNote={setNote} taxExempt={taxExempt} setTaxExempt={setTaxExempt} hasResale={hasResale} busy={busy} decide={decide} />
                     : <div style={{ display: 'grid', placeItems: 'center', padding: 40, textAlign: 'center' }}>
                         <div>
                           <div style={{ font: `300 30px/1.3 ${TA.serif}`, color: TA.ink }}>Queue clear.</div>
@@ -7617,7 +7618,7 @@
     }
 
     function TaReview(props) {
-      const { a, rec, tiers, chosen, chosenTier, recTierId, setTierChoice, checks, passCount, submitted, docs, docsLoading, note, setNote, busy, decide } = props;
+      const { a, rec, tiers, chosen, chosenTier, recTierId, setTierChoice, checks, passCount, submitted, docs, docsLoading, note, setNote, taxExempt, setTaxExempt, hasResale, busy, decide } = props;
       const isDecline = chosen === 'none';
       const stats = [['Applied', taDate(a.created_at)], ['Trailing spend', taMoney(a.total_spend)], ['Documents', String(docs.length)]];
       const readText = rec.key === 'info'
@@ -7735,6 +7736,31 @@
               </TaBlock>
             </div>
 
+            {!isDecline && (
+              <TaBlock label="Sales tax" note={taxExempt ? 'exempt' : 'charged'}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {[{ v: false, name: 'Charge sales tax', sub: 'Standard — CA materials tax applies' }, { v: true, name: 'Tax exempt (resale)', sub: 'No sales tax on materials' }].map(o => {
+                    const on = taxExempt === o.v;
+                    return (
+                      <button key={String(o.v)} onClick={() => setTaxExempt(o.v)} style={{
+                        padding: '11px 16px', cursor: 'pointer', textAlign: 'left',
+                        background: on ? TA.ink : 'transparent', color: on ? TA.paper : TA.ink,
+                        border: on ? 'none' : `0.5px solid ${tInk(0.22)}`,
+                      }}>
+                        <div style={{ font: `500 11px/1 ${TA.mono}`, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{o.name}</div>
+                        <div style={{ marginTop: 6, font: `400 13px/1 ${TA.sans}`, opacity: on ? 0.85 : 0.6 }}>{o.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                {taxExempt && !hasResale && (
+                  <p style={{ margin: '14px 0 0', maxWidth: '64ch', font: `400 13px/1.6 ${TA.sans}`, color: TA.bad, textWrap: 'pretty' }}>
+                    No resale certificate is clearly on file. Only exempt this account once you have verified a valid resale certificate — Roma is liable for uncollected tax otherwise.
+                  </p>
+                )}
+              </TaBlock>
+            )}
+
             <TaBlock label="Note on the record">
               <textarea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="Visible to the applicant if you decline&hellip;" style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', padding: '11px 12px', background: TA.paper, border: `0.5px solid ${tInk(0.2)}`, color: TA.ink, font: `400 13px/1.5 ${TA.sans}`, outline: 'none' }} />
             </TaBlock>
@@ -7746,7 +7772,7 @@
               <div style={{ marginTop: 8, font: `300 17px/1.45 ${TA.serif}`, textWrap: 'pretty', maxWidth: '70ch' }}>
                 {isDecline
                   ? `${a.company_name || a.contact_name} is declined and emailed your reason. No trade pricing, no margin exposure.`
-                  : `${a.company_name || a.contact_name} becomes a ${chosenTier.name} account at ${taPct(chosenTier.discount_percent)} off, assigned to the trade program.`}
+                  : `${a.company_name || a.contact_name} becomes a ${chosenTier.name} account at ${taPct(chosenTier.discount_percent)} off, assigned to the trade program${taxExempt ? ', tax-exempt on materials (resale)' : ', sales tax charged'}.`}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
