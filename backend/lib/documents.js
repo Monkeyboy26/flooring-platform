@@ -1274,7 +1274,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
-<div class="mono" style="letter-spacing:0.22em;">Estimate</div>
+<div class="mono" style="letter-spacing:0.22em;">Construction Estimate</div>
 <div style="font:300 32px/1 var(--serif);letter-spacing:-0.014em;margin-top:6px;">${estimateNumber}</div>
 <div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
 <span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
