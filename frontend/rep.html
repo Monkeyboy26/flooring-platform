@@ -21168,7 +21168,9 @@
       // the ordered qty). A delivered order implies received (legacy orders).
       const recvLines = items.filter(i => !i.is_sample && i.item_type !== 'labor');
       const recvLinesIn = recvLines.filter(i => i.ready_at).length;
-      const allReceived = recvLines.length > 0 && recvLinesIn === recvLines.length;
+      // Vacuously "received" when there are no material lines (labor-only job) so
+      // the Start-install / advance gates don't dead-lock with nothing to receive.
+      const allReceived = recvLines.length === 0 || recvLinesIn === recvLines.length;
       // Will-call: Roma never receives, so the 4th milestone is "Released" (a
       // will-call form issued for every material line) rather than warehouse receipt.
       const relLinesOut = recvLines.filter(it => (parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0)) <= 0.001).length;
@@ -27938,7 +27940,9 @@
       const estGrossProfit = estCosted.reduce((s, i) => s + (1 - parseFloat(i.vendor_cost) / parseFloat(i.unit_price)) * parseFloat(i.subtotal || 0), 0);
       const estBlendedMargin = estCostedSell > 0 ? (estGrossProfit / estCostedSell) * 100 : null;
 
-      const canConvert = estimate && !isReadonly && materialItems.length > 0;
+      // Convertible with any billable line — materials OR labor-only (e.g. floor
+      // leveling, demo, or install of customer-supplied material).
+      const canConvert = estimate && !isReadonly && (materialItems.length > 0 || laborItems.length > 0);
       // Saving a draft no longer requires a customer up front (attach before send),
       // so the only thing that blocks the save button is an in-flight save.
       const createDisabled = saving;
@@ -29151,9 +29155,11 @@
                 </div>
                 <div className="modal-body">
                   <p style={{ marginBottom: '0.85rem', fontSize: '0.8125rem', color: 'var(--stone-600)', lineHeight: 1.5 }}>
-                    Creates an order at the estimate pricing — {materialItems.length} material item{materialItems.length !== 1 ? 's' : ''}
-                    {laborItems.length > 0 ? <React.Fragment> and {laborItems.length} labor item{laborItems.length !== 1 ? 's' : ''}</React.Fragment> : null}
-                    {laborItems.length > 0 ? ' (tax on materials only)' : ''}. Order total <strong>${total.toFixed(2)}</strong>.
+                    Creates an order at the estimate pricing — {[
+                      materialItems.length > 0 ? materialItems.length + ' material item' + (materialItems.length !== 1 ? 's' : '') : null,
+                      laborItems.length > 0 ? laborItems.length + ' labor item' + (laborItems.length !== 1 ? 's' : '') : null,
+                    ].filter(Boolean).join(' and ')}
+                    {materialItems.length > 0 && laborItems.length > 0 ? ' (tax on materials only)' : ''}. Order total <strong>${total.toFixed(2)}</strong>.
                   </p>
 
                   {/* Collect now vs on terms */}

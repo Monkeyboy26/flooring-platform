@@ -23541,8 +23541,10 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
     const materialItems = itemsResult.rows.filter(i => i.item_type === 'material');
     const laborItems = itemsResult.rows.filter(i => i.item_type === 'labor');
 
-    if (materialItems.length === 0) {
-      return res.status(400).json({ error: 'Estimate has no material items to convert' });
+    // Convertible with any billable line — labor-only jobs (leveling, demo,
+    // install of customer-supplied material) are valid orders too.
+    if (materialItems.length === 0 && laborItems.length === 0) {
+      return res.status(400).json({ error: 'Estimate has no items to convert' });
     }
 
     await client.query('BEGIN');
@@ -23827,8 +23829,10 @@ app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) =>
     const materialItems = itemsResult.rows.filter(i => i.item_type === 'material');
     const laborItems = itemsResult.rows.filter(i => i.item_type === 'labor');
 
-    if (materialItems.length === 0) {
-      return res.status(400).json({ error: 'Estimate has no material items to convert' });
+    // Convertible with any billable line — labor-only jobs (leveling, demo,
+    // install of customer-supplied material) are valid orders too.
+    if (materialItems.length === 0 && laborItems.length === 0) {
+      return res.status(400).json({ error: 'Estimate has no items to convert' });
     }
 
     await client.query('BEGIN');
@@ -24076,7 +24080,8 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
 
     const materialItems = bundle.items.filter(i => i.item_type === 'material');
     const laborItems = bundle.items.filter(i => i.item_type === 'labor');
-    if (!materialItems.length) return res.status(400).json({ error: 'This estimate has no material items.' });
+    // Labor-only jobs are valid orders too (leveling, demo, customer-supplied material).
+    if (!materialItems.length && !laborItems.length) return res.status(400).json({ error: 'This estimate has no items.' });
 
     await client.query('BEGIN');
     const order = await convertEstimateToOrderTx(client, e, materialItems, laborItems, {
