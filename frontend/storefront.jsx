@@ -721,8 +721,11 @@
       const words = suffix.toLowerCase().split(/\s+/);
       if (lower.includes(suffix.toLowerCase())) return text;
       if (words.length > 1 && words.every(w => lower.includes(w))) return text;
-      // If the primary keyword (e.g. "Mosaic", "Hardwood") already appears in the name, skip
-      if (words.length > 0 && new RegExp('\\b' + words[0] + '\\b', 'i').test(text)) return text;
+      // If the primary keyword (e.g. "Mosaic", "Hardwood") already appears in the
+      // name — including plural ("Bianco Carrara Mosaics") — skip
+      if (words.length > 0 && new RegExp('\\b' + words[0] + 's?\\b', 'i').test(text)) return text;
+      // "X Slab" under a countertop/slab category — 'Slab' already says it
+      if (/\bslabs?\b/i.test(text) && /countertop|slab/i.test(suffix)) return text;
       return text + ' ' + suffix;
     }
     function stripTypeSuffix(text, categoryName) {
@@ -1223,15 +1226,64 @@
         const sizeDesc = sizeFromAttr(it.size, [title, design, sizeInfo, it.variant_name].filter(Boolean).join(' '));
         ordered = [design, sizeInfo, sizeDesc, it.variant_name, accLabel];
       }
-      // Case-insensitive dedup: drop a descriptor that only echoes the title/color
-      // in different case (e.g. color "Shore" + variant_name "SHORE").
-      const seen = new Set([String(title).toLowerCase()]);
-      const descriptors = ordered.filter(v => {
-        if (!v) return false;
-        const k = String(v).toLowerCase();
-        if (seen.has(k)) return false;
-        seen.add(k); return true;
-      });
+      // Containment-aware dedup (mirrors composeItemName in lib/documents.js):
+      // drop a descriptor already present in what's assembled so far — exact echo
+      // (color "Shore" + variant "SHORE") or embedded phrase ("Arabescato Gold"
+      // inside "Arabescato Gold Quartz Countertop"). Word-bounded +
+      // punctuation-insensitive (9'x52" ≈ 9 x 52).
+      const normSeg = (s) => (' ' + String(s).toLowerCase()
+        .replace(/(\d)\.(\d)/g, '$1§$2')     // protect decimal points (7.5)
+        .replace(/[^a-z0-9§]+/g, ' ')        // "Ave." ≈ "Ave", "&" drops
+        .replace(/§/g, '.')
+        .replace(/(\d(?:\.\d+)?)\s*x\s*(?=\d)/g, '$1x')
+        .replace(/\bmou?ldings?\b/g, 'mold') // trim-term stem: "T-Molding" ≈ "T-Mold"
+        .replace(/\s+/g, ' ').trim() + ' ');
+      let acc = normSeg(title);
+      // Partial overlap: remove ANY covered window from a descriptor (leading,
+      // trailing, or interior — Daltile comma lists repeat the color mid-list),
+      // longest first, until stable. A window may strip when it's multi-word,
+      // digit-bearing, or exactly equals a WHOLE earlier segment — a single plain
+      // word inside a longer segment never strips ("White Smoke" stays intact).
+      const segsWhole = new Set([normSeg(title)]);
+      const stripCovered = (d) => {
+        let toks = String(d).trim().split(/\s+/);
+        const canStrip = (phrase, k) => {
+          const pn = normSeg(phrase);
+          if (!pn.trim() || !acc.includes(pn)) return false;
+          return k >= 2 || /\d/.test(phrase) || segsWhole.has(pn);
+        };
+        let changed = true;
+        outer: while (changed && toks.length > 1) {
+          changed = false;
+          for (let k = toks.length - 1; k >= 1; k--) {
+            for (let i = 0; i + k <= toks.length; i++) {
+              if (toks.length - k < 1) break;
+              if (canStrip(toks.slice(i, i + k).join(' '), k)) {
+                toks = toks.slice(0, i).concat(toks.slice(i + k));
+                changed = true; continue outer;
+              }
+            }
+          }
+        }
+        return toks.join(' ');
+      };
+      // Compound-word echoes ("Stair Nose" vs "Stairnose"): whole-segment equality
+      // on space-stripped forms only — never substring, so "Rose" ≠ "Primrose".
+      const noSpace = (s) => normSeg(s).replace(/ /g, '');
+      const segsNS = new Set([noSpace(title)]);
+      const descriptors = [];
+      for (const v of ordered) {
+        if (!v) continue;
+        const p = normSeg(v);
+        if (p.trim() === '' || acc.includes(p) || segsNS.has(noSpace(v))) continue;
+        const kept = stripCovered(v).replace(/^[\s·\-–—,]+|[\s·\-–—,]+$/g, '').trim();
+        const kp = normSeg(kept);
+        if (kp.trim() === '' || acc.includes(kp) || segsNS.has(noSpace(kept))) continue;
+        descriptors.push(kept);
+        acc += kp;
+        segsWhole.add(kp);
+        segsNS.add(noSpace(kept));
+      }
       return title + (descriptors.length ? '  ·  ' + descriptors.join('  ·  ') : '');
     }
 
@@ -1262,7 +1314,10 @@
     }
 
     function StockBadge({ status, vendorHasInventory, qtyOnHand, qtyOnHandSqft, sellBy }) {
-      if (vendorHasInventory === false && (status === 'unknown' || status === 'out_of_stock')) {
+      // No real inventory feed → never claim stock state. Catalog scrapes only
+      // store the vendor site's binary flag with placeholder quantities, so the
+      // honest label is always "Call for availability".
+      if (vendorHasInventory === false) {
         return React.createElement('div', { className: 'pdp-stock-badge out-of-stock' },
           React.createElement('span', { className: 'pdp-stock-dot' }),
           'Call for availability'
@@ -1338,25 +1393,6 @@
       return _stripeInitPromise;
     }
     ensureStripe();
-
-    // ==================== Google Places Loader ====================
-    let _placesPromise = null;
-    function loadGooglePlaces(apiKey) {
-      if (_placesPromise) return _placesPromise;
-      if (window.google && window.google.maps && window.google.maps.places) {
-        _placesPromise = Promise.resolve();
-        return _placesPromise;
-      }
-      _placesPromise = new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&libraries=places';
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = () => { _placesPromise = null; reject(new Error('Failed to load Google Places')); };
-        document.head.appendChild(script);
-      });
-      return _placesPromise;
-    }
 
     // ==================== Error Boundary ====================
 
@@ -2435,7 +2471,7 @@
               <button style={{ ...cabBtn(paper, ink, 'primary', theme), background: 'transparent', color: paper, border: `0.5px solid ${paper}55` }}>Visit the showroom</button>
             </div>
             <div style={{ marginTop: 64, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, paddingTop: 32, borderTop: `0.5px solid ${paper}22` }}>
-              {[{ v: 'Mon\u2013Sat', l: '9 am \u2013 6 pm' }, { v: '1440', l: 'S. State College, Anaheim' }, { v: '(714) 999-0009', l: 'Showroom direct' }, { v: 'Free', l: 'Sample door program' }].map((it, i) => (
+              {[{ v: 'Mon\u2013Sat', l: '9\u20135 \u00b7 Sat 10\u20135' }, { v: '1440', l: 'S. State College, Anaheim' }, { v: '(714) 999-0009', l: 'Showroom direct' }, { v: 'Free', l: 'Sample door program' }].map((it, i) => (
                 <div key={i} style={{ paddingLeft: i === 0 ? 0 : 24, borderLeft: i === 0 ? 'none' : `0.5px solid ${paper}22` }}>
                   <div style={{ font: '400 22px/1.1 var(--font-heading)', color: paper }}>{it.v}</div>
                   <div style={{ font: '500 11px/1.3 var(--font-body)', color: `${paper}88`, marginTop: 6 }}>{it.l}</div>
@@ -4036,26 +4072,6 @@
           {!isCheckoutFlow && <SiteFooter goHome={goHome} goBrowse={goBrowse} goCollections={goCollections} goTrade={goTrade}
             onInstallClick={goInstallation} navigate={navigate} />}
 
-          {!isCheckoutFlow && <nav className="mobile-bottom-nav">
-            <button className={'mobile-bottom-nav-item' + (view === 'home' ? ' active' : '')} onClick={goHome}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              Home
-            </button>
-            <button className={'mobile-bottom-nav-item' + (view === 'browse' ? ' active' : '')} onClick={() => setMobileSearchOpen(true)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              Search
-            </button>
-            <button className="mobile-bottom-nav-item" onClick={() => setCartDrawerOpen(true)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-              {cart.length > 0 && <span className="mobile-bottom-nav-badge">{cart.length}</span>}
-              Cart
-            </button>
-            <button className={'mobile-bottom-nav-item' + (view === 'account' ? ' active' : '')} onClick={customer ? goAccount : () => navigate('/signin')}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Account
-            </button>
-          </nav>}
-
           <BackToTop />
           <ToastContainer toasts={toasts} />
         </>
@@ -4087,48 +4103,6 @@
           ]},
         ],
         featured: { title: 'Free In-Home Consultation', meta: 'Book your complimentary design visit', image: '/uploads/homepage/consult-hero.jpg', cta: 'Book Now' },
-      },
-      materials: {
-        label: 'Materials',
-        columns: [
-          { title: 'Hard Surface', items: [
-            { name: 'Porcelain Tile', meta: '' },
-            { name: 'Ceramic Tile', meta: '' },
-            { name: 'Natural Stone', meta: '' },
-            { name: 'Hardwood', meta: '' },
-            { name: 'Laminate', meta: '' },
-            { name: 'Luxury Vinyl', meta: '' },
-          ]},
-          { title: 'Soft Surface', items: [
-            { name: 'Carpet', meta: '' },
-            { name: 'Carpet Tile', meta: '' },
-            { name: 'Area Rugs', meta: '' },
-          ]},
-          { title: 'Surfaces', items: [
-            { name: 'Countertops', meta: '' },
-            { name: 'Mosaics', meta: '' },
-            { name: 'Wall Tile', meta: '' },
-            { name: 'Outdoor & Pavers', meta: '' },
-          ]},
-        ],
-        featured: { title: 'New Porcelain Arrivals', meta: 'Explore the latest collections', image: '/uploads/homepage/porcelain-featured.jpg', cta: 'View Collection' },
-      },
-      trade: {
-        label: 'Trade',
-        columns: [
-          { title: 'Program', items: [
-            { name: 'Trade Program Overview', meta: 'Exclusive benefits', action: 'trade' },
-            { name: 'Apply for Trade', meta: 'Quick approval', action: 'trade' },
-            { name: 'Trade Dashboard', meta: 'Manage orders', action: 'trade' },
-          ]},
-          { title: 'Benefits', items: [
-            { name: 'Trade Pricing', meta: 'Up to 40% off', action: 'trade' },
-            { name: 'Bulk Ordering', meta: 'Volume discounts', action: 'trade' },
-            { name: 'Dedicated Rep', meta: 'Personal service', action: 'trade' },
-            { name: 'Net 30 Terms', meta: 'For qualified accounts', action: 'trade' },
-          ]},
-        ],
-        featured: { title: 'Trade Program', meta: 'Join 500+ design professionals', image: '/uploads/homepage/trade-hero.jpg', cta: 'Apply Now' },
       },
     };
 
@@ -4173,10 +4147,6 @@
                     {col.items.map(item => (
                       <button key={item.name} className="mega-panel-link" onClick={() => {
                         if (item.action === 'trade') { onTradeClick(); }
-                        else if (panelId === 'materials') {
-                          const slug = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-                          onCategorySelect(slug);
-                        }
                         else { navigate('/shop'); }
                       }}>
                         {item.name}
@@ -4660,8 +4630,7 @@
       const NAV_ITEMS = [
         { id: 'shop', label: 'Shop', hasPanel: true, onClick: () => goBrowse() },
         { id: 'services', label: 'Services', hasPanel: true, onClick: () => navigate('/design-services') },
-        { id: 'materials', label: 'Materials', hasPanel: true, onClick: () => goBrowse() },
-        { id: 'trade', label: 'Trade', hasPanel: true, onClick: () => onTradeClick() },
+        { id: 'trade', label: 'Trade', hasPanel: false, onClick: () => onTradeClick() },
         { id: 'about', label: 'About', hasPanel: false, onClick: () => navigate('/about') },
       ];
 
@@ -6577,7 +6546,8 @@
         ? sku.variant_count + ' ' + ((sku.attributes || []).some(a => a.slug === 'color') ? 'colors' : 'options')
         : (sku.variant_name || '');
       const vendorLabel = sku.brand_name || sku.vendor_name || '';
-      const stockStatus = sku.stock_status || 'unknown';
+      // No real inventory feed → no stock claim on cards either
+      const stockStatus = sku.vendor_has_inventory === false ? 'unknown' : (sku.stock_status || 'unknown');
       const lowStockQty = sku.low_stock_qty;
       const stockLabel = stockStatus === 'in_stock' ? 'In stock'
         : stockStatus === 'low_stock' ? (lowStockQty ? (sku.sell_by === 'unit' ? 'Only ' + lowStockQty + ' left' : sku.sell_by === 'box' ? 'Only ' + lowStockQty + ' boxes left' : 'Low stock') : 'Low stock')
@@ -6960,7 +6930,7 @@
         const d = sku.retail_locked ? Math.min(raw, 10) : raw;
         return displayPrice(sku, (parseFloat(sku.retail_price) * (1 - d / 100)).toFixed(2));
       })() : null;
-      const fmtPct = (n) => (Math.round((parseFloat(n) || 0) * 100) / 100).toString();
+      const fmtPct = (n) => (parseFloat(n) || 0).toString();
       const msrpAttr = sku && (sku.attributes || []).find(a => a.slug === 'msrp');
       const msrpPrice = msrpAttr && parseFloat(msrpAttr.value) > 0 ? parseFloat(msrpAttr.value) : null;
       const isCarpetSku = sku && isCarpet(sku);
@@ -7432,7 +7402,7 @@
                 }
                 if (sorted.length === 0) return null;
                 return (
-                  <div style={{ marginTop: '2.5rem' }}>
+                  <div className="pdp-specs-section">
                     <div className="pdp-section-label">Specifications</div>
                     <table className="specs-table">
                       <tbody>
@@ -7988,6 +7958,27 @@
                   colorItems = [...byColor.values()].sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
                 }
 
+                // Collection-sibling color matching: some feeds (MSI) split one color across
+                // several products ("Bernini Bianco 2x2 Mosaic" vs "Bernini Bianco 2x4 Mosaic")
+                // while the color attribute holds a facet family (White-Warm), not the color.
+                // Derive the marketing color from the product name (drop collection prefix +
+                // size/format tokens) so cross-product pills can stay scoped to one color.
+                const siblingColorLabel = (name) => {
+                  let k = name || '';
+                  const _coll = (sku.collection || '').trim();
+                  if (_coll) k = k.replace(new RegExp('^\\s*' + _coll.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), '');
+                  k = k.replace(/\b\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\b/g, ' ')
+                    .replace(/\b\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*["″]/g, ' ')
+                    .replace(/\b(mosaics?|hexagons?|hex|bullnose|pickets?|herringbone|chevron|arabesque)\b/gi, ' ')
+                    .replace(/\s+/g, ' ').trim();
+                  return k || (name || '').trim();
+                };
+                const siblingColorKey = (name) => siblingColorLabel(name).toLowerCase();
+                const _nonAccCollSiblings = collectionSiblings.filter(s => s.variant_type !== 'accessory');
+                const collColorKeys = new Set(_nonAccCollSiblings.map(s => siblingColorKey(s.product_name)));
+                if (_nonAccCollSiblings.length > 0) collColorKeys.add(siblingColorKey(sku.product_name));
+                const multiColorCollection = collColorKeys.size > 1;
+
                 // Size pills from collection siblings (vanities where sizes are separate products)
                 // Computed BEFORE the merge so we can skip merging sizes into colorItems
                 const _isDecorativeHW = (sku.vendor_code || '').toUpperCase() === 'HR';
@@ -8009,9 +8000,14 @@
                   const curSz = extractDims(sku.product_name);
                   const curFinishVal = extractFinish(sku.product_name);
                   const allItems = [{ product_name: sku.product_name, sku_id: sku.sku_id, primary_image: media && media[0] ? media[0].url : null }, ...collectionSiblings];
+                  // When siblings span multiple colors, size pills must not jump colors
+                  // (a "2x4" pill on a Camo page must never navigate to Bianco 2x4)
+                  const sizeSource = multiColorCollection
+                    ? allItems.filter(s => siblingColorKey(s.product_name) === siblingColorKey(sku.product_name))
+                    : allItems;
                   const comboMap = new Map(); // "size|finish" → sku_id
                   const imgMap = new Map(); // sku_id → primary_image
-                  allItems.forEach(s => {
+                  sizeSource.forEach(s => {
                     const sz = extractDims(s.product_name);
                     const fn = extractFinish(s.product_name);
                     if (sz && fn) comboMap.set(sz + '|' + fn, s.sku_id);
@@ -8020,7 +8016,7 @@
 
                   if (curSz) {
                     const sizeMap = new Map();
-                    allItems.forEach(s => {
+                    sizeSource.forEach(s => {
                       const sz = extractDims(s.product_name);
                       if (!sz) return;
                       const nk = normalizeSize(sz);
@@ -8229,14 +8225,48 @@
                 // If same-product siblings have 0-1 colors, use collection siblings as color options.
                 // Skip when those collection siblings are already the Size options (e.g. JMV vanities
                 // where widths are separate products) — otherwise sizes render as fake color swatches.
-                if (colorItems.length <= 1 && collectionSiblings.length > 0 && !showSizePills) {
-                  // Exclude accessory/trim siblings from color variant display
-                  const nonAccSiblings = collectionSiblings.filter(s => s.variant_type !== 'accessory');
-                  if (nonAccSiblings.length > 0) {
-                    colorItems = [
-                      { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
-                      ...nonAccSiblings
-                    ].sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
+                // Exception: when size pills were color-scoped and the sibling products are clearly
+                // colors (name-derived color keys map 1:1 to color attribute values), still show them.
+                if (colorItems.length <= 1 && _nonAccCollSiblings.length > 0) {
+                  const candidates = [
+                    { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
+                    ..._nonAccCollSiblings
+                  ];
+                  let eligible = !showSizePills;
+                  if (!eligible && multiColorCollection) {
+                    const keyToColor = new Map(), colorToKey = new Map();
+                    eligible = candidates.every(c => {
+                      const k = siblingColorKey(c.product_name);
+                      const col = (c.color || '').toLowerCase();
+                      if (!col) return false;
+                      if (keyToColor.has(k) && keyToColor.get(k) !== col) return false;
+                      if (colorToKey.has(col) && colorToKey.get(col) !== k) return false;
+                      keyToColor.set(k, col); colorToKey.set(col, k);
+                      return true;
+                    }) && keyToColor.size > 1;
+                  }
+                  if (eligible) {
+                    // One swatch per color: dedupe siblings that are the same color in a
+                    // different format, preferring the one whose size matches the current SKU
+                    const _dimOf = (n) => { const m = (n || '').match(/\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?/); return m ? normalizeSize(m[0]) : null; };
+                    const curDim = _dimOf(sku.product_name) || (currentAttrs['size'] ? normalizeSize(currentAttrs['size']) : null);
+                    const byColorKey = new Map();
+                    candidates.forEach(c => {
+                      const key = siblingColorKey(c.product_name);
+                      const prev = byColorKey.get(key);
+                      if (!prev) { byColorKey.set(key, c); return; }
+                      if (prev.is_current || c.is_current) { if (c.is_current) byColorKey.set(key, c); return; }
+                      if (curDim && _dimOf(c.product_name) === curDim && _dimOf(prev.product_name) !== curDim) byColorKey.set(key, c);
+                    });
+                    if (byColorKey.size > 1) {
+                      // Label swatches with the marketing color from the name, not the
+                      // facet-family color attribute (White-Warm → Bianco)
+                      colorItems = [...byColorKey.values()]
+                        .map(c => ({ ...c, color: siblingColorLabel(c.product_name) }))
+                        .sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
+                    } else if (!showSizePills) {
+                      colorItems = candidates.sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
+                    }
                   }
                 }
                 // Build attrMap from current product's siblings only (not collection-wide)
@@ -8892,25 +8922,30 @@
                 <div className="stock-alert-box">
                   {alertSuccess || alertSubscribed ? (
                     <div className="stock-alert-success">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#166534" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
-                      We'll notify you when this item is back in stock
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                      <span>You're on the list — we'll email you the moment this is back in stock.</span>
                     </div>
-                  ) : customer ? (
-                    <>
-                      <p>Get notified when this item is back in stock</p>
-                      <button className="stock-alert-btn" onClick={handleStockAlertSubmit} disabled={alertLoading}>
-                        {alertLoading ? 'Subscribing...' : 'Notify Me When Available'}
-                      </button>
-                    </>
                   ) : (
                     <>
-                      <p>Get notified when this item is back in stock</p>
-                      <div className="stock-alert-form">
-                        <input type="email" placeholder="Enter your email" value={alertEmail} onChange={e => setAlertEmail(e.target.value)} />
-                        <button className="stock-alert-btn" onClick={handleStockAlertSubmit} disabled={alertLoading || !alertEmail}>
-                          {alertLoading ? 'Subscribing...' : 'Notify Me'}
-                        </button>
+                      <div className="stock-alert-head">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        <div>
+                          <p className="stock-alert-title">Notify me when available</p>
+                          <p className="stock-alert-sub">We'll send you a one-time email as soon as this item is back in stock.</p>
+                        </div>
                       </div>
+                      {customer ? (
+                        <button className="stock-alert-btn" onClick={handleStockAlertSubmit} disabled={alertLoading}>
+                          {alertLoading ? 'Signing you up…' : 'Notify me'}
+                        </button>
+                      ) : (
+                        <div className="stock-alert-form">
+                          <input type="email" placeholder="you@email.com" value={alertEmail} onChange={e => setAlertEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && alertEmail) handleStockAlertSubmit(); }} />
+                          <button className="stock-alert-btn" onClick={handleStockAlertSubmit} disabled={alertLoading || !alertEmail}>
+                            {alertLoading ? 'Signing up…' : 'Notify me'}
+                          </button>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -8944,16 +8979,11 @@
                 </div>
               )}
 
-              {/* Roll Specifications (carpet products) */}
-              {isCarpetSku && (rollWidthFt > 0 || rollLengthFt > 0 || sku.sqft_per_pallet || sku.weight_per_pallet_lbs) && (
+              {/* Roll Specifications (carpet products) — roll width lives in the
+                  Carpet Details Band above, so this strip only carries the rest */}
+              {isCarpetSku && (rollLengthFt > 0 || sku.sqft_per_pallet || sku.weight_per_pallet_lbs) && (
                 <div className="carpet-roll-info">
                   <div className="carpet-roll-info-grid">
-                    {rollWidthFt > 0 && (
-                      <div className="carpet-roll-info-row">
-                        <span className="carpet-roll-info-label">Roll Width</span>
-                        <span className="carpet-roll-info-value">{rollWidthFt} ft</span>
-                      </div>
-                    )}
                     {rollLengthFt > 0 && (
                       <div className="carpet-roll-info-row">
                         <span className="carpet-roll-info-label">Roll Length</span>
@@ -8980,12 +9010,6 @@
               {isCarpetSku && cutPrice > 0 && !isOutOfStock && (
                 <div className="calculator-widget">
                   <h3>Carpet Calculator</h3>
-                  {rollWidthFt > 0 && (
-                    <div className="carpet-roll-width-header">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 20, height: 20 }}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
-                      {rollWidthFt}' Wide Roll
-                    </div>
-                  )}
                   <div className="calc-mode-tabs">
                     {rollWidthFt > 0 && (
                       <button className={'calc-mode-tab' + (carpetInputMode === 'linear' ? ' active' : '')} onClick={() => setCarpetInputMode('linear')}>Linear Feet</button>
@@ -9835,7 +9859,7 @@
                       {item.variant_name && <div className="ct-line-variant">{item.variant_name}</div>}
 
                       {/* Lead-time / stock */}
-                      {item.stock_status && item.stock_status !== 'unknown' && (
+                      {item.stock_status && item.stock_status !== 'unknown' && item.vendor_has_inventory !== false && (
                         <div className={'ct-line-stock' + (item.stock_status === 'in_stock' ? ' in-stock' : item.stock_status === 'low_stock' ? ' low-stock' : ' out-stock')}>
                           {item.stock_status === 'in_stock' ? 'In stock' : item.stock_status === 'low_stock' ? 'Low stock' : 'Out of stock'}
                         </div>
@@ -10047,8 +10071,6 @@
       const cardMounted = useRef(false);
       const taxDebounce = useRef(null);
       const addressInputRef = useRef(null);
-      const autocompleteRef = useRef(null);
-      const [placesReady, setPlacesReady] = useState(false);
       const [createAccount, setCreateAccount] = useState(false);
       const [accountPassword, setAccountPassword] = useState('');
       const [confirmPassword, setConfirmPassword] = useState('');
@@ -10312,60 +10334,6 @@
           setProcessing(false);
         }
       };
-
-      // Load Google Places API
-      useEffect(() => {
-        if (isPickup) return;
-        let cancelled = false;
-        fetch(API + '/api/config/google-places-key')
-          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-          .then(data => {
-            if (cancelled || !data.key) return;
-            return loadGooglePlaces(data.key).then(() => {
-              if (!cancelled) setPlacesReady(true);
-            });
-          })
-          .catch(() => {});
-        return () => { cancelled = true; };
-      }, [isPickup]);
-
-      // Attach Google Places Autocomplete to address input
-      useEffect(() => {
-        if (!placesReady || isPickup || !addressInputRef.current) return;
-        if (autocompleteRef.current) return;
-        try {
-          const ac = new window.google.maps.places.Autocomplete(addressInputRef.current, {
-            componentRestrictions: { country: 'us' },
-            fields: ['address_components', 'formatted_address'],
-            types: ['address']
-          });
-          ac.addListener('place_changed', () => {
-            const place = ac.getPlace();
-            if (!place || !place.address_components) return;
-            let streetNumber = '', route = '', newCity = '', newState = '', newZip = '';
-            for (const comp of place.address_components) {
-              const t = comp.types[0];
-              if (t === 'street_number') streetNumber = comp.long_name;
-              else if (t === 'route') route = comp.long_name;
-              else if (t === 'locality') newCity = comp.long_name;
-              else if (t === 'sublocality_level_1' && !newCity) newCity = comp.long_name;
-              else if (t === 'administrative_area_level_1') newState = comp.short_name;
-              else if (t === 'postal_code') newZip = comp.long_name;
-            }
-            setLine1((streetNumber + ' ' + route).trim());
-            if (newCity) setCity(newCity);
-            if (newState) setState(newState);
-            if (newZip) setZip(newZip);
-          });
-          autocompleteRef.current = ac;
-        } catch (e) { /* Google Places failed — manual entry still works */ }
-        return () => {
-          if (autocompleteRef.current) {
-            window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
-            autocompleteRef.current = null;
-          }
-        };
-      }, [placesReady, isPickup]);
 
       // Prefill contact + address once the signed-in customer loads (the
       // profile arrives async, after this component first mounts). Only fills
@@ -10943,7 +10911,7 @@
                     <div className="co-form-grid">
                       <div className="co-field">
                         <div className="co-field-label">Address line 1</div>
-                        <input ref={addressInputRef} value={line1} onChange={e => setLine1(e.target.value)} placeholder="Start typing an address..." autoComplete="off" />
+                        <input ref={addressInputRef} value={line1} onChange={e => setLine1(e.target.value)} placeholder="Street address" autoComplete="off" />
                       </div>
                       <div className="co-field">
                         <div className="co-field-label">Address line 2</div>
@@ -11722,10 +11690,12 @@
       };
 
       const [acceptingQuote, setAcceptingQuote] = useState(null);
+      const [quoteTerms, setQuoteTerms] = useState({}); // quote id → terms checkbox checked
       const acceptAndPay = async (quoteId) => {
+        if (!quoteTerms[quoteId]) return; // guard: button is disabled until agreed
         setAcceptingQuote(quoteId);
         try {
-          const resp = await fetch(API + '/api/customer/quotes/' + quoteId + '/accept-pay', { method: 'POST', headers });
+          const resp = await fetch(API + '/api/customer/quotes/' + quoteId + '/accept-pay', { method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ terms_accepted: true }) });
           const data = await resp.json().catch(() => ({}));
           if (!resp.ok || !data.checkout_url) {
             alert(data.error || 'Could not start checkout — please try again.');
@@ -12391,7 +12361,11 @@
                                 )}
                                 {['sent', 'accepted'].includes(q.status) && !q.converted_order_id && !(q.expires_at && new Date(q.expires_at) < new Date()) && (
                                   <div style={{ marginBottom: '1rem' }}>
-                                    <button className="acct-btn" onClick={() => acceptAndPay(q.id)} disabled={acceptingQuote === q.id}>
+                                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8125rem', color: 'var(--stone-600)', marginBottom: '0.625rem', cursor: 'pointer', lineHeight: 1.5 }}>
+                                      <input type="checkbox" checked={!!quoteTerms[q.id]} onChange={e => setQuoteTerms(prev => ({ ...prev, [q.id]: e.target.checked }))} style={{ marginTop: 3, flexShrink: 0 }} />
+                                      <span>I have read and agree to Roma's <a href="/terms" target="_blank" rel="noopener">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+                                    </label>
+                                    <button className="acct-btn" onClick={() => acceptAndPay(q.id)} disabled={acceptingQuote === q.id || !quoteTerms[q.id]}>
                                       {acceptingQuote === q.id ? 'Preparing secure checkout…' : 'Accept & pay ' + fmtMoney(q.total)}
                                     </button>
                                   </div>
@@ -13426,7 +13400,7 @@
                 const toGo = nextThreshold != null ? Math.max(0, nextThreshold - spend) : null;
                 const pctToNext = nextThreshold ? Math.round((spend / nextThreshold) * 100) : null;
                 const fmtUsd = (n) => '$' + Math.round(parseFloat(n || 0)).toLocaleString('en-US');
-                const fmtPct = (n) => (Math.round((parseFloat(n) || 0) * 100) / 100).toString();
+                const fmtPct = (n) => (parseFloat(n) || 0).toString();
                 const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 const memberSince = dashData.member_since ? new Date(dashData.member_since).getFullYear() : null;
                 const curName = dashData.tier_name || 'Silver';
@@ -16450,6 +16424,7 @@
       const est = data.estimate;
       const materials = data.materials || [];
       const labor = data.labor || [];
+      const milestones = data.milestones || [];
       const scopeOfWork = (est.scope_of_work || '').trim();
       const status = liveStatus || est.status;
 
@@ -16687,6 +16662,23 @@
               <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', color: 'var(--stone-900)', fontVariantNumeric: 'tabular-nums' }}>{money(est.total)}</span>
             </div>
           </div>
+
+          {/* Payment schedule (draw schedule) */}
+          {milestones.length > 0 && (
+            <div style={{ background: 'var(--stone-50)', border: '0.5px solid rgba(28,25,23,0.12)', borderRadius: 6, padding: '1.5rem 1.75rem', marginBottom: '2rem', maxWidth: 420, marginLeft: 'auto' }}>
+              <div style={{ fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.85rem' }}>Payment schedule</div>
+              {milestones.map((m, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0.4rem 0', borderBottom: i < milestones.length - 1 ? '1px solid var(--stone-200)' : 'none' }}>
+                  <span style={{ fontSize: '0.9375rem', color: 'var(--stone-700)' }}>
+                    {m.label}
+                    {m.percent ? <span style={{ color: 'var(--stone-400)' }}> · {parseFloat(m.percent)}%</span> : null}
+                    {m.due_label ? <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: 2 }}>{m.due_label}</span> : null}
+                  </span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500, color: 'var(--stone-800)', whiteSpace: 'nowrap' }}>{money(m.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Customer notes */}
           {est.notes && String(est.notes).trim() && (

@@ -8,6 +8,7 @@
 // never for the rep-facing preview (the preview iframe would log a fake open).
 import { emailShell, heroSection, ctaButton, warmCard, section, sectionLabel, detailList, money, T, SERIF, SANS, MONO, esc, emailImage } from './_shell.js';
 import { LINEAR_LABOR_CATS } from '../lib/estimateBundle.js';
+import { composeItemName } from '../lib/documents.js';
 
 const num = (v) => parseFloat(String(v ?? 0).replace(/,/g, '')) || 0;
 
@@ -19,11 +20,11 @@ const LABOR_CATEGORY_LABELS = {
 
 function materialRow(item, isLast) {
   const rowBorder = isLast ? '' : `border-bottom:1px solid ${T.border};`;
-  const name = esc(item.product_name || item.collection || 'Product');
-  const topLine = [item.collection && item.collection !== item.product_name ? item.collection : null, item.vendor_name]
-    .filter(Boolean).map(esc).join(' &middot; ');
-  const subLine = [...new Set([item.color, item.variant_name].filter(Boolean))]
-    .filter(v => v !== item.product_name).map(esc).join(' &middot; ');
+  const composed = composeItemName(item);
+  const name = esc(composed.nameLine || item.product_name || 'Product');
+  const topLine = composed.vendor ? esc(composed.vendor) : '';
+  const skuText = composed.sku ? esc(composed.sku) : '';
+  const subLine = '';
   const isUnit = item.sell_by === 'unit';
   const qty = item.num_boxes || item.quantity || 1;
   const sqft = num(item.sqft_needed);
@@ -39,6 +40,7 @@ function materialRow(item, isLast) {
     <td valign="middle" style="padding:16px 0;${rowBorder}">
       ${topLine ? `<p style="margin:0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">${topLine}</p>` : ''}
       <p style="margin:${topLine ? '4px' : '0'} 0 0;font-family:${SERIF};font-size:18px;line-height:1.2;letter-spacing:-0.012em;color:${T.ink};">${name}</p>
+      ${skuText ? `<p style="margin:3px 0 0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">${skuText}</p>` : ''}
       ${subLine ? `<p style="margin:2px 0 0;font-family:${SANS};font-size:12px;line-height:1.4;color:${T.soft};">${subLine}</p>` : ''}
       <p style="margin:6px 0 0;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">${qtyLine}</p>
     </td>
@@ -94,7 +96,7 @@ export function generateEstimateSentHTML(data, opts = {}) {
     materials_subtotal, labor_subtotal, tax_amount, total, deposit_amount,
     created_at, expires_at, public_token, scope_of_work,
     rep_first_name, rep_last_name, rep_email,
-    materialItems = [], laborItems = []
+    materialItems = [], laborItems = [], milestones = []
   } = data;
   const deposit = num(deposit_amount);
 
@@ -138,6 +140,13 @@ export function generateEstimateSentHTML(data, opts = {}) {
       <td style="font-family:${SANS};font-size:12px;font-weight:500;color:${T.accent};">Deposit to get started</td>
       <td align="right" style="font-family:${SANS};font-size:14px;font-weight:600;color:${T.accent};">${money(deposit)}</td>
     </tr></table>` : ''}
+    ${(milestones && milestones.length) ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;border-top:1px solid ${T.border};">
+      <tr><td colspan="2" style="padding-top:12px;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.accent};">Payment schedule</td></tr>
+      ${milestones.map(m => `<tr>
+        <td style="padding:5px 0;font-family:${SANS};font-size:12px;color:${T.soft};">${esc(m.label)}${m.percent ? ` &middot; ${parseFloat(m.percent)}%` : ''}${m.due_label ? ` <span style="color:${T.muted};">(${esc(m.due_label)})</span>` : ''}</td>
+        <td align="right" style="padding:5px 0;font-family:${SANS};font-size:12px;color:${T.ink};">${money(m.amount)}</td>
+      </tr>`).join('')}
+    </table>` : ''}
   `, '20px 22px'), '0 40px 8px');
 
   const estimateUrl = public_token ? `${siteUrl}/estimate/${public_token}` : null;

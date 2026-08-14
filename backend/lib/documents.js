@@ -1107,7 +1107,7 @@ ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'v
 // estimate: a Materials section and a Labor & Services section, with tax shown
 // on materials only. `e` is the estimate row (from the bundle, includes
 // rep_name/rep_email/effective_status); `materials`/`labor` are item arrays.
-export function generateEstimateHtml(e, materials = [], labor = []) {
+export function generateEstimateHtml(e, materials = [], labor = [], milestones = []) {
   const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric' }) : null;
   const issued = longDate(e.created_at);
@@ -1324,6 +1324,10 @@ ${totalsRows}
 <span style="font:300 28px/1 var(--serif);letter-spacing:-0.012em;">${money(e.total)}</span>
 </div>
 ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'var(--accent)'};text-align:right;margin-top:6px;letter-spacing:0.16em;">● ${isExpired ? 'Expired' : 'Valid until'} ${validUntil}</div>` : ''}
+${(milestones && milestones.length) ? `<div class="keep" style="margin-top:14px;padding-top:10px;border-top:0.5px solid #1c191733;">
+<div class="mono" style="color:var(--accent);margin-bottom:8px;letter-spacing:0.16em;">Payment schedule</div>
+${milestones.map(m => `<div style="display:flex;justify-content:space-between;padding:4px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">${escDoc(m.label)}${m.percent ? ` · ${parseFloat(m.percent)}%` : ''}${m.due_label ? ` <span style="color:#1c191799;">(${escDoc(m.due_label)})</span>` : ''}</span><span>${money(m.amount)}</span></div>`).join('')}
+</div>` : ''}
 </div>
 </div>
 

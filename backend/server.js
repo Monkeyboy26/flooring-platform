@@ -24,7 +24,7 @@ import { createAuthMiddleware } from './lib/auth.js';
 import { calculateSalesTax, isTradeTaxExempt, isPickupOnly, getNextBusinessDay, CA_TAX_RATES } from './lib/helpers.js';
 import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
-import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
+import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, computeSchedule, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers, findExactDuplicate } from './lib/customerHelpers.js';
 import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateWorkOrderDoc, generateLabelSheetHtml, generateLabelRollHtml, renderLabelPngs, generateLabelImageRollHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
 import QRCode from 'qrcode';
@@ -16646,6 +16646,12 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       ORDER BY created_at DESC
     `, [id]);
 
+    // Draw/payment schedule — amounts recompute from the order total, paid-status
+    // derived by walking the schedule against cumulative amount_paid.
+    const milestoneRows = await pool.query(
+      'SELECT * FROM payment_milestones WHERE order_id = $1 ORDER BY sort_order, created_at', [id]);
+    const milestones = computeSchedule(milestoneRows.rows, order.rows[0].total, order.rows[0].amount_paid);
+
     res.json({
       order: order.rows[0],
       items: items.rows,
@@ -16655,7 +16661,8 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       balance: balanceInfo,
       commission: commission.rows[0] || null,
       invoices: invoices.rows,
-      releases: releases.rows
+      releases: releases.rows,
+      milestones
     });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -22849,10 +22856,50 @@ app.get('/api/rep/estimates/:id', repAuth, async (req, res) => {
 
     res.json({
       estimate: e, items: bundle.items, customer,
-      areas: bundle.areas, area_subtotals: bundle.areaSubtotals
+      areas: bundle.areas, area_subtotals: bundle.areaSubtotals,
+      milestones: bundle.milestones
     });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PUT /api/rep/estimates/:id/payment-schedule — Replace the estimate's draw
+// schedule. Body { milestones: [{ label, percent, due_label }] }. Percent-based
+// (amount is derived from the total). Empty list clears the schedule.
+app.put('/api/rep/estimates/:id/payment-schedule', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { milestones } = req.body || {};
+    const own = await client.query('SELECT id, total FROM estimates WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    if (!own.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+
+    const rows = Array.isArray(milestones) ? milestones : [];
+    for (const m of rows) {
+      if (!m || !String(m.label || '').trim()) return res.status(400).json({ error: 'Each milestone needs a label' });
+      const pct = parseFloat(m.percent);
+      if (isNaN(pct) || pct <= 0 || pct > 100) return res.status(400).json({ error: 'Each milestone needs a percent between 0 and 100' });
+    }
+
+    await client.query('BEGIN');
+    await client.query('DELETE FROM payment_milestones WHERE estimate_id = $1', [id]);
+    for (let i = 0; i < rows.length; i++) {
+      const m = rows[i];
+      await client.query(
+        `INSERT INTO payment_milestones (estimate_id, sort_order, label, percent, due_label)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, i, String(m.label).trim(), parseFloat(m.percent), (m.due_label || '').trim() || null]);
+    }
+    await client.query('COMMIT');
+
+    const bundle = await getEstimateBundle(pool, { id });
+    res.json({ milestones: bundle.milestones });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
@@ -23294,7 +23341,8 @@ function buildEstimatePdfHtml(bundle) {
   return generateEstimateHtml(
     bundle.estimate,
     bundle.items.filter(i => i.item_type === 'material'),
-    bundle.items.filter(i => i.item_type === 'labor')
+    bundle.items.filter(i => i.item_type === 'labor'),
+    bundle.milestones
   );
 }
 
@@ -23322,6 +23370,7 @@ function estimateEmailData(bundle, rep) {
     ...e,
     materialItems: bundle.items.filter(i => i.item_type === 'material'),
     laborItems: bundle.items.filter(i => i.item_type === 'labor'),
+    milestones: bundle.milestones,
     rep_first_name: rep.first_name,
     rep_last_name: rep.last_name,
     rep_email: rep.email
@@ -23703,6 +23752,16 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
     "UPDATE estimates SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2",
     [order.id, e.id]
   );
+
+  // Carry the draw/payment schedule onto the order (percent-based; amounts
+  // recompute from the order total). The deposit collected above naturally
+  // satisfies the leading milestone(s) via the derived paid-status.
+  await client.query(
+    `INSERT INTO payment_milestones (order_id, sort_order, label, percent, amount, due_label)
+     SELECT $1, sort_order, label, percent, amount, due_label
+     FROM payment_milestones WHERE estimate_id = $2`,
+    [order.id, e.id]
+  );
   const convertNote = onTerms
     ? 'on terms — balance due'
     : (collected > 0 && collected < orderTotal ? `deposit $${collected.toFixed(2)}` : null);
@@ -23860,7 +23919,8 @@ app.get('/api/estimate-view/:token', async (req, res) => {
         rep_name: e.rep_name, rep_email: e.rep_email
       },
       materials: bundle.items.filter(i => i.item_type === 'material'),
-      labor: bundle.items.filter(i => i.item_type === 'labor')
+      labor: bundle.items.filter(i => i.item_type === 'labor'),
+      milestones: bundle.milestones
     });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });

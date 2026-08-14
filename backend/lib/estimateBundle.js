@@ -43,6 +43,30 @@ export function depositAmount(estimate) {
   return parseFloat(Math.min(Math.max(raw, 0), total).toFixed(2));
 }
 
+// Compute a draw/payment schedule's display state. Each milestone's amount is
+// percent×total (or its fixed `amount` when no percent). Paid-status is DERIVED
+// by walking the schedule in order against cumulative amountPaid: fully-covered
+// milestones are 'paid', the first not-yet-covered is 'due' (the next to
+// collect), the rest 'upcoming'. Returns milestones enriched with
+// { amount, paid_applied, remaining, status }.
+export function computeSchedule(milestones, total, amountPaid = 0) {
+  const t = parseFloat(total || 0);
+  let pool = parseFloat(amountPaid || 0);
+  let dueAssigned = false;
+  return (milestones || []).map(m => {
+    const hasPct = m.percent != null && m.percent !== '';
+    const amount = parseFloat((hasPct ? (parseFloat(m.percent || 0) / 100) * t : parseFloat(m.amount || 0)).toFixed(2));
+    const applied = Math.max(0, Math.min(amount, pool));
+    pool = Math.max(0, pool - amount);
+    let status;
+    if (amount > 0 && applied >= amount - 0.005) status = 'paid';
+    else if (!dueAssigned) { status = 'due'; dueAssigned = true; }
+    else status = 'upcoming';
+    return { ...m, amount, paid_applied: parseFloat(applied.toFixed(2)),
+      remaining: parseFloat((amount - applied).toFixed(2)), status };
+  });
+}
+
 export async function getEstimateBundle(pool, { id = null, token = null, includeInternal = true } = {}) {
   const where = id ? 'e.id = $1' : 'e.public_token = $1';
   const estimateRes = await pool.query(`
@@ -56,7 +80,8 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
   estimate.deposit_amount = depositAmount(estimate);
 
   const itemsRes = await pool.query(`
-    SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color,
+    SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.internal_sku, s.variant_name,
+      s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size,
       p.collection as current_collection, COALESCE(ei.cost, pr.cost) as vendor_cost,
       (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
        ORDER BY CASE WHEN ma.sku_id = ei.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
@@ -67,6 +92,8 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
     LEFT JOIN pricing pr ON pr.sku_id = ei.sku_id
     LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
       AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+    LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = ei.sku_id
+      AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
     WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at
   `, [estimate.id]);
   let items = itemsRes.rows;
@@ -76,6 +103,12 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
     [estimate.id]
   );
   const areas = areasRes.rows;
+
+  // Draw/payment schedule (progress billing). On the estimate it's just the plan,
+  // so paid-status is computed against $0 paid.
+  const milestonesRes = await pool.query(
+    'SELECT * FROM payment_milestones WHERE estimate_id = $1 ORDER BY sort_order, created_at', [estimate.id]);
+  const milestones = computeSchedule(milestonesRes.rows, estimate.total, 0);
 
   if (!includeInternal) {
     delete estimate.internal_notes;
@@ -103,7 +136,7 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
     areaSubtotals[key] = { materials, labor, total: parseFloat((materials + labor).toFixed(2)) };
   }
 
-  return { estimate, areas, items, itemsByArea, areaSubtotals };
+  return { estimate, areas, items, itemsByArea, areaSubtotals, milestones };
 }
 
 // Ordered [label, scopeNotes, areaSqft, items[]] sections for renderers (PDF,

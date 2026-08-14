@@ -20579,6 +20579,7 @@
       const [receiveQty, setReceiveQty] = useState('');
       const [receiveSaving, setReceiveSaving] = useState(false);
       const [docPreview, setDocPreview] = useState(null);
+      const [orderMilestones, setOrderMilestones] = useState([]); // draw schedule
       const [orderDocuments, setOrderDocuments] = useState([]);
       const [showPrintModal, setShowPrintModal] = useState(false);
       const [printSel, setPrintSel] = useState({}); // doc key → checked
@@ -20730,6 +20731,7 @@
             setCommission(data.commission || null);
             setOrderInvoices(data.invoices || []);
             setReleases(data.releases || []);
+            setOrderMilestones(data.milestones || []);
             setLoading(false);
           })
           .catch(() => setLoading(false));
@@ -21138,6 +21140,19 @@
       const openCollectBalance = () => {
         if (!hasBalanceDue) return;
         setCollectAmount(balanceInfo.balance.toFixed(2));
+        setPaymentRequestEmail(order.customer_email || '');
+        setPaymentRequestMessage('');
+        setCollectMethod(null);
+        setShowCollectPayment(true);
+        setTimeout(() => { const el = document.getElementById('rod-collect-anchor'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
+      };
+      // Open the collect drawer pre-filled with a specific milestone's remaining
+      // amount (collect in person or send a request from there).
+      const openCollectForMilestone = (m) => {
+        if (!hasBalanceDue) return;
+        const amt = Math.min(parseFloat(m.remaining != null ? m.remaining : m.amount || 0), balanceInfo.balance);
+        if (!(amt > 0)) return;
+        setCollectAmount(amt.toFixed(2));
         setPaymentRequestEmail(order.customer_email || '');
         setPaymentRequestMessage('');
         setCollectMethod(null);
@@ -22368,6 +22383,43 @@
                   )}
                 </div>
               </RodCard>
+
+              {/* Payment schedule (draw schedule) */}
+              {orderMilestones.length > 0 && (
+                  <RodCard title="Payment schedule">
+                    <div style={{ padding: '4px 20px 14px' }}>
+                      {orderMilestones.map((m, i) => {
+                        const amount = parseFloat(m.amount || 0);
+                        const remaining = parseFloat(m.remaining != null ? m.remaining : amount);
+                        const paidApplied = parseFloat(m.paid_applied || 0);
+                        const isPaid = m.status === 'paid';
+                        const isDue = m.status === 'due';
+                        const tone = isPaid ? 'var(--rod-green)' : isDue ? '#a87935' : 'var(--rod-muted)';
+                        return (
+                          <div className="rov-pay-row" key={i}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                                {m.label}{m.percent ? ' · ' + parseFloat(m.percent) + '%' : ''}
+                              </div>
+                              <RovMicro style={{ marginTop: 2 }}>
+                                {m.due_label ? m.due_label + ' · ' : ''}
+                                {isPaid ? 'Paid'
+                                  : isDue ? (paidApplied > 0 ? '$' + paidApplied.toFixed(2) + ' paid · $' + remaining.toFixed(2) + ' due' : 'Due now')
+                                  : 'Upcoming'}
+                              </RovMicro>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <span style={{ font: '500 15px/1 "Cormorant Garamond", serif', color: tone }}>${amount.toFixed(2)}</span>
+                              {isPaid ? <span style={{ color: 'var(--rod-green)', font: '500 12px/1 Inter, sans-serif' }}>{'✓'}</span>
+                                : isDue && hasBalanceDue ? <button className="rov-doc-link" onClick={() => openCollectForMilestone(m)}>Collect ↓</button>
+                                : <span style={{ width: 8 }} />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </RodCard>
+              )}
 
               {/* Payments — v2 */}
               {(payments.length > 0 || paymentRequests.length > 0) && (
@@ -26890,6 +26942,8 @@
       const [items, setItems] = useState([]);
       const [areas, setAreas] = useState([]);
       const [areaSubtotals, setAreaSubtotals] = useState({});
+      const [milestones, setMilestones] = useState([]); // draw/payment schedule
+      const [savingSchedule, setSavingSchedule] = useState(false);
       const [loading, setLoading] = useState(!!editId);
       const [saving, setSaving] = useState(false);
       // Area editing / adding
@@ -27016,6 +27070,7 @@
             setItems(data.items || []);
             setAreas(data.areas || []);
             setAreaSubtotals(data.area_subtotals || {});
+            setMilestones(data.milestones || []);
             setForm({
               customer_name: data.estimate.customer_name || '',
               customer_email: data.estimate.customer_email || '',
@@ -27647,6 +27702,33 @@
         setEstimate(prev => ({ ...prev, status: 'sent' }));
         setSendFeedback(result.emailed ? 'Estimate emailed to ' + estimate.customer_email : 'Estimate marked as sent');
         setShowPreview(false);
+      };
+
+      // ---- Payment schedule (draw schedule) ----
+      const schedulePctSum = milestones.reduce((s, m) => s + (parseFloat(m.percent) || 0), 0);
+      const applyScheduleTemplate = () => setMilestones([
+        { label: 'Deposit', percent: 50, due_label: 'at booking' },
+        { label: 'Progress payment', percent: 30, due_label: 'at install start' },
+        { label: 'Final payment', percent: 20, due_label: 'on completion' },
+      ]);
+      const addMilestone = () => setMilestones(ms => [...ms, { label: '', percent: '', due_label: '' }]);
+      const updateMilestone = (i, patch) => setMilestones(ms => ms.map((m, idx) => idx === i ? { ...m, ...patch } : m));
+      const removeMilestone = (i) => setMilestones(ms => ms.filter((_, idx) => idx !== i));
+      const saveSchedule = async () => {
+        for (const m of milestones) {
+          if (!String(m.label || '').trim()) { alert('Each milestone needs a label.'); return; }
+          const p = parseFloat(m.percent);
+          if (isNaN(p) || p <= 0 || p > 100) { alert('Each milestone needs a percent between 0 and 100.'); return; }
+        }
+        setSavingSchedule(true);
+        try {
+          const data = await repFetch('/api/rep/estimates/' + editId + '/payment-schedule', {
+            method: 'PUT',
+            body: JSON.stringify({ milestones: milestones.map(m => ({ label: m.label, percent: parseFloat(m.percent), due_label: m.due_label || null })) })
+          });
+          setMilestones(data.milestones || []);
+        } catch (err) { alert(err.message || 'Failed to save schedule'); }
+        setSavingSchedule(false);
       };
 
       // Preview
@@ -28760,6 +28842,65 @@
                   );
                 })()}
               </div>
+
+              {estimate && (() => {
+                const estTotal = parseFloat(estimate.total || 0) || 0;
+                const sumOff = milestones.length > 0 && Math.abs(schedulePctSum - 100) > 0.01;
+                const miniInput = { width: '100%', padding: '5px 7px', border: '0.5px solid rgba(28,25,23,0.25)', borderRadius: 4, font: '400 12px/1.2 Inter, sans-serif', background: isReadonly ? '#f3efe7' : '#fff', color: 'var(--ink)' };
+                const linkBtn = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: '500 11px/1 Inter, sans-serif', color: 'var(--brass)', textDecoration: 'underline' };
+                return (
+                  <div className="qw-rail-card">
+                    <h3>Payment schedule</h3>
+                    <div style={{ font: '400 11px/1.5 "Inter", sans-serif', color: 'var(--brass-muted)', marginBottom: 10 }}>
+                      Progress billing (e.g. 50 / 30 / 20). Shown to the customer on the estimate and tracked on the order.
+                    </div>
+                    {milestones.length === 0 ? (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <div style={{ font: '400 11px/1.5 Inter, sans-serif', color: 'var(--brass-muted)' }}>No schedule — the full total is due at conversion.</div>
+                        {!isReadonly && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="rof-btn" style={{ flex: 1 }} onClick={applyScheduleTemplate}>Use 50 / 30 / 20</button>
+                            <button className="rof-btn" onClick={addMilestone}>+ Add</button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: 10 }}>
+                        {milestones.map((m, i) => (
+                          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 58px 18px', gap: 6, alignItems: 'center' }}>
+                            <input type="text" value={m.label} disabled={isReadonly} style={miniInput}
+                              placeholder="Deposit" onChange={e => updateMilestone(i, { label: e.target.value })} />
+                            <div style={{ position: 'relative' }}>
+                              <input type="number" min="0" max="100" step="1" value={m.percent} disabled={isReadonly}
+                                style={{ ...miniInput, paddingRight: 16, textAlign: 'right' }} placeholder="0" onChange={e => updateMilestone(i, { percent: e.target.value })} />
+                              <span style={{ position: 'absolute', right: 5, top: '50%', transform: 'translateY(-50%)', font: '400 11px/1 Inter, sans-serif', color: 'var(--brass-muted)' }}>%</span>
+                            </div>
+                            {!isReadonly
+                              ? <button title="Remove" onClick={() => removeMilestone(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', font: '400 15px/1 Inter, sans-serif', color: 'var(--brass-muted)', padding: 0 }}>×</button>
+                              : <span />}
+                            <input type="text" value={m.due_label || ''} disabled={isReadonly} style={{ ...miniInput, gridColumn: '1 / 2' }}
+                              placeholder="e.g. at install start" onChange={e => updateMilestone(i, { due_label: e.target.value })} />
+                            <span style={{ gridColumn: '2 / 4', textAlign: 'right', font: '500 13px/1 "Cormorant Garamond", serif', color: 'var(--ink)' }}>
+                              ${((estTotal * (parseFloat(m.percent) || 0)) / 100).toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: '0.5px solid rgba(28,25,23,0.14)' }}>
+                          <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: sumOff ? '#c05621' : '#3a7a4e' }}>
+                            {schedulePctSum}% of total{sumOff ? ' · should be 100%' : ' ✓'}
+                          </span>
+                          {!isReadonly && <button style={linkBtn} onClick={addMilestone}>+ Add</button>}
+                        </div>
+                        {!isReadonly && (
+                          <button className="rof-btn rof-btn-primary" onClick={saveSchedule} disabled={savingSchedule}>
+                            {savingSchedule ? 'Saving…' : 'Save schedule'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {canConvert && (
                 <div className="qw-convert-card">

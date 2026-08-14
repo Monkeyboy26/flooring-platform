@@ -236,6 +236,25 @@ CREATE TABLE order_items (
     source_estimate_area TEXT
 );
 
+-- Progress-billing / draw schedule (e.g. 50% deposit, 30% at install start, 20%
+-- on completion). Defined on an estimate (customer-facing on the accept page),
+-- copied to the order on conversion. `percent` of the total drives the amount
+-- (recomputed as the total changes); milestone paid-status is DERIVED by walking
+-- the schedule against the order's cumulative amount_paid — never stored.
+CREATE TABLE payment_milestones (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    estimate_id UUID REFERENCES estimates(id) ON DELETE CASCADE,
+    order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+    sort_order INT DEFAULT 0,
+    label TEXT NOT NULL,
+    percent NUMERIC(6,3),
+    amount NUMERIC(10,2),
+    due_label TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_payment_milestones_estimate ON payment_milestones(estimate_id);
+CREATE INDEX idx_payment_milestones_order ON payment_milestones(order_id);
+
 CREATE TABLE cart_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     session_id TEXT NOT NULL,
