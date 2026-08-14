@@ -16393,7 +16393,7 @@
         return (
           <div style={{ maxWidth: 620, margin: '4rem auto 6rem', padding: '0 1.5rem', textAlign: 'center' }}>
             <div style={{ fontSize: '0.6875rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>
-              Construction Estimate{est.estimate_number ? ' · ' + est.estimate_number : ''}
+              {docType}{est.estimate_number ? ' · ' + est.estimate_number : ''}
             </div>
             <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.25rem', fontWeight: 400, margin: '0 0 1rem' }}>This estimate has expired</h1>
             <p style={{ color: 'var(--stone-600)', fontSize: '1rem', lineHeight: 1.65, margin: '0 auto 1.5rem', maxWidth: 460 }}>
@@ -16425,6 +16425,10 @@
       const materials = data.materials || [];
       const labor = data.labor || [];
       const milestones = data.milestones || [];
+      // No labor = a materials-only quote; labor present = a construction estimate.
+      const docType = est.doc_type || (est.has_labor === false ? 'Quote' : 'Construction Estimate');
+      const docNoun = docType === 'Quote' ? 'quote' : 'estimate';
+      const docLabel = docType === 'Quote' ? 'Quote' : 'Estimate'; // short, capitalized
       const scopeOfWork = (est.scope_of_work || '').trim();
       const status = liveStatus || est.status;
 
@@ -16475,7 +16479,7 @@
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 <div>
-                  <div style={{ fontWeight: 600 }}>Estimate accepted{by ? ' by ' + by : ''}</div>
+                  <div style={{ fontWeight: 600 }}>{docType === 'Quote' ? 'Quote' : 'Estimate'} accepted{by ? ' by ' + by : ''}</div>
                   {at && <div style={{ fontSize: '0.8125rem', opacity: 0.85, marginTop: '0.15rem' }}>Accepted {fmtDay(at)}. Your rep will follow up with next steps.</div>}
                 </div>
               </div>
@@ -16488,7 +16492,7 @@
           const s = bannerStyles.declined;
           return (
             <div style={{ background: s.bg, border: '1px solid ' + s.border, color: s.color, borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem' }}>
-              <div style={{ fontWeight: 600 }}>This estimate was declined</div>
+              <div style={{ fontWeight: 600 }}>This {docNoun} was declined</div>
               {reason && <div style={{ fontSize: '0.8125rem', opacity: 0.9, marginTop: '0.3rem', lineHeight: 1.5 }}>Reason: {reason}</div>}
               <div style={{ fontSize: '0.8125rem', opacity: 0.85, marginTop: '0.3rem' }}>Changed your mind or need adjustments? Contact your rep below.</div>
             </div>
@@ -16498,7 +16502,7 @@
           const s = bannerStyles.converted;
           return (
             <div style={{ background: s.bg, border: '1px solid ' + s.border, color: s.color, borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem', fontWeight: 600 }}>
-              This estimate has been converted to an order.
+              This {docNoun} has been converted to an order.
             </div>
           );
         }
@@ -16567,7 +16571,7 @@
           {/* Header */}
           <div style={{ marginBottom: '2rem' }}>
             <div style={{ fontSize: '0.6875rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.6rem' }}>
-              Construction Estimate{est.estimate_number ? ' · ' + est.estimate_number : ''}
+              {docType}{est.estimate_number ? ' · ' + est.estimate_number : ''}
             </div>
             <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.5rem', fontWeight: 400, lineHeight: 1.1, margin: '0 0 0.75rem' }}>
               {est.project_name || 'Your Project'}
@@ -16694,7 +16698,7 @@
           {/* Inline action buttons (desktop); mobile uses the sticky bar below */}
           {showActions && !isNarrow && (
             <div className="est-actions-inline" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-              <button className="btn" style={{ flex: '1 1 200px', padding: '1rem' }} onClick={() => { setActionError(''); setAcceptOpen(true); }}>Accept Estimate</button>
+              <button className="btn" style={{ flex: '1 1 200px', padding: '1rem' }} onClick={() => { setActionError(''); setAcceptOpen(true); }}>Accept {docLabel}</button>
               <button className="btn btn-secondary" style={{ flex: '1 1 140px', padding: '1rem' }} onClick={() => { setActionError(''); setDeclineOpen(true); }}>Decline</button>
             </div>
           )}
@@ -16710,7 +16714,7 @@
             <div className="est-sticky-bar" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900, background: '#fff', borderTop: '1px solid var(--stone-200)', boxShadow: '0 -4px 20px rgba(0,0,0,0.08)', padding: '0.75rem 1rem' }}>
               <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', gap: '0.6rem' }}>
                 <button className="btn btn-secondary" style={{ flex: '0 0 auto', padding: '0.85rem 1.25rem' }} onClick={() => { setActionError(''); setDeclineOpen(true); }}>Decline</button>
-                <button className="btn" style={{ flex: 1, padding: '0.85rem' }} onClick={() => { setActionError(''); setAcceptOpen(true); }}>Accept Estimate</button>
+                <button className="btn" style={{ flex: 1, padding: '0.85rem' }} onClick={() => { setActionError(''); setAcceptOpen(true); }}>Accept {docLabel}</button>
               </div>
             </div>
           )}
@@ -16720,9 +16724,9 @@
             <div className="modal-overlay" onClick={() => !submitting && setAcceptOpen(false)}>
               <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <button className="modal-close" onClick={() => setAcceptOpen(false)}>&times;</button>
-                <h2 style={{ marginBottom: '0.5rem' }}>Accept Estimate</h2>
+                <h2 style={{ marginBottom: '0.5rem' }}>Accept {docLabel}</h2>
                 <p style={{ color: 'var(--stone-600)', fontSize: '0.9rem', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-                  Type your full name below to accept this estimate. Typing your name constitutes acceptance of this estimate.
+                  Type your full name below to accept this {docNoun}. Typing your name constitutes acceptance of this {docNoun}.
                   {hasDeposit && ' A ' + money(depositAmount) + ' deposit secures your project — you can pay it right after accepting.'}
                 </p>
                 <div className="checkout-field">
@@ -16742,7 +16746,7 @@
             <div className="modal-overlay" onClick={() => !submitting && setDeclineOpen(false)}>
               <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <button className="modal-close" onClick={() => setDeclineOpen(false)}>&times;</button>
-                <h2 style={{ marginBottom: '0.5rem' }}>Decline Estimate</h2>
+                <h2 style={{ marginBottom: '0.5rem' }}>Decline {docLabel}</h2>
                 <p style={{ color: 'var(--stone-600)', fontSize: '0.9rem', marginBottom: '1.25rem', lineHeight: 1.6 }}>
                   If you'd like, let your rep know why — this is optional and helps us make it right.
                 </p>

@@ -1138,8 +1138,8 @@ export async function sendEstimateSent(estimateData, opts = {}) {
       to: estimateData.customer_email,
       replyTo: estimateData.rep_email,
       subject: opts.reminder
-        ? `Reminder: your estimate ${estimateData.estimate_number} expires soon`
-        : `Your Construction Estimate — ${estimateData.estimate_number}`,
+        ? `Reminder: your ${estimateData.has_labor === false ? 'quote' : 'estimate'} ${estimateData.estimate_number} expires soon`
+        : `Your ${estimateData.doc_type || 'Construction Estimate'} — ${estimateData.estimate_number}`,
       html,
       ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {})
     });
@@ -1166,7 +1166,7 @@ export async function sendEstimateAccepted(estimateData) {
       from: repFrom(estimateData),
       to: estimateData.customer_email,
       replyTo: estimateData.rep_email,
-      subject: `Estimate accepted — ${estimateData.estimate_number}`,
+      subject: `${estimateData.has_labor === false ? 'Quote' : 'Estimate'} accepted — ${estimateData.estimate_number}`,
       html
     });
     console.log(`[Email] Estimate-accepted email sent to ${estimateData.customer_email} for ${estimateData.estimate_number}`);

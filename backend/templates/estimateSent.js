@@ -99,6 +99,10 @@ export function generateEstimateSentHTML(data, opts = {}) {
     materialItems = [], laborItems = [], milestones = []
   } = data;
   const deposit = num(deposit_amount);
+  // No labor = a materials-only quote; labor present = a construction estimate.
+  const isQuote = !(laborItems && laborItems.length);
+  const docNoun = isQuote ? 'quote' : 'estimate';
+  const docType = isQuote ? 'Quote' : 'Construction estimate';
 
   const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
   const firstName = (customer_name || '').trim().split(/\s+/)[0] || 'there';
@@ -133,7 +137,7 @@ export function generateEstimateSentHTML(data, opts = {}) {
         <td align="right" style="padding:6px 0;font-family:${SANS};font-size:13px;color:${col};">${v}</td>
       </tr></table>`).join('')}
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;border-top:1px solid ${T.border};"><tr>
-      <td style="padding-top:12px;font-family:${SANS};font-size:12px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">Estimate total</td>
+      <td style="padding-top:12px;font-family:${SANS};font-size:12px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">${isQuote ? 'Quote' : 'Estimate'} total</td>
       <td align="right" style="padding-top:12px;font-family:${SERIF};font-size:32px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};">${money(total)}</td>
     </tr></table>
     ${deposit > 0 ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;"><tr>
@@ -168,7 +172,7 @@ export function generateEstimateSentHTML(data, opts = {}) {
   `, '0 40px 36px');
 
   const metaBlock = section(detailList([
-    { label: 'Estimate', value: esc(estimate_number) },
+    { label: isQuote ? 'Quote' : 'Estimate', value: esc(estimate_number) },
     { label: 'Prepared', value: issued },
     project_name ? { label: 'Project', value: esc(project_name) } : null,
     validUntil ? { label: 'Valid until', value: validUntil } : null,
@@ -182,16 +186,16 @@ export function generateEstimateSentHTML(data, opts = {}) {
   // expiry instead of the "ready" announcement. Sent by the expiry cron.
   const hero = opts.reminder
     ? heroSection({
-        eyebrow: `Estimate expiring soon &middot; ${esc(estimate_number || '')}`,
+        eyebrow: `${isQuote ? 'Quote' : 'Estimate'} expiring soon &middot; ${esc(estimate_number || '')}`,
         headline: `A quick <em style="color:${T.accent};">reminder</em>.`,
-        body: `Hi ${esc(firstName)} &mdash; ${esc(repName)}&rsquo;s construction estimate${project_name ? ` for <span style="color:${T.ink};font-weight:500;">${esc(project_name)}</span>` : ''} is still open,` +
+        body: `Hi ${esc(firstName)} &mdash; ${esc(repName)}&rsquo;s ${isQuote ? 'quote' : 'construction estimate'}${project_name ? ` for <span style="color:${T.ink};font-weight:500;">${esc(project_name)}</span>` : ''} is still open,` +
           (validUntil ? ` but it expires on <span style="color:${T.ink};font-weight:500;">${validUntil}</span>. Accept it online below, or just reply and we&rsquo;ll refresh the pricing for you.` : ` and it&rsquo;s about to expire. Accept it online below, or reply and we&rsquo;ll refresh the pricing for you.`),
         chip: validUntil ? `&#9201; Expires ${validUntil}` : null
       })
     : heroSection({
-        eyebrow: `Construction estimate &middot; ${esc(estimate_number || '')}`,
-        headline: `Your estimate, <em style="color:${T.accent};">ready</em>.`,
-        body: `Hi ${esc(firstName)} &mdash; ${esc(repName)} put together a construction estimate${project_name ? ` for <span style="color:${T.ink};font-weight:500;">${esc(project_name)}</span>` : ''}, covering both materials and labor.` +
+        eyebrow: `${docType} &middot; ${esc(estimate_number || '')}`,
+        headline: `Your ${docNoun}, <em style="color:${T.accent};">ready</em>.`,
+        body: `Hi ${esc(firstName)} &mdash; ${esc(repName)} put together ${isQuote ? 'a quote' : 'a construction estimate'}${project_name ? ` for <span style="color:${T.ink};font-weight:500;">${esc(project_name)}</span>` : ''}${isQuote ? ' for your materials.' : ', covering both materials and labor.'}` +
           (validUntil ? ` It&rsquo;s valid through <span style="color:${T.ink};font-weight:500;">${validUntil}</span>.` : ''),
         chip: validUntil ? `&#9201; Valid until ${validUntil}` : null
       });
@@ -201,7 +205,7 @@ export function generateEstimateSentHTML(data, opts = {}) {
     ${metaBlock}
     ${estimateUrl ? ctaButton({
       href: estimateUrl,
-      label: 'View &amp; accept your estimate &rarr;',
+      label: `View &amp; accept your ${docNoun} &rarr;`,
       note: deposit > 0
         ? `Accept online and secure your project with a ${money(deposit)} deposit &middot; or reply to this email`
         : 'Review the full itemized breakdown online and accept or decline &middot; or reply to this email'

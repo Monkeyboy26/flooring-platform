@@ -1114,6 +1114,10 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
   const validUntil = longDate(e.expires_at);
   const isExpired = e.effective_status === 'expired' || (e.expires_at && new Date(e.expires_at) < new Date());
   const estimateNumber = e.estimate_number || 'E-' + String(e.id).substring(0, 8).toUpperCase();
+  // No labor = a materials-only quote; labor present = a construction estimate.
+  const isQuoteDoc = e.doc_type ? e.doc_type === 'Quote' : !(labor && labor.length);
+  const docType = isQuoteDoc ? 'Quote' : 'Construction Estimate';
+  const docNoun = isQuoteDoc ? 'quote' : 'estimate';
 
   const statusLabel = isExpired ? 'Expired'
     : e.status === 'converted' ? 'Converted · Order'
@@ -1128,9 +1132,9 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
 
   const customerFirst = (e.customer_name || '').trim().split(/\s+/)[0] || 'Hello';
   const repFirst = (e.rep_name || '').trim().split(/\s+/)[0];
-  const greeting = `${customerFirst} — here's the estimate ${repFirst ? repFirst + ' prepared' : 'we prepared'} for you on ${issued}. ` +
+  const greeting = `${customerFirst} — here's the ${docNoun} ${repFirst ? repFirst + ' prepared' : 'we prepared'} for you on ${issued}. ` +
     (isExpired
-      ? `This estimate expired on <span style="color:var(--ink);font-weight:500;">${validUntil}</span> — reach out and we'll refresh it.`
+      ? `This ${docNoun} expired on <span style="color:var(--ink);font-weight:500;">${validUntil}</span> — reach out and we'll refresh it.`
       : validUntil
         ? `Valid through <span style="color:var(--ink);font-weight:500;">${validUntil}</span>.`
         : 'Valid for 30 days from the date of issue.');
@@ -1274,7 +1278,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
-<div class="mono" style="letter-spacing:0.22em;">Construction Estimate</div>
+<div class="mono" style="letter-spacing:0.22em;">${docType}</div>
 <div style="font:300 32px/1 var(--serif);letter-spacing:-0.014em;margin-top:6px;">${estimateNumber}</div>
 <div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
 <span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
@@ -1320,7 +1324,7 @@ ${e.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style=
 <div>
 ${totalsRows}
 <div style="margin-top:8px;padding-top:8px;border-top:1.5px solid var(--ink);display:flex;justify-content:space-between;align-items:baseline;">
-<span class="mono" style="color:var(--ink);letter-spacing:0.18em;">Estimate total · USD</span>
+<span class="mono" style="color:var(--ink);letter-spacing:0.18em;">${isQuoteDoc ? 'Quote' : 'Estimate'} total · USD</span>
 <span style="font:300 28px/1 var(--serif);letter-spacing:-0.012em;">${money(e.total)}</span>
 </div>
 ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'var(--accent)'};text-align:right;margin-top:6px;letter-spacing:0.16em;">● ${isExpired ? 'Expired' : 'Valid until'} ${validUntil}</div>` : ''}

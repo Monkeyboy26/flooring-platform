@@ -98,6 +98,11 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
   `, [estimate.id]);
   let items = itemsRes.rows;
 
+  // No labor = a materials-only "quote"; labor present = a "construction
+  // estimate". Drives the customer-facing document type/label everywhere.
+  estimate.has_labor = items.some(i => i.item_type === 'labor');
+  estimate.doc_type = estimate.has_labor ? 'Construction Estimate' : 'Quote';
+
   const areasRes = await pool.query(
     'SELECT * FROM estimate_areas WHERE estimate_id = $1 ORDER BY sort_order, created_at',
     [estimate.id]

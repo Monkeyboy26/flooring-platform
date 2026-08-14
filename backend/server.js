@@ -23393,7 +23393,7 @@ app.get('/api/rep/estimates/:id/preview', repAuth, async (req, res) => {
     const html = generateEstimateSentHTML(estimateEmailData(bundle, req.rep));
     res.json({
       html,
-      subject: `Your Construction Estimate — ${e.estimate_number}`,
+      subject: `Your ${e.doc_type || 'Construction Estimate'} — ${e.estimate_number}`,
       to: e.customer_email,
       reply_to: req.rep.email
     });
@@ -23925,6 +23925,7 @@ app.get('/api/estimate-view/:token', async (req, res) => {
         declined_at: e.declined_at, decline_reason: e.decline_reason,
         deposit_type: e.deposit_type, deposit_value: e.deposit_value, deposit_amount: e.deposit_amount,
         deposit_label: e.deposit_label, deposit_from_schedule: e.deposit_from_schedule,
+        has_labor: e.has_labor, doc_type: e.doc_type,
         converted_order_id: e.converted_order_id,
         rep_name: e.rep_name, rep_email: e.rep_email
       },
