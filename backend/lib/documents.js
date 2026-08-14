@@ -1319,7 +1319,7 @@ ${e.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style=
 <span style="color:var(--muted);">Email</span>&nbsp;&nbsp;<span style="color:var(--ink);">Reply to your estimate email${e.rep_email ? ' or write ' + e.rep_email : ''}</span>
 </div>
 <div class="mono" style="margin-bottom:8px;margin-top:14px;">Terms &amp; validity</div>
-<div>${validUntil ? `Valid through ${validUntil}` : 'Valid for 30 days from the date of issue'}; labor rates may vary based on site conditions. Sales tax applies to materials only. Natural stone and wood vary by lot — final selections are approved at the showroom or from delivered samples. Roma Flooring Designs · License #830966.</div>
+<div>${validUntil ? `Valid through ${validUntil}` : 'Valid for 30 days from the date of issue'}; labor rates may vary based on site conditions. Sales tax applies to materials only. Natural stone and wood vary by lot — final selections are approved at the showroom or from delivered samples.${(milestones && milestones.length) ? ` <span style="color:var(--ink);">Payment is due per the payment schedule above (${milestones.map(m => `${escDoc(m.label)}${m.due_label ? ' ' + escDoc(m.due_label) : ''} — ${money(m.amount)}`).join('; ')}); accepting this ${docNoun} constitutes agreement to that schedule.</span>` : ''} Roma Flooring Designs · License #830966.</div>
 </div>
 <div>
 ${totalsRows}

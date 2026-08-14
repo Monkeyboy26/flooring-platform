@@ -16684,6 +16684,9 @@
                   <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500, color: 'var(--stone-800)', whiteSpace: 'nowrap' }}>{money(m.amount)}</span>
                 </div>
               ))}
+              <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.85rem', lineHeight: 1.5 }}>
+                Accepting this {docNoun} confirms your agreement to this payment schedule.
+              </div>
             </div>
           )}
 
@@ -16726,7 +16729,8 @@
                 <button className="modal-close" onClick={() => setAcceptOpen(false)}>&times;</button>
                 <h2 style={{ marginBottom: '0.5rem' }}>Accept {docLabel}</h2>
                 <p style={{ color: 'var(--stone-600)', fontSize: '0.9rem', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-                  Type your full name below to accept this {docNoun}. Typing your name constitutes acceptance of this {docNoun}.
+                  Type your full name below to accept this {docNoun}. Typing your name constitutes acceptance of this {docNoun}
+                  {milestones.length > 0 ? ' and agreement to the payment schedule shown above' : ''}.
                   {hasDeposit && ' A ' + money(depositAmount) + ' deposit secures your project — you can pay it right after accepting.'}
                 </p>
                 <div className="checkout-field">

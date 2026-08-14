@@ -23968,9 +23968,16 @@ app.post('/api/estimate-view/:token/accept', async (req, res) => {
       "UPDATE estimates SET status = 'accepted', accepted_at = NOW(), accepted_by_name = $2, updated_at = NOW() WHERE id = $1",
       [e.id, name]
     );
+    // Snapshot the payment schedule the customer agreed to, so the binding is on
+    // record immutably even if the schedule is later edited on the estimate.
+    const msRows = await pool.query(
+      'SELECT label, percent, due_label FROM payment_milestones WHERE estimate_id = $1 ORDER BY sort_order, created_at', [e.id]);
+    const agreedSchedule = computeSchedule(msRows.rows, e.total, 0).map(m => ({
+      label: m.label, percent: m.percent != null ? parseFloat(m.percent) : null, amount: m.amount, due_label: m.due_label || null }));
     await logEstimateEvent(pool, e.id, 'accepted', {
-      body: `Accepted online — signed "${name}"`,
-      meta: { accepted_by_name: name, source: 'page' },
+      body: `Accepted online — signed "${name}"` +
+        (agreedSchedule.length ? ` · agreed to payment schedule (${agreedSchedule.map(m => `${m.label} ${m.percent}%`).join(', ')})` : ''),
+      meta: { accepted_by_name: name, source: 'page', ...(agreedSchedule.length ? { agreed_schedule: agreedSchedule } : {}) },
       actor: 'customer',
       actorName: name
     });
