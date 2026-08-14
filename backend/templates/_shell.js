@@ -92,8 +92,8 @@ export function warmCard(inner, padding = '18px 22px') {
 
 function brandHeader() {
   return `<tr><td style="padding:32px 40px 22px;text-align:center;border-bottom:1px solid ${T.border};">
-    <p style="margin:0;font-family:${SERIF};font-size:26px;line-height:1;font-weight:400;letter-spacing:0.34em;color:${T.ink};">ROMA <span style="font-size:16px;letter-spacing:0.2em;color:${T.muted};">FLOORING</span></p>
-    <p style="margin:-6px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script',${SERIF};font-size:34px;line-height:1;color:#c9a668;">Designs</p>
+    <p style="margin:0;font-family:${SERIF};font-size:26px;line-height:1;font-weight:400;letter-spacing:0.34em;color:${T.ink};">ROMA <span style="font-size:26px;letter-spacing:normal;color:${T.ink};">FLOORING</span></p>
+    <p style="margin:-11px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script',${SERIF};font-size:36px;line-height:1;color:#a87935;">Designs</p>
   </td></tr>`;
 }
 

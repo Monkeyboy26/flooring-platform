@@ -5,8 +5,8 @@ export const SITE_URL = BASE;
 // Text logo lockup — email-safe inline styles, centered, for light backgrounds.
 // Pinyon Script degrades to Brush Script MT / serif in clients without web fonts.
 export const LOGO_LOCKUP = `<div style="text-align:center;">
-<p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;line-height:1;font-weight:400;letter-spacing:0.34em;color:#15120f;">ROMA <span style="font-size:15px;letter-spacing:0.2em;color:#57534e;">FLOORING</span></p>
-<p style="margin:-5px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script','Cormorant Garamond',cursive;font-size:31px;line-height:1;color:#c9a668;">Designs</p>
+<p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;line-height:1;font-weight:400;letter-spacing:0.34em;color:#1c1917;">ROMA <span style="font-size:24px;letter-spacing:normal;color:#1c1917;">FLOORING</span></p>
+<p style="margin:-10px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script','Cormorant Garamond',cursive;font-size:33px;line-height:1;color:#a87935;">Designs</p>
 </div>`;
 
 // CAN-SPAM: every MARKETING email must include the physical address and a

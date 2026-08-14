@@ -80,7 +80,7 @@ header { background: var(--warm-bg); position: sticky; top: 0; z-index: var(--z-
 .logo img { height: 38px; width: auto; display: block; }
 .logo-text { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; padding-bottom: 0.34em; user-select: none; }
 .logo-wordmark { font-family: var(--font-heading); font-weight: 400; font-size: 1.5rem; letter-spacing: 0.34em; text-indent: 0.34em; color: var(--stone-900); white-space: nowrap; }
-.logo-wordmark em { font-style: normal; font-size: 0.62em; letter-spacing: 0.2em; text-indent: 0.2em; color: var(--stone-600); }
+.logo-wordmark em { font-style: normal; font-size: 1em; letter-spacing: normal; text-indent: 0; color: var(--stone-900); }
 .logo-script { font-family: 'Pinyon Script', 'Cormorant Garamond', cursive; font-size: 2.05rem; line-height: 1; color: var(--gold); margin-top: -0.30em; align-self: center; white-space: nowrap; }
 .header-actions { display: flex; align-items: center; gap: 0.5rem; }
 .header-action-btn { background: none; border: none; cursor: pointer; color: var(--stone-500); display: flex; align-items: center; justify-content: center; position: relative; transition: color var(--transition-base); -webkit-tap-highlight-color: transparent; min-width: 40px; min-height: 40px; }
@@ -2363,7 +2363,7 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .footer-inner { max-width: var(--max-width); margin: 0 auto; padding: 4rem 3rem; display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 2.5rem; }
 .footer-brand .logo-text { margin-bottom: 1rem; }
 .footer-brand .logo-wordmark { color: #fff; }
-.footer-brand .logo-wordmark em { color: var(--stone-400); }
+.footer-brand .logo-wordmark em { color: #fff; }
 .footer-brand p { font-size: 0.8125rem; color: var(--stone-400); line-height: 1.6; }
 .footer-social { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
 .footer-social a { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--stone-600); color: var(--stone-400); transition: all 0.2s; text-decoration: none; }

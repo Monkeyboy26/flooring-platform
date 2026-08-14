@@ -245,7 +245,7 @@ export function getDocumentBaseCSS() {
       font-size: 1.35rem; font-weight: 400; letter-spacing: 0.34em; text-indent: 0.34em;
       color: #1c1917; white-space: nowrap;
     }
-    .logo-wordmark em { font-style: normal; font-size: 0.62em; letter-spacing: 0.2em; text-indent: 0.2em; color: #57534e; }
+    .logo-wordmark em { font-style: normal; font-size: 1em; letter-spacing: normal; text-indent: 0; color: #1c1917; }
     .logo-script { font-family: 'Pinyon Script', 'Cormorant Garamond', cursive; font-size: 1.85rem; line-height: 1; color: #a87935; margin-top: -0.3em; align-self: center; white-space: nowrap; }
     .company-info { font-size: 0.6875rem; color: #78716c; line-height: 1.65; }
 
@@ -730,7 +730,7 @@ export async function generatePOHtml(pool, poId) {
         ${isWillCall ? willCallStamp({ accent, top: '16px', left: '50%' }) : ''}
         <div>
           <div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em">
-            <span style="font-family:${serif};font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:${ink};white-space:nowrap">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:${muted}">FLOORING</em></span>
+            <span style="font-family:${serif};font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:${ink};white-space:nowrap">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:${ink}">FLOORING</em></span>
             <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:${accent};margin-top:-11px;white-space:nowrap">Designs</span>
           </div>
           <div style="margin-top:14px;font:400 10px/1.5 ${sans};color:${ink}cc">
@@ -1029,7 +1029,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
 <div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
-<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
@@ -1272,7 +1272,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
 <div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
-<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
@@ -1540,7 +1540,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
 <div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
-<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
@@ -1797,7 +1797,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
 <div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
-<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
@@ -1962,7 +1962,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 ${isWillCall ? willCallStamp({ top: '16px', left: '52%' }) : ''}
 <div>
 <div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
-<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
@@ -2125,7 +2125,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
 <div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
-<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:0.62em;letter-spacing:0.2em;text-indent:0.2em;color:var(--muted);">FLOORING</em></span>
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
 <div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
