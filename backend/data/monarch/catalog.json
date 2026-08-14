@@ -1,0 +1,4440 @@
+{
+  "vendor": {
+    "name": "Galleher Duffy",
+    "code": "GALL",
+    "website": "https://www.galleherduffy.com",
+    "address": "A Division of Artivo Surfaces",
+    "notes": "Flooring distributor (Galleher + Tom Duffy + Trinity Hardwood). Roma dealer account 370815. Primary brand onboarded: Monarch Plank."
+  },
+  "brand": {
+    "name": "Monarch Plank",
+    "code": "MONARCH",
+    "website": "https://monarchplank.com"
+  },
+  "markup": 1.6,
+  "products": [
+    {
+      "name": "Lumiere",
+      "collection": "La Grande",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "la-grande-lumiere",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/La_Grande_Spec_Sheet_rev0626.pdf?v=1781545561",
+      "skus": [
+        {
+          "vendor_sku": "MON341138LALM",
+          "internal_sku": "MON-la-grande-lumiere",
+          "variant_name": "11-3/8\"",
+          "color": "Lumiere",
+          "collection": "La Grande",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Wire Brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "11-3/8",
+          "size": "25/32\" x 11-3/8\"",
+          "length": "10’",
+          "cost": 14.18,
+          "sqft_box": 18.73,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Thyon",
+      "collection": "La Grande",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "la-grande-thyon",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/La_Grande_Spec_Sheet_rev0626.pdf?v=1781545561",
+      "skus": [
+        {
+          "vendor_sku": "MON341138LATH",
+          "internal_sku": "MON-la-grande-thyon",
+          "variant_name": "11-3/8\"",
+          "color": "Thyon",
+          "collection": "La Grande",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "11-3/8",
+          "size": "25/32\" x 11-3/8\"",
+          "length": "10’",
+          "cost": 14.18,
+          "sqft_box": 18.73,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Parsenn",
+      "collection": "La Grande",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "la-grande-parsenn",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/La_Grande_Spec_Sheet_rev0626.pdf?v=1781545561",
+      "skus": [
+        {
+          "vendor_sku": "MON341138LAPR",
+          "internal_sku": "MON-la-grande-parsenn",
+          "variant_name": "11-3/8\"",
+          "color": "Parsenn",
+          "collection": "La Grande",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "11-3/8",
+          "size": "25/32\" x 11-3/8\"",
+          "length": "10’",
+          "cost": 14.18,
+          "sqft_box": 18.73,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Nendaz",
+      "collection": "La Grande",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "la-grande-nendaz",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/La_Grande_Spec_Sheet_rev0626.pdf?v=1781545561",
+      "skus": [
+        {
+          "vendor_sku": "MON341138LANN",
+          "internal_sku": "MON-la-grande-nendaz",
+          "variant_name": "11-3/8\"",
+          "color": "Nendaz",
+          "collection": "La Grande",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "11-3/8",
+          "size": "25/32\" x 11-3/8\"",
+          "length": "10’",
+          "cost": 14.18,
+          "sqft_box": 18.73,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Grenoble",
+      "collection": "La Grande",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "la-grande-grenoble",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/La_Grande_Spec_Sheet_rev0626.pdf?v=1781545561",
+      "skus": [
+        {
+          "vendor_sku": "MON341138LAGN",
+          "internal_sku": "MON-la-grande-grenoble",
+          "variant_name": "11-3/8\"",
+          "color": "Grenoble",
+          "collection": "La Grande",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Soft hand-scrape",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "11-3/8",
+          "size": "25/32\" x 11-3/8\"",
+          "length": "10’",
+          "cost": 14.18,
+          "sqft_box": 18.73,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Venosta",
+      "collection": "La Grande",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "la-grande-venosta",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/La_Grande_Spec_Sheet_rev0626.pdf?v=1781545561",
+      "skus": [
+        {
+          "vendor_sku": "MON341138LAVN",
+          "internal_sku": "MON-la-grande-venosta",
+          "variant_name": "11-3/8\"",
+          "color": "Venosta",
+          "collection": "La Grande",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "11-3/8",
+          "size": "25/32\" x 11-3/8\"",
+          "length": "10’",
+          "cost": 14.18,
+          "sqft_box": 18.73,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Nebbia",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-nebbia",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3475VNB",
+          "internal_sku": "MON-domaine-ii-nebbia",
+          "variant_name": "9-1/2\"",
+          "color": "Nebbia",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "9-1/2",
+          "size": "3/4\" x 9-1/2\"",
+          "length": "8",
+          "cost": 10.9,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Nebbia Herringbone",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-nebbia-herringbone-copy",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": null,
+          "internal_sku": "MON-domaine-ii-nebbia-herringbone",
+          "variant_name": "4-3/4\"",
+          "color": "Nebbia Herringbone",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "4-3/4",
+          "size": "3/4\" x 4-3/4\"",
+          "length": "33",
+          "cost": 11.19,
+          "sqft_box": 8.68,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Retz Herringbone",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-retz-herringbone",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": "MON34434DRZ2HB",
+          "internal_sku": "MON-domaine-ii-retz-herringbone",
+          "variant_name": "4-3/4\"",
+          "color": "Retz Herringbone",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "4-3/4",
+          "size": "3/4\" x 4-3/4\"",
+          "length": "33",
+          "cost": 11.19,
+          "sqft_box": 8.68,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Lorraine",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-lorraine",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495D2LO",
+          "internal_sku": "MON-domaine-ii-lorraine",
+          "variant_name": "9-1/2\"",
+          "color": "Lorraine",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Wire Brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "9-1/2",
+          "size": "3/4\" x 9-1/2\"",
+          "length": "8",
+          "cost": 10.9,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Retz",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-retz",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495D2RZ",
+          "internal_sku": "MON-domaine-ii-retz",
+          "variant_name": "9-1/2\"",
+          "color": "Retz",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "9-1/2",
+          "size": "3/4\" x 9-1/2\"",
+          "length": "8",
+          "cost": 10.9,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Verte Herringbone",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-verte-herringbone",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": null,
+          "internal_sku": "MON-domaine-ii-verte-herringbone",
+          "variant_name": "4-3/4\"",
+          "color": "Verte Herringbone",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "4-3/4",
+          "size": "3/4\" x 4-3/4\"",
+          "length": "33",
+          "cost": 11.19,
+          "sqft_box": 8.68,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Montrichard Herringbone",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-montrichard-herringbone",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": null,
+          "internal_sku": "MON-domaine-ii-montrichard-herringbone",
+          "variant_name": "4-3/4\"",
+          "color": "Montrichard Herringbone",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Hand Scraped",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "4-3/4",
+          "size": "3/4\" x 4-3/4\"",
+          "length": "33",
+          "cost": 11.19,
+          "sqft_box": 8.68,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Allier Herringbone",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-allier-herringbone",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": null,
+          "internal_sku": "MON-domaine-ii-allier-herringbone",
+          "variant_name": "4-3/4\"",
+          "color": "Allier Herringbone",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Hand Scraped",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "4-3/4",
+          "size": "3/4\" x 4-3/4\"",
+          "length": "33",
+          "cost": 11.19,
+          "sqft_box": 8.68,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Montrichard",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-montrichard",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495D2MC",
+          "internal_sku": "MON-domaine-ii-montrichard",
+          "variant_name": "9-1/2\"",
+          "color": "Montrichard",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Wire Brushed, Softly Hand Scraped",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "9-1/2",
+          "size": "3/4\" x 9-1/2\"",
+          "length": "8",
+          "cost": 10.9,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Verte",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-verte",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495D2VT",
+          "internal_sku": "MON-domaine-ii-verte",
+          "variant_name": "9-1/2\"",
+          "color": "Verte",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth w/Natural wood grain",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "9-1/2",
+          "size": "3/4\" x 9-1/2\"",
+          "length": "8",
+          "cost": 10.9,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Allier",
+      "collection": "Domaine II",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "domaine-ii-allier",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Spec_Sheet_rev0626.pdf?v=1780917950",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495D2AE",
+          "internal_sku": "MON-domaine-ii-allier",
+          "variant_name": "9-1/2\"",
+          "color": "Allier",
+          "collection": "Domaine II",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Hand Scraped",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "3/4",
+          "width": "9-1/2",
+          "size": "3/4\" x 9-1/2\"",
+          "length": "8",
+          "cost": 10.9,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Ashley",
+      "collection": "Dover",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "dover-ashley",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Dover_Spec_Sheet_rev0626.pdf?v=1780918462",
+      "skus": [
+        {
+          "vendor_sku": "MON3475DVAS",
+          "internal_sku": "MON-dover-ashley",
+          "variant_name": "7-1/2\"",
+          "color": "Ashley",
+          "collection": "Dover",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "7-1/2",
+          "size": "25/32\" x 7-1/2\"",
+          "length": "8",
+          "cost": 7.15,
+          "sqft_box": 20.04,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Citadel",
+      "collection": "Dover",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "dover-citadel",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Dover_Spec_Sheet_rev0626.pdf?v=1780918462",
+      "skus": [
+        {
+          "vendor_sku": "MON3475DVCT",
+          "internal_sku": "MON-dover-citadel",
+          "variant_name": "7-1/2\"",
+          "color": "Citadel",
+          "collection": "Dover",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "7-1/2",
+          "size": "25/32\" x 7-1/2\"",
+          "length": "8",
+          "cost": 7.15,
+          "sqft_box": 20.04,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Walmer",
+      "collection": "Dover",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "dover-walmer",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Dover_Spec_Sheet_rev0626.pdf?v=1780918462",
+      "skus": [
+        {
+          "vendor_sku": "MON3475DVWM",
+          "internal_sku": "MON-dover-walmer",
+          "variant_name": "7-1/2\"",
+          "color": "Walmer",
+          "collection": "Dover",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "7-1/2",
+          "size": "25/32\" x 7-1/2\"",
+          "length": "8",
+          "cost": 7.15,
+          "sqft_box": 20.04,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Langdon",
+      "collection": "Dover",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "dover-langdon",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Dover_Spec_Sheet_rev0626.pdf?v=1780918462",
+      "skus": [
+        {
+          "vendor_sku": "MON3475DVLG",
+          "internal_sku": "MON-dover-langdon",
+          "variant_name": "7-1/2\"",
+          "color": "Langdon",
+          "collection": "Dover",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "7-1/2",
+          "size": "25/32\" x 7-1/2\"",
+          "length": "8",
+          "cost": 7.15,
+          "sqft_box": 20.04,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Kent",
+      "collection": "Dover",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "dover-kent",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Dover_Spec_Sheet_rev0626.pdf?v=1780918462",
+      "skus": [
+        {
+          "vendor_sku": "MON3475DVKN",
+          "internal_sku": "MON-dover-kent",
+          "variant_name": "7-1/2\"",
+          "color": "Kent",
+          "collection": "Dover",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "7-1/2",
+          "size": "25/32\" x 7-1/2\"",
+          "length": "8",
+          "cost": 7.15,
+          "sqft_box": 20.04,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Bradfield",
+      "collection": "Dover",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "dover-bradfield",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Dover_Spec_Sheet_rev0626.pdf?v=1780918462",
+      "skus": [
+        {
+          "vendor_sku": "MON3475DVBR",
+          "internal_sku": "MON-dover-bradfield",
+          "variant_name": "7-1/2\"",
+          "color": "Bradfield",
+          "collection": "Dover",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Hand-scraped",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "7-1/2",
+          "size": "25/32\" x 7-1/2\"",
+          "length": "8",
+          "cost": 7.15,
+          "sqft_box": 20.04,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Foxley",
+      "collection": "Dover",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "dover-foxley",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Dover_Spec_Sheet_rev0626.pdf?v=1780918462",
+      "skus": [
+        {
+          "vendor_sku": "MON3475DVFL",
+          "internal_sku": "MON-dover-foxley",
+          "variant_name": "7-1/2\"",
+          "color": "Foxley",
+          "collection": "Dover",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Hand-scraped",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "7-1/2",
+          "size": "25/32\" x 7-1/2\"",
+          "length": "8",
+          "cost": 7.15,
+          "sqft_box": 20.04,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Bowden",
+      "collection": "Manor",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "manor-bowden",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Manor_Spec_Sheet_rev0626.pdf?v=1781545566",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495MBD",
+          "internal_sku": "MON-manor-bowden",
+          "variant_name": "9-1/2\"",
+          "color": "Bowden",
+          "collection": "Manor",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Country",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "9-1/2",
+          "size": "25/32\" x 9-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": 8.96,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Winslow",
+      "collection": "Manor",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "manor-winslow",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Manor_Spec_Sheet_rev0626.pdf?v=1781545566",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495MWN",
+          "internal_sku": "MON-manor-winslow",
+          "variant_name": "9-1/2\"",
+          "color": "Winslow",
+          "collection": "Manor",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Country",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "9-1/2",
+          "size": "25/32\" x 9-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": 8.96,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Sutton",
+      "collection": "Manor",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "manor-sutton",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Manor_Spec_Sheet_rev0626.pdf?v=1781545566",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495MSU",
+          "internal_sku": "MON-manor-sutton",
+          "variant_name": "9-1/2\"",
+          "color": "Sutton",
+          "collection": "Manor",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Country",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "9-1/2",
+          "size": "25/32\" x 9-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": 8.96,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Campton",
+      "collection": "Manor",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "manor-campton",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Manor_Spec_Sheet_rev0626.pdf?v=1781545566",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495MCM",
+          "internal_sku": "MON-manor-campton",
+          "variant_name": "9-1/2\"",
+          "color": "Campton",
+          "collection": "Manor",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Country",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "9-1/2",
+          "size": "25/32\" x 9-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": 8.96,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Coleman",
+      "collection": "Manor",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "manor-coleman",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Manor_Spec_Sheet_rev0626.pdf?v=1781545566",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495MCL",
+          "internal_sku": "MON-manor-coleman",
+          "variant_name": "9-1/2\"",
+          "color": "Coleman",
+          "collection": "Manor",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Country",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "9-1/2",
+          "size": "25/32\" x 9-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": 8.96,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Barnsley",
+      "collection": "Manor",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "manor-barnsley",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Manor_Spec_Sheet_rev0626.pdf?v=1781545566",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495MBR",
+          "internal_sku": "MON-manor-barnsley",
+          "variant_name": "9-1/2\"",
+          "color": "Barnsley",
+          "collection": "Manor",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Country",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "9-1/2",
+          "size": "25/32\" x 9-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": 8.96,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Aldin",
+      "collection": "Manor",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "manor-aldin",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Manor_Spec_Sheet_rev0626.pdf?v=1781545566",
+      "skus": [
+        {
+          "vendor_sku": "MONSW3495MAL",
+          "internal_sku": "MON-manor-aldin",
+          "variant_name": "9-1/2\"",
+          "color": "Aldin",
+          "collection": "Manor",
+          "species": "European Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Country",
+          "edge": null,
+          "wear_layer": "6 mm Sawn Top Layer",
+          "thickness": "25/32",
+          "width": "9-1/2",
+          "size": "25/32\" x 9-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": 8.96,
+          "sqft_box": 25.32,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Anna",
+      "collection": "Regent",
+      "species": "European Oak",
+      "status": "draft",
+      "handle": "regent-anna",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Regent_Spec_Sheet_rev0626.pdf?v=1780921067",
+      "skus": [
+        {
+          "vendor_sku": "MON5875REAN",
+          "internal_sku": "MON-regent-anna",
+          "variant_name": "7-1/2\"",
+          "color": "Anna",
+          "collection": "Regent",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": null,
+          "sqft_box": 26.14,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Elizabeth",
+      "collection": "Regent",
+      "species": "European Oak",
+      "status": "draft",
+      "handle": "regent-elizabeth",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Regent_Spec_Sheet_rev0626.pdf?v=1780921067",
+      "skus": [
+        {
+          "vendor_sku": "MON5875REEB",
+          "internal_sku": "MON-regent-elizabeth",
+          "variant_name": "7-1/2\"",
+          "color": "Elizabeth",
+          "collection": "Regent",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": null,
+          "sqft_box": 26.14,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Margaret",
+      "collection": "Regent",
+      "species": "European Oak",
+      "status": "draft",
+      "handle": "regent-margaret",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Regent_Spec_Sheet_rev0626.pdf?v=1780921067",
+      "skus": [
+        {
+          "vendor_sku": "MON5875REMG8",
+          "internal_sku": "MON-regent-margaret",
+          "variant_name": "7-1/2\"",
+          "color": "Margaret",
+          "collection": "Regent",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": null,
+          "sqft_box": 26.14,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Eleanor",
+      "collection": "Regent",
+      "species": "European Oak",
+      "status": "draft",
+      "handle": "regent-eleanor",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Regent_Spec_Sheet_rev0626.pdf?v=1780921067",
+      "skus": [
+        {
+          "vendor_sku": "MON5875REEL8",
+          "internal_sku": "MON-regent-eleanor",
+          "variant_name": "7-1/2\"",
+          "color": "Eleanor",
+          "collection": "Regent",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "23\" - 96\" (84% full)",
+          "cost": null,
+          "sqft_box": 26.14,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Carolina",
+      "collection": "Regent",
+      "species": "European Oak",
+      "status": "draft",
+      "handle": "regent-carolina",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Regent_Spec_Sheet_rev0626.pdf?v=1780921067",
+      "skus": [
+        {
+          "vendor_sku": "MON5875RECL",
+          "internal_sku": "MON-regent-carolina",
+          "variant_name": "7-1/2\"",
+          "color": "Carolina",
+          "collection": "Regent",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "84",
+          "cost": null,
+          "sqft_box": 26.14,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Isabella",
+      "collection": "Regent",
+      "species": "European Oak",
+      "status": "draft",
+      "handle": "regent-isabella",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Regent_Spec_Sheet_rev0626.pdf?v=1780921067",
+      "skus": [
+        {
+          "vendor_sku": "MON5875REIS",
+          "internal_sku": "MON-regent-isabella",
+          "variant_name": "7-1/2\"",
+          "color": "Isabella",
+          "collection": "Regent",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "84",
+          "cost": null,
+          "sqft_box": 26.14,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Juliana",
+      "collection": "Regent",
+      "species": "European Oak",
+      "status": "draft",
+      "handle": "regent-juliana",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Regent_Spec_Sheet_rev0626.pdf?v=1780921067",
+      "skus": [
+        {
+          "vendor_sku": "MON5875REJU",
+          "internal_sku": "MON-regent-juliana",
+          "variant_name": "7-1/2\"",
+          "color": "Juliana",
+          "collection": "Regent",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "84",
+          "cost": null,
+          "sqft_box": 26.14,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Sisley",
+      "collection": "Tableau",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "tableau-sisley",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Tableau_Spec_Sheet_rev12Aug2024_f3122d81-49c2-41e4-a320-263a173e217a.pdf?v=1755560620",
+      "skus": [
+        {
+          "vendor_sku": "MONH58858TSS",
+          "internal_sku": "MON-tableau-sisley",
+          "variant_name": "8-5/8\"",
+          "color": "Sisley",
+          "collection": "Tableau",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "8-5/8",
+          "size": "5/8\" x 8-5/8\"",
+          "length": "86-5/8",
+          "cost": 7.87,
+          "sqft_box": 31.26,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Cassatt",
+      "collection": "Tableau",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "tableau-cassatt",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Tableau_Spec_Sheet_rev12Aug2024_f3122d81-49c2-41e4-a320-263a173e217a.pdf?v=1755560620",
+      "skus": [
+        {
+          "vendor_sku": "MONH58858TCS",
+          "internal_sku": "MON-tableau-cassatt",
+          "variant_name": "8-5/8\"",
+          "color": "Cassatt",
+          "collection": "Tableau",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "8-5/8",
+          "size": "5/8\" x 8-5/8\"",
+          "length": "86-5/8",
+          "cost": 7.87,
+          "sqft_box": 31.26,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Bazille",
+      "collection": "Tableau",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "tableau-bazille",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Tableau_Spec_Sheet_rev12Aug2024_f3122d81-49c2-41e4-a320-263a173e217a.pdf?v=1755560620",
+      "skus": [
+        {
+          "vendor_sku": "MONH58858TBZ",
+          "internal_sku": "MON-tableau-bazille",
+          "variant_name": "8-5/8\"",
+          "color": "Bazille",
+          "collection": "Tableau",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "8-5/8",
+          "size": "5/8\" x 8-5/8\"",
+          "length": "86-5/8",
+          "cost": 7.87,
+          "sqft_box": 31.26,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Matisse",
+      "collection": "Tableau",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "tableau-matisse",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Tableau_Spec_Sheet_rev12Aug2024_f3122d81-49c2-41e4-a320-263a173e217a.pdf?v=1755560620",
+      "skus": [
+        {
+          "vendor_sku": "MONH58858TMS",
+          "internal_sku": "MON-tableau-matisse",
+          "variant_name": "8-5/8\"",
+          "color": "Matisse",
+          "collection": "Tableau",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "8-5/8",
+          "size": "5/8\" x 8-5/8\"",
+          "length": "86-5/8",
+          "cost": 7.87,
+          "sqft_box": 31.26,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Cezanne",
+      "collection": "Tableau",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "tableau-cezanne",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Tableau_Spec_Sheet_rev12Aug2024_f3122d81-49c2-41e4-a320-263a173e217a.pdf?v=1755560620",
+      "skus": [
+        {
+          "vendor_sku": "MONH58858TCZ",
+          "internal_sku": "MON-tableau-cezanne",
+          "variant_name": "8-5/8\"",
+          "color": "Cezanne",
+          "collection": "Tableau",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "8-5/8",
+          "size": "5/8\" x 8-5/8\"",
+          "length": "86-5/8",
+          "cost": 7.87,
+          "sqft_box": 31.26,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Latour",
+      "collection": "Tableau",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "tableau-latour",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Tableau_Spec_Sheet_rev12Aug2024_f3122d81-49c2-41e4-a320-263a173e217a.pdf?v=1755560620",
+      "skus": [
+        {
+          "vendor_sku": "MONH58858TLT",
+          "internal_sku": "MON-tableau-latour",
+          "variant_name": "8-5/8\"",
+          "color": "Latour",
+          "collection": "Tableau",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "8-5/8",
+          "size": "5/8\" x 8-5/8\"",
+          "length": "86-5/8",
+          "cost": 7.87,
+          "sqft_box": 31.26,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Degas",
+      "collection": "Tableau",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "tableau-degas",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Tableau_Spec_Sheet_rev12Aug2024_f3122d81-49c2-41e4-a320-263a173e217a.pdf?v=1755560620",
+      "skus": [
+        {
+          "vendor_sku": "MONH58858TDG",
+          "internal_sku": "MON-tableau-degas",
+          "variant_name": "8-5/8\"",
+          "color": "Degas",
+          "collection": "Tableau",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "8-5/8",
+          "size": "5/8\" x 8-5/8\"",
+          "length": "86-5/8",
+          "cost": 7.87,
+          "sqft_box": 31.26,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Monet",
+      "collection": "Tableau",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "tableau-monet",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Tableau_Spec_Sheet_rev12Aug2024_f3122d81-49c2-41e4-a320-263a173e217a.pdf?v=1755560620",
+      "skus": [
+        {
+          "vendor_sku": "MONH58858TMN",
+          "internal_sku": "MON-tableau-monet",
+          "variant_name": "8-5/8\"",
+          "color": "Monet",
+          "collection": "Tableau",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "8-5/8",
+          "size": "5/8\" x 8-5/8\"",
+          "length": "86-5/8",
+          "cost": 7.87,
+          "sqft_box": 31.26,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Renoir",
+      "collection": "Tableau",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "tableau-renoir",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Tableau_Spec_Sheet_rev12Aug2024_f3122d81-49c2-41e4-a320-263a173e217a.pdf?v=1755560620",
+      "skus": [
+        {
+          "vendor_sku": "MONH58858TRR",
+          "internal_sku": "MON-tableau-renoir",
+          "variant_name": "8-5/8\"",
+          "color": "Renoir",
+          "collection": "Tableau",
+          "species": "European Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Wire brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "8-5/8",
+          "size": "5/8\" x 8-5/8\"",
+          "length": "86-5/8",
+          "cost": 7.87,
+          "sqft_box": 31.26,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Tamo Raw Look",
+      "collection": "Hokkaido",
+      "species": "Tamo (Japanese Ash)",
+      "status": "active",
+      "handle": "hokkaido-tamo-raw-look",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Hokkaido_Spec_Sheet_rev0626.pdf?v=1780918696",
+      "skus": [
+        {
+          "vendor_sku": "MON5875HJAR",
+          "internal_sku": "MON-hokkaido-tamo-raw-look",
+          "variant_name": "7-1/2\"",
+          "color": "Tamo Raw Look",
+          "collection": "Hokkaido",
+          "species": "Tamo (Japanese Ash)",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "23\"-75",
+          "cost": 7.52,
+          "sqft_box": 23.31,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Kuri Smoked",
+      "collection": "Hokkaido",
+      "species": "Kuri (Japanese Chestnut)",
+      "status": "active",
+      "handle": "hokkaido-kuri-smoked",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Hokkaido_Spec_Sheet_rev0626.pdf?v=1780918696",
+      "skus": [
+        {
+          "vendor_sku": "MON5875HJCS",
+          "internal_sku": "MON-hokkaido-kuri-smoked",
+          "variant_name": "7-1/2\"",
+          "color": "Kuri Smoked",
+          "collection": "Hokkaido",
+          "species": "Kuri (Japanese Chestnut)",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "23\"-75",
+          "cost": 7.52,
+          "sqft_box": 23.31,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Nara Light Smoked",
+      "collection": "Hokkaido",
+      "species": "Nara (Japanese Oak)",
+      "status": "active",
+      "handle": "hokkaido-nara-light-smoked",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Hokkaido_Spec_Sheet_rev0626.pdf?v=1780918696",
+      "skus": [
+        {
+          "vendor_sku": "MON5875HJONLS",
+          "internal_sku": "MON-hokkaido-nara-light-smoked",
+          "variant_name": "7-1/2\"",
+          "color": "Nara Light Smoked",
+          "collection": "Hokkaido",
+          "species": "Nara (Japanese Oak)",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "23\"-75",
+          "cost": 7.52,
+          "sqft_box": 23.31,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Nara Smoked",
+      "collection": "Hokkaido",
+      "species": "Nara (Japanese Oak)",
+      "status": "active",
+      "handle": "hokkaido-nara-smoked",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Hokkaido_Spec_Sheet_rev0626.pdf?v=1780918696",
+      "skus": [
+        {
+          "vendor_sku": "MON5875HJONS",
+          "internal_sku": "MON-hokkaido-nara-smoked",
+          "variant_name": "7-1/2\"",
+          "color": "Nara Smoked",
+          "collection": "Hokkaido",
+          "species": "Nara (Japanese Oak)",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "23\"-75",
+          "cost": 7.52,
+          "sqft_box": 23.31,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Nara Raw Look",
+      "collection": "Hokkaido",
+      "species": "Nara (Japanese Oak)",
+      "status": "active",
+      "handle": "hokkaido-nara-raw-look",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Hokkaido_Spec_Sheet_rev0626.pdf?v=1780918696",
+      "skus": [
+        {
+          "vendor_sku": "MON5875HJONR",
+          "internal_sku": "MON-hokkaido-nara-raw-look",
+          "variant_name": "7-1/2\"",
+          "color": "Nara Raw Look",
+          "collection": "Hokkaido",
+          "species": "Nara (Japanese Oak)",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "23\"-75",
+          "cost": 7.52,
+          "sqft_box": 23.31,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Nara Natural",
+      "collection": "Hokkaido",
+      "species": "Nara (Japanese Oak)",
+      "status": "active",
+      "handle": "hokkaido-nara-natural",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Hokkaido_Spec_Sheet_rev0626.pdf?v=1780918696",
+      "skus": [
+        {
+          "vendor_sku": "MON5875HJONN",
+          "internal_sku": "MON-hokkaido-nara-natural",
+          "variant_name": "7-1/2\"",
+          "color": "Nara Natural",
+          "collection": "Hokkaido",
+          "species": "Nara (Japanese Oak)",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "23\"-75",
+          "cost": 7.52,
+          "sqft_box": 23.31,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Vento",
+      "collection": "Premio",
+      "species": "Red Oak",
+      "status": "draft",
+      "handle": "premio-vento",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Premio_Spec_Sheet_rev0526.pdf?v=1781546441",
+      "skus": [
+        {
+          "vendor_sku": "MON5865PRVT",
+          "internal_sku": "MON-premio-vento",
+          "variant_name": "6-1/2\"",
+          "color": "Vento",
+          "collection": "Premio",
+          "species": "Red Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "6-1/2",
+          "size": "5/8\" x 6-1/2\"",
+          "length": "Random 23\"-86",
+          "cost": null,
+          "sqft_box": 23.44,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Duna",
+      "collection": "Premio",
+      "species": "Red Oak",
+      "status": "draft",
+      "handle": "premio-duna",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Premio_Spec_Sheet_rev0526.pdf?v=1781546441",
+      "skus": [
+        {
+          "vendor_sku": "MON5865PRDU",
+          "internal_sku": "MON-premio-duna",
+          "variant_name": "6-1/2\"",
+          "color": "Duna",
+          "collection": "Premio",
+          "species": "Red Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "6-1/2",
+          "size": "5/8\" x 6-1/2\"",
+          "length": "Random 23\"-86",
+          "cost": null,
+          "sqft_box": 23.44,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Vista",
+      "collection": "Premio",
+      "species": "Red Oak",
+      "status": "draft",
+      "handle": "premio-vista",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Premio_Spec_Sheet_rev0526.pdf?v=1781546441",
+      "skus": [
+        {
+          "vendor_sku": "MON5875PRVS",
+          "internal_sku": "MON-premio-vista",
+          "variant_name": "7-1/2\"",
+          "color": "Vista",
+          "collection": "Premio",
+          "species": "Red Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "Random 23\"-86",
+          "cost": null,
+          "sqft_box": 27,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Cielo",
+      "collection": "Premio",
+      "species": "Red Oak",
+      "status": "draft",
+      "handle": "premio-cielo",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Premio_Spec_Sheet_rev0526.pdf?v=1781546441",
+      "skus": [
+        {
+          "vendor_sku": "MON5875PRCL",
+          "internal_sku": "MON-premio-cielo",
+          "variant_name": "7-1/2\"",
+          "color": "Cielo",
+          "collection": "Premio",
+          "species": "Red Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "Random 23\"-86",
+          "cost": null,
+          "sqft_box": 27,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Bella",
+      "collection": "Premio",
+      "species": "Red Oak",
+      "status": "draft",
+      "handle": "premio-bella",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Premio_Spec_Sheet_rev0526.pdf?v=1781546441",
+      "skus": [
+        {
+          "vendor_sku": "MON5875PRBL",
+          "internal_sku": "MON-premio-bella",
+          "variant_name": "7-1/2\"",
+          "color": "Bella",
+          "collection": "Premio",
+          "species": "Red Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "Random 23\"-86",
+          "cost": null,
+          "sqft_box": 27,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Aria",
+      "collection": "Premio",
+      "species": "Red Oak",
+      "status": "draft",
+      "handle": "premio-aria",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Premio_Spec_Sheet_rev0526.pdf?v=1781546441",
+      "skus": [
+        {
+          "vendor_sku": "MON5865PRAR",
+          "internal_sku": "MON-premio-aria",
+          "variant_name": "6-1/2\"",
+          "color": "Aria",
+          "collection": "Premio",
+          "species": "Red Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "6-1/2",
+          "size": "5/8\" x 6-1/2\"",
+          "length": "Random 23\"-86",
+          "cost": null,
+          "sqft_box": 23.44,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Veranda",
+      "collection": "Premio",
+      "species": "Red Oak",
+      "status": "draft",
+      "handle": "premio-veranda",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Premio_Spec_Sheet_rev0526.pdf?v=1781546441",
+      "skus": [
+        {
+          "vendor_sku": "MON5875PRVR",
+          "internal_sku": "MON-premio-veranda",
+          "variant_name": "7-1/2\"",
+          "color": "Veranda",
+          "collection": "Premio",
+          "species": "Red Oak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": null,
+          "wear_layer": "4 mm Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/2",
+          "size": "5/8\" x 7-1/2\"",
+          "length": "Random 23\"-86",
+          "cost": null,
+          "sqft_box": 27,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Maple Select",
+      "collection": "Vinland",
+      "species": "Maple",
+      "status": "active",
+      "handle": "vinland-maple-select",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_Spec_Sheet_rev0626.pdf?v=1780921456",
+      "skus": [
+        {
+          "vendor_sku": "MONVL586SEM",
+          "internal_sku": "MON-vinland-maple-select",
+          "variant_name": "6\"",
+          "color": "Maple Select",
+          "collection": "Vinland",
+          "species": "Maple",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Select",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "6",
+          "size": "5/8\" x 6\"",
+          "length": "24\"-94.5",
+          "cost": 8.86,
+          "sqft_box": 23.62,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Hickory Select",
+      "collection": "Vinland",
+      "species": "Hickory",
+      "status": "active",
+      "handle": "vinland-hickory-select",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_Spec_Sheet_rev0626.pdf?v=1780921456",
+      "skus": [
+        {
+          "vendor_sku": "MONVL586SEH",
+          "internal_sku": "MON-vinland-hickory-select",
+          "variant_name": "6\"",
+          "color": "Hickory Select",
+          "collection": "Vinland",
+          "species": "Hickory",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Select",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "6",
+          "size": "5/8\" x 6\"",
+          "length": "24\"-94.5",
+          "cost": 8.86,
+          "sqft_box": 23.62,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Red Oak Select",
+      "collection": "Vinland",
+      "species": "Red Oak",
+      "status": "active",
+      "handle": "vinland-red-oak-select",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_Spec_Sheet_rev0626.pdf?v=1780921456",
+      "skus": [
+        {
+          "vendor_sku": "MONVL586SERO",
+          "internal_sku": "MON-vinland-red-oak-select",
+          "variant_name": "6\"",
+          "color": "Red Oak Select",
+          "collection": "Vinland",
+          "species": "Red Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Select",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "6",
+          "size": "5/8\" x 6\"",
+          "length": "24\"-94.5",
+          "cost": 8.86,
+          "sqft_box": 23.62,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Walnut Light Rustic",
+      "collection": "Vinland",
+      "species": "Walnut",
+      "status": "active",
+      "handle": "vinland-walnut-light-rustic",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_Spec_Sheet_rev0626.pdf?v=1780921456",
+      "skus": [
+        {
+          "vendor_sku": "MONVL587LRW",
+          "internal_sku": "MON-vinland-walnut-light-rustic",
+          "variant_name": "7\"",
+          "color": "Walnut Light Rustic",
+          "collection": "Vinland",
+          "species": "Walnut",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Light Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7",
+          "size": "5/8\" x 7\"",
+          "length": "24\"-94.5",
+          "cost": 9.19,
+          "sqft_box": 27.56,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Maple Light Rustic",
+      "collection": "Vinland",
+      "species": "Maple",
+      "status": "active",
+      "handle": "vinland-maple-light-rustic",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_Spec_Sheet_rev0626.pdf?v=1780921456",
+      "skus": [
+        {
+          "vendor_sku": "MONVL587LRM",
+          "internal_sku": "MON-vinland-maple-light-rustic",
+          "variant_name": "7\"",
+          "color": "Maple Light Rustic",
+          "collection": "Vinland",
+          "species": "Maple",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Light Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7",
+          "size": "5/8\" x 7\"",
+          "length": "24\"-94.5",
+          "cost": 9.19,
+          "sqft_box": 27.56,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Hickory Light Rustic",
+      "collection": "Vinland",
+      "species": "Hickory",
+      "status": "active",
+      "handle": "vinland-hickory-light-rustic",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_Spec_Sheet_rev0626.pdf?v=1780921456",
+      "skus": [
+        {
+          "vendor_sku": "MONVL587LRH",
+          "internal_sku": "MON-vinland-hickory-light-rustic",
+          "variant_name": "7\"",
+          "color": "Hickory Light Rustic",
+          "collection": "Vinland",
+          "species": "Hickory",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Light Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7",
+          "size": "5/8\" x 7\"",
+          "length": "24\"-94.5",
+          "cost": 9.19,
+          "sqft_box": 27.56,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Red Oak Light Rustic",
+      "collection": "Vinland",
+      "species": "Red Oak",
+      "status": "active",
+      "handle": "vinland-red-oak-light-rustic",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_Spec_Sheet_rev0626.pdf?v=1780921456",
+      "skus": [
+        {
+          "vendor_sku": "MONVL587LRRO",
+          "internal_sku": "MON-vinland-red-oak-light-rustic",
+          "variant_name": "7\"",
+          "color": "Red Oak Light Rustic",
+          "collection": "Vinland",
+          "species": "Red Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Light Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7",
+          "size": "5/8\" x 7\"",
+          "length": "24\"-94.5",
+          "cost": 9.19,
+          "sqft_box": 27.56,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Walnut Select",
+      "collection": "Vinland",
+      "species": "Walnut",
+      "status": "active",
+      "handle": "vinland-walnut-select",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_Spec_Sheet_rev0626.pdf?v=1780921456",
+      "skus": [
+        {
+          "vendor_sku": "MONVL586SEW",
+          "internal_sku": "MON-vinland-walnut-select",
+          "variant_name": "6\"",
+          "color": "Walnut Select",
+          "collection": "Vinland",
+          "species": "Walnut",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Select",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "6",
+          "size": "5/8\" x 6\"",
+          "length": "24\"-94.5",
+          "cost": 8.86,
+          "sqft_box": 23.62,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "White Oak Light Rustic",
+      "collection": "Vinland",
+      "species": "White Oak",
+      "status": "active",
+      "handle": "vinland-white-oak-light-rustic",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_Spec_Sheet_rev0626.pdf?v=1780921456",
+      "skus": [
+        {
+          "vendor_sku": "MONVL587LRWO",
+          "internal_sku": "MON-vinland-white-oak-light-rustic",
+          "variant_name": "7\"",
+          "color": "White Oak Light Rustic",
+          "collection": "Vinland",
+          "species": "White Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Light Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7",
+          "size": "5/8\" x 7\"",
+          "length": "24\"-94.5",
+          "cost": 9.19,
+          "sqft_box": 27.56,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "White Oak Select",
+      "collection": "Vinland",
+      "species": "White Oak",
+      "status": "active",
+      "handle": "vinland-white-oak-select",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_Spec_Sheet_rev0626.pdf?v=1780921456",
+      "skus": [
+        {
+          "vendor_sku": "MONVL586SEWO",
+          "internal_sku": "MON-vinland-white-oak-select",
+          "variant_name": "6\"",
+          "color": "White Oak Select",
+          "collection": "Vinland",
+          "species": "White Oak",
+          "finish": "Bona® UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Select",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "6",
+          "size": "5/8\" x 6\"",
+          "length": "24\"-94.5",
+          "cost": 8.86,
+          "sqft_box": 23.62,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Bleached Light Rustic",
+      "collection": "True Teak",
+      "species": "Teak",
+      "status": "draft",
+      "handle": "true-teak-bleached-light-rustic",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/True_Teak_Spec_Sheet_rev0626.pdf?v=1781546598",
+      "skus": [
+        {
+          "vendor_sku": "MON58714TT3LRB",
+          "internal_sku": "MON-true-teak-bleached-light-rustic",
+          "variant_name": "7-1/4\"",
+          "color": "Bleached Light Rustic",
+          "collection": "True Teak",
+          "species": "Teak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Light Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/4",
+          "size": "5/8\" x 7-1/4\"",
+          "length": "23-1/2\"-82-1/2",
+          "cost": null,
+          "sqft_box": 20.91,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Natural Light Rustic",
+      "collection": "True Teak",
+      "species": "Teak",
+      "status": "draft",
+      "handle": "true-teak-natural-light-rustic",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/True_Teak_Spec_Sheet_rev0626.pdf?v=1781546598",
+      "skus": [
+        {
+          "vendor_sku": "MON58714TT3LRN",
+          "internal_sku": "MON-true-teak-natural-light-rustic",
+          "variant_name": "7-1/4\"",
+          "color": "Natural Light Rustic",
+          "collection": "True Teak",
+          "species": "Teak",
+          "finish": "UV Urethane",
+          "surface_texture": "Smooth",
+          "construction": "engineered",
+          "grade": "Light Rustic",
+          "edge": null,
+          "wear_layer": "4 mm Dry-Sawn Top Layer",
+          "thickness": "5/8",
+          "width": "7-1/4",
+          "size": "5/8\" x 7-1/4\"",
+          "length": "23-1/2\"-82-1/2",
+          "cost": null,
+          "sqft_box": 20.91,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Belviso",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-belviso",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9167LEOBV",
+          "internal_sku": "MON-lago-belviso",
+          "variant_name": "7\"",
+          "color": "Belviso",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "7",
+          "size": "9/16\" x 7\"",
+          "length": "Random 23\"-86",
+          "cost": 6.31,
+          "sqft_box": 24.99,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Devero Herringbone",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-devero-herringbone",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9164LEODVHB",
+          "internal_sku": "MON-lago-devero-herringbone",
+          "variant_name": "4-3/8\"",
+          "color": "Devero Herringbone",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "4-3/8",
+          "size": "9/16\" x 4-3/8\"",
+          "length": "26",
+          "cost": 7.03,
+          "sqft_box": 4.69,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Como Herringbone",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-como-herringbone",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9167LEOCMHB",
+          "internal_sku": "MON-lago-como-herringbone",
+          "variant_name": "4-3/8\"",
+          "color": "Como Herringbone",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "4-3/8",
+          "size": "9/16\" x 4-3/8\"",
+          "length": "26",
+          "cost": 7.03,
+          "sqft_box": 4.69,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Como",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-como",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9167LEOCM",
+          "internal_sku": "MON-lago-como",
+          "variant_name": "7\"",
+          "color": "Como",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "7",
+          "size": "9/16\" x 7\"",
+          "length": "Random 23\"-86",
+          "cost": 6.31,
+          "sqft_box": 24.99,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Devero",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-devero",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9167LEODV",
+          "internal_sku": "MON-lago-devero",
+          "variant_name": "7\"",
+          "color": "Devero",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "7",
+          "size": "9/16\" x 7\"",
+          "length": "Random 23\"-86",
+          "cost": 6.31,
+          "sqft_box": 24.99,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Ampola Herringbone",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-ampola-herringbone",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9164LEOAPHB",
+          "internal_sku": "MON-lago-ampola-herringbone",
+          "variant_name": "4-3/8\"",
+          "color": "Ampola Herringbone",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "4-3/8",
+          "size": "9/16\" x 4-3/8\"",
+          "length": "26",
+          "cost": 7.03,
+          "sqft_box": 4.69,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Bolsena Herringbone",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-bolsena-herringbone",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9164LEOBLHB",
+          "internal_sku": "MON-lago-bolsena-herringbone",
+          "variant_name": "4-3/8\"",
+          "color": "Bolsena Herringbone",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "4-3/8",
+          "size": "9/16\" x 4-3/8\"",
+          "length": "26",
+          "cost": 7.03,
+          "sqft_box": 4.69,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Bolsena",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-bolsena",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9167LEOBL",
+          "internal_sku": "MON-lago-bolsena",
+          "variant_name": "7\"",
+          "color": "Bolsena",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "7",
+          "size": "9/16\" x 7\"",
+          "length": "Random 23\"-86",
+          "cost": 6.31,
+          "sqft_box": 24.99,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Ampola",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-ampola",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9167LEOAP",
+          "internal_sku": "MON-lago-ampola",
+          "variant_name": "7\"",
+          "color": "Ampola",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "7",
+          "size": "9/16\" x 7\"",
+          "length": "Random 23\"-86",
+          "cost": 6.31,
+          "sqft_box": 24.99,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Moro Herringbone",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-moro-herringbone",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9167LEOMRHB",
+          "internal_sku": "MON-lago-moro-herringbone",
+          "variant_name": "4-3/8\"",
+          "color": "Moro Herringbone",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "4-3/8",
+          "size": "9/16\" x 4-3/8\"",
+          "length": "26",
+          "cost": 7.03,
+          "sqft_box": 4.69,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Belviso Herringbone",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-belviso-herringbone",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9167LEOBVHB",
+          "internal_sku": "MON-lago-belviso-herringbone",
+          "variant_name": "4-3/8\"",
+          "color": "Belviso Herringbone",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "4-3/8",
+          "size": "9/16\" x 4-3/8\"",
+          "length": "26",
+          "cost": 7.03,
+          "sqft_box": 4.69,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Moro",
+      "collection": "Lago",
+      "species": "European Oak",
+      "status": "active",
+      "handle": "lago-moro",
+      "spec_pdf": "https://cdn.shopify.com/s/files/1/2720/0826/files/Lago_Spec_Sheet_rev0626.pdf?v=1781545563",
+      "skus": [
+        {
+          "vendor_sku": "MONC9167LEOMR",
+          "internal_sku": "MON-lago-moro",
+          "variant_name": "7\"",
+          "color": "Moro",
+          "collection": "Lago",
+          "species": "European Oak",
+          "finish": "UV Urethane Finish",
+          "surface_texture": "Wire-brushed",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": null,
+          "wear_layer": "3 mm Sawn Top Layer",
+          "thickness": "9/16",
+          "width": "7",
+          "size": "9/16\" x 7\"",
+          "length": "Random 23\"-86",
+          "cost": 6.31,
+          "sqft_box": 24.99,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "French Oak: Prime Grade",
+      "collection": "Unfinished",
+      "species": "French Oak (European Oak)",
+      "status": "draft",
+      "handle": "prime-european-oak",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": null,
+          "internal_sku": "MON-unfinished-french-oak-prime-grade",
+          "variant_name": "Plank",
+          "color": "French Oak: Prime Grade",
+          "collection": "Unfinished",
+          "species": "French Oak (European Oak)",
+          "finish": "Unfinished",
+          "surface_texture": "Smooth (pre-sanded, precision-milled)",
+          "construction": "engineered",
+          "grade": "Prime",
+          "edge": "Square",
+          "wear_layer": null,
+          "thickness": "",
+          "width": "",
+          "size": "",
+          "length": null,
+          "cost": null,
+          "sqft_box": null,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Walnut: Rustic Grade",
+      "collection": "Unfinished",
+      "species": "American Walnut",
+      "status": "draft",
+      "handle": "rustic-walnut-1",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": null,
+          "internal_sku": "MON-unfinished-walnut-rustic-grade",
+          "variant_name": "Plank",
+          "color": "Walnut: Rustic Grade",
+          "collection": "Unfinished",
+          "species": "American Walnut",
+          "finish": "Unfinished",
+          "surface_texture": "Smooth (pre-sanded, precision-milled)",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": "Square",
+          "wear_layer": null,
+          "thickness": "",
+          "width": "",
+          "size": "",
+          "length": null,
+          "cost": null,
+          "sqft_box": null,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "French Oak: Herringbone",
+      "collection": "Unfinished",
+      "species": "French Oak (European Oak)",
+      "status": "draft",
+      "handle": "french-oak-herringbone",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": null,
+          "internal_sku": "MON-unfinished-french-oak-herringbone",
+          "variant_name": "Plank",
+          "color": "French Oak: Herringbone",
+          "collection": "Unfinished",
+          "species": "French Oak (European Oak)",
+          "finish": "Unfinished",
+          "surface_texture": "Smooth (pre-sanded, precision-milled)",
+          "construction": "engineered",
+          "grade": "Rustic (also avail. Prime)",
+          "edge": "Square (beveling by request)",
+          "wear_layer": null,
+          "thickness": "",
+          "width": "",
+          "size": "",
+          "length": null,
+          "cost": null,
+          "sqft_box": null,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "French Oak: Rustic Grade",
+      "collection": "Unfinished",
+      "species": "French Oak (European Oak)",
+      "status": "draft",
+      "handle": "french-oak-rustic-grade",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": null,
+          "internal_sku": "MON-unfinished-french-oak-rustic-grade",
+          "variant_name": "Plank",
+          "color": "French Oak: Rustic Grade",
+          "collection": "Unfinished",
+          "species": "French Oak (European Oak)",
+          "finish": "Unfinished",
+          "surface_texture": "Smooth (pre-sanded, precision-milled)",
+          "construction": "engineered",
+          "grade": "Rustic",
+          "edge": "Square",
+          "wear_layer": null,
+          "thickness": "",
+          "width": "",
+          "size": "",
+          "length": null,
+          "cost": null,
+          "sqft_box": null,
+          "status": "draft"
+        }
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "itemCode": "MONAPSNW7DF1296",
+      "cost": 33.95,
+      "name": "Stair Nosing Euro Oak Unf 1/2\" X 3-1/2\" X 94.5\" 7-Day Fumed",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONSQSN96D2LO2",
+      "cost": 169,
+      "name": "Square Stairnose European Oak Lorraine 96-1/2\"",
+      "type": "Stair Nose",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-lorraine"
+      ],
+      "color": "Lorraine"
+    },
+    {
+      "itemCode": "MONAPSN34WR144",
+      "cost": 129.99,
+      "name": "Sq Stair Nosing Rustic Euro Oak 4mm Radius 3/4\" X 5-1/2\" X 12'",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONAPSN34WR96",
+      "cost": 79,
+      "name": "Sq Stair Nosing Rustic Euro Oak 4mm Radius 3/4\" X 5-1/2\" X 8'",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONAPSN58WP96",
+      "cost": 129,
+      "name": "Sq Stair Nosing Prime Euro Oak 4mm Radius 5/8\" X 5-1/2\" X 8'",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONAPSN58WR96",
+      "cost": 79,
+      "name": "Sq Stair Nosing Rustic Euro Oak 4mm Radius 5/8\" X 5-1/2\" X 8'",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTH96D2LO",
+      "cost": 99,
+      "name": "End Cap/Threshold European Oak Lorraine 96-1/2\"",
+      "type": "End Cap / Threshold",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-lorraine"
+      ],
+      "color": "Lorraine"
+    },
+    {
+      "itemCode": "MONFTH96D2VT",
+      "cost": 99,
+      "name": "End Cap/Threshold European Oak Verte 96-1/2\"",
+      "type": "End Cap / Threshold",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-verte-herringbone",
+        "MON-domaine-ii-verte"
+      ],
+      "color": "Verte"
+    },
+    {
+      "itemCode": "MONAPSNW7DF1242",
+      "cost": null,
+      "name": "Stair Nosing Euro Oak Unf 1/2\" X 3-1/2\" X 42\" 7-Day Fumed",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONST96D2LO2",
+      "cost": 479,
+      "name": "Tread European Oak Lorraine 96-1/2\"",
+      "type": "Stair Tread",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-lorraine"
+      ],
+      "color": "Lorraine"
+    },
+    {
+      "itemCode": "MONFTM96D2AE",
+      "cost": 89,
+      "name": "T-Mold European Oak Allier 96-1/2\"",
+      "type": "T-Molding",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-allier-herringbone",
+        "MON-domaine-ii-allier"
+      ],
+      "color": "Allier"
+    },
+    {
+      "itemCode": "MONFTM96D2MC",
+      "cost": 89,
+      "name": "T-Mold European Oak Montrichard 96-1/2\"",
+      "type": "T-Molding",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-montrichard-herringbone",
+        "MON-domaine-ii-montrichard"
+      ],
+      "color": "Montrichard"
+    },
+    {
+      "itemCode": "MONAPSNW12847D",
+      "cost": 75,
+      "name": "Sq Stair Nosing Eased Euro Oak Unf 1/2\" X 3-1/2\" X 84\" 7-Day Fume",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONRR96D2AE",
+      "cost": 89,
+      "name": "Reducer European Oak Allier 96-1/2\"",
+      "type": "Reducer",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-allier-herringbone",
+        "MON-domaine-ii-allier"
+      ],
+      "color": "Allier"
+    },
+    {
+      "itemCode": "MONRR96D2RZ",
+      "cost": 89,
+      "name": "Reducer European Oak Retz 96-1/2\"",
+      "type": "Reducer",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-retz-herringbone",
+        "MON-domaine-ii-retz"
+      ],
+      "color": "Retz"
+    },
+    {
+      "itemCode": "MONRR96D2VT",
+      "cost": 89,
+      "name": "Reducer European Oak Verte 96-1/2\"",
+      "type": "Reducer",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-verte-herringbone",
+        "MON-domaine-ii-verte"
+      ],
+      "color": "Verte"
+    },
+    {
+      "itemCode": "MONFTH96REMG8",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Margaret 96\"",
+      "type": "End Cap / Threshold",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-margaret"
+      ],
+      "color": "Margaret"
+    },
+    {
+      "itemCode": "MONAPRD58WP78",
+      "cost": 15,
+      "name": "Reducer Euro Oak Prime Unfinished 5/8\" X 2\" X 78\"",
+      "type": "Reducer",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONAPSTWP144",
+      "cost": 329,
+      "name": "Sq Tread Prime Euro Oak 4mm Radius Unf 1\" X 11-3/4\" X 12'",
+      "type": "Stair Tread",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONAPSTWP48",
+      "cost": 95,
+      "name": "Sq Tread Prime Euro Oak 4mm Radius 1\" X 11-3/4\" X 48\"",
+      "type": "Stair Tread",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONAPSTWP96",
+      "cost": 200,
+      "name": "Sq Tread Prime Euro Oak 4mm Radius 1\" X 11-3/4\" X 8'",
+      "type": "Stair Tread",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONSQSN96DVFL",
+      "cost": 139,
+      "name": "Square Stairnose European Oak Foxley 96\"",
+      "type": "Stair Nose",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-foxley"
+      ],
+      "color": "Foxley"
+    },
+    {
+      "itemCode": "MONSQSN86PRCL",
+      "cost": 149,
+      "name": "Square Stairnose Red Oak Cielo 86\"",
+      "type": "Stair Nose",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-cielo"
+      ],
+      "color": "Cielo"
+    },
+    {
+      "itemCode": "MONSQSN86PRAR",
+      "cost": 149,
+      "name": "Square Stairnose Red Oak Aria 86\"",
+      "type": "Stair Nose",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-aria"
+      ],
+      "color": "Aria"
+    },
+    {
+      "itemCode": "MONSQSN86LEOAP",
+      "cost": 189,
+      "name": "Square Stairnose European Oak Ampola 86\"",
+      "type": "Stair Nose",
+      "collection": "Lago",
+      "plank_internal_skus": [
+        "MON-lago-ampola-herringbone",
+        "MON-lago-ampola"
+      ],
+      "color": "Ampola"
+    },
+    {
+      "itemCode": "MONRR75HJONR",
+      "cost": 49,
+      "name": "Reducer Japanese Oak Raw Look 75\"",
+      "type": "Reducer",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-nara-raw-look"
+      ],
+      "color": "Nara Raw Look"
+    },
+    {
+      "itemCode": "MONSQSN118LATH",
+      "cost": 179,
+      "name": "Square Stairnose European Oak Thyon 118\"",
+      "type": "Stair Nose",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-thyon"
+      ],
+      "color": "Thyon"
+    },
+    {
+      "itemCode": "MONAPTMWP78",
+      "cost": 16,
+      "name": "T-Mold Euro Oak Prime Unfinished 5/8\" X 2\" X 78\"",
+      "type": "T-Molding",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTM96VPA",
+      "cost": 69,
+      "name": "T-Mold European Oak Panna 96\"",
+      "type": "T-Molding",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTM96MWF",
+      "cost": 69,
+      "name": "T-Mold European Oak Welford 96\"",
+      "type": "T-Molding",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTM96MBR",
+      "cost": 69,
+      "name": "T-Mold European Oak Barnsley 96\"",
+      "type": "T-Molding",
+      "collection": "Manor",
+      "plank_internal_skus": [
+        "MON-manor-barnsley"
+      ],
+      "color": "Barnsley"
+    },
+    {
+      "itemCode": "MONFTM96DVLG",
+      "cost": 59,
+      "name": "T-Mold European Oak Langdon 96\"",
+      "type": "T-Molding",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-langdon"
+      ],
+      "color": "Langdon"
+    },
+    {
+      "itemCode": "MONFTM96DVFL",
+      "cost": 59,
+      "name": "T-Mold European Oak Foxley 96\"",
+      "type": "T-Molding",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-foxley"
+      ],
+      "color": "Foxley"
+    },
+    {
+      "itemCode": "MONFTM86PRVS",
+      "cost": 59,
+      "name": "T-Mold Red Oak Vista 86\"",
+      "type": "T-Molding",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-vista"
+      ],
+      "color": "Vista"
+    },
+    {
+      "itemCode": "MONFTM86PRVR",
+      "cost": 59,
+      "name": "T-Mold Red Oak Veranda 86\"",
+      "type": "T-Molding",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-veranda"
+      ],
+      "color": "Veranda"
+    },
+    {
+      "itemCode": "MONFTM86PRAR",
+      "cost": 59,
+      "name": "T-Mold Red Oak Aria 86\"",
+      "type": "T-Molding",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-aria"
+      ],
+      "color": "Aria"
+    },
+    {
+      "itemCode": "MONFTM86LEOCM",
+      "cost": 59,
+      "name": "T-Mold European Oak Como 86\"",
+      "type": "T-Molding",
+      "collection": "Lago",
+      "plank_internal_skus": [
+        "MON-lago-como-herringbone",
+        "MON-lago-como"
+      ],
+      "color": "Como"
+    },
+    {
+      "itemCode": "MONFTM86LEOAP",
+      "cost": 59,
+      "name": "T-Mold European Oak Ampola 86\"",
+      "type": "T-Molding",
+      "collection": "Lago",
+      "plank_internal_skus": [
+        "MON-lago-ampola-herringbone",
+        "MON-lago-ampola"
+      ],
+      "color": "Ampola"
+    },
+    {
+      "itemCode": "MONFTM84REIS",
+      "cost": 69,
+      "name": "T-Mold European Oak Isabella 84\"",
+      "type": "T-Molding",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-isabella"
+      ],
+      "color": "Isabella"
+    },
+    {
+      "itemCode": "MONFTM84RECL",
+      "cost": 69,
+      "name": "T-Mold European Oak Carolina 84\"",
+      "type": "T-Molding",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-carolina"
+      ],
+      "color": "Carolina"
+    },
+    {
+      "itemCode": "MONFTM75HJONN",
+      "cost": 49,
+      "name": "T-Mold Japanese Oak Natural 75\"",
+      "type": "T-Molding",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-nara-natural"
+      ],
+      "color": "Nara Natural"
+    },
+    {
+      "itemCode": "MONST96VNB2",
+      "cost": 449,
+      "name": "Tread European Oak Nebbia 96\"",
+      "type": "Stair Tread",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-nebbia",
+        "MON-domaine-ii-nebbia-herringbone"
+      ],
+      "color": "Nebbia"
+    },
+    {
+      "itemCode": "MONST96VCP2",
+      "cost": 449,
+      "name": "Tread European Oak Campo 96\"",
+      "type": "Stair Tread",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONST96MAL2",
+      "cost": 449,
+      "name": "Tread European Oak Aldin 96\"",
+      "type": "Stair Tread",
+      "collection": "Manor",
+      "plank_internal_skus": [
+        "MON-manor-aldin"
+      ],
+      "color": "Aldin"
+    },
+    {
+      "itemCode": "MONRR96REMG8",
+      "cost": 69,
+      "name": "Reducer European Oak Margaret 96\"",
+      "type": "Reducer",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-margaret"
+      ],
+      "color": "Margaret"
+    },
+    {
+      "itemCode": "MONRR96REJU8",
+      "cost": 69,
+      "name": "Reducer European Oak Juliana 96\"",
+      "type": "Reducer",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-juliana"
+      ],
+      "color": "Juliana"
+    },
+    {
+      "itemCode": "MONRR96REEL8",
+      "cost": 69,
+      "name": "Reducer European Oak Eleanor 96\"",
+      "type": "Reducer",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-eleanor"
+      ],
+      "color": "Eleanor"
+    },
+    {
+      "itemCode": "MONSQSN75HJAR",
+      "cost": 149,
+      "name": "Square Stairnose Japanese Ash Raw Look 75\"",
+      "type": "Stair Nose",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-tamo-raw-look"
+      ],
+      "color": "Tamo Raw Look"
+    },
+    {
+      "itemCode": "MONFTM86TCZ",
+      "cost": 69,
+      "name": "T-Mold European Oak Cezanne 86\"",
+      "type": "T-Molding",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-cezanne"
+      ],
+      "color": "Cezanne"
+    },
+    {
+      "itemCode": "MONFTM86TCS",
+      "cost": 69,
+      "name": "T-Mold European Oak Cassatt 86\"",
+      "type": "T-Molding",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-cassatt"
+      ],
+      "color": "Cassatt"
+    },
+    {
+      "itemCode": "MONFTM118LAVN",
+      "cost": 89,
+      "name": "T-Mold European Oak Venosta 118\"",
+      "type": "T-Molding",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-venosta"
+      ],
+      "color": "Venosta"
+    },
+    {
+      "itemCode": "MONFTM118LALM",
+      "cost": 89,
+      "name": "T-Mold European Oak Lumiere 118\"",
+      "type": "T-Molding",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-lumiere"
+      ],
+      "color": "Lumiere"
+    },
+    {
+      "itemCode": "MONST86TMS2",
+      "cost": 399,
+      "name": "Tread European Oak Matisse 86\"",
+      "type": "Stair Tread",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-matisse"
+      ],
+      "color": "Matisse"
+    },
+    {
+      "itemCode": "MONST86TLT2",
+      "cost": 399,
+      "name": "Tread European Oak Latour 86\"",
+      "type": "Stair Tread",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-latour"
+      ],
+      "color": "Latour"
+    },
+    {
+      "itemCode": "MONST86TCZ2",
+      "cost": 399,
+      "name": "Tread European Oak Cezanne 86\"",
+      "type": "Stair Tread",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-cezanne"
+      ],
+      "color": "Cezanne"
+    },
+    {
+      "itemCode": "MONST86TCS2",
+      "cost": 399,
+      "name": "Tread European Oak Cassatt 86\"",
+      "type": "Stair Tread",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-cassatt"
+      ],
+      "color": "Cassatt"
+    },
+    {
+      "itemCode": "MONST86TBZ2",
+      "cost": 399,
+      "name": "Tread European Oak Bazille 86\"",
+      "type": "Stair Tread",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-bazille"
+      ],
+      "color": "Bazille"
+    },
+    {
+      "itemCode": "MONFTM75HJONLS",
+      "cost": 49,
+      "name": "T-Mold Japanese Oak Light Smoked 75\"",
+      "type": "T-Molding",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-nara-light-smoked"
+      ],
+      "color": "Nara Light Smoked"
+    },
+    {
+      "itemCode": "MONFTM75HJAR",
+      "cost": 49,
+      "name": "T-Mold Japanese Ash Raw Look 75\"",
+      "type": "T-Molding",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-tamo-raw-look"
+      ],
+      "color": "Tamo Raw Look"
+    },
+    {
+      "itemCode": "MONFTH96VCP",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Campo 96\"",
+      "type": "End Cap / Threshold",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTH96VBR",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Bruno 96\"",
+      "type": "End Cap / Threshold",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTH96MAL",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Aldin 96\"",
+      "type": "End Cap / Threshold",
+      "collection": "Manor",
+      "plank_internal_skus": [
+        "MON-manor-aldin"
+      ],
+      "color": "Aldin"
+    },
+    {
+      "itemCode": "MONFTH96DVCT",
+      "cost": 69,
+      "name": "End Cap/Threshold European Oak Citadel 96\"",
+      "type": "End Cap / Threshold",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-citadel"
+      ],
+      "color": "Citadel"
+    },
+    {
+      "itemCode": "MONFTH86PRAR",
+      "cost": 69,
+      "name": "End Cap/Threshold Red Oak Aria 86\"",
+      "type": "End Cap / Threshold",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-aria"
+      ],
+      "color": "Aria"
+    },
+    {
+      "itemCode": "MONFTH84REJU",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Juliana 84\"",
+      "type": "End Cap / Threshold",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-juliana"
+      ],
+      "color": "Juliana"
+    },
+    {
+      "itemCode": "MONRR94VLW",
+      "cost": 59,
+      "name": "Reducer Walnut Natural 94\"",
+      "type": "Reducer",
+      "collection": "Vinland",
+      "plank_internal_skus": [
+        "MON-vinland-walnut-light-rustic",
+        "MON-vinland-walnut-select"
+      ],
+      "color": "Walnut"
+    },
+    {
+      "itemCode": "MONSQSN96VNB2",
+      "cost": 149,
+      "name": "Square Stairnose European Oak Nebbia 96\"",
+      "type": "Stair Nose",
+      "collection": "Domaine II",
+      "plank_internal_skus": [
+        "MON-domaine-ii-nebbia",
+        "MON-domaine-ii-nebbia-herringbone"
+      ],
+      "color": "Nebbia"
+    },
+    {
+      "itemCode": "MONSQSN96VBS2",
+      "cost": 149,
+      "name": "Square Stairnose European Oak Basalto 96\"",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONSQSN96VBR2",
+      "cost": 149,
+      "name": "Square Stairnose European Oak Bruno 96\"",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONSQSN96MSU2",
+      "cost": 139,
+      "name": "Square Stairnose European Oak Sutton 96\"",
+      "type": "Stair Nose",
+      "collection": "Manor",
+      "plank_internal_skus": [
+        "MON-manor-sutton"
+      ],
+      "color": "Sutton"
+    },
+    {
+      "itemCode": "MONSQSN96MBR2",
+      "cost": 139,
+      "name": "Square Stairnose European Oak Barnsley 96\"",
+      "type": "Stair Nose",
+      "collection": "Manor",
+      "plank_internal_skus": [
+        "MON-manor-barnsley"
+      ],
+      "color": "Barnsley"
+    },
+    {
+      "itemCode": "MONWRIEOP42",
+      "cost": 69,
+      "name": "Riser Prime Euro Oak Unf 3/4\" X 7-1/2\" X 42\"",
+      "type": "Riser",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONWRIEOR97",
+      "cost": 119,
+      "name": "Riser Light Rustic Euro Oak Unf 3/4\" X 7-1/2\" X 97\"",
+      "type": "Riser",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTH86TSS",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Sisley 86\"",
+      "type": "End Cap / Threshold",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-sisley"
+      ],
+      "color": "Sisley"
+    },
+    {
+      "itemCode": "MONFTH86TMN",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Monet 86\"",
+      "type": "End Cap / Threshold",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-monet"
+      ],
+      "color": "Monet"
+    },
+    {
+      "itemCode": "MONFTH86TLT",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Latour 86\"",
+      "type": "End Cap / Threshold",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-latour"
+      ],
+      "color": "Latour"
+    },
+    {
+      "itemCode": "MONFTH86TDG",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Degas 86\"",
+      "type": "End Cap / Threshold",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-degas"
+      ],
+      "color": "Degas"
+    },
+    {
+      "itemCode": "MONFTH86TCZ",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Cezanne 86\"",
+      "type": "End Cap / Threshold",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-cezanne"
+      ],
+      "color": "Cezanne"
+    },
+    {
+      "itemCode": "MONFTH118LAVN",
+      "cost": 99,
+      "name": "End Cap/Threshold European Oak Venosta 118\"",
+      "type": "End Cap / Threshold",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-venosta"
+      ],
+      "color": "Venosta"
+    },
+    {
+      "itemCode": "MONFTH118LAPR",
+      "cost": 99,
+      "name": "End Cap/Threshold European Oak Parsenn 118\"",
+      "type": "End Cap / Threshold",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-parsenn"
+      ],
+      "color": "Parsenn"
+    },
+    {
+      "itemCode": "MONFTH118LALM",
+      "cost": 99,
+      "name": "End Cap/Threshold European Oak Lemiere 118\"",
+      "type": "End Cap / Threshold",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-lumiere"
+      ],
+      "color": "Lumiere"
+    },
+    {
+      "itemCode": "MONST96DVLG",
+      "cost": 399,
+      "name": "Tread European Oak Langdon 96\"",
+      "type": "Stair Tread",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-langdon"
+      ],
+      "color": "Langdon"
+    },
+    {
+      "itemCode": "MONST86PRBL",
+      "cost": 329,
+      "name": "Tread Red Oak Bella 86\"",
+      "type": "Stair Tread",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-bella"
+      ],
+      "color": "Bella"
+    },
+    {
+      "itemCode": "MONST84REJU",
+      "cost": 349,
+      "name": "Tread European Oak Juliana 84\"",
+      "type": "Stair Tread",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-juliana"
+      ],
+      "color": "Juliana"
+    },
+    {
+      "itemCode": "MONRR96VBS",
+      "cost": 69,
+      "name": "Reducer European Oak Basalto 96\"",
+      "type": "Reducer",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONRR96MCM",
+      "cost": 69,
+      "name": "Reducer European Oak Campton 96\"",
+      "type": "Reducer",
+      "collection": "Manor",
+      "plank_internal_skus": [
+        "MON-manor-campton"
+      ],
+      "color": "Campton"
+    },
+    {
+      "itemCode": "MONRR96DVWM",
+      "cost": 59,
+      "name": "Reducer European Oak Walmer 96\"",
+      "type": "Reducer",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-walmer"
+      ],
+      "color": "Walmer"
+    },
+    {
+      "itemCode": "MONRR86PRVS",
+      "cost": 59,
+      "name": "Reducer Red Oak Vista 86\"",
+      "type": "Reducer",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-vista"
+      ],
+      "color": "Vista"
+    },
+    {
+      "itemCode": "MONRR86PRVR",
+      "cost": 59,
+      "name": "Reducer Red Oak Veranda 86\"",
+      "type": "Reducer",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-veranda"
+      ],
+      "color": "Veranda"
+    },
+    {
+      "itemCode": "MONRR86PRCL",
+      "cost": 59,
+      "name": "Reducer Red Oak Cielo 86\"",
+      "type": "Reducer",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-cielo"
+      ],
+      "color": "Cielo"
+    },
+    {
+      "itemCode": "MONRR86PRBL",
+      "cost": 59,
+      "name": "Reducer Red Oak Bella 86\"",
+      "type": "Reducer",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-bella"
+      ],
+      "color": "Bella"
+    },
+    {
+      "itemCode": "MONRR86LEOMR",
+      "cost": 59,
+      "name": "Reducer European Oak Moro 86\"",
+      "type": "Reducer",
+      "collection": "Lago",
+      "plank_internal_skus": [
+        "MON-lago-moro-herringbone",
+        "MON-lago-moro"
+      ],
+      "color": "Moro"
+    },
+    {
+      "itemCode": "MONRR86LEODV",
+      "cost": 59,
+      "name": "Reducer European Oak Devero 86\"",
+      "type": "Reducer",
+      "collection": "Lago",
+      "plank_internal_skus": [
+        "MON-lago-devero-herringbone",
+        "MON-lago-devero"
+      ],
+      "color": "Devero"
+    },
+    {
+      "itemCode": "MONRR86LEOCM",
+      "cost": 59,
+      "name": "Reducer European Oak Como 86\"",
+      "type": "Reducer",
+      "collection": "Lago",
+      "plank_internal_skus": [
+        "MON-lago-como-herringbone",
+        "MON-lago-como"
+      ],
+      "color": "Como"
+    },
+    {
+      "itemCode": "MONRR75HJCS",
+      "cost": 49,
+      "name": "Reducer Japanese Chestnut Smoked 75\"",
+      "type": "Reducer",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-kuri-smoked"
+      ],
+      "color": "Kuri Smoked"
+    },
+    {
+      "itemCode": "MONFTM96REIC8",
+      "cost": 69,
+      "name": "T-Mold European Oak Isabella 96\"",
+      "type": "T-Molding",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-isabella"
+      ],
+      "color": "Isabella"
+    },
+    {
+      "itemCode": "MONFTM96REEL8",
+      "cost": 69,
+      "name": "T-Mold European Oak Eleanor 96\"",
+      "type": "T-Molding",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-eleanor"
+      ],
+      "color": "Eleanor"
+    },
+    {
+      "itemCode": "MONSQSN94VLW",
+      "cost": 199,
+      "name": "Square Stairnose Walnut Natural 94\"",
+      "type": "Stair Nose",
+      "collection": "Vinland",
+      "plank_internal_skus": [
+        "MON-vinland-walnut-light-rustic",
+        "MON-vinland-walnut-select"
+      ],
+      "color": "Walnut"
+    },
+    {
+      "itemCode": "MONRR86TMS",
+      "cost": 69,
+      "name": "Reducer European Oak Matisse 86\"",
+      "type": "Reducer",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-matisse"
+      ],
+      "color": "Matisse"
+    },
+    {
+      "itemCode": "MONRR86TLT",
+      "cost": 69,
+      "name": "Reducer European Oak Latour 86\"",
+      "type": "Reducer",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-latour"
+      ],
+      "color": "Latour"
+    },
+    {
+      "itemCode": "MONRR118LAVN",
+      "cost": 89,
+      "name": "Reducer European Oak Venosta 118\"",
+      "type": "Reducer",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-venosta"
+      ],
+      "color": "Venosta"
+    },
+    {
+      "itemCode": "MONRR118LAPR",
+      "cost": 89,
+      "name": "Reducer European Oak Parsenn 118\"",
+      "type": "Reducer",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-parsenn"
+      ],
+      "color": "Parsenn"
+    },
+    {
+      "itemCode": "MONRR118LANN",
+      "cost": 89,
+      "name": "Reducer European Oak Nendaz 118\"",
+      "type": "Reducer",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-nendaz"
+      ],
+      "color": "Nendaz"
+    },
+    {
+      "itemCode": "MONRR118LAGN",
+      "cost": 89,
+      "name": "Reducer European Oak Grenoble 118\"",
+      "type": "Reducer",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-grenoble"
+      ],
+      "color": "Grenoble"
+    },
+    {
+      "itemCode": "MONAPRDW5878",
+      "cost": null,
+      "name": "Reducer Euro Oak Rustic Unfinished 5/8\" X 2\" X 78\"",
+      "type": "Reducer",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONWSTEOR48",
+      "cost": 75,
+      "name": "Tread Lt Rustic Euro Oak 4mm Radius Unf 1\" X 11-1/2\" X 48\"",
+      "type": "Stair Tread",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONWSTEOR42",
+      "cost": 65,
+      "name": "Tread Lt Rustic Euro Oak 4mm Radius Unf 1\" X 11-1/2\" X 42\"",
+      "type": "Stair Tread",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONAPSNW1284",
+      "cost": 69,
+      "name": "Sq Stair Nosing Eased Rustic Euro Oak Unf 1/2\" X 3-1/2\" X 84\"",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONST75HJONLS",
+      "cost": 299,
+      "name": "Tread Japanese Oak Light Smoked 75\"",
+      "type": "Stair Tread",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-nara-light-smoked"
+      ],
+      "color": "Nara Light Smoked"
+    },
+    {
+      "itemCode": "MONSQSN96DVWM",
+      "cost": 139,
+      "name": "Square Stairnose European Oak Walmer 96\"",
+      "type": "Stair Nose",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-walmer"
+      ],
+      "color": "Walmer"
+    },
+    {
+      "itemCode": "MONSQSN96DVCT",
+      "cost": 139,
+      "name": "Square Stairnose European Oak Citadel 96\"",
+      "type": "Stair Nose",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-citadel"
+      ],
+      "color": "Citadel"
+    },
+    {
+      "itemCode": "MONSQSN96DVBR",
+      "cost": 139,
+      "name": "Square Stairnose European Oak Bradfield 96\"",
+      "type": "Stair Nose",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-bradfield"
+      ],
+      "color": "Bradfield"
+    },
+    {
+      "itemCode": "MONSQSN86PRVR",
+      "cost": 149,
+      "name": "Square Stairnose Red Oak Veranda 86\"",
+      "type": "Stair Nose",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-veranda"
+      ],
+      "color": "Veranda"
+    },
+    {
+      "itemCode": "MONSQSN86PRBL",
+      "cost": 149,
+      "name": "Square Stairnose Red Oak Bella 86\"",
+      "type": "Stair Nose",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-bella"
+      ],
+      "color": "Bella"
+    },
+    {
+      "itemCode": "MONSQSN75HJONS",
+      "cost": 149,
+      "name": "Square Stairnose Japanese Oak Smoked 75\"",
+      "type": "Stair Nose",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-nara-smoked"
+      ],
+      "color": "Nara Smoked"
+    },
+    {
+      "itemCode": "MONSQSN75HJONN",
+      "cost": 149,
+      "name": "Square Stairnose Japanese Oak Natural 75\"",
+      "type": "Stair Nose",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-nara-natural"
+      ],
+      "color": "Nara Natural"
+    },
+    {
+      "itemCode": "MONRR75HJONLS",
+      "cost": 49,
+      "name": "Reducer Japanese Oak Light Smoked 75\"",
+      "type": "Reducer",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-nara-light-smoked"
+      ],
+      "color": "Nara Light Smoked"
+    },
+    {
+      "itemCode": "MONFTM94VLW",
+      "cost": 59,
+      "name": "T-Mold Walnut Natural 94\"",
+      "type": "T-Molding",
+      "collection": "Vinland",
+      "plank_internal_skus": [
+        "MON-vinland-walnut-light-rustic",
+        "MON-vinland-walnut-select"
+      ],
+      "color": "Walnut"
+    },
+    {
+      "itemCode": "MONAPRD34WP78",
+      "cost": 20,
+      "name": "Reducer Euro Oak Prime Unfinished 3/4\" X 2\" X 78\"",
+      "type": "Reducer",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONSQSN118LALM",
+      "cost": 179,
+      "name": "Square Stairnose European Oak Lumiere 118\"",
+      "type": "Stair Nose",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-lumiere"
+      ],
+      "color": "Lumiere"
+    },
+    {
+      "itemCode": "MONSQSN118LAGN",
+      "cost": 179,
+      "name": "Square Stairnose European Oak Grenoble 118\"",
+      "type": "Stair Nose",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-grenoble"
+      ],
+      "color": "Grenoble"
+    },
+    {
+      "itemCode": "MONFTM96VBR",
+      "cost": 69,
+      "name": "T-Mold European Oak Bruno 96\"",
+      "type": "T-Molding",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTM96MWN",
+      "cost": 69,
+      "name": "T-Mold European Oak Winslow 96\"",
+      "type": "T-Molding",
+      "collection": "Manor",
+      "plank_internal_skus": [
+        "MON-manor-winslow"
+      ],
+      "color": "Winslow"
+    },
+    {
+      "itemCode": "MONFTM96MSU",
+      "cost": 69,
+      "name": "T-Mold European Oak Sutton 96\"",
+      "type": "T-Molding",
+      "collection": "Manor",
+      "plank_internal_skus": [
+        "MON-manor-sutton"
+      ],
+      "color": "Sutton"
+    },
+    {
+      "itemCode": "MONFTM96MAL",
+      "cost": 69,
+      "name": "T-Mold European Oak Aldin 96\"",
+      "type": "T-Molding",
+      "collection": "Manor",
+      "plank_internal_skus": [
+        "MON-manor-aldin"
+      ],
+      "color": "Aldin"
+    },
+    {
+      "itemCode": "MONFTM96DVWM",
+      "cost": 59,
+      "name": "T-Mold European Oak Walmer 96\"",
+      "type": "T-Molding",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-walmer"
+      ],
+      "color": "Walmer"
+    },
+    {
+      "itemCode": "MONFTM96DVCT",
+      "cost": 59,
+      "name": "T-Mold European Oak Citadel 96\"",
+      "type": "T-Molding",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-citadel"
+      ],
+      "color": "Citadel"
+    },
+    {
+      "itemCode": "MONFTM96DVBR",
+      "cost": 59,
+      "name": "T-Mold European Oak Bradfield 96\"",
+      "type": "T-Molding",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-bradfield"
+      ],
+      "color": "Bradfield"
+    },
+    {
+      "itemCode": "MONFTM96DVAS",
+      "cost": 59,
+      "name": "T-Mold European Oak Ashley 96\"",
+      "type": "T-Molding",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-ashley"
+      ],
+      "color": "Ashley"
+    },
+    {
+      "itemCode": "MONFTM86PRDU",
+      "cost": 59,
+      "name": "T-Mold Red Oak Duna 86\"",
+      "type": "T-Molding",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-duna"
+      ],
+      "color": "Duna"
+    },
+    {
+      "itemCode": "MONFTM86LEOMR",
+      "cost": 59,
+      "name": "T-Mold European Oak Moro 86\"",
+      "type": "T-Molding",
+      "collection": "Lago",
+      "plank_internal_skus": [
+        "MON-lago-moro-herringbone",
+        "MON-lago-moro"
+      ],
+      "color": "Moro"
+    },
+    {
+      "itemCode": "MONFTM86LEODV",
+      "cost": 59,
+      "name": "T-Mold European Oak Devero 86\"",
+      "type": "T-Molding",
+      "collection": "Lago",
+      "plank_internal_skus": [
+        "MON-lago-devero-herringbone",
+        "MON-lago-devero"
+      ],
+      "color": "Devero"
+    },
+    {
+      "itemCode": "MONFTM86LEOBV",
+      "cost": 59,
+      "name": "T-Mold European Oak Belviso 86\"",
+      "type": "T-Molding",
+      "collection": "Lago",
+      "plank_internal_skus": [
+        "MON-lago-belviso",
+        "MON-lago-belviso-herringbone"
+      ],
+      "color": "Belviso"
+    },
+    {
+      "itemCode": "MONFTM84REJU",
+      "cost": 69,
+      "name": "T-Mold European Oak Juliana 84\"",
+      "type": "T-Molding",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-juliana"
+      ],
+      "color": "Juliana"
+    },
+    {
+      "itemCode": "MONRR96REIC8",
+      "cost": 69,
+      "name": "Reducer European Oak Isabella 96\"",
+      "type": "Reducer",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-isabella"
+      ],
+      "color": "Isabella"
+    },
+    {
+      "itemCode": "MONRR96RECL8",
+      "cost": 69,
+      "name": "Reducer European Oak Carolina 96\"",
+      "type": "Reducer",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-carolina"
+      ],
+      "color": "Carolina"
+    },
+    {
+      "itemCode": "MONSQSN75HJONR",
+      "cost": 149,
+      "name": "Square Stairnose Japanese Oak Raw Look 75\"",
+      "type": "Stair Nose",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-nara-raw-look"
+      ],
+      "color": "Nara Raw Look"
+    },
+    {
+      "itemCode": "MONAPRIW96P",
+      "cost": 149,
+      "name": "Riser Prime Euro Oak Unfinished 3/4\" X 7-1/2\" X 96\"",
+      "type": "Riser",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTM86TMS",
+      "cost": 69,
+      "name": "T-Mold European Oak Matisse 86\"",
+      "type": "T-Molding",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-matisse"
+      ],
+      "color": "Matisse"
+    },
+    {
+      "itemCode": "MONFTM86TLT",
+      "cost": 69,
+      "name": "T-Mold European Oak Latour 86\"",
+      "type": "T-Molding",
+      "collection": "Tableau",
+      "plank_internal_skus": [
+        "MON-tableau-latour"
+      ],
+      "color": "Latour"
+    },
+    {
+      "itemCode": "MONFTM118LAGN",
+      "cost": 89,
+      "name": "T-Mold European Oak Grenoble 118\"",
+      "type": "T-Molding",
+      "collection": "La Grande",
+      "plank_internal_skus": [
+        "MON-la-grande-grenoble"
+      ],
+      "color": "Grenoble"
+    },
+    {
+      "itemCode": "MONFTH94VLM",
+      "cost": 99,
+      "name": "End Cap/Threshold Maple Natural 94\"",
+      "type": "End Cap / Threshold",
+      "collection": "Vinland",
+      "plank_internal_skus": [
+        "MON-vinland-maple-select",
+        "MON-vinland-maple-light-rustic"
+      ],
+      "color": "Maple"
+    },
+    {
+      "itemCode": "MONFTH82TTLRN",
+      "cost": 89,
+      "name": "End Cap/Threshold Teak Natural 82\"",
+      "type": "End Cap / Threshold",
+      "collection": "True Teak",
+      "plank_internal_skus": [
+        "MON-true-teak-natural-light-rustic"
+      ],
+      "color": "Natural Light Rustic"
+    },
+    {
+      "itemCode": "MONAPSNW1242",
+      "cost": null,
+      "name": "Stair Nosing White Oak Unf 1/2\" X 3-1/2\" X 42\"",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTH96VBS",
+      "cost": 79,
+      "name": "End Cap/Threshold European Oak Basalto 96\"",
+      "type": "End Cap / Threshold",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONFTH96DVWM",
+      "cost": 69,
+      "name": "End Cap/Threshold European Oak Walmer 96\"",
+      "type": "End Cap / Threshold",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-walmer"
+      ],
+      "color": "Walmer"
+    },
+    {
+      "itemCode": "MONFTH96DVFL",
+      "cost": 69,
+      "name": "End Cap/Threshold European Oak Foxley 96\"",
+      "type": "End Cap / Threshold",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-foxley"
+      ],
+      "color": "Foxley"
+    },
+    {
+      "itemCode": "MONFTH96DVBR",
+      "cost": 69,
+      "name": "End Cap/Threshold European Oak Bradfield 96\"",
+      "type": "End Cap / Threshold",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-bradfield"
+      ],
+      "color": "Bradfield"
+    },
+    {
+      "itemCode": "MONFTH96DVAS",
+      "cost": 69,
+      "name": "End Cap/Threshold European Oak Ashley 96\"",
+      "type": "End Cap / Threshold",
+      "collection": "Dover",
+      "plank_internal_skus": [
+        "MON-dover-ashley"
+      ],
+      "color": "Ashley"
+    },
+    {
+      "itemCode": "MONFTH86PRVS",
+      "cost": 69,
+      "name": "End Cap/Threshold Red Oak Vista 86\"",
+      "type": "End Cap / Threshold",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-vista"
+      ],
+      "color": "Vista"
+    },
+    {
+      "itemCode": "MONFTH86PRVR",
+      "cost": 69,
+      "name": "End Cap/Threshold Red Oak Veranda 86\"",
+      "type": "End Cap / Threshold",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-veranda"
+      ],
+      "color": "Veranda"
+    },
+    {
+      "itemCode": "MONFTH86PRBL",
+      "cost": 69,
+      "name": "End Cap/Threshold Red Oak Bella 86\"",
+      "type": "End Cap / Threshold",
+      "collection": "Premio",
+      "plank_internal_skus": [
+        "MON-premio-bella"
+      ],
+      "color": "Bella"
+    },
+    {
+      "itemCode": "MONFTH75HJCS",
+      "cost": 69,
+      "name": "End Cap/Threshold Japanese Chestnut Smoked 75\"",
+      "type": "End Cap / Threshold",
+      "collection": "Hokkaido",
+      "plank_internal_skus": [
+        "MON-hokkaido-kuri-smoked"
+      ],
+      "color": "Kuri Smoked"
+    },
+    {
+      "itemCode": "MONSQSN96VPA2",
+      "cost": 149,
+      "name": "Square Stairnose European Oak Panna 96\"",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONSQSN96VCP2",
+      "cost": 149,
+      "name": "Square Stairnose European Oak Campo 96\"",
+      "type": "Stair Nose",
+      "collection": null,
+      "plank_internal_skus": [],
+      "color": null
+    },
+    {
+      "itemCode": "MONSQSN96REIC8",
+      "cost": 159,
+      "name": "Square Stairnose European Oak Isabella 96\"",
+      "type": "Stair Nose",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-isabella"
+      ],
+      "color": "Isabella"
+    },
+    {
+      "itemCode": "MONSQSN96REEL8",
+      "cost": 159,
+      "name": "Square Stairnose European Oak Eleanor 96\"",
+      "type": "Stair Nose",
+      "collection": "Regent",
+      "plank_internal_skus": [
+        "MON-regent-eleanor"
+      ],
+      "color": "Eleanor"
+    },
+    {
+      "itemCode": "MONSQSN96MCM2",
+      "cost": 139,
+      "name": "Square Stairnose European Oak Campton 96\"",
+      "type": "Stair Nose",
+      "collection": "Manor",
+      "plank_internal_skus": [
+        "MON-manor-campton"
+      ],
+      "color": "Campton"
+    }
+  ]
+}

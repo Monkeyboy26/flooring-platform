@@ -1,0 +1,19 @@
+{
+  "source": "galleherduffy.com dealer account 370815 Roma Flooring Designs, pulled 2026-08-14",
+  "note": "Dealer cost (Roma purchase price) $/sqft, uniform per collection+width. Colors showing $0 online = same collection cost. Retail = cost x1.6 keystone. Premio/Regent/True Teak have NO online price -> import DRAFT (storefront no-cost convention).",
+  "planksCostPerSqFt": {
+    "La Grande":   { "25/32 x 11-3/8": 14.18 },
+    "Domaine II":  { "3/4 x 9-1/2": 10.90, "3/4 x 4-3/4 herringbone": 11.19 },
+    "Dover":       { "25/32 x 7-1/2": 7.15 },
+    "Manor":       { "25/32 x 9-1/2": 8.96 },
+    "Tableau":     { "5/8 x 8-5/8": 7.87 },
+    "Hokkaido":    { "5/8 x 7-1/2": 7.52 },
+    "Vinland":     { "5/8 x 7": 9.19, "5/8 x 6": 8.86 },
+    "Lago":        { "9/16 x 7": 6.31, "9/16 x 4-3/8": 7.03 },
+    "Premio":      { "5/8 x 7-1/2": null },
+    "Regent":      { "5/8 x 7-1/2": null },
+    "True Teak":   { "5/8 x 7-1/4": null }
+  },
+  "cartonSF": { "Tableau 5/8 x 8-5/8": 31.26 },
+  "cartonSF_todo": "grab per collection from detail pages"
+}

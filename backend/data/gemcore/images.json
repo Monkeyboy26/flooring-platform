@@ -1,0 +1,567 @@
+{
+  "GEM-garnet-tralee": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/TraleeAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Traleeweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/GARNET_TRALEE.jpg"
+    ]
+  },
+  "GEM-garnet-shannon": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/ShannonAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Shannonweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/GarnetShannon_web.jpg"
+    ]
+  },
+  "GEM-garnet-rodeen": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/RodeenAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Rodeenweb.png"
+    ]
+  },
+  "GEM-garnet-kenmare": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/KenmareAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Kenmareweb.png"
+    ]
+  },
+  "GEM-garnet-bantry": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BantryAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Bantryweb.png"
+    ]
+  },
+  "GEM-opal-wheat": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Wheatangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Wheatweb.jpg"
+    ]
+  },
+  "GEM-opal-silverwood": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Silverwoodangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Silverwoodweb.jpg"
+    ]
+  },
+  "GEM-opal-shasta": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/shastaangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Shastaweb.jpg"
+    ]
+  },
+  "GEM-opal-perris": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Perrisangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Perrisweb.jpg"
+    ]
+  },
+  "GEM-opal-natoma": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Natomaangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Natomaweb.jpg"
+    ]
+  },
+  "GEM-opal-hickory": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Hickoryangleweb3.22.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Hickoryweb3.22.jpg"
+    ]
+  },
+  "GEM-opal-arctic": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Arcticangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Arcticweb.jpg"
+    ]
+  },
+  "GEM-crystal-cassidy": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CassidyAnglewebs.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Cassidywebs.png"
+    ]
+  },
+  "GEM-crystal-sarita": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/SeritaAnglewebs.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Saritawebs.png"
+    ]
+  },
+  "GEM-crystal-crofton": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CroftonAnglewebs.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Croftonwebs.jpg"
+    ]
+  },
+  "GEM-crystal-galiano": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/GalianoAnglewebs.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Galianowebs.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CrystalGalianoweb.jpg"
+    ]
+  },
+  "GEM-crystal-mayne": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/MayneAnglewebs.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Maynewebsedit2024.jpg"
+    ]
+  },
+  "GEM-crystal-argyle": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/ArgyleAnglewebs.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Argylewebs.png"
+    ]
+  },
+  "GEM-crystal-sidney": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/SydneyAnglewebs.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Sidneywebs.jpg"
+    ]
+  },
+  "GEM-diamond-baroda": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BarodaAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Barodaweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/DiamondBaroda_web.jpg"
+    ]
+  },
+  "GEM-diamond-paragon": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/ParagonAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Paragonweb.png"
+    ]
+  },
+  "GEM-diamond-jubilee": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/JubileeAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Jubileeweb.jpg"
+    ]
+  },
+  "GEM-diamond-sancy": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/SancyAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Sancyweb.png"
+    ]
+  },
+  "GEM-diamond-cullinan": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CullinanAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Cullinanweb.jpg"
+    ]
+  },
+  "GEM-diamond-hope": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/HopeAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Hopeweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/DIAMOND_HOPE.jpg"
+    ]
+  },
+  "GEM-jasper-saylor": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/SaylorAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Saylorweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/JASPER_SAYLOR.jpg"
+    ]
+  },
+  "GEM-jasper-pimbee": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/PimbeeAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Pimbeeweb_d4d9fbda-cf45-4646-bb76-73d62c281059.jpg"
+    ]
+  },
+  "GEM-jasper-maryhill": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/MaryhillAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Maryhillweb_99319e49-3aa6-45b4-aac3-8d8e43313277.jpg"
+    ]
+  },
+  "GEM-jasper-lyle": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/LyleAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Lyleweb_f5c1ac35-fa0d-45f1-91bd-798fc37c4491.jpg"
+    ]
+  },
+  "GEM-jasper-le-page": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/LePageAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/LePageweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/JasperLePage_floordrop_5b9574b3-f12c-4d26-949c-184d85dde055.jpg"
+    ]
+  },
+  "GEM-jasper-bruneau": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BruneauAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Bruneauweb.jpg"
+    ]
+  },
+  "GEM-jasper-boyd": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BoydAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Boydweb.jpg"
+    ]
+  },
+  "GEM-sapphire-anderson": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Andersonangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Andersonweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_385462cd-f093-40d3-ae43-c47f1264dc75.png"
+    ]
+  },
+  "GEM-sapphire-mitchell": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Mitchellangleweb_113aa144-299f-4a46-936f-2f96538916ed.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Mitchellweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/SAPPHIRE_MITCHELL.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_a13f0fa9-cf31-4844-8bf7-655e9c17c308.png"
+    ]
+  },
+  "GEM-sapphire-parkway": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Parkwayangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Parkwayweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_1e8cc2e9-ee02-4a4d-a994-a89c83ee05ce.png"
+    ]
+  },
+  "GEM-sapphire-madison": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Madisonangleweb_9f0f9f0f-ffcf-4aef-a71c-860c477948b4.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Madisonweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_c7a5abc5-041b-4c30-9c27-f4236a9298e2.png"
+    ]
+  },
+  "GEM-sapphire-quinn": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Quinnangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Quinnweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_827b6e3e-d910-46a7-adfb-70b187d43b2c.png"
+    ]
+  },
+  "GEM-sapphire-riverton": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Rivertonangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Rivertonweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_e3bfbf87-fe2e-4f7d-bb6d-4720ff4cea6c.png"
+    ]
+  },
+  "GEM-meridian-ii-walnut-beckett": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/WalnutBeckettAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/WalnutBeckettweb.png"
+    ]
+  },
+  "GEM-meridian-ii-oak-sienna": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakSiennaAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakSiennaweb.png"
+    ]
+  },
+  "GEM-meridian-ii-oak-shay": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakShayAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakShayweb.png"
+    ]
+  },
+  "GEM-meridian-ii-oak-kenton": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakKentonAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakKentonweb.png"
+    ]
+  },
+  "GEM-meridian-ii-oak-graham": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakGrahamAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakGrahamweb.png"
+    ]
+  },
+  "GEM-meridian-ii-frosted-oak": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/FrostedOakAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/FrostedOakweb.png"
+    ]
+  },
+  "GEM-meridian-ii-oak-cheyenne": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakCheyenneAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakCheyenneweb.png"
+    ]
+  },
+  "GEM-meridian-ii-oak-auburn": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakAuburnAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakAuburnweb.png"
+    ]
+  },
+  "GEM-advantage-ii-raw-oak": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/RawOakAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/RawOak.jpg"
+    ]
+  },
+  "GEM-advantage-ii-polar-maple": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/PolarMapleAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/PolarMaple.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/AdvantagePolarMapleweb.jpg"
+    ]
+  },
+  "GEM-advantage-ii-sunbeam-oak": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakSunbeamAngleEDIT.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakSunbeam.jpg"
+    ]
+  },
+  "GEM-advantage-ii-oak-riverstone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/RiverstoneAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Riverstone.jpg"
+    ]
+  },
+  "GEM-advantage-ii-oak-latte": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakLatteAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakLatte.jpg"
+    ]
+  },
+  "GEM-advantage-ii-oak-frost": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakFrostAngle-EDIT.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakFrost.jpg"
+    ]
+  },
+  "GEM-advantage-ii-hickory-snow": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/HickorySnowAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/HickorySnow.jpg"
+    ]
+  },
+  "GEM-advantage-ii-caramel-oak": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CarmelOakAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CarmelOak.jpg"
+    ]
+  },
+  "GEM-advantage-ii-oak-black-pearl": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BlackPearlAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BlackPearl.jpg"
+    ]
+  },
+  "GEM-advantage-ii-aged-oak": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/AgedOakAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/AgedOak.jpg"
+    ]
+  },
+  "GEM-riverfront-spokane": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Spokane_angle_web.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Spokane_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Spokane_rs_web.jpg"
+    ]
+  },
+  "GEM-riverfront-strasbourg": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Strasbourg_angle_web.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Strasbourg_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Strasbourg_rs_web.jpg"
+    ]
+  },
+  "GEM-riverfront-seine": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seine_angle_web.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seine_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seine_rs_web.jpg"
+    ]
+  },
+  "GEM-riverfront-providence": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Providence_angle_web.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Providence_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Providence_rs_web.jpg"
+    ]
+  },
+  "GEM-riverfront-porto": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Porto_angle_web.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Porto_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Porto_rs_web.jpg"
+    ]
+  },
+  "GEM-riverfront-hudson": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Hudson_angle_web.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Hudson_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Hudson_rs_web.jpg"
+    ]
+  },
+  "GEM-riverfront-charles": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Charles_angle_web.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Charles_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Charles_rs_web.jpg"
+    ]
+  },
+  "GEM-riverfront-brisbane": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Brisbane_angle_web.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Brisbane_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Brisbane_rs_web.jpg"
+    ]
+  },
+  "GEM-riverfront-arno": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Arno_angle_web.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Arno_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Arno_rs_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/RIVERFRONT_ARNO.jpg"
+    ]
+  },
+  "GEM-riverfront-amstel": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Amstel_Angle_web.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Amstel_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Amstel_rs_web.jpg"
+    ]
+  },
+  "GEM-seaside-pompano": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Pompano_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Pompano.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Pompano_Edit.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/SEASIDE_POMPANO.jpg"
+    ]
+  },
+  "GEM-seaside-grayton": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Grayton_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Grayton.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Grayton_Edit.png"
+    ]
+  },
+  "GEM-seaside-seabrook": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seabrook_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seabrook.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seabrook_Edit.png"
+    ]
+  },
+  "GEM-seaside-asbury": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Asbury_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Asbury.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Asbury_edit.png"
+    ]
+  },
+  "GEM-seaside-topsail": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Topsail_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Topsail.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Topsail_edit.png"
+    ]
+  },
+  "GEM-seaside-delray": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Delray_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Delray.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Delray_Edit.png"
+    ]
+  },
+  "GEM-seaside-bethany": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Bethany_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Bethany.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Bethany_edit.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/SEASIDE_BETHANY_369fef51-df75-4c58-9b92-476a3d134ec1.jpg"
+    ]
+  },
+  "GEM-seaside-holden": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Holden_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Holden.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Holden_Edit.png"
+    ]
+  },
+  "GEM-seaside-cape-may": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Cape_May_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Cape_May.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Cape_May_Edit.png"
+    ]
+  },
+  "GEM-seaside-myrtle": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Myrtle_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Myrtle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Myrtle_Edit.png"
+    ]
+  },
+  "GEM-lakeshore-clermont": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/clermont_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Clermont.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Clermont_edit.png"
+    ]
+  },
+  "GEM-lakeshore-loyola": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/loyola_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Loyola.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Loyola_Edit.png"
+    ]
+  },
+  "GEM-lakeshore-rangely": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/rangely_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Rangely.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Rangely_Edit.png"
+    ]
+  },
+  "GEM-lakeshore-hamlin": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/hamlin_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Hamlin.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Hamlin_Edit.png"
+    ]
+  },
+  "GEM-lakeshore-oakwood": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/oakwood_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Oakwood.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Oakwood_Edit.png"
+    ]
+  },
+  "GEM-lakeshore-haven": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/haven_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Haven.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Haven_Edit.png"
+    ]
+  },
+  "GEM-lakeshore-aurora": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/aurora_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Aurora.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Aurora_Edit.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/LAKESHORE_AURORA.jpg"
+    ]
+  },
+  "GEM-lakeshore-warren": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/warren_angle_56cdd0bb-56c1-4f7d-b790-a77099c20543.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Warren_c0c3b8f2-eae7-4d26-a692-73e8fb20d827.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Warren_Edit.png"
+    ]
+  },
+  "GEM-lakeshore-bayview": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/bayview_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Bayview.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Bayview_Edit.png"
+    ]
+  },
+  "GEM-lakeshore-baldwin": {
+    "primary": "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/baldwin_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Baldwin.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Baldwin_Edit.png"
+    ]
+  }
+}

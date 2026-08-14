@@ -1,0 +1,2854 @@
+{
+ "collections": [
+  {
+   "name": "Garnet",
+   "handle": "garnet",
+   "family": "SPC",
+   "products": [
+    {
+     "name": "Garnet TRALEE",
+     "handle": "garnet-tralee",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "4.5mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20GNTL",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/TraleeAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Traleeweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/GARNET_TRALEE.jpg"
+     ]
+    },
+    {
+     "name": "Garnet SHANNON",
+     "handle": "garnet-shannon",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "4.5mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20GNSH",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/ShannonAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Shannonweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/GarnetShannon_web.jpg"
+     ]
+    },
+    {
+     "name": "Garnet RODEEN",
+     "handle": "garnet-rodeen",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "4.5mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20GNRD",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/RodeenAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Rodeenweb.png"
+     ]
+    },
+    {
+     "name": "Garnet KENMARE",
+     "handle": "garnet-kenmare",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "4.5mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20GNKN",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Beige",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/KenmareAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Kenmareweb.png"
+     ]
+    },
+    {
+     "name": "Garnet BANTRY",
+     "handle": "garnet-bantry",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "4.5mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20GNBN",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Beige",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BantryAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Bantryweb.png"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Opal",
+   "handle": "opal-collection",
+   "family": "SPC",
+   "products": [
+    {
+     "name": "Opal WHEAT",
+     "handle": "opal-wheat",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "7\"",
+     "length": "48.6\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20WT#T",
+     "tags": [
+      "20 mil Wear Layer",
+      "7\"",
+      "Brown",
+      "Plank",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Wheatangleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Wheatweb.jpg"
+     ]
+    },
+    {
+     "name": "Opal SILVERWOOD",
+     "handle": "opal-silverwood",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "7\"",
+     "length": "48.6\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20SV#T",
+     "tags": [
+      "20 mil Wear Layer",
+      "7\"",
+      "Brown",
+      "Plank",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Silverwoodangleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Silverwoodweb.jpg"
+     ]
+    },
+    {
+     "name": "Opal SHASTA",
+     "handle": "opal-shasta",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "7\"",
+     "length": "48.6\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20SH#T",
+     "tags": [
+      "20 mil Wear Layer",
+      "7\"",
+      "Brown",
+      "Plank",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/shastaangleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Shastaweb.jpg"
+     ]
+    },
+    {
+     "name": "Opal PERRIS",
+     "handle": "opal-perris",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "7\"",
+     "length": "48.6\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20PR#T",
+     "tags": [
+      "20 mil Wear Layer",
+      "7\"",
+      "Brown",
+      "Plank",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Perrisangleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Perrisweb.jpg"
+     ]
+    },
+    {
+     "name": "Opal NATOMA",
+     "handle": "opal-natoma",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "7\"",
+     "length": "48.6\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20NT#T",
+     "tags": [
+      "20 mil Wear Layer",
+      "7\"",
+      "Brown",
+      "Plank",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Natomaangleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Natomaweb.jpg"
+     ]
+    },
+    {
+     "name": "Opal HICKORY",
+     "handle": "opal-hickory",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "7\"",
+     "length": "48.6\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20HY#T",
+     "tags": [
+      "20 mil Wear Layer",
+      "7\"",
+      "Brown",
+      "Plank",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Hickoryangleweb3.22.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Hickoryweb3.22.jpg"
+     ]
+    },
+    {
+     "name": "Opal ARCTIC",
+     "handle": "opal-arctic",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "7\"",
+     "length": "48.6\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial EVA Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20AT#T",
+     "tags": [
+      "20 mil Wear Layer",
+      "7\"",
+      "Grey",
+      "Plank",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Arcticangleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Arcticweb.jpg"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Crystal",
+   "handle": "crystal-1",
+   "family": "SPC",
+   "products": [
+    {
+     "name": "Crystal CASSIDY",
+     "handle": "crystal-cassidy",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20CRCS",
+     "tags": [
+      "20 mil Wear Layer",
+      "60\"",
+      "9\"",
+      "Grey"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CassidyAnglewebs.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Cassidywebs.png"
+     ]
+    },
+    {
+     "name": "Crystal SARITA",
+     "handle": "crystal-sarita",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20CRSR",
+     "tags": [
+      "20 mil Wear Layer",
+      "60\"",
+      "9\"",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/SeritaAnglewebs.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Saritawebs.png"
+     ]
+    },
+    {
+     "name": "Crystal CROFTON",
+     "handle": "crystal-crofton",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20CRCR",
+     "tags": [
+      "20 mil Wear Layer",
+      "60\"",
+      "9\"",
+      "Beige"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CroftonAnglewebs.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Croftonwebs.jpg"
+     ]
+    },
+    {
+     "name": "Crystal GALIANO",
+     "handle": "crystal-galiano",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20CRGL",
+     "tags": [
+      "20 mil Wear Layer",
+      "60\"",
+      "9\""
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/GalianoAnglewebs.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Galianowebs.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CrystalGalianoweb.jpg"
+     ]
+    },
+    {
+     "name": "Crystal MAYNE",
+     "handle": "crystal-mayne",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20CRMA",
+     "tags": [
+      "20 mil Wear Layer",
+      "60\"",
+      "9\""
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/MayneAnglewebs.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Maynewebsedit2024.jpg"
+     ]
+    },
+    {
+     "name": "Crystal ARGYLE",
+     "handle": "crystal-argyle",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20CRAG",
+     "tags": [
+      "20 mil Wear Layer",
+      "60\"",
+      "9\"",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/ArgyleAnglewebs.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Argylewebs.png"
+     ]
+    },
+    {
+     "name": "Crystal SIDNEY",
+     "handle": "crystal-sidney",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Mineral Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20CRSY",
+     "tags": [
+      "20 mil Wear Layer",
+      "60\"",
+      "9\""
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/SydneyAnglewebs.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Sidneywebs.jpg"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Diamond",
+   "handle": "diamond",
+   "family": "SPC",
+   "products": [
+    {
+     "name": "Diamond BARODA",
+     "handle": "diamond-baroda",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "6.5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "28mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC28DMBD",
+     "tags": [
+      "28 mil Wear Layer",
+      "60\"",
+      "9\"",
+      "Beige"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BarodaAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Barodaweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/DiamondBaroda_web.jpg"
+     ]
+    },
+    {
+     "name": "Diamond PARAGON",
+     "handle": "diamond-paragon",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "6.5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "28mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC28DMPG",
+     "tags": [
+      "28 mil Wear Layer",
+      "60\"",
+      "9\"",
+      "Beige"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/ParagonAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Paragonweb.png"
+     ]
+    },
+    {
+     "name": "Diamond JUBILEE",
+     "handle": "diamond-jubilee",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "6.5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "28mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC28DMJB",
+     "tags": [
+      "28 mil Wear Layer",
+      "60\"",
+      "9\"",
+      "Brown"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/JubileeAngleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Jubileeweb.jpg"
+     ]
+    },
+    {
+     "name": "Diamond SANCY",
+     "handle": "diamond-sancy",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "6.5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "28mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC28DMSN",
+     "tags": [
+      "28 mil Wear Layer",
+      "60\"",
+      "9\"",
+      "Beige"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/SancyAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Sancyweb.png"
+     ]
+    },
+    {
+     "name": "Diamond CULLINAN",
+     "handle": "diamond-cullinan",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "6.5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "28mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC28DMCU",
+     "tags": [
+      "28 mil Wear Layer",
+      "60\"",
+      "9\"",
+      "Grey"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CullinanAngleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Cullinanweb.jpg"
+     ]
+    },
+    {
+     "name": "Diamond HOPE",
+     "handle": "diamond-hope",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "6.5mm",
+     "width": "9\"",
+     "length": "60\"",
+     "wear_layer": "28mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Floating UniClic or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC28DMHP",
+     "tags": [
+      "28 mil Wear Layer",
+      "60\"",
+      "9\"",
+      "Grey"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/HopeAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Hopeweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/DIAMOND_HOPE.jpg"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Jasper",
+   "handle": "jasper",
+   "family": "SPC",
+   "products": [
+    {
+     "name": "Jasper SAYLOR",
+     "handle": "jasper-saylor",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "73\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20JSSY",
+     "tags": [
+      "20 mil Wear Layer",
+      "73\"",
+      "9\"",
+      "EIR",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/SaylorAngleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Saylorweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/JASPER_SAYLOR.jpg"
+     ]
+    },
+    {
+     "name": "Jasper PIMBEE",
+     "handle": "jasper-pimbee",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "73\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20JSPM",
+     "tags": [
+      "20 mil Wear Layer",
+      "73\"",
+      "9\"",
+      "EIR",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/PimbeeAngleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Pimbeeweb_d4d9fbda-cf45-4646-bb76-73d62c281059.jpg"
+     ]
+    },
+    {
+     "name": "Jasper MARYHILL",
+     "handle": "jasper-maryhill",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "73\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20JSMH",
+     "tags": [
+      "20 mil Wear Layer",
+      "73\"",
+      "9\"",
+      "EIR",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/MaryhillAngleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Maryhillweb_99319e49-3aa6-45b4-aac3-8d8e43313277.jpg"
+     ]
+    },
+    {
+     "name": "Jasper LYLE",
+     "handle": "jasper-lyle",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "73\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20JSLL",
+     "tags": [
+      "20 mil Wear Layer",
+      "73\"",
+      "9\"",
+      "EIR",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/LyleAngleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Lyleweb_f5c1ac35-fa0d-45f1-91bd-798fc37c4491.jpg"
+     ]
+    },
+    {
+     "name": "Jasper LE PAGE",
+     "handle": "jasper-le-page",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "73\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20JSLP",
+     "tags": [
+      "20 mil Wear Layer",
+      "73\"",
+      "9\"",
+      "EIR",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/LePageAngleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/LePageweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/JasperLePage_floordrop_5b9574b3-f12c-4d26-949c-184d85dde055.jpg"
+     ]
+    },
+    {
+     "name": "Jasper BRUNEAU",
+     "handle": "jasper-bruneau",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "73\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20JSBR",
+     "tags": [
+      "20 mil Wear Layer",
+      "73\"",
+      "9\"",
+      "EIR",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BruneauAngleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Bruneauweb.jpg"
+     ]
+    },
+    {
+     "name": "Jasper BOYD",
+     "handle": "jasper-boyd",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "73\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Commercial Ceramic Bead UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWGC20JSBY",
+     "tags": [
+      "20 mil Wear Layer",
+      "73\"",
+      "9\"",
+      "EIR",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BoydAngleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Boydweb.jpg"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Sapphire",
+   "handle": "sapphire-collection",
+   "family": "SPC",
+   "products": [
+    {
+     "name": "Sapphire ANDERSON",
+     "handle": "sapphire-anderson",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "72\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20AN",
+     "tags": [
+      "20 mil Wear Layer",
+      "72\"",
+      "9\"",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Andersonangleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Andersonweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_385462cd-f093-40d3-ae43-c47f1264dc75.png"
+     ]
+    },
+    {
+     "name": "Sapphire MITCHELL",
+     "handle": "sapphire-mitchell",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "72.5\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Embossed In Register (EIR) natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20ML",
+     "tags": [
+      "20 mil Wear Layer",
+      "72\"",
+      "9\"",
+      "Brown"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Mitchellangleweb_113aa144-299f-4a46-936f-2f96538916ed.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Mitchellweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/SAPPHIRE_MITCHELL.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_a13f0fa9-cf31-4844-8bf7-655e9c17c308.png"
+     ]
+    },
+    {
+     "name": "Sapphire PARKWAY",
+     "handle": "sapphire-parkway",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "72.5\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Embossed In Register (EIR) natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20PK",
+     "tags": [
+      "20 mil Wear Layer",
+      "72\"",
+      "9\"",
+      "Brown"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Parkwayangleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Parkwayweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_1e8cc2e9-ee02-4a4d-a994-a89c83ee05ce.png"
+     ]
+    },
+    {
+     "name": "Sapphire MADISON",
+     "handle": "sapphire-madison",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "72\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20MD",
+     "tags": [
+      "20 mil Wear Layer",
+      "72\"",
+      "9\"",
+      "Brown",
+      "Stone Composite Flooring"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Madisonangleweb_9f0f9f0f-ffcf-4aef-a71c-860c477948b4.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Madisonweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_c7a5abc5-041b-4c30-9c27-f4236a9298e2.png"
+     ]
+    },
+    {
+     "name": "Sapphire QUINN",
+     "handle": "sapphire-quinn",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "72.5\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Embossed In Register (EIR) natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20QN",
+     "tags": [
+      "20 mil Wear Layer",
+      "72\"",
+      "9\"",
+      "Brown"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Quinnangleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Quinnweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_827b6e3e-d910-46a7-adfb-70b187d43b2c.png"
+     ]
+    },
+    {
+     "name": "Sapphire RIVERTON",
+     "handle": "sapphire-riverton",
+     "product_type": "Stone Composite Flooring",
+     "family": "SPC",
+     "construction": "SPC / Rigid Stone Composite (plank)",
+     "thickness": "5mm",
+     "width": "9\"",
+     "length": "72.5\"",
+     "wear_layer": "20mil",
+     "core": "Stone Composite Flooring (SCF) - over 70% stone",
+     "finish": "Quartz Enhanced UV Coating",
+     "sheen": "Matte",
+     "texture": "Embossed In Register (EIR) natural texture",
+     "eir": true,
+     "edge": null,
+     "attached_pad": "1mm Anti-microbial IXPE Foam Backing",
+     "install_method": "Float or Glue Down",
+     "waterproof": true,
+     "sku": "REWLVTGC20RV",
+     "tags": [
+      "20 mil Wear Layer",
+      "72\"",
+      "9\"",
+      "Brown"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Rivertonangleweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Rivertonweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Thumbnail_e3bfbf87-fe2e-4f7d-bb6d-4720ff4cea6c.png"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Meridian II",
+   "handle": "meridian-ii",
+   "family": "LVT",
+   "products": [
+    {
+     "name": "Meridian II WALNUT BECKETT",
+     "handle": "meridian-ii-walnut-beckett",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "2mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "12mil",
+     "core": "100% Virgin Vinyl OPF (Ortho Phthalate Free)",
+     "finish": "Ceramic Bead",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT2MEDWB",
+     "tags": [
+      "12 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Brown",
+      "Luxury Vinyl Tile"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/WalnutBeckettAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/WalnutBeckettweb.png"
+     ]
+    },
+    {
+     "name": "Meridian II OAK SIENNA",
+     "handle": "meridian-ii-oak-sienna",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "2mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "12mil",
+     "core": "100% Virgin Vinyl OPF (Ortho Phthalate Free)",
+     "finish": "Ceramic Bead",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT2MEDSN",
+     "tags": [
+      "12 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Beige",
+      "Luxury Vinyl Tile"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakSiennaAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakSiennaweb.png"
+     ]
+    },
+    {
+     "name": "Meridian II OAK SHAY",
+     "handle": "meridian-ii-oak-shay",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "2mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "12mil",
+     "core": "100% Virgin Vinyl OPF (Ortho Phthalate Free)",
+     "finish": "Ceramic Bead",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT2MEDSH",
+     "tags": [
+      "12 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Brown",
+      "Luxury Vinyl Tile"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakShayAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakShayweb.png"
+     ]
+    },
+    {
+     "name": "Meridian II OAK KENTON",
+     "handle": "meridian-ii-oak-kenton",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "2mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "12mil",
+     "core": "100% Virgin Vinyl OPF (Ortho Phthalate Free)",
+     "finish": "Ceramic Bead",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT2MEDKE",
+     "tags": [
+      "12 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Beige",
+      "Luxury Vinyl Tile"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakKentonAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakKentonweb.png"
+     ]
+    },
+    {
+     "name": "Meridian II OAK GRAHAM",
+     "handle": "meridian-ii-oak-graham",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "2mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "12mil",
+     "core": "100% Virgin Vinyl OPF (Ortho Phthalate Free)",
+     "finish": "Ceramic Bead",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT2MEDGR",
+     "tags": [
+      "12 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Brown",
+      "Luxury Vinyl Tile"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakGrahamAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakGrahamweb.png"
+     ]
+    },
+    {
+     "name": "Meridian II FROSTED OAK",
+     "handle": "meridian-ii-frosted-oak",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "2mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "12mil",
+     "core": "100% Virgin Vinyl OPF (Ortho Phthalate Free)",
+     "finish": "Ceramic Bead",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT2MEDFO",
+     "tags": [
+      "12 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Beige",
+      "Luxury Vinyl Tile"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/FrostedOakAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/FrostedOakweb.png"
+     ]
+    },
+    {
+     "name": "Meridian II OAK CHEYENNE",
+     "handle": "meridian-ii-oak-cheyenne",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "2mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "12mil",
+     "core": "100% Virgin Vinyl OPF (Ortho Phthalate Free)",
+     "finish": "Ceramic Bead",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT2MEDCH",
+     "tags": [
+      "12 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Brown",
+      "Luxury Vinyl Tile"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakCheyenneAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakCheyenneweb.png"
+     ]
+    },
+    {
+     "name": "Meridian II OAK AUBURN",
+     "handle": "meridian-ii-oak-auburn",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "2mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "12mil",
+     "core": "100% Virgin Vinyl OPF (Ortho Phthalate Free)",
+     "finish": "Ceramic Bead",
+     "sheen": "Matte",
+     "texture": "Natural texture",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT2MEDAB",
+     "tags": [
+      "12 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Brown",
+      "Luxury Vinyl Tile"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakAuburnAngleweb.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/OakAuburnweb.png"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Advantage II",
+   "handle": "advantage-ii",
+   "family": "LVT",
+   "products": [
+    {
+     "name": "Advantage II RAW OAK",
+     "handle": "advantage-ii-raw-oak",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "3mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "100% Virgin Material",
+     "finish": "Ceramic Bead/Anti-bacterial Wear Layer",
+     "sheen": "Matte",
+     "texture": "Natural Wood Emboss",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT3ADVRO",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Luxury Vinyl Tile",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/RawOakAngle.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/RawOak.jpg"
+     ]
+    },
+    {
+     "name": "Advantage II POLAR MAPLE",
+     "handle": "advantage-ii-polar-maple",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "3mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "100% Virgin Material",
+     "finish": "Ceramic Bead/Anti-bacterial Wear Layer",
+     "sheen": "Matte",
+     "texture": "Natural Wood Emboss",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT3ADVPM",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Luxury Vinyl Tile",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/PolarMapleAngle.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/PolarMaple.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/AdvantagePolarMapleweb.jpg"
+     ]
+    },
+    {
+     "name": "Advantage II SUNBEAM OAK",
+     "handle": "advantage-ii-sunbeam-oak",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "3mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "100% Virgin Material",
+     "finish": "Ceramic Bead/Anti-bacterial Wear Layer",
+     "sheen": "Matte",
+     "texture": "Natural Wood Emboss",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT3ADVOS",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Luxury Vinyl Tile",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakSunbeamAngleEDIT.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakSunbeam.jpg"
+     ]
+    },
+    {
+     "name": "Advantage II OAK RIVERSTONE",
+     "handle": "advantage-ii-oak-riverstone",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "3mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "100% Virgin Material",
+     "finish": "Ceramic Bead/Anti-bacterial Wear Layer",
+     "sheen": "Matte",
+     "texture": "Natural Wood Emboss",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT3ADVOR",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Luxury Vinyl Tile",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/RiverstoneAngle.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/Riverstone.jpg"
+     ]
+    },
+    {
+     "name": "Advantage II OAK LATTE",
+     "handle": "advantage-ii-oak-latte",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "3mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "100% Virgin Material",
+     "finish": "Ceramic Bead/Anti-bacterial Wear Layer",
+     "sheen": "Matte",
+     "texture": "Natural Wood Emboss",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT3ADVOL",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Luxury Vinyl Tile",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakLatteAngle.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakLatte.jpg"
+     ]
+    },
+    {
+     "name": "Advantage II OAK FROST",
+     "handle": "advantage-ii-oak-frost",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "3mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "100% Virgin Material",
+     "finish": "Ceramic Bead/Anti-bacterial Wear Layer",
+     "sheen": "Matte",
+     "texture": "Natural Wood Emboss",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT3ADVOF",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Luxury Vinyl Tile",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakFrostAngle-EDIT.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/OakFrost.jpg"
+     ]
+    },
+    {
+     "name": "Advantage II HICKORY SNOW",
+     "handle": "advantage-ii-hickory-snow",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "3mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "100% Virgin Material",
+     "finish": "Ceramic Bead/Anti-bacterial Wear Layer",
+     "sheen": "Matte",
+     "texture": "Natural Wood Emboss",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT3ADVHS",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Luxury Vinyl Tile",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/HickorySnowAngle.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/HickorySnow.jpg"
+     ]
+    },
+    {
+     "name": "Advantage II CARAMEL OAK",
+     "handle": "advantage-ii-caramel-oak",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "3mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "100% Virgin Material",
+     "finish": "Ceramic Bead/Anti-bacterial Wear Layer",
+     "sheen": "Matte",
+     "texture": "Natural Wood Emboss",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT3ADVCO",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Luxury Vinyl Tile",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CarmelOakAngle.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/CarmelOak.jpg"
+     ]
+    },
+    {
+     "name": "Advantage II OAK BLACK PEARL",
+     "handle": "advantage-ii-oak-black-pearl",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "3mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "100% Virgin Material",
+     "finish": "Ceramic Bead/Anti-bacterial Wear Layer",
+     "sheen": "Matte",
+     "texture": "Natural Wood Emboss",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT3ADVBP",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Luxury Vinyl Tile",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BlackPearlAngle.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/BlackPearl.jpg"
+     ]
+    },
+    {
+     "name": "Advantage II AGED OAK",
+     "handle": "advantage-ii-aged-oak",
+     "product_type": "LVT",
+     "family": "LVT",
+     "construction": "LVT / Glue-Down Dryback (plank)",
+     "thickness": "3mm",
+     "width": "7\"",
+     "length": "48\"",
+     "wear_layer": "20mil",
+     "core": "100% Virgin Material",
+     "finish": "Ceramic Bead/Anti-bacterial Wear Layer",
+     "sheen": "Matte",
+     "texture": "Natural Wood Emboss",
+     "eir": false,
+     "edge": null,
+     "attached_pad": null,
+     "install_method": "Glue-down",
+     "waterproof": true,
+     "sku": "REWLVT3ADVAO",
+     "tags": [
+      "20 mil Wear Layer",
+      "48\"",
+      "7\"",
+      "Luxury Vinyl Tile",
+      "Natural"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/AgedOakAngle.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/products/AgedOak.jpg"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Riverfront",
+   "handle": "riverfront",
+   "family": "Laminate",
+   "products": [
+    {
+     "name": "Riverfront Spokane",
+     "handle": "riverfront-spokane",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-3/8\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True-Wood-Touch (EIR) Emboss-in-Register",
+     "eir": true,
+     "edge": "True-to-Wood V-Shaped Micro-Bevel with Continuous Wood D\u00e9cor",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129RFSP",
+     "tags": [
+      "72\"",
+      "9 3/8\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Spokane_angle_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Spokane_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Spokane_rs_web.jpg"
+     ]
+    },
+    {
+     "name": "Riverfront Strasbourg",
+     "handle": "riverfront-strasbourg",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-3/8\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True-Wood-Touch (EIR) Emboss-in-Register",
+     "eir": true,
+     "edge": "True-to-Wood V-Shaped Micro-Bevel with Continuous Wood D\u00e9cor",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129RFSB",
+     "tags": [
+      "72\"",
+      "9 3/8\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Strasbourg_angle_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Strasbourg_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Strasbourg_rs_web.jpg"
+     ]
+    },
+    {
+     "name": "Riverfront Seine",
+     "handle": "riverfront-seine",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-3/8\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True-Wood-Touch (EIR) Emboss-in-Register",
+     "eir": true,
+     "edge": "True-to-Wood V-Shaped Micro-Bevel with Continuous Wood D\u00e9cor",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129RFSE",
+     "tags": [
+      "72\"",
+      "9 3/8\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seine_angle_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seine_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seine_rs_web.jpg"
+     ]
+    },
+    {
+     "name": "Riverfront Providence",
+     "handle": "riverfront-providence",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-3/8\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True-Wood-Touch (EIR) Emboss-in-Register",
+     "eir": true,
+     "edge": "True-to-Wood V-Shaped Micro-Bevel with Continuous Wood D\u00e9cor",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129RFPV",
+     "tags": [
+      "72\"",
+      "9 3/8\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Providence_angle_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Providence_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Providence_rs_web.jpg"
+     ]
+    },
+    {
+     "name": "Riverfront Porto",
+     "handle": "riverfront-porto",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-3/8\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True-Wood-Touch (EIR) Emboss-in-Register",
+     "eir": true,
+     "edge": "True-to-Wood V-Shaped Micro-Bevel with Continuous Wood D\u00e9cor",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129RFPT",
+     "tags": [
+      "72\"",
+      "9 3/8\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Porto_angle_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Porto_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Porto_rs_web.jpg"
+     ]
+    },
+    {
+     "name": "Riverfront Hudson",
+     "handle": "riverfront-hudson",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-3/8\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True-Wood-Touch (EIR) Emboss-in-Register",
+     "eir": true,
+     "edge": "True-to-Wood V-Shaped Micro-Bevel with Continuous Wood D\u00e9cor",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129RFHD",
+     "tags": [
+      "72\"",
+      "9 3/8\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Hudson_angle_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Hudson_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Hudson_rs_web.jpg"
+     ]
+    },
+    {
+     "name": "Riverfront Charles",
+     "handle": "riverfront-charles",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-3/8\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True-Wood-Touch (EIR) Emboss-in-Register",
+     "eir": true,
+     "edge": "True-to-Wood V-Shaped Micro-Bevel with Continuous Wood D\u00e9cor",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129RFCH",
+     "tags": [
+      "72\"",
+      "9 3/8\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Charles_angle_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Charles_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Charles_rs_web.jpg"
+     ]
+    },
+    {
+     "name": "Riverfront Brisbane",
+     "handle": "riverfront-brisbane",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-3/8\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True-Wood-Touch (EIR) Emboss-in-Register",
+     "eir": true,
+     "edge": "True-to-Wood V-Shaped Micro-Bevel with Continuous Wood D\u00e9cor",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129RFBB",
+     "tags": [
+      "72\"",
+      "9 3/8\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Brisbane_angle_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Brisbane_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Brisbane_rs_web.jpg"
+     ]
+    },
+    {
+     "name": "Riverfront Arno",
+     "handle": "riverfront-arno",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-3/8\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True-Wood-Touch (EIR) Emboss-in-Register",
+     "eir": true,
+     "edge": "True-to-Wood V-Shaped Micro-Bevel with Continuous Wood D\u00e9cor",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129RFAR",
+     "tags": [
+      "72\"",
+      "9 3/8\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Arno_angle_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Arno_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Arno_rs_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/RIVERFRONT_ARNO.jpg"
+     ]
+    },
+    {
+     "name": "Riverfront Amstel",
+     "handle": "riverfront-amstel",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-3/8\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True-Wood-Touch (EIR) Emboss-in-Register",
+     "eir": true,
+     "edge": "True-to-Wood V-Shaped Micro-Bevel with Continuous Wood D\u00e9cor",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129RFAM",
+     "tags": [
+      "72\"",
+      "9 3/8\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Amstel_Angle_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Amstel_web.jpg",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Amstel_rs_web.jpg"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Seaside",
+   "handle": "seaside",
+   "family": "Laminate",
+   "products": [
+    {
+     "name": "Seaside Pompano",
+     "handle": "seaside-pompano",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-1/4\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129SSPM",
+     "tags": [
+      "72\"",
+      "9-1/4\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Pompano_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Pompano.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Pompano_Edit.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/SEASIDE_POMPANO.jpg"
+     ]
+    },
+    {
+     "name": "Seaside Grayton",
+     "handle": "seaside-grayton",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-1/4\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129SSGR",
+     "tags": [
+      "72\"",
+      "9-1/4\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Grayton_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Grayton.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Grayton_Edit.png"
+     ]
+    },
+    {
+     "name": "Seaside Seabrook",
+     "handle": "seaside-seabrook",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-1/4\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129SSSB",
+     "tags": [
+      "72\"",
+      "9-1/4\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seabrook_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seabrook.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Seabrook_Edit.png"
+     ]
+    },
+    {
+     "name": "Seaside Asbury",
+     "handle": "seaside-asbury",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-1/4\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129SSAB",
+     "tags": [
+      "72\"",
+      "9-1/4\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Asbury_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Asbury.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Asbury_edit.png"
+     ]
+    },
+    {
+     "name": "Seaside Topsail",
+     "handle": "seaside-topsail",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-1/4\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129SSTS",
+     "tags": [
+      "72\"",
+      "9-1/4\"",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Topsail_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Topsail.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Topsail_edit.png"
+     ]
+    },
+    {
+     "name": "Seaside Delray",
+     "handle": "seaside-delray",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-1/4\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129SSDR",
+     "tags": [
+      "72\"",
+      "9-1/4\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Delray_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Delray.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Delray_Edit.png"
+     ]
+    },
+    {
+     "name": "Seaside Bethany",
+     "handle": "seaside-bethany",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-1/4\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL12PSSBY",
+     "tags": [
+      "72\"",
+      "9-1/4\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Bethany_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Bethany.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Bethany_edit.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/SEASIDE_BETHANY_369fef51-df75-4c58-9b92-476a3d134ec1.jpg"
+     ]
+    },
+    {
+     "name": "Seaside Holden",
+     "handle": "seaside-holden",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-1/4\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129SSHL",
+     "tags": [
+      "72\"",
+      "9-1/4\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Holden_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Holden.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Holden_Edit.png"
+     ]
+    },
+    {
+     "name": "Seaside Cape May",
+     "handle": "seaside-cape-may",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-1/4\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129SSCM",
+     "tags": [
+      "72\"",
+      "9-1/4\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Cape_May_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Cape_May.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Cape_May_Edit.png"
+     ]
+    },
+    {
+     "name": "Seaside Myrtle",
+     "handle": "seaside-myrtle",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "9-1/4\"",
+     "length": "72\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL129SSMR",
+     "tags": [
+      "72\"",
+      "9-1/4\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Myrtle_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Myrtle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Myrtle_Edit.png"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Lakeshore",
+   "handle": "lakeshore",
+   "family": "Laminate",
+   "products": [
+    {
+     "name": "Lakeshore Clermont",
+     "handle": "lakeshore-clermont",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "7-1/2\"",
+     "length": "48\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL127LSCL",
+     "tags": [
+      "48\"",
+      "7-1/2\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/clermont_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Clermont.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Clermont_edit.png"
+     ]
+    },
+    {
+     "name": "Lakeshore Loyola",
+     "handle": "lakeshore-loyola",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "7-1/2\"",
+     "length": "48\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL127LSLO",
+     "tags": [
+      "48\"",
+      "7-1/2\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/loyola_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Loyola.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Loyola_Edit.png"
+     ]
+    },
+    {
+     "name": "Lakeshore Rangely",
+     "handle": "lakeshore-rangely",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "7-1/2\"",
+     "length": "48\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL127LSRN",
+     "tags": [
+      "48\"",
+      "7-1/2\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/rangely_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Rangely.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Rangely_Edit.png"
+     ]
+    },
+    {
+     "name": "Lakeshore Hamlin",
+     "handle": "lakeshore-hamlin",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "7-1/2\"",
+     "length": "48\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL127LSHM",
+     "tags": [
+      "48\"",
+      "7-1/2\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/hamlin_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Hamlin.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Hamlin_Edit.png"
+     ]
+    },
+    {
+     "name": "Lakeshore Oakwood",
+     "handle": "lakeshore-oakwood",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "7-1/2\"",
+     "length": "48\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel4",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL127LSOK",
+     "tags": [
+      "48\"",
+      "7-1/2\"",
+      "Grey",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/oakwood_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Oakwood.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Oakwood_Edit.png"
+     ]
+    },
+    {
+     "name": "Lakeshore Haven",
+     "handle": "lakeshore-haven",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "7-1/2\"",
+     "length": "48\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL127LSHV",
+     "tags": [
+      "48\"",
+      "7-1/2\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/haven_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Haven.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Haven_Edit.png"
+     ]
+    },
+    {
+     "name": "Lakeshore Aurora",
+     "handle": "lakeshore-aurora",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "7-1/2\"",
+     "length": "48\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL127LSAU",
+     "tags": [
+      "48\"",
+      "7-1/2\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/aurora_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Aurora.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Aurora_Edit.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/LAKESHORE_AURORA.jpg"
+     ]
+    },
+    {
+     "name": "Lakeshore Warren",
+     "handle": "lakeshore-warren",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "7-1/2\"",
+     "length": "48\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL127LSWR",
+     "tags": [
+      "48\"",
+      "7-1/2\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/warren_angle_56cdd0bb-56c1-4f7d-b790-a77099c20543.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Warren_c0c3b8f2-eae7-4d26-a692-73e8fb20d827.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Warren_Edit.png"
+     ]
+    },
+    {
+     "name": "Lakeshore Bayview",
+     "handle": "lakeshore-bayview",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "7-1/2\"",
+     "length": "48\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL127LSBV",
+     "tags": [
+      "48\"",
+      "7-1/2\"",
+      "Beige",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/bayview_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Bayview.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Bayview_Edit.png"
+     ]
+    },
+    {
+     "name": "Lakeshore Baldwin",
+     "handle": "lakeshore-baldwin",
+     "product_type": "Laminate",
+     "family": "Laminate",
+     "construction": "laminate",
+     "thickness": "12",
+     "width": "7-1/2\"",
+     "length": "48\"",
+     "wear_layer": "Scratch Resistant, Commercially Rated AC4 Melamine",
+     "core": "",
+     "finish": "Ultra-Matte",
+     "sheen": "Ultra-Matte",
+     "texture": "True Wood Touch (EIR) texture",
+     "eir": true,
+     "edge": "Painted Bevel",
+     "attached_pad": "",
+     "install_method": "Click",
+     "waterproof": "Waterproof",
+     "sku": "GEMWL127LSBW",
+     "tags": [
+      "48\"",
+      "7-1/2\"",
+      "Brown",
+      "Laminate"
+     ],
+     "images": [
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/baldwin_angle.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Baldwin.png",
+      "https://cdn.shopify.com/s/files/1/0589/1915/7924/files/Baldwin_Edit.png"
+     ]
+    }
+   ]
+  }
+ ],
+ "collections_failed": [
+  {
+   "handle": "onyx",
+   "reason": "collections/onyx endpoint returned 0 products; no Onyx-titled products in products.json (not published)"
+  },
+  {
+   "handle": "teton",
+   "reason": "endpoint returned 0 products (empty/unpublished; not a GemCore collection)"
+  },
+  {
+   "handle": "yosemite",
+   "reason": "endpoint returned 0 products (empty/unpublished; not a GemCore collection)"
+  },
+  {
+   "handle": "topaz",
+   "reason": "no such collection and no Topaz-titled products in public feed"
+  },
+  {
+   "handle": "majesty-eir",
+   "reason": "no such collection and no Majesty-titled products in public feed"
+  },
+  {
+   "handle": "sapphire-eir",
+   "reason": "Sapphire exists as plain SPC (sapphire-collection); no separate EIR variant in feed"
+  }
+ ],
+ "notes": "Source: gemcoreflooring.com Shopify public JSON (products.json single page, 86 products total). GemCore = 38 SPC (product_type \"Stone Composite Flooring\") + 18 LVT (product_type \"LVT\") = 56 products across 8 collections. The other 30 products are product_type \"Laminate\" (Reward-brand waterproof laminate collections: Riverfront, Lakeshore, Seaside, Teton, Yosemite, etc.) and are NOT GemCore -> excluded from this catalog. Missing vs task brief: Topaz, Onyx EIR, Jasper EIR (Jasper IS present, tagged EIR), Sapphire EIR, Majesty EIR are NOT in the public feed. Jasper collection is EIR-textured (see texture field). No SPC/stone TILE products exist in this feed - all GemCore products are planks. Spec fields site-wide: \"edge\"/bevel treatment is described only in prose Description (not the Specifications tab) so left null; LVT products have no attached_pad (dryback glue-down); \"core\" holds the GRADE line (stone-composite % for SPC, virgin-vinyl for LVT). Image URLs stripped of ?v= and _NNNx size suffixes."
+}

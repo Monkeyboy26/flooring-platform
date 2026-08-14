@@ -1,0 +1,630 @@
+{
+  "REW-avalon-kay": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonKayangleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonKayweb.png"
+    ]
+  },
+  "REW-avalon-gareth": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/GarethAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Garethweb.png"
+    ]
+  },
+  "REW-avalon-barant": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonBarantAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonBarantweb.png"
+    ]
+  },
+  "REW-avalon-percival": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonPercivalAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonPercivalweb.png"
+    ]
+  },
+  "REW-avalon-elyan": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonElyanAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonElyanweb.png"
+    ]
+  },
+  "REW-avalon-tristan": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonTristanAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonTristanweb.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonTristan_RS.jpg"
+    ]
+  },
+  "REW-avalon-galahad": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonGalahadangleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonGalahadweb.png"
+    ]
+  },
+  "REW-provence-iii-pelisan-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pelisan_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pelisan_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-lauron-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Lauron_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Lauron_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-pierlas-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pierlas_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pierlas_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-archail-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Archail_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Archail_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-venelle-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Venelle_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Venelle_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-tartonne-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Tartonne_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Tartonne_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-rousset-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Rousset_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Rousset_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-reverie-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Reverie_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Reverie_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-la-garde-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Garde_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Garde_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-la-bonde-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Bonde_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Bonde_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-cheval-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Cheval_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Cheval_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-auvare-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Auvare_HB_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Auvare_HB_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-pierlas": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pierlas_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pierlas_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-tartonne": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Tartonne_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Tartonne_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-archail": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Archail_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Archail_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-pelisan": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pelisan_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pelisan_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-venelle": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Venelle_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Venelle_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-rousset": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Rousset_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Rousset_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-reverie": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Reverie_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Reverie_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-lauron": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Lauron_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Lauron_web_0426.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Lauron_floordrop_hr_0726.png"
+    ]
+  },
+  "REW-provence-iii-la-garde": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Garde_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Garde_web_0426.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Provence_III_La_Garde_Edit_0426.png"
+    ]
+  },
+  "REW-provence-iii-la-bonde": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Bonde_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Bonde_web_0426_5087daf4-0384-41a5-8fc1-0eed3f392781.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Provence_III_La_Bonde_Edit_0426.png"
+    ]
+  },
+  "REW-provence-iii-cheval": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Cheval_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Cheval_web_0426.png"
+    ]
+  },
+  "REW-provence-iii-auvare": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Auvare_angle_web_0426.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Auvare_web_0426.png"
+    ]
+  },
+  "REW-urbano-amalfi": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Amalfi_edit_5465b9a9-83c0-4e1f-949f-a0d43c4be475.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Amalfi_edit.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Urbano_Amalfi_floordrop.png"
+    ]
+  },
+  "REW-urbano-palermo": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/PalermoAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Palermoweb.jpg"
+    ]
+  },
+  "REW-urbano-ravenna": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Ravennaangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Ravennaweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Urbano_floordrop_lr.jpg"
+    ]
+  },
+  "REW-urbano-napoli": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Napoliangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Napoliweb.jpg"
+    ]
+  },
+  "REW-urbano-milano": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Milanoangle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Milanoweb.jpg"
+    ]
+  },
+  "REW-urbano-genoa": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Genoaangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Genoaweb.jpg"
+    ]
+  },
+  "REW-heritage-natural": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/MAPLE_NATURAL_HERITAGE.png",
+    "lifestyle": []
+  },
+  "REW-heritage-gunstock": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/RED_OAK_GUNSTOCK_HERITAGE.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Gunstock.png"
+    ]
+  },
+  "REW-heritage-white-oak-natural-3-1-4": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/WHITEOAKNATURALHERITAGE_662f1cdb-e62e-4b2c-ade8-7c4b31dde1a5.png",
+    "lifestyle": []
+  },
+  "REW-heritage-white-oak-natural-2-1-4": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/WHITEOAKNATURALHERITAGE_662f1cdb-e62e-4b2c-ade8-7c4b31dde1a5.png",
+    "lifestyle": []
+  },
+  "REW-heritage-red-oak-natural-3-1-4": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/RED_OAK_NATURAL_HERITAGE_d28355f5-9088-4042-817e-fe150d4366c5.png",
+    "lifestyle": []
+  },
+  "REW-heritage-red-oak-natural-2-1-4": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/RED_OAK_NATURAL_HERITAGE_d28355f5-9088-4042-817e-fe150d4366c5.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Red_Oak_Natural.png"
+    ]
+  },
+  "REW-europa-sava": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/EuropaSavaAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/EuropaSavaweb.jpg",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/EuropaSava_web.png"
+    ]
+  },
+  "REW-europa-tiber": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TiberAngle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Tiber.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MastervideoThumbnail_3f5442a5-7459-47e6-8ca9-0fdd94803181.png"
+    ]
+  },
+  "REW-europa-rhine": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/RhineAngle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Rhine.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MastervideoThumbnail_3dbf259c-176b-44b8-b2a2-d6cf3b479912.png"
+    ]
+  },
+  "REW-europa-loire": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/LoireAngle_a74c6a69-9c36-40a9-80d2-7ebc40bd5db1.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Loire.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MastervideoThumbnail_cac43396-3288-46e9-a53e-cda23b2d93cf.png"
+    ]
+  },
+  "REW-europa-elbe": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/ElbeAngle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Elbe2.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MastervideoThumbnail.png"
+    ]
+  },
+  "REW-terreno-diano": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Dianoangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/DianoNEWweb.jpg"
+    ]
+  },
+  "REW-terreno-sesia": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Sesiaangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Sesiaweb.jpg"
+    ]
+  },
+  "REW-terreno-nera": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Neraangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Neraweb.jpg"
+    ]
+  },
+  "REW-terreno-fiori": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/FioriAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Fioriweb.jpg"
+    ]
+  },
+  "REW-terreno-sila": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Silaangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Silaweb.jpg"
+    ]
+  },
+  "REW-terreno-conte": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Conteangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Conteweb.jpg"
+    ]
+  },
+  "REW-mill-creek-sanborn": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/MillCreekSanbornAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Sanbornedit6.7.24.jpg",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/MillCreekSanborn_floordrop.jpg"
+    ]
+  },
+  "REW-mill-creek-hatch": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Hatch_Angle_Edit_6.24.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Hatch_edit_6.7.24.jpg"
+    ]
+  },
+  "REW-mill-creek-coburn": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/MillCreekCoburnAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Coburnedit6.7.24_9d1e3423-3c5e-4101-8c13-a7b851dc2321.jpg"
+    ]
+  },
+  "REW-mill-creek-nichols": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Nichols_Angle_Edit_6.7.24.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Nichols_edit_6.7.24.jpg"
+    ]
+  },
+  "REW-mill-creek-berwick": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/BerwickAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Berwick_edit_6.7.24.jpg"
+    ]
+  },
+  "REW-mill-creek-woodson": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MillCreekEUROPEANOAKWOODSON_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Woodson_edit_6.7.24.jpg",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/woodson_install_master.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/video_thumbnail_f094738a-6b78-48e5-88b6-76ad52636e6c.jpg"
+    ]
+  },
+  "REW-mill-creek-stratton": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MillCreekEUROPEANOAKSTRATTON_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Stratton.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/video_thumbnail_770a9628-5ddd-4570-8f92-a5431ea29dd9.jpg",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MillCreekStratton_RS.jpg"
+    ]
+  },
+  "REW-mill-creek-hopkins": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MillCreekEUROPEANOAKHOPKINS_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Hopkins.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/video_thumbnail_f31296e5-2826-40b5-8193-cbcfe71bc106.jpg"
+    ]
+  },
+  "REW-mill-creek-fowler": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MillCreekEUROPEANOAKFOWLER_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/0005_Fowler_1.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/video_thumbnail_0aa31e73-d881-4269-8ad6-10a85c574271.jpg"
+    ]
+  },
+  "REW-sylvania-clarion": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WalnutClarionAngled.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WalnutClarion-edits.jpg"
+    ]
+  },
+  "REW-sylvania-natural": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WalnutNaturalAngled.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WalnutNatural.jpg"
+    ]
+  },
+  "REW-sylvania-potter": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakPotterAngle-edit.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakPotter.jpg"
+    ]
+  },
+  "REW-sylvania-fayette": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakFayetteAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakFayette.jpg",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/WhiteOakFayette_floordrop_web.png"
+    ]
+  },
+  "REW-sylvania-cambria": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakCambriaAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakCambria.jpg"
+    ]
+  },
+  "REW-sylvania-blair": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakBlairAngleedit3.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakBlair.jpg"
+    ]
+  },
+  "REW-sylvania-butler": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakButlerAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakButler.jpg"
+    ]
+  },
+  "REW-costa-pelosa": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Pelosaangled.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaPelosa.jpg",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaPelosa_RS.jpg"
+    ]
+  },
+  "REW-costa-leone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaLeoneAngledweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaLeoneweb.png"
+    ]
+  },
+  "REW-costa-mannu": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaMannuAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaMannuweb.png"
+    ]
+  },
+  "REW-costa-vela": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaVelaAngleweb_dd30ba00-834c-4f25-a371-7d065358f001.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaVelaweb_5b0d5e03-1d73-42c0-b50f-67dc6631d7fc.png"
+    ]
+  },
+  "REW-costa-ancona": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaAnconaAngledweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaAnconaweb.png"
+    ]
+  },
+  "REW-costa-luna": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaEUROPEANOAKLUNA_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/costa_luna2020_1704x1306_e1d730e2-5bdf-44a7-ae9d-6f8a7e827354.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaLunaWebusage10_16_20.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_410d6df5-6ded-4db8-9e1d-871bd1e26d3a.png"
+    ]
+  },
+  "REW-costa-vasto": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaEUROPEANOAKVASTO_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/costa_vasto2020_1704x1306_9869b92d-1d27-4bdf-8b9a-3832262d245d.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_6ce50196-6d38-417c-8c5f-07c5e3e0b2db.png"
+    ]
+  },
+  "REW-costa-testa": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaEUROPEANOAKTESTA_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Costa_TestaUpdate51524.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_57eac1ff-6834-450b-aac3-fa9e9ae9ecbf.png"
+    ]
+  },
+  "REW-costa-nicola": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaEUROPEANOAKNICOLA_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Nicola2020.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_46acd694-fa08-4fe6-8f1b-664cd6a81105.png"
+    ]
+  },
+  "REW-costa-capri": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Costa_EUROPEAN_OAK_CAPRI_Angled_edit_10.16.24.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Capri_edit_1024.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_3ce14bbd-3e0d-4a13-be89-7704403d20c2.png"
+    ]
+  },
+  "REW-costa-conero": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaEUROPEANOAKCONERO_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Conero2020_profileremoved.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_cf469357-cfa7-44bf-b397-1a1130dcc166.png"
+    ]
+  },
+  "REW-castillo-alban": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AlbanAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AlbanOverheadweb.png"
+    ]
+  },
+  "REW-castillo-tulum": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TulumAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TulumOverheadweb.png"
+    ]
+  },
+  "REW-castillo-copan": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CopanAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CopanOverheadweb.png"
+    ]
+  },
+  "REW-castillo-tikal": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TikalAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TikalWeb.png"
+    ]
+  },
+  "REW-islands-trinidad": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TrinidadAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Trinidad.jpg"
+    ]
+  },
+  "REW-islands-tortola": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TortolaAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Tortola.jpg"
+    ]
+  },
+  "REW-islands-curacao": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CuracaoAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Curacao.jpg"
+    ]
+  },
+  "REW-islands-nevis": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/NevisAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Nevis.jpg"
+    ]
+  },
+  "REW-islands-cayman": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CaymanAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Cayman.jpg"
+    ]
+  },
+  "REW-islands-barbados": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/BarbadosAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Barbados.jpg"
+    ]
+  },
+  "REW-islands-aruba": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/ArubaAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Aruba.jpg"
+    ]
+  },
+  "REW-el-paso-sunland": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/SunlandAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Sunlandweb.png"
+    ]
+  },
+  "REW-el-paso-resler": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/ReslerAngleweb_6296b533-f0db-43b3-9974-72f2bbecbf8b.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Reslerweb_a3ef0505-9c28-42a7-b993-59f26e1f4b3f.png"
+    ]
+  },
+  "REW-el-paso-natural": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/HickoryNaturalAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/HickoryNaturalweb.png"
+    ]
+  },
+  "REW-el-paso-falcon": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/FalconAngle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Falconweb.png"
+    ]
+  },
+  "REW-el-paso-bliss": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/BlissAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Blissweb.png"
+    ]
+  },
+  "REW-camino-ii-stirrup": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CaminoIIMAPLESTIRRUP_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/stirup_edit_101019.jpg",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Camino_II_Maple_Sitrrup_Kitchen_1740.png",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Camino_II_Introduction_thumbnail_fd043a47-271a-4bb4-a3e6-d0947cddc6fc.png"
+    ]
+  },
+  "REW-camino-ii-bourbon": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CaminoIIBURBON_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/burbon_edit_101019.jpg",
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Camino_II_Introduction_thumbnail.png"
+    ]
+  },
+  "REW-camino-ii-maple-natural": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CaminoIIMAPLENATURAL_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/maple_natural.jpg"
+    ]
+  },
+  "REW-camino-ii-hickory-natural": {
+    "primary": "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CamionIIHICKORYNATURAL_Angled.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/hickory_natural_edit_101019.jpg"
+    ]
+  }
+}

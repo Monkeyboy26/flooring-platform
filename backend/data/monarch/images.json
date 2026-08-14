@@ -1,0 +1,599 @@
+{
+  "MON-la-grande-lumiere": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/LumiereAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Lumiereweb.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LumiereRoomSceneWeb.jpg"
+    ]
+  },
+  "MON-la-grande-thyon": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/ThyonAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Thyonweb.png"
+    ]
+  },
+  "MON-la-grande-parsenn": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/ParsennAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Parsennweb.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Parsennroomsceneweb.jpg"
+    ]
+  },
+  "MON-la-grande-nendaz": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/NendazAngle_edit_1024.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Nendazweb.jpg"
+    ]
+  },
+  "MON-la-grande-grenoble": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/GrenobleAngleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Grenobleweb.png"
+    ]
+  },
+  "MON-la-grande-venosta": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/VenostaAngleweb_edit_10.24.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Venosta_web_edit_1024.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Venosta_2_roomsceneweb.jpg"
+    ]
+  },
+  "MON-domaine-ii-nebbia": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Domane_II_Nebbia_Angle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Domaine_II_Nebbia.jpg"
+    ]
+  },
+  "MON-domaine-ii-nebbia-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/Verano_hb__0001_Nebbia-Angles.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Verano_hb__0000_Vearno-Nebbia-Herrigbone-Complete-2.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/ScreenShot2021-08-13at12.07.19PM_4b3db4b8-0974-4d44-a2ae-6d1ca99bbc43.png"
+    ]
+  },
+  "MON-domaine-ii-retz-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/DomaineIIRetzHBAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/DomainiiRetzhbweb.jpg"
+    ]
+  },
+  "MON-domaine-ii-lorraine": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/Lorraineangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Lorraineweb.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/videoimage_9ed4e884-c811-4c9f-aa32-0997fc966b5d.jpg"
+    ]
+  },
+  "MON-domaine-ii-retz": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/Retzangleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Retzweb.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/DomainRetzRS2.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/videoimage_c6b592ba-b5e5-44c8-832d-98de79442a76.jpg"
+    ]
+  },
+  "MON-domaine-ii-verte-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/Domaine-II_hb__0001_Verte-Angled_final.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/ScreenShot2021-08-13at12.07.19PM_196d9b2f-49c0-4fce-ad57-c2a092920563.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Domaine-II_hb__0000_Verte-Top_final.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/videoimage_1d9786fb-94a9-4993-bfdf-870a256532d6.jpg"
+    ]
+  },
+  "MON-domaine-ii-montrichard-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/MontrichardHB.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Domaine-II_hb__0002_Montrichard-Top_final.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/ScreenShot2021-08-13at12.07.19PM_a3c7d882-cff1-4bd8-9c0f-09ffdf1dd86c.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/videoimage_d5370285-3f51-4ad1-b371-59a6e629eb8e.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Monarch_Plank-Domaine_II-Montrichard_HB.jpg"
+    ]
+  },
+  "MON-domaine-ii-allier-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/Domaine-II_hb__0005_Allier-Angled_final.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/ScreenShot2021-08-13at12.07.19PM.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Domaine-II_hb__0004_Allier-Top_final.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0008s_0012_domain_allier_b77f84e1-3b14-4860-8e23-4182bf736324.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Domaine_Allier_5920f3d4-a291-49ae-8d70-59b3e2871c41.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/videoimage_964e9e5e-5d25-4409-a532-336caa60b639.jpg"
+    ]
+  },
+  "MON-domaine-ii-montrichard": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0008s_0004_domain_motrichard-_1_08c48c50-f60a-40f0-9285-43bc2ec10603.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Domaine_Montrichard_13cc5606-3c49-4d66-aa31-28eb5b75e4c3.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/videoimage_ce8f6ae5-b625-4c0a-9950-e98711b06ea0.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/becki1704_B_3956bc35-5764-4807-af41-366e60ac7fdc.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/becki1704_A_a90bd68f-5dd9-4fa9-8a22-0f6526e4b4cf.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Domaine_Montrichard_per_Gaskin_development_53288853_img_0181_502bd3b1-8c07-4fb0-aaee-f706a0a39370.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Montrichard11_17_20_webonly_ba683516-995d-4f89-abd9-621cf14d52a8.jpg"
+    ]
+  },
+  "MON-domaine-ii-verte": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0008s_0003_domain_verte_bf01ded8-9fb4-45c8-908a-aa00c5dcbef9.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/domain_II_verte_adj.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/videoimage_e8e55473-2bea-442f-bfd9-953c7fdf9679.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/domaine_verte_copy_8be9ce40-9ac0-4366-abc9-1be066d48de0.jpg"
+    ]
+  },
+  "MON-domaine-ii-allier": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0008s_0012_domain_allier_353f7a28-eaa3-41a8-a169-f03b550f0091.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Domaine_Allier_67cbf31a-57ca-45a8-9ba0-dba0fd02f7f0.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/videoimage_e3211190-47b5-4edd-91ba-9db6ea75cd57.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/IMG_3160_6c23ba5c-587e-4b6f-aae8-9846a95a4c7d.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/IMG_3143_84903ecd-934e-49fb-843a-6f6d33a9fce4.jpg"
+    ]
+  },
+  "MON-dover-ashley": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverAshleyAngleWeb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverAshleyweb.jpg"
+    ]
+  },
+  "MON-dover-citadel": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverCitadelAngleWeb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverCitadelweb.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/dover-citadel-floordrop-1733779477-67576015337e9.png"
+    ]
+  },
+  "MON-dover-walmer": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverWalmerAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverWalmerweb.jpg"
+    ]
+  },
+  "MON-dover-langdon": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverLangdonAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverLangdonweb.jpg"
+    ]
+  },
+  "MON-dover-kent": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverKentAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverKentweb.jpg"
+    ]
+  },
+  "MON-dover-bradfield": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverBradfieldAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverBradfieldweb.jpg"
+    ]
+  },
+  "MON-dover-foxley": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverFoxleyAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverFoxleyweb.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/DoverFoxely_floordrop.jpg"
+    ]
+  },
+  "MON-manor-bowden": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Bowden.png",
+    "lifestyle": []
+  },
+  "MON-manor-winslow": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/WinslowAngle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Winslow_8db04105-b948-4fc2-8b26-b463581277a5.png"
+    ]
+  },
+  "MON-manor-sutton": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Sutton_Angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Sutton.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Sutton_floordrop.png"
+    ]
+  },
+  "MON-manor-campton": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Campton_Angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Campton.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Campton_floordrop.png"
+    ]
+  },
+  "MON-manor-coleman": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Coleman_Angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Coleman.png"
+    ]
+  },
+  "MON-manor-barnsley": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Barnsley_Angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Barnsley.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Manor_Barnsley_floordrop.png"
+    ]
+  },
+  "MON-manor-aldin": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/AldinAngle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Aldin.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Manor_Aldin_floordrop.png"
+    ]
+  },
+  "MON-regent-anna": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Anna_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Regent_Anna.png"
+    ]
+  },
+  "MON-regent-elizabeth": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Elizabeth_angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Regent_Elizabeth.png"
+    ]
+  },
+  "MON-regent-margaret": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/MargaretAngle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Margaret.png"
+    ]
+  },
+  "MON-regent-eleanor": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/EleanorAngle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Eleanor.png"
+    ]
+  },
+  "MON-regent-carolina": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/RegentCarolinaAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/RegentCarolinaweb.jpg"
+    ]
+  },
+  "MON-regent-isabella": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/RegentIsabellaAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/RegentIsabellaweb.jpg"
+    ]
+  },
+  "MON-regent-juliana": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/RegentJuliannaAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/RegentJuliannawebedit.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/RegentJulianna_floordrop.jpg"
+    ]
+  },
+  "MON-tableau-sisley": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/SisleyAngle-editweb0123.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Sisley-edit0123web.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/TableauSisley_web_fin.jpg"
+    ]
+  },
+  "MON-tableau-cassatt": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/CassattAngleedit5.17.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Cassattedit5.17web.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/TableauCassattRS.jpg"
+    ]
+  },
+  "MON-tableau-bazille": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/BazilleAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Bazille-edit_62024.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/TableauBazille_web_fin.jpg"
+    ]
+  },
+  "MON-tableau-matisse": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0002s_0002_tableau_matisse.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/matissecorrectedNov6.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/matisseangle2.png"
+    ]
+  },
+  "MON-tableau-cezanne": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0002s_0005_tableau_cezanne.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/CezannecorrectedNov6.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Cezanneangle2020Nov.png"
+    ]
+  },
+  "MON-tableau-latour": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0002s_0003_tableau_latour.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LatourcorrectedNov6.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LatourMaster2.png"
+    ]
+  },
+  "MON-tableau-degas": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0002s_0004_tableau_degas.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/DegascorrectedNov6.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/degasangle.png"
+    ]
+  },
+  "MON-tableau-monet": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0002s_0001_tableau_monet.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/MonetcorrectedNov6.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/monetangle.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/TableauMonetRoomScene.jpg"
+    ]
+  },
+  "MON-tableau-renoir": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0002s_0000_tableau_renoir.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/renoirweb.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/renoirangle.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/tableau-renoir-floordrop-1733781460-675767d4c89ed.png"
+    ]
+  },
+  "MON-hokkaido-tamo-raw-look": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Tamo_Raw_Look.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/TamoRawLook.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Tamo_Raw_3_Look_floordrop.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Tamo_Raw_Look_2floordrop.png"
+    ]
+  },
+  "MON-hokkaido-kuri-smoked": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Kuri_Smoked_1a37da11-a8f3-4ed0-930e-ea3169cd9654.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Kuri_Smoked.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/KuriSmokedUPDATED_floordrop.png"
+    ]
+  },
+  "MON-hokkaido-nara-light-smoked": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Nara_Light_Smoked.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/REVISED_Nara_Light_Smoked_Edit_10.9.25.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/REVISED_Nara_Light_Smoked_2_floordrop_10.9.25.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/REVISED_Nara_Light_Smoked_floordrop_10.9.25.png"
+    ]
+  },
+  "MON-hokkaido-nara-smoked": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Nara_Smoked.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Nara_Smoked_REVISED_10.15.25.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Nara_Smoked_floordrop.png"
+    ]
+  },
+  "MON-hokkaido-nara-raw-look": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Nara_Raw_Look_245d7e2c-890f-4916-9d86-11045d475729.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Nara_Raw_Look_-_EDIT_5125.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Nara_Raw_Look_2_floordrop.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/NaraRawLook_floordrop.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Nara_Raw_floordrop.png"
+    ]
+  },
+  "MON-hokkaido-nara-natural": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Nara_Natural.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/REVISED_Nara_Natural_edit_10.6.25.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/REVISED_Nara_Natural_2_floordrop_10.6.25.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/REVISED_Nara_Natural_floordrop_10.6.25.png"
+    ]
+  },
+  "MON-premio-vento": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Vento_Angle_Edit.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Vento_Edit.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Vento_floordrop.png"
+    ]
+  },
+  "MON-premio-duna": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/Duna_Angle_Edit.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Duna_Edit.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/duna_floordrop.png"
+    ]
+  },
+  "MON-premio-vista": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioVistaAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioVistawebFINAL.jpg"
+    ]
+  },
+  "MON-premio-cielo": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioCieloAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioCieloweb.jpg"
+    ]
+  },
+  "MON-premio-bella": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioBellaAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioBellaweb.jpg"
+    ]
+  },
+  "MON-premio-aria": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioAriaAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioAriaweb.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioAria_floordrop-web.png"
+    ]
+  },
+  "MON-premio-veranda": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioVerandaAngleweb.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/PremioVerandaweb.jpg"
+    ]
+  },
+  "MON-vinland-maple-select": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_maple-6_b1ad0a19-38e2-496e-82b0-55175fe628d7.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_Maple-6-in.png"
+    ]
+  },
+  "MON-vinland-hickory-select": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_hickory-6.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_Hickory-6-in.png"
+    ]
+  },
+  "MON-vinland-red-oak-select": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_red-oak-6.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_Red-Oak-6-in.png"
+    ]
+  },
+  "MON-vinland-walnut-light-rustic": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_walnut-7.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_Walnut-7-in_b.png"
+    ]
+  },
+  "MON-vinland-maple-light-rustic": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_maple-7.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_Maple-7-in.png"
+    ]
+  },
+  "MON-vinland-hickory-light-rustic": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_Hickory-7-in_b.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_Hickory-7-in.png"
+    ]
+  },
+  "MON-vinland-red-oak-light-rustic": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_red-oak-7.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_Red-Oak-7-in_9acb5c56-c020-437c-8d4b-e593b39f35ab.png"
+    ]
+  },
+  "MON-vinland-walnut-select": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_walnut-6_d8fe0ec9-587a-4c31-90f2-6d080acb3a94.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_Walnut-6-in_b.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/WalnutSelectVinland.png"
+    ]
+  },
+  "MON-vinland-white-oak-light-rustic": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_white-oak-7.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_White-Oak-7-in.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/Vinland_White_Oak_floordrop.png"
+    ]
+  },
+  "MON-vinland-white-oak-select": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_white-oak-6.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/New-World_White-Oak-6-in.png"
+    ]
+  },
+  "MON-true-teak-bleached-light-rustic": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/TTBleached7.25Angleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/TTBleached7.25web.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/TrueTeakBleached7.25.png"
+    ]
+  },
+  "MON-true-teak-natural-light-rustic": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/TTNatural7.25Angleweb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/TTNatural7.25web.png"
+    ]
+  },
+  "MON-lago-belviso": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/LagoBelvisoAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/LagoBelviso.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/C__Lago_Belviso.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Hotel_Room_4f6e50d0-c68b-4daf-8140-564d71f792f9.png"
+    ]
+  },
+  "MON-lago-devero-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0005s_0008_lago_devero-hb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LagoDeveroHerringbonenew2020.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Livingroomhorizontal.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Livingroomhorizontal2.png"
+    ]
+  },
+  "MON-lago-como-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0005s_0006_lago_como-hb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LagoComoHerringbone2020.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LagoComo2020.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LagoComo_e2bf3807-8587-4ecf-8b5f-32000d47b0cd.jpg"
+    ]
+  },
+  "MON-lago-como": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0005s_0004_lago_como.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LagoComo2020_f2219bb9-9da1-4086-85e1-e2eb6f670eb2.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LagoComoHerringbone2020_dd09ea09-ce35-40d6-802f-2ac5ea664586.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/lagocomo2020website.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LagoComo.jpg"
+    ]
+  },
+  "MON-lago-devero": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0005s_0003_lago_devero.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Lago_Devero.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LagoDevero.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/FOR_WEBSITE_Kitchen_Devero_South_Bay_Green.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/lago_devero.jpeg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Lago_Devero_Herringbone_new2.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/lago_devero_31024.jpeg"
+    ]
+  },
+  "MON-lago-ampola-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/AmpolaHB1740angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Ampola_Herringbone.jpg"
+    ]
+  },
+  "MON-lago-bolsena-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/BolsenaHB1740angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Bolsena_Herringbone.jpg"
+    ]
+  },
+  "MON-lago-bolsena": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/Bolsena1740angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Bolsena1740.png"
+    ]
+  },
+  "MON-lago-ampola": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/Ampola1740angle.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Ampola1740.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Ampolainstall1740.png"
+    ]
+  },
+  "MON-lago-moro-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0005s_0009_lago_moro-hb.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Lago_Moro_Herringbone_205cb39d-ecd8-4902-9033-3b4daa9d0ca8.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Lago_Moro.jpg"
+    ]
+  },
+  "MON-lago-belviso-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/files/LagoBelvisoHBAngle.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/files/LagoBelvisoHB.jpg"
+    ]
+  },
+  "MON-lago-moro": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/mp_angle-shots_0005s_0001_lago_moro.png",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Lago_Moro_bfe924c8-fd96-4bc5-91aa-4dcbc06482c9.jpg",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/Lago_Moro_Herringbone.png",
+      "https://cdn.shopify.com/s/files/1/2720/0826/products/LagoMoroRS.jpg"
+    ]
+  },
+  "MON-unfinished-french-oak-prime-grade": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/UnfinishedPrime20201740.png",
+    "lifestyle": []
+  },
+  "MON-unfinished-walnut-rustic-grade": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/Engineered_Light_Rustic_Walnut.png",
+    "lifestyle": []
+  },
+  "MON-unfinished-french-oak-herringbone": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/unfinished_oak_herringbone.png",
+    "lifestyle": []
+  },
+  "MON-unfinished-french-oak-rustic-grade": {
+    "primary": "https://cdn.shopify.com/s/files/1/2720/0826/products/Engineered_Rustic_European_Oak.png",
+    "lifestyle": []
+  }
+}

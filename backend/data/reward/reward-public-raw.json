@@ -1,0 +1,3282 @@
+{
+  "collections": [
+    {
+      "name": "Avalon",
+      "handle": "avalon",
+      "products": [
+        {
+          "name": "Avalon EURO OAK OBERON",
+          "handle": "avalon-euro-oak-oberon",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVOB",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": []
+        },
+        {
+          "name": "Avalon EURO OAK CLAUDIN",
+          "handle": "avalon-euro-oak-claudin",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVCD",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": []
+        },
+        {
+          "name": "Avalon EURO OAK MORIEN",
+          "handle": "avalon-euro-oak-morien",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVMR",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": []
+        },
+        {
+          "name": "Avalon EURO OAK LYNETTE",
+          "handle": "avalon-euro-oak-lynette",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVLN",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": []
+        },
+        {
+          "name": "Avalon EURO OAK BRUIN",
+          "handle": "avalon-euro-oak-bruin-1",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVBN",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": []
+        },
+        {
+          "name": "Avalon HICKORY KAY",
+          "handle": "avalon-hickory-kay",
+          "species": "Hickory",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVHK",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonKayangleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonKayweb.png"
+          ]
+        },
+        {
+          "name": "Avalon EUROPEAN OAK GARETH",
+          "handle": "avalon-european-oak-gareth",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rusticr",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVGR",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/GarethAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Garethweb.png"
+          ]
+        },
+        {
+          "name": "Avalon EUROPEAN OAK BARANT",
+          "handle": "avalon-european-oak-barant",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVBR",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonBarantAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonBarantweb.png"
+          ]
+        },
+        {
+          "name": "Avalon EUROPEAN OAK PERCIVAL",
+          "handle": "avalon-european-oak-percival",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVPV",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonPercivalAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonPercivalweb.png"
+          ]
+        },
+        {
+          "name": "Avalon EUROPEAN OAK ELYAN",
+          "handle": "avalon-european-oak-elyan",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVEL",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonElyanAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonElyanweb.png"
+          ]
+        },
+        {
+          "name": "Avalon EUROPEAN OAK TRISTAN",
+          "handle": "avalon-european-oak-tristan",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVTS",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonTristanAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonTristanweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonTristan_RS.jpg"
+          ]
+        },
+        {
+          "name": "Avalon EUROPEAN OAK GALAHAD",
+          "handle": "avalon-european-oak-galahad",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL (16\"-82\")",
+          "thickness": "3/8\"",
+          "wear_layer": "1.5mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3875AVGL",
+          "tags": [
+            "3/8\"",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonGalahadangleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AvalonGalahadweb.png"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Provence III",
+      "handle": "provence-iii",
+      "products": [
+        {
+          "name": "Provence III HICKORY PELISAN HERRINGBONE",
+          "handle": "provence-iii-hickory-pelisan-herringbone",
+          "species": "Hickory",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3HPEHB",
+          "tags": [
+            "1/2\"",
+            "Brown",
+            "Hickory"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pelisan_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pelisan_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK LAURON HERRINGBONE",
+          "handle": "provence-iii-european-oak-lauron-herringbone",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3LNHB",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Lauron_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Lauron_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III WALNUT PIERLAS HERRINGBONE",
+          "handle": "provence-iii-walnut-pierlas-herringbone",
+          "species": "Walnut",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3WPLHB",
+          "tags": [
+            "1/2\"",
+            "Walnut"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pierlas_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pierlas_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III WALNUT ARCHAIL HERRINGBONE",
+          "handle": "provence-iii-walnut-archail-herringbone",
+          "species": "Walnut",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Hand-scraped",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3WARHB",
+          "tags": [
+            "1/2\"",
+            "Walnut"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Archail_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Archail_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK VENELLE HERRINGBONE",
+          "handle": "provence-iii-european-oak-venelle-herringbone",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3VLHB",
+          "tags": [
+            "1/2\"",
+            "European Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Venelle_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Venelle_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK TARTONNE HERRINGBONE",
+          "handle": "provence-iii-european-oak-tartonne-herringbone",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3TRHB",
+          "tags": [
+            "1/2\"",
+            "European Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Tartonne_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Tartonne_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK ROUSSET HERRINGBONE",
+          "handle": "provence-iii-european-oak-rousset-herringbone",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3RSHB",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Rousset_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Rousset_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK REVERIE HERRINGBONE",
+          "handle": "provence-iii-european-oak-reverie-herringbone",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3RRHB",
+          "tags": [
+            "1/2\"",
+            "Brown",
+            "European Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Reverie_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Reverie_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK LA GARDE HERRINGBONE",
+          "handle": "provence-iii-european-oak-la-garde-herringbone",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3LGHB",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Garde_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Garde_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK LA BONDE HERRINGBONE",
+          "handle": "provence-iii-european-oak-la-bonde-herringbone",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3LBHB",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Bonde_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Bonde_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK CHEVAL HERRINGBONE",
+          "handle": "provence-iii-european-oak-cheval-herringbone",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3CVHB",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Cheval_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Cheval_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK AUVARE HERRINGBONE",
+          "handle": "provence-iii-european-oak-auvare-herringbone",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "4-3/4\"",
+          "length": "24\"",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW12434P3AUHB",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Auvare_HB_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Auvare_HB_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III WALNUT PIERLAS",
+          "handle": "provence-iii-walnut-pierlas",
+          "species": "Walnut",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3WPL",
+          "tags": [
+            "1/2\"",
+            "Walnut",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pierlas_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pierlas_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK TARTONNE",
+          "handle": "provence-iii-european-oak-tartonne",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3TR",
+          "tags": [
+            "1/2\"",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Tartonne_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Tartonne_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III WALNUT ARCHAIL",
+          "handle": "provence-iii-walnut-archail",
+          "species": "Walnut",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Hand-scraped",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3WA",
+          "tags": [
+            "1/2\"",
+            "Walnut",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Archail_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Archail_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III HICKORY PELISAN",
+          "handle": "provence-iii-hickory-pelisan",
+          "species": "Hickory",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3HPE",
+          "tags": [
+            "1/2\"",
+            "Brown",
+            "Hickory",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pelisan_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Pelisan_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK VENELLE",
+          "handle": "provence-iii-european-oak-venelle",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3VL",
+          "tags": [
+            "1/2\"",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Venelle_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Venelle_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK ROUSSET",
+          "handle": "provence-iii-european-oak-rousset",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3RS",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Rousset_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Rousset_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK REVERIE",
+          "handle": "provence-iii-european-oak-reverie",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3RR",
+          "tags": [
+            "1/2\"",
+            "Brown",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Reverie_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Reverie_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK LAURON",
+          "handle": "provence-iii-european-oak-lauron",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3LN",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Lauron_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Lauron_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Lauron_floordrop_hr_0726.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK LA GARDE",
+          "handle": "provence-iii-european-oak-la-garde",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3LG",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Garde_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Garde_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Provence_III_La_Garde_Edit_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK LA BONDE",
+          "handle": "provence-iii-european-oak-la-bonde",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": null,
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Bonde_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/La_Bonde_web_0426_5087daf4-0384-41a5-8fc1-0eed3f392781.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Provence_III_La_Bonde_Edit_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK CHEVAL",
+          "handle": "provence-iii-european-oak-cheval",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3CV",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Cheval_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Cheval_web_0426.png"
+          ]
+        },
+        {
+          "name": "Provence III EUROPEAN OAK AUVARE",
+          "handle": "provence-iii-european-oak-auvare",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 20\"-75\" (62% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane Finish w/Aluminum Oxide",
+          "texture": "Wire-brushed finish",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275P3AU",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Auvare_angle_web_0426.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Auvare_web_0426.png"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Urbano",
+      "handle": "urbano",
+      "products": [
+        {
+          "name": "Urbano EURO OAK AMALFI",
+          "handle": "urbano-euro-oak-amalfi",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (50% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Light Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895URAF",
+          "tags": [
+            "5/8\"",
+            "European Oak",
+            "Natural",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Amalfi_edit_5465b9a9-83c0-4e1f-949f-a0d43c4be475.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Amalfi_edit.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Urbano_Amalfi_floordrop.png"
+          ]
+        },
+        {
+          "name": "Urbano EURO OAK PALERMO",
+          "handle": "urbano-euro-oak-palermo",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (50% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Light Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895URPM",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Natural",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/PalermoAngle.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Palermoweb.jpg"
+          ]
+        },
+        {
+          "name": "Urbano EURO OAK RAVENNA",
+          "handle": "urbano-euro-oak-ravenna",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (50% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Light Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895URRV",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Natural",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Ravennaangleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Ravennaweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Urbano_floordrop_lr.jpg"
+          ]
+        },
+        {
+          "name": "Urbano EURO OAK NAPOLI",
+          "handle": "urbano-euro-oak-napoli",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (50% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Light Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895URNP",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Natural",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Napoliangleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Napoliweb.jpg"
+          ]
+        },
+        {
+          "name": "Urbano EURO OAK MILANO",
+          "handle": "urbano-euro-oak-milano",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (50% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Light Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895URML",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Natural",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Milanoangle.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Milanoweb.jpg"
+          ]
+        },
+        {
+          "name": "Urbano EURO OAK GENOA",
+          "handle": "urbano-euro-oak-genoa",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (50% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Light Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895URGN",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Natural",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Genoaangleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Genoaweb.jpg"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Heritage",
+      "handle": "heritage",
+      "products": [
+        {
+          "name": "Heritage MAPLE NATURAL",
+          "handle": "heritage-maple-natural",
+          "species": "Maple",
+          "construction": "solid",
+          "width": "3-1/4\"",
+          "length": "RL 12\"-72\"",
+          "thickness": "3/4\"",
+          "wear_layer": null,
+          "finish": "Anti-scratch finish with Aluminum Oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Select & Better",
+          "sheen": "Satin",
+          "treatment": null,
+          "backing": null,
+          "sku": "REW34314HRMN",
+          "tags": [
+            "3/4\"",
+            "Beige",
+            "Classic Width (5\" and under)",
+            "Maple",
+            "Solid"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/MAPLE_NATURAL_HERITAGE.png"
+          ]
+        },
+        {
+          "name": "Heritage RED OAK GUNSTOCK",
+          "handle": "heritage-red-oak-gunstock",
+          "species": "Red Oak",
+          "construction": "solid",
+          "width": "3-1/4\"",
+          "length": "RL 12\"-72\"",
+          "thickness": "3/4\"",
+          "wear_layer": null,
+          "finish": "Anti-scratch finish with Aluminum Oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "#1 & Better",
+          "sheen": "Satin",
+          "treatment": null,
+          "backing": null,
+          "sku": "REW34314HRROG",
+          "tags": [
+            "3/4\"",
+            "Classic Width (5\" and under)",
+            "Red Oak",
+            "Solid"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/RED_OAK_GUNSTOCK_HERITAGE.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Gunstock.png"
+          ]
+        },
+        {
+          "name": "Heritage WHITE OAK NATURAL 3-1/4 IN.",
+          "handle": "heritage-white-oak-natural-3-1-4-in",
+          "species": "White Oak",
+          "construction": "solid",
+          "width": "3-1/4\"",
+          "length": "RL 12\"-72\"",
+          "thickness": "3/4\"",
+          "wear_layer": null,
+          "finish": "Anti-scratch finish with Aluminum Oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "#1 & Better",
+          "sheen": "Satin",
+          "treatment": null,
+          "backing": null,
+          "sku": "REW34314HRWON#2",
+          "tags": [
+            "3/4\"",
+            "Beige",
+            "Classic Width (5\" and under)",
+            "Solid",
+            "White Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/WHITEOAKNATURALHERITAGE_662f1cdb-e62e-4b2c-ade8-7c4b31dde1a5.png"
+          ]
+        },
+        {
+          "name": "Heritage WHITE OAK NATURAL 2-1/4 IN.",
+          "handle": "heritage-white-oak-natural-2-1-4-in",
+          "species": "White Oak",
+          "construction": "solid",
+          "width": "2-1/4\"",
+          "length": "RL 12\"-72\"",
+          "thickness": "3/4\"",
+          "wear_layer": null,
+          "finish": "Anti-scratch finish with Aluminum Oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "#1 & Better",
+          "sheen": "Satin",
+          "treatment": null,
+          "backing": null,
+          "sku": "REW34214HRWON#2",
+          "tags": [
+            "3/4\"",
+            "Beige",
+            "Classic Width (5\" and under)",
+            "Solid",
+            "White Oak"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/WHITEOAKNATURALHERITAGE_662f1cdb-e62e-4b2c-ade8-7c4b31dde1a5.png"
+          ]
+        },
+        {
+          "name": "Heritage RED OAK NATURAL 3-1/4 IN.",
+          "handle": "heritage-red-oak-natural-3-1-4-in",
+          "species": "Red Oak",
+          "construction": "solid",
+          "width": "3-1/4\"",
+          "length": "RL 12\"-72\"",
+          "thickness": "3/4\"",
+          "wear_layer": null,
+          "finish": "Anti-scratch finish with Aluminum Oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "#1 & Better",
+          "sheen": "Satin",
+          "treatment": null,
+          "backing": null,
+          "sku": "REW34314HRRON#2",
+          "tags": [
+            "3/4\"",
+            "Beige",
+            "Classic Width (5\" and under)",
+            "Red Oak",
+            "Solid"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/RED_OAK_NATURAL_HERITAGE_d28355f5-9088-4042-817e-fe150d4366c5.png"
+          ]
+        },
+        {
+          "name": "Heritage RED OAK NATURAL 2-1/4 IN.",
+          "handle": "heritage-red-oak-natural-2-1-4-in",
+          "species": "Red Oak",
+          "construction": "solid",
+          "width": "2-1/4\"",
+          "length": "RL 12\"-72\"",
+          "thickness": "3/4\"",
+          "wear_layer": null,
+          "finish": "Anti-scratch finish with Aluminum Oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "#1 & Better",
+          "sheen": "Satin",
+          "treatment": null,
+          "backing": null,
+          "sku": "REW34214HRRON#2",
+          "tags": [
+            "3/4\"",
+            "Beige",
+            "Classic Width (5\" and under)",
+            "Red Oak",
+            "Solid"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/RED_OAK_NATURAL_HERITAGE_d28355f5-9088-4042-817e-fe150d4366c5.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Red_Oak_Natural.png"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Europa",
+      "handle": "europa",
+      "products": [
+        {
+          "name": "Europa EUROPEAN OAK SAVA",
+          "handle": "europa-european-oak-sava",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "5-1/2\"",
+          "length": "RL 23\" - 86\" (67% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3.5mm",
+          "finish": "UV Urethane w/ Aluminum Oxide",
+          "texture": "Smooth, micro-beveled edges",
+          "edge": null,
+          "grade": "Prime",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "3 Ply Lumber",
+          "sku": "REW916512EUSV",
+          "tags": [
+            "9/16\"",
+            "Beige",
+            "Brown",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/EuropaSavaAngleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/EuropaSavaweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/EuropaSava_web.png"
+          ]
+        },
+        {
+          "name": "Europa EUROPEAN OAK TIBER",
+          "handle": "europa-european-oak-tiber",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "5-1/2\"",
+          "length": "RL 23\" - 86\" (67% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3.5mm",
+          "finish": "UV Urethane w/ Aluminum Oxide",
+          "texture": "Wire-Brush, micro-beveled edges",
+          "edge": null,
+          "grade": "Prime",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "3 Ply Lumber",
+          "sku": "REW916512EUTB",
+          "tags": [
+            "9/16\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TiberAngle.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Tiber.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MastervideoThumbnail_3f5442a5-7459-47e6-8ca9-0fdd94803181.png"
+          ]
+        },
+        {
+          "name": "Europa EUROPEAN OAK RHINE",
+          "handle": "europa-european-oak-rhine",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "5-1/2\"",
+          "length": "RL 23\" - 86\" (67% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3.5mm",
+          "finish": "UV Urethane w/ Aluminum Oxide",
+          "texture": "Smooth, micro-beveled edges",
+          "edge": null,
+          "grade": "Prime",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "3 Ply Lumber",
+          "sku": "REW916512EURH",
+          "tags": [
+            "9/16\"",
+            "Beige",
+            "Brown",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/RhineAngle.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Rhine.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MastervideoThumbnail_3dbf259c-176b-44b8-b2a2-d6cf3b479912.png"
+          ]
+        },
+        {
+          "name": "Europa EUROPEAN OAK LOIRE",
+          "handle": "europa-european-oak-loire",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "5-1/2\"",
+          "length": "RL 23\" - 86\" (67% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3.5mm",
+          "finish": "UV Urethane w/ Aluminum Oxide",
+          "texture": "Smooth, micro-beveled edges",
+          "edge": null,
+          "grade": "Prime",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "3 Ply Lumber",
+          "sku": "REW916512EULR",
+          "tags": [
+            "9/16\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/LoireAngle_a74c6a69-9c36-40a9-80d2-7ebc40bd5db1.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Loire.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MastervideoThumbnail_cac43396-3288-46e9-a53e-cda23b2d93cf.png"
+          ]
+        },
+        {
+          "name": "Europa EUROPEAN OAK ELBE",
+          "handle": "europa-european-oak-elbe",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "5-1/2\"",
+          "length": "RL 23\" - 86\" (67% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3.5mm",
+          "finish": "UV Urethane w/ Aluminum Oxide",
+          "texture": "Smooth, micro-beveled edges",
+          "edge": null,
+          "grade": "Prime",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Lumber Core",
+          "sku": "REW916512EUEL",
+          "tags": [
+            "9/16\"",
+            "Beige",
+            "European Oak",
+            "White",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/ElbeAngle.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Elbe2.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MastervideoThumbnail.png"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Terreno",
+      "handle": "terreno",
+      "products": [
+        {
+          "name": "Terreno EURO OAK DIANO",
+          "handle": "terreno-euro-oak-diano",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (70% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895TEDN",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Dianoangleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/DianoNEWweb.jpg"
+          ]
+        },
+        {
+          "name": "Terreno EURO OAK SESIA",
+          "handle": "terreno-euro-oak-sesia",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (70% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895TESS",
+          "tags": [
+            "5/8\"",
+            "European Oak",
+            "Natural",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Sesiaangleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Sesiaweb.jpg"
+          ]
+        },
+        {
+          "name": "Terreno EURO OAK NERA",
+          "handle": "terreno-euro-oak-nera",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (70% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "(REW5895TENE",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Neraangleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Neraweb.jpg"
+          ]
+        },
+        {
+          "name": "Terreno EURO OAK FIORI",
+          "handle": "terreno-euro-oak-fiori",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (70% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895TEFR",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/FioriAngleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Fioriweb.jpg"
+          ]
+        },
+        {
+          "name": "Terreno EURO OAK SILA",
+          "handle": "terreno-euro-oak-sila",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (70% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895TESL",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Silaangleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Silaweb.jpg"
+          ]
+        },
+        {
+          "name": "Terreno EURO OAK CONTE",
+          "handle": "terreno-euro-oak-conte",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "9-1/2\"",
+          "length": "RL 23\" - 86\" (70% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5895TECT",
+          "tags": [
+            "5/8\"",
+            "European Oak",
+            "Natural",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Conteangleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Conteweb.jpg"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Mill Creek",
+      "handle": "mill-creek",
+      "products": [
+        {
+          "name": "Mill Creek EUROPEAN OAK SANBORN",
+          "handle": "mill-creek-european-oak-sanborn",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (70% full)",
+          "thickness": "5/8”",
+          "wear_layer": "4mm TEXTURE/",
+          "finish": null,
+          "texture": null,
+          "edge": "Reclaimed look - bandsaw marks, natural patina & water marks, micro-beveled edges",
+          "grade": "Country",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood Coating/Gloss Level: UV urethane w/ Aluminum Oxide",
+          "sku": "REW5875MCEOSB",
+          "tags": [
+            "5/8\"",
+            "European Oak",
+            "Natural",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/MillCreekSanbornAngleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Sanbornedit6.7.24.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/MillCreekSanborn_floordrop.jpg"
+          ]
+        },
+        {
+          "name": "Mill Creek EUROPEAN OAK HATCH",
+          "handle": "mill-creek-european-oak-hatch",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (70% full)",
+          "thickness": "5/8”",
+          "wear_layer": "4mm TEXTURE/",
+          "finish": null,
+          "texture": null,
+          "edge": "Reclaimed look - bandsaw marks, natural patina & water marks, micro-beveled edges",
+          "grade": "Country",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood Coating/Gloss Level: UV urethane w/ Aluminum Oxide",
+          "sku": "REW5875MCEOHC",
+          "tags": [
+            "5/8\"",
+            "European Oak",
+            "Natural",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Hatch_Angle_Edit_6.24.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Hatch_edit_6.7.24.jpg"
+          ]
+        },
+        {
+          "name": "Mill Creek EUROPEAN OAK COBURN",
+          "handle": "mill-creek-european-oak-coburn",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (70% full)",
+          "thickness": "5/8”",
+          "wear_layer": "4mm TEXTURE/",
+          "finish": null,
+          "texture": null,
+          "edge": "Reclaimed look - bandsaw marks, natural patina & water marks, micro-beveled edges",
+          "grade": "Country",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood Coating/Gloss Level: UV urethane w/ Aluminum Oxide",
+          "sku": "REW5875MCEOCO",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "Dark",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/MillCreekCoburnAngleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Coburnedit6.7.24_9d1e3423-3c5e-4101-8c13-a7b851dc2321.jpg"
+          ]
+        },
+        {
+          "name": "Mill Creek EUROPEAN OAK NICHOLS",
+          "handle": "mill-creek-european-oak-nichols",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (70% full)",
+          "thickness": "5/8”",
+          "wear_layer": "4mm TEXTURE/",
+          "finish": null,
+          "texture": null,
+          "edge": "Reclaimed look - bandsaw marks, natural patina & water marks, micro-beveled edges",
+          "grade": "Country",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood Coating/Gloss Level: UV urethane w/ Aluminum Oxide",
+          "sku": "REW5875MCEONC",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Grey",
+            "White",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Nichols_Angle_Edit_6.7.24.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Nichols_edit_6.7.24.jpg"
+          ]
+        },
+        {
+          "name": "Mill Creek EUROPEAN OAK BERWICK",
+          "handle": "mill-creek-european-oak-berwick",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (70% full)",
+          "thickness": "5/8”",
+          "wear_layer": "4mm TEXTURE/",
+          "finish": null,
+          "texture": null,
+          "edge": "Reclaimed look - bandsaw marks, natural patina & water marks, micro-beveled edges",
+          "grade": "Country",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood Coating/Gloss Level: UV urethane w/ Aluminum Oxide",
+          "sku": "REW5875MCEOBW",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Grey",
+            "White",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/BerwickAngleweb.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Berwick_edit_6.7.24.jpg"
+          ]
+        },
+        {
+          "name": "Mill Creek EUROPEAN OAK WOODSON",
+          "handle": "mill-creek-woodson",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (70% full)",
+          "thickness": "5/8”",
+          "wear_layer": "4mm TEXTURE/",
+          "finish": null,
+          "texture": null,
+          "edge": "Reclaimed look - bandsaw marks, natural patina & water marks, micro-beveled edges",
+          "grade": "Country",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood Coating/Gloss Level: UV urethane w/ Aluminum Oxide",
+          "sku": "REW5875MCEOWS",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Grey",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MillCreekEUROPEANOAKWOODSON_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Woodson_edit_6.7.24.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/woodson_install_master.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/video_thumbnail_f094738a-6b78-48e5-88b6-76ad52636e6c.jpg"
+          ]
+        },
+        {
+          "name": "Mill Creek EUROPEAN OAK STRATTON",
+          "handle": "mill-creek-stratton",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (70% full)",
+          "thickness": "5/8”",
+          "wear_layer": "4mm TEXTURE/",
+          "finish": null,
+          "texture": null,
+          "edge": "Reclaimed look - bandsaw marks, natural patina & water marks, micro-beveled edges",
+          "grade": "Country",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood Coating/Gloss Level: UV urethane w/ Aluminum Oxide",
+          "sku": "REW5875MCEOST",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Grey",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MillCreekEUROPEANOAKSTRATTON_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Stratton.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/video_thumbnail_770a9628-5ddd-4570-8f92-a5431ea29dd9.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MillCreekStratton_RS.jpg"
+          ]
+        },
+        {
+          "name": "Mill Creek EUROPEAN OAK HOPKINS",
+          "handle": "mill-creek-hopkins",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (70% full)",
+          "thickness": "5/8”",
+          "wear_layer": "4mm TEXTURE/",
+          "finish": null,
+          "texture": null,
+          "edge": "Reclaimed look - bandsaw marks, natural patina & water marks, micro-beveled edges",
+          "grade": "Country",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood Coating/Gloss Level: UV urethane w/ Aluminum Oxide",
+          "sku": "REW5875MCEOHK",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Grey",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MillCreekEUROPEANOAKHOPKINS_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Hopkins.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/video_thumbnail_f31296e5-2826-40b5-8193-cbcfe71bc106.jpg"
+          ]
+        },
+        {
+          "name": "Mill Creek EUROPEAN OAK FOWLER",
+          "handle": "mill-creek-fowler",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (70% full)",
+          "thickness": "5/8”",
+          "wear_layer": "4mm TEXTURE/",
+          "finish": null,
+          "texture": null,
+          "edge": "Reclaimed look - bandsaw marks, natural patina & water marks, micro-beveled edges",
+          "grade": "Country",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood Coating/Gloss Level: UV urethane w/ Aluminum Oxide",
+          "sku": "REW5875MCEOFW",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "Dark",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/MillCreekEUROPEANOAKFOWLER_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/0005_Fowler_1.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/video_thumbnail_0aa31e73-d881-4269-8ad6-10a85c574271.jpg"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sylvania",
+      "handle": "sylvania",
+      "products": [
+        {
+          "name": "Sylvania WALNUT CLARION",
+          "handle": "sylvania-walnut-clarion",
+          "species": "Walnut",
+          "construction": "engineered",
+          "width": "7\"",
+          "length": "RL 17\" - 84\" (25% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Lumber Core",
+          "sku": "REW9167SVWC",
+          "tags": [
+            "9/16\"",
+            "Walnut",
+            "Wide Plank (5\" And Over\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WalnutClarionAngled.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WalnutClarion-edits.jpg"
+          ]
+        },
+        {
+          "name": "Sylvania WALNUT NATURAL",
+          "handle": "sylvania-walnut-natural",
+          "species": "Walnut",
+          "construction": "engineered",
+          "width": "7\"",
+          "length": "RL 17\" - 84\" (25% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Smooth",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Lumber Core",
+          "sku": "REW9167SVWN",
+          "tags": [
+            "9/16\"",
+            "Walnut",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WalnutNaturalAngled.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WalnutNatural.jpg"
+          ]
+        },
+        {
+          "name": "Sylvania WHITE OAK POTTER",
+          "handle": "sylvania-white-oak-potter",
+          "species": "White Oak",
+          "construction": "engineered",
+          "width": "7\"",
+          "length": "RL 17\" - 84\" (25% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Lumber Core",
+          "sku": "REW9167SVPT",
+          "tags": [
+            "9/16\"",
+            "White Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakPotterAngle-edit.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakPotter.jpg"
+          ]
+        },
+        {
+          "name": "Sylvania WHITE OAK FAYETTE",
+          "handle": "sylvania-white-oak-fayette",
+          "species": "White Oak",
+          "construction": "engineered",
+          "width": "7\"",
+          "length": "RL 17\" - 84\" (25% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Lumber Core",
+          "sku": "REW9167SVFY",
+          "tags": [
+            "9/16\"",
+            "White Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakFayetteAngle.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakFayette.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/WhiteOakFayette_floordrop_web.png"
+          ]
+        },
+        {
+          "name": "Sylvania WHITE OAK CAMBRIA",
+          "handle": "sylvania-white-oak-cambria",
+          "species": "White Oak",
+          "construction": "engineered",
+          "width": "7\"",
+          "length": "RL 17\" - 84\" (25% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Lumber Core",
+          "sku": "REW9167SVCB",
+          "tags": [
+            "9/16\"",
+            "White Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakCambriaAngle.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakCambria.jpg"
+          ]
+        },
+        {
+          "name": "Sylvania WHITE OAK BLAIR",
+          "handle": "sylvania-white-oak-blair",
+          "species": "White Oak",
+          "construction": "engineered",
+          "width": "7\"",
+          "length": "RL 17\" - 84\" (25% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Lumber Core",
+          "sku": "REW9167SVBL",
+          "tags": [
+            "9/16\"",
+            "White Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakBlairAngleedit3.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakBlair.jpg"
+          ]
+        },
+        {
+          "name": "Sylvania WHITE OAK BUTLER",
+          "handle": "sylvania-white-oak-butler",
+          "species": "White Oak",
+          "construction": "engineered",
+          "width": "7\"",
+          "length": "RL 17\" - 84\" (25% full)",
+          "thickness": "9/16\"",
+          "wear_layer": "3mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire-brushed",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Lumber Core",
+          "sku": "REW9167SVBU",
+          "tags": [
+            "9/16\"",
+            "White Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakButlerAngle.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/WhiteOakButler.jpg"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Costa",
+      "handle": "costa",
+      "products": [
+        {
+          "name": "Costa EUROPEAN OAK PELOSA",
+          "handle": "costa-european-oak-pelosa",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875COPE",
+          "tags": [
+            "5/8\"",
+            "European Oak",
+            "Grey",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Pelosaangled.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaPelosa.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaPelosa_RS.jpg"
+          ]
+        },
+        {
+          "name": "Costa EUROPEAN OAK LEONE",
+          "handle": "costa-european-oak-leone",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875COLN",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaLeoneAngledweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaLeoneweb.png"
+          ]
+        },
+        {
+          "name": "Costa EUROPEAN OAK MANNU",
+          "handle": "costa-european-oak-mannu",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875COMU",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaMannuAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaMannuweb.png"
+          ]
+        },
+        {
+          "name": "Costa EUROPEAN OAK VELA",
+          "handle": "costa-european-oak-vela",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875COVL",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaVelaAngleweb_dd30ba00-834c-4f25-a371-7d065358f001.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaVelaweb_5b0d5e03-1d73-42c0-b50f-67dc6631d7fc.png"
+          ]
+        },
+        {
+          "name": "Costa EUROPEAN OAK ANCONA",
+          "handle": "costa-european-oak-ancona",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875COAC",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaAnconaAngledweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaAnconaweb.png"
+          ]
+        },
+        {
+          "name": "Costa EUROPEAN OAK LUNA",
+          "handle": "costa-luna",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875COLU",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "White",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaEUROPEANOAKLUNA_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/costa_luna2020_1704x1306_e1d730e2-5bdf-44a7-ae9d-6f8a7e827354.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaLunaWebusage10_16_20.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_410d6df5-6ded-4db8-9e1d-871bd1e26d3a.png"
+          ]
+        },
+        {
+          "name": "Costa EUROPEAN OAK VASTO",
+          "handle": "costa-vasto",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875COVS",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaEUROPEANOAKVASTO_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/costa_vasto2020_1704x1306_9869b92d-1d27-4bdf-8b9a-3832262d245d.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_6ce50196-6d38-417c-8c5f-07c5e3e0b2db.png"
+          ]
+        },
+        {
+          "name": "Costa EUROPEAN OAK TESTA",
+          "handle": "costa-testa",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875COTS",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Grey",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaEUROPEANOAKTESTA_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Costa_TestaUpdate51524.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_57eac1ff-6834-450b-aac3-fa9e9ae9ecbf.png"
+          ]
+        },
+        {
+          "name": "Costa EUROPEAN OAK NICOLA",
+          "handle": "costa-nicola",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875CONC",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaEUROPEANOAKNICOLA_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Nicola2020.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_46acd694-fa08-4fe6-8f1b-664cd6a81105.png"
+          ]
+        },
+        {
+          "name": "Costa EUROPEAN OAK CAPRI",
+          "handle": "costa-capri",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875COCP",
+          "tags": [
+            "5/8\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Costa_EUROPEAN_OAK_CAPRI_Angled_edit_10.16.24.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/files/Capri_edit_1024.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_3ce14bbd-3e0d-4a13-be89-7704403d20c2.png"
+          ]
+        },
+        {
+          "name": "Costa EUROPEAN OAK CONERO",
+          "handle": "costa-conero",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 75\" (67% full)",
+          "thickness": "5/8\"",
+          "wear_layer": "4mm",
+          "finish": "UV urethane w/ Aluminum Oxide",
+          "texture": "Subtle hand-scrape, wire-brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW5875COCN",
+          "tags": [
+            "5/8\"",
+            "Brown",
+            "European Oak",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CostaEUROPEANOAKCONERO_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Conero2020_profileremoved.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Costa_Thumbnail_cf469357-cfa7-44bf-b397-1a1130dcc166.png"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Castillo",
+      "handle": "castillo",
+      "products": [
+        {
+          "name": "Castillo ARBOREA ALBAN",
+          "handle": "castillo-arborea-alban",
+          "species": "Arborea",
+          "construction": "engineered",
+          "width": "6-1/2\"",
+          "length": "RL 16\" - 48\" (67% full)",
+          "thickness": "3/8\"",
+          "wear_layer": "1.2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Handscraped",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3865CSAL",
+          "tags": [
+            "3/8\"",
+            "Arborea",
+            "Brown",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AlbanAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/AlbanOverheadweb.png"
+          ]
+        },
+        {
+          "name": "Castillo ARBOREA TULUM",
+          "handle": "castillo-arborea-tulum",
+          "species": "Arborea",
+          "construction": "engineered",
+          "width": "6-1/2\"",
+          "length": "RL 16\" - 48\" (67% full)",
+          "thickness": "3/8\"",
+          "wear_layer": "1.2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Handscraped",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3865CSTU",
+          "tags": [
+            "3/8\"",
+            "Arborea",
+            "Brown",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TulumAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TulumOverheadweb.png"
+          ]
+        },
+        {
+          "name": "Castillo ARBOREA COPAN",
+          "handle": "castillo-arborea-copan",
+          "species": "Arborea",
+          "construction": "engineered",
+          "width": "6-1/2\"",
+          "length": "RL 16\" - 48\" (67% full)",
+          "thickness": "3/8\"",
+          "wear_layer": "1.2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Handscraped",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3865CSCP",
+          "tags": [
+            "3/8\"",
+            "Arborea",
+            "Brown",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CopanAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CopanOverheadweb.png"
+          ]
+        },
+        {
+          "name": "Castillo ARBOREA TIKAL",
+          "handle": "castillo-arborea-tikal",
+          "species": "Arborea",
+          "construction": "engineered",
+          "width": "6-1/2\"",
+          "length": "RL 16\" - 48\" (67% full)",
+          "thickness": "3/8\"",
+          "wear_layer": "1.2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Handscraped",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW3865CSTK",
+          "tags": [
+            "3/8\"",
+            "Arborea",
+            "Brown",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TikalAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TikalWeb.png"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Islands",
+      "handle": "islands",
+      "products": [
+        {
+          "name": "Islands EUROPEAN OAK TRINIDAD",
+          "handle": "islands-european-oak-trinidad",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 82\" (60% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275ISTR",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TrinidadAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Trinidad.jpg"
+          ]
+        },
+        {
+          "name": "Islands EUROPEAN OAK TORTOLA",
+          "handle": "islands-european-oak-tortola",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 82\" (60% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275ISTT",
+          "tags": [
+            "1/2\"",
+            "Brown",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/TortolaAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Tortola.jpg"
+          ]
+        },
+        {
+          "name": "Islands EUROPEAN OAK CURACAO",
+          "handle": "islands-european-oak-curacao",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 82\" (60% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275ISCC",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CuracaoAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Curacao.jpg"
+          ]
+        },
+        {
+          "name": "Islands EUROPEAN OAK NEVIS",
+          "handle": "islands-european-oak-nevis",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 82\" (60% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275ISNV",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/NevisAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Nevis.jpg"
+          ]
+        },
+        {
+          "name": "Islands EUROPEAN OAK CAYMAN",
+          "handle": "islands-european-oak-cayman",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 82\" (60% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275ISCM",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CaymanAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Cayman.jpg"
+          ]
+        },
+        {
+          "name": "Islands EUROPEAN OAK BARBADOS",
+          "handle": "islands-european-oak-barbados",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 82\" (60% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275ISBB",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/BarbadosAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Barbados.jpg"
+          ]
+        },
+        {
+          "name": "Islands EUROPEAN OAK ARUBA",
+          "handle": "islands-european-oak-aruba",
+          "species": "European Oak",
+          "construction": "engineered",
+          "width": "7-1/2\"",
+          "length": "RL 23\" - 82\" (60% full)",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Wire Brushed",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Ultra-matte",
+          "treatment": "Smoked",
+          "backing": "Hardwood Plywood",
+          "sku": "REW1275ISAR",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "European Oak",
+            "Wide Plank (5\" And Over\")",
+            "Wide Plank (Over 5\")"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/ArubaAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Aruba.jpg"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "El Paso",
+      "handle": "el-paso",
+      "products": [
+        {
+          "name": "El Paso HICKORY SUNLAND",
+          "handle": "el-paso-hickory-sunland",
+          "species": "Hickory",
+          "construction": "engineered",
+          "width": "5\"",
+          "length": "RL 16\" - 48\" (50% full)",
+          "thickness": "3/8\"",
+          "wear_layer": "1.2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Handscraped",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW385LPHSL",
+          "tags": [
+            "3/8\"",
+            "Brown",
+            "Classic Width (5\" and under)",
+            "Hickory"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/SunlandAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Sunlandweb.png"
+          ]
+        },
+        {
+          "name": "El Paso HICKORY RESLER",
+          "handle": "el-paso-hickory-resler",
+          "species": "Hickory",
+          "construction": "engineered",
+          "width": "5\"",
+          "length": "RL 16\" - 48\" (50% full)",
+          "thickness": "3/8\"",
+          "wear_layer": "1.2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Handscraped",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW385LPHRS",
+          "tags": [
+            "3/8\"",
+            "Brown",
+            "Classic Width (5\" and under)",
+            "Hickory"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/ReslerAngleweb_6296b533-f0db-43b3-9974-72f2bbecbf8b.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Reslerweb_a3ef0505-9c28-42a7-b993-59f26e1f4b3f.png"
+          ]
+        },
+        {
+          "name": "El Paso HICKORY NATURAL",
+          "handle": "el-paso-hickory-natural",
+          "species": "Hickory",
+          "construction": "engineered",
+          "width": "5\"",
+          "length": "RL 16\" - 48\" (50% full)",
+          "thickness": "3/8\"",
+          "wear_layer": "1.2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Handscraped",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW385LPHN",
+          "tags": [
+            "3/8\"",
+            "Brown",
+            "Classic Width (5\" and under)",
+            "Hickory"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/HickoryNaturalAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/HickoryNaturalweb.png"
+          ]
+        },
+        {
+          "name": "El Paso HICKORY FALCON",
+          "handle": "el-paso-hickory-falcon",
+          "species": "Hickory",
+          "construction": "engineered",
+          "width": "5\"",
+          "length": "RL 16\" - 48\" (50% full)",
+          "thickness": "3/8\"",
+          "wear_layer": "1.2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Handscraped",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW385LPHFC",
+          "tags": [
+            "3/8\"",
+            "Brown",
+            "Classic Width (5\" and under)",
+            "Hickory"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/FalconAngle.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Falconweb.png"
+          ]
+        },
+        {
+          "name": "El Paso HICKORY BLISS",
+          "handle": "el-paso-hickory-bliss",
+          "species": "Hickory",
+          "construction": "engineered",
+          "width": "5\"",
+          "length": "RL 16\" - 48\" (50% full)",
+          "thickness": "3/8\"",
+          "wear_layer": "1.2mm",
+          "finish": "UV Urethane finish w/ aluminum oxide",
+          "texture": "Handscraped",
+          "edge": null,
+          "grade": "Character",
+          "sheen": "Ultra-matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW385LPHBL",
+          "tags": [
+            "3/8\"",
+            "Brown",
+            "Classic Width (5\" and under)",
+            "Hickory"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/BlissAngleweb.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Blissweb.png"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Camino II",
+      "handle": "camino-ii",
+      "products": [
+        {
+          "name": "Camino II  MAPLE STIRRUP",
+          "handle": "camino-ii-maple-stirrup",
+          "species": "Maple",
+          "construction": "engineered",
+          "width": "5\"",
+          "length": "RL (16\"-71\")",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "Anti-scratch finish with Aluminum Oxide",
+          "texture": "Hand Scraped",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW125C2MS",
+          "tags": [
+            "1/2\"",
+            "Brown",
+            "Classic Width (5\" and under)",
+            "Maple"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CaminoIIMAPLESTIRRUP_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/stirup_edit_101019.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Camino_II_Maple_Sitrrup_Kitchen_1740.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Camino_II_Introduction_thumbnail_fd043a47-271a-4bb4-a3e6-d0947cddc6fc.png"
+          ]
+        },
+        {
+          "name": "Camino II MAPLE BOURBON",
+          "handle": "camino-ii-maple-bourbon",
+          "species": "Maple",
+          "construction": "engineered",
+          "width": "5\"",
+          "length": "RL (16\"-71\")",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "Anti-scratch finish with Aluminum Oxide",
+          "texture": "Hand Scraped",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW125C2MB",
+          "tags": [
+            "1/2\"",
+            "Brown",
+            "Classic Width (5\" and under)",
+            "Dark",
+            "Maple"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CaminoIIBURBON_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/burbon_edit_101019.jpg",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/Camino_II_Introduction_thumbnail.png"
+          ]
+        },
+        {
+          "name": "Camino II  MAPLE NATURAL",
+          "handle": "camino-ii-maple-natural",
+          "species": "Maple",
+          "construction": "engineered",
+          "width": "5\"",
+          "length": "RL (16\"-71\")",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "Anti-scratch finish with Aluminum Oxide",
+          "texture": "Hand Scraped",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW125C2M",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "Classic Width (5\" and under)",
+            "Maple"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CaminoIIMAPLENATURAL_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/maple_natural.jpg"
+          ]
+        },
+        {
+          "name": "Camino II HICKORY NATURAL",
+          "handle": "camino-ii-hickory-natural",
+          "species": "Hickory",
+          "construction": "engineered",
+          "width": "5\"",
+          "length": "RL (16\"-71\")",
+          "thickness": "1/2\"",
+          "wear_layer": "2mm",
+          "finish": "Anti-scratch finish with Aluminum Oxide",
+          "texture": "Hand Scraped",
+          "edge": null,
+          "grade": "Rustic",
+          "sheen": "Matte",
+          "treatment": null,
+          "backing": "Hardwood Plywood",
+          "sku": "REW125C2H",
+          "tags": [
+            "1/2\"",
+            "Beige",
+            "Classic Width (5\" and under)",
+            "Hickory",
+            "Natural"
+          ],
+          "product_type": "Hardwood",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/CamionIIHICKORYNATURAL_Angled.png",
+            "https://cdn.shopify.com/s/files/1/0021/4502/6101/products/hickory_natural_edit_101019.jpg"
+          ]
+        }
+      ]
+    }
+  ],
+  "collections_failed": [
+    {
+      "handle": "advantage",
+      "name": "Advantage",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "all-gemcore-tiles",
+      "name": "All GemCore Tiles",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "canyons",
+      "name": "Canyons",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "duracork",
+      "name": "Duracork",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "earth",
+      "name": "Earth 12\" x 24\" Tiles",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "earth-xl",
+      "name": "Earth XL 18 \"x 36\" Tiles",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "emerald",
+      "name": "Emerald",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "gemcore",
+      "name": "Gemcore",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "hardwood",
+      "name": "Hardwood",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "jade",
+      "name": "Jade",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "luxury-vinyl",
+      "name": "Luxury Vinyl",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "lvt",
+      "name": "LVT",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "majesty",
+      "name": "Majesty",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "meridian",
+      "name": "Meridian",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "napa",
+      "name": "Napa",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "onyx",
+      "name": "Onyx",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "ruby",
+      "name": "Ruby",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "sapphire",
+      "name": "Sapphire",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "topaz",
+      "name": "Topaz",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    },
+    {
+      "handle": "yukon-gold",
+      "name": "Yukon Gold",
+      "reason": "endpoint returned 0 products (empty/discontinued line)"
+    }
+  ],
+  "notes": "Source: rewardflooring.com Shopify JSON endpoints (products.json + per-collection products.json), fetched 2026-08-14. products.json returned 106 products total on a single page (page 2 empty). ALL 106 have product_type='Hardwood'. The live Reward catalog is entirely HARDWOOD: 100 engineered hardwood + 6 solid (the 'Heritage' line, tagged 'Solid'). NO SPC / rigid-core / waterproof / LVT / laminate products are live: collections like Gemcore, Duracork, Luxury Vinyl, LVT, and the GemCore tile lines (Earth, Onyx, Jade, Ruby, Sapphire, Emerald, Topaz, Napa, Meridian, Majesty, etc.) all return 0 products via their collection endpoints (listed in collections_failed) - these appear to be discontinued/emptied SPC & tile lines. The 'Heritage' collection has no collection endpoint; its 6 products were assigned by title prefix + 'Solid' tag. Specs parsed from body_html spec list (SPECIES/THICKNESS/WIDTH/LENGTH/TOP LAYER=wear layer/TEXTURE/GRADE/BACKING/FINISH/SHEEN/TREATMENT/EDGE). EDGE present on only 9 products; no explicit INSTALLATION or GLOSS field (SHEEN carries gloss info). Variant prices are all 0.00 (call-for-pricing / trade). Image URLs normalized to master (stripped ?v= and _NNNx size suffixes); IMAGECOMINGSOON placeholder images dropped."
+}
