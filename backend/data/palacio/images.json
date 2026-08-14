@@ -1,0 +1,108 @@
+{
+  "PAL-maritza-antique-pearl": {
+    "primary": "https://fliq-images.s3.amazonaws.com/i/869512.jpg",
+    "lifestyle": [
+      "https://fliq-images.s3.amazonaws.com/i/rs1_869512.jpg"
+    ]
+  },
+  "PAL-maritza-foggy-morning": {
+    "primary": "https://fliq-images.s3.amazonaws.com/i/869514.jpg",
+    "lifestyle": [
+      "https://fliq-images.s3.amazonaws.com/i/rs1_869514.jpg"
+    ]
+  },
+  "PAL-tortosa-ii-graciano": {
+    "primary": "https://floorsvariety.com/wa-data/public/shop/products/85/88/8885/images/5852/5852.970.jpg",
+    "lifestyle": []
+  },
+  "PAL-catalonia-ii-fino": {
+    "primary": "https://floorsvariety.com/wa-data/public/shop/products/76/88/8876/images/5844/5844.970.jpg",
+    "lifestyle": []
+  },
+  "PAL-tortosa-graciano": {
+    "primary": "https://floorsvariety.com/wa-data/public/shop/products/85/88/8885/images/5852/5852.970.jpg",
+    "lifestyle": []
+  },
+  "PAL-amora-cotswold": {
+    "primary": "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Cotswold.webp",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Cotswold_1.webp"
+    ]
+  },
+  "PAL-amora-brownstone": {
+    "primary": "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Brownstone.webp",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Brownstone_1.webp"
+    ]
+  },
+  "PAL-americano-grande-grandview": {
+    "primary": "https://cdn.shopify.com/s/files/1/1394/1063/files/americano-grande-grandview.jpg",
+    "lifestyle": []
+  },
+  "PAL-amora-warm-nutmeg": {
+    "primary": "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/WarmNutmeg.webp",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Warm_Nutmeg_1.webp"
+    ]
+  },
+  "PAL-amora-squire-hill": {
+    "primary": "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/SquireHill.webp",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Squire_Hill_1.webp"
+    ]
+  },
+  "PAL-amora-dakota-trail": {
+    "primary": "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/DakotaTrail.webp",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Dakota_Trail_1.webp"
+    ]
+  },
+  "PAL-amora-sonnet": {
+    "primary": "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Sonnet.webp",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Sonnet_1.webp"
+    ]
+  },
+  "PAL-amora-adirondack": {
+    "primary": "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Adirondack.webp",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Adirondack_1.webp"
+    ]
+  },
+  "PAL-amora-frolic": {
+    "primary": "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Frolic.webp",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Frolic_1.webp"
+    ]
+  },
+  "PAL-americano-grande-kirk-view": {
+    "primary": "https://cdn.shopify.com/s/files/1/1394/1063/files/americano-grande-kirk-view.jpg",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/1394/1063/files/americano-grande-kirk-view-2.jpg"
+    ]
+  },
+  "PAL-amora-gentle-shadows": {
+    "primary": "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/GentleShadows.webp",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Gentle_Shadows_1.webp"
+    ]
+  },
+  "PAL-amora-tottens-inlet": {
+    "primary": "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Totten_sInlet.webp",
+    "lifestyle": [
+      "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Totten_s_Inlet_1.webp"
+    ]
+  },
+  "AUD-symphony-richards": {
+    "primary": "https://nicefloors.com/wp-content/uploads/images/EWH-7290-1.webp",
+    "lifestyle": [
+      "https://nicefloors.com/wp-content/uploads/images/EWH-7290-2.webp"
+    ]
+  },
+  "AUD-symphony-osbourne": {
+    "primary": "https://nicefloors.com/wp-content/uploads/images/EWH-7288-1.webp",
+    "lifestyle": [
+      "https://nicefloors.com/wp-content/uploads/images/EWH-7288-2.webp"
+    ]
+  }
+}

@@ -1,0 +1,1350 @@
+{
+  "collections": [
+    {
+      "brand": "Palacio",
+      "name": "Tortosa II",
+      "family": "SPC",
+      "notes": "9-1/4\" x 6.5mm SPC (legacy Tortosa = 5.5mm, same colors). Per-color 6.5mm MFPT5504 SKUs only confirmed for Graciano; RE... codes are legacy 5.5mm.",
+      "products": [
+        {
+          "name": "Palacio Tortosa II Graciano",
+          "color": "Graciano",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm (II) / 5.5mm (legacy)",
+          "width": "9-1/4\"",
+          "length": "60\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Real-feel embossing",
+          "edge": "Enhanced bevel",
+          "sku": "MFPT5504GUTHIC9GRA / MFPREGUTHIC9GRAD",
+          "images": [
+            "https://floorsvariety.com/wa-data/public/shop/products/85/88/8885/images/5852/5852.970.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Tortosa II Verdejo",
+          "color": "Verdejo",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm (II) / 5.5mm (legacy)",
+          "width": "9-1/4\"",
+          "length": "60\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Real-feel embossing",
+          "edge": "Enhanced bevel",
+          "sku": "REGUTHIC9VERD",
+          "images": [
+            "https://floorsvariety.com/wa-data/public/shop/products/86/88/8886/images/5853/5853.970.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Tortosa II Cava",
+          "color": "Cava",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm (II) / 5.5mm (legacy)",
+          "width": "9-1/4\"",
+          "length": "60\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Real-feel embossing",
+          "edge": "Enhanced bevel",
+          "sku": "REBOWOAK9CAVD",
+          "images": [
+            "https://floorsvariety.com/wa-data/public/shop/products/87/88/8887/images/5857/5857.970.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Tortosa II Carinena",
+          "color": "Carinena",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm (II) / 5.5mm (legacy)",
+          "width": "9-1/4\"",
+          "length": "60\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Real-feel embossing",
+          "edge": "Enhanced bevel",
+          "sku": "REGUTHIC9CARD",
+          "images": [
+            "https://floorsvariety.com/wa-data/public/shop/products/84/88/8884/images/5854/5854.970.jpg",
+            "https://1800hardwoodflooring.com/wa-data/public/shop/products/50/42/4250/images/5125/5125.970.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Tortosa II Godello",
+          "color": "Godello",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm (II) / 5.5mm (legacy)",
+          "width": "9-1/4\"",
+          "length": "60\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Real-feel embossing",
+          "edge": "Enhanced bevel",
+          "sku": "REBOWOAK9GODD",
+          "images": [
+            "https://floorsvariety.com/wa-data/public/shop/products/88/88/8888/images/5855/5855.970.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Tortosa II Tempranillo",
+          "color": "Tempranillo",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm (II) / 5.5mm (legacy)",
+          "width": "9-1/4\"",
+          "length": "60\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Real-feel embossing",
+          "edge": "Enhanced bevel",
+          "sku": "REBOWOAK9GUID",
+          "images": [
+            "https://floorsvariety.com/wa-data/public/shop/products/89/88/8889/images/5856/5856.970.jpg"
+          ]
+        }
+      ]
+    },
+    {
+      "brand": "Palacio",
+      "name": "Catalonia II",
+      "family": "SPC",
+      "notes": "7\" x 6.5mm SPC (legacy Catalonia = 5.5mm x 48\"). Colors: Fino, Albarino, Bobal, Mencia. 'Amontillado' removed \u2014 not a real Catalonia color (it's a Montilla sherry name); no dealer lists it under Catalonia.",
+      "products": [
+        {
+          "name": "Palacio Catalonia II Fino",
+          "color": "Fino",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm (II) / 5.5mm (legacy)",
+          "width": "7\"",
+          "length": "60\" (II) / 48\" (legacy)",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Real-feel embossing",
+          "edge": "bevel",
+          "sku": "MFPT5502COSRCL7FIN / RECOSRCL7FIND",
+          "images": [
+            "https://floorsvariety.com/wa-data/public/shop/products/76/88/8876/images/5844/5844.970.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Catalonia II Albarino",
+          "color": "Albarino",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm (II) / 5.5mm (legacy)",
+          "width": "7\"",
+          "length": "60\" (II) / 48\" (legacy)",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Real-feel embossing",
+          "edge": "bevel",
+          "sku": "RECOSRCL7ALBD",
+          "images": [
+            "https://floorsvariety.com/wa-data/public/shop/products/75/88/8875/images/5848/5848.970.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Catalonia II Bobal",
+          "color": "Bobal",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm (II) / 5.5mm (legacy)",
+          "width": "7\"",
+          "length": "60\" (II) / 48\" (legacy)",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Real-feel embossing",
+          "edge": "bevel",
+          "sku": "REKEYOAK7BOBD",
+          "images": [
+            "https://floorsvariety.com/wa-data/public/shop/products/78/88/8878/images/5846/5846.970.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Catalonia II Mencia",
+          "color": "Mencia",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm (II) / 5.5mm (legacy)",
+          "width": "7\"",
+          "length": "60\" (II) / 48\" (legacy)",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Real-feel embossing",
+          "edge": "bevel",
+          "sku": "REKEYOAK7MEND",
+          "images": [
+            "https://floorsvariety.com/wa-data/public/shop/products/79/88/8879/images/5847/5847.970.jpg"
+          ]
+        }
+      ]
+    },
+    {
+      "brand": "Palacio",
+      "name": "Montilla",
+      "family": "SPC",
+      "notes": "7\" wire-brushed SPC. Thickness/length/wear layer NOT public \u2014 VERIFY against Palacio line card.",
+      "products": [
+        {
+          "name": "Palacio Montilla Manzanillo",
+          "color": "Manzanillo",
+          "construction": "SPC + 1mm IXPE pad",
+          "thickness": "~6.5mm (VERIFY)",
+          "width": "7\"",
+          "length": "(verify)",
+          "wear_layer": "~20 mil (VERIFY)",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Wire-brushed",
+          "edge": "bevel",
+          "sku": "KILOAK7MAND",
+          "images": [
+            "https://1800hardwoodflooring.com/wa-data/public/shop/products/47/42/4247/images/5122/5122.970.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Montilla Oloroso",
+          "color": "Oloroso",
+          "construction": "SPC + 1mm IXPE pad",
+          "thickness": "~6.5mm (VERIFY)",
+          "width": "7\"",
+          "length": "(verify)",
+          "wear_layer": "~20 mil (VERIFY)",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Wire-brushed",
+          "edge": "bevel",
+          "sku": "KILOAK7OLOD",
+          "images": [
+            "https://1800hardwoodflooring.com/wa-data/public/shop/products/48/42/4248/images/5123/5123.970.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Montilla Palo Cortado",
+          "color": "Palo Cortado",
+          "construction": "SPC + 1mm IXPE pad",
+          "thickness": "~6.5mm (VERIFY)",
+          "width": "7\"",
+          "length": "(verify)",
+          "wear_layer": "~20 mil (VERIFY)",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Wire-brushed",
+          "edge": "bevel",
+          "sku": "KILOAK7PALD",
+          "images": [
+            "https://1800hardwoodflooring.com/wa-data/public/shop/products/49/42/4249/images/5124/5124.970.jpg"
+          ]
+        }
+      ]
+    },
+    {
+      "brand": "Palacio",
+      "name": "Maritza",
+      "family": "SPC",
+      "notes": "9\" x 6.5mm x 72\" SPC, ~22.46 sf/box. Pampas Grass/Wild Rice SKUs inferred from MFPMAR<3ltr>09 pattern.",
+      "products": [
+        {
+          "name": "Palacio Maritza Antique Pearl",
+          "color": "Antique Pearl",
+          "construction": "SPC Rigid Core + 1.0mm IXPE/foam pad",
+          "thickness": "6.5mm",
+          "width": "9\"",
+          "length": "72\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Embossed-in-register",
+          "edge": "bevel",
+          "sku": "MFPMARANT09",
+          "images": [
+            "https://fliq-images.s3.amazonaws.com/i/869512.jpg",
+            "https://fliq-images.s3.amazonaws.com/i/rs1_869512.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Maritza Foggy Morning",
+          "color": "Foggy Morning",
+          "construction": "SPC Rigid Core + 1.0mm IXPE/foam pad",
+          "thickness": "6.5mm",
+          "width": "9\"",
+          "length": "72\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Embossed-in-register",
+          "edge": "bevel",
+          "sku": "MFPMARFOG09",
+          "images": [
+            "https://fliq-images.s3.amazonaws.com/i/869514.jpg",
+            "https://fliq-images.s3.amazonaws.com/i/rs1_869514.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Maritza Cougar Brown",
+          "color": "Cougar Brown",
+          "construction": "SPC Rigid Core + 1.0mm IXPE/foam pad",
+          "thickness": "6.5mm",
+          "width": "9\"",
+          "length": "72\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Embossed-in-register",
+          "edge": "bevel",
+          "sku": "MFPMARCOU09",
+          "images": [
+            "https://fliq-images.s3.amazonaws.com/i/869513.jpg",
+            "https://fliq-images.s3.amazonaws.com/i/rs1_869513.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Maritza Pampas Grass",
+          "color": "Pampas Grass",
+          "construction": "SPC Rigid Core + 1.0mm IXPE/foam pad",
+          "thickness": "6.5mm",
+          "width": "9\"",
+          "length": "72\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Embossed-in-register",
+          "edge": "bevel",
+          "sku": "MFPMARPAM09 (inferred)",
+          "images": [
+            "https://fliq-images.s3.amazonaws.com/i/869515.jpg",
+            "https://fliq-images.s3.amazonaws.com/i/rs1_869515.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Maritza Wild Rice",
+          "color": "Wild Rice",
+          "construction": "SPC Rigid Core + 1.0mm IXPE/foam pad",
+          "thickness": "6.5mm",
+          "width": "9\"",
+          "length": "72\"",
+          "wear_layer": "20 mil",
+          "core": "SPC",
+          "finish": "Urethane",
+          "texture": "Embossed-in-register",
+          "edge": "bevel",
+          "sku": "MFPMARWIL09 (inferred)",
+          "images": [
+            "https://fliq-images.s3.amazonaws.com/i/869516.jpg",
+            "https://fliq-images.s3.amazonaws.com/i/rs1_869516.jpg"
+          ]
+        }
+      ]
+    },
+    {
+      "brand": "Palacio",
+      "name": "Americano Grande",
+      "family": "WPC",
+      "notes": "Labeled WPC on Galleher spec sheet (task called it SPC). 10\"x10mm. Only Kirk View & Grandview have public plank images.",
+      "products": [
+        {
+          "name": "Palacio Americano Grande Andes Summit",
+          "color": "Andes Summit",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10\"",
+          "length": "82.5\"",
+          "wear_layer": "30 mil",
+          "core": "WPC",
+          "finish": "ceramic-bead / urethane",
+          "texture": "embossed",
+          "edge": "bevel",
+          "sku": "MFPVCG10AS",
+          "images": []
+        },
+        {
+          "name": "Palacio Americano Grande Bald Eagle",
+          "color": "Bald Eagle",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10\"",
+          "length": "82.5\"",
+          "wear_layer": "30 mil",
+          "core": "WPC",
+          "finish": "ceramic-bead / urethane",
+          "texture": "embossed",
+          "edge": "bevel",
+          "sku": "MFPVCG10BE",
+          "images": []
+        },
+        {
+          "name": "Palacio Americano Grande Chest Springs",
+          "color": "Chest Springs",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10\"",
+          "length": "82.5\"",
+          "wear_layer": "30 mil",
+          "core": "WPC",
+          "finish": "ceramic-bead / urethane",
+          "texture": "embossed",
+          "edge": "bevel",
+          "sku": "MFPVCG10CS",
+          "images": []
+        },
+        {
+          "name": "Palacio Americano Grande Grandview",
+          "color": "Grandview",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10\"",
+          "length": "82.5\"",
+          "wear_layer": "30 mil",
+          "core": "WPC",
+          "finish": "ceramic-bead / urethane",
+          "texture": "embossed",
+          "edge": "bevel",
+          "sku": "MFPVCG10GV",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/1394/1063/files/americano-grande-grandview.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Americano Grande Harvest",
+          "color": "Harvest",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10\"",
+          "length": "82.5\"",
+          "wear_layer": "30 mil",
+          "core": "WPC",
+          "finish": "ceramic-bead / urethane",
+          "texture": "embossed",
+          "edge": "bevel",
+          "sku": "MFPVCG10HV",
+          "images": []
+        },
+        {
+          "name": "Palacio Americano Grande Kirk View",
+          "color": "Kirk View",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10\"",
+          "length": "82.5\"",
+          "wear_layer": "30 mil",
+          "core": "WPC",
+          "finish": "ceramic-bead / urethane",
+          "texture": "embossed",
+          "edge": "bevel",
+          "sku": "MFPVCG10KV",
+          "images": [
+            "https://cdn.shopify.com/s/files/1/1394/1063/files/americano-grande-kirk-view.jpg",
+            "https://cdn.shopify.com/s/files/1/1394/1063/files/americano-grande-kirk-view-2.jpg"
+          ]
+        },
+        {
+          "name": "Palacio Americano Grande Moondust Lane",
+          "color": "Moondust Lane",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10\"",
+          "length": "82.5\"",
+          "wear_layer": "30 mil",
+          "core": "WPC",
+          "finish": "ceramic-bead / urethane",
+          "texture": "embossed",
+          "edge": "bevel",
+          "sku": "MFPVCG10ML",
+          "images": []
+        },
+        {
+          "name": "Palacio Americano Grande Stonington",
+          "color": "Stonington",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10\"",
+          "length": "82.5\"",
+          "wear_layer": "30 mil",
+          "core": "WPC",
+          "finish": "ceramic-bead / urethane",
+          "texture": "embossed",
+          "edge": "bevel",
+          "sku": "MFPVCG10SN",
+          "images": []
+        },
+        {
+          "name": "Palacio Americano Grande Sunnyside",
+          "color": "Sunnyside",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10\"",
+          "length": "82.5\"",
+          "wear_layer": "30 mil",
+          "core": "WPC",
+          "finish": "ceramic-bead / urethane",
+          "texture": "embossed",
+          "edge": "bevel",
+          "sku": "MFPVCG10SS",
+          "images": []
+        },
+        {
+          "name": "Palacio Americano Grande Windmill Wings",
+          "color": "Windmill Wings",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10\"",
+          "length": "82.5\"",
+          "wear_layer": "30 mil",
+          "core": "WPC",
+          "finish": "ceramic-bead / urethane",
+          "texture": "embossed",
+          "edge": "bevel",
+          "sku": "MFPVCG10WW",
+          "images": []
+        }
+      ]
+    },
+    {
+      "brand": "Palacio",
+      "name": "Amora",
+      "family": "Hardwood",
+      "products": [
+        {
+          "name": "Palacio Amora Adirondack",
+          "color": "Adirondack",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\u201d",
+          "width": "8.66\u201d",
+          "length": "random up to 87\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "31.25",
+          "sku": "MFPAMO5886AD",
+          "discontinued": false,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Adirondack.webp",
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Adirondack_1.webp"
+          ]
+        },
+        {
+          "name": "Palacio Amora Brownstone",
+          "color": "Brownstone",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\u201d",
+          "width": "8.66\u201d",
+          "length": "random up to 87\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "31.25",
+          "sku": "MFPAMO5886BS",
+          "discontinued": false,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Brownstone.webp",
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Brownstone_1.webp"
+          ]
+        },
+        {
+          "name": "Palacio Amora Cotswold",
+          "color": "Cotswold",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\u201d",
+          "width": "8.66\u201d",
+          "length": "random up to 87\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "31.25",
+          "sku": "MFPAMO5886CW",
+          "discontinued": false,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Cotswold.webp",
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Cotswold_1.webp"
+          ]
+        },
+        {
+          "name": "Palacio Amora Dakota Trail",
+          "color": "Dakota Trail",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\u201d",
+          "width": "8.66\u201d",
+          "length": "random up to 87\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "31.25",
+          "sku": "MFPAMO5886DT",
+          "discontinued": false,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/DakotaTrail.webp",
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Dakota_Trail_1.webp"
+          ]
+        },
+        {
+          "name": "Palacio Amora Frolic",
+          "color": "Frolic",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\u201d",
+          "width": "8.66\u201d",
+          "length": "random up to 87\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "31.25",
+          "sku": "MFPAMO5886FL",
+          "discontinued": false,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Frolic.webp",
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Frolic_1.webp"
+          ]
+        },
+        {
+          "name": "Palacio Amora Gentle Shadows",
+          "color": "Gentle Shadows",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\u201d",
+          "width": "8.66\u201d",
+          "length": "random up to 87\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "31.25",
+          "sku": "MFPAMO5886GS",
+          "discontinued": false,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/GentleShadows.webp",
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Gentle_Shadows_1.webp"
+          ]
+        },
+        {
+          "name": "Palacio Amora Sonnet",
+          "color": "Sonnet",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\u201d",
+          "width": "8.66\u201d",
+          "length": "random up to 87\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "31.25",
+          "sku": "MFPAMO5886SN",
+          "discontinued": false,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Sonnet.webp",
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Sonnet_1.webp"
+          ]
+        },
+        {
+          "name": "Palacio Amora Squire Hill",
+          "color": "Squire Hill",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\u201d",
+          "width": "8.66\u201d",
+          "length": "random up to 87\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "31.25",
+          "sku": "MFPAMO5886SH",
+          "discontinued": false,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/SquireHill.webp",
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Squire_Hill_1.webp"
+          ]
+        },
+        {
+          "name": "Palacio Amora Totten's Inlet",
+          "color": "Totten's Inlet",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\u201d",
+          "width": "8.66\u201d",
+          "length": "random up to 87\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "31.25",
+          "sku": "MFPAMO5886TI",
+          "discontinued": false,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Totten_sInlet.webp",
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Totten_s_Inlet_1.webp"
+          ]
+        },
+        {
+          "name": "Palacio Amora Warm Nutmeg",
+          "color": "Warm Nutmeg",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\u201d",
+          "width": "8.66\u201d",
+          "length": "random up to 87\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "31.25",
+          "sku": "MFPAMO5886WN",
+          "discontinued": false,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/WarmNutmeg.webp",
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Warm_Nutmeg_1.webp"
+          ]
+        }
+      ]
+    },
+    {
+      "brand": "Palacio",
+      "name": "Aragon",
+      "family": "Hardwood",
+      "products": [
+        {
+          "name": "Palacio Aragon Ashen Fossil",
+          "color": "Ashen Fossil",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\"",
+          "width": "9-1/2\"",
+          "length": "random up to 86\"",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "28.42",
+          "sku": "FTOAK95TTAF2",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/ashen-fossil.webp"
+          ]
+        },
+        {
+          "name": "Palacio Aragon Barren Plain",
+          "color": "Barren Plain",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\"",
+          "width": "9-1/2\"",
+          "length": "random up to 86\"",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "28.42",
+          "sku": "FTOAK95SMBP2",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/barren-plain.webp"
+          ]
+        },
+        {
+          "name": "Palacio Aragon Brandy Cream",
+          "color": "Brandy Cream",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\"",
+          "width": "9-1/2\"",
+          "length": "random up to 86\"",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "28.42",
+          "sku": "FTOAK95CBBC2",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/brandy-cream.webp"
+          ]
+        },
+        {
+          "name": "Palacio Aragon French Grey",
+          "color": "French Grey",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\"",
+          "width": "9-1/2\"",
+          "length": "random up to 86\"",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "28.42",
+          "sku": "FTOAK95BLFG2",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/french-gray.webp"
+          ]
+        },
+        {
+          "name": "Palacio Aragon Pashmina",
+          "color": "Pashmina",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\"",
+          "width": "9-1/2\"",
+          "length": "random up to 86\"",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "28.42",
+          "sku": "FTOAK95SHPA2",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/pashmina.webp"
+          ]
+        },
+        {
+          "name": "Palacio Aragon Smoked Oyster",
+          "color": "Smoked Oyster",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\"",
+          "width": "9-1/2\"",
+          "length": "random up to 86\"",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "28.42",
+          "sku": "FTOAK95STSO2",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/smoked-oyster.webp"
+          ]
+        },
+        {
+          "name": "Palacio Aragon Stone Hearth",
+          "color": "Stone Hearth",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\"",
+          "width": "9-1/2\"",
+          "length": "random up to 86\"",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "28.42",
+          "sku": "FTOAK95BBSH2",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/stone-hearth.webp"
+          ]
+        },
+        {
+          "name": "Palacio Aragon Willow Creek",
+          "color": "Willow Creek",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\"",
+          "width": "9-1/2\"",
+          "length": "random up to 86\"",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "28.42",
+          "sku": "FTOAK95RRWC2",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/willow-creek.webp"
+          ]
+        },
+        {
+          "name": "Palacio Aragon Wood Acres",
+          "color": "Wood Acres",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\"",
+          "width": "9-1/2\"",
+          "length": "random up to 86\"",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "28.42",
+          "sku": "FTOAK95RPWA2",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/wood-acres.webp"
+          ]
+        }
+      ]
+    },
+    {
+      "brand": "Palacio",
+      "name": "Villoria",
+      "family": "Hardwood",
+      "products": [
+        {
+          "name": "Palacio Villoria Baronian Tan",
+          "color": "Baronian Tan",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\u201d",
+          "width": "8.65\u201d",
+          "length": "random up to 86\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "19",
+          "sku": "MFPEK9PL107W",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-baronian-tan.webp"
+          ]
+        },
+        {
+          "name": "Palacio Villoria Brazilia Grey",
+          "color": "Brazilia Grey",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\u201d",
+          "width": "8.65\u201d",
+          "length": "random up to 86\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "19",
+          "sku": "MFPEK9PL177W",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-brazilia-grey-_2.webp"
+          ]
+        },
+        {
+          "name": "Palacio Villoria Dove Tail",
+          "color": "Dove Tail",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\u201d",
+          "width": "8.65\u201d",
+          "length": "random up to 86\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "19",
+          "sku": "MFPEK9PL117W",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-dove-tail-_2.webp"
+          ]
+        },
+        {
+          "name": "Palacio Villoria Manor House",
+          "color": "Manor House",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\u201d",
+          "width": "8.65\u201d",
+          "length": "random up to 86\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "19",
+          "sku": "MFPEK9PL137W",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-manor-house-_2.webp"
+          ]
+        },
+        {
+          "name": "Palacio Villoria Natural Crest",
+          "color": "Natural Crest",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\u201d",
+          "width": "8.65\u201d",
+          "length": "random up to 86\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "19",
+          "sku": "MFPEK9PL167W",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-natural-crest-_2.webp"
+          ]
+        },
+        {
+          "name": "Palacio Villoria Oxford Shade",
+          "color": "Oxford Shade",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\u201d",
+          "width": "8.65\u201d",
+          "length": "random up to 86\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "19",
+          "sku": "MFPEK9PL187W",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-oxford-shade-_2.webp"
+          ]
+        },
+        {
+          "name": "Palacio Villoria Patridge Knoll",
+          "color": "Patridge Knoll",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\u201d",
+          "width": "8.65\u201d",
+          "length": "random up to 86\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "19",
+          "sku": "MFPEK9PL157W",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-partridge-knoll-_2.webp"
+          ]
+        },
+        {
+          "name": "Palacio Villoria Sacred Ground",
+          "color": "Sacred Ground",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\u201d",
+          "width": "8.65\u201d",
+          "length": "random up to 86\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "19",
+          "sku": "MFPEK9PL147W",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-sacred-ground-_2.webp"
+          ]
+        },
+        {
+          "name": "Palacio Villoria Spun Sugar",
+          "color": "Spun Sugar",
+          "construction": "Engineered Hardwood",
+          "thickness": "9/16\u201d",
+          "width": "8.65\u201d",
+          "length": "random up to 86\u201d",
+          "wear_layer": null,
+          "core": "Wood",
+          "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+          "texture": null,
+          "edge": null,
+          "species": "European Oak",
+          "coverage_sqft": "19",
+          "sku": "MFPEK9PL127W",
+          "discontinued": true,
+          "images": [
+            "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-spun-sugar-_2.webp"
+          ]
+        }
+      ]
+    },
+    {
+      "brand": "Audacity",
+      "name": "Symphony XXL",
+      "family": "SPC",
+      "products": [
+        {
+          "name": "Audacity Symphony Franklin",
+          "color": "Franklin",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "EWH-7287",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7287-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7287-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Richards",
+          "color": "Richards",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "EWH-7290",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7290-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7290-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Hendrix",
+          "color": "Hendrix",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "CWH-7075",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/CWH-7075-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/CWH-7075-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Axl",
+          "color": "Axl",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "EWH-5780",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/EWH-5780-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/EWH-5780-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Wonder",
+          "color": "Wonder",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "EWH-7294",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7294-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7294-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Jagger",
+          "color": "Jagger",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "EWH-7295",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7295-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7295-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Presley",
+          "color": "Presley",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "CWH-7154",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/CWH-7154-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/CWH-7154-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Osbourne",
+          "color": "Osbourne",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "EWH-7288",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7288-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7288-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Gibbons",
+          "color": "Gibbons",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "EWH-5782",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/EWH-5782-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/EWH-5782-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Tyler",
+          "color": "Tyler",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "CWH-5997",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/CWH-5997-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/CWH-5997-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Houston",
+          "color": "Houston",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "EWH-5783",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/EWH-5783-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/EWH-5783-2.webp"
+          ]
+        },
+        {
+          "name": "Audacity Symphony Elton",
+          "color": "Elton",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9\"",
+          "length": "72-1/2\"",
+          "wear_layer": "22 mil",
+          "core": "SPC",
+          "finish": "aluminum oxide",
+          "texture": "embossed",
+          "edge": "painted bevel",
+          "sku": "EWH-7282",
+          "coverage_sqft": 22.8,
+          "pad": "1mm IXPE attached pad",
+          "images": [
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7282-1.webp",
+            "https://nicefloors.com/wp-content/uploads/images/EWH-7282-2.webp"
+          ]
+        }
+      ]
+    }
+  ],
+  "notes": "SOURCES \u2014 Palacio waterproof (Tortosa II/Catalonia II/Montilla/Maritza/Americano Grande): specs+SKUs from galleherduffy.com (Galleher's own B2B, images login-gated); images from dealer sites floorsvariety.com + 1800hardwoodflooring.com (Webasyst wa-data paths \u2014 .200 size token stripped for full-res; fall back to .200/.750/.970 if 404), diabloflooring.com (/wp-content), flooringliquidators fliq-images.s3 (swatch <id>.jpg + room rs1_<id>.jpg), stoneandtileshoppe.com Shopify (Americano Grande Kirk View/Grandview). Palacio Hardwood (Amora/Aragon/Villoria): flooring4lessonline.com Shopify products.json (clean images + specs in body; Aragon & Villoria marked DISCONTINUED on that dealer). Audacity Symphony XXL: nicefloors.com WooCommerce product pages (image pattern /wp-content/uploads/images/<SKU>-1.webp & -2.webp; 12 colors verified). MISSING/VERIFY: (1) Palacio waterproof is Galleher's private-label rebrand of 'The Mission Collection' SPC \u2014 the manufacturer site only publicly exposes Cortona Maxx & Foundation (which do NOT map 1:1 to Palacio color names). (2) Americano Grande = WPC per Galleher (task said SPC); only 2 of 10 colors have public plank images. (3) Montilla thickness/length/wear layer not public \u2014 assumed ~6.5mm/20mil. (4) Several SKUs marked (verify)/(inferred): Catalonia Albarino/Amontillado/Bobal, Maritza Pampas Grass/Wild Rice, Tortosa II per-color 6.5mm codes. (5) Tortosa/Catalonia exist in both legacy (5.5mm) and 'II' (6.5mm) generations sharing color names. (6) Audacity: Galleher page also listed Lennon & Morrison which nicefloors doesn't carry \u2014 full Symphony line may exceed the 12 colors captured. (7) wear_layer null for hardwood collections (N/A). COLOR COUNTS: Palacio waterproof 29 (Tortosa II 6, Catalonia II 4, Montilla 3, Maritza 5, Americano Grande 10 \u2014 trim SKUs excluded); Palacio Hardwood 28 (Amora 10, Aragon 9, Villoria 9); Audacity Symphony 12. TOTAL 69 colors. | IMAGE COVERAGE: all Tortosa II(6), Catalonia II(4), Montilla(3), Maritza(5) planks + all Hardwood(28) + all Audacity(12) have verified-resolving image URLs. Americano Grande: only Kirk View + Grandview have public plank photos (other 8 colors imageless \u2014 pull from Palacio line card PDF or a Galleher-dealer Shopify). Webasyst wa-data URLs MUST keep the .970.jpg size token (bare path 404s)."
+}

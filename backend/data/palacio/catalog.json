@@ -1,0 +1,1852 @@
+{
+  "vendor": {
+    "name": "Galleher Duffy",
+    "code": "GALL",
+    "website": "https://www.galleherduffy.com"
+  },
+  "brands": [
+    {
+      "name": "Palacio",
+      "code": "PAL",
+      "website": "https://www.themissioncollection.com"
+    },
+    {
+      "name": "Audacity",
+      "code": "AUD",
+      "website": "https://www.galleherduffy.com"
+    }
+  ],
+  "markup": 1.6,
+  "products": [
+    {
+      "name": "Antique Pearl",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Maritza",
+      "family": "SPC",
+      "category": "lvp-plank",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPMARANT09",
+          "internal_sku": "PAL-maritza-antique-pearl",
+          "variant_name": "9\"",
+          "color": "Antique Pearl",
+          "collection": "Maritza",
+          "family": "SPC",
+          "material": "SPC Rigid Core",
+          "construction": "SPC Rigid Core + 1.0mm IXPE/foam pad",
+          "thickness": "6.5mm",
+          "width": "9",
+          "length": "72",
+          "wear_layer": "20 mil",
+          "finish": "Urethane",
+          "surface_texture": "Embossed-in-register",
+          "waterproof": "Waterproof",
+          "size": "6.5mm x 9\"",
+          "cost": 3.69,
+          "sqft_box": 22.46,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Foggy Morning",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Maritza",
+      "family": "SPC",
+      "category": "lvp-plank",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPMARFOG09",
+          "internal_sku": "PAL-maritza-foggy-morning",
+          "variant_name": "9\"",
+          "color": "Foggy Morning",
+          "collection": "Maritza",
+          "family": "SPC",
+          "material": "SPC Rigid Core",
+          "construction": "SPC Rigid Core + 1.0mm IXPE/foam pad",
+          "thickness": "6.5mm",
+          "width": "9",
+          "length": "72",
+          "wear_layer": "20 mil",
+          "finish": "Urethane",
+          "surface_texture": "Embossed-in-register",
+          "waterproof": "Waterproof",
+          "size": "6.5mm x 9\"",
+          "cost": 3.69,
+          "sqft_box": 22.46,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Graciano",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Tortosa II",
+      "family": "SPC",
+      "category": "lvp-plank",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2022/05/Palacio-Catalonia-Tortosa_DataSheet.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPT5504GUTHIC9GRA",
+          "internal_sku": "PAL-tortosa-ii-graciano",
+          "variant_name": "9-1/4\"",
+          "color": "Graciano",
+          "collection": "Tortosa II",
+          "family": "SPC",
+          "material": "SPC Rigid Core",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm",
+          "width": "9-1/4",
+          "length": "60",
+          "wear_layer": "20 mil",
+          "finish": "Urethane",
+          "surface_texture": "Real-feel embossing",
+          "waterproof": "Waterproof",
+          "size": "6.5mm x 9-1/4\"",
+          "cost": 3.69,
+          "sqft_box": 23.1,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Fino",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Catalonia II",
+      "family": "SPC",
+      "category": "lvp-plank",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2022/05/Palacio-Catalonia-Tortosa_DataSheet.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPT5502COSRCL7FIN",
+          "internal_sku": "PAL-catalonia-ii-fino",
+          "variant_name": "7\"",
+          "color": "Fino",
+          "collection": "Catalonia II",
+          "family": "SPC",
+          "material": "SPC Rigid Core",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "6.5mm",
+          "width": "7",
+          "length": "60 (II) / 48 (legacy)",
+          "wear_layer": "20 mil",
+          "finish": "Urethane",
+          "surface_texture": "Real-feel embossing",
+          "waterproof": "Waterproof",
+          "size": "6.5mm x 7\"",
+          "cost": 3.69,
+          "sqft_box": 18.91,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Graciano",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Tortosa",
+      "family": "SPC",
+      "category": "lvp-plank",
+      "status": "draft",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2022/05/Palacio-Catalonia-Tortosa_DataSheet.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPREGUTHIC9GRAD",
+          "internal_sku": "PAL-tortosa-graciano",
+          "variant_name": "9-1/4\"",
+          "color": "Graciano",
+          "collection": "Tortosa",
+          "family": "SPC",
+          "material": "SPC Rigid Core",
+          "construction": "SPC Rigid Core + 1mm IXPE pad",
+          "thickness": "5.5mm",
+          "width": "9-1/4",
+          "length": "60",
+          "wear_layer": "20 mil",
+          "finish": "Urethane",
+          "surface_texture": "Real-feel embossing",
+          "waterproof": "Waterproof",
+          "size": "5.5mm x 9-1/4\"",
+          "cost": null,
+          "sqft_box": 23.1,
+          "status": "draft"
+        }
+      ]
+    },
+    {
+      "name": "Sunnyside",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Americano Grande",
+      "family": "Laminate",
+      "category": "laminate",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2024/06/Americano-Grande_Digital-Brochure_Final-6.4.2024.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPVCG10SS",
+          "internal_sku": "PAL-americano-grande-sunnyside",
+          "variant_name": "10\"",
+          "color": "Sunnyside",
+          "collection": "Americano Grande",
+          "family": "Laminate",
+          "material": "Waterproof Laminate",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10",
+          "length": "82.5",
+          "wear_layer": "30 mil",
+          "finish": "ceramic-bead / urethane",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "10mm x 10\"",
+          "cost": 2.99,
+          "sqft_box": 22.6,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Cotswold",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Amora",
+      "family": "Hardwood",
+      "category": "engineered-hardwood",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPAMO5886CW",
+          "internal_sku": "PAL-amora-cotswold",
+          "variant_name": "8-5/8\"",
+          "color": "Cotswold",
+          "collection": "Amora",
+          "family": "Hardwood",
+          "material": "Engineered Hardwood",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\"",
+          "width": "8-5/8",
+          "length": "random up to 87",
+          "wear_layer": "",
+          "finish": "UV-Cured Acrylic Urethane",
+          "surface_texture": "",
+          "waterproof": "",
+          "size": "5/8\" x 8-5/8\"",
+          "cost": 4.99,
+          "sqft_box": 31.25,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Brownstone",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Amora",
+      "family": "Hardwood",
+      "category": "engineered-hardwood",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPAMO5886BS",
+          "internal_sku": "PAL-amora-brownstone",
+          "variant_name": "8-5/8\"",
+          "color": "Brownstone",
+          "collection": "Amora",
+          "family": "Hardwood",
+          "material": "Engineered Hardwood",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\"",
+          "width": "8-5/8",
+          "length": "random up to 87",
+          "wear_layer": "",
+          "finish": "UV-Cured Acrylic Urethane",
+          "surface_texture": "",
+          "waterproof": "",
+          "size": "5/8\" x 8-5/8\"",
+          "cost": 4.99,
+          "sqft_box": 31.25,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Windmill Wings",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Americano Grande",
+      "family": "Laminate",
+      "category": "laminate",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2024/06/Americano-Grande_Digital-Brochure_Final-6.4.2024.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPVCG10WW",
+          "internal_sku": "PAL-americano-grande-windmill-wings",
+          "variant_name": "10\"",
+          "color": "Windmill Wings",
+          "collection": "Americano Grande",
+          "family": "Laminate",
+          "material": "Waterproof Laminate",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10",
+          "length": "82.5",
+          "wear_layer": "30 mil",
+          "finish": "ceramic-bead / urethane",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "10mm x 10\"",
+          "cost": 2.99,
+          "sqft_box": 22.6,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Moondust Lane",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Americano Grande",
+      "family": "Laminate",
+      "category": "laminate",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2024/06/Americano-Grande_Digital-Brochure_Final-6.4.2024.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPVCG10ML",
+          "internal_sku": "PAL-americano-grande-moondust-lane",
+          "variant_name": "10\"",
+          "color": "Moondust Lane",
+          "collection": "Americano Grande",
+          "family": "Laminate",
+          "material": "Waterproof Laminate",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10",
+          "length": "82.5",
+          "wear_layer": "30 mil",
+          "finish": "ceramic-bead / urethane",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "10mm x 10\"",
+          "cost": 2.99,
+          "sqft_box": 22.6,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Bald Eagle",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Americano Grande",
+      "family": "Laminate",
+      "category": "laminate",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2024/06/Americano-Grande_Digital-Brochure_Final-6.4.2024.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPVCG10BE",
+          "internal_sku": "PAL-americano-grande-bald-eagle",
+          "variant_name": "10\"",
+          "color": "Bald Eagle",
+          "collection": "Americano Grande",
+          "family": "Laminate",
+          "material": "Waterproof Laminate",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10",
+          "length": "82.5",
+          "wear_layer": "30 mil",
+          "finish": "ceramic-bead / urethane",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "10mm x 10\"",
+          "cost": 2.99,
+          "sqft_box": 22.6,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Andes Summit",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Americano Grande",
+      "family": "Laminate",
+      "category": "laminate",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2024/06/Americano-Grande_Digital-Brochure_Final-6.4.2024.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPVCG10AS",
+          "internal_sku": "PAL-americano-grande-andes-summit",
+          "variant_name": "10\"",
+          "color": "Andes Summit",
+          "collection": "Americano Grande",
+          "family": "Laminate",
+          "material": "Waterproof Laminate",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10",
+          "length": "82.5",
+          "wear_layer": "30 mil",
+          "finish": "ceramic-bead / urethane",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "10mm x 10\"",
+          "cost": 2.99,
+          "sqft_box": 22.6,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Stonington",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Americano Grande",
+      "family": "Laminate",
+      "category": "laminate",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2024/06/Americano-Grande_Digital-Brochure_Final-6.4.2024.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPVCG10SN",
+          "internal_sku": "PAL-americano-grande-stonington",
+          "variant_name": "10\"",
+          "color": "Stonington",
+          "collection": "Americano Grande",
+          "family": "Laminate",
+          "material": "Waterproof Laminate",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10",
+          "length": "82.5",
+          "wear_layer": "30 mil",
+          "finish": "ceramic-bead / urethane",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "10mm x 10\"",
+          "cost": 2.99,
+          "sqft_box": 22.6,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Harvest",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Americano Grande",
+      "family": "Laminate",
+      "category": "laminate",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2024/06/Americano-Grande_Digital-Brochure_Final-6.4.2024.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPVCG10HV",
+          "internal_sku": "PAL-americano-grande-harvest",
+          "variant_name": "10\"",
+          "color": "Harvest",
+          "collection": "Americano Grande",
+          "family": "Laminate",
+          "material": "Waterproof Laminate",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10",
+          "length": "82.5",
+          "wear_layer": "30 mil",
+          "finish": "ceramic-bead / urethane",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "10mm x 10\"",
+          "cost": 2.99,
+          "sqft_box": 22.6,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Grandview",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Americano Grande",
+      "family": "Laminate",
+      "category": "laminate",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2024/06/Americano-Grande_Digital-Brochure_Final-6.4.2024.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPVCG10GV",
+          "internal_sku": "PAL-americano-grande-grandview",
+          "variant_name": "10\"",
+          "color": "Grandview",
+          "collection": "Americano Grande",
+          "family": "Laminate",
+          "material": "Waterproof Laminate",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10",
+          "length": "82.5",
+          "wear_layer": "30 mil",
+          "finish": "ceramic-bead / urethane",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "10mm x 10\"",
+          "cost": 2.99,
+          "sqft_box": 22.6,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Warm Nutmeg",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Amora",
+      "family": "Hardwood",
+      "category": "engineered-hardwood",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPAMO5886WN",
+          "internal_sku": "PAL-amora-warm-nutmeg",
+          "variant_name": "8-5/8\"",
+          "color": "Warm Nutmeg",
+          "collection": "Amora",
+          "family": "Hardwood",
+          "material": "Engineered Hardwood",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\"",
+          "width": "8-5/8",
+          "length": "random up to 87",
+          "wear_layer": "",
+          "finish": "UV-Cured Acrylic Urethane",
+          "surface_texture": "",
+          "waterproof": "",
+          "size": "5/8\" x 8-5/8\"",
+          "cost": 4.99,
+          "sqft_box": 31.25,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Squire Hill",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Amora",
+      "family": "Hardwood",
+      "category": "engineered-hardwood",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPAMO5886SH",
+          "internal_sku": "PAL-amora-squire-hill",
+          "variant_name": "8-5/8\"",
+          "color": "Squire Hill",
+          "collection": "Amora",
+          "family": "Hardwood",
+          "material": "Engineered Hardwood",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\"",
+          "width": "8-5/8",
+          "length": "random up to 87",
+          "wear_layer": "",
+          "finish": "UV-Cured Acrylic Urethane",
+          "surface_texture": "",
+          "waterproof": "",
+          "size": "5/8\" x 8-5/8\"",
+          "cost": 4.99,
+          "sqft_box": 31.25,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Dakota Trail",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Amora",
+      "family": "Hardwood",
+      "category": "engineered-hardwood",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPAMO5886DT",
+          "internal_sku": "PAL-amora-dakota-trail",
+          "variant_name": "8-5/8\"",
+          "color": "Dakota Trail",
+          "collection": "Amora",
+          "family": "Hardwood",
+          "material": "Engineered Hardwood",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\"",
+          "width": "8-5/8",
+          "length": "random up to 87",
+          "wear_layer": "",
+          "finish": "UV-Cured Acrylic Urethane",
+          "surface_texture": "",
+          "waterproof": "",
+          "size": "5/8\" x 8-5/8\"",
+          "cost": 4.99,
+          "sqft_box": 31.25,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Sonnet",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Amora",
+      "family": "Hardwood",
+      "category": "engineered-hardwood",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPAMO5886SN",
+          "internal_sku": "PAL-amora-sonnet",
+          "variant_name": "8-5/8\"",
+          "color": "Sonnet",
+          "collection": "Amora",
+          "family": "Hardwood",
+          "material": "Engineered Hardwood",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\"",
+          "width": "8-5/8",
+          "length": "random up to 87",
+          "wear_layer": "",
+          "finish": "UV-Cured Acrylic Urethane",
+          "surface_texture": "",
+          "waterproof": "",
+          "size": "5/8\" x 8-5/8\"",
+          "cost": 4.99,
+          "sqft_box": 31.25,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Adirondack",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Amora",
+      "family": "Hardwood",
+      "category": "engineered-hardwood",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPAMO5886AD",
+          "internal_sku": "PAL-amora-adirondack",
+          "variant_name": "8-5/8\"",
+          "color": "Adirondack",
+          "collection": "Amora",
+          "family": "Hardwood",
+          "material": "Engineered Hardwood",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\"",
+          "width": "8-5/8",
+          "length": "random up to 87",
+          "wear_layer": "",
+          "finish": "UV-Cured Acrylic Urethane",
+          "surface_texture": "",
+          "waterproof": "",
+          "size": "5/8\" x 8-5/8\"",
+          "cost": 4.99,
+          "sqft_box": 31.25,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Frolic",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Amora",
+      "family": "Hardwood",
+      "category": "engineered-hardwood",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPAMO5886FL",
+          "internal_sku": "PAL-amora-frolic",
+          "variant_name": "8-5/8\"",
+          "color": "Frolic",
+          "collection": "Amora",
+          "family": "Hardwood",
+          "material": "Engineered Hardwood",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\"",
+          "width": "8-5/8",
+          "length": "random up to 87",
+          "wear_layer": "",
+          "finish": "UV-Cured Acrylic Urethane",
+          "surface_texture": "",
+          "waterproof": "",
+          "size": "5/8\" x 8-5/8\"",
+          "cost": 4.99,
+          "sqft_box": 31.25,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Kirk View",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Americano Grande",
+      "family": "Laminate",
+      "category": "laminate",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2024/06/Americano-Grande_Digital-Brochure_Final-6.4.2024.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPVCG10KV",
+          "internal_sku": "PAL-americano-grande-kirk-view",
+          "variant_name": "10\"",
+          "color": "Kirk View",
+          "collection": "Americano Grande",
+          "family": "Laminate",
+          "material": "Waterproof Laminate",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10",
+          "length": "82.5",
+          "wear_layer": "30 mil",
+          "finish": "ceramic-bead / urethane",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "10mm x 10\"",
+          "cost": 2.99,
+          "sqft_box": 22.6,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Chest Springs",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Americano Grande",
+      "family": "Laminate",
+      "category": "laminate",
+      "status": "active",
+      "spec_pdf": "https://www.themissioncollection.com/wp-content/uploads/2024/06/Americano-Grande_Digital-Brochure_Final-6.4.2024.pdf",
+      "skus": [
+        {
+          "vendor_sku": "MFPVCG10CS",
+          "internal_sku": "PAL-americano-grande-chest-springs",
+          "variant_name": "10\"",
+          "color": "Chest Springs",
+          "collection": "Americano Grande",
+          "family": "Laminate",
+          "material": "Waterproof Laminate",
+          "construction": "WPC",
+          "thickness": "10mm",
+          "width": "10",
+          "length": "82.5",
+          "wear_layer": "30 mil",
+          "finish": "ceramic-bead / urethane",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "10mm x 10\"",
+          "cost": 2.99,
+          "sqft_box": 22.6,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Gentle Shadows",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Amora",
+      "family": "Hardwood",
+      "category": "engineered-hardwood",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPAMO5886GS",
+          "internal_sku": "PAL-amora-gentle-shadows",
+          "variant_name": "8-5/8\"",
+          "color": "Gentle Shadows",
+          "collection": "Amora",
+          "family": "Hardwood",
+          "material": "Engineered Hardwood",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\"",
+          "width": "8-5/8",
+          "length": "random up to 87",
+          "wear_layer": "",
+          "finish": "UV-Cured Acrylic Urethane",
+          "surface_texture": "",
+          "waterproof": "",
+          "size": "5/8\" x 8-5/8\"",
+          "cost": 4.99,
+          "sqft_box": 31.25,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Totten's Inlet",
+      "brand": "PAL",
+      "brandName": "Palacio",
+      "collection": "Amora",
+      "family": "Hardwood",
+      "category": "engineered-hardwood",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "MFPAMO5886TI",
+          "internal_sku": "PAL-amora-tottens-inlet",
+          "variant_name": "8-5/8\"",
+          "color": "Totten's Inlet",
+          "collection": "Amora",
+          "family": "Hardwood",
+          "material": "Engineered Hardwood",
+          "construction": "Engineered Hardwood",
+          "thickness": "5/8\"",
+          "width": "8-5/8",
+          "length": "random up to 87",
+          "wear_layer": "",
+          "finish": "UV-Cured Acrylic Urethane",
+          "surface_texture": "",
+          "waterproof": "",
+          "size": "5/8\" x 8-5/8\"",
+          "cost": 4.99,
+          "sqft_box": 31.25,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Richards",
+      "brand": "AUD",
+      "brandName": "Audacity",
+      "collection": "Symphony",
+      "family": "SPC",
+      "category": "lvp-plank",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "CFLEWH7290",
+          "internal_sku": "AUD-symphony-richards",
+          "variant_name": "9.06\"",
+          "color": "Richards",
+          "collection": "Symphony",
+          "family": "SPC",
+          "material": "SPC Rigid Core",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9.06",
+          "length": "72-1/2",
+          "wear_layer": "22 mil",
+          "finish": "aluminum oxide",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "5.5mm x 9.06\"",
+          "cost": 3.56,
+          "sqft_box": 22.8,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Morrison",
+      "brand": "AUD",
+      "brandName": "Audacity",
+      "collection": "Symphony",
+      "family": "SPC",
+      "category": "lvp-plank",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "CFLEWH7052",
+          "internal_sku": "AUD-symphony-morrison",
+          "variant_name": "9.06\"",
+          "color": "Morrison",
+          "collection": "Symphony",
+          "family": "SPC",
+          "material": "SPC Rigid Core",
+          "construction": "rigid core",
+          "thickness": "5.5mm",
+          "width": "9.06",
+          "length": "",
+          "wear_layer": "",
+          "finish": "",
+          "surface_texture": "",
+          "waterproof": "Waterproof",
+          "size": "5.5mm x 9.06\"",
+          "cost": 3.56,
+          "sqft_box": 22.8,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Osbourne",
+      "brand": "AUD",
+      "brandName": "Audacity",
+      "collection": "Symphony",
+      "family": "SPC",
+      "category": "lvp-plank",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "CFLEWH7288",
+          "internal_sku": "AUD-symphony-osbourne",
+          "variant_name": "9.06\"",
+          "color": "Osbourne",
+          "collection": "Symphony",
+          "family": "SPC",
+          "material": "SPC Rigid Core",
+          "construction": "SPC Rigid Core",
+          "thickness": "5.5mm",
+          "width": "9.06",
+          "length": "72-1/2",
+          "wear_layer": "22 mil",
+          "finish": "aluminum oxide",
+          "surface_texture": "embossed",
+          "waterproof": "Waterproof",
+          "size": "5.5mm x 9.06\"",
+          "cost": 3.56,
+          "sqft_box": 22.8,
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "name": "Lennon",
+      "brand": "AUD",
+      "brandName": "Audacity",
+      "collection": "Symphony",
+      "family": "SPC",
+      "category": "lvp-plank",
+      "status": "active",
+      "spec_pdf": null,
+      "skus": [
+        {
+          "vendor_sku": "CFLCWH3870",
+          "internal_sku": "AUD-symphony-lennon",
+          "variant_name": "9.06\"",
+          "color": "Lennon",
+          "collection": "Symphony",
+          "family": "SPC",
+          "material": "SPC Rigid Core",
+          "construction": "rigid core",
+          "thickness": "5.5mm",
+          "width": "9.06",
+          "length": "",
+          "wear_layer": "",
+          "finish": "",
+          "surface_texture": "",
+          "waterproof": "Waterproof",
+          "size": "5.5mm x 9.06\"",
+          "cost": 3.56,
+          "sqft_box": 22.8,
+          "status": "active"
+        }
+      ]
+    }
+  ],
+  "accessories": [
+    {
+      "itemCode": "MFPSNC24909",
+      "cost": 48,
+      "name": "Stairnose Andes Summit 94\"",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-andes-summit"
+      ],
+      "color": "Andes Summit"
+    },
+    {
+      "itemCode": "MFPREA24917",
+      "cost": 38,
+      "name": "Reducer Sunnyside 94\"",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-sunnyside"
+      ],
+      "color": "Sunnyside"
+    },
+    {
+      "itemCode": "MFPREA24916",
+      "cost": 38,
+      "name": "Reducer Stonington 94\"",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-stonington"
+      ],
+      "color": "Stonington"
+    },
+    {
+      "itemCode": "MFPREA24912",
+      "cost": 38,
+      "name": "Reducer Grandview 94\"",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-grandview"
+      ],
+      "color": "Grandview"
+    },
+    {
+      "itemCode": "MFPECA24915",
+      "cost": 38,
+      "name": "End Cap/Threshold Moondust Lane 94\"",
+      "type": "End Cap / Threshold",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-moondust-lane"
+      ],
+      "color": "Moondust Lane"
+    },
+    {
+      "itemCode": "MFPECA24910",
+      "cost": 38,
+      "name": "End Cap/Threshold Bald Eagle 94\"",
+      "type": "End Cap / Threshold",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-bald-eagle"
+      ],
+      "color": "Bald Eagle"
+    },
+    {
+      "itemCode": "MFPECA24909",
+      "cost": 38,
+      "name": "End Cap/Threshold Andes Summit 94\"",
+      "type": "End Cap / Threshold",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-andes-summit"
+      ],
+      "color": "Andes Summit"
+    },
+    {
+      "itemCode": "MFPQRH24917",
+      "cost": 20,
+      "name": "Quarter Round Sunnyside 94\"",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-sunnyside"
+      ],
+      "color": "Sunnyside"
+    },
+    {
+      "itemCode": "MFPQRH24913",
+      "cost": 20,
+      "name": "Quarter Round Harvest 94\"",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-harvest"
+      ],
+      "color": "Harvest"
+    },
+    {
+      "itemCode": "MFPTMA24916",
+      "cost": 38,
+      "name": "T-Mold Stonington 94\"",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-stonington"
+      ],
+      "color": "Stonington"
+    },
+    {
+      "itemCode": "MFPSNC24913",
+      "cost": 48,
+      "name": "Stairnose Harvest 94\"",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-harvest"
+      ],
+      "color": "Harvest"
+    },
+    {
+      "itemCode": "MFPSNC24912",
+      "cost": 48,
+      "name": "Stairnose Grandview 94\"",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-grandview"
+      ],
+      "color": "Grandview"
+    },
+    {
+      "itemCode": "MFPREA24915",
+      "cost": 38,
+      "name": "Reducer Moondust Lane 94\"",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-moondust-lane"
+      ],
+      "color": "Moondust Lane"
+    },
+    {
+      "itemCode": "MFPREA24914",
+      "cost": 38,
+      "name": "Reducer Kirk View 94\"",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-kirk-view"
+      ],
+      "color": "Kirk View"
+    },
+    {
+      "itemCode": "MFPREA24911",
+      "cost": 38,
+      "name": "Reducer Chest Springs 94\"",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-chest-springs"
+      ],
+      "color": "Chest Springs"
+    },
+    {
+      "itemCode": "MFPQRH24915",
+      "cost": 20,
+      "name": "Quarter Round Moondust Lane 94\"",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-moondust-lane"
+      ],
+      "color": "Moondust Lane"
+    },
+    {
+      "itemCode": "MFPQRH24911",
+      "cost": 20,
+      "name": "Quarter Round Chest Springs 94\"",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-chest-springs"
+      ],
+      "color": "Chest Springs"
+    },
+    {
+      "itemCode": "MFPQRH24910",
+      "cost": 20,
+      "name": "Quarter Round Bald Eagle 94\"",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-bald-eagle"
+      ],
+      "color": "Bald Eagle"
+    },
+    {
+      "itemCode": "MFPECA24916",
+      "cost": 38,
+      "name": "End Cap/Threshold Stonington 94\"",
+      "type": "End Cap / Threshold",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-stonington"
+      ],
+      "color": "Stonington"
+    },
+    {
+      "itemCode": "MFPECA24913",
+      "cost": 38,
+      "name": "End Cap/Threshold Harvest 94\"",
+      "type": "End Cap / Threshold",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-harvest"
+      ],
+      "color": "Harvest"
+    },
+    {
+      "itemCode": "MFPECA24912",
+      "cost": 38,
+      "name": "End Cap/Threshold Grandview 94\"",
+      "type": "End Cap / Threshold",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-grandview"
+      ],
+      "color": "Grandview"
+    },
+    {
+      "itemCode": "MFPTMA24914",
+      "cost": 38,
+      "name": "T-Mold Kirk View 94\"",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-kirk-view"
+      ],
+      "color": "Kirk View"
+    },
+    {
+      "itemCode": "MFPTMA24910",
+      "cost": 38,
+      "name": "T-Mold Bald Eagle 94\"",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-bald-eagle"
+      ],
+      "color": "Bald Eagle"
+    },
+    {
+      "itemCode": "MFPECA24914",
+      "cost": 38,
+      "name": "End Cap/Threshold Kirk View 94\"",
+      "type": "End Cap / Threshold",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-kirk-view"
+      ],
+      "color": "Kirk View"
+    },
+    {
+      "itemCode": "MFPECA24911",
+      "cost": 38,
+      "name": "End Cap/Threshold Chest Springs 94\"",
+      "type": "End Cap / Threshold",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-chest-springs"
+      ],
+      "color": "Chest Springs"
+    },
+    {
+      "itemCode": "MFPVSR18BRF148",
+      "cost": 36,
+      "name": "Americano Grande Reducer 94\" Grandview",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-grandview"
+      ],
+      "color": "Grandview"
+    },
+    {
+      "itemCode": "MFPVFSN08BRF121",
+      "cost": 38,
+      "name": "Americano Grande Flush Stairnose 94\" Harvest",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-harvest"
+      ],
+      "color": "Harvest"
+    },
+    {
+      "itemCode": "MFPVT18BRF148",
+      "cost": 36,
+      "name": "Americano Grande T-Molding 94\" Grandview",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-grandview"
+      ],
+      "color": "Grandview"
+    },
+    {
+      "itemCode": "MFPVT18BRF126",
+      "cost": 36,
+      "name": "Americano Grande T-Molding 94\" Sunnyside",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-sunnyside"
+      ],
+      "color": "Sunnyside"
+    },
+    {
+      "itemCode": "MFPVSR18BRF131",
+      "cost": 36,
+      "name": "Americano Grande Reducer 94\" Kirk View",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-kirk-view"
+      ],
+      "color": "Kirk View"
+    },
+    {
+      "itemCode": "MFPQR01BRF121",
+      "cost": 14,
+      "name": "Americano Grande Quarter Round 94\" Harvest",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-harvest"
+      ],
+      "color": "Harvest"
+    },
+    {
+      "itemCode": "MFPVSR18BRF125",
+      "cost": 36,
+      "name": "Americano Grande Reducer 94\" Stonington",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-stonington"
+      ],
+      "color": "Stonington"
+    },
+    {
+      "itemCode": "MFPVSR18BRF121",
+      "cost": 36,
+      "name": "Americano Grande Reducer 94\" Harvest",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-harvest"
+      ],
+      "color": "Harvest"
+    },
+    {
+      "itemCode": "MFPVFSN08BRF133",
+      "cost": 38,
+      "name": "Americano Grande Flush Stairnose 94\" Windmill Wings",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-windmill-wings"
+      ],
+      "color": "Windmill Wings"
+    },
+    {
+      "itemCode": "MFPVFSN08BRF131",
+      "cost": 38,
+      "name": "Americano Grande Flush Stairnose 94\" Kirk View",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-kirk-view"
+      ],
+      "color": "Kirk View"
+    },
+    {
+      "itemCode": "MFPVSR18BRF126",
+      "cost": 36,
+      "name": "Americano Grande Reducer 94\" Sunnyside",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-sunnyside"
+      ],
+      "color": "Sunnyside"
+    },
+    {
+      "itemCode": "MFPVT18BRF130",
+      "cost": 36,
+      "name": "Americano Grande T-Molding 94\" Chest Springs",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-chest-springs"
+      ],
+      "color": "Chest Springs"
+    },
+    {
+      "itemCode": "MFPVT18BRF129",
+      "cost": 36,
+      "name": "Americano Grande T-Molding 94\" Bald Eagle",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-bald-eagle"
+      ],
+      "color": "Bald Eagle"
+    },
+    {
+      "itemCode": "MFPVT18BRF118",
+      "cost": 36,
+      "name": "Americano Grande T-Molding 94\" Andes Summit",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-andes-summit"
+      ],
+      "color": "Andes Summit"
+    },
+    {
+      "itemCode": "MFPQR01BRF129",
+      "cost": 14,
+      "name": "Americano Grande Quarter Round 94\" Bald Eagle",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-bald-eagle"
+      ],
+      "color": "Bald Eagle"
+    },
+    {
+      "itemCode": "MFPQR01BRF118",
+      "cost": 14,
+      "name": "Americano Grande Quarter Round 94\" Andes Summit",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-andes-summit"
+      ],
+      "color": "Andes Summit"
+    },
+    {
+      "itemCode": "MFPVFSN08BRF148",
+      "cost": 38,
+      "name": "Americano Grande Flush Stairnose 94\" Grandview",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-grandview"
+      ],
+      "color": "Grandview"
+    },
+    {
+      "itemCode": "MFPVFSN08BRF126",
+      "cost": 38,
+      "name": "Americano Grande Flush Stairnose 94\" Sunnyside",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-sunnyside"
+      ],
+      "color": "Sunnyside"
+    },
+    {
+      "itemCode": "MFPVFSN08BRF125",
+      "cost": 38,
+      "name": "Americano Grande Flush Stairnose 94\" Stonington",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-stonington"
+      ],
+      "color": "Stonington"
+    },
+    {
+      "itemCode": "MFPVT18BRF125",
+      "cost": 36,
+      "name": "Americano Grande T-Molding 94\" Stonington",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-stonington"
+      ],
+      "color": "Stonington"
+    },
+    {
+      "itemCode": "MFPVT18BRF121",
+      "cost": 36,
+      "name": "Americano Grande T-Molding 94\" Harvest",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-harvest"
+      ],
+      "color": "Harvest"
+    },
+    {
+      "itemCode": "MFPQR01BRF148",
+      "cost": 14,
+      "name": "Americano Grande Quarter Round 94\" Grandview",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-grandview"
+      ],
+      "color": "Grandview"
+    },
+    {
+      "itemCode": "MFPQR01BRF126",
+      "cost": 14,
+      "name": "Americano Grande Quarter Round 94\" Sunnyside",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-sunnyside"
+      ],
+      "color": "Sunnyside"
+    },
+    {
+      "itemCode": "MFPVSR18BRF133",
+      "cost": 36,
+      "name": "Americano Grande Reducer 94\" Windmill Wings",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-windmill-wings"
+      ],
+      "color": "Windmill Wings"
+    },
+    {
+      "itemCode": "MFPVSR18BRF132",
+      "cost": 36,
+      "name": "Americano Grande Reducer 94\" Moondust Lane",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-moondust-lane"
+      ],
+      "color": "Moondust Lane"
+    },
+    {
+      "itemCode": "MFPVSR18BRF130",
+      "cost": 36,
+      "name": "Americano Grande Reducer 94\" Chest Springs",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-chest-springs"
+      ],
+      "color": "Chest Springs"
+    },
+    {
+      "itemCode": "MFPVSR18BRF129",
+      "cost": 36,
+      "name": "Americano Grande Reducer 94\" Bald Eagle",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-bald-eagle"
+      ],
+      "color": "Bald Eagle"
+    },
+    {
+      "itemCode": "MFPVSR18BRF118",
+      "cost": 36,
+      "name": "Americano Grande Reducer 94\" Andes Summit",
+      "type": "Reducer",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-andes-summit"
+      ],
+      "color": "Andes Summit"
+    },
+    {
+      "itemCode": "MFPQR01BRF125",
+      "cost": 14,
+      "name": "Americano Grande Quarter Round 94\" Stonington",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-stonington"
+      ],
+      "color": "Stonington"
+    },
+    {
+      "itemCode": "MFPVFSN08BRF130",
+      "cost": 38,
+      "name": "Americano Grande Flush Stairnose 94\" Chest Springs",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-chest-springs"
+      ],
+      "color": "Chest Springs"
+    },
+    {
+      "itemCode": "MFPVFSN08BRF132",
+      "cost": 38,
+      "name": "Americano Grande Flush Stairnose 94\" Moondust Lane",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-moondust-lane"
+      ],
+      "color": "Moondust Lane"
+    },
+    {
+      "itemCode": "MFPVFSN08BRF129",
+      "cost": 38,
+      "name": "Americano Grande Flush Stairnose 94\" Bald Eagle",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-bald-eagle"
+      ],
+      "color": "Bald Eagle"
+    },
+    {
+      "itemCode": "MFPVFSN08BRF118",
+      "cost": 38,
+      "name": "Americano Grande Flush Stairnose 94\" Andes Summit",
+      "type": "Stair Nose",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-andes-summit"
+      ],
+      "color": "Andes Summit"
+    },
+    {
+      "itemCode": "MFPVT18BRF133",
+      "cost": 36,
+      "name": "Americano Grande T-Molding 94\" Windmill Wings",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-windmill-wings"
+      ],
+      "color": "Windmill Wings"
+    },
+    {
+      "itemCode": "MFPVT18BRF132",
+      "cost": 36,
+      "name": "Americano Grande T-Molding 94\" Moondust Lane",
+      "type": "T-Molding",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-moondust-lane"
+      ],
+      "color": "Moondust Lane"
+    },
+    {
+      "itemCode": "MFPQR01BRF132",
+      "cost": 14,
+      "name": "Americano Grande Quarter Round 94\" Moondust Lane",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-moondust-lane"
+      ],
+      "color": "Moondust Lane"
+    },
+    {
+      "itemCode": "MFPQR01BRF130",
+      "cost": 14,
+      "name": "Americano Grande Quarter Round 94\" Chest Springs",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-chest-springs"
+      ],
+      "color": "Chest Springs"
+    },
+    {
+      "itemCode": "MFPQR01BRF133",
+      "cost": 14,
+      "name": "Americano Grande Quarter Round 94\" Windmill Wings",
+      "type": "Quarter Round",
+      "brand": "PAL",
+      "collection": "Americano Grande",
+      "material": "Waterproof Laminate",
+      "plank_internal_skus": [
+        "PAL-americano-grande-windmill-wings"
+      ],
+      "color": "Windmill Wings"
+    },
+    {
+      "itemCode": "CFLVFSN15BRF105",
+      "cost": 36,
+      "name": "Stairnose Osbourne 94\"",
+      "type": "Stair Nose",
+      "brand": "AUD",
+      "collection": "Symphony",
+      "material": "SPC Rigid Core",
+      "plank_internal_skus": [
+        "AUD-symphony-osbourne"
+      ],
+      "color": "Osbourne"
+    },
+    {
+      "itemCode": "CFLVEC14BRF105",
+      "cost": 34,
+      "name": "End Cap/Threshold Osbourne 94\"",
+      "type": "End Cap / Threshold",
+      "brand": "AUD",
+      "collection": "Symphony",
+      "material": "SPC Rigid Core",
+      "plank_internal_skus": [
+        "AUD-symphony-osbourne"
+      ],
+      "color": "Osbourne"
+    },
+    {
+      "itemCode": "CFLVSR14BRF105",
+      "cost": 34,
+      "name": "Reducer Osbourne 94\"",
+      "type": "Reducer",
+      "brand": "AUD",
+      "collection": "Symphony",
+      "material": "SPC Rigid Core",
+      "plank_internal_skus": [
+        "AUD-symphony-osbourne"
+      ],
+      "color": "Osbourne"
+    },
+    {
+      "itemCode": "CFLQR01BRF105",
+      "cost": 12,
+      "name": "Quarter Round Osbourne 94\"",
+      "type": "Quarter Round",
+      "brand": "AUD",
+      "collection": "Symphony",
+      "material": "SPC Rigid Core",
+      "plank_internal_skus": [
+        "AUD-symphony-osbourne"
+      ],
+      "color": "Osbourne"
+    }
+  ]
+}
