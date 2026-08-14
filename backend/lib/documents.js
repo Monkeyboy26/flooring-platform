@@ -1404,9 +1404,18 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
     // Labor lines (estimate conversions): no swatch/sqft/boxes — show the
     // service description and rate basis instead
     if ((i.item_type || 'material') === 'labor') {
-      const rateInfo = i.rate_type === 'per_sqft'
-        ? `${money(i.rate_sqft)}/sf × ${parseFloat(i.labor_sqft || 0).toFixed(0)} sf`
-        : (parseFloat(i.quantity || 1) > 1 ? `${money(i.unit_price)} × ${parseFloat(i.quantity).toFixed(0)}` : 'Flat rate');
+      // Spread labor across the same Coverage / Qty / Unit columns as materials
+      // (per-sqft: area in Coverage, rate in Unit) instead of cramming
+      // "rate × sqft" into the narrow Unit cell.
+      const isPerSqft = i.rate_type === 'per_sqft';
+      const laborQty = parseFloat(i.quantity || 1);
+      const coverCell = isPerSqft
+        ? `${parseFloat(i.labor_sqft || 0).toFixed(0)} sf`
+        : '—';
+      const qtyCell = (!isPerSqft && laborQty > 1) ? laborQty.toFixed(0) : '—';
+      const unitCell = isPerSqft
+        ? `${money(i.rate_sqft)}/sf`
+        : (laborQty > 1 ? money(i.unit_price) : 'Flat rate');
       const descLine = i.description
         ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${String(i.description).split('\n').join(' · ')}</div>` : '';
       return `<div class="grid-row keep" style="padding:12px 0;${idx < items.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
@@ -1416,9 +1425,9 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
           ${descLine}
           ${i.source_estimate_area ? `<div style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.12em;color:var(--muted);margin-top:4px;text-transform:uppercase;">${i.source_estimate_area}</div>` : ''}
         </div>
-        <div class="num">—</div>
-        <div class="num">—</div>
-        <div class="num">${rateInfo}</div>
+        <div class="num">${coverCell}</div>
+        <div class="num">${qtyCell}</div>
+        <div class="num">${unitCell}</div>
         <div class="line-total">${money(i.subtotal)}</div>
       </div>`;
     }
