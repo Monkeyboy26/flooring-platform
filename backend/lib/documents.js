@@ -1362,6 +1362,14 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
   const isWillCall = o.delivery_method === 'will_call';
   const orderNumber = o.order_number || 'RD-' + String(o.id).substring(0, 8).toUpperCase();
 
+  // The estimate->order conversion stamps system metadata into notes ("Converted
+  // from Estimate …. Started on terms — balance due."). Strip it from the
+  // customer invoice — it stays internal (order detail + activity log).
+  const custNotes = (o.notes || '')
+    .replace(/Converted from Estimate[^.]*\./i, '')
+    .replace(/Started on terms\s*[—–-]\s*balance due\./i, '')
+    .trim();
+
   const total = parseFloat(o.total || 0);
   const amountPaid = parseFloat(o.amount_paid || 0);
   const balanceDue = parseFloat((total - amountPaid).toFixed(2));
@@ -1383,13 +1391,7 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
   })() : null;
 
   const statusLabel = hasBalance ? 'Balance Due' : 'Paid';
-  const stampText = hasBalance ? 'Balance Due' : 'Paid in full';
   const stampColor = hasBalance ? 'var(--accent)' : '#3f7a4f';
-
-  const customerFirst = (o.customer_name || '').trim().split(/\s+/)[0] || 'Hello';
-  const greeting = hasBalance
-    ? `${customerFirst} — here's your invoice for order ${orderNumber}, issued ${issued}. A balance of <span style="color:var(--ink);font-weight:500;">${money(balanceDue)}</span> remains — payment details are below.`
-    : `${customerFirst} — here's your invoice for order ${orderNumber}, issued ${issued}. This order is <span style="color:var(--ink);font-weight:500;">paid in full</span>. Thank you.`;
 
   const SWATCH_FALLBACKS = [
     'linear-gradient(135deg,#caa97f,#7a5635)',
@@ -1546,14 +1548,7 @@ ${o.job_name ? `<span style="color:var(--muted);">Job / Sidemark</span><span sty
 </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:8px;border-bottom:1px solid #1c191711;align-items:center;">
-<div style="font:500 9px/1.4 var(--sans);letter-spacing:0.06em;color:#1c1917cc;">
-${greeting}
-</div>
-<div style="padding:8px 14px;border:1.5px solid ${stampColor};color:${stampColor};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</div>
-</div>
-
-<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 22px;border-bottom:1px solid #1c191722;">
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:18px 0 22px;border-bottom:1px solid #1c191722;">
 <div>
 <div class="mono" style="margin-bottom:8px;">Bill to</div>
 <div style="font:500 11px/1.2 var(--sans);">${o.customer_name || ''}</div>
@@ -1572,7 +1567,7 @@ ${rowsHtml}
 
 <div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
 <div style="padding-top:4px;" class="small">
-${o.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;white-space:pre-wrap;">${o.notes}</div>` : ''}
+${custNotes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;white-space:pre-wrap;">${custNotes}</div>` : ''}
 <div class="mono" style="margin-bottom:8px;">How to pay</div>
 <div style="margin-bottom:10px;">
 <span style="color:var(--muted);">Online</span>&nbsp;&nbsp;<span style="color:var(--ink);">romaflooringdesigns.com/account — pay under Account · Orders</span><br />
@@ -1580,7 +1575,7 @@ ${o.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style=
 <span style="color:var(--muted);">Email</span>&nbsp;&nbsp;<span style="color:var(--ink);">Reply to your invoice email${o.rep_email ? ' or write ' + o.rep_email : ''}</span>
 </div>
 <div class="mono" style="margin-bottom:8px;margin-top:14px;">Payment</div>
-<div>Payment is due on receipt unless otherwise agreed. Subject to California sales tax. Roma Flooring Designs · License #830966. See the terms of sale below.</div>
+<div>${(milestones && milestones.length) ? 'Payment is due per the payment schedule above.' : 'Payment is due on receipt unless otherwise agreed.'} See the Terms of Sale on the reverse.</div>
 </div>
 <div>
 ${totalsRows}
