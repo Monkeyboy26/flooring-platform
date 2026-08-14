@@ -28760,6 +28760,12 @@ app.get('/api/admin/accounting/reports/tax/csv', staffAuth, requireRole('admin',
 
 const scheduledTasks = new Map();
 
+// All scraper/pipeline schedule strings are written as local Roma (Pacific)
+// wall-clock times (e.g. '0 17 * * *' = 5 PM), but the container runs in UTC.
+// node-cron defaults to the process TZ, so without this every schedule silently
+// fired ~7-8h early (17:00 UTC = 10 AM PT). Pin them to Pacific to match intent.
+const SCHEDULE_TZ = 'America/Los_Angeles';
+
 /**
  * Register or update the cron task for a single vendor source.
  * Called on startup (initScheduler) and when a source is updated via PUT.
@@ -28778,7 +28784,7 @@ function rescheduleSource(source) {
     const task = cron.schedule(source.schedule, () => {
       console.log(`[Scheduler] Scheduled scrape starting for: ${source.name}`);
       runScraper(source).catch(err => console.error(`[Scheduler] Scheduled scrape failed for ${source.name}:`, err.message));
-    });
+    }, { timezone: SCHEDULE_TZ });
     scheduledTasks.set(source.id, task);
     console.log(`[Scheduler] Registered "${source.name}": ${source.schedule}`);
   }
@@ -28786,6 +28792,18 @@ function rescheduleSource(source) {
 
 async function initScheduler() {
   try {
+    // Idempotent re-init: stop and drop every task we previously registered so a
+    // second initScheduler() call can't leak duplicate cron timers. Without this,
+    // the pipeline loop below (which keys by `pipeline:<code>`) overwrote the map
+    // entry while leaving the OLD cron task's timer alive — so each re-init stacked
+    // another live copy, and the shared 17:00 slot ended up firing several
+    // concurrent Puppeteer/auth crawls at once, exhausting the process before any
+    // job row was written (Bosphorus + Elysium silently stopped after 2026-08-10).
+    for (const [key, task] of scheduledTasks) {
+      try { task.stop(); } catch {}
+      scheduledTasks.delete(key);
+    }
+
     // Reap ghost jobs left 'running' by a previous process — a restart (dev or
     // otherwise) kills the in-flight scraper but leaves its row 'running', which
     // blocks the next scheduled run and later gets mislabeled as a 4h timeout.
@@ -28811,12 +28829,16 @@ async function initScheduler() {
     // Schedule pipelines that have a cron schedule defined
     for (const [vendorCode, config] of Object.entries(PIPELINES)) {
       if (config.schedule && cron.validate(config.schedule)) {
+        // Belt-and-suspenders: stop any prior task under this key before replacing
+        // it, so re-registration never orphans a still-running cron timer.
+        const prior = scheduledTasks.get(`pipeline:${vendorCode}`);
+        if (prior) { try { prior.stop(); } catch {} }
         const task = cron.schedule(config.schedule, () => {
           console.log(`[Scheduler] Scheduled pipeline starting for: ${config.label}`);
           runPipeline(vendorCode).catch(err =>
             console.error(`[Scheduler] Scheduled pipeline failed for ${config.label}:`, err.message)
           );
-        });
+        }, { timezone: SCHEDULE_TZ });
         scheduledTasks.set(`pipeline:${vendorCode}`, task);
         console.log(`[Scheduler] Registered pipeline "${config.label}": ${config.schedule}`);
       }
