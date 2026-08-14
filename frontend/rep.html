@@ -21455,23 +21455,40 @@
               Refunded ${parseFloat(order.refund_amount || 0).toFixed(2)}
             </div>
           )}
-          {/* Balance-forward banner — a deposit/terms order leads with what's
-              still owed and a one-click path to collect or request it. */}
-          {hasBalanceDue && !orderIsDead && (
-            <div style={{ marginBottom: '12px', padding: '0.75rem 1rem', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6,
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ fontSize: '0.85rem', color: '#8a6d3b' }}>
-                {'●'} <strong>Balance due ${balanceInfo.balance.toFixed(2)}</strong>
-                {amountPaid > 0
-                  ? <span> · ${amountPaid.toFixed(2)} collected of ${orderTotal.toFixed(2)}</span>
-                  : <span> of ${orderTotal.toFixed(2)}</span>}
-                {isInstall ? <span> · collect on completion</span> : null}
+          {/* Balance-forward banner — leads with what's owed. On a draw schedule
+              it surfaces the NEXT DUE milestone (amount + collect just that);
+              otherwise the whole remaining balance. Styled as the page's
+              "needs action" card (warm ground, gold rule, mono label). */}
+          {hasBalanceDue && !orderIsDead && (() => {
+            const dueMilestone = orderMilestones.find(m => m.status === 'due');
+            const amt = dueMilestone ? parseFloat(dueMilestone.remaining) : parseFloat(balanceInfo.balance);
+            const eyebrow = dueMilestone ? 'Next payment due' : 'Balance due';
+            const caption = dueMilestone
+              ? [dueMilestone.label, dueMilestone.due_label].filter(Boolean).join(' · ')
+              : (isInstall ? 'Collect on completion' : null);
+            const sub = dueMilestone
+              ? 'Balance $' + parseFloat(balanceInfo.balance).toFixed(2) + ' of $' + orderTotal.toFixed(2)
+              : (amountPaid > 0 ? '$' + amountPaid.toFixed(2) + ' collected of $' + orderTotal.toFixed(2) : 'of $' + orderTotal.toFixed(2));
+            return (
+              <div style={{ margin: '0 0 12px', padding: '14px 18px', background: '#faf3e4', borderLeft: '3px solid var(--gold)', border: '0.5px solid var(--rod-border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 220 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 5 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--rod-accent)', flexShrink: 0 }} />
+                    <span style={{ font: '600 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8a6d3b' }}>{eyebrow}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={{ font: '400 24px/1 "Cormorant Garamond", serif', letterSpacing: '-0.01em', color: 'var(--rod-ink)' }}>${amt.toFixed(2)}</span>
+                    {caption && <span style={{ font: '400 12px/1.4 Inter, sans-serif', color: 'var(--rod-muted)' }}>{caption}</span>}
+                  </div>
+                  <div style={{ font: '400 11px/1.4 Inter, sans-serif', color: 'var(--rod-muted)', marginTop: 3 }}>{sub}</div>
+                </div>
+                <button className="rod-mini-btn primary" onClick={() => dueMilestone ? openCollectForMilestone(dueMilestone) : openCollectBalance()} disabled={updating}>
+                  {dueMilestone ? 'Collect ' + dueMilestone.label : 'Collect / request balance'} {'→'}
+                </button>
               </div>
-              <button className="rod-mini-btn primary" onClick={openCollectBalance} disabled={updating}>
-                Collect / request balance {'→'}
-              </button>
-            </div>
-          )}
+            );
+          })()}
           {/* Tracking form */}
           {showTrackingForm && (
             <div className="rod-inline-panel" style={{ marginTop: 0, marginBottom: '12px' }}>
@@ -26944,6 +26961,8 @@
       const [areaSubtotals, setAreaSubtotals] = useState({});
       const [milestones, setMilestones] = useState([]); // draw/payment schedule
       const [savingSchedule, setSavingSchedule] = useState(false);
+      const [editingSchedule, setEditingSchedule] = useState(false);
+      const scheduleSnapshotRef = useRef([]); // restore point for Cancel
       const [loading, setLoading] = useState(!!editId);
       const [saving, setSaving] = useState(false);
       // Area editing / adding
@@ -27706,12 +27725,19 @@
 
       // ---- Payment schedule (draw schedule) ----
       const schedulePctSum = milestones.reduce((s, m) => s + (parseFloat(m.percent) || 0), 0);
-      const applyScheduleTemplate = () => setMilestones([
-        { label: 'Deposit', percent: 50, due_label: 'at booking' },
-        { label: 'Progress payment', percent: 30, due_label: 'at install start' },
-        { label: 'Final payment', percent: 20, due_label: 'on completion' },
-      ]);
+      const startEditSchedule = () => { scheduleSnapshotRef.current = milestones; setEditingSchedule(true); };
+      const cancelEditSchedule = () => { setMilestones(scheduleSnapshotRef.current || []); setEditingSchedule(false); };
+      const applyScheduleTemplate = () => {
+        scheduleSnapshotRef.current = milestones;
+        setMilestones([
+          { label: 'Deposit', percent: 50, due_label: 'at booking' },
+          { label: 'Progress payment', percent: 30, due_label: 'at install start' },
+          { label: 'Final payment', percent: 20, due_label: 'on completion' },
+        ]);
+        setEditingSchedule(true);
+      };
       const addMilestone = () => setMilestones(ms => [...ms, { label: '', percent: '', due_label: '' }]);
+      const startNewSchedule = () => { scheduleSnapshotRef.current = milestones; addMilestone(); setEditingSchedule(true); };
       const updateMilestone = (i, patch) => setMilestones(ms => ms.map((m, idx) => idx === i ? { ...m, ...patch } : m));
       const removeMilestone = (i) => setMilestones(ms => ms.filter((_, idx) => idx !== i));
       const saveSchedule = async () => {
@@ -27727,6 +27753,7 @@
             body: JSON.stringify({ milestones: milestones.map(m => ({ label: m.label, percent: parseFloat(m.percent), due_label: m.due_label || null })) })
           });
           setMilestones(data.milestones || []);
+          setEditingSchedule(false); // collapse to the read-only summary
         } catch (err) { alert(err.message || 'Failed to save schedule'); }
         setSavingSchedule(false);
       };
@@ -28868,17 +28895,7 @@
                     <div style={{ font: '400 11px/1.5 "Inter", sans-serif', color: 'var(--brass-muted)', marginBottom: 10 }}>
                       Progress billing (e.g. 50 / 30 / 20). Shown to the customer on the estimate and tracked on the order.
                     </div>
-                    {milestones.length === 0 ? (
-                      <div style={{ display: 'grid', gap: 8 }}>
-                        <div style={{ font: '400 11px/1.5 Inter, sans-serif', color: 'var(--brass-muted)' }}>No schedule — the full total is due at conversion.</div>
-                        {!isReadonly && (
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button className="rof-btn" style={{ flex: 1 }} onClick={applyScheduleTemplate}>Use 50 / 30 / 20</button>
-                            <button className="rof-btn" onClick={addMilestone}>+ Add</button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
+                    {editingSchedule ? (
                       <div style={{ display: 'grid', gap: 10 }}>
                         {milestones.map((m, i) => (
                           <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 58px 18px', gap: 6, alignItems: 'center' }}>
@@ -28906,9 +28923,40 @@
                           {!isReadonly && <button style={linkBtn} onClick={addMilestone}>+ Add</button>}
                         </div>
                         {!isReadonly && (
-                          <button className="rof-btn rof-btn-primary" onClick={saveSchedule} disabled={savingSchedule}>
-                            {savingSchedule ? 'Saving…' : 'Save schedule'}
-                          </button>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="rof-btn-light primary" style={{ flex: 1 }} onClick={saveSchedule} disabled={savingSchedule}>
+                              {savingSchedule ? 'Saving…' : 'Save schedule'}
+                            </button>
+                            <button className="rof-btn-light" onClick={cancelEditSchedule} disabled={savingSchedule}>Cancel</button>
+                          </div>
+                        )}
+                      </div>
+                    ) : milestones.length > 0 ? (
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        {milestones.map((m, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '5px 0', borderBottom: i < milestones.length - 1 ? '0.5px solid rgba(28,25,23,0.1)' : 'none' }}>
+                            <span style={{ minWidth: 0 }}>
+                              <span style={{ font: '400 12px/1.3 Inter, sans-serif', color: 'var(--ink)' }}>{m.label}<span style={{ color: 'var(--brass-muted)' }}> · {parseFloat(m.percent)}%</span></span>
+                              {m.due_label && <span style={{ display: 'block', font: '400 10px/1.4 Inter, sans-serif', color: 'var(--brass-muted)', marginTop: 1 }}>{m.due_label}</span>}
+                            </span>
+                            <span style={{ font: '500 13px/1 "Cormorant Garamond", serif', color: 'var(--ink)', whiteSpace: 'nowrap' }}>${((estTotal * (parseFloat(m.percent) || 0)) / 100).toFixed(2)}</span>
+                          </div>
+                        ))}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 6, borderTop: '0.5px solid rgba(28,25,23,0.14)' }}>
+                          <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: sumOff ? '#c05621' : '#3a7a4e' }}>
+                            {schedulePctSum}% of total{sumOff ? ' · should be 100%' : ' ✓'}
+                          </span>
+                          {!isReadonly && <button style={linkBtn} onClick={startEditSchedule}>Edit</button>}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <div style={{ font: '400 11px/1.5 Inter, sans-serif', color: 'var(--brass-muted)' }}>No schedule — the full total is due at conversion.</div>
+                        {!isReadonly && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="rof-btn-light primary" style={{ flex: 1 }} onClick={applyScheduleTemplate}>Use 50 / 30 / 20</button>
+                            <button className="rof-btn-light" onClick={startNewSchedule}>+ Add</button>
+                          </div>
                         )}
                       </div>
                     )}
