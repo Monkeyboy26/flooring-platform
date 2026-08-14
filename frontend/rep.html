@@ -28803,6 +28803,20 @@
                 {(() => {
                   // Optional deposit the customer can pay online at acceptance.
                   const estTotal = parseFloat(estimate ? estimate.total || 0 : 0) || 0;
+                  // A draw schedule takes over: its first milestone IS the online
+                  // acceptance deposit, so the legacy deposit control is hidden.
+                  if (milestones.length > 0) {
+                    const m0 = milestones[0];
+                    const m0amt = (estTotal * (parseFloat(m0.percent) || 0)) / 100;
+                    return (
+                      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '0.5px solid rgba(28,25,23,0.14)' }}>
+                        <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--brass-muted)', marginBottom: 6 }}>Deposit</div>
+                        <div style={{ font: '400 11px/1.5 "Inter", sans-serif', color: 'var(--brass-muted)' }}>
+                          The schedule's first milestone — <strong>{m0.label || 'Deposit'} · ${m0amt.toFixed(2)}</strong> — is what the customer pays online at acceptance.
+                        </div>
+                      </div>
+                    );
+                  }
                   const depAmt = depositType === 'percent'
                     ? Math.min(estTotal, Math.round(estTotal * ((parseFloat(depositValue) || 0) / 100) * 100) / 100)
                     : depositType === 'fixed'

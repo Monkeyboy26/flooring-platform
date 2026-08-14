@@ -110,6 +110,16 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
     'SELECT * FROM payment_milestones WHERE estimate_id = $1 ORDER BY sort_order, created_at', [estimate.id]);
   const milestones = computeSchedule(milestonesRes.rows, estimate.total, 0);
 
+  // When a draw schedule is defined, its FIRST milestone is the acceptance
+  // deposit — keep the single deposit_amount in sync so the accept page, email,
+  // and online pay-deposit flow all charge it instead of the legacy
+  // deposit_type/value. (Those legacy fields are ignored while a schedule exists.)
+  if (milestones.length) {
+    estimate.deposit_amount = milestones[0].amount;
+    estimate.deposit_label = milestones[0].label;
+    estimate.deposit_from_schedule = true;
+  }
+
   if (!includeInternal) {
     delete estimate.internal_notes;
     items = items.map(({ vendor_cost, ...rest }) => rest);

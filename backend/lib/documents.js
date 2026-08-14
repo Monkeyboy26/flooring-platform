@@ -1350,7 +1350,7 @@ ${milestones.map(m => `<div style="display:flex;justify-content:space-between;pa
 // line items, terms + totals columns), adapted for an invoice: Bill To / Ship
 // To, an Amount Paid line, and an emphasized Balance Due. `o` is the order row;
 // items may carry primary_image (swatch), vendor_sku / vendor_name / collection.
-export function generateOrderInvoiceDoc(o, items, payment) {
+export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
   const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric' }) : null;
   const issued = longDate(o.created_at);
@@ -1590,6 +1590,13 @@ ${paidVia ? `<div style="display:flex;justify-content:flex-end;padding:2px 0 0;f
 <span class="mono" style="color:${stampColor};letter-spacing:0.18em;">Balance due</span>
 <span style="font:400 22px/1 var(--serif);letter-spacing:-0.012em;color:var(--ink);">${money(hasBalance ? balanceDue : 0)}</span>
 </div>
+${(milestones && milestones.length) ? `<div class="keep" style="margin-top:12px;padding-top:8px;border-top:1px solid #1c191722;">
+<div class="mono" style="color:var(--accent);margin-bottom:6px;letter-spacing:0.16em;">Payment schedule</div>
+${milestones.map(m => {
+  const st = m.status === 'paid' ? { t: 'Paid', c: '#3f7a4f' } : m.status === 'due' ? { t: (parseFloat(m.remaining) < parseFloat(m.amount) ? 'Due · ' + money(m.remaining) : 'Due'), c: 'var(--accent)' } : { t: 'Upcoming', c: 'var(--muted)' };
+  return `<div style="display:flex;justify-content:space-between;padding:4px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">${escDoc(m.label)}${m.percent ? ' · ' + parseFloat(m.percent) + '%' : ''}${m.due_label ? ` <span style="color:#1c191799;">(${escDoc(m.due_label)})</span>` : ''}</span><span>${money(m.amount)} <span style="color:${st.c};font-weight:500;">· ${st.t}</span></span></div>`;
+}).join('')}
+</div>` : ''}
 </div>
 </div>
 

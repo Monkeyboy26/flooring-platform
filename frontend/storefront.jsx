@@ -16448,7 +16448,10 @@
           <div style={{ marginTop: '0.9rem' }}>
             {depositResult !== 'success' && (
               <button className="btn" style={{ padding: '0.85rem 1.75rem' }} onClick={payDeposit} disabled={depositLoading}>
-                {depositLoading ? 'Redirecting…' : 'Pay your ' + money(depositAmount) + ' deposit'}
+                {depositLoading ? 'Redirecting…'
+                  : est.deposit_from_schedule
+                    ? 'Pay ' + (est.deposit_label || 'deposit') + ' · ' + money(depositAmount)
+                    : 'Pay your ' + money(depositAmount) + ' deposit'}
               </button>
             )}
             {depositError && <div className="checkout-error" style={{ marginTop: '0.6rem' }}>{depositError}</div>}

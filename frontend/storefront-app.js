@@ -10750,7 +10750,7 @@
     const canPayDeposit = hasDeposit && status === "accepted" && !est.converted_order_id;
     const renderDepositCta = () => {
       if (!canPayDeposit) return null;
-      return /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.9rem" } }, depositResult !== "success" && /* @__PURE__ */ React.createElement("button", { className: "btn", style: { padding: "0.85rem 1.75rem" }, onClick: payDeposit, disabled: depositLoading }, depositLoading ? "Redirecting\u2026" : "Pay your " + money(depositAmount) + " deposit"), depositError && /* @__PURE__ */ React.createElement("div", { className: "checkout-error", style: { marginTop: "0.6rem" } }, depositError));
+      return /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.9rem" } }, depositResult !== "success" && /* @__PURE__ */ React.createElement("button", { className: "btn", style: { padding: "0.85rem 1.75rem" }, onClick: payDeposit, disabled: depositLoading }, depositLoading ? "Redirecting\u2026" : est.deposit_from_schedule ? "Pay " + (est.deposit_label || "deposit") + " \xB7 " + money(depositAmount) : "Pay your " + money(depositAmount) + " deposit"), depositError && /* @__PURE__ */ React.createElement("div", { className: "checkout-error", style: { marginTop: "0.6rem" } }, depositError));
     };
     const bannerStyles = {
       accepted: { bg: "#f0fdf4", border: "#bbf7d0", color: "#166534" },

@@ -13520,7 +13520,12 @@ async function generateOrderInvoiceHtml(orderId) {
         AND status = 'completed' AND stripe_receipt_url IS NOT NULL
       ORDER BY created_at DESC LIMIT 1`, [orderId]);
   const o = order.rows[0];
-  return { html: generateOrderInvoiceDoc(o, items.rows, payRow.rows[0]), filename: `invoice-${o.order_number}.pdf` };
+  // Draw schedule (progress billing) — amounts from the order total, paid-status
+  // derived from amount_paid, so the invoice shows Paid / Due / Upcoming per draw.
+  const msRows = await pool.query(
+    'SELECT * FROM payment_milestones WHERE order_id = $1 ORDER BY sort_order, created_at', [orderId]);
+  const milestones = computeSchedule(msRows.rows, o.total, o.amount_paid);
+  return { html: generateOrderInvoiceDoc(o, items.rows, payRow.rows[0], milestones), filename: `invoice-${o.order_number}.pdf` };
 }
 
 async function generateSampleRequestConfirmationHtml(sampleRequestId) {
@@ -23915,6 +23920,7 @@ app.get('/api/estimate-view/:token', async (req, res) => {
         accepted_at: e.accepted_at, accepted_by_name: e.accepted_by_name,
         declined_at: e.declined_at, decline_reason: e.decline_reason,
         deposit_type: e.deposit_type, deposit_value: e.deposit_value, deposit_amount: e.deposit_amount,
+        deposit_label: e.deposit_label, deposit_from_schedule: e.deposit_from_schedule,
         converted_order_id: e.converted_order_id,
         rep_name: e.rep_name, rep_email: e.rep_email
       },
