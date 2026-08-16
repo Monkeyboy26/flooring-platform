@@ -58,6 +58,301 @@
     }
     el.textContent = JSON.stringify(data);
   }
+  const SERVICE_AREAS = [
+    { county: "Orange County", cities: ["Anaheim", "Fullerton", "Irvine", "Orange", "Tustin", "Santa Ana", "Yorba Linda", "Placentia", "Brea", "Buena Park", "Huntington Beach", "Costa Mesa", "Newport Beach", "Mission Viejo", "Lake Forest", "Laguna Hills"] },
+    { county: "Los Angeles County", cities: ["Long Beach", "Cerritos", "Lakewood", "La Mirada", "Whittier", "Norwalk", "Downey", "Diamond Bar", "West Covina", "Pomona"] },
+    { county: "Riverside County", cities: ["Corona", "Riverside", "Eastvale", "Norco", "Jurupa Valley", "Moreno Valley"] }
+  ];
+  const INSTALL_TYPES = [
+    { name: "Hardwood", desc: "Solid and engineered hardwood installation \u2014 nail-down, glue-down, or floating methods.", icon: "grid" },
+    { name: "Tile & Porcelain", desc: "Floor and wall tile including large-format and mosaic, mortar-set by hand.", icon: "tile" },
+    { name: "Luxury Vinyl", desc: "Click-lock LVP and glue-down LVT for waterproof, durable performance in any room.", icon: "plank" },
+    { name: "Natural Stone", desc: "Marble, travertine, slate, and quartzite installed with expert care for lasting beauty.", icon: "stone" },
+    { name: "Carpet", desc: "Stretch-in and direct-glue carpet for bedrooms, living spaces, and commercial areas.", icon: "wave" },
+    { name: "Laminate", desc: "Quick and affordable floating-floor laminate with seamless transitions.", icon: "boards" }
+  ];
+  const INSTALL_FAQ = [
+    ["Do you install flooring in Anaheim and Orange County?", "Yes. Roma Flooring Designs is based in Anaheim and installs flooring throughout all of Orange County, as well as neighboring Los Angeles County (Long Beach, Cerritos, Whittier, Downey and more) and Riverside County (Corona, Riverside, Eastvale and more)."],
+    ["Are your installers licensed and insured?", "Yes. We are a licensed California contractor (CSLB License #830966) and are fully bonded and insured for your protection."],
+    ["Do you offer free estimates?", "Yes. We provide free, no-obligation estimates with clear, upfront pricing. Request a quote and our team follows up within one business day."],
+    ["How long does flooring installation take?", "Most residential projects take one to three days depending on square footage, material, and subfloor prep. You get a firm timeline after the on-site measure."],
+    ["Do you remove and dispose of old flooring?", "Yes. Demolition, subfloor prep, haul-away, and cleanup are all part of our full-service installation."],
+    ["Do I have to buy flooring from Roma to use your install crew?", "We install materials purchased from our Anaheim showroom, and in many cases we can install flooring you already have. Contact us and we will walk you through the options."]
+  ];
+  const INSTALL_REVIEWS = null;
+  const BUSINESS_ID = SITE_URL + "/#business";
+  function installationJsonLd() {
+    const business = {
+      "@type": "HomeAndConstructionBusiness",
+      "@id": BUSINESS_ID,
+      name: "Roma Flooring Designs",
+      url: SITE_URL + "/installation",
+      telephone: "(714) 999-0009",
+      priceRange: "$$",
+      image: SITE_URL + "/uploads/og-default.jpg",
+      address: { "@type": "PostalAddress", streetAddress: "1440 S. State College Blvd #6M", addressLocality: "Anaheim", addressRegion: "CA", postalCode: "92806", addressCountry: "US" },
+      geo: { "@type": "GeoCoordinates", latitude: 33.8271, longitude: -117.8827 },
+      openingHoursSpecification: [
+        { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], opens: "09:00", closes: "17:00" },
+        { "@type": "OpeningHoursSpecification", dayOfWeek: "Saturday", opens: "10:00", closes: "15:00" }
+      ],
+      areaServed: [
+        ...SERVICE_AREAS.flatMap((a) => a.cities.map((c) => ({ "@type": "City", name: c }))),
+        ...SERVICE_AREAS.map((a) => ({ "@type": "AdministrativeArea", name: a.county }))
+      ],
+      hasCredential: { "@type": "EducationalOccupationalCredential", credentialCategory: "California Contractor License", identifier: "830966" }
+    };
+    if (INSTALL_REVIEWS && INSTALL_REVIEWS.reviewCount) {
+      business.aggregateRating = { "@type": "AggregateRating", ratingValue: String(INSTALL_REVIEWS.ratingValue), reviewCount: String(INSTALL_REVIEWS.reviewCount) };
+      business.review = (INSTALL_REVIEWS.items || []).map((r) => ({
+        "@type": "Review",
+        author: { "@type": "Person", name: r.author },
+        reviewRating: { "@type": "Rating", ratingValue: String(r.rating || INSTALL_REVIEWS.ratingValue) },
+        reviewBody: r.text
+      }));
+    }
+    return {
+      "@context": "https://schema.org",
+      "@graph": [
+        business,
+        {
+          "@type": "Service",
+          name: "Flooring Installation",
+          serviceType: "Flooring installation",
+          provider: { "@id": BUSINESS_ID },
+          areaServed: SERVICE_AREAS.map((a) => ({ "@type": "AdministrativeArea", name: a.county })),
+          hasOfferCatalog: {
+            "@type": "OfferCatalog",
+            name: "Flooring Installation Services",
+            itemListElement: INSTALL_TYPES.map((t) => ({ "@type": "Offer", itemOffered: { "@type": "Service", name: t.name + " Installation", description: t.desc } }))
+          }
+        },
+        { "@type": "FAQPage", mainEntity: INSTALL_FAQ.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
+        { "@type": "BreadcrumbList", itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL + "/" },
+          { "@type": "ListItem", position: 2, name: "Flooring Installation", item: SITE_URL + "/installation" }
+        ] }
+      ]
+    };
+  }
+  const ACC_TILE = [
+    { name: "Custom Bullnose", desc: "Finished, glazed edges fabricated from your own field tile and kiln-fired for a factory-grade finish \u2014 made from the same tile to minimize dye-lot variation.", icon: "tile" },
+    { name: "Cut-Downs", desc: "Your tile cut to custom sizes for liners, pencil trim, chair rails, and borders.", icon: "cut" },
+    { name: "Custom Mosaics", desc: "Mosaic sheets fabricated from the same tile you chose, for coordinated accents and niches.", icon: "mosaic" },
+    { name: "Tile Stair Treads", desc: "Porcelain and ceramic stair treads made from your tile with a finished, rounded nosing.", icon: "stairs" }
+  ];
+  const ACC_WOOD = [
+    { name: "Color-Matched Moldings", desc: "Reducers, T-moldings, thresholds, end caps, quarter round, and base shoe milled and finished to match your floor.", icon: "molding" },
+    { name: "Stair Parts", desc: "Stair nose, treads, risers, and landings made to match hardwood, laminate, or luxury vinyl plank.", icon: "stairs" },
+    { name: "Custom Color Match", desc: "Trim stained and finished to closely match your floor color so transitions blend in.", icon: "swatch" }
+  ];
+  const ACC_FAQ = [
+    ["Can you make trim and accessories to match the floor I am buying?", "Yes. We fabricate custom tile trim and color-matched wood moldings made to order for your specific tile or plank, so edges, stairs, and transitions are made to coordinate with your floor rather than relying on off-the-shelf pieces."],
+    ["Can you fabricate bullnose, cut-downs, and stair treads from my tile?", "Yes. We take your field tile and fabricate custom bullnose, cut-down sizes, mosaics, and stair treads with a glazed, kiln-fired edge for a factory-grade finish \u2014 in any size, profile, and finish, including large-format and wood-look tile."],
+    ["Can you color-match wood moldings and stair parts to my floor?", "Yes. We custom color-match reducers, T-moldings, thresholds, quarter round, stair nose, treads, risers, and landings to hardwood, laminate, and vinyl plank floors."],
+    ["How long do custom accessories take?", "Because every piece is made to order, lead times vary by material and profile. We give you a firm timeline with your quote."],
+    ["Do I have to buy my flooring from Roma?", "We fabricate matching accessories for materials purchased from our Anaheim showroom, and in many cases for flooring you already own. Contact us and we will review your project."],
+    ["Do you install the accessories or can I pick them up?", "Both. Our Orange County crews can install your custom trim and stair parts, or you can pick them up at our Anaheim showroom."]
+  ];
+  function customAccessoriesJsonLd() {
+    const business = {
+      "@type": "HomeAndConstructionBusiness",
+      "@id": BUSINESS_ID,
+      name: "Roma Flooring Designs",
+      url: SITE_URL + "/custom-accessories",
+      telephone: "(714) 999-0009",
+      priceRange: "$$",
+      image: SITE_URL + "/uploads/og-default.jpg",
+      address: { "@type": "PostalAddress", streetAddress: "1440 S. State College Blvd #6M", addressLocality: "Anaheim", addressRegion: "CA", postalCode: "92806", addressCountry: "US" },
+      geo: { "@type": "GeoCoordinates", latitude: 33.8271, longitude: -117.8827 },
+      areaServed: { "@type": "AdministrativeArea", name: "Orange County" },
+      hasCredential: { "@type": "EducationalOccupationalCredential", credentialCategory: "California Contractor License", identifier: "830966" }
+    };
+    const offers = [...ACC_TILE, ...ACC_WOOD].map((t) => ({ "@type": "Offer", itemOffered: { "@type": "Service", name: t.name, description: t.desc } }));
+    return {
+      "@context": "https://schema.org",
+      "@graph": [
+        business,
+        {
+          "@type": "Service",
+          name: "Custom Floor Trim & Tile Accessory Fabrication",
+          serviceType: "Custom flooring trim and tile accessory fabrication",
+          provider: { "@id": BUSINESS_ID },
+          areaServed: { "@type": "AdministrativeArea", name: "Orange County" },
+          hasOfferCatalog: { "@type": "OfferCatalog", name: "Custom Floor Accessories", itemListElement: offers }
+        },
+        { "@type": "FAQPage", mainEntity: ACC_FAQ.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
+        { "@type": "BreadcrumbList", itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL + "/" },
+          { "@type": "ListItem", position: 2, name: "Custom Accessories", item: SITE_URL + "/custom-accessories" }
+        ] }
+      ]
+    };
+  }
+  const CAB_LINES = [
+    {
+      brand: "Waypoint",
+      name: "Face-Frame",
+      build: "American-built",
+      bestFor: "Classic, transitional & traditional kitchens",
+      pitch: "Painted maple and stained oak with a wood frame around the box for a classic, substantial look and time-tested strength.",
+      points: ["Soft-close doors and drawers standard", "Durable, dent-resistant painted and stained finishes", "Six door styles from Shaker to arched and mullion"]
+    },
+    {
+      brand: "Europa",
+      name: "Frameless",
+      build: "Italian-engineered",
+      bestFor: "Modern, contemporary & minimal kitchens",
+      pitch: "Full-access, European-style boxes with slab and slim fronts, integrated handles, and clean modern lines.",
+      points: ["Soft-close and push-to-open throughout", "Full-access interiors with wider drawers", "Panel-ready fronts for a seamless, built-in look"]
+    },
+    {
+      brand: "Cabinets R Us",
+      name: "Face-Frame",
+      build: "Wholesale-direct",
+      bestFor: "Transitional & modern kitchens, value-focused",
+      pitch: "Wholesale-direct value cabinetry \u2014 all-plywood boxes, solid-wood face frames, and soft-close dovetail drawers standard, kept in stock across shaker, flat-panel, high-gloss, and oak-tone door styles.",
+      points: ["Soft-close dovetail drawers and doors standard", "All-plywood boxes with solid-wood face frames", "Shaker, flat-panel, high-gloss & oak-tone styles"]
+    }
+  ];
+  const CAB_FAQ = [
+    ["What is the difference between face-frame and frameless cabinets?", "Face-frame cabinets have a wood frame around the front of the box for a classic, substantial look and traditional strength. Frameless cabinets mount doors and drawers directly to the box for full-access interiors, wider drawers, and clean, modern European lines."],
+    ["Do you design and install cabinets, or just sell them?", "Both. We design your cabinetry in-house, help you choose the line, door style, and finish, and our own crew handles delivery and professional installation across Anaheim and Orange County."],
+    ["Do you offer a budget-friendly cabinet line?", "Yes. Our Cabinets R Us line is a wholesale-direct, value-priced option with all-plywood boxes, solid-wood face frames, and soft-close dovetail drawers standard \u2014 quality construction at a lower price point, in shaker, flat-panel, high-gloss, and oak-tone styles."],
+    ["Can I see door styles and finishes in person?", "Yes. Our Anaheim showroom has full display walls of all three cabinet lines, and you can take home free door samples in the finishes you are considering."],
+    ["Do you make kitchen and bathroom cabinets?", "Yes \u2014 kitchens, bathroom vanities, laundry rooms, offices, and built-ins. All three cabinet lines are available for every room."],
+    ["How long do custom cabinets take?", "Lead times vary by line and configuration. We give you a firm timeline with your quote once the design and selections are finalized."],
+    ["Do you serve my area?", "Our showroom is in Anaheim and we design and install cabinetry throughout Orange County."]
+  ];
+  const WAYPOINT_PAINTS = [
+    { id: "linen", name: "Linen", fill: "#efe9da" },
+    { id: "vanilla", name: "Vanilla", fill: "#f3ecd9" },
+    { id: "oat", name: "Oat", fill: "#e5dac1" },
+    { id: "almond", name: "Almond", fill: "#e7dcc6" },
+    { id: "latte", name: "Latte", fill: "#cdbba0" },
+    { id: "biscotti", name: "Biscotti Glaze", fill: "#d8c6a2" },
+    { id: "stone", name: "Stone", fill: "#c9c3b6" },
+    { id: "mist", name: "Mist", fill: "#d3d4cd" },
+    { id: "boulder", name: "Boulder", fill: "#9c988e" },
+    { id: "pewter", name: "Pewter Glaze", fill: "#8c8a82" },
+    { id: "sage", name: "Sage", fill: "#a7ae97" },
+    { id: "harbor", name: "Harbor", fill: "#6f7c7b" },
+    { id: "slate", name: "Slate", fill: "#46515b" },
+    { id: "navy", name: "Navy", fill: "#2c3a4f" },
+    { id: "rye", name: "Rye", fill: "#b89c6f" },
+    { id: "amber", name: "Amber", fill: "#b17b3f" },
+    { id: "cider", name: "Cider", fill: "#a9713f" },
+    { id: "clove", name: "Clove", fill: "#6e5236" },
+    { id: "ember", name: "Ember Glaze", fill: "#7a4e3a" },
+    { id: "truffle", name: "Truffle", fill: "#5a4a3c" },
+    { id: "black", name: "Black", fill: "#1a1815" }
+  ].map((f) => ({ ...f, family: "painted", brand: "waypoint" }));
+  const WAYPOINT_DOOR_IMG = "https://www.waypointlivingspaces.com/content/dam/sites/shared-products-for-sites/doors/corner-cuts-and-thumbnails/painted-oat/";
+  const WAYPOINT_STYLES = [
+    { num: "750", code: "54FAS" },
+    { num: "720", code: "35FAS" },
+    { num: "660", code: "44_47FAS" },
+    { num: "650", code: "40_42FAS" },
+    { num: "580", code: "78_79FAS" },
+    { num: "570", code: "57_58FAS" },
+    { num: "540", code: "D_20_30FAS" },
+    { num: "530", code: "39FAS" },
+    { num: "470", code: "74_75FAS" },
+    { num: "460", code: "69_70FAS" },
+    { num: "410", code: "28_29FAS" },
+    { num: "330", code: "D_19FAS_25" }
+  ];
+  const CAB_VIS_BASE = "https://www.waypointlivingspaces.com/content/dam/sites/shared-products-for-sites/doors/door-fronts/";
+  const CAB_VIS_STYLE_ORDER = ["750", "720", "660", "650", "580", "570", "540", "530", "470", "460", "410", "330"];
+  const CAB_VIS_FAMILIES = [
+    { fam: "painted", label: "Painted" },
+    { fam: "maple", label: "Stained Maple" },
+    { fam: "cherry", label: "Stained Cherry" }
+  ];
+  const CAB_VIS_HEX = {
+    Oat: "#e5dac1",
+    Linen: "#efe9da",
+    Vanilla: "#f3ecd9",
+    Biscotti: "#d8c6a2",
+    Stone: "#c9c3b6",
+    Mist: "#d3d4cd",
+    Boulder: "#9c988e",
+    Pewter: "#8c8a82",
+    Sage: "#a7ae97",
+    Harbor: "#6f7c7b",
+    Navy: "#2c3a4f",
+    Black: "#1a1815",
+    Ember: "#7a4e3a",
+    Almond: "#e7dcc6",
+    Cider: "#a9713f",
+    Latte: "#cdbba0",
+    Rye: "#b89c6f",
+    Slate: "#46515b",
+    Truffle: "#5a4a3c",
+    Amber: "#b17b3f",
+    Clove: "#6e5236"
+  };
+  const CAB_VIS = [
+    { key: "painted-oat", label: "Oat", styles: { "750": "D_54FAS_24.jpeg", "720": "D_35FAS_24.jpeg", "660": "D_44FAS_47FAS_24.jpeg", "650": "D_40FAS_42FAS_24.jpeg", "580": "D_78FAS_79FAS_24.jpeg", "570": "D_57FAS_58FAS_24.jpeg", "540": "D_20FAS_30FAS_24.jpeg", "530": "D_39FAS_24.jpeg", "470": "D_74FAS_75FAS_24.jpeg", "460": "D_69FAS_70FAS_24.jpeg", "410": "D_28FAS_29FAS_24.jpeg", "330": "D_19FAS_24.jpeg" } },
+    { key: "painted-linen", label: "Linen", styles: { "750": "D_54MPS_23R.jpg", "720": "D_35MPS_23R.jpg", "660": "D_44MPS_47MPS_23R.jpg", "650": "D_40MPS_42MPS_23R.jpg", "580": "D_78MPS_79MPS_24.jpg", "570": "D_57MPS_58MPS_23R.jpg", "540": "D_20MPS_30MPS_23R.jpg", "530": "D_39MPS_23R.jpg", "470": "D_74MPS_75MPS_23R.jpg", "460": "D_69MPS_70MPS_23R-.jpg", "410": "D_28MPS_29MPS_23R.jpg", "330": "D_19MPS_23.jpg" } },
+    { key: "painted-vanilla", label: "Vanilla", styles: { "750": "D_54FVS_23R.jpeg", "720": "D_35FVS_23R.jpg", "660": "D_44FVS_47FVS_23R.jpg", "650": "D_40FVS_42FVS_23R.jpg", "580": "D_78FVS_79FVS_24.jpg", "570": "D_57FVS_58FVS_23R.jpg", "540": "D_20FVS_30FVS_23R.jpg", "530": "D_39FVS_23R.jpg", "470": "D_74FVS_75FVS_23R.jpg", "460": "D_69FVS_70FVS_23R.jpg", "410": "D_28FVS_29FVS_23R.jpg", "330": "D_19FVS_23.jpg" } },
+    { key: "painted-biscotti", label: "Biscotti", styles: { "750": "D_54FVF-23R.jpg", "720": "D_35FVF_23R.jpeg", "660": "D_44FVF_47FVF_23R.jpeg", "570": "D_57FVF_58FVF_23R.jpeg", "540": "D_20FVF_30FVF_23R.jpeg", "470": "D_74FVF_75FVF_23R.jpeg", "460": "D_69FVF_70FVF_23R.jpeg" } },
+    { key: "painted-stone", label: "Stone", styles: { "750": "D_54MYS-23R.jpg", "720": "D_35MYS-23R.jpg", "660": "D_44MYS_47MYS-23R.jpg", "650": "D_40MYS_42MYS-23R.jpg", "580": "D_78MYS_79MYS_24.jpg", "570": "D_57MYS_58MYS-23R.jpg", "540": "D_20MYS_30MYS-23R.jpg", "530": "D_39MYS-23R.jpg", "470": "D_74MYS_75MYS-23R.jpg", "460": "D_69MYS_70MYS-23R.jpg", "410": "D_28MYS_29MYS-23R.jpg", "330": "D_19MYS-23.jpg" } },
+    { key: "painted-mist", label: "Mist", styles: { "750": "D_54FHS-23.jpg", "720": "D_35FHS-23.jpg", "660": "D_44FHS_47FHS-23.jpg", "650": "D_40FHS_42FHS-23.jpg", "580": "D_78FHS_79FHS_24.jpg", "570": "D_57FHS_58FHS-23.jpg", "540": "D_20FHS_30FHS-23.jpg", "530": "D_39FHS-23.jpg", "470": "D_74FHS_75FHS-23.jpg", "460": "D_69FHS_70FHS-23.jpg", "410": "D_28FHS_29FHS-23.jpg", "330": "D_19FHS-23.jpg" } },
+    { key: "painted-boulder", label: "Boulder", styles: { "750": "D_54MIS-23R.jpg", "720": "D_35MIS-23R.jpg", "660": "D_44MIS_47MIS-23R.jpg", "650": "D_40MIS_42MIS-23R.jpg", "580": "D_78MIS_79MIS_24.jpg", "570": "D_57MIS_58MIS-23R.jpg", "540": "D_20MIS_30MIS-23R.jpg", "530": "D_39MIS-23R.jpg", "470": "D_74MIS_75MIS-23R.jpg", "460": "D_69MIS_70MIS-23R.jpg", "330": "D_19MIS-23.jpg" } },
+    { key: "painted-pewter", label: "Pewter", styles: { "750": "D_54MPQ-23R.jpg", "720": "D_35MPQ-23R.jpg", "660": "D_44MPQ_47MPQ-23R.jpg", "570": "D_57MPQ_58MPQ-23R.jpg", "540": "D_20MPQ_30MPQ-23R.jpg", "470": "D_74MPQ_75MPQ-23R.jpg", "460": "D_69MPQ_70MPQ-23R.jpg" } },
+    { key: "painted-sage", label: "Sage", styles: { "750": "D_54FCS-23R.jpg", "720": "D_35FCS-23R.jpg", "660": "D_44FCS_47FCS-23R.jpg", "650": "D_40FCS_42FCS-23R.jpg", "580": "D_78FCS_79FCS_24.jpg", "570": "D_57FCS_58FCS_23R.jpg", "540": "D_20FCS_30FCS-23R.jpg", "530": "D_39FCS-23R.jpg", "470": "D_74FCS_75FCS-23R.jpg", "460": "D_69FCS_70FCS-23R.jpg", "410": "D_28FCS_29FCS-23R.jpg", "330": "D_19FCS-23.jpg" } },
+    { key: "painted-harbor", label: "Harbor", styles: { "750": "D_54MKS-23R.jpg", "720": "D_35MKS-23R.jpg", "660": "D_44MKS_47MKS-23R.jpg", "650": "D_40MKS_42MKS-23R.jpg", "580": "D_78MKS_79MKS_24.jpg", "570": "D_57MKS_58MKS-23R.jpg", "540": "D_20MKS_30MKS-23R.jpg", "530": "D_39MKS-23R.jpg", "470": "D_74MKS_75MKS-23R.jpg", "460": "D_69MKS_70MKS-23R.jpg", "410": "D_28MKS_29MKS-23R.jpg", "330": "D_19MKS_23.jpg" } },
+    { key: "painted-navy", label: "Navy", styles: { "750": "D_54FBS-23R.jpg", "720": "D_35FBS-23R.jpg", "660": "D_44FBS_47FBS-23R.jpg", "650": "D_40FBS_42FBS-23R.jpg", "580": "D_78FBS_79FBS_24.jpg", "570": "D_57FBS_58FBS_23R.jpg", "540": "D_20FBS_30FBS-23R.jpg", "530": "D_39FBS-23R.jpg", "470": "D_74FBS_75FBS-23R.jpg", "460": "D_69FBS_70FBS-23R.jpg", "410": "D_28FBS_29FBS-23R.jpg", "330": "D_19FBS-23.jpg" } },
+    { key: "painted-black", label: "Black", styles: { "750": "D_54FDS_23R.jpg", "720": "D_35FDS-23R.jpg", "660": "D_44FDS_47FDS-23R.jpg", "650": "D_40FDS_42FDS-23R.jpg", "580": "D_78FDS_79FDS_24.jpg", "570": "D_57FDS_58FDS-23R.jpg", "540": "D_20FDS_30FDS-23R.jpg", "530": "D_39FDS-23R.jpg", "470": "D_74FDS_75FDS-23R.jpg", "460": "D_69FDS_70FDS-23R.jpg", "410": "D_28FDS_29FDS-23R.jpg", "330": "D_19FDS-23.jpg" } },
+    { key: "painted-ember", label: "Ember", styles: { "750": "D_54MKO-23R.jpg", "720": "D_35MKO-23R.jpg", "660": "D_44MKO_47MKO-23R.jpg", "570": "D_57MKO_58MKO-23R.jpg", "540": "D_20MKO_30MKO-23R.jpg", "470": "D_74MKO_75MKO-23R.jpg", "460": "D_69MKO_70MKO-23R.jpg" } },
+    { key: "maple-almond", label: "Almond", styles: { "750": "D_54GGS_24.jpg", "720": "D_35GGS_24.jpg", "660": "D_44GGS_47GGS_24.jpg", "650": "D_40GGS_CFO_24.jpg", "580": "D_78GGS_79GGS_24.jpeg", "570": "D_57GGS_58GGS_24.jpg", "540": "D_20GGS_30GGS_24.jpg", "530": "D_39GGS_24.jpg", "470": "D_74GGS_75GGS_24.jpg", "460": "D_69GGS_70GGS_24.jpg", "410": "D_28GGS_29GGS_24.jpg", "330": "D_19GGS_24.jpg" } },
+    { key: "maple-cider", label: "Cider", styles: { "750": "D_54MUS_24.jpeg", "720": "D_35MUS_24.jpeg", "660": "D_44MUS_47MUS_24.jpeg", "650": "D_40MUS_42MUS_24.jpeg", "580": "D_78MUS_79MUS_24.jpeg", "570": "D_57MUS_58MUS_24.jpeg", "540": "D_20MUS_30MUS_24.jpeg", "530": "D_39MUS_24.jpeg", "470": "D_74MUS_75MUS_24.jpeg", "460": "D_69MUS_70MUS_24.jpeg", "410": "D_28MUS_29MUS_24.jpeg", "330": "D_19MUS_24.jpeg" } },
+    { key: "maple-latte", label: "Latte", styles: { "750": "D_54GAS-23R.jpg", "720": "D_35GAS-23R.jpg", "660": "D_44GAS_47GAS-23R.jpg", "650": "D_40GAS_42GAS-23R.jpg", "580": "D_78GAS-79GAS_24.jpeg", "570": "D_57GAS_58GAS-23R.jpg", "540": "D_20GAS_30GAS-23R.jpg", "530": "D_39GAS-23R.jpeg", "470": "D_74GAS_75GAS-23R.jpg", "460": "D_69GAS_70GAS-23R.jpg", "410": "D_28GAS_CFO_23R.jpeg", "330": "D_19GAS-23.jpg" } },
+    { key: "maple-rye", label: "Rye", styles: { "750": "D_54MTS-23R.jpg", "720": "D_35MTS-23R.jpg", "660": "D_44MTS_47MTS-23R.jpg", "650": "D_40MTS_42MTS-23R.jpg", "580": "D_78MTS_79MTS_24.jpg", "570": "D_57MTS_58MTS_23R.jpg", "540": "D_20MTS_30MTS-23R.jpg", "530": "D_39MTS-23R.jpg", "470": "D_74MTS_75MTS-23R.jpg", "460": "D_69MTS_70MTS_23R.jpeg", "410": "D_28MTS_29MTS-23R.jpg", "330": "D_19MTS-23R.jpg" } },
+    { key: "maple-slate", label: "Slate", styles: { "750": "D_54GES_23R.jpg", "720": "D_35GES_23R.jpg", "660": "D_44GES_47GES_23R.jpg", "650": "D_40GES_42GES_23R.jpg", "580": "D_78GES-79GES_24.jpeg", "570": "D_57GES_58GES_23R.jpg", "540": "D_20GES_30GES_23R.jpg", "530": "D_39GES_23R.jpg", "470": "D_74GES_75GES_23R.jpg", "460": "D_69GES_70GES_23R-1280x1280.jpg", "410": "D_28GES_29GES_23R.jpg", "330": "D_19GES_23.jpg" } },
+    { key: "maple-truffle", label: "Truffle", styles: { "750": "D_54MBS_CFO_23R.jpeg", "720": "D_35MBS-23R.jpg", "660": "D_44MBS_CFO_23R.jpeg", "650": "D_40MBS_42MBS-23R.jpg", "580": "D_78MBS-79MBS_24.jpeg", "570": "D_57MBS_CFO_23R.jpeg", "540": "D_20MBS_30MBS-23R.jpg", "530": "D_39MBS-23R.jpg", "470": "D_74MBS_CFO_23R.jpg", "460": "D_69MBS_CFO_23R.jpeg", "410": "D_28MBS_29MBS-23R.jpeg", "330": "D_19MBS-23.jpg" } },
+    { key: "cherry-amber", label: "Amber", styles: { "750": "D_54CFS_23.jpeg", "720": "D_35CFS_23.jpeg", "660": "D_44CFS_47CFS_23.jpeg", "650": "D_40CFS_42CFS_23.jpg", "580": "D_78CFS-79CFS_24.jpeg", "540": "D_20CFS_30CFS_23.jpg", "530": "D_39CFS_23.jpg", "410": "D_28CFS_29CFS_23.jpg" } },
+    { key: "cherry-clove", label: "Clove", styles: { "750": "D_54CTS_24.jpg", "720": "D_35CTS_24.jpg", "660": "D_44CTS_47CTS_24.jpg", "650": "D_40CTS_42CTS_24.jpg", "580": "D_78CTS_CFO_24.jpg", "540": "D_20CTS_30CTS_24.jpg", "530": "D_39CTS_24.jpg", "410": "D_28CTS_29CTS_24.jpeg" } }
+  ];
+  function cabinetsJsonLd() {
+    const business = {
+      "@type": "HomeAndConstructionBusiness",
+      "@id": BUSINESS_ID,
+      name: "Roma Flooring Designs",
+      url: SITE_URL + "/cabinets",
+      telephone: "(714) 999-0009",
+      priceRange: "$$",
+      image: SITE_URL + "/uploads/og-default.jpg",
+      address: { "@type": "PostalAddress", streetAddress: "1440 S. State College Blvd #6M", addressLocality: "Anaheim", addressRegion: "CA", postalCode: "92806", addressCountry: "US" },
+      geo: { "@type": "GeoCoordinates", latitude: 33.8271, longitude: -117.8827 },
+      areaServed: { "@type": "AdministrativeArea", name: "Orange County" },
+      hasCredential: { "@type": "EducationalOccupationalCredential", credentialCategory: "California Contractor License", identifier: "830966" }
+    };
+    return {
+      "@context": "https://schema.org",
+      "@graph": [
+        business,
+        {
+          "@type": "Service",
+          name: "Custom Cabinet Design & Installation",
+          serviceType: "Kitchen and bath cabinet design and installation",
+          provider: { "@id": BUSINESS_ID },
+          areaServed: { "@type": "AdministrativeArea", name: "Orange County" },
+          hasOfferCatalog: {
+            "@type": "OfferCatalog",
+            name: "Cabinetry",
+            itemListElement: CAB_LINES.map((l) => ({ "@type": "Offer", itemOffered: { "@type": "Service", name: l.brand + " \u2014 " + l.name + " Cabinetry", description: l.pitch } }))
+          }
+        },
+        { "@type": "FAQPage", mainEntity: CAB_FAQ.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
+        { "@type": "BreadcrumbList", itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL + "/" },
+          { "@type": "ListItem", position: 2, name: "Cabinets", item: SITE_URL + "/cabinets" }
+        ] }
+      ]
+    };
+  }
   function isSoldPerUnit(sku) {
     if (!sku) return false;
     if (sku.sell_by) return sku.sell_by === "unit";
@@ -1494,150 +1789,6 @@
       stat: { v: "+15%", l: "Accessible interior" }
     }
   };
-  function cabBtn(bg, fg, kind, theme) {
-    if (kind === "primary") return {
-      padding: "14px 22px",
-      background: bg,
-      color: fg,
-      border: "none",
-      borderRadius: 999,
-      font: "500 12px/1 var(--font-body)",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      cursor: "pointer",
-      whiteSpace: "nowrap",
-      transition: "opacity 0.2s, transform 0.2s"
-    };
-    return {
-      padding: "13px 21px",
-      background: "transparent",
-      color: theme.ink,
-      border: `0.5px solid ${theme.ink}33`,
-      borderRadius: 999,
-      font: "500 12px/1 var(--font-body)",
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      cursor: "pointer",
-      whiteSpace: "nowrap",
-      transition: "background 0.2s, color 0.2s, border-color 0.2s"
-    };
-  }
-  function CabSectionHead({ theme, num, eyebrow, headline, sub, align = "left" }) {
-    const { ink, accent, muted } = theme;
-    return /* @__PURE__ */ React.createElement("div", { style: { textAlign: align, marginBottom: 56 } }, /* @__PURE__ */ React.createElement("div", { style: {
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 14,
-      font: "500 10px/1 ui-monospace, monospace",
-      letterSpacing: "0.22em",
-      textTransform: "uppercase",
-      color: muted,
-      marginBottom: 22
-    } }, /* @__PURE__ */ React.createElement("span", { style: { color: accent } }, num), /* @__PURE__ */ React.createElement("span", { style: { width: 24, height: 1, background: `${ink}22` } }), /* @__PURE__ */ React.createElement("span", null, eyebrow)), /* @__PURE__ */ React.createElement("h2", { style: {
-      font: "300 56px/1.18 var(--font-heading)",
-      margin: 0,
-      letterSpacing: "-0.018em",
-      textWrap: "pretty",
-      color: ink
-    } }, headline), sub && /* @__PURE__ */ React.createElement("p", { style: {
-      font: "400 17px/1.55 var(--font-body)",
-      color: `${ink}dd`,
-      margin: "36px 0 0",
-      maxWidth: 640,
-      ...align === "center" ? { marginLeft: "auto", marginRight: "auto" } : {}
-    } }, sub));
-  }
-  function CabinetSpecimen({ theme, brand, door, finish, hardware, softClose, big }) {
-    const { ink, paper, accent, muted } = theme;
-    const B = CAB_BRANDS[brand];
-    const D = B.doors.find((d) => d.id === door) || B.doors[0];
-    const F = B.finishes.find((f) => f.id === finish) || B.finishes[0];
-    const H = B.hardware.find((h) => h.id === hardware) || B.hardware[0];
-    const framed = B.framing === "framed";
-    const gloss = D.sheen === "gloss" || F.family === "gloss";
-    const VB_W = 640, VB_H = 720;
-    const X0 = 30, X1 = 610, Y0 = 50, Y1 = 660;
-    const FR = framed ? 18 : 2;
-    const DR_Y0 = Y0 + FR, DR_Y1 = DR_Y0 + 100;
-    const DOORS_Y0 = DR_Y1 + FR, DOORS_Y1 = Y1 - FR;
-    const MIDX = (X0 + X1) / 2;
-    const finishFillId = `cab-fill-${brand}-${F.id}-${gloss ? "g" : "m"}`;
-    const woodPatternId = `cab-wood-${brand}-${F.id}`;
-    const useWood = !!F.wood;
-    const faceFill = useWood ? `url(#${woodPatternId})` : `url(#${finishFillId})`;
-    const renderDoor = (x0, y0, x1, y1, isDrawer) => /* @__PURE__ */ React.createElement("g", { key: `${x0}-${y0}` }, /* @__PURE__ */ React.createElement("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0, fill: faceFill, stroke: ink, strokeOpacity: "0.18", strokeWidth: "0.5" }), gloss && /* @__PURE__ */ React.createElement("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0, fill: `url(#${finishFillId}-gloss)` }), F.family === "textured" && /* @__PURE__ */ React.createElement("rect", { x: x0, y: y0, width: x1 - x0, height: y1 - y0, fill: "url(#cab-texture-noise)", opacity: "0.4" }), (D.profile === "shaker" || D.profile === "recessed" || D.profile === "slim") && (() => {
-      const inset = D.profile === "slim" ? 10 : D.profile === "shaker" ? 26 : 22;
-      const ix0 = x0 + inset, iy0 = y0 + (isDrawer ? Math.min(inset, 14) : inset);
-      const ix1 = x1 - inset, iy1 = y1 - (isDrawer ? Math.min(inset, 14) : inset);
-      return /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: ix0, y: iy0, width: ix1 - ix0, height: iy1 - iy0, fill: "rgba(0,0,0,0.06)" }), /* @__PURE__ */ React.createElement("line", { x1: ix0, y1: iy0, x2: ix1, y2: iy0, stroke: "rgba(0,0,0,0.18)", strokeWidth: "0.7" }), /* @__PURE__ */ React.createElement("line", { x1: ix0, y1: iy0, x2: ix0, y2: iy1, stroke: "rgba(0,0,0,0.14)", strokeWidth: "0.7" }), /* @__PURE__ */ React.createElement("line", { x1: ix1, y1: iy0, x2: ix1, y2: iy1, stroke: "rgba(255,255,255,0.35)", strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("line", { x1: ix0, y1: iy1, x2: ix1, y2: iy1, stroke: "rgba(255,255,255,0.35)", strokeWidth: "0.5" }));
-    })(), D.profile === "raised" && (() => {
-      const inset = 22;
-      const ix0 = x0 + inset, iy0 = y0 + (isDrawer ? 12 : inset);
-      const ix1 = x1 - inset, iy1 = y1 - (isDrawer ? 12 : inset);
-      const ch = 14;
-      return /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("polygon", { points: `${ix0 + ch},${iy0 + ch} ${ix1 - ch},${iy0 + ch} ${ix1 - ch},${iy1 - ch} ${ix0 + ch},${iy1 - ch}`, fill: "rgba(255,255,255,0.18)" }), /* @__PURE__ */ React.createElement("polygon", { points: `${ix0},${iy0} ${ix1},${iy0} ${ix1 - ch},${iy0 + ch} ${ix0 + ch},${iy0 + ch}`, fill: "rgba(255,255,255,0.18)" }), /* @__PURE__ */ React.createElement("polygon", { points: `${ix0},${iy1} ${ix1},${iy1} ${ix1 - ch},${iy1 - ch} ${ix0 + ch},${iy1 - ch}`, fill: "rgba(0,0,0,0.16)" }), /* @__PURE__ */ React.createElement("polygon", { points: `${ix0},${iy0} ${ix0 + ch},${iy0 + ch} ${ix0 + ch},${iy1 - ch} ${ix0},${iy1}`, fill: "rgba(0,0,0,0.08)" }), /* @__PURE__ */ React.createElement("polygon", { points: `${ix1},${iy0} ${ix1 - ch},${iy0 + ch} ${ix1 - ch},${iy1 - ch} ${ix1},${iy1}`, fill: "rgba(255,255,255,0.08)" }));
-    })(), D.profile === "beaded" && (() => {
-      const inset = 18;
-      const ix0 = x0 + inset, iy0 = y0 + (isDrawer ? 10 : inset);
-      const ix1 = x1 - inset, iy1 = y1 - (isDrawer ? 10 : inset);
-      return /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: ix0, y: iy0, width: ix1 - ix0, height: iy1 - iy0, fill: "rgba(0,0,0,0.04)" }), /* @__PURE__ */ React.createElement("rect", { x: ix0 + 6, y: iy0 + 6, width: ix1 - ix0 - 12, height: iy1 - iy0 - 12, fill: "none", stroke: "rgba(0,0,0,0.25)", strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("rect", { x: ix0 + 8, y: iy0 + 8, width: ix1 - ix0 - 16, height: iy1 - iy0 - 16, fill: "none", stroke: "rgba(255,255,255,0.25)", strokeWidth: "0.5" }));
-    })(), D.profile === "channel" && /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: x0, y: y0, width: x1 - x0, height: 10, fill: "rgba(0,0,0,0.32)" }), /* @__PURE__ */ React.createElement("rect", { x: x0 + 4, y: y0 + 2, width: x1 - x0 - 8, height: 6, fill: "rgba(0,0,0,0.45)" })), D.profile === "reeded" && (() => {
-      const w = x1 - x0;
-      const count = Math.max(10, Math.floor(w / 14));
-      const step = w / count;
-      return /* @__PURE__ */ React.createElement("g", null, Array.from({ length: count + 1 }).map((_, i) => /* @__PURE__ */ React.createElement("line", { key: i, x1: x0 + i * step, y1: y0 + 2, x2: x0 + i * step, y2: y1 - 2, stroke: "rgba(0,0,0,0.18)", strokeWidth: "0.6" })), Array.from({ length: count }).map((_, i) => /* @__PURE__ */ React.createElement("line", { key: `h${i}`, x1: x0 + i * step + step / 2, y1: y0 + 4, x2: x0 + i * step + step / 2, y2: y1 - 4, stroke: "rgba(255,255,255,0.12)", strokeWidth: "0.5" })));
-    })(), D.profile === "glass" && !isDrawer && (() => {
-      const ix0 = x0 + 14, iy0 = y0 + 14, ix1 = x1 - 14, iy1 = y1 - 14;
-      const midX = (ix0 + ix1) / 2, midY = (iy0 + iy1) / 2;
-      return /* @__PURE__ */ React.createElement("g", { stroke: "rgba(0,0,0,0.28)", strokeWidth: "1", fill: "rgba(255,255,255,0.18)" }, /* @__PURE__ */ React.createElement("rect", { x: ix0, y: iy0, width: ix1 - ix0, height: iy1 - iy0 }), /* @__PURE__ */ React.createElement("line", { x1: midX, y1: iy0, x2: midX, y2: iy1 }), /* @__PURE__ */ React.createElement("line", { x1: ix0, y1: midY, x2: ix1, y2: midY }), /* @__PURE__ */ React.createElement("line", { x1: ix0 + 12, y1: iy0 + 12, x2: ix0 + 60, y2: iy0 + 60, stroke: "rgba(255,255,255,0.45)", strokeWidth: "1" }));
-    })(), D.profile === "mullion" && !isDrawer && (() => {
-      const ix0 = x0 + 16, iy0 = y0 + 16, ix1 = x1 - 16, iy1 = y1 - 16;
-      return /* @__PURE__ */ React.createElement("g", { stroke: "rgba(0,0,0,0.3)", strokeWidth: "1.2", fill: "rgba(0,0,0,0.06)" }, /* @__PURE__ */ React.createElement("rect", { x: ix0, y: iy0, width: ix1 - ix0, height: iy1 - iy0 }), /* @__PURE__ */ React.createElement("line", { x1: (ix0 + ix1) / 2, y1: iy0, x2: (ix0 + ix1) / 2, y2: iy1, strokeWidth: "1" }), /* @__PURE__ */ React.createElement("line", { x1: ix0, y1: (iy0 + iy1) / 2, x2: ix1, y2: (iy0 + iy1) / 2, strokeWidth: "1" }));
-    })(), D.profile === "arched" && !isDrawer && (() => {
-      const inset = 18;
-      const ix0 = x0 + inset, ix1 = x1 - inset, iy1 = y1 - inset;
-      const arcStartY = y0 + 80;
-      const path = `M ${ix0} ${iy1} L ${ix0} ${arcStartY} Q ${ix0} ${y0 + inset} ${(ix0 + ix1) / 2} ${y0 + inset} Q ${ix1} ${y0 + inset} ${ix1} ${arcStartY} L ${ix1} ${iy1} Z`;
-      return /* @__PURE__ */ React.createElement("path", { d: path, fill: "rgba(0,0,0,0.06)", stroke: "rgba(0,0,0,0.22)", strokeWidth: "0.7" });
-    })());
-    const renderHardware = (cx, cy, kind) => {
-      if (kind === "none" || kind === "integrated") return null;
-      if (kind === "knob") return /* @__PURE__ */ React.createElement("circle", { cx, cy, r: "5", fill: ink });
-      if (kind === "bar") return /* @__PURE__ */ React.createElement("rect", { x: cx - 40, y: cy - 3, width: "80", height: "6", rx: "3", fill: ink });
-      if (kind === "cup") return /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("path", { d: `M ${cx - 32} ${cy - 4} L ${cx - 32} ${cy + 6} Q ${cx} ${cy + 14}, ${cx + 32} ${cy + 6} L ${cx + 32} ${cy - 4} Z`, fill: ink, fillOpacity: "0.85" }), /* @__PURE__ */ React.createElement("rect", { x: cx - 32, y: cy - 5, width: "64", height: "3", fill: ink }));
-      return null;
-    };
-    return /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${VB_W} ${VB_H}`, style: { width: "100%", height: "100%", display: "block" } }, /* @__PURE__ */ React.createElement("defs", null, /* @__PURE__ */ React.createElement("linearGradient", { id: finishFillId, x1: "0", y1: "0", x2: "0", y2: "1" }, /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: F.fill, stopOpacity: "1" }), /* @__PURE__ */ React.createElement("stop", { offset: "60%", stopColor: F.fill, stopOpacity: "1" }), /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: F.fill, stopOpacity: F.family === "matte" ? 0.94 : 1 })), /* @__PURE__ */ React.createElement("linearGradient", { id: `${finishFillId}-gloss`, x1: "0", y1: "0", x2: "1", y2: "1" }, /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: "rgba(255,255,255,0.55)" }), /* @__PURE__ */ React.createElement("stop", { offset: "35%", stopColor: "rgba(255,255,255,0.05)" }), /* @__PURE__ */ React.createElement("stop", { offset: "65%", stopColor: "rgba(0,0,0,0.05)" }), /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: "rgba(0,0,0,0.28)" })), F.wood && /* @__PURE__ */ React.createElement("pattern", { id: woodPatternId, patternUnits: "userSpaceOnUse", width: "80", height: "16", patternTransform: "rotate(90)" }, /* @__PURE__ */ React.createElement("rect", { width: "80", height: "16", fill: F.tone.a }), /* @__PURE__ */ React.createElement("rect", { x: "0", y: "5", width: "80", height: "0.8", fill: F.tone.c, opacity: "0.55" }), /* @__PURE__ */ React.createElement("rect", { x: "0", y: "11", width: "80", height: "0.6", fill: F.tone.c, opacity: "0.35" }), /* @__PURE__ */ React.createElement("rect", { x: "0", y: "2", width: "80", height: "0.4", fill: F.tone.b, opacity: "0.45" }), /* @__PURE__ */ React.createElement("rect", { x: "0", y: "0", width: "0.6", height: "16", fill: F.tone.c, opacity: "0.4" }), /* @__PURE__ */ React.createElement("rect", { x: "38", y: "0", width: "0.6", height: "16", fill: F.tone.c, opacity: "0.32" }), /* @__PURE__ */ React.createElement("ellipse", { cx: "60", cy: "8", rx: "6", ry: "3", fill: F.tone.b, opacity: "0.22" })), /* @__PURE__ */ React.createElement("pattern", { id: "cab-texture-noise", patternUnits: "userSpaceOnUse", width: "8", height: "8" }, /* @__PURE__ */ React.createElement("rect", { width: "8", height: "8", fill: "none" }), /* @__PURE__ */ React.createElement("circle", { cx: "2", cy: "3", r: "0.6", fill: "rgba(0,0,0,0.5)" }), /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "5", r: "0.5", fill: "rgba(255,255,255,0.35)" }), /* @__PURE__ */ React.createElement("circle", { cx: "4", cy: "7", r: "0.4", fill: "rgba(0,0,0,0.3)" })), /* @__PURE__ */ React.createElement("pattern", { id: "cab-hatch", patternUnits: "userSpaceOnUse", width: "6", height: "6", patternTransform: "rotate(45)" }, /* @__PURE__ */ React.createElement("line", { x1: "0", y1: "0", x2: "0", y2: "6", stroke: ink, strokeWidth: "0.5", strokeOpacity: "0.55" }))), /* @__PURE__ */ React.createElement("rect", { x: "0", y: "0", width: VB_W, height: "38", fill: `${ink}11` }), /* @__PURE__ */ React.createElement("rect", { x: "0", y: "38", width: VB_W, height: "6", fill: ink }), /* @__PURE__ */ React.createElement("line", { x1: "0", y1: "44", x2: VB_W, y2: "44", stroke: paper, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("rect", { x: X0, y: Y0, width: X1 - X0, height: Y1 - Y0, fill: ink, fillOpacity: "0.04" }), framed && /* @__PURE__ */ React.createElement("g", { fill: "url(#cab-hatch)" }, /* @__PURE__ */ React.createElement("rect", { x: X0, y: Y0, width: FR, height: Y1 - Y0 }), /* @__PURE__ */ React.createElement("rect", { x: X1 - FR, y: Y0, width: FR, height: Y1 - Y0 }), /* @__PURE__ */ React.createElement("rect", { x: X0, y: Y0, width: X1 - X0, height: FR }), /* @__PURE__ */ React.createElement("rect", { x: X0, y: DR_Y1, width: X1 - X0, height: FR }), /* @__PURE__ */ React.createElement("rect", { x: X0, y: Y1 - FR, width: X1 - X0, height: FR }), /* @__PURE__ */ React.createElement("rect", { x: MIDX - FR / 2, y: DOORS_Y0, width: FR, height: DOORS_Y1 - DOORS_Y0 })), framed ? renderDoor(X0 + FR, DR_Y0, X1 - FR, DR_Y1, true) : renderDoor(X0 + 2, DR_Y0, X1 - 2, DR_Y1, true), framed ? renderDoor(X0 + FR, DOORS_Y0, MIDX - FR / 2, DOORS_Y1, false) : renderDoor(X0 + 2, DOORS_Y0, MIDX - 2, DOORS_Y1, false), framed ? renderDoor(MIDX + FR / 2, DOORS_Y0, X1 - FR, DOORS_Y1, false) : renderDoor(MIDX + 2, DOORS_Y0, X1 - 2, DOORS_Y1, false), H.id !== "integrated" && H.id !== "none" && D.profile !== "channel" && renderHardware((X0 + X1) / 2, (DR_Y0 + DR_Y1) / 2, H.id), H.id !== "integrated" && H.id !== "none" && D.profile !== "channel" && (() => {
-      const door1x = MIDX - FR / 2 - (H.id === "knob" ? 24 : 70);
-      const door2x = MIDX + FR / 2 + (H.id === "knob" ? 24 : 70);
-      const knobY = DOORS_Y0 + 60;
-      if (H.id === "knob") return /* @__PURE__ */ React.createElement("g", null, renderHardware(door1x, knobY, "knob"), renderHardware(door2x, knobY, "knob"));
-      const x1c = MIDX - FR / 2 - 22, x2c = MIDX + FR / 2 + 22;
-      const hy0 = DOORS_Y0 + 40, hy1 = hy0 + 100;
-      return /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: x1c - 3, y: hy0, width: "6", height: hy1 - hy0, rx: "3", fill: ink }), /* @__PURE__ */ React.createElement("rect", { x: x2c - 3, y: hy0, width: "6", height: hy1 - hy0, rx: "3", fill: ink }));
-    })(), /* @__PURE__ */ React.createElement("rect", { x: X0 + 12, y: Y1, width: X1 - X0 - 24, height: VB_H - Y1 - 4, fill: ink, fillOpacity: "0.6" }), /* @__PURE__ */ React.createElement("rect", { x: "0", y: VB_H - 4, width: VB_W, height: "4", fill: ink, fillOpacity: "0.12" }), /* @__PURE__ */ React.createElement("g", { fill: ink, fillOpacity: "0.45", fontFamily: "ui-monospace, monospace", fontSize: "9", letterSpacing: "0.16em" }, /* @__PURE__ */ React.createElement("text", { x: X0, y: VB_H - 14, stroke: "none" }, '36" W \xB7 34.5" H \xB7 24" D'), /* @__PURE__ */ React.createElement("text", { x: X1, y: VB_H - 14, stroke: "none", textAnchor: "end" }, B.framingLabel.toUpperCase())), softClose && /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: X1 - 168, y: Y0 + 14, width: "146", height: "22", rx: "11", fill: paper, stroke: accent, strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("circle", { cx: X1 - 154, cy: Y0 + 25, r: "3", fill: accent }), /* @__PURE__ */ React.createElement("text", { x: X1 - 144, y: Y0 + 28, fontSize: "9", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", fill: ink, stroke: "none" }, "SOFT-CLOSE ACTIVE")), /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: "0", y: VB_H - 30, width: "120", height: "22", fill: ink }), /* @__PURE__ */ React.createElement("text", { x: "14", y: VB_H - 14, fontSize: "10", fontFamily: "ui-monospace, monospace", letterSpacing: "0.18em", fill: paper, stroke: "none" }, B.name.toUpperCase())));
-  }
-  function CabBrandTile({ theme, B, selected, onPick }) {
-    const { ink, paper, accent, muted } = theme;
-    const [hover, setHover] = useState(false);
-    const lift = !selected && hover;
-    return /* @__PURE__ */ React.createElement("button", { onClick: onPick, onMouseEnter: () => setHover(true), onMouseLeave: () => setHover(false), style: {
-      position: "relative",
-      textAlign: "left",
-      cursor: "pointer",
-      background: selected ? paper : `${ink}03`,
-      border: "none",
-      borderTop: `3px solid ${selected ? accent : ink + "22"}`,
-      padding: 0,
-      transition: "all .25s",
-      transform: lift ? "translateY(-3px)" : "none",
-      boxShadow: selected ? `0 24px 60px ${ink}22, 0 0 0 0.5px ${ink}22` : lift ? `0 12px 32px ${ink}18, 0 0 0 0.5px ${ink}22` : `0 0 0 0.5px ${ink}11`
-    } }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1.1fr", height: 420 } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "36px 32px 32px", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 10, font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.2em", textTransform: "uppercase", color: selected ? accent : muted, marginBottom: 16 } }, /* @__PURE__ */ React.createElement("span", null, B.framingLabel)), /* @__PURE__ */ React.createElement("div", { style: { font: "300 64px/0.92 var(--font-heading)", color: ink, letterSpacing: "-0.02em" } }, B.name), /* @__PURE__ */ React.createElement("div", { style: { font: "400 13px/1 var(--font-heading)", color: muted, fontStyle: "italic", marginTop: 6 } }, B.tagline, " \xB7 ", B.origin), /* @__PURE__ */ React.createElement("p", { style: { font: "400 14px/1.55 var(--font-body)", color: `${ink}dd`, margin: "20px 0 0", flex: 1 } }, B.pitch), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 18, paddingTop: 16, borderTop: `0.5px solid ${ink}11`, display: "flex", justifyContent: "space-between", alignItems: "baseline" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "400 24px/1 var(--font-heading)", color: ink } }, B.stat.v), /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.14em", color: muted, marginTop: 4, textTransform: "uppercase" } }, B.stat.l)), /* @__PURE__ */ React.createElement("span", { style: { font: "500 11px/1 var(--font-body)", letterSpacing: "0.12em", textTransform: "uppercase", color: selected ? accent : ink } }, selected ? "Selected \u2713" : "Choose \u2192"))), /* @__PURE__ */ React.createElement("div", { style: { position: "relative", background: `${ink}05`, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: "20px 20px 20px 0" } }, /* @__PURE__ */ React.createElement(CabinetSpecimen, { theme, brand: B.id, door: B.defaults.door, finish: B.defaults.finish, hardware: B.defaults.hardware, softClose: true })))));
-  }
-  function CabHero({ theme, brand, setBrand }) {
-    const { ink, paper, accent, muted } = theme;
-    return /* @__PURE__ */ React.createElement("section", { style: { position: "relative", background: paper, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 18, padding: "16px 80px", borderBottom: `0.5px solid ${ink}11`, font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.22em", textTransform: "uppercase", color: muted, whiteSpace: "nowrap" } }, /* @__PURE__ */ React.createElement("span", { style: { color: ink } }, "Roma \xB7 Cabinets"), /* @__PURE__ */ React.createElement("span", null, "\u2014"), /* @__PURE__ */ React.createElement("span", null, "Two lines, fully stocked"), /* @__PURE__ */ React.createElement("span", { style: { flex: 1, height: 1, background: `${ink}11` } }), /* @__PURE__ */ React.createElement("span", { style: { color: accent } }, "Designed in-house \xB7 Installed by our crew"), /* @__PURE__ */ React.createElement("span", { style: { flex: 1, height: 1, background: `${ink}11` } }), /* @__PURE__ */ React.createElement("span", null, "Anaheim, CA")), /* @__PURE__ */ React.createElement("div", { style: { padding: "72px 80px 88px" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 14, font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.2em", textTransform: "uppercase", color: muted, marginBottom: 28 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 28, height: 1, background: accent } }), " 01 \xB7 Pick a philosophy"), /* @__PURE__ */ React.createElement("h1", { style: { font: "300 112px/0.92 var(--font-heading)", margin: 0, letterSpacing: "-0.025em", textWrap: "pretty", color: ink } }, "Cabinetry, ", /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, "two ways.")), /* @__PURE__ */ React.createElement("p", { style: { font: "400 20px/1.55 var(--font-body)", color: `${ink}dd`, margin: "32px 0 0", maxWidth: 760 } }, "Roma stocks both lines because most kitchens need a little of both. Choose American face-frame craftsmanship, or European frameless precision \u2014 both", /* @__PURE__ */ React.createElement("strong", { style: { color: ink, fontWeight: 500 } }, " sampled, specified, and installed "), "from one Anaheim showroom."), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 56, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 } }, Object.values(CAB_BRANDS).map((B) => /* @__PURE__ */ React.createElement(CabBrandTile, { key: B.id, theme, B, selected: brand === B.id, onPick: () => setBrand(B.id) })))));
-  }
   function CabAnatomyDiagram({ theme, framed, brand }) {
     const { ink, paper, accent, muted } = theme;
     const VB_W = 720, VB_H = 600;
@@ -1654,7 +1805,7 @@
     const doorOpenTipY = doorOpenY + DOOR_LEN;
     const doorClosedTipX = leftHinge.x + DOOR_LEN;
     return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 18, paddingBottom: 12, borderBottom: `0.5px solid ${ink}22` } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.2em", textTransform: "uppercase", color: muted, marginBottom: 6 } }, "Plan view \xB7 Section A-A \xB7 1 of 2"), /* @__PURE__ */ React.createElement("div", { style: { font: "400 32px/1 var(--font-heading)", color: ink, letterSpacing: "-0.01em" } }, framed ? "Face-frame" : "Frameless")), /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: accent } }, brand.name)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "flex-end", justifyContent: "space-between", padding: "0 0 18px", gap: 24 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.2em", textTransform: "uppercase", color: muted, marginBottom: 10 } }, "Door opening"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { font: "300 64px/0.9 var(--font-heading)", color: ink, letterSpacing: "-0.02em" } }, usableLabel), /* @__PURE__ */ React.createElement("span", { style: { font: "400 14px/1 var(--font-body)", color: muted, fontStyle: "italic" } }, framed ? "usable, after frame" : "edge to edge"))), /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1.5 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: framed ? muted : accent, textAlign: "right" } }, framed ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", null, "Lost to face frame"), /* @__PURE__ */ React.createElement("div", { style: { color: ink, fontSize: 18, fontFamily: "var(--font-heading), serif", textTransform: "none", letterSpacing: "0", marginTop: 6 } }, "\u2212", "3", "\u2033", " each cabinet")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", null, "Gained back"), /* @__PURE__ */ React.createElement("div", { style: { color: ink, fontSize: 18, fontFamily: "var(--font-heading), serif", textTransform: "none", letterSpacing: "0", marginTop: 6 } }, "+1", "\xBD\u2033", " each cabinet")))), /* @__PURE__ */ React.createElement("div", { style: { background: paper, border: `0.5px solid ${ink}22`, padding: "12px 18px 6px" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${VB_W} ${VB_H}`, style: { width: "100%", height: "auto", display: "block", overflow: "visible" } }, /* @__PURE__ */ React.createElement("defs", null, /* @__PURE__ */ React.createElement("pattern", { id: `anat-hatch-${framed ? "fr" : "fl"}`, patternUnits: "userSpaceOnUse", width: "5", height: "5", patternTransform: "rotate(45)" }, /* @__PURE__ */ React.createElement("line", { x1: "0", y1: "0", x2: "0", y2: "5", stroke: ink, strokeWidth: "0.6", strokeOpacity: "0.7" })), /* @__PURE__ */ React.createElement("pattern", { id: `anat-frame-${framed ? "fr" : "fl"}`, patternUnits: "userSpaceOnUse", width: "4", height: "4", patternTransform: "rotate(-45)" }, /* @__PURE__ */ React.createElement("line", { x1: "0", y1: "0", x2: "0", y2: "4", stroke: ink, strokeWidth: "0.5", strokeOpacity: "0.55" }))), Array.from({ length: 13 }).map((_, i) => /* @__PURE__ */ React.createElement("line", { key: `gv${i}`, x1: 120 + i * 40, y1: 40, x2: 120 + i * 40, y2: 540, stroke: ink, strokeOpacity: "0.04", strokeWidth: "0.5" })), Array.from({ length: 12 }).map((_, i) => /* @__PURE__ */ React.createElement("line", { key: `gh${i}`, x1: 100, y1: 60 + i * 40, x2: 620, y2: 60 + i * 40, stroke: ink, strokeOpacity: "0.04", strokeWidth: "0.5" })), /* @__PURE__ */ React.createElement("g", { stroke: ink, strokeOpacity: "0.4", strokeWidth: "0.5", fill: ink, fillOpacity: "0.7" }, /* @__PURE__ */ React.createElement("line", { x1: CB_X0, y1: 36, x2: CB_X1, y2: 36 }), /* @__PURE__ */ React.createElement("line", { x1: CB_X0, y1: 28, x2: CB_X0, y2: 44 }), /* @__PURE__ */ React.createElement("line", { x1: CB_X1, y1: 28, x2: CB_X1, y2: 44 }), /* @__PURE__ */ React.createElement("rect", { x: MID - 38, y: 26, width: "76", height: "20", fill: paper, stroke: "none" }), /* @__PURE__ */ React.createElement("text", { x: MID, y: 42, fontSize: "11", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", textAnchor: "middle", stroke: "none" }, "30", "\u2033", " EXTERIOR")), /* @__PURE__ */ React.createElement("rect", { x: CB_X0 + WALL, y: CB_Y0, width: CB_X1 - CB_X0 - 2 * WALL, height: CB_Y1 - CB_Y0, fill: `${ink}05` }), /* @__PURE__ */ React.createElement("rect", { x: CB_X0, y: CB_Y0, width: WALL, height: CB_Y1 - CB_Y0, fill: `url(#anat-hatch-${framed ? "fr" : "fl"})`, stroke: ink, strokeWidth: "1" }), /* @__PURE__ */ React.createElement("rect", { x: CB_X1 - WALL, y: CB_Y0, width: WALL, height: CB_Y1 - CB_Y0, fill: `url(#anat-hatch-${framed ? "fr" : "fl"})`, stroke: ink, strokeWidth: "1" }), /* @__PURE__ */ React.createElement("rect", { x: CB_X0, y: CB_Y0, width: CB_X1 - CB_X0, height: WALL, fill: `url(#anat-hatch-${framed ? "fr" : "fl"})`, stroke: ink, strokeWidth: "1" }), /* @__PURE__ */ React.createElement("line", { x1: CB_X0 + WALL + 2, y1: CB_Y0 + (CB_Y1 - CB_Y0) / 2, x2: CB_X1 - WALL - 2, y2: CB_Y0 + (CB_Y1 - CB_Y0) / 2, stroke: ink, strokeOpacity: "0.18", strokeWidth: "0.5", strokeDasharray: "4,3" }), /* @__PURE__ */ React.createElement("text", { x: CB_X0 + WALL + 8, y: CB_Y0 + (CB_Y1 - CB_Y0) / 2 - 5, fontSize: "8", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", fill: ink, fillOpacity: "0.32", stroke: "none" }, "ADJ. SHELF"), framed && /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: CB_X0, y: frontY, width: WALL + FRAME_INWARD, height: FRAME_DEPTH + 4, fill: accent, fillOpacity: "0.18" }), /* @__PURE__ */ React.createElement("rect", { x: CB_X1 - WALL - FRAME_INWARD, y: frontY, width: WALL + FRAME_INWARD, height: FRAME_DEPTH + 4, fill: accent, fillOpacity: "0.18" }), /* @__PURE__ */ React.createElement("rect", { x: MID - FRAME_INWARD, y: frontY, width: 2 * FRAME_INWARD, height: FRAME_DEPTH + 4, fill: accent, fillOpacity: "0.18" }), /* @__PURE__ */ React.createElement("rect", { x: CB_X0, y: frontY, width: WALL + FRAME_INWARD, height: FRAME_DEPTH, fill: `url(#anat-frame-fr)`, stroke: ink, strokeWidth: "1" }), /* @__PURE__ */ React.createElement("rect", { x: CB_X1 - WALL - FRAME_INWARD, y: frontY, width: WALL + FRAME_INWARD, height: FRAME_DEPTH, fill: `url(#anat-frame-fr)`, stroke: ink, strokeWidth: "1" }), /* @__PURE__ */ React.createElement("rect", { x: MID - FRAME_INWARD, y: frontY, width: 2 * FRAME_INWARD, height: FRAME_DEPTH, fill: `url(#anat-frame-fr)`, stroke: ink, strokeWidth: "1" }), /* @__PURE__ */ React.createElement("line", { x1: CB_X0 + WALL + FRAME_INWARD, y1: frontY + 2, x2: MID - FRAME_INWARD, y2: frontY + 2, stroke: ink, strokeOpacity: "0.5", strokeWidth: "0.7" }), /* @__PURE__ */ React.createElement("line", { x1: CB_X0 + WALL + FRAME_INWARD, y1: frameFrontY - 2, x2: MID - FRAME_INWARD, y2: frameFrontY - 2, stroke: ink, strokeOpacity: "0.5", strokeWidth: "0.7" }), /* @__PURE__ */ React.createElement("line", { x1: MID + FRAME_INWARD, y1: frontY + 2, x2: CB_X1 - WALL - FRAME_INWARD, y2: frontY + 2, stroke: ink, strokeOpacity: "0.5", strokeWidth: "0.7" }), /* @__PURE__ */ React.createElement("line", { x1: MID + FRAME_INWARD, y1: frameFrontY - 2, x2: CB_X1 - WALL - FRAME_INWARD, y2: frameFrontY - 2, stroke: ink, strokeOpacity: "0.5", strokeWidth: "0.7" }), /* @__PURE__ */ React.createElement("g", { stroke: accent, strokeWidth: "1", fill: accent }, /* @__PURE__ */ React.createElement("line", { x1: CB_X0 + WALL - 4, y1: frontY + FRAME_DEPTH + 14, x2: CB_X0 + WALL + FRAME_INWARD + 2, y2: frontY + FRAME_DEPTH + 14 }), /* @__PURE__ */ React.createElement("polygon", { points: `${CB_X0 + WALL + FRAME_INWARD + 2},${frontY + FRAME_DEPTH + 14} ${CB_X0 + WALL + FRAME_INWARD - 6},${frontY + FRAME_DEPTH + 10} ${CB_X0 + WALL + FRAME_INWARD - 6},${frontY + FRAME_DEPTH + 18}` }))), /* @__PURE__ */ React.createElement("rect", { x: framed ? MID + FRAME_INWARD + 2 : MID + 2, y: framed ? frameFrontY : frontY, width: framed ? CB_X1 - WALL - FRAME_INWARD - MID - FRAME_INWARD - 2 : CB_X1 - WALL - MID - 2, height: DOOR_THK, fill: ink, fillOpacity: "0.86", stroke: ink, strokeWidth: "0.6" }), /* @__PURE__ */ React.createElement("path", { d: `M ${doorClosedTipX} ${doorOpenY} A ${DOOR_LEN} ${DOOR_LEN} 0 0 1 ${doorOpenX} ${doorOpenY + DOOR_LEN}`, fill: "none", stroke: accent, strokeWidth: "0.8", strokeDasharray: "4,4", strokeOpacity: "0.5" }), /* @__PURE__ */ React.createElement("rect", { x: doorOpenX, y: doorOpenY, width: DOOR_LEN, height: DOOR_THK, fill: "none", stroke: ink, strokeWidth: "0.5", strokeDasharray: "3,3", strokeOpacity: "0.3" }), /* @__PURE__ */ React.createElement("rect", { x: doorOpenX, y: doorOpenY, width: DOOR_THK, height: DOOR_LEN, fill: ink, fillOpacity: "0.86", stroke: ink, strokeWidth: "0.6" }), /* @__PURE__ */ React.createElement("line", { x1: doorOpenX + DOOR_THK / 2, y1: doorOpenY + 6, x2: doorOpenX + DOOR_THK / 2, y2: doorOpenY + DOOR_LEN - 6, stroke: paper, strokeOpacity: "0.15", strokeWidth: "0.5" }), framed ? /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: doorOpenX - 6, y: doorOpenY + 12, width: 6, height: 14, fill: accent, stroke: ink, strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("rect", { x: doorOpenX - 6, y: doorOpenY + DOOR_LEN - 26, width: 6, height: 14, fill: accent, stroke: ink, strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("circle", { cx: doorOpenX, cy: doorOpenY + 19, r: "2", fill: ink }), /* @__PURE__ */ React.createElement("circle", { cx: doorOpenX, cy: doorOpenY + DOOR_LEN - 19, r: "2", fill: ink }), /* @__PURE__ */ React.createElement("rect", { x: CB_X1 - WALL - FRAME_INWARD - 4, y: frameFrontY + DOOR_THK / 2 - 7, width: 8, height: 14, fill: accent, stroke: ink, strokeWidth: "0.5" })) : /* @__PURE__ */ React.createElement("g", null, [CB_Y0 + 32, CB_Y1 - 56].map((cy, i) => /* @__PURE__ */ React.createElement("g", { key: `lh${i}` }, /* @__PURE__ */ React.createElement("rect", { x: CB_X0 + WALL, y: cy - 4, width: 22, height: 28, fill: paper, stroke: ink, strokeWidth: "0.7" }), /* @__PURE__ */ React.createElement("line", { x1: CB_X0 + WALL + 4, y1: cy, x2: CB_X0 + WALL + 18, y2: cy, stroke: ink, strokeOpacity: "0.35", strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("line", { x1: CB_X0 + WALL + 4, y1: cy + 20, x2: CB_X0 + WALL + 18, y2: cy + 20, stroke: ink, strokeOpacity: "0.35", strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("path", { d: `M ${CB_X0 + WALL + 22} ${cy + 10} L ${CB_X0 + WALL + 32} ${cy + 10} L ${doorOpenX + DOOR_THK / 2} ${doorOpenY + (i === 0 ? 18 : DOOR_LEN - 18)}`, fill: "none", stroke: accent, strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round" }), /* @__PURE__ */ React.createElement("circle", { cx: doorOpenX + DOOR_THK / 2, cy: doorOpenY + (i === 0 ? 18 : DOOR_LEN - 18), r: "5", fill: paper, stroke: accent, strokeWidth: "1.2" }), /* @__PURE__ */ React.createElement("circle", { cx: doorOpenX + DOOR_THK / 2, cy: doorOpenY + (i === 0 ? 18 : DOOR_LEN - 18), r: "2", fill: accent }), /* @__PURE__ */ React.createElement("circle", { cx: CB_X0 + WALL + 7, cy: cy + 6, r: "1.4", fill: ink, fillOpacity: "0.5" }), /* @__PURE__ */ React.createElement("circle", { cx: CB_X0 + WALL + 7, cy: cy + 18, r: "1.4", fill: ink, fillOpacity: "0.5" }))), [CB_Y0 + 32, CB_Y1 - 56].map((cy, i) => /* @__PURE__ */ React.createElement("g", { key: `rh${i}` }, /* @__PURE__ */ React.createElement("rect", { x: CB_X1 - WALL - 22, y: cy - 4, width: 22, height: 28, fill: paper, stroke: ink, strokeWidth: "0.7" }), /* @__PURE__ */ React.createElement("line", { x1: CB_X1 - WALL - 18, y1: cy, x2: CB_X1 - WALL - 4, y2: cy, stroke: ink, strokeOpacity: "0.35", strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("line", { x1: CB_X1 - WALL - 18, y1: cy + 20, x2: CB_X1 - WALL - 4, y2: cy + 20, stroke: ink, strokeOpacity: "0.35", strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("circle", { cx: CB_X1 - WALL - 7, cy: cy + 6, r: "1.4", fill: ink, fillOpacity: "0.5" }), /* @__PURE__ */ React.createElement("circle", { cx: CB_X1 - WALL - 7, cy: cy + 18, r: "1.4", fill: ink, fillOpacity: "0.5" })))), framed ? /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("line", { x1: CB_X0 + WALL + FRAME_INWARD / 2, y1: frontY + FRAME_DEPTH / 2, x2: CB_X0 + 4, y2: frontY + 60, stroke: ink, strokeOpacity: "0.55", strokeWidth: "0.6" }), /* @__PURE__ */ React.createElement("circle", { cx: CB_X0 + WALL + FRAME_INWARD / 2, cy: frontY + FRAME_DEPTH / 2, r: "2", fill: ink }), /* @__PURE__ */ React.createElement("text", { x: CB_X0 + 4, y: frontY + 76, fontSize: "12", fontFamily: "ui-monospace, monospace", letterSpacing: "0.16em", fill: ink, fillOpacity: "0.8", textAnchor: "start", stroke: "none" }, "1", "\xBD\u2033", " FRAME"), /* @__PURE__ */ React.createElement("text", { x: CB_X0 + 4, y: frontY + 92, fontSize: "10", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", fill: ink, fillOpacity: "0.55", textAnchor: "start", stroke: "none" }, "maple stile"), /* @__PURE__ */ React.createElement("line", { x1: doorOpenX - 3, y1: doorOpenY + 19, x2: CB_X1 - 4, y2: frontY + 70, stroke: ink, strokeOpacity: "0.55", strokeWidth: "0.6" }), /* @__PURE__ */ React.createElement("circle", { cx: doorOpenX - 3, cy: doorOpenY + 19, r: "2", fill: ink }), /* @__PURE__ */ React.createElement("text", { x: CB_X1 - 4, y: frontY + 86, fontSize: "12", fontFamily: "ui-monospace, monospace", letterSpacing: "0.16em", fill: ink, fillOpacity: "0.8", textAnchor: "end", stroke: "none" }, "BUTT HINGE"), /* @__PURE__ */ React.createElement("text", { x: CB_X1 - 4, y: frontY + 102, fontSize: "10", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", fill: ink, fillOpacity: "0.55", textAnchor: "end", stroke: "none" }, "mortised")) : /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("line", { x1: CB_X0 + WALL + 11, y1: CB_Y0 + 42, x2: CB_X0 + 4, y2: CB_Y0 + 8, stroke: ink, strokeOpacity: "0.55", strokeWidth: "0.6" }), /* @__PURE__ */ React.createElement("circle", { cx: CB_X0 + WALL + 11, cy: CB_Y0 + 42, r: "2", fill: ink }), /* @__PURE__ */ React.createElement("text", { x: CB_X0 + 4, y: CB_Y0 - 6, fontSize: "12", fontFamily: "ui-monospace, monospace", letterSpacing: "0.16em", fill: ink, fillOpacity: "0.8", textAnchor: "start", stroke: "none" }, "35mm CUP"), /* @__PURE__ */ React.createElement("text", { x: CB_X0 + 4, y: CB_Y0 + 10, fontSize: "10", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", fill: ink, fillOpacity: "0.55", textAnchor: "start", stroke: "none" }, "3-way adj."), /* @__PURE__ */ React.createElement("line", { x1: doorOpenX + DOOR_THK / 2, y1: doorOpenY + DOOR_LEN / 2, x2: CB_X1 - 4, y2: frontY + 90, stroke: ink, strokeOpacity: "0.55", strokeWidth: "0.6" }), /* @__PURE__ */ React.createElement("circle", { cx: doorOpenX + DOOR_THK / 2, cy: doorOpenY + DOOR_LEN / 2, r: "2", fill: ink }), /* @__PURE__ */ React.createElement("text", { x: CB_X1 - 4, y: frontY + 106, fontSize: "12", fontFamily: "ui-monospace, monospace", letterSpacing: "0.16em", fill: ink, fillOpacity: "0.8", textAnchor: "end", stroke: "none" }, "FULL OVERLAY"), /* @__PURE__ */ React.createElement("text", { x: CB_X1 - 4, y: frontY + 122, fontSize: "10", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", fill: ink, fillOpacity: "0.55", textAnchor: "end", stroke: "none" }, "19mm slab")), /* @__PURE__ */ React.createElement("text", { x: CB_X0 + WALL / 2, y: CB_Y0 + (CB_Y1 - CB_Y0) / 2 + 3, fontSize: "8", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", fill: ink, fillOpacity: "0.55", textAnchor: "middle", stroke: "none", transform: `rotate(-90, ${CB_X0 + WALL / 2}, ${CB_Y0 + (CB_Y1 - CB_Y0) / 2})` }, "\xBE\u2033", " PLY"), /* @__PURE__ */ React.createElement("text", { x: CB_X1 - WALL / 2, y: CB_Y0 + (CB_Y1 - CB_Y0) / 2 + 3, fontSize: "8", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", fill: ink, fillOpacity: "0.55", textAnchor: "middle", stroke: "none", transform: `rotate(-90, ${CB_X1 - WALL / 2}, ${CB_Y0 + (CB_Y1 - CB_Y0) / 2})` }, "\xBE\u2033", " PLY"), /* @__PURE__ */ React.createElement("text", { x: doorOpenX + DOOR_THK + 6, y: doorOpenY + DOOR_LEN + 14, fontSize: "9", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", fill: ink, fillOpacity: "0.5", stroke: "none" }, "DOOR \xB7 90\xB0 OPEN"), /* @__PURE__ */ React.createElement("text", { x: CB_X1 - 6, y: (framed ? frameFrontY : frontY) - 4, fontSize: "9", fontFamily: "ui-monospace, monospace", letterSpacing: "0.14em", fill: ink, fillOpacity: "0.5", textAnchor: "end", stroke: "none" }, "DOOR \xB7 CLOSED"), /* @__PURE__ */ React.createElement("g", { stroke: accent, strokeWidth: "1.4", fill: accent }, /* @__PURE__ */ React.createElement("line", { x1: openingStart, y1: 500, x2: openingEnd, y2: 500 }), /* @__PURE__ */ React.createElement("polygon", { points: `${openingStart},${500} ${openingStart + 12},${493} ${openingStart + 12},${507}` }), /* @__PURE__ */ React.createElement("polygon", { points: `${openingEnd},${500} ${openingEnd - 12},${493} ${openingEnd - 12},${507}` }), /* @__PURE__ */ React.createElement("line", { x1: openingStart, y1: 488, x2: openingStart, y2: 512 }), /* @__PURE__ */ React.createElement("line", { x1: openingEnd, y1: 488, x2: openingEnd, y2: 512 })), /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: MID - 80, y: 488, width: "160", height: "24", fill: paper, stroke: "none" }), /* @__PURE__ */ React.createElement("text", { x: MID, y: 508, textAnchor: "middle", fontSize: "22", fontWeight: "400", fontFamily: "var(--font-heading), serif", fill: ink, stroke: "none" }, usableLabel)), /* @__PURE__ */ React.createElement("text", { x: MID, y: 530, textAnchor: "middle", fontSize: "11", fontFamily: "ui-monospace, monospace", letterSpacing: "0.18em", fill: accent, stroke: "none" }, framed ? "\u2014 30\u2033 EXT \u2212 1\xBD\u2033 WALLS \u2212 1\xBD\u2033 FRAME \u2014" : "\u2014 30\u2033 EXT \u2212 1\xBD\u2033 WALLS \u2014"), /* @__PURE__ */ React.createElement("g", { fill: ink, fillOpacity: "0.5", fontFamily: "ui-monospace, monospace", fontSize: "9", letterSpacing: "0.16em" }, /* @__PURE__ */ React.createElement("line", { x1: CB_X0, y1: 552, x2: CB_X1, y2: 552, stroke: ink, strokeOpacity: "0.15", strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("text", { x: CB_X0, y: 570, stroke: "none" }, "SCALE 1:8 \xB7 SECTION A-A @ 17", "\u2033", " AFF"), /* @__PURE__ */ React.createElement("text", { x: CB_X1, y: 570, textAnchor: "end", stroke: "none" }, "B30 \xB7 30", "\u2033", " ", "\xD7", " 24", "\u2033", " ", "\xD7", " 34", "\xBD\u2033", " H")))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 22, display: "grid", gap: 10 } }, (framed ? [
-      "Face frame keeps door alignment perfect for decades",
+      "Face frame keeps door alignment consistent for decades",
       "Traditional door styles (shaker, beaded, raised) need the frame to read correctly",
       "Field-repairable \u2014 broken butt hinge swaps in 10 min, no special tools",
       "Slight reveal between doors hides minor wood movement"
@@ -1665,175 +1816,96 @@
       "Required for handleless, integrated-channel, and push-to-open designs"
     ]).map((p, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", gap: 12, alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("span", { style: { width: 6, height: 6, borderRadius: "50%", background: accent, marginTop: 7, flexShrink: 0 } }), /* @__PURE__ */ React.createElement("span", { style: { font: "400 14px/1.45 var(--font-body)", color: `${ink}dd` } }, p)))));
   }
-  function CabAnatomy({ theme }) {
-    const { ink, paper, accent, muted } = theme;
-    return /* @__PURE__ */ React.createElement("section", { style: { padding: "120px 80px", borderTop: `0.5px solid ${ink}11`, background: paper } }, /* @__PURE__ */ React.createElement(CabSectionHead, { theme, num: "02", eyebrow: "The Bones", headline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Framed, ", /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, "or frameless.")), sub: "The single decision that drives most of the others. Same finish, two very different ways of getting inside the box." }), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56, alignItems: "start" } }, /* @__PURE__ */ React.createElement(CabAnatomyDiagram, { theme, framed: true, brand: CAB_BRANDS.waypoint }), /* @__PURE__ */ React.createElement(CabAnatomyDiagram, { theme, brand: CAB_BRANDS.europa })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 56, padding: "36px 40px", background: ink, color: paper, position: "relative", overflow: "hidden", display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr", gap: 40, alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: -80, right: -40, width: 240, height: 240, borderRadius: "50%", background: `radial-gradient(circle at 30% 30%, ${accent}33, transparent 70%)` } }), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.22em", textTransform: "uppercase", color: accent, marginBottom: 10 } }, "The delta"), /* @__PURE__ */ React.createElement("div", { style: { font: "300 36px/1.05 var(--font-heading)", color: paper, letterSpacing: "-0.01em", textWrap: "pretty" } }, "Over a 24-foot kitchen run, frameless gives you back ", /* @__PURE__ */ React.createElement("em", { style: { color: accent, fontStyle: "italic", fontWeight: 400 } }, " 14 extra inches"), " of usable interior.")), [{ v: "1\xBD\u2033", l: "Per cabinet" }, { v: "14\u2033", l: "Over 24-ft run" }, { v: "~5\u201310%", l: "More interior" }].map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { position: "relative", paddingLeft: 24, borderLeft: `0.5px solid ${paper}22` } }, /* @__PURE__ */ React.createElement("div", { style: { font: "300 42px/1 var(--font-heading)", color: paper } }, s.v), /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1.3 ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", color: `${paper}88`, marginTop: 8 } }, s.l)))));
-  }
-  function CabConfigGroup({ theme, label, children }) {
-    const { ink, muted } = theme;
-    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.2em", textTransform: "uppercase", color: muted, marginBottom: 12, paddingBottom: 8, borderBottom: `0.5px solid ${ink}11` } }, label), children);
-  }
-  function CabSegRow({ theme, value, onChange, options }) {
-    const { ink, paper, accent, muted } = theme;
-    return /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: `repeat(${options.length}, 1fr)`, gap: 0, border: `0.5px solid ${ink}22` } }, options.map((o, i) => {
-      const active = value === o.id;
-      return /* @__PURE__ */ React.createElement("button", { key: o.id, onClick: () => onChange(o.id), style: {
-        padding: "12px 14px",
-        cursor: "pointer",
-        background: active ? ink : "transparent",
-        color: active ? paper : ink,
-        border: "none",
-        borderLeft: i === 0 ? "none" : `0.5px solid ${ink}22`,
-        font: "500 11px/1 var(--font-body)",
-        letterSpacing: "0.06em",
-        transition: "background .15s, color .15s"
-      } }, o.label);
+  function CabDoorVisualizer() {
+    const [fi, setFi] = useState(0);
+    const [style, setStyle] = useState("720");
+    const ref = useRef(null);
+    const finish = CAB_VIS[fi];
+    const stylesInFinish = CAB_VIS_STYLE_ORDER.filter((s) => finish.styles[s]);
+    const curStyle = finish.styles[style] ? style : stylesInFinish[0];
+    const Cc = fi, Rc = CAB_VIS_STYLE_ORDER.indexOf(curStyle);
+    const nearestStyle = (f, target) => {
+      if (f.styles[target]) return target;
+      const avail = CAB_VIS_STYLE_ORDER.filter((s) => f.styles[s]);
+      const ti = CAB_VIS_STYLE_ORDER.indexOf(target);
+      let best = avail[0], bd = 99;
+      for (const s of avail) {
+        const d = Math.abs(CAB_VIS_STYLE_ORDER.indexOf(s) - ti);
+        if (d < bd) {
+          bd = d;
+          best = s;
+        }
+      }
+      return best;
+    };
+    const imgFor = (f, st) => CAB_VIS_BASE + f.key + "/" + f.styles[st];
+    const STEP_X = 222, STEP_Y = 363;
+    const focus = () => {
+      ref.current && ref.current.focus();
+    };
+    const goFinish = (ci) => {
+      setFi(ci);
+      setStyle(nearestStyle(CAB_VIS[ci], curStyle));
+      focus();
+    };
+    const goStyle = (st) => {
+      if (finish.styles[st]) {
+        setStyle(st);
+        focus();
+      }
+    };
+    const goTile = (ci, st) => {
+      setFi(ci);
+      setStyle(st);
+      focus();
+    };
+    const si = stylesInFinish.indexOf(curStyle);
+    const changeStyle = (d) => {
+      setStyle(stylesInFinish[(si + d + stylesInFinish.length) % stylesInFinish.length]);
+      focus();
+    };
+    const changeFinish = (d) => goFinish((fi + d + CAB_VIS.length) % CAB_VIS.length);
+    const onKey = (e) => {
+      const k = e.key;
+      if (k === "ArrowLeft") {
+        e.preventDefault();
+        changeFinish(-1);
+      } else if (k === "ArrowRight") {
+        e.preventDefault();
+        changeFinish(1);
+      } else if (k === "ArrowUp") {
+        e.preventDefault();
+        changeStyle(-1);
+      } else if (k === "ArrowDown") {
+        e.preventDefault();
+        changeStyle(1);
+      }
+    };
+    const gridStyle = { transform: "translate(" + (75 - Cc * STEP_X) + "px, " + (75 - Rc * STEP_Y) + "px)", transition: "transform 640ms cubic-bezier(0.33, 0, 0.18, 1)" };
+    const tiles = [];
+    CAB_VIS.forEach((f, ci) => CAB_VIS_STYLE_ORDER.forEach((st, ri) => {
+      if (f.styles[st]) tiles.push({ ci, ri, st, key: f.key + "-" + st });
     }));
+    return /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "cab-vis",
+        tabIndex: 0,
+        ref,
+        onKeyDown: onKey,
+        "aria-label": "Waypoint door visualizer. Arrow keys change door style and paint color."
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "cab-vis-stage-row" }, /* @__PURE__ */ React.createElement("div", { className: "cab-vis-stage" }, /* @__PURE__ */ React.createElement("div", { className: "cab-vis-viewport" }, /* @__PURE__ */ React.createElement("div", { className: "cab-vis-grid", style: gridStyle }, tiles.map((t) => /* @__PURE__ */ React.createElement("button", { key: t.key, className: "cab-vis-tile" + (t.ci === Cc && t.ri === Rc ? " is-center" : ""), style: { left: t.ci * STEP_X + "px", top: t.ri * STEP_Y + "px" }, onClick: () => goTile(t.ci, t.st), tabIndex: -1, "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("img", { src: CAB_VIS_BASE + CAB_VIS[t.ci].key + "/" + CAB_VIS[t.ci].styles[t.st], alt: "", loading: "lazy", decoding: "async" })))), /* @__PURE__ */ React.createElement("div", { className: "cab-vis-vignette", "aria-hidden": "true" }), /* @__PURE__ */ React.createElement("button", { className: "cab-vis-arrow cab-vis-up", onClick: () => changeStyle(-1), "aria-label": "Previous door style" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "18 15 12 9 6 15" }))), /* @__PURE__ */ React.createElement("button", { className: "cab-vis-arrow cab-vis-down", onClick: () => changeStyle(1), "aria-label": "Next door style" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "6 9 12 15 18 9" }))), /* @__PURE__ */ React.createElement("button", { className: "cab-vis-arrow cab-vis-left", onClick: () => changeFinish(-1), "aria-label": "Previous color" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "15 18 9 12 15 6" }))), /* @__PURE__ */ React.createElement("button", { className: "cab-vis-arrow cab-vis-right", onClick: () => changeFinish(1), "aria-label": "Next color" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "9 18 15 12 9 6" })))), /* @__PURE__ */ React.createElement("div", { className: "cab-vis-labels" }, /* @__PURE__ */ React.createElement("span", { className: "cab-vis-style" }, "Style ", curStyle), /* @__PURE__ */ React.createElement("span", { className: "cab-vis-dot" }, "\xB7"), /* @__PURE__ */ React.createElement("span", { className: "cab-vis-finish" }, finish.label))), /* @__PURE__ */ React.createElement("div", { className: "cab-vis-controls" }, /* @__PURE__ */ React.createElement("div", { className: "cab-vis-ctrl-label" }, "Door Style"), /* @__PURE__ */ React.createElement("div", { className: "cab-vis-ctrl-styles" }, WAYPOINT_STYLES.map((s) => {
+        const avail = !!finish.styles[s.num];
+        return /* @__PURE__ */ React.createElement("button", { key: s.num, className: "cab-vis-cstyle" + (s.num === curStyle ? " active" : "") + (avail ? "" : " disabled"), disabled: !avail, onClick: () => goStyle(s.num), title: "Style " + s.num }, /* @__PURE__ */ React.createElement("img", { src: WAYPOINT_DOOR_IMG + s.code + ".png", alt: "Style " + s.num, loading: "lazy", decoding: "async" }));
+      })), CAB_VIS_FAMILIES.map((fam) => /* @__PURE__ */ React.createElement(React.Fragment, { key: fam.fam }, /* @__PURE__ */ React.createElement("div", { className: "cab-vis-ctrl-label" }, fam.label), /* @__PURE__ */ React.createElement("div", { className: "cab-vis-ctrl-colors" }, CAB_VIS.map((f, ci) => ({ f, ci })).filter(({ f }) => f.key.split("-")[0] === fam.fam).map(({ f, ci }) => /* @__PURE__ */ React.createElement("button", { key: f.key, className: "cab-vis-cswatch" + (ci === fi ? " active" : ""), onClick: () => goFinish(ci), title: f.label }, /* @__PURE__ */ React.createElement("span", { className: "cab-vis-cswatch-chip", style: { background: CAB_VIS_HEX[f.label] || "#e5dac1" } }), /* @__PURE__ */ React.createElement("span", { className: "cab-vis-cswatch-name" }, f.label)))))))),
+      /* @__PURE__ */ React.createElement("div", { className: "cab-vis-labels" }, /* @__PURE__ */ React.createElement("span", { className: "cab-vis-style" }, "Style ", curStyle), /* @__PURE__ */ React.createElement("span", { className: "cab-vis-dot" }, "\xB7"), /* @__PURE__ */ React.createElement("span", { className: "cab-vis-finish" }, finish.label)),
+      /* @__PURE__ */ React.createElement("div", { className: "cab-vis-hint" }, "Pick a door style or finish on the right \u2014 or use the arrows / \u2190 \u2191 \u2192 \u2193 keys")
+    );
   }
-  function CabMiniDoor({ theme, d, brand, finish }) {
-    const B = CAB_BRANDS[brand];
-    const F = B.finishes.find((f) => f.id === finish) || B.finishes[0];
-    return /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 60 64", style: { width: "100%", height: "100%", display: "block" } }, /* @__PURE__ */ React.createElement("defs", null, F.wood && /* @__PURE__ */ React.createElement("pattern", { id: `mini-wood-${brand}-${F.id}`, patternUnits: "userSpaceOnUse", width: "60", height: "10", patternTransform: "rotate(90)" }, /* @__PURE__ */ React.createElement("rect", { width: "60", height: "10", fill: F.tone.a }), /* @__PURE__ */ React.createElement("rect", { x: "0", y: "3", width: "60", height: "0.6", fill: F.tone.c, opacity: "0.45" }), /* @__PURE__ */ React.createElement("rect", { x: "0", y: "7", width: "60", height: "0.5", fill: F.tone.c, opacity: "0.3" }), /* @__PURE__ */ React.createElement("rect", { x: "0", y: "0", width: "0.5", height: "10", fill: F.tone.c, opacity: "0.35" }), /* @__PURE__ */ React.createElement("rect", { x: "29", y: "0", width: "0.5", height: "10", fill: F.tone.c, opacity: "0.28" })), /* @__PURE__ */ React.createElement("linearGradient", { id: "mini-gloss", x1: "0", y1: "0", x2: "1", y2: "1" }, /* @__PURE__ */ React.createElement("stop", { offset: "0%", stopColor: "rgba(255,255,255,0.5)" }), /* @__PURE__ */ React.createElement("stop", { offset: "50%", stopColor: "rgba(255,255,255,0)" }), /* @__PURE__ */ React.createElement("stop", { offset: "100%", stopColor: "rgba(0,0,0,0.2)" }))), /* @__PURE__ */ React.createElement("rect", { x: "0", y: "0", width: "60", height: "64", fill: F.wood ? `url(#mini-wood-${brand}-${F.id})` : F.fill }), F.family === "gloss" && /* @__PURE__ */ React.createElement("rect", { x: "0", y: "0", width: "60", height: "64", fill: "url(#mini-gloss)" }), d.profile === "shaker" && /* @__PURE__ */ React.createElement("rect", { x: "8", y: "8", width: "44", height: "48", fill: "rgba(0,0,0,0.06)", stroke: "rgba(0,0,0,0.18)", strokeWidth: "0.4" }), d.profile === "recessed" && /* @__PURE__ */ React.createElement("rect", { x: "6", y: "6", width: "48", height: "52", fill: "rgba(0,0,0,0.06)", stroke: "rgba(0,0,0,0.18)", strokeWidth: "0.4" }), d.profile === "raised" && (() => {
-      const ix0 = 8, iy0 = 8, ix1 = 52, iy1 = 56, ch = 4;
-      return /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("polygon", { points: `${ix0 + ch},${iy0 + ch} ${ix1 - ch},${iy0 + ch} ${ix1 - ch},${iy1 - ch} ${ix0 + ch},${iy1 - ch}`, fill: "rgba(255,255,255,0.2)" }), /* @__PURE__ */ React.createElement("polygon", { points: `${ix0},${iy0} ${ix1},${iy0} ${ix1 - ch},${iy0 + ch} ${ix0 + ch},${iy0 + ch}`, fill: "rgba(255,255,255,0.18)" }), /* @__PURE__ */ React.createElement("polygon", { points: `${ix0},${iy1} ${ix1},${iy1} ${ix1 - ch},${iy1 - ch} ${ix0 + ch},${iy1 - ch}`, fill: "rgba(0,0,0,0.16)" }));
-    })(), d.profile === "beaded" && /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: "6", y: "6", width: "48", height: "52", fill: "rgba(0,0,0,0.04)" }), /* @__PURE__ */ React.createElement("rect", { x: "9", y: "9", width: "42", height: "46", fill: "none", stroke: "rgba(0,0,0,0.22)", strokeWidth: "0.4" })), d.profile === "arched" && /* @__PURE__ */ React.createElement("path", { d: "M 8 56 L 8 18 Q 8 8 30 8 Q 52 8 52 18 L 52 56 Z", fill: "rgba(0,0,0,0.05)", stroke: "rgba(0,0,0,0.2)", strokeWidth: "0.4" }), d.profile === "mullion" && /* @__PURE__ */ React.createElement("g", { stroke: "rgba(0,0,0,0.28)", strokeWidth: "0.4", fill: "rgba(255,255,255,0.1)" }, /* @__PURE__ */ React.createElement("rect", { x: "8", y: "8", width: "44", height: "48" }), /* @__PURE__ */ React.createElement("line", { x1: "8", y1: "32", x2: "52", y2: "32" }), /* @__PURE__ */ React.createElement("line", { x1: "30", y1: "8", x2: "30", y2: "56" })), d.profile === "channel" && /* @__PURE__ */ React.createElement("rect", { x: "0", y: "0", width: "60", height: "6", fill: "rgba(0,0,0,0.4)" }), d.profile === "slim" && /* @__PURE__ */ React.createElement("rect", { x: "4", y: "4", width: "52", height: "56", fill: "none", stroke: "rgba(0,0,0,0.2)", strokeWidth: "0.3" }), d.profile === "reeded" && /* @__PURE__ */ React.createElement("g", { stroke: "rgba(0,0,0,0.22)", strokeWidth: "0.5" }, Array.from({ length: 9 }).map((_, i) => /* @__PURE__ */ React.createElement("line", { key: i, x1: 4 + i * 6.5, y1: "0", x2: 4 + i * 6.5, y2: "64" }))), d.profile === "glass" && /* @__PURE__ */ React.createElement("g", null, /* @__PURE__ */ React.createElement("rect", { x: "6", y: "6", width: "48", height: "52", fill: "rgba(255,255,255,0.25)", stroke: "rgba(0,0,0,0.25)", strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("line", { x1: "30", y1: "6", x2: "30", y2: "58", stroke: "rgba(0,0,0,0.25)", strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "32", x2: "54", y2: "32", stroke: "rgba(0,0,0,0.25)", strokeWidth: "0.5" }), /* @__PURE__ */ React.createElement("line", { x1: "10", y1: "10", x2: "22", y2: "22", stroke: "rgba(255,255,255,0.6)", strokeWidth: "0.6" })));
-  }
-  function CabDoorChoice({ theme, d, brand, finish, active, onPick }) {
-    const { ink, paper, accent, muted } = theme;
-    return /* @__PURE__ */ React.createElement("button", { onClick: onPick, style: { position: "relative", cursor: "pointer", padding: 0, background: paper, border: `0.5px solid ${active ? accent : ink + "22"}`, boxShadow: active ? `0 0 0 1px ${accent}` : "none", display: "grid", gridTemplateColumns: "60px 1fr", alignItems: "stretch", textAlign: "left", transition: "border-color .15s, box-shadow .15s" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 60, height: 64, overflow: "hidden" } }, /* @__PURE__ */ React.createElement(CabMiniDoor, { theme, d, brand, finish })), /* @__PURE__ */ React.createElement("div", { style: { padding: "10px 12px", display: "flex", flexDirection: "column", justifyContent: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { font: "400 14px/1.1 var(--font-heading)", color: ink, letterSpacing: "-0.005em" } }, d.name), /* @__PURE__ */ React.createElement("div", { style: { font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: muted, marginTop: 3 } }, d.profile, d.sheen ? ` \xB7 ${d.sheen}` : "")));
-  }
-  function CabFinishSwatch({ theme, f, active, onPick }) {
-    const { ink, paper, accent } = theme;
-    const dark = (() => {
-      const hex = (f.fill || "#888").replace("#", "");
-      const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
-      return r * 0.299 + g * 0.587 + b * 0.114 < 130;
-    })();
-    const overlayText = dark ? paper : ink;
-    return /* @__PURE__ */ React.createElement("button", { onClick: onPick, style: { position: "relative", cursor: "pointer", padding: 0, height: 78, border: "none", background: "transparent" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, overflow: "hidden", boxShadow: active ? `0 0 0 2px ${accent}, 0 8px 18px ${ink}33` : `0 0 0 0.5px ${ink}22`, transition: "box-shadow .15s" } }, f.wood ? /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, ...materialFace("wood", f.tone) } }) : /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, background: f.fill } }), f.family === "gloss" && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(255,255,255,0.5) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.22) 100%)" } }), f.family === "textured" && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, backgroundImage: "radial-gradient(rgba(0,0,0,0.18) 1px, transparent 1.4px)", backgroundSize: "5px 5px", mixBlendMode: "overlay" } })), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", left: 6, top: 6, right: 6, font: "500 8px/1.1 ui-monospace, monospace", letterSpacing: "0.1em", color: overlayText, textTransform: "uppercase", opacity: 0.85, textAlign: "left", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }, title: f.name }, f.name), active && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", right: 6, bottom: 6, width: 18, height: 18, borderRadius: "50%", background: accent, color: paper, display: "flex", alignItems: "center", justifyContent: "center", font: "500 11px/1 var(--font-body)" } }, "\u2713"));
-  }
-  function CabConfigurator({ theme, brand, setBrand }) {
-    const { ink, paper, accent, muted } = theme;
-    const B = CAB_BRANDS[brand];
-    const [door, setDoor] = useState(B.defaults.door);
-    const [finish, setFinish] = useState(B.defaults.finish);
-    const [hardware, setHardware] = useState(B.defaults.hardware);
-    const [softClose, setSoftClose] = useState(true);
-    const [inserts, setInserts] = useState({ trash: true, spice: false, lazy: false, divider: true });
-    useEffect(() => {
-      const validDoor = B.doors.some((d) => d.id === door);
-      const validFinish = B.finishes.some((f) => f.id === finish);
-      const validHw = B.hardware.some((h) => h.id === hardware);
-      if (!validDoor) setDoor(B.defaults.door);
-      if (!validFinish) setFinish(B.defaults.finish);
-      if (!validHw) setHardware(B.defaults.hardware);
-    }, [brand]);
-    const F = B.finishes.find((f) => f.id === finish) || B.finishes[0];
-    const D = B.doors.find((d) => d.id === door) || B.doors[0];
-    const H = B.hardware.find((h) => h.id === hardware) || B.hardware[0];
-    return /* @__PURE__ */ React.createElement("section", { style: { padding: "120px 80px", background: `${ink}05`, borderTop: `0.5px solid ${ink}11` } }, /* @__PURE__ */ React.createElement(CabSectionHead, { theme, num: "03", eyebrow: "Build a sample", headline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Configure a base unit. ", /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, "See it live.")), sub: "Every choice updates the specimen. Brand, door, finish, hardware, and inserts \u2014 the same set of decisions you'll make in the showroom, surfaced up front." }), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 56, alignItems: "start" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { background: paper, padding: 24, border: `0.5px solid ${ink}11`, position: "relative" } }, /* @__PURE__ */ React.createElement(CabinetSpecimen, { theme, brand, door, finish, hardware, softClose, big: true })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, padding: "18px 20px", background: paper, border: `0.5px solid ${ink}11`, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 0 } }, [
-      { l: "Unit", v: 'B36 \u2014 36" Base', mono: true },
-      { l: "Door", v: D.name },
-      { l: "Finish", v: F.name },
-      { l: "Hardware", v: H.name },
-      { l: "SKU", v: `${B.name.slice(0, 2).toUpperCase()}-${door.slice(0, 2).toUpperCase()}-${finish.slice(0, 2).toUpperCase()}-${hardware.slice(0, 2).toUpperCase()}`.toUpperCase(), mono: true }
-    ].map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { paddingLeft: i === 0 ? 0 : 18, borderLeft: i === 0 ? "none" : `0.5px solid ${ink}11` } }, /* @__PURE__ */ React.createElement("div", { style: { font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.18em", textTransform: "uppercase", color: muted, marginBottom: 6 } }, it.l), /* @__PURE__ */ React.createElement("div", { style: { font: it.mono ? "500 12px/1.2 ui-monospace, monospace" : "400 15px/1.2 var(--font-heading)", color: ink, letterSpacing: it.mono ? "0.08em" : "-0.005em" } }, it.v))))), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gap: 32 } }, /* @__PURE__ */ React.createElement(CabConfigGroup, { theme, label: "Brand" }, /* @__PURE__ */ React.createElement(CabSegRow, { theme, value: brand, onChange: setBrand, options: [{ id: "waypoint", label: "Waypoint" }, { id: "europa", label: "Europa" }] })), /* @__PURE__ */ React.createElement(CabConfigGroup, { theme, label: `Door style \xB7 ${B.doors.length}` }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 } }, B.doors.map((d) => /* @__PURE__ */ React.createElement(CabDoorChoice, { key: d.id, theme, d, brand, finish, active: door === d.id, onPick: () => setDoor(d.id) })))), /* @__PURE__ */ React.createElement(CabConfigGroup, { theme, label: `Finish \xB7 ${B.finishes.length} colors` }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6, maxHeight: 280, overflowY: "auto", paddingRight: 4 } }, B.finishes.map((f) => /* @__PURE__ */ React.createElement(CabFinishSwatch, { key: f.id, theme, f, active: finish === f.id, onPick: () => setFinish(f.id) })))), /* @__PURE__ */ React.createElement(CabConfigGroup, { theme, label: "Hardware" }, /* @__PURE__ */ React.createElement(CabSegRow, { theme, value: hardware, onChange: setHardware, options: B.hardware.map((h) => ({ id: h.id, label: h.name })) })), /* @__PURE__ */ React.createElement(CabConfigGroup, { theme, label: "Performance" }, /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "12px 14px", border: `0.5px solid ${ink}22`, background: softClose ? `${accent}11` : "transparent" } }, /* @__PURE__ */ React.createElement("span", { style: { width: 36, height: 20, borderRadius: 10, background: softClose ? accent : `${ink}22`, position: "relative", transition: "background .2s", flexShrink: 0 } }, /* @__PURE__ */ React.createElement("span", { style: { position: "absolute", top: 2, left: softClose ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: paper, transition: "left .2s" } })), /* @__PURE__ */ React.createElement("span", { style: { flex: 1, font: "400 14px/1.3 var(--font-body)", color: ink } }, "Soft-close hinges & drawer slides"), /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: softClose, onChange: (e) => setSoftClose(e.target.checked), style: { display: "none" } }))), /* @__PURE__ */ React.createElement(CabConfigGroup, { theme, label: "Add interior fittings" }, /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 } }, [
-      { id: "trash", l: "Pull-out trash bin", d: "Twin 35-qt bins, blumotion close." },
-      { id: "spice", l: "Spice rack pull-out", d: '4" wide vertical filler unit.' },
-      { id: "lazy", l: "Lazy susan corner", d: "Two-tier 360\xB0 rotating shelves." },
-      { id: "divider", l: "Drawer organizer", d: "Walnut grid, custom-cut to fit." }
-    ].map((it) => /* @__PURE__ */ React.createElement("button", { key: it.id, onClick: () => setInserts((p) => ({ ...p, [it.id]: !p[it.id] })), style: { textAlign: "left", cursor: "pointer", padding: "12px 14px", border: `0.5px solid ${ink}22`, background: inserts[it.id] ? `${accent}11` : "transparent", borderColor: inserts[it.id] ? accent : `${ink}22` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 4 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 14, height: 14, border: `1.5px solid ${inserts[it.id] ? accent : ink + "55"}`, background: inserts[it.id] ? accent : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center" } }, inserts[it.id] && /* @__PURE__ */ React.createElement("svg", { width: "10", height: "10", viewBox: "0 0 24 24", fill: "none", stroke: theme.paper, strokeWidth: "3" }, /* @__PURE__ */ React.createElement("path", { d: "M5 12l5 5 9-11" }))), /* @__PURE__ */ React.createElement("span", { style: { font: "500 12px/1.2 var(--font-body)", color: ink } }, it.l)), /* @__PURE__ */ React.createElement("div", { style: { font: "400 11px/1.4 var(--font-body)", color: muted, paddingLeft: 22 } }, it.d))))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 4, padding: "20px 22px", background: ink, color: paper, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.18em", textTransform: "uppercase", color: accent, marginBottom: 6 } }, "Estimated \xB7 ", B.lead), /* @__PURE__ */ React.createElement("div", { style: { font: "300 28px/1 var(--font-heading)", color: paper, whiteSpace: "nowrap" } }, "from ", B.startingAt)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, flexShrink: 0 } }, /* @__PURE__ */ React.createElement("button", { style: { ...cabBtn(accent, paper, "primary", theme), padding: "11px 16px", fontSize: 11 } }, "Order sample"), /* @__PURE__ */ React.createElement("button", { style: { ...cabBtn(paper, ink, "primary", theme), background: "transparent", color: paper, border: `0.5px solid ${paper}55`, padding: "11px 16px", fontSize: 11 } }, "Wishlist"))))));
-  }
-  function CabFeatureIcon({ theme, kind }) {
-    const { ink, accent } = theme;
-    const W = 240, H = 180, cab = ink, mover = accent;
-    switch (kind) {
-      case "trash":
-        return /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", height: "100%" } }, /* @__PURE__ */ React.createElement("rect", { x: "20", y: "20", width: "200", height: "140", fill: "none", stroke: cab, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "20", y1: "40", x2: "220", y2: "40", stroke: cab, strokeWidth: "1", strokeOpacity: "0.3" }), /* @__PURE__ */ React.createElement("rect", { x: "40", y: "60", width: "60", height: "80", fill: "none", stroke: mover, strokeWidth: "1.5" }), /* @__PURE__ */ React.createElement("line", { x1: "40", y1: "70", x2: "100", y2: "70", stroke: mover, strokeWidth: "1.2" }), /* @__PURE__ */ React.createElement("rect", { x: "120", y: "60", width: "60", height: "80", fill: "none", stroke: mover, strokeWidth: "1.5" }), /* @__PURE__ */ React.createElement("line", { x1: "120", y1: "70", x2: "180", y2: "70", stroke: mover, strokeWidth: "1.2" }));
-      case "lazy":
-        return /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", height: "100%" } }, /* @__PURE__ */ React.createElement("path", { d: "M 20 30 L 20 160 L 220 160 L 220 30 L 130 30 L 100 30 Z", fill: "none", stroke: cab, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("circle", { cx: "115", cy: "100", r: "62", fill: "none", stroke: mover, strokeWidth: "1.5", strokeDasharray: "3,3" }), /* @__PURE__ */ React.createElement("circle", { cx: "115", cy: "100", r: "40", fill: "none", stroke: mover, strokeWidth: "1.5" }), /* @__PURE__ */ React.createElement("line", { x1: "115", y1: "100", x2: "175", y2: "60", stroke: mover, strokeWidth: "1.2" }), /* @__PURE__ */ React.createElement("line", { x1: "115", y1: "100", x2: "60", y2: "80", stroke: mover, strokeWidth: "1.2" }));
-      case "spice":
-        return /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", height: "100%" } }, /* @__PURE__ */ React.createElement("rect", { x: "60", y: "20", width: "120", height: "140", fill: "none", stroke: cab, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("rect", { x: "100", y: "30", width: "40", height: "120", fill: "none", stroke: mover, strokeWidth: "1.5" }), [50, 70, 90, 110, 130].map((y) => /* @__PURE__ */ React.createElement("g", { key: y }, /* @__PURE__ */ React.createElement("line", { x1: "100", y1: y, x2: "140", y2: y, stroke: mover, strokeWidth: "1" }), /* @__PURE__ */ React.createElement("rect", { x: "104", y: y + 3, width: "8", height: "12", fill: mover, fillOpacity: "0.5" }), /* @__PURE__ */ React.createElement("rect", { x: "116", y: y + 3, width: "8", height: "12", fill: mover, fillOpacity: "0.5" }), /* @__PURE__ */ React.createElement("rect", { x: "128", y: y + 3, width: "8", height: "12", fill: mover, fillOpacity: "0.5" }))));
-      case "rollout":
-        return /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", height: "100%" } }, /* @__PURE__ */ React.createElement("rect", { x: "20", y: "20", width: "200", height: "140", fill: "none", stroke: cab, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "20", y1: "60", x2: "220", y2: "60", stroke: cab, strokeWidth: "1", strokeOpacity: "0.3" }), /* @__PURE__ */ React.createElement("line", { x1: "20", y1: "110", x2: "220", y2: "110", stroke: cab, strokeWidth: "1", strokeOpacity: "0.3" }), /* @__PURE__ */ React.createElement("rect", { x: "70", y: "68", width: "110", height: "34", fill: "none", stroke: mover, strokeWidth: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "40", y: "118", width: "110", height: "34", fill: "none", stroke: mover, strokeWidth: "1.5" }));
-      case "plate":
-        return /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", height: "100%" } }, /* @__PURE__ */ React.createElement("rect", { x: "20", y: "20", width: "200", height: "140", fill: "none", stroke: cab, strokeWidth: "2" }), [40, 70, 100, 130, 160, 190].map((x) => /* @__PURE__ */ React.createElement("line", { key: x, x1: x, y1: "35", x2: x, y2: "145", stroke: mover, strokeWidth: "1.2" })), [55, 85, 115, 145, 175].map((x) => /* @__PURE__ */ React.createElement("circle", { key: x, cx: x, cy: "90", r: "14", fill: "none", stroke: mover, strokeWidth: "1", strokeOpacity: "0.7" })));
-      case "divider":
-        return /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", height: "100%" } }, /* @__PURE__ */ React.createElement("rect", { x: "20", y: "30", width: "200", height: "120", fill: "none", stroke: cab, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "80", y1: "30", x2: "80", y2: "150", stroke: mover, strokeWidth: "1.5" }), /* @__PURE__ */ React.createElement("line", { x1: "140", y1: "30", x2: "140", y2: "150", stroke: mover, strokeWidth: "1.5" }), /* @__PURE__ */ React.createElement("line", { x1: "20", y1: "90", x2: "80", y2: "90", stroke: mover, strokeWidth: "1.5" }), /* @__PURE__ */ React.createElement("line", { x1: "140", y1: "70", x2: "220", y2: "70", stroke: mover, strokeWidth: "1.5" }), /* @__PURE__ */ React.createElement("line", { x1: "140", y1: "110", x2: "220", y2: "110", stroke: mover, strokeWidth: "1.5" }));
-      case "softclose":
-        return /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", height: "100%" } }, /* @__PURE__ */ React.createElement("rect", { x: "20", y: "40", width: "100", height: "100", fill: "none", stroke: cab, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "120", y1: "40", x2: "120", y2: "140", stroke: cab, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("g", { transform: "translate(120 90)" }, /* @__PURE__ */ React.createElement("path", { d: "M 0 -28 A 38 38 0 0 1 38 0 A 38 38 0 0 1 0 28", stroke: mover, strokeWidth: "2", fill: "none", strokeDasharray: "4,4" }), /* @__PURE__ */ React.createElement("line", { x1: "0", y1: "0", x2: "0", y2: "-28", stroke: mover, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "0", y1: "0", x2: "28", y2: "0", stroke: mover, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("circle", { cx: "0", cy: "0", r: "3", fill: mover })), /* @__PURE__ */ React.createElement("rect", { x: "160", y: "70", width: "40", height: "40", fill: mover, fillOpacity: "0.18", stroke: mover, strokeWidth: "1" }), /* @__PURE__ */ React.createElement("text", { x: "180", y: "96", textAnchor: "middle", fontSize: "14", fontFamily: "var(--font-heading), serif", fill: ink }, "S/C"));
-      case "tipout":
-        return /* @__PURE__ */ React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", height: "100%" } }, /* @__PURE__ */ React.createElement("rect", { x: "20", y: "20", width: "200", height: "140", fill: "none", stroke: cab, strokeWidth: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "20", y1: "60", x2: "220", y2: "60", stroke: cab, strokeWidth: "1", strokeOpacity: "0.3" }), /* @__PURE__ */ React.createElement("g", { transform: "translate(120 60)" }, /* @__PURE__ */ React.createElement("rect", { x: "-80", y: "-20", width: "160", height: "22", fill: "none", stroke: mover, strokeWidth: "1.5", transform: "rotate(-22)" })), /* @__PURE__ */ React.createElement("rect", { x: "60", y: "78", width: "120", height: "14", fill: mover, fillOpacity: "0.5", stroke: mover, strokeWidth: "1" }));
-      default:
-        return null;
-    }
-  }
-  function CabFeatures({ theme }) {
-    const { ink, paper, accent, muted } = theme;
-    const features = [
-      { id: "trash", name: "Pull-out trash", blurb: "Twin 35-qt bins on full-extension slides.", icon: "trash" },
-      { id: "lazy", name: "Lazy-susan corner", blurb: "Two-tier 360\xB0 rotating shelves.", icon: "lazy" },
-      { id: "spice", name: "Spice pull-out", blurb: "4\u2033 filler unit, four tiered shelves.", icon: "spice" },
-      { id: "rollout", name: "Roll-out tray", blurb: "Convert any door cabinet into a deep drawer.", icon: "rollout" },
-      { id: "plate", name: "Plate rack divider", blurb: "Vertical slots for plates and cookware lids.", icon: "plate" },
-      { id: "divider", name: "Drawer organizer", blurb: "Walnut grid, custom-cut to your drawer width.", icon: "divider" },
-      { id: "softclose", name: "Soft-close hinges", blurb: "Cushioned closing, every door, every drawer.", icon: "softclose" },
-      { id: "tipout", name: "Sink-front tip-out", blurb: "Sponge tray hidden behind a false-front panel.", icon: "tipout" }
-    ];
-    return /* @__PURE__ */ React.createElement("section", { style: { padding: "120px 80px", background: paper, borderTop: `0.5px solid ${ink}11` } }, /* @__PURE__ */ React.createElement(CabSectionHead, { theme, num: "04", eyebrow: "Inside the box", headline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Storage that ", /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, "actually stores.")), sub: "Every Roma cabinet is sized to a 16\u2033 deep insert. Mix-and-match these on the configurator above." }), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24 } }, features.map((f, i) => /* @__PURE__ */ React.createElement("div", { key: f.id, style: { position: "relative", background: `${ink}04`, border: `0.5px solid ${ink}11`, padding: 24, display: "grid", gap: 18 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.18em", textTransform: "uppercase", color: muted } }, /* @__PURE__ */ React.createElement("span", null, "F-", String(i + 1).padStart(2, "0")), /* @__PURE__ */ React.createElement("span", null, "Insert")), /* @__PURE__ */ React.createElement("div", { style: { height: 180, position: "relative" } }, /* @__PURE__ */ React.createElement(CabFeatureIcon, { theme, kind: f.icon })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "400 20px/1.15 var(--font-heading)", color: ink, letterSpacing: "-0.01em" } }, f.name), /* @__PURE__ */ React.createElement("div", { style: { font: "400 13px/1.45 var(--font-body)", color: `${ink}bb`, marginTop: 6 } }, f.blurb))))));
-  }
-  function CabFinishCard({ theme, f }) {
-    const { ink, paper, accent, muted } = theme;
-    const [hover, setHover] = useState(false);
-    const dark = (() => {
-      if (!f.fill) return false;
-      const hex = f.fill.replace("#", "");
-      const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
-      return r * 0.299 + g * 0.587 + b * 0.114 < 130;
-    })();
-    const overlayText = dark ? paper : ink;
-    return /* @__PURE__ */ React.createElement("div", { onMouseEnter: () => setHover(true), onMouseLeave: () => setHover(false), style: { position: "relative", height: 240, overflow: "hidden", background: paper, boxShadow: `0 0 0 0.5px ${ink}22, 0 ${hover ? 14 : 0}px ${hover ? 28 : 0}px ${ink}1a`, transition: "box-shadow .2s, transform .2s", transform: hover ? "translateY(-4px)" : "none" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 0, left: 0, right: 0, height: 164, overflow: "hidden" } }, f.wood ? /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, ...materialFace("wood", f.tone) } }) : /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, background: f.fill } }), f.family === "gloss" && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, background: "linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.1) 35%, transparent 60%, rgba(0,0,0,0.22) 100%)" } }), f.family === "textured" && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, backgroundImage: "radial-gradient(rgba(0,0,0,0.18) 1px, transparent 1.4px), radial-gradient(rgba(255,255,255,0.15) 1px, transparent 1.4px)", backgroundSize: "6px 6px, 9px 9px", backgroundPosition: "0 0, 3px 3px", mixBlendMode: "overlay" } }), f.family === "matte" && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, boxShadow: "inset 0 0 60px rgba(0,0,0,0.08)" } }), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: 10, left: 10, display: "flex", alignItems: "center", gap: 6, font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.14em", textTransform: "uppercase", color: overlayText, opacity: 0.85 } }, /* @__PURE__ */ React.createElement("span", { style: { padding: "3px 6px", border: `0.5px solid ${overlayText}55`, borderRadius: 2 } }, f.brand === "waypoint" ? "WP" : "EU"), /* @__PURE__ */ React.createElement("span", null, f.family, f.species ? ` \xB7 ${f.species}` : ""))), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", bottom: 0, left: 0, right: 0, height: 76, padding: "14px 14px", background: paper, borderTop: `0.5px solid ${ink}11`, display: "flex", flexDirection: "column", justifyContent: "center", gap: 6 }, title: f.name }, /* @__PURE__ */ React.createElement("div", { style: { font: "400 15px/1.15 var(--font-heading)", color: ink, letterSpacing: "-0.005em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, f.name), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6, font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.1em", textTransform: "uppercase", color: muted } }, /* @__PURE__ */ React.createElement("span", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" } }, f.fill.toUpperCase()), /* @__PURE__ */ React.createElement("span", { style: { color: accent, whiteSpace: "nowrap", flexShrink: 0 } }, "\u2192"))));
-  }
-  function CabFinishes({ theme }) {
-    const { ink, paper, accent, muted } = theme;
-    const all = [...CAB_BRANDS.waypoint.finishes.map((f) => ({ ...f, brand: "waypoint" })), ...CAB_BRANDS.europa.finishes.map((f) => ({ ...f, brand: "europa" }))];
-    const [filter, setFilter] = useState("all");
-    const filters = [{ id: "all", l: "All" }, { id: "waypoint", l: "Waypoint" }, { id: "europa", l: "Europa" }, { id: "painted", l: "Painted" }, { id: "stained", l: "Stained" }, { id: "matte", l: "Matte" }, { id: "gloss", l: "Gloss" }, { id: "veneer", l: "Veneer" }, { id: "textured", l: "Textured" }];
-    const shown = all.filter((f) => filter === "all" || filter === f.brand || filter === f.family);
-    return /* @__PURE__ */ React.createElement("section", { style: { padding: "120px 80px", background: `${ink}05`, borderTop: `0.5px solid ${ink}11` } }, /* @__PURE__ */ React.createElement(CabSectionHead, { theme, num: "05", eyebrow: "Finishes", headline: /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, all.length), " ways to wear it."), sub: "Painted, stained, matte, gloss, real-wood veneer, textured concrete. All physically stocked in the showroom \u2014 request any as a 5\u2033 door sample, free." }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 28, alignItems: "baseline" } }, filters.map((ft) => {
-      const active = filter === ft.id;
-      const count = ft.id === "all" ? all.length : all.filter((f) => ft.id === f.brand || ft.id === f.family).length;
-      return /* @__PURE__ */ React.createElement("button", { key: ft.id, onClick: () => setFilter(ft.id), style: { padding: "9px 14px", borderRadius: 999, cursor: "pointer", border: `0.5px solid ${active ? accent : ink + "22"}`, background: active ? accent : "transparent", color: active ? paper : ink, font: "500 11px/1 var(--font-body)", letterSpacing: "0.06em", display: "inline-flex", alignItems: "center", gap: 8, transition: "all .15s" } }, ft.l, /* @__PURE__ */ React.createElement("span", { style: { font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.08em", opacity: 0.6 } }, count));
-    })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 } }, shown.map((f) => /* @__PURE__ */ React.createElement(CabFinishCard, { key: `${f.brand}-${f.id}`, theme, f }))));
-  }
-  function CabCompare({ theme, setBrand }) {
-    const { ink, paper, accent, muted } = theme;
-    const rows = [
-      { label: "Construction", w: "Face-frame, \xBE\u2033 ply box", e: "Frameless, 19mm full-overlay" },
-      { label: "Door styles", w: "6 styles: shaker, recessed, raised, beaded, arched, mullion", e: "6 styles: slab, channel, slim, gloss, reeded, glass" },
-      { label: "Finishes", w: "25 total \xB7 12 paints \xB7 12 stains", e: "23 total \xB7 14 mattes \xB7 3 glosses \xB7 4 veneers \xB7 2 textured" },
-      { label: "Drawer guides", w: "Blum Tandem full-extension", e: "Blum Legrabox full-extension" },
-      { label: "Soft-close", w: "Standard, all doors & drawers", e: "Standard, push-to-open optional" },
-      { label: "Hardware", w: "Knobs, bar pulls, cup pulls", e: "Integrated channel, slim bar, push-to-open" },
-      { label: "Custom paint", w: "No (8 standard colors)", e: "Yes, any RAL or Pantone (+$45 /opening)" },
-      { label: "Warranty", w: "Lifetime", e: "10-year" },
-      { label: "Lead time", w: "5\u20137 weeks", e: "4\u20136 weeks" },
-      { label: "Made in", w: "Cumberland, MD \xB7 USA", e: "Italian-engineered, assembled in Mexico" },
-      { label: "Starting at", w: "$240 / lf", e: "$320 / lf" }
-    ];
-    return /* @__PURE__ */ React.createElement("section", { style: { padding: "120px 80px", background: paper, borderTop: `0.5px solid ${ink}11` } }, /* @__PURE__ */ React.createElement(CabSectionHead, { theme, num: "06", eyebrow: "The fine print", headline: /* @__PURE__ */ React.createElement(React.Fragment, null, "Side by side, ", /* @__PURE__ */ React.createElement("em", { style: { color: accent } }, "row by row.")), sub: "The spec sheet, exposed." }), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderTop: `0.5px solid ${ink}22` } }, /* @__PURE__ */ React.createElement("div", { style: { padding: "20px 0" } }, /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.2em", textTransform: "uppercase", color: muted } }, "Spec")), /* @__PURE__ */ React.createElement("div", { style: { padding: "20px 24px", borderLeft: `0.5px solid ${ink}22` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 10, font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.2em", textTransform: "uppercase", color: muted, marginBottom: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 6, height: 6, borderRadius: "50%", background: ink } }), "Waypoint"), /* @__PURE__ */ React.createElement("div", { style: { font: "400 22px/1 var(--font-heading)", color: ink } }, "Face-frame")), /* @__PURE__ */ React.createElement("div", { style: { padding: "20px 24px", borderLeft: `0.5px solid ${ink}22`, background: `${accent}06` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", gap: 10, font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.2em", textTransform: "uppercase", color: accent, marginBottom: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { width: 6, height: 6, borderRadius: "50%", background: accent } }), "Europa"), /* @__PURE__ */ React.createElement("div", { style: { font: "400 22px/1 var(--font-heading)", color: ink } }, "Frameless")), rows.map((r, i) => /* @__PURE__ */ React.createElement(React.Fragment, { key: i }, /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 0", borderTop: `0.5px solid ${ink}11`, font: "500 10px/1.2 ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", color: muted } }, r.label), /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 24px", borderTop: `0.5px solid ${ink}11`, borderLeft: `0.5px solid ${ink}22`, font: "400 15px/1.4 var(--font-heading)", color: ink } }, r.w), /* @__PURE__ */ React.createElement("div", { style: { padding: "18px 24px", borderTop: `0.5px solid ${ink}11`, borderLeft: `0.5px solid ${ink}22`, font: "400 15px/1.4 var(--font-heading)", color: ink, background: `${accent}06` } }, r.e)))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 32, padding: "24px 28px", background: `${ink}05`, display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "500 10px/1 ui-monospace, monospace", letterSpacing: "0.18em", textTransform: "uppercase", color: muted, marginBottom: 6 } }, "Still deciding?"), /* @__PURE__ */ React.createElement("div", { style: { font: "400 22px/1.2 var(--font-heading)", color: ink } }, "Order a sample door from each. They're free, they arrive in a week.")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setBrand("waypoint"), style: cabBtn(ink, paper, "primary", theme) }, "Waypoint sample"), /* @__PURE__ */ React.createElement("button", { onClick: () => setBrand("europa"), style: cabBtn(accent, paper, "primary", theme) }, "Europa sample"))));
-  }
-  function CabCTA({ theme }) {
-    const { ink, paper, accent, muted } = theme;
-    return /* @__PURE__ */ React.createElement("section", { style: { padding: "120px 80px", background: ink, color: paper, position: "relative", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", top: -160, right: -120, width: 520, height: 520, borderRadius: "50%", background: `radial-gradient(circle at 30% 30%, ${accent}38, transparent 70%)` } }), /* @__PURE__ */ React.createElement("div", { style: { position: "relative" } }, /* @__PURE__ */ React.createElement("div", { style: { font: "500 11px/1 ui-monospace, monospace", letterSpacing: "0.22em", textTransform: "uppercase", color: accent, marginBottom: 24 } }, "07 \xB7 The showroom"), /* @__PURE__ */ React.createElement("h2", { style: { font: "300 84px/0.92 var(--font-heading)", margin: 0, letterSpacing: "-0.02em", color: paper, maxWidth: 1100 } }, "Touch the doors. ", /* @__PURE__ */ React.createElement("em", { style: { color: accent, fontStyle: "italic" } }, "Open the drawers."), /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("span", { style: { color: `${paper}aa`, fontStyle: "italic" } }, "Then build a kitchen.")), /* @__PURE__ */ React.createElement("p", { style: { font: "400 18px/1.55 var(--font-body)", color: `${paper}cc`, margin: "32px 0 0", maxWidth: 640 } }, "A full Waypoint and Europa wall lives in our Anaheim showroom \u2014 every door style, every finish, every hinge, ready to be opened, slammed shut, and judged in person. Bring a paint chip. Bring a cabinet maker. We'll meet you there."), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 14, marginTop: 44, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { style: cabBtn(accent, paper, "primary", theme) }, "Book a design consult"), /* @__PURE__ */ React.createElement("button", { style: { ...cabBtn(paper, ink, "primary", theme), background: "transparent", color: paper, border: `0.5px solid ${paper}55` } }, "Order sample doors"), /* @__PURE__ */ React.createElement("button", { style: { ...cabBtn(paper, ink, "primary", theme), background: "transparent", color: paper, border: `0.5px solid ${paper}55` } }, "Visit the showroom")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 64, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 0, paddingTop: 32, borderTop: `0.5px solid ${paper}22` } }, [{ v: "Mon\u2013Sat", l: "9\u20135 \xB7 Sat 10\u20135" }, { v: "1440", l: "S. State College, Anaheim" }, { v: "(714) 999-0009", l: "Showroom direct" }, { v: "Free", l: "Sample door program" }].map((it, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { paddingLeft: i === 0 ? 0 : 24, borderLeft: i === 0 ? "none" : `0.5px solid ${paper}22` } }, /* @__PURE__ */ React.createElement("div", { style: { font: "400 22px/1.1 var(--font-heading)", color: paper } }, it.v), /* @__PURE__ */ React.createElement("div", { style: { font: "500 11px/1.3 var(--font-body)", color: `${paper}88`, marginTop: 6 } }, it.l))))));
-  }
-  function CabinetsPage() {
-    const [brand, setBrand] = useState("waypoint");
+  function CabinetsPage({ onRequestQuote }) {
     const theme = { ink: "#1c1917", paper: "#ece5d8", accent: "#a87935", muted: "#8a7e6b" };
-    useEffect(() => {
-      updateSEO({ title: "Custom Cabinets | Roma Flooring Designs", description: "Waypoint face-frame and Europa frameless cabinetry \u2014 designed in-house, installed by our crew. Visit our Anaheim showroom.", url: SITE_URL + "/cabinets" });
-    }, []);
-    return /* @__PURE__ */ React.createElement("div", { className: "cab-page", style: { background: theme.paper, color: theme.ink, fontFamily: "var(--font-body)" } }, /* @__PURE__ */ React.createElement(CabHero, { theme, brand, setBrand }), /* @__PURE__ */ React.createElement(CabAnatomy, { theme }), /* @__PURE__ */ React.createElement(CabConfigurator, { theme, brand, setBrand }), /* @__PURE__ */ React.createElement(CabFeatures, { theme }), /* @__PURE__ */ React.createElement(CabFinishes, { theme }), /* @__PURE__ */ React.createElement(CabCompare, { theme, setBrand }), /* @__PURE__ */ React.createElement(CabCTA, { theme }));
+    return /* @__PURE__ */ React.createElement("div", { className: "installation-page" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero-eyebrow" }, "Anaheim Cabinet Showroom"), /* @__PURE__ */ React.createElement("h1", null, "Custom Kitchen & Bath Cabinets in Anaheim & Orange County"), /* @__PURE__ */ React.createElement("p", null, "Three cabinet lines, designed in-house and installed by our own crew: ", /* @__PURE__ */ React.createElement("strong", null, "Waypoint"), " American-built face-frame cabinetry, ", /* @__PURE__ */ React.createElement("strong", null, "Cabinets R Us"), " wholesale-direct face-frame cabinetry, and ", /* @__PURE__ */ React.createElement("strong", null, "Europa"), " Italian-engineered frameless cabinetry. See every door style and finish on full display walls at our Anaheim showroom."), /* @__PURE__ */ React.createElement("div", { className: "install-hero-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Book a Design Consultation"), /* @__PURE__ */ React.createElement("a", { className: "install-hero-phone", href: "tel:+17149990009" }, "Call (714) 999-0009"))), /* @__PURE__ */ React.createElement("div", { className: "install-types" }, /* @__PURE__ */ React.createElement("h2", null, "Our Three Cabinet Lines"), /* @__PURE__ */ React.createElement("div", { className: "cab-lines-grid" }, CAB_LINES.map((l) => /* @__PURE__ */ React.createElement("div", { key: l.brand, className: "cab-line-card" }, /* @__PURE__ */ React.createElement("div", { className: "cab-line-eyebrow" }, l.name, " \xB7 ", l.build), /* @__PURE__ */ React.createElement("h3", null, l.brand), /* @__PURE__ */ React.createElement("p", { className: "cab-line-pitch" }, l.pitch), /* @__PURE__ */ React.createElement("ul", { className: "cab-line-specs" }, l.points.map((p) => /* @__PURE__ */ React.createElement("li", { key: p }, p))), /* @__PURE__ */ React.createElement("div", { className: "cab-line-bestfor" }, "Best for: ", l.bestFor))))), /* @__PURE__ */ React.createElement("div", { className: "install-types", style: { background: "rgba(28,25,23,0.03)" } }, /* @__PURE__ */ React.createElement("h2", null, "Framed or Frameless"), /* @__PURE__ */ React.createElement("p", { className: "cab-section-sub" }, "The single construction choice that drives the look. Waypoint and Cabinets R Us are face-frame; Europa is frameless \u2014 same finishes, two ways into the box."), /* @__PURE__ */ React.createElement("div", { className: "cab-anatomy-grid" }, /* @__PURE__ */ React.createElement(CabAnatomyDiagram, { theme, framed: true, brand: CAB_BRANDS.waypoint }), /* @__PURE__ */ React.createElement(CabAnatomyDiagram, { theme, brand: CAB_BRANDS.europa }))), /* @__PURE__ */ React.createElement("div", { className: "install-types", style: { background: "var(--warm-bg)" } }, /* @__PURE__ */ React.createElement("h2", null, "Waypoint"), /* @__PURE__ */ React.createElement("p", { className: "cab-section-sub" }, "Toggle through Waypoint door styles and finishes. Not every style is offered in every finish, so the arrows move to what's available."), /* @__PURE__ */ React.createElement(CabDoorVisualizer, null)), /* @__PURE__ */ React.createElement("div", { className: "install-steps-section" }, /* @__PURE__ */ React.createElement("h2", null, "How It Works"), /* @__PURE__ */ React.createElement("div", { className: "install-steps" }, /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "1"), /* @__PURE__ */ React.createElement("h3", null, "Design Consultation"), /* @__PURE__ */ React.createElement("p", null, "Meet in our showroom or at your home to talk layout, style, and budget.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "2"), /* @__PURE__ */ React.createElement("h3", null, "Measure & Plan"), /* @__PURE__ */ React.createElement("p", null, "We measure your space and produce a full cabinetry layout.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "3"), /* @__PURE__ */ React.createElement("h3", null, "Choose & Order"), /* @__PURE__ */ React.createElement("p", null, "Pick your line, door style, finish, and hardware \u2014 confirm the quote.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "4"), /* @__PURE__ */ React.createElement("h3", null, "We Install"), /* @__PURE__ */ React.createElement("p", null, "Our crew handles delivery and professional installation.")))), /* @__PURE__ */ React.createElement("div", { className: "install-quote-section", id: "quote" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-inner" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-copy" }, /* @__PURE__ */ React.createElement("h2", null, "Book a Cabinet Design Consultation"), /* @__PURE__ */ React.createElement("p", null, "Tell us about your kitchen, bath, or built-in project and our Anaheim team will follow up within one business day to schedule your consultation.")), /* @__PURE__ */ React.createElement("div", { className: "install-quote-card" }, /* @__PURE__ */ React.createElement(InstallQuoteForm, null)))), /* @__PURE__ */ React.createElement("div", { className: "install-faq-section" }, /* @__PURE__ */ React.createElement("h2", null, "Cabinet FAQ"), /* @__PURE__ */ React.createElement(InstallFAQ, { items: CAB_FAQ })), /* @__PURE__ */ React.createElement("div", { className: "install-cta-band" }, /* @__PURE__ */ React.createElement("h2", null, "Design Your New Kitchen"), /* @__PURE__ */ React.createElement("p", null, "Visit our Anaheim showroom or book a consultation \u2014 cabinetry designed and installed by one team."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Book a Design Consultation")));
   }
   document.addEventListener("error", function(e) {
     if (e.target.tagName === "IMG") e.target.style.display = "none";
@@ -2395,6 +2467,12 @@
         goInstallation();
         return;
       }
+      if (path === "/custom-accessories") {
+        setView("custom-accessories");
+        history.pushState({ view: "custom-accessories" }, "", "/custom-accessories");
+        window.scrollTo(0, 0);
+        return;
+      }
       if (path === "/trade/apply") {
         goTradeApply();
         return;
@@ -2447,7 +2525,8 @@
         return;
       }
       const servicePages = {
-        "/design-services": "Design Services"
+        "/design-services": "Design Services",
+        "/custom-area-rugs": "Custom Area Rugs"
       };
       if (servicePages[path]) {
         setComingSoonTitle(servicePages[path]);
@@ -2871,6 +2950,11 @@
       } else if (path === "/design-services") {
         setComingSoonTitle("Design Services");
         setView("coming-soon");
+      } else if (path === "/custom-accessories") {
+        setView("custom-accessories");
+      } else if (path === "/custom-area-rugs") {
+        setComingSoonTitle("Custom Area Rugs");
+        setView("coming-soon");
       } else if (path === "/shop" || path.startsWith("/shop")) {
         setView("browse");
         const cat = sp.get("category");
@@ -3007,7 +3091,10 @@
         signin: { title: "Sign In | Roma Flooring Designs", description: "Sign in to your Roma Flooring Designs account.", url: SITE_URL + "/signin" },
         signup: { title: "Create Account | Roma Flooring Designs", description: "Create your Roma Flooring Designs account.", url: SITE_URL + "/signup" },
         "forgot-password": { title: "Forgot Password | Roma Flooring Designs", description: "Reset your Roma Flooring Designs password.", url: SITE_URL + "/forgot-password" },
-        about: { title: "About Us | Roma Flooring Designs", description: "A family flooring house in Anaheim, California \u2014 hardwood, stone, tile, and cabinetry since 1999. Visit our showroom on State College Blvd.", url: SITE_URL + "/about" }
+        about: { title: "About Us | Roma Flooring Designs", description: "A family flooring house in Anaheim, California \u2014 hardwood, stone, tile, and cabinetry since 1999. Visit our showroom on State College Blvd.", url: SITE_URL + "/about" },
+        installation: { title: "Flooring Installation in Anaheim & Orange County | Roma Flooring Designs", description: "Licensed, insured flooring installation in Anaheim & Orange County \u2014 hardwood, tile, luxury vinyl, stone, carpet & laminate. Free estimates. CA Lic #830966. Call (714) 999-0009.", url: SITE_URL + "/installation", image: SITE_URL + "/uploads/og-default.jpg" },
+        "custom-accessories": { title: "Custom Tile Trim & Wood Floor Moldings | Roma Flooring Designs", description: "Custom floor accessories in Anaheim & Orange County \u2014 bullnose, cut-downs, mosaics & tile stair treads fabricated from your tile, plus color-matched wood moldings & stair parts. Made to order. Call (714) 999-0009.", url: SITE_URL + "/custom-accessories", image: SITE_URL + "/uploads/og-default.jpg" },
+        cabinets: { title: "Custom Kitchen & Bath Cabinets in Anaheim & Orange County | Roma Flooring Designs", description: "Custom kitchen & bath cabinets in Anaheim & Orange County \u2014 American-built face-frame and Italian-engineered frameless lines, designed in-house and installed by our crew. Visit our showroom. Call (714) 999-0009.", url: SITE_URL + "/cabinets", image: SITE_URL + "/uploads/og-default.jpg" }
       };
       if (view === "browse" && selectedCategory) {
         const rootCat = categories.find((c) => c.slug === selectedCategory || (c.children || []).some((ch) => ch.slug === selectedCategory));
@@ -3051,6 +3138,12 @@
             { "@type": "ListItem", position: 2, name: "Trade Program", item: SITE_URL + "/trade" }
           ] }
         ] });
+      } else if (view === "installation") {
+        setDynamicJsonLd(installationJsonLd());
+      } else if (view === "custom-accessories") {
+        setDynamicJsonLd(customAccessoriesJsonLd());
+      } else if (view === "cabinets") {
+        setDynamicJsonLd(cabinetsJsonLd());
       } else if (view !== "detail") {
         const ldEl = document.getElementById("dynamic-jsonld");
         if (ldEl) ldEl.remove();
@@ -3286,7 +3379,13 @@
     } }, "Trade Sign In"))), view === "bulk-order" && /* @__PURE__ */ React.createElement(BulkOrderPage, { tradeToken, addToCart, goTradeDashboard, showToast }), view === "visit-recap" && visitRecapToken && /* @__PURE__ */ React.createElement(VisitRecapPage, { token: visitRecapToken, onSkuClick: goSkuDetail }), view === "estimate-view" && estimateToken && /* @__PURE__ */ React.createElement(EstimatePage, { token: estimateToken }), view === "reset-password" && /* @__PURE__ */ React.createElement(ResetPasswordPage, { goHome, onLogin: handleCustomerLogin, openLogin: () => navigate("/signin") }), view === "set-password" && /* @__PURE__ */ React.createElement(SetPasswordPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signin" && /* @__PURE__ */ React.createElement(SignInFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "signup" && /* @__PURE__ */ React.createElement(SignUpFullPage, { onLogin: handleCustomerLogin, goHome, navigate }), view === "forgot-password" && /* @__PURE__ */ React.createElement(ForgotPasswordFullPage, { goHome, navigate }), view === "installation" && /* @__PURE__ */ React.createElement(InstallationPage, { onRequestQuote: () => {
       setInstallModalProduct(null);
       setShowInstallModal(true);
-    } }), view === "inspiration" && /* @__PURE__ */ React.createElement(InspirationPage, { navigate, goBrowse }), view === "sale" && /* @__PURE__ */ React.createElement(SalePage, { onSkuClick: goSkuDetail, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }), view === "cabinets" && /* @__PURE__ */ React.createElement(CabinetsPage, null), view === "about" && /* @__PURE__ */ React.createElement(AboutPage, { navigate }), view === "coming-soon" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "6rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.5rem", marginBottom: "1rem" } }, comingSoonTitle), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1.125rem", lineHeight: 1.6, marginBottom: "2rem" } }, "This page is coming soon. We're working on something beautiful."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goHome }, "Back to Home")), view === "terms" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "terms", goHome, navigate }), view === "privacy" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "privacy", goHome, navigate }), view === "accessibility" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "accessibility", goHome, navigate }), view === "returns" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "returns", goHome, navigate }), /* @__PURE__ */ React.createElement(CookieConsent, { navigate }), /* @__PURE__ */ React.createElement(
+    } }), view === "custom-accessories" && /* @__PURE__ */ React.createElement(CustomAccessoriesPage, { onRequestQuote: () => {
+      setInstallModalProduct(null);
+      setShowInstallModal(true);
+    } }), view === "inspiration" && /* @__PURE__ */ React.createElement(InspirationPage, { navigate, goBrowse }), view === "sale" && /* @__PURE__ */ React.createElement(SalePage, { onSkuClick: goSkuDetail, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }), view === "cabinets" && /* @__PURE__ */ React.createElement(CabinetsPage, { onRequestQuote: () => {
+      setInstallModalProduct(null);
+      setShowInstallModal(true);
+    } }), view === "about" && /* @__PURE__ */ React.createElement(AboutPage, { navigate }), view === "coming-soon" && /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 600, margin: "6rem auto", textAlign: "center", padding: "0 2rem" } }, /* @__PURE__ */ React.createElement("h1", { style: { fontFamily: "var(--font-heading)", fontWeight: 300, fontSize: "2.5rem", marginBottom: "1rem" } }, comingSoonTitle), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-500)", fontSize: "1.125rem", lineHeight: 1.6, marginBottom: "2rem" } }, "This page is coming soon. We're working on something beautiful."), /* @__PURE__ */ React.createElement("button", { className: "btn", onClick: goHome }, "Back to Home")), view === "terms" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "terms", goHome, navigate }), view === "privacy" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "privacy", goHome, navigate }), view === "accessibility" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "accessibility", goHome, navigate }), view === "returns" && /* @__PURE__ */ React.createElement(LegalPage, { kind: "returns", goHome, navigate }), /* @__PURE__ */ React.createElement(CookieConsent, { navigate }), /* @__PURE__ */ React.createElement(
       CartDrawer,
       {
         cart,
@@ -3310,6 +3409,7 @@
         },
         globalFacets,
         onAxisSelect: handleAxisSelect,
+        navigate,
         goHome,
         goBrowse,
         goCollections,
@@ -3353,44 +3453,78 @@
   const MEGA_PANELS = {
     services: {
       label: "Services",
-      columns: [
-        { title: "Design", items: [
-          { name: "Free In-Home Consultation", meta: "Complimentary" },
-          { name: "Design Services", meta: "Custom layouts" },
-          { name: "Room Visualizer", meta: "See it in your space" },
-          { name: "Sample Program", meta: "Try before you buy" }
-        ] },
-        { title: "Installation", items: [
-          { name: "Professional Installation", meta: "Licensed & insured" },
-          { name: "Measurement & Estimate", meta: "Free with purchase" },
-          { name: "Demolition & Prep", meta: "Full service" },
-          { name: "Furniture Moving", meta: "Available" }
-        ] },
-        { title: "Support", items: [
-          { name: "Financing Options", meta: "0% APR available" },
-          { name: "Commercial Projects", meta: "Volume pricing" },
-          { name: "Warranty & Care", meta: "Maintenance guides" }
-        ] }
-      ],
-      featured: { title: "Free In-Home Consultation", meta: "Book your complimentary design visit", image: "/uploads/homepage/consult-hero.jpg", cta: "Book Now" }
+      layout: "cards",
+      cards: [
+        {
+          title: "Cabinets",
+          icon: "cabinet",
+          route: "/cabinets",
+          desc: "Waypoint & Cabinets R Us face-frame, Europa frameless \u2014 designed in-house, installed by our crew.",
+          cta: "Explore cabinetry"
+        },
+        {
+          title: "Installation",
+          icon: "install",
+          route: "/installation",
+          desc: "Licensed, insured crews. Free measure & estimate with your purchase.",
+          cta: "Book installation"
+        },
+        {
+          title: "Custom Accessories",
+          icon: "stairs",
+          route: "/custom-accessories",
+          desc: "Stair treads, transitions, trim & flush-mount vents made to match your floor.",
+          cta: "Learn more"
+        },
+        {
+          title: "Custom Area Rugs",
+          icon: "rug",
+          route: "/custom-area-rugs",
+          desc: "Bound rugs cut to any size, shape, and edge \u2014 from our carpet or yours.",
+          cta: "Request a quote"
+        }
+      ]
     }
   };
+  function ServiceIcon({ name }) {
+    const p = { width: 26, height: 26, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.4, strokeLinecap: "round", strokeLinejoin: "round" };
+    if (name === "cabinet") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "1" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "3", x2: "12", y2: "21" }), /* @__PURE__ */ React.createElement("line", { x1: "9.5", y1: "11", x2: "9.5", y2: "13" }), /* @__PURE__ */ React.createElement("line", { x1: "14.5", y1: "11", x2: "14.5", y2: "13" }));
+    if (name === "install") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M14.7 6.3a3.5 3.5 0 0 0-4.6 4.3L3 17.7 6.3 21l7.1-7.1a3.5 3.5 0 0 0 4.3-4.6l-2.3 2.3-2.1-.6-.6-2.1 2.3-2.3Z" }));
+    if (name === "stairs") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M3 20h4v-4h4v-4h4V8h4V4" }));
+    if (name === "rug") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "4", y: "6", width: "16", height: "12", rx: "1.5" }), /* @__PURE__ */ React.createElement("path", { d: "M4 9h16M4 15h16" }), /* @__PURE__ */ React.createElement("path", { d: "M2 6v-1M6 6v-1M10 6v-1M14 6v-1M18 6v-1M22 6v-1M2 18v1M6 18v1M10 18v1M14 18v1M18 18v1M22 18v1" }));
+    return null;
+  }
   function MegaPanel({ panelId, categories, onCategorySelect, onTradeClick, navigate, shopColumns, onEnter, onClose }) {
     if (panelId === "shop") {
       return /* @__PURE__ */ React.createElement("div", { className: "mega-panel", onMouseEnter: onEnter, onMouseLeave: onClose }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-inner" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-shop-cols" }, shopColumns.map((col) => /* @__PURE__ */ React.createElement("div", { key: col.title, className: "mega-panel-col" }, /* @__PURE__ */ React.createElement("button", { className: "mega-panel-col-title mega-panel-col-title-btn", onClick: () => onCategorySelect(col.slug) }, col.title), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-items" }, col.items.map((item) => /* @__PURE__ */ React.createElement("button", { key: item.slug + item.name, className: `mega-panel-link${item.isViewAll ? " mega-panel-view-all" : ""}`, onClick: () => onCategorySelect(item.slug) }, item.name, !item.isViewAll && item.count > 0 && /* @__PURE__ */ React.createElement("span", { className: "mega-panel-link-meta" }, item.count)))))))));
     }
     const panel = MEGA_PANELS[panelId];
     if (!panel) return null;
+    if (panel.layout === "cards") {
+      return /* @__PURE__ */ React.createElement("div", { className: "mega-panel", onMouseEnter: onEnter, onMouseLeave: onClose }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-inner" }, /* @__PURE__ */ React.createElement("div", { className: "mega-svc-grid" }, panel.cards.map((card) => /* @__PURE__ */ React.createElement("button", { key: card.title, className: "mega-svc-card", onClick: () => {
+        onClose();
+        navigate(card.route);
+      } }, /* @__PURE__ */ React.createElement("span", { className: "mega-svc-icon" }, /* @__PURE__ */ React.createElement(ServiceIcon, { name: card.icon })), /* @__PURE__ */ React.createElement("span", { className: "mega-svc-title" }, card.title), /* @__PURE__ */ React.createElement("span", { className: "mega-svc-desc" }, card.desc), /* @__PURE__ */ React.createElement("span", { className: "mega-svc-cta" }, card.cta, " \u2192"))))));
+    }
     const colCount = panel.columns.length + (panel.featured ? 1 : 0);
-    return /* @__PURE__ */ React.createElement("div", { className: "mega-panel", onMouseEnter: onEnter, onMouseLeave: onClose }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-inner" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-grid", style: { gridTemplateColumns: `repeat(${colCount}, 1fr)` } }, panel.columns.map((col) => /* @__PURE__ */ React.createElement("div", { key: col.title, className: "mega-panel-col" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-col-title" }, col.title), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-items" }, col.items.map((item) => /* @__PURE__ */ React.createElement("button", { key: item.name, className: "mega-panel-link", onClick: () => {
+    return /* @__PURE__ */ React.createElement("div", { className: "mega-panel", onMouseEnter: onEnter, onMouseLeave: onClose }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-inner" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-grid", style: { gridTemplateColumns: `repeat(${colCount}, 1fr)` } }, panel.columns.map((col) => /* @__PURE__ */ React.createElement("div", { key: col.title, className: "mega-panel-col" }, col.route ? /* @__PURE__ */ React.createElement("button", { className: "mega-panel-col-title mega-panel-col-title-btn", onClick: () => {
+      onClose();
+      navigate(col.route);
+    } }, col.title) : /* @__PURE__ */ React.createElement("div", { className: "mega-panel-col-title" }, col.title), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-items" }, col.items.map((item) => /* @__PURE__ */ React.createElement("button", { key: item.name, className: `mega-panel-link${item.isViewAll ? " mega-panel-view-all" : ""}`, onClick: () => {
       if (item.action === "trade") {
         onTradeClick();
+      } else if (item.route) {
+        onClose();
+        navigate(item.route);
       } else {
         navigate("/shop");
       }
-    } }, item.name, item.meta && /* @__PURE__ */ React.createElement("span", { className: "mega-panel-link-meta" }, item.meta)))))), panel.featured && /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-eyebrow" }, "Featured"), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-card", onClick: () => {
+    } }, item.name, item.meta && !item.isViewAll && /* @__PURE__ */ React.createElement("span", { className: "mega-panel-link-meta" }, item.meta)))))), panel.featured && /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-eyebrow" }, "Featured"), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-card", onClick: () => {
       if (panelId === "trade") onTradeClick();
-      else navigate("/shop");
+      else if (panel.featured.route) {
+        onClose();
+        navigate(panel.featured.route);
+      } else navigate("/shop");
     } }, /* @__PURE__ */ React.createElement("img", { src: panel.featured.image, alt: panel.featured.title, loading: "lazy", decoding: "async" }), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-overlay" }, /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-title" }, panel.featured.title), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-meta" }, panel.featured.meta), /* @__PURE__ */ React.createElement("div", { className: "mega-panel-featured-cta" }, panel.featured.cta, " \u2192")))))));
   }
   function SearchPanel({ searchInput, parentCats, suggestData, suggestLoading, popularSearches, recentSearches, activeIdx, onSearch, onCategorySelect, onSkuClick, onClose, selectSuggestion, tradeCustomer, hasSuggestResults, suggestItems, navigate }) {
@@ -3448,8 +3582,8 @@
       navigate("/trade");
     } }, /* @__PURE__ */ React.createElement("span", { className: "search-panel-scope-name" }, "Trade catalog"), /* @__PURE__ */ React.createElement("span", { className: "search-panel-scope-meta" }, "Trade only")), /* @__PURE__ */ React.createElement("div", { className: "search-panel-scope-item", onClick: () => {
       onClose();
-      navigate("/design-services");
-    } }, /* @__PURE__ */ React.createElement("span", { className: "search-panel-scope-name" }, "Services"), /* @__PURE__ */ React.createElement("span", { className: "search-panel-scope-meta" }, "Design & install"))))), /* @__PURE__ */ React.createElement("div", { className: "search-panel-footer" }, /* @__PURE__ */ React.createElement("div", { className: "search-panel-footer-keys" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("span", { className: "search-panel-kbd" }, "\u2191"), /* @__PURE__ */ React.createElement("span", { className: "search-panel-kbd" }, "\u2193"), " Navigate"), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("span", { className: "search-panel-kbd" }, "\u21B5"), " Select"), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("span", { className: "search-panel-kbd" }, "Esc"), " Close")), /* @__PURE__ */ React.createElement("span", { className: "search-panel-footer-action", onClick: () => {
+      navigate("/cabinets");
+    } }, /* @__PURE__ */ React.createElement("span", { className: "search-panel-scope-name" }, "Services"), /* @__PURE__ */ React.createElement("span", { className: "search-panel-scope-meta" }, "Cabinets & install"))))), /* @__PURE__ */ React.createElement("div", { className: "search-panel-footer" }, /* @__PURE__ */ React.createElement("div", { className: "search-panel-footer-keys" }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("span", { className: "search-panel-kbd" }, "\u2191"), /* @__PURE__ */ React.createElement("span", { className: "search-panel-kbd" }, "\u2193"), " Navigate"), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("span", { className: "search-panel-kbd" }, "\u21B5"), " Select"), /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("span", { className: "search-panel-kbd" }, "Esc"), " Close")), /* @__PURE__ */ React.createElement("span", { className: "search-panel-footer-action", onClick: () => {
       onClose();
       navigate("/shop");
     } }, "Search 2,400+ products")));
@@ -3687,7 +3821,7 @@
     }, "aria-label": "Clear search" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" }))), !searchInput && !searchOpen && /* @__PURE__ */ React.createElement("span", { className: "header-search-kbd" }, navigator.platform.indexOf("Mac") > -1 ? "\u2318K" : "Ctrl+K"));
     const NAV_ITEMS = [
       { id: "shop", label: "Shop", hasPanel: true, onClick: () => goBrowse() },
-      { id: "services", label: "Services", hasPanel: true, onClick: () => navigate("/design-services") },
+      { id: "services", label: "Services", hasPanel: true, onClick: () => navigate("/cabinets") },
       { id: "trade", label: "Trade", hasPanel: false, onClick: () => onTradeClick() },
       { id: "about", label: "About", hasPanel: false, onClick: () => navigate("/about") }
     ];
@@ -3912,8 +4046,15 @@
       onClose();
     } }, "View full details \u2192"))))));
   }
-  function MobileNav({ open, onClose, categories, onCategorySelect, globalFacets, onAxisSelect, goHome, goBrowse, goCollections, goTrade, goAccount, customer, tradeCustomer, onTradeClick, onCustomerLogout, onTradeLogout }) {
+  function MobileNav({ open, onClose, categories, onCategorySelect, globalFacets, onAxisSelect, goHome, goBrowse, goCollections, goTrade, goAccount, customer, tradeCustomer, onTradeClick, onCustomerLogout, onTradeLogout, navigate }) {
     const [expandedCat, setExpandedCat] = useState(null);
+    const [servicesOpen, setServicesOpen] = useState(false);
+    const serviceLinks = [
+      { name: "Cabinets", route: "/cabinets" },
+      { name: "Installation", route: "/installation" },
+      { name: "Custom Accessories", route: "/custom-accessories" },
+      { name: "Custom Area Rugs", route: "/custom-area-rugs" }
+    ];
     const parentCats = categories.filter((c) => !c.parent_id && c.product_count > 0);
     useEffect(() => {
       document.body.style.overflow = open ? "hidden" : "";
@@ -3951,7 +4092,11 @@
       e.preventDefault();
       goCollections();
       onClose();
-    } }, "Collections")), !tradeCustomer && /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-trade-cta", href: "#", onClick: (e) => {
+    } }, "Collections"), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-cat-item" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-cat-header", onClick: () => setServicesOpen(!servicesOpen) }, /* @__PURE__ */ React.createElement("span", null, "Services"), /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16, transform: servicesOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" } }, /* @__PURE__ */ React.createElement("polyline", { points: "6 9 12 15 18 9" }))), servicesOpen && /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-cat-children" }, serviceLinks.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.route, href: "#", onClick: (e) => {
+      e.preventDefault();
+      navigate(s.route);
+      onClose();
+    } }, s.name))))), !tradeCustomer && /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-trade-cta", href: "#", onClick: (e) => {
       e.preventDefault();
       onTradeClick();
       onClose();
@@ -10078,8 +10223,66 @@
     };
     return /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "modal-content", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("button", { className: "modal-close", onClick: onClose }, "\xD7"), submitted ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "2rem 0" } }, /* @__PURE__ */ React.createElement("div", { style: { width: 60, height: 60, borderRadius: "50%", background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.5rem" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "#059669", strokeWidth: "2", style: { width: 30, height: 30 } }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" }))), /* @__PURE__ */ React.createElement("h2", { style: { marginBottom: "0.5rem" } }, "Thank You!"), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", fontSize: "0.95rem" } }, "We'll be in touch within 1 business day.")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("h2", null, "Request Installation Quote"), product && /* @__PURE__ */ React.createElement("p", { style: { color: "var(--stone-600)", fontSize: "0.875rem", marginBottom: "1.5rem" } }, "For: ", fullProductName(product)), /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit }, error && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, error), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Name *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: name, onChange: (e) => setName(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Email *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Phone *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "tel", value: phone, onChange: (e) => setPhone(formatPhone(e.target.value)), required: true }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Company (optional)"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: companyName, onChange: (e) => setCompanyName(e.target.value), autoComplete: "organization" })), /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "ZIP Code"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: zipCode, onChange: (e) => setZipCode(e.target.value), maxLength: 5 })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Est. Square Feet"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "number", value: sqft, onChange: (e) => setSqft(e.target.value) }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Message"), /* @__PURE__ */ React.createElement("textarea", { className: "checkout-input", value: message, onChange: (e) => setMessage(e.target.value), rows: 3, style: { resize: "vertical" } })), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn", style: { width: "100%" } }, "Submit Inquiry")))));
   }
+  function InstallQuoteForm() {
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
+    const [companyName, setCompanyName] = useState("");
+    const [zipCode, setZipCode] = useState("");
+    const [sqft, setSqft] = useState("");
+    const [message, setMessage] = useState("");
+    const [submitted, setSubmitted] = useState(false);
+    const [error, setError] = useState("");
+    const [saving, setSaving] = useState(false);
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setError("");
+      setSaving(true);
+      try {
+        const body = { customer_name: name, customer_email: email, phone, company_name: companyName, zip_code: zipCode, estimated_sqft: sqft || null, message };
+        const res = await fetch(API + "/api/installation-inquiries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.error) {
+          setError(data.error);
+          setSaving(false);
+          return;
+        }
+        setSubmitted(true);
+      } catch (e2) {
+        setError("Unable to submit. Please try again.");
+        setSaving(false);
+      }
+    };
+    if (submitted) return /* @__PURE__ */ React.createElement("div", { className: "install-form-success" }, /* @__PURE__ */ React.createElement("div", { className: "install-form-success-icon" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "#059669", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" }))), /* @__PURE__ */ React.createElement("h3", null, "Thank You!"), /* @__PURE__ */ React.createElement("p", null, "Your request is in \u2014 we'll be in touch within 1 business day."));
+    return /* @__PURE__ */ React.createElement("form", { className: "install-quote-form", onSubmit: handleSubmit }, error && /* @__PURE__ */ React.createElement("div", { className: "checkout-error" }, error), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Name *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: name, onChange: (e) => setName(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Email *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Phone *"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "tel", value: phone, onChange: (e) => setPhone(formatPhone(e.target.value)), required: true }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Company (optional)"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: companyName, onChange: (e) => setCompanyName(e.target.value), autoComplete: "organization" })), /* @__PURE__ */ React.createElement("div", { className: "checkout-row" }, /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "ZIP Code"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", value: zipCode, onChange: (e) => setZipCode(e.target.value), maxLength: 5 })), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Est. Square Feet"), /* @__PURE__ */ React.createElement("input", { className: "checkout-input", type: "number", value: sqft, onChange: (e) => setSqft(e.target.value) }))), /* @__PURE__ */ React.createElement("div", { className: "checkout-field" }, /* @__PURE__ */ React.createElement("label", null, "Project details"), /* @__PURE__ */ React.createElement("textarea", { className: "checkout-input", value: message, onChange: (e) => setMessage(e.target.value), rows: 3, placeholder: "Flooring type, rooms, timeline\u2026", style: { resize: "vertical" } })), /* @__PURE__ */ React.createElement("button", { type: "submit", className: "btn btn-gold", disabled: saving, style: { width: "100%" } }, saving ? "Submitting\u2026" : "Request My Free Quote"));
+  }
+  function InstallFAQ({ items = INSTALL_FAQ }) {
+    const [open, setOpen] = useState(0);
+    return /* @__PURE__ */ React.createElement("div", { className: "install-faq-list" }, items.map(([q, a], i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "install-faq-item" + (open === i ? " open" : "") }, /* @__PURE__ */ React.createElement("button", { className: "install-faq-q", onClick: () => setOpen(open === i ? -1 : i), "aria-expanded": open === i }, /* @__PURE__ */ React.createElement("span", null, q), /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "6 9 12 15 18 9" }))), open === i && /* @__PURE__ */ React.createElement("div", { className: "install-faq-a" }, a))));
+  }
+  function InstallReviews() {
+    if (!INSTALL_REVIEWS || !INSTALL_REVIEWS.reviewCount) return null;
+    return /* @__PURE__ */ React.createElement("div", { className: "install-reviews" }, /* @__PURE__ */ React.createElement("h2", null, "What Orange County Homeowners Say"), /* @__PURE__ */ React.createElement("div", { className: "install-reviews-rating" }, /* @__PURE__ */ React.createElement("span", { className: "install-stars", "aria-hidden": "true" }, "\u2605\u2605\u2605\u2605\u2605"), /* @__PURE__ */ React.createElement("span", null, INSTALL_REVIEWS.ratingValue, " \xB7 ", INSTALL_REVIEWS.reviewCount, " Google reviews")), /* @__PURE__ */ React.createElement("div", { className: "install-reviews-grid" }, (INSTALL_REVIEWS.items || []).map((r, i) => /* @__PURE__ */ React.createElement("blockquote", { key: i, className: "install-review-card" }, /* @__PURE__ */ React.createElement("div", { className: "install-stars", "aria-hidden": "true" }, "\u2605".repeat(Math.round(r.rating || INSTALL_REVIEWS.ratingValue))), /* @__PURE__ */ React.createElement("p", null, "\u201C", r.text, "\u201D"), /* @__PURE__ */ React.createElement("cite", null, "\u2014 ", r.author)))));
+  }
   function InstallationPage({ onRequestQuote }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "installation-page" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero" }, /* @__PURE__ */ React.createElement("h1", null, "Professional Installation"), /* @__PURE__ */ React.createElement("p", null, "Licensed and insured installers with decades of combined experience. From hardwood to tile, we ensure a flawless finish on every project."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Free Quote")), /* @__PURE__ */ React.createElement("div", { className: "install-types" }, /* @__PURE__ */ React.createElement("h2", null, "What We Install"), /* @__PURE__ */ React.createElement("div", { className: "install-types-grid" }, /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "7", height: "7" }), /* @__PURE__ */ React.createElement("rect", { x: "14", y: "3", width: "7", height: "7" }), /* @__PURE__ */ React.createElement("rect", { x: "3", y: "14", width: "7", height: "7" }), /* @__PURE__ */ React.createElement("rect", { x: "14", y: "14", width: "7", height: "7" })), /* @__PURE__ */ React.createElement("h3", null, "Hardwood"), /* @__PURE__ */ React.createElement("p", null, "Solid and engineered hardwood installation with precision nailing, glue-down, or floating methods.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "12", x2: "21", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "3", x2: "12", y2: "21" })), /* @__PURE__ */ React.createElement("h3", null, "Tile & Porcelain"), /* @__PURE__ */ React.createElement("p", null, "Floor and wall tile installation including mortar-set, large-format, and mosaic applications.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M2 20h20" }), /* @__PURE__ */ React.createElement("path", { d: "M4 20V8l4-4h8l4 4v12" }), /* @__PURE__ */ React.createElement("path", { d: "M2 20l4-4" }), /* @__PURE__ */ React.createElement("path", { d: "M22 20l-4-4" })), /* @__PURE__ */ React.createElement("h3", null, "Luxury Vinyl"), /* @__PURE__ */ React.createElement("p", null, "Click-lock LVP and glue-down LVT for waterproof, durable performance in any room.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 2L2 7l10 5 10-5-10-5z" }), /* @__PURE__ */ React.createElement("path", { d: "M2 17l10 5 10-5" }), /* @__PURE__ */ React.createElement("path", { d: "M2 12l10 5 10-5" })), /* @__PURE__ */ React.createElement("h3", null, "Natural Stone"), /* @__PURE__ */ React.createElement("p", null, "Marble, travertine, slate, and quartzite installed with expert care for lasting beauty.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M4 20c0-4 4-4 4-8s-4-4-4-8" }), /* @__PURE__ */ React.createElement("path", { d: "M12 20c0-4 4-4 4-8s-4-4-4-8" }), /* @__PURE__ */ React.createElement("path", { d: "M20 20c0-4 4-4 4-8s-4-4-4-8" })), /* @__PURE__ */ React.createElement("h3", null, "Carpet"), /* @__PURE__ */ React.createElement("p", null, "Stretch-in and direct-glue carpet installation for bedrooms, living spaces, and commercial areas.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "2", y: "6", width: "20", height: "12", rx: "1" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "10", y1: "6", x2: "10", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "14", y1: "6", x2: "14", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "18", y2: "18" })), /* @__PURE__ */ React.createElement("h3", null, "Laminate"), /* @__PURE__ */ React.createElement("p", null, "Quick and affordable floating-floor laminate installation with seamless transitions.")))), /* @__PURE__ */ React.createElement("div", { className: "install-steps-section" }, /* @__PURE__ */ React.createElement("h2", null, "How It Works"), /* @__PURE__ */ React.createElement("div", { className: "install-steps" }, /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "1"), /* @__PURE__ */ React.createElement("h3", null, "Request a Quote"), /* @__PURE__ */ React.createElement("p", null, "Tell us about your project \u2014 flooring type, square footage, and timeline.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "2"), /* @__PURE__ */ React.createElement("h3", null, "Site Visit & Measure"), /* @__PURE__ */ React.createElement("p", null, "Our team visits your space for precise measurements and subfloor assessment.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "3"), /* @__PURE__ */ React.createElement("h3", null, "Schedule Installation"), /* @__PURE__ */ React.createElement("p", null, "Pick a date that works for you. We handle materials, prep, and cleanup.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "4"), /* @__PURE__ */ React.createElement("h3", null, "Enjoy Your New Floors"), /* @__PURE__ */ React.createElement("p", null, "Walk-through inspection, care instructions, and warranty documentation provided.")))), /* @__PURE__ */ React.createElement("div", { className: "install-benefits" }, /* @__PURE__ */ React.createElement("h2", null, "Why Choose Us"), /* @__PURE__ */ React.createElement("div", { className: "install-benefits-grid" }, /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" })), /* @__PURE__ */ React.createElement("h3", null, "Licensed & Insured"), /* @__PURE__ */ React.createElement("p", null, "California Contractor License #830966. Fully bonded and insured for your protection.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "8", r: "7" }), /* @__PURE__ */ React.createElement("polyline", { points: "8.21 13.89 7 23 12 20 17 23 15.79 13.88" })), /* @__PURE__ */ React.createElement("h3", null, "Manufacturer Certified"), /* @__PURE__ */ React.createElement("p", null, "Factory-trained installers certified by leading flooring manufacturers.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" })), /* @__PURE__ */ React.createElement("h3", null, "Warranty Included"), /* @__PURE__ */ React.createElement("p", null, "Every installation backed by our workmanship warranty for your peace of mind.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" })), /* @__PURE__ */ React.createElement("h3", null, "Free Estimates"), /* @__PURE__ */ React.createElement("p", null, "No-obligation quotes with transparent pricing. No hidden fees, ever.")))), /* @__PURE__ */ React.createElement("div", { className: "install-area" }, /* @__PURE__ */ React.createElement("h2", null, "Service Area"), /* @__PURE__ */ React.createElement("p", null, "We proudly serve Orange County and surrounding areas, including:"), /* @__PURE__ */ React.createElement("p", { className: "install-area-cities" }, "Anaheim \xB7 Fullerton \xB7 Irvine \xB7 Orange \xB7 Tustin \xB7 Santa Ana \xB7 Yorba Linda \xB7 Placentia \xB7 Brea \xB7 Buena Park \xB7 Huntington Beach \xB7 Costa Mesa \xB7 Newport Beach \xB7 Mission Viejo \xB7 Lake Forest \xB7 Laguna Hills")), /* @__PURE__ */ React.createElement("div", { className: "install-cta-band" }, /* @__PURE__ */ React.createElement("h2", null, "Ready to Get Started?"), /* @__PURE__ */ React.createElement("p", null, "Request a free, no-obligation quote and let our experts transform your space."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Free Quote")));
+    return /* @__PURE__ */ React.createElement("div", { className: "installation-page" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero-eyebrow" }, "Anaheim & Orange County"), /* @__PURE__ */ React.createElement("h1", null, "Flooring Installation in Anaheim & Orange County"), /* @__PURE__ */ React.createElement("p", null, "Licensed and insured installers with decades of combined experience. From hardwood to tile, Roma Flooring Designs delivers a clean, meticulous finish \u2014 backed by a workmanship warranty \u2014 for homeowners and businesses across Orange County and neighboring Los Angeles and Riverside counties. California Contractor License #830966."), /* @__PURE__ */ React.createElement("div", { className: "install-hero-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Free Quote"), /* @__PURE__ */ React.createElement("a", { className: "install-hero-phone", href: "tel:+17149990009" }, "Call (714) 999-0009"))), /* @__PURE__ */ React.createElement("div", { className: "install-types" }, /* @__PURE__ */ React.createElement("h2", null, "What We Install"), /* @__PURE__ */ React.createElement("div", { className: "install-types-grid" }, /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "7", height: "7" }), /* @__PURE__ */ React.createElement("rect", { x: "14", y: "3", width: "7", height: "7" }), /* @__PURE__ */ React.createElement("rect", { x: "3", y: "14", width: "7", height: "7" }), /* @__PURE__ */ React.createElement("rect", { x: "14", y: "14", width: "7", height: "7" })), /* @__PURE__ */ React.createElement("h3", null, "Hardwood"), /* @__PURE__ */ React.createElement("p", null, "Solid and engineered hardwood installation with precision nailing, glue-down, or floating methods.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "12", x2: "21", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "3", x2: "12", y2: "21" })), /* @__PURE__ */ React.createElement("h3", null, "Tile & Porcelain"), /* @__PURE__ */ React.createElement("p", null, "Floor and wall tile installation including mortar-set, large-format, and mosaic applications.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M2 20h20" }), /* @__PURE__ */ React.createElement("path", { d: "M4 20V8l4-4h8l4 4v12" }), /* @__PURE__ */ React.createElement("path", { d: "M2 20l4-4" }), /* @__PURE__ */ React.createElement("path", { d: "M22 20l-4-4" })), /* @__PURE__ */ React.createElement("h3", null, "Luxury Vinyl"), /* @__PURE__ */ React.createElement("p", null, "Click-lock LVP and glue-down LVT for waterproof, durable performance in any room.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 2L2 7l10 5 10-5-10-5z" }), /* @__PURE__ */ React.createElement("path", { d: "M2 17l10 5 10-5" }), /* @__PURE__ */ React.createElement("path", { d: "M2 12l10 5 10-5" })), /* @__PURE__ */ React.createElement("h3", null, "Natural Stone"), /* @__PURE__ */ React.createElement("p", null, "Marble, travertine, slate, and quartzite installed with expert care for lasting beauty.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M4 20c0-4 4-4 4-8s-4-4-4-8" }), /* @__PURE__ */ React.createElement("path", { d: "M12 20c0-4 4-4 4-8s-4-4-4-8" }), /* @__PURE__ */ React.createElement("path", { d: "M20 20c0-4 4-4 4-8s-4-4-4-8" })), /* @__PURE__ */ React.createElement("h3", null, "Carpet"), /* @__PURE__ */ React.createElement("p", null, "Stretch-in and direct-glue carpet installation for bedrooms, living spaces, and commercial areas.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "2", y: "6", width: "20", height: "12", rx: "1" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "10", y1: "6", x2: "10", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "14", y1: "6", x2: "14", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "18", y2: "18" })), /* @__PURE__ */ React.createElement("h3", null, "Laminate"), /* @__PURE__ */ React.createElement("p", null, "Quick and affordable floating-floor laminate installation with seamless transitions.")))), /* @__PURE__ */ React.createElement("div", { className: "install-steps-section" }, /* @__PURE__ */ React.createElement("h2", null, "How It Works"), /* @__PURE__ */ React.createElement("div", { className: "install-steps" }, /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "1"), /* @__PURE__ */ React.createElement("h3", null, "Request a Quote"), /* @__PURE__ */ React.createElement("p", null, "Tell us about your project \u2014 flooring type, square footage, and timeline.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "2"), /* @__PURE__ */ React.createElement("h3", null, "Site Visit & Measure"), /* @__PURE__ */ React.createElement("p", null, "Our team visits your space for precise measurements and subfloor assessment.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "3"), /* @__PURE__ */ React.createElement("h3", null, "Schedule Installation"), /* @__PURE__ */ React.createElement("p", null, "Pick a date that works for you. We handle materials, prep, and cleanup.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "4"), /* @__PURE__ */ React.createElement("h3", null, "Enjoy Your New Floors"), /* @__PURE__ */ React.createElement("p", null, "Walk-through inspection, care instructions, and warranty documentation provided.")))), /* @__PURE__ */ React.createElement("div", { className: "install-benefits" }, /* @__PURE__ */ React.createElement("h2", null, "Why Choose Us"), /* @__PURE__ */ React.createElement("div", { className: "install-benefits-grid" }, /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" })), /* @__PURE__ */ React.createElement("h3", null, "Licensed & Insured"), /* @__PURE__ */ React.createElement("p", null, "California Contractor License #830966. Fully bonded and insured for your protection.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "8", r: "7" }), /* @__PURE__ */ React.createElement("polyline", { points: "8.21 13.89 7 23 12 20 17 23 15.79 13.88" })), /* @__PURE__ */ React.createElement("h3", null, "Manufacturer Certified"), /* @__PURE__ */ React.createElement("p", null, "Factory-trained installers certified by leading flooring manufacturers.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" })), /* @__PURE__ */ React.createElement("h3", null, "Warranty Included"), /* @__PURE__ */ React.createElement("p", null, "Every installation backed by our workmanship warranty for your peace of mind.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" })), /* @__PURE__ */ React.createElement("h3", null, "Free Estimates"), /* @__PURE__ */ React.createElement("p", null, "No-obligation quotes with clear, upfront pricing.")))), /* @__PURE__ */ React.createElement(InstallReviews, null), /* @__PURE__ */ React.createElement("div", { className: "install-area" }, /* @__PURE__ */ React.createElement("h2", null, "Our Southern California Service Area"), /* @__PURE__ */ React.createElement("p", null, "Roma Flooring Designs installs flooring across Orange County and neighboring Los Angeles and Riverside counties, including:"), SERVICE_AREAS.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.county, className: "install-area-group" }, /* @__PURE__ */ React.createElement("h3", null, a.county), /* @__PURE__ */ React.createElement("p", { className: "install-area-cities" }, a.cities.join(" \xB7 ")))), /* @__PURE__ */ React.createElement("p", { className: "install-area-nap" }, "Showroom: 1440 S. State College Blvd #6M, Anaheim, CA 92806 \xB7 ", /* @__PURE__ */ React.createElement("a", { href: "tel:+17149990009" }, "(714) 999-0009"))), /* @__PURE__ */ React.createElement("div", { className: "install-quote-section", id: "quote" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-inner" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-copy" }, /* @__PURE__ */ React.createElement("h2", null, "Request a Free Installation Quote"), /* @__PURE__ */ React.createElement("p", null, "Tell us about your project and our Anaheim team will follow up within one business day with a free, no-obligation estimate and clear, upfront pricing.")), /* @__PURE__ */ React.createElement("div", { className: "install-quote-card" }, /* @__PURE__ */ React.createElement(InstallQuoteForm, null)))), /* @__PURE__ */ React.createElement("div", { className: "install-faq-section" }, /* @__PURE__ */ React.createElement("h2", null, "Flooring Installation FAQ"), /* @__PURE__ */ React.createElement(InstallFAQ, null)), /* @__PURE__ */ React.createElement("div", { className: "install-cta-band" }, /* @__PURE__ */ React.createElement("h2", null, "Ready to Get Started?"), /* @__PURE__ */ React.createElement("p", null, "Request a free, no-obligation quote and let our Orange County experts transform your space."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Free Quote")));
+  }
+  function AccIcon({ name }) {
+    const p = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5 };
+    if (name === "tile") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "1" }), /* @__PURE__ */ React.createElement("path", { d: "M3 3l4 4M21 3l-4 4M3 21l4-4M21 21l-4-4" }));
+    if (name === "cut") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "6", r: "3" }), /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "18", r: "3" }), /* @__PURE__ */ React.createElement("line", { x1: "20", y1: "4", x2: "8.12", y2: "15.88" }), /* @__PURE__ */ React.createElement("line", { x1: "14.47", y1: "14.48", x2: "20", y2: "20" }), /* @__PURE__ */ React.createElement("line", { x1: "8.12", y1: "8.12", x2: "12", y2: "12" }));
+    if (name === "mosaic") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "7", height: "7", rx: "1" }), /* @__PURE__ */ React.createElement("rect", { x: "14", y: "3", width: "7", height: "7", rx: "1" }), /* @__PURE__ */ React.createElement("rect", { x: "3", y: "14", width: "7", height: "7", rx: "1" }), /* @__PURE__ */ React.createElement("rect", { x: "14", y: "14", width: "7", height: "7", rx: "1" }));
+    if (name === "stairs") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M3 20h4v-4h4v-4h4V8h4V4" }));
+    if (name === "molding") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M3 20h18" }), /* @__PURE__ */ React.createElement("path", { d: "M3 20v-4c0-2 2-2 2-5s2-3 4-3h12" }));
+    if (name === "swatch") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 17.5V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v13.5a3.5 3.5 0 1 1-7 0Z" }), /* @__PURE__ */ React.createElement("path", { d: "M10 8.5 15 3.6a2 2 0 0 1 2.8 0l2.6 2.6a2 2 0 0 1 0 2.8L10 19.5" }), /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "17", r: ".5" }));
+    return null;
+  }
+  function CustomAccessoriesPage({ onRequestQuote }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "installation-page" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero-eyebrow" }, "Made to Match Your Floor"), /* @__PURE__ */ React.createElement("h1", null, "Custom Floor Trim & Tile Accessories"), /* @__PURE__ */ React.createElement("p", null, "Off-the-shelf trim rarely matches. Roma Flooring Designs fabricates custom tile edging and color-matched wood moldings made to order for your specific tile or plank \u2014 so stairs, transitions, and borders look built-in, not bolted on. Anaheim showroom, serving all of Orange County."), /* @__PURE__ */ React.createElement("div", { className: "install-hero-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Quote"), /* @__PURE__ */ React.createElement("a", { className: "install-hero-phone", href: "tel:+17149990009" }, "Call (714) 999-0009"))), /* @__PURE__ */ React.createElement("div", { className: "install-types" }, /* @__PURE__ */ React.createElement("h2", null, "Custom Tile Trim & Edging"), /* @__PURE__ */ React.createElement("div", { className: "install-types-grid" }, ACC_TILE.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.name, className: "install-type-card" }, /* @__PURE__ */ React.createElement(AccIcon, { name: t.icon }), /* @__PURE__ */ React.createElement("h3", null, t.name), /* @__PURE__ */ React.createElement("p", null, t.desc))))), /* @__PURE__ */ React.createElement("div", { className: "install-types", style: { paddingTop: 0 } }, /* @__PURE__ */ React.createElement("h2", null, "Custom Wood Trim & Moldings"), /* @__PURE__ */ React.createElement("div", { className: "install-types-grid" }, ACC_WOOD.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.name, className: "install-type-card" }, /* @__PURE__ */ React.createElement(AccIcon, { name: t.icon }), /* @__PURE__ */ React.createElement("h3", null, t.name), /* @__PURE__ */ React.createElement("p", null, t.desc))))), /* @__PURE__ */ React.createElement("div", { className: "install-benefits" }, /* @__PURE__ */ React.createElement("h2", null, "Why Order Custom"), /* @__PURE__ */ React.createElement("div", { className: "install-benefits-grid" }, /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" })), /* @__PURE__ */ React.createElement("h3", null, "Made to Match"), /* @__PURE__ */ React.createElement("p", null, "Fabricated from your own tile or color-matched to your plank to keep variation to a minimum.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "8", r: "7" }), /* @__PURE__ */ React.createElement("polyline", { points: "8.21 13.89 7 23 12 20 17 23 15.79 13.88" })), /* @__PURE__ */ React.createElement("h3", null, "Factory-Grade Finish"), /* @__PURE__ */ React.createElement("p", null, "Glazed, kiln-fired tile edges and milled wood profiles built to last.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M3 20h4v-4h4v-4h4V8h4V4" })), /* @__PURE__ */ React.createElement("h3", null, "Finished Stairs & Edges"), /* @__PURE__ */ React.createElement("p", null, "Bullnose, stair treads, nosing, and transitions that complete the installation.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 7h-9M14 17H5M17 3l4 4-4 4M7 21l-4-4 4-4" })), /* @__PURE__ */ React.createElement("h3", null, "One Source"), /* @__PURE__ */ React.createElement("p", null, "Order your accessories alongside your flooring \u2014 specced, made, and installed by one team.")))), /* @__PURE__ */ React.createElement("div", { className: "install-steps-section" }, /* @__PURE__ */ React.createElement("h2", null, "How It Works"), /* @__PURE__ */ React.createElement("div", { className: "install-steps" }, /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "1"), /* @__PURE__ */ React.createElement("h3", null, "Pick Your Floor"), /* @__PURE__ */ React.createElement("p", null, "Choose your tile or plank, or bring in the material you already have.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "2"), /* @__PURE__ */ React.createElement("h3", null, "We Spec the Trim"), /* @__PURE__ */ React.createElement("p", null, "We identify every edge, stair, and transition your project needs.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "3"), /* @__PURE__ */ React.createElement("h3", null, "Made to Match"), /* @__PURE__ */ React.createElement("p", null, "Your bullnose, stair treads, and moldings are fabricated to order.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "4"), /* @__PURE__ */ React.createElement("h3", null, "Install or Pick Up"), /* @__PURE__ */ React.createElement("p", null, "Our crews install the accessories, or you collect them at our showroom.")))), /* @__PURE__ */ React.createElement("div", { className: "install-quote-section", id: "quote" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-inner" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-copy" }, /* @__PURE__ */ React.createElement("h2", null, "Request a Custom Accessory Quote"), /* @__PURE__ */ React.createElement("p", null, "Tell us about your floor and the pieces you need \u2014 bullnose, stair treads, moldings, transitions \u2014 and our Anaheim team will follow up within one business day.")), /* @__PURE__ */ React.createElement("div", { className: "install-quote-card" }, /* @__PURE__ */ React.createElement(InstallQuoteForm, null)))), /* @__PURE__ */ React.createElement("div", { className: "install-faq-section" }, /* @__PURE__ */ React.createElement("h2", null, "Custom Accessories FAQ"), /* @__PURE__ */ React.createElement(InstallFAQ, { items: ACC_FAQ })), /* @__PURE__ */ React.createElement("div", { className: "install-cta-band" }, /* @__PURE__ */ React.createElement("h2", null, "Finish Your Floor the Right Way"), /* @__PURE__ */ React.createElement("p", null, "Get matching trim, stairs, and transitions made to order \u2014 request a free quote today."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Quote")));
   }
   function SalePage({ onSkuClick, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }) {
     const [skus, setSkus] = useState([]);
@@ -11140,10 +11343,10 @@
     } }, "New Arrivals"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       navigate("/shop?sale=1");
-    } }, "Sale")), /* @__PURE__ */ React.createElement("div", { className: "footer-col" }, /* @__PURE__ */ React.createElement("h4", null, "Services"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    } }, "Sale")), /* @__PURE__ */ React.createElement("div", { className: "footer-col" }, /* @__PURE__ */ React.createElement("h4", null, "Services"), /* @__PURE__ */ React.createElement("a", { href: "/installation", onClick: (e) => {
       e.preventDefault();
       onInstallClick && onInstallClick();
-    } }, "Installation"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    } }, "Flooring Installation"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       navigate("/shop");
     } }, "Design Consultation"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {

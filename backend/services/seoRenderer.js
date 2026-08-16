@@ -71,6 +71,9 @@ function parsePath(reqPath, query) {
   // static pages
   if (path === '/') return { type: 'static', page: 'home' };
   if (path === '/trade') return { type: 'static', page: 'trade' };
+  if (path === '/installation') return { type: 'static', page: 'installation' };
+  if (path === '/custom-accessories') return { type: 'static', page: 'custom-accessories' };
+  if (path === '/cabinets') return { type: 'static', page: 'cabinets' };
   if (path === '/privacy') return { type: 'static', page: 'privacy' };
   if (path === '/terms') return { type: 'static', page: 'terms' };
 
@@ -700,7 +703,266 @@ function renderCollectionsIndex(collections) {
   return { title, description, canonicalUrl, ogImage: null, jsonLd, bodyContent };
 }
 
+// ==================== Installation (local SEO) ====================
+// Shared source of truth so the prerendered body and the JSON-LD stay in sync.
+// Tri-county service area — keep identical to frontend/storefront.jsx SERVICE_AREAS.
+const SERVICE_AREAS = [
+  { county: 'Orange County', cities: ['Anaheim','Fullerton','Irvine','Orange','Tustin','Santa Ana','Yorba Linda','Placentia','Brea','Buena Park','Huntington Beach','Costa Mesa','Newport Beach','Mission Viejo','Lake Forest','Laguna Hills'] },
+  { county: 'Los Angeles County', cities: ['Long Beach','Cerritos','Lakewood','La Mirada','Whittier','Norwalk','Downey','Diamond Bar','West Covina','Pomona'] },
+  { county: 'Riverside County', cities: ['Corona','Riverside','Eastvale','Norco','Jurupa Valley','Moreno Valley'] },
+];
+
+const INSTALL_TYPES = [
+  ['Hardwood', 'Solid and engineered hardwood installation — nail-down, glue-down, or floating.'],
+  ['Tile & Porcelain', 'Floor and wall tile, including large-format and mosaic, mortar-set by hand.'],
+  ['Luxury Vinyl', 'Click-lock LVP and glue-down LVT for waterproof, durable performance.'],
+  ['Natural Stone', 'Marble, travertine, slate, and quartzite set with expert care.'],
+  ['Carpet', 'Stretch-in and direct-glue carpet for bedrooms, living areas, and commercial spaces.'],
+  ['Laminate', 'Fast, affordable floating-floor laminate with seamless transitions.'],
+];
+
+const INSTALL_FAQ = [
+  ['Do you install flooring in Anaheim and Orange County?', 'Yes. Roma Flooring Designs is based in Anaheim and installs flooring throughout all of Orange County, as well as neighboring Los Angeles County (Long Beach, Cerritos, Whittier, Downey and more) and Riverside County (Corona, Riverside, Eastvale and more).'],
+  ['Are your installers licensed and insured?', 'Yes. We are a licensed California contractor (CSLB License #830966) and are fully bonded and insured for your protection.'],
+  ['Do you offer free estimates?', 'Yes. We provide free, no-obligation estimates with clear, upfront pricing. Request a quote and our team follows up within one business day.'],
+  ['How long does flooring installation take?', 'Most residential projects take one to three days depending on square footage, material, and subfloor prep. You get a firm timeline after the on-site measure.'],
+  ['Do you remove and dispose of old flooring?', 'Yes. Demolition, subfloor prep, haul-away, and cleanup are all part of our full-service installation.'],
+  ['Do I have to buy flooring from Roma to use your install crew?', 'We install materials purchased from our Anaheim showroom, and in many cases we can install flooring you already have. Contact us and we will walk you through the options.'],
+];
+
+// Real Google review data. Leave null until genuine data is supplied — never fabricate
+// ratings. Shape: { ratingValue: '4.9', reviewCount: 87, items: [{ author, rating, text }] }
+const INSTALL_REVIEWS = null;
+
+const BUSINESS_ID = SITE_URL + '/#business';
+
+function installationBusinessNode() {
+  const node = {
+    '@type': 'HomeAndConstructionBusiness',
+    '@id': BUSINESS_ID,
+    name: 'Roma Flooring Designs',
+    url: SITE_URL + '/installation',
+    telephone: '(714) 999-0009',
+    priceRange: '$$',
+    image: SITE_URL + '/uploads/og-default.jpg',
+    address: { '@type': 'PostalAddress', streetAddress: '1440 S. State College Blvd #6M', addressLocality: 'Anaheim', addressRegion: 'CA', postalCode: '92806', addressCountry: 'US' },
+    geo: { '@type': 'GeoCoordinates', latitude: 33.8271, longitude: -117.8827 },
+    openingHoursSpecification: [
+      { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday'], opens: '09:00', closes: '17:00' },
+      { '@type': 'OpeningHoursSpecification', dayOfWeek: 'Saturday', opens: '10:00', closes: '15:00' }
+    ],
+    areaServed: [
+      ...SERVICE_AREAS.flatMap(a => a.cities.map(c => ({ '@type': 'City', name: c }))),
+      ...SERVICE_AREAS.map(a => ({ '@type': 'AdministrativeArea', name: a.county }))
+    ],
+    hasCredential: { '@type': 'EducationalOccupationalCredential', credentialCategory: 'California Contractor License', identifier: '830966' }
+  };
+  if (INSTALL_REVIEWS && INSTALL_REVIEWS.reviewCount) {
+    node.aggregateRating = { '@type': 'AggregateRating', ratingValue: String(INSTALL_REVIEWS.ratingValue), reviewCount: String(INSTALL_REVIEWS.reviewCount) };
+    node.review = (INSTALL_REVIEWS.items || []).map(r => ({
+      '@type': 'Review', author: { '@type': 'Person', name: r.author },
+      reviewRating: { '@type': 'Rating', ratingValue: String(r.rating || INSTALL_REVIEWS.ratingValue) },
+      reviewBody: r.text
+    }));
+  }
+  return node;
+}
+
+function installationJsonLd() {
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      installationBusinessNode(),
+      {
+        '@type': 'Service',
+        name: 'Flooring Installation',
+        serviceType: 'Flooring installation',
+        provider: { '@id': BUSINESS_ID },
+        areaServed: SERVICE_AREAS.map(a => ({ '@type': 'AdministrativeArea', name: a.county })),
+        hasOfferCatalog: {
+          '@type': 'OfferCatalog',
+          name: 'Flooring Installation Services',
+          itemListElement: INSTALL_TYPES.map(([n, d]) => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: n + ' Installation', description: d } }))
+        }
+      },
+      { '@type': 'FAQPage', mainEntity: INSTALL_FAQ.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
+      { '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+        { '@type': 'ListItem', position: 2, name: 'Flooring Installation', item: SITE_URL + '/installation' }
+      ]}
+    ]
+  };
+}
+
+function renderInstallationPage() {
+  const title = 'Flooring Installation in Anaheim & Orange County | Roma Flooring Designs';
+  const description = 'Licensed, insured flooring installation in Anaheim & Orange County — hardwood, tile, luxury vinyl, stone, carpet & laminate. Free estimates. CA Lic #830966. Call (714) 999-0009.';
+  const canonicalUrl = SITE_URL + '/installation';
+  const typesHtml = INSTALL_TYPES.map(([n, d]) => `<li><strong>${escapeHtml(n)}:</strong> ${escapeHtml(d)}</li>`).join('');
+  const faqHtml = INSTALL_FAQ.map(([q, a]) => `<h3>${escapeHtml(q)}</h3><p>${escapeHtml(a)}</p>`).join('');
+  const areaHtml = SERVICE_AREAS.map(a => `<h3>${escapeHtml(a.county)}</h3><p>${a.cities.map(escapeHtml).join(', ')}</p>`).join('');
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li>Flooring Installation</li></ol></nav>
+    <h1>Flooring Installation in Anaheim &amp; Orange County</h1>
+    <p>Roma Flooring Designs provides professional, licensed flooring installation across Anaheim and all of Orange County, plus neighboring Los Angeles and Riverside counties. Our installers bring decades of combined experience to hardwood, tile, luxury vinyl, natural stone, carpet, and laminate — with a clean, meticulous finish and a workmanship warranty on every project. Visit our showroom at 1440 S. State College Blvd #6M, Anaheim, CA 92806, or call (714) 999-0009. California Contractor License #830966.</p>
+    <h2>What We Install</h2>
+    <ul>${typesHtml}</ul>
+    <h2>Our Southern California Service Area</h2>
+    <p>We install across Orange County and neighboring Los Angeles and Riverside counties, including:</p>
+    ${areaHtml}
+    <h2>Frequently Asked Questions</h2>
+    ${faqHtml}
+    <p><a href="/shop">Shop flooring</a> &middot; <a href="/cabinets">Custom cabinets</a></p>`;
+  return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd: installationJsonLd(), bodyContent };
+}
+
+// ==================== Custom Accessories (local SEO) ====================
+// Keep ACC_* identical to frontend/storefront.jsx so prerender + SPA match.
+const ACC_TILE = [
+  ['Custom Bullnose', 'Finished, glazed edges fabricated from your own field tile and kiln-fired for a factory-grade finish — made from the same tile to minimize dye-lot variation.'],
+  ['Cut-Downs', 'Your tile cut to custom sizes for liners, pencil trim, chair rails, and borders.'],
+  ['Custom Mosaics', 'Mosaic sheets fabricated from the same tile you chose, for coordinated accents and niches.'],
+  ['Tile Stair Treads', 'Porcelain and ceramic stair treads made from your tile with a finished, rounded nosing.'],
+];
+const ACC_WOOD = [
+  ['Color-Matched Moldings', 'Reducers, T-moldings, thresholds, end caps, quarter round, and base shoe milled and finished to match your floor.'],
+  ['Stair Parts', 'Stair nose, treads, risers, and landings made to match hardwood, laminate, or luxury vinyl plank.'],
+  ['Custom Color Match', 'Trim stained and finished to closely match your floor color so transitions blend in.'],
+];
+const ACC_FAQ = [
+  ['Can you make trim and accessories to match the floor I am buying?', 'Yes. We fabricate custom tile trim and color-matched wood moldings made to order for your specific tile or plank, so edges, stairs, and transitions are made to coordinate with your floor rather than relying on off-the-shelf pieces.'],
+  ['Can you fabricate bullnose, cut-downs, and stair treads from my tile?', 'Yes. We take your field tile and fabricate custom bullnose, cut-down sizes, mosaics, and stair treads with a glazed, kiln-fired edge for a factory-grade finish — in any size, profile, and finish, including large-format and wood-look tile.'],
+  ['Can you color-match wood moldings and stair parts to my floor?', 'Yes. We custom color-match reducers, T-moldings, thresholds, quarter round, stair nose, treads, risers, and landings to hardwood, laminate, and vinyl plank floors.'],
+  ['How long do custom accessories take?', 'Because every piece is made to order, lead times vary by material and profile. We give you a firm timeline with your quote.'],
+  ['Do I have to buy my flooring from Roma?', 'We fabricate matching accessories for materials purchased from our Anaheim showroom, and in many cases for flooring you already own. Contact us and we will review your project.'],
+  ['Do you install the accessories or can I pick them up?', 'Both. Our Orange County crews can install your custom trim and stair parts, or you can pick them up at our Anaheim showroom.'],
+];
+
+function customAccessoriesJsonLd() {
+  const business = {
+    '@type': 'HomeAndConstructionBusiness',
+    '@id': BUSINESS_ID,
+    name: 'Roma Flooring Designs',
+    url: SITE_URL + '/custom-accessories',
+    telephone: '(714) 999-0009',
+    priceRange: '$$',
+    image: SITE_URL + '/uploads/og-default.jpg',
+    address: { '@type': 'PostalAddress', streetAddress: '1440 S. State College Blvd #6M', addressLocality: 'Anaheim', addressRegion: 'CA', postalCode: '92806', addressCountry: 'US' },
+    geo: { '@type': 'GeoCoordinates', latitude: 33.8271, longitude: -117.8827 },
+    areaServed: { '@type': 'AdministrativeArea', name: 'Orange County' },
+    hasCredential: { '@type': 'EducationalOccupationalCredential', credentialCategory: 'California Contractor License', identifier: '830966' }
+  };
+  const offers = [...ACC_TILE, ...ACC_WOOD].map(([n, d]) => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: n, description: d } }));
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      business,
+      {
+        '@type': 'Service', name: 'Custom Floor Trim & Tile Accessory Fabrication', serviceType: 'Custom flooring trim and tile accessory fabrication',
+        provider: { '@id': BUSINESS_ID }, areaServed: { '@type': 'AdministrativeArea', name: 'Orange County' },
+        hasOfferCatalog: { '@type': 'OfferCatalog', name: 'Custom Floor Accessories', itemListElement: offers }
+      },
+      { '@type': 'FAQPage', mainEntity: ACC_FAQ.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
+      { '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+        { '@type': 'ListItem', position: 2, name: 'Custom Accessories', item: SITE_URL + '/custom-accessories' }
+      ]}
+    ]
+  };
+}
+
+function renderCustomAccessoriesPage() {
+  const title = 'Custom Tile Trim & Wood Floor Moldings | Roma Flooring Designs';
+  const description = 'Custom floor accessories in Anaheim & Orange County — bullnose, cut-downs, mosaics & tile stair treads fabricated from your tile, plus color-matched wood moldings & stair parts. Made to order. Call (714) 999-0009.';
+  const canonicalUrl = SITE_URL + '/custom-accessories';
+  const tileHtml = ACC_TILE.map(([n, d]) => `<li><strong>${escapeHtml(n)}:</strong> ${escapeHtml(d)}</li>`).join('');
+  const woodHtml = ACC_WOOD.map(([n, d]) => `<li><strong>${escapeHtml(n)}:</strong> ${escapeHtml(d)}</li>`).join('');
+  const faqHtml = ACC_FAQ.map(([q, a]) => `<h3>${escapeHtml(q)}</h3><p>${escapeHtml(a)}</p>`).join('');
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li>Custom Accessories</li></ol></nav>
+    <h1>Custom Floor Trim &amp; Tile Accessories in Anaheim &amp; Orange County</h1>
+    <p>Roma Flooring Designs fabricates custom trim and accessories made to match your floor — finished tile edges and color-matched wood moldings — so stairs, transitions, and borders look built-in, not bolted on. Every piece is made to order for your specific tile or plank. Visit our Anaheim showroom at 1440 S. State College Blvd #6M, Anaheim, CA 92806, or call (714) 999-0009.</p>
+    <h2>Custom Tile Trim &amp; Edging</h2>
+    <ul>${tileHtml}</ul>
+    <h2>Custom Wood Trim &amp; Moldings</h2>
+    <ul>${woodHtml}</ul>
+    <h2>Frequently Asked Questions</h2>
+    ${faqHtml}
+    <p><a href="/shop">Shop flooring</a> &middot; <a href="/installation">Flooring installation</a></p>`;
+  return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd: customAccessoriesJsonLd(), bodyContent };
+}
+
+// ==================== Cabinets (local SEO) ====================
+const CAB_LINES = [
+  ['Waypoint — Face-Frame Cabinetry', 'American-built', 'Classic, transitional & traditional kitchens', 'Painted maple and stained oak with a wood frame around the box for a classic, substantial look and time-tested strength.', ['Soft-close doors and drawers standard', 'Durable, dent-resistant painted and stained finishes', 'Six door styles from Shaker to arched and mullion']],
+  ['Europa — Frameless Cabinetry', 'Italian-engineered', 'Modern, contemporary & minimal kitchens', 'Full-access, European-style boxes with slab and slim fronts, integrated handles, and clean modern lines.', ['Soft-close and push-to-open throughout', 'Full-access interiors with wider drawers', 'Panel-ready fronts for a seamless, built-in look']],
+  ['Cabinets R Us — Face-Frame Cabinetry', 'Wholesale-direct', 'Transitional & modern kitchens, value-focused', 'Wholesale-direct value cabinetry — all-plywood boxes, solid-wood face frames, and soft-close dovetail drawers standard, kept in stock across shaker, flat-panel, high-gloss, and oak-tone door styles.', ['Soft-close dovetail drawers and doors standard', 'All-plywood boxes with solid-wood face frames', 'Shaker, flat-panel, high-gloss & oak-tone styles']],
+];
+const CAB_FAQ = [
+  ['What is the difference between face-frame and frameless cabinets?', 'Face-frame cabinets have a wood frame around the front of the box for a classic, substantial look and traditional strength. Frameless cabinets mount doors and drawers directly to the box for full-access interiors, wider drawers, and clean, modern European lines.'],
+  ['Do you design and install cabinets, or just sell them?', 'Both. We design your cabinetry in-house, help you choose the line, door style, and finish, and our own crew handles delivery and professional installation across Anaheim and Orange County.'],
+  ['Do you offer a budget-friendly cabinet line?', 'Yes. Our Cabinets R Us line is a wholesale-direct, value-priced option with all-plywood boxes, solid-wood face frames, and soft-close dovetail drawers standard — quality construction at a lower price point, in shaker, flat-panel, high-gloss, and oak-tone styles.'],
+  ['Can I see door styles and finishes in person?', 'Yes. Our Anaheim showroom has full display walls of all three cabinet lines, and you can take home free door samples in the finishes you are considering.'],
+  ['Do you make kitchen and bathroom cabinets?', 'Yes — kitchens, bathroom vanities, laundry rooms, offices, and built-ins. All three cabinet lines are available for every room.'],
+  ['How long do custom cabinets take?', 'Lead times vary by line and configuration. We give you a firm timeline with your quote once the design and selections are finalized.'],
+  ['Do you serve my area?', 'Our showroom is in Anaheim and we design and install cabinetry throughout Orange County.'],
+];
+
+function cabinetsJsonLd() {
+  const business = {
+    '@type': 'HomeAndConstructionBusiness', '@id': BUSINESS_ID, name: 'Roma Flooring Designs',
+    url: SITE_URL + '/cabinets', telephone: '(714) 999-0009', priceRange: '$$', image: SITE_URL + '/uploads/og-default.jpg',
+    address: { '@type': 'PostalAddress', streetAddress: '1440 S. State College Blvd #6M', addressLocality: 'Anaheim', addressRegion: 'CA', postalCode: '92806', addressCountry: 'US' },
+    geo: { '@type': 'GeoCoordinates', latitude: 33.8271, longitude: -117.8827 },
+    areaServed: { '@type': 'AdministrativeArea', name: 'Orange County' },
+    hasCredential: { '@type': 'EducationalOccupationalCredential', credentialCategory: 'California Contractor License', identifier: '830966' }
+  };
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      business,
+      {
+        '@type': 'Service', name: 'Custom Cabinet Design & Installation', serviceType: 'Kitchen and bath cabinet design and installation',
+        provider: { '@id': BUSINESS_ID }, areaServed: { '@type': 'AdministrativeArea', name: 'Orange County' },
+        hasOfferCatalog: { '@type': 'OfferCatalog', name: 'Cabinetry', itemListElement: CAB_LINES.map(l => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: l[0], description: l[3] } })) }
+      },
+      { '@type': 'FAQPage', mainEntity: CAB_FAQ.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
+      { '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+        { '@type': 'ListItem', position: 2, name: 'Cabinets', item: SITE_URL + '/cabinets' }
+      ]}
+    ]
+  };
+}
+
+function renderCabinetsPage() {
+  const title = 'Custom Kitchen & Bath Cabinets in Anaheim & Orange County | Roma Flooring Designs';
+  const description = 'Custom kitchen & bath cabinets in Anaheim & Orange County — Waypoint and Cabinets R Us face-frame lines plus Italian-engineered Europa frameless, designed in-house and installed by our crew. Visit our showroom. Call (714) 999-0009.';
+  const canonicalUrl = SITE_URL + '/cabinets';
+  const linesHtml = CAB_LINES.map(l => `<h3>${escapeHtml(l[0])} — ${escapeHtml(l[1])}</h3><p>${escapeHtml(l[3])}</p><ul>${l[4].map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul><p>Best for: ${escapeHtml(l[2])}.</p>`).join('');
+  const faqHtml = CAB_FAQ.map(([q, a]) => `<h3>${escapeHtml(q)}</h3><p>${escapeHtml(a)}</p>`).join('');
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li>Cabinets</li></ol></nav>
+    <h1>Custom Kitchen &amp; Bath Cabinets in Anaheim &amp; Orange County</h1>
+    <p>Roma Flooring Designs offers three cabinet lines, designed in-house and installed by our own crew: Waypoint American-built face-frame cabinetry, Cabinets R Us wholesale-direct face-frame cabinetry, and Europa Italian-engineered frameless cabinetry. See every door style and finish on full display walls at our Anaheim showroom at 1440 S. State College Blvd #6M, Anaheim, CA 92806, or call (714) 999-0009.</p>
+    <h2>Our Three Cabinet Lines</h2>
+    ${linesHtml}
+    <h2>Face-Frame vs. Frameless</h2>
+    <p>Face-frame cabinets have a wood frame around the front of the box for a classic, substantial look and traditional strength. Frameless cabinets mount doors and drawers directly to the box for full-access interiors, wider drawers, and clean, modern European lines.</p>
+    <h2>Door Styles &amp; Finishes</h2>
+    <p>Waypoint offers a dozen door styles (models 330–750) from Shaker to raised-panel and mullion, in a painted palette — Linen, Vanilla, Oat, Stone, Sage, Harbor, Navy, Slate, Cider, Amber, Black and more — plus stained maple, cherry, and hickory and Duraform laminate.</p>
+    <p>Cabinets R Us is our wholesale-direct value line: all-plywood boxes with solid-wood face frames, soft-close dovetail drawers, and adjustable shelves. Door styles include Shaker (White, Gray, Espresso, Blue, Misty Grey, Olive Green, Black, and White Oak), Double Shaker, Double Slim oak tones, Classic glazed, and flat-panel high-gloss. CARB2 compliant and an NKBA member.</p>
+    <p>Europa offers 75+ frameless door styles across painted, wood and Eurotek veneer, matte and high-gloss thermofoil, melamine, UltraLux, metal, and glass — thousands of finish combinations. Representative selections are on display at our Anaheim showroom; request door samples to confirm exact colors and the full current range.</p>
+    <h2>Frequently Asked Questions</h2>
+    ${faqHtml}
+    <p><a href="/installation">Flooring installation</a> &middot; <a href="/shop">Shop flooring</a></p>`;
+  return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd: cabinetsJsonLd(), bodyContent };
+}
+
 function renderStaticPage(page) {
+  if (page === 'installation') return renderInstallationPage();
+  if (page === 'custom-accessories') return renderCustomAccessoriesPage();
+  if (page === 'cabinets') return renderCabinetsPage();
   const pages = {
     home: {
       title: 'Roma Flooring Designs | Premium Flooring & Tile in Anaheim, CA',
