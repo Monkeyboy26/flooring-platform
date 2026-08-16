@@ -2103,6 +2103,7 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 /* ── INSTALLATION PAGE ── */
 .installation-page { }
 .install-hero { background: var(--stone-900); color: white; padding: 5rem 3rem; text-align: center; }
+.install-hero.cab-hero { min-height: 82vh; display: flex; flex-direction: column; justify-content: center; background-image: linear-gradient(rgba(20,17,15,0.5), rgba(20,17,15,0.62)), url('/uploads/cabinets/waypoint-oat-kitchen.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat; }
 .install-hero h1 { font-family: var(--font-heading); font-size: 3.5rem; font-weight: 300; margin-bottom: 1rem; }
 .install-hero p { font-size: 1.125rem; opacity: 0.7; max-width: 600px; margin: 0 auto 2rem; line-height: 1.6; }
 .install-types { max-width: var(--max-width); margin: 0 auto; padding: 4rem 3rem; }

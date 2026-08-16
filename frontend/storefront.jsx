@@ -1947,167 +1947,90 @@
 
     function CabAnatomyDiagram({ theme, framed, brand }) {
       const { ink, paper, accent, muted } = theme;
-      const VB_W = 720, VB_H = 600;
-      const CB_X0 = 120, CB_X1 = 600, CB_Y0 = 60, CB_Y1 = 280;
-      const WALL = 16, FRAME_DEPTH = 18, FRAME_INWARD = 14, DOOR_THK = 13, DOOR_LEN = 220;
-      const MID = (CB_X0 + CB_X1) / 2;
-      const frontY = CB_Y1;
-      const frameFrontY = frontY + FRAME_DEPTH;
-      const leftHinge = framed ? { x: CB_X0 + WALL + FRAME_INWARD, y: frameFrontY } : { x: CB_X0 + WALL, y: frontY };
-      const rightInner = framed ? CB_X1 - WALL - FRAME_INWARD : CB_X1 - WALL;
-      const openingStart = leftHinge.x, openingEnd = rightInner;
-      const usableLabel = framed ? '27\u2033' : '28\u00BD\u2033';
-      const doorOpenX = leftHinge.x, doorOpenY = leftHinge.y;
-      const doorOpenTipY = doorOpenY + DOOR_LEN;
-      const doorClosedTipX = leftHinge.x + DOOR_LEN;
-
+      const VB_W = 560, VB_H = 600;
+      const X0 = 78, X1 = 482, Y0 = 74, Y1 = 552;
+      const MID = (X0 + X1) / 2;
+      const frameCol = '#cbb187', frameGrain = '#b39560';
+      const doorCol = framed ? '#efe8d9' : '#e4ded2';
+      const boxCol = '#38332b';
+      const SW = 30, RH = 28, CS = 30, MR = 26;
+      const drwTop = Y0 + RH, drwBot = drwTop + 92;
+      const midBot = drwBot + MR;
+      const dTop = midBot, dBot = Y1 - RH;
+      const loX = X0 + SW, roX = X1 - SW, cL = MID - CS / 2, cR = MID + CS / 2;
+      const g = 6;
+      const flDoorTop = Y0 + 4 + 98 + g;
+      const shaker = (x, y, w, h, key) => (
+        <g key={key}>
+          <rect x={x} y={y} width={w} height={h} fill={doorCol} stroke={ink} strokeOpacity="0.5" strokeWidth="1" />
+          <rect x={x + 16} y={y + 16} width={w - 32} height={h - 32} fill={ink} fillOpacity="0.03" stroke={ink} strokeOpacity="0.22" strokeWidth="1" />
+        </g>
+      );
+      const slab = (x, y, w, h, key) => (
+        <g key={key}>
+          <rect x={x} y={y} width={w} height={h} fill={doorCol} stroke={ink} strokeOpacity="0.22" strokeWidth="0.8" />
+          <rect x={x} y={y} width={w} height={6} fill={ink} fillOpacity="0.12" stroke="none" />
+        </g>
+      );
+      const bullets = framed ? [
+        'Solid-wood face frame surrounds every door and drawer',
+        'Traditional shaker, beaded, and raised-panel doors read correctly against the frame',
+        'Reveal between doors hides seasonal wood movement',
+        'Field-repairable — a butt hinge swaps in minutes',
+      ] : [
+        'Fronts cover the box edge-to-edge — no visible frame',
+        'Doors and drawers sit flush with only a slim reveal between them',
+        'Concealed European hinge adjusts in three planes after install',
+        'Required for handleless, integrated-channel, and push-to-open designs',
+      ];
       return (
         <div>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 18, paddingBottom: 12, borderBottom: `0.5px solid ${ink}22` }}>
             <div>
-              <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, marginBottom: 6 }}>Plan view · Section A-A · 1 of 2</div>
+              <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, marginBottom: 6 }}>Front elevation</div>
               <div style={{ font: '400 32px/1 var(--font-heading)', color: ink, letterSpacing: '-0.01em' }}>{framed ? 'Face-frame' : 'Frameless'}</div>
             </div>
             <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: accent }}>{brand.name}</div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '0 0 18px', gap: 24 }}>
-            <div>
-              <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: muted, marginBottom: 10 }}>Door opening</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-                <span style={{ font: '300 64px/0.9 var(--font-heading)', color: ink, letterSpacing: '-0.02em' }}>{usableLabel}</span>
-                <span style={{ font: '400 14px/1 var(--font-body)', color: muted, fontStyle: 'italic' }}>{framed ? 'usable, after frame' : 'edge to edge'}</span>
-              </div>
-            </div>
-            <div style={{ font: '500 10px/1.5 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: framed ? muted : accent, textAlign: 'right' }}>
-              {framed ? (<React.Fragment><div>Lost to face frame</div><div style={{ color: ink, fontSize: 18, fontFamily: 'var(--font-heading), serif', textTransform: 'none', letterSpacing: '0', marginTop: 6 }}>{'\u2212'}3{'\u2033'} each cabinet</div></React.Fragment>)
-                : (<React.Fragment><div>Gained back</div><div style={{ color: ink, fontSize: 18, fontFamily: 'var(--font-heading), serif', textTransform: 'none', letterSpacing: '0', marginTop: 6 }}>+1{'\u00BD\u2033'} each cabinet</div></React.Fragment>)}
-            </div>
-          </div>
-          <div style={{ background: paper, border: `0.5px solid ${ink}22`, padding: '12px 18px 6px' }}>
-            <svg viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ width: '100%', height: 'auto', display: 'block', overflow: 'visible' }}>
-              <defs>
-                <pattern id={`anat-hatch-${framed ? 'fr' : 'fl'}`} patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
-                  <line x1="0" y1="0" x2="0" y2="5" stroke={ink} strokeWidth="0.6" strokeOpacity="0.7" />
-                </pattern>
-                <pattern id={`anat-frame-${framed ? 'fr' : 'fl'}`} patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(-45)">
-                  <line x1="0" y1="0" x2="0" y2="4" stroke={ink} strokeWidth="0.5" strokeOpacity="0.55" />
-                </pattern>
-              </defs>
-              {Array.from({ length: 13 }).map((_, i) => <line key={`gv${i}`} x1={120 + i * 40} y1={40} x2={120 + i * 40} y2={540} stroke={ink} strokeOpacity="0.04" strokeWidth="0.5" />)}
-              {Array.from({ length: 12 }).map((_, i) => <line key={`gh${i}`} x1={100} y1={60 + i * 40} x2={620} y2={60 + i * 40} stroke={ink} strokeOpacity="0.04" strokeWidth="0.5" />)}
-              <g stroke={ink} strokeOpacity="0.4" strokeWidth="0.5" fill={ink} fillOpacity="0.7">
-                <line x1={CB_X0} y1={36} x2={CB_X1} y2={36} />
-                <line x1={CB_X0} y1={28} x2={CB_X0} y2={44} />
-                <line x1={CB_X1} y1={28} x2={CB_X1} y2={44} />
-                <rect x={MID - 38} y={26} width="76" height="20" fill={paper} stroke="none" />
-                <text x={MID} y={42} fontSize="11" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" textAnchor="middle" stroke="none">30{'\u2033'} EXTERIOR</text>
-              </g>
-              <rect x={CB_X0 + WALL} y={CB_Y0} width={CB_X1 - CB_X0 - 2 * WALL} height={CB_Y1 - CB_Y0} fill={`${ink}05`} />
-              <rect x={CB_X0} y={CB_Y0} width={WALL} height={CB_Y1 - CB_Y0} fill={`url(#anat-hatch-${framed ? 'fr' : 'fl'})`} stroke={ink} strokeWidth="1" />
-              <rect x={CB_X1 - WALL} y={CB_Y0} width={WALL} height={CB_Y1 - CB_Y0} fill={`url(#anat-hatch-${framed ? 'fr' : 'fl'})`} stroke={ink} strokeWidth="1" />
-              <rect x={CB_X0} y={CB_Y0} width={CB_X1 - CB_X0} height={WALL} fill={`url(#anat-hatch-${framed ? 'fr' : 'fl'})`} stroke={ink} strokeWidth="1" />
-              <line x1={CB_X0 + WALL + 2} y1={CB_Y0 + (CB_Y1 - CB_Y0) / 2} x2={CB_X1 - WALL - 2} y2={CB_Y0 + (CB_Y1 - CB_Y0) / 2} stroke={ink} strokeOpacity="0.18" strokeWidth="0.5" strokeDasharray="4,3" />
-              <text x={CB_X0 + WALL + 8} y={CB_Y0 + (CB_Y1 - CB_Y0) / 2 - 5} fontSize="8" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.32" stroke="none">ADJ. SHELF</text>
-              {framed && (<g>
-                <rect x={CB_X0} y={frontY} width={WALL + FRAME_INWARD} height={FRAME_DEPTH + 4} fill={accent} fillOpacity="0.18" />
-                <rect x={CB_X1 - WALL - FRAME_INWARD} y={frontY} width={WALL + FRAME_INWARD} height={FRAME_DEPTH + 4} fill={accent} fillOpacity="0.18" />
-                <rect x={MID - FRAME_INWARD} y={frontY} width={2 * FRAME_INWARD} height={FRAME_DEPTH + 4} fill={accent} fillOpacity="0.18" />
-                <rect x={CB_X0} y={frontY} width={WALL + FRAME_INWARD} height={FRAME_DEPTH} fill={`url(#anat-frame-fr)`} stroke={ink} strokeWidth="1" />
-                <rect x={CB_X1 - WALL - FRAME_INWARD} y={frontY} width={WALL + FRAME_INWARD} height={FRAME_DEPTH} fill={`url(#anat-frame-fr)`} stroke={ink} strokeWidth="1" />
-                <rect x={MID - FRAME_INWARD} y={frontY} width={2 * FRAME_INWARD} height={FRAME_DEPTH} fill={`url(#anat-frame-fr)`} stroke={ink} strokeWidth="1" />
-                <line x1={CB_X0 + WALL + FRAME_INWARD} y1={frontY + 2} x2={MID - FRAME_INWARD} y2={frontY + 2} stroke={ink} strokeOpacity="0.5" strokeWidth="0.7" />
-                <line x1={CB_X0 + WALL + FRAME_INWARD} y1={frameFrontY - 2} x2={MID - FRAME_INWARD} y2={frameFrontY - 2} stroke={ink} strokeOpacity="0.5" strokeWidth="0.7" />
-                <line x1={MID + FRAME_INWARD} y1={frontY + 2} x2={CB_X1 - WALL - FRAME_INWARD} y2={frontY + 2} stroke={ink} strokeOpacity="0.5" strokeWidth="0.7" />
-                <line x1={MID + FRAME_INWARD} y1={frameFrontY - 2} x2={CB_X1 - WALL - FRAME_INWARD} y2={frameFrontY - 2} stroke={ink} strokeOpacity="0.5" strokeWidth="0.7" />
-                <g stroke={accent} strokeWidth="1" fill={accent}>
-                  <line x1={CB_X0 + WALL - 4} y1={frontY + FRAME_DEPTH + 14} x2={CB_X0 + WALL + FRAME_INWARD + 2} y2={frontY + FRAME_DEPTH + 14} />
-                  <polygon points={`${CB_X0 + WALL + FRAME_INWARD + 2},${frontY + FRAME_DEPTH + 14} ${CB_X0 + WALL + FRAME_INWARD - 6},${frontY + FRAME_DEPTH + 10} ${CB_X0 + WALL + FRAME_INWARD - 6},${frontY + FRAME_DEPTH + 18}`} />
+          <div style={{ background: paper, border: `0.5px solid ${ink}22`, padding: '18px 18px 8px' }}>
+            <svg viewBox={`0 0 ${VB_W} ${VB_H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+              {Array.from({ length: 12 }).map((_, i) => <line key={`gv${i}`} x1={40 + i * 44} y1={30} x2={40 + i * 44} y2={560} stroke={ink} strokeOpacity="0.04" strokeWidth="0.5" />)}
+              {framed ? (
+                <g>
+                  <rect x={X0} y={Y0} width={X1 - X0} height={Y1 - Y0} fill={frameCol} stroke={ink} strokeWidth="1.2" />
+                  {[X0 + 9, X0 + 18, roX + 9, roX + 18, cL + 9, cL + 18].map((gx, i) => <line key={`gr${i}`} x1={gx} y1={Y0 + 5} x2={gx} y2={Y1 - 5} stroke={frameGrain} strokeOpacity="0.45" strokeWidth="0.6" />)}
+                  {shaker(loX, drwTop, roX - loX, drwBot - drwTop, 'drw')}
+                  {shaker(loX, dTop, cL - loX, dBot - dTop, 'ld')}
+                  {shaker(cR, dTop, roX - cR, dBot - dTop, 'rd')}
+                  <rect x={MID - 30} y={(drwTop + drwBot) / 2 - 4} width="60" height="8" rx="4" fill={ink} fillOpacity="0.82" />
+                  <circle cx={cL - 15} cy={dTop + 28} r="5.5" fill={ink} fillOpacity="0.82" />
+                  <circle cx={cR + 15} cy={dTop + 28} r="5.5" fill={ink} fillOpacity="0.82" />
+                  <g stroke={accent} strokeWidth="1.2" fill={accent}>
+                    <line x1={X0} y1={Y0 - 20} x2={X0 + SW} y2={Y0 - 20} />
+                    <line x1={X0} y1={Y0 - 25} x2={X0} y2={Y0 - 15} />
+                    <line x1={X0 + SW} y1={Y0 - 25} x2={X0 + SW} y2={Y0 - 15} />
+                  </g>
+                  <text x={X0 + SW + 10} y={Y0 - 16} fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={accent} stroke="none">FACE FRAME</text>
                 </g>
-              </g>)}
-              <rect x={framed ? MID + FRAME_INWARD + 2 : MID + 2} y={framed ? frameFrontY : frontY} width={framed ? CB_X1 - WALL - FRAME_INWARD - MID - FRAME_INWARD - 2 : CB_X1 - WALL - MID - 2} height={DOOR_THK} fill={ink} fillOpacity="0.86" stroke={ink} strokeWidth="0.6" />
-              <path d={`M ${doorClosedTipX} ${doorOpenY} A ${DOOR_LEN} ${DOOR_LEN} 0 0 1 ${doorOpenX} ${doorOpenY + DOOR_LEN}`} fill="none" stroke={accent} strokeWidth="0.8" strokeDasharray="4,4" strokeOpacity="0.5" />
-              <rect x={doorOpenX} y={doorOpenY} width={DOOR_LEN} height={DOOR_THK} fill="none" stroke={ink} strokeWidth="0.5" strokeDasharray="3,3" strokeOpacity="0.3" />
-              <rect x={doorOpenX} y={doorOpenY} width={DOOR_THK} height={DOOR_LEN} fill={ink} fillOpacity="0.86" stroke={ink} strokeWidth="0.6" />
-              <line x1={doorOpenX + DOOR_THK / 2} y1={doorOpenY + 6} x2={doorOpenX + DOOR_THK / 2} y2={doorOpenY + DOOR_LEN - 6} stroke={paper} strokeOpacity="0.15" strokeWidth="0.5" />
-              {framed ? (<g>
-                <rect x={doorOpenX - 6} y={doorOpenY + 12} width={6} height={14} fill={accent} stroke={ink} strokeWidth="0.5" />
-                <rect x={doorOpenX - 6} y={doorOpenY + DOOR_LEN - 26} width={6} height={14} fill={accent} stroke={ink} strokeWidth="0.5" />
-                <circle cx={doorOpenX} cy={doorOpenY + 19} r="2" fill={ink} />
-                <circle cx={doorOpenX} cy={doorOpenY + DOOR_LEN - 19} r="2" fill={ink} />
-                <rect x={CB_X1 - WALL - FRAME_INWARD - 4} y={frameFrontY + DOOR_THK / 2 - 7} width={8} height={14} fill={accent} stroke={ink} strokeWidth="0.5" />
-              </g>) : (<g>
-                {[CB_Y0 + 32, CB_Y1 - 56].map((cy, i) => (<g key={`lh${i}`}>
-                  <rect x={CB_X0 + WALL} y={cy - 4} width={22} height={28} fill={paper} stroke={ink} strokeWidth="0.7" />
-                  <line x1={CB_X0 + WALL + 4} y1={cy} x2={CB_X0 + WALL + 18} y2={cy} stroke={ink} strokeOpacity="0.35" strokeWidth="0.5" />
-                  <line x1={CB_X0 + WALL + 4} y1={cy + 20} x2={CB_X0 + WALL + 18} y2={cy + 20} stroke={ink} strokeOpacity="0.35" strokeWidth="0.5" />
-                  <path d={`M ${CB_X0 + WALL + 22} ${cy + 10} L ${CB_X0 + WALL + 32} ${cy + 10} L ${doorOpenX + DOOR_THK / 2} ${doorOpenY + (i === 0 ? 18 : DOOR_LEN - 18)}`} fill="none" stroke={accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx={doorOpenX + DOOR_THK / 2} cy={doorOpenY + (i === 0 ? 18 : DOOR_LEN - 18)} r="5" fill={paper} stroke={accent} strokeWidth="1.2" />
-                  <circle cx={doorOpenX + DOOR_THK / 2} cy={doorOpenY + (i === 0 ? 18 : DOOR_LEN - 18)} r="2" fill={accent} />
-                  <circle cx={CB_X0 + WALL + 7} cy={cy + 6} r="1.4" fill={ink} fillOpacity="0.5" />
-                  <circle cx={CB_X0 + WALL + 7} cy={cy + 18} r="1.4" fill={ink} fillOpacity="0.5" />
-                </g>))}
-                {[CB_Y0 + 32, CB_Y1 - 56].map((cy, i) => (<g key={`rh${i}`}>
-                  <rect x={CB_X1 - WALL - 22} y={cy - 4} width={22} height={28} fill={paper} stroke={ink} strokeWidth="0.7" />
-                  <line x1={CB_X1 - WALL - 18} y1={cy} x2={CB_X1 - WALL - 4} y2={cy} stroke={ink} strokeOpacity="0.35" strokeWidth="0.5" />
-                  <line x1={CB_X1 - WALL - 18} y1={cy + 20} x2={CB_X1 - WALL - 4} y2={cy + 20} stroke={ink} strokeOpacity="0.35" strokeWidth="0.5" />
-                  <circle cx={CB_X1 - WALL - 7} cy={cy + 6} r="1.4" fill={ink} fillOpacity="0.5" />
-                  <circle cx={CB_X1 - WALL - 7} cy={cy + 18} r="1.4" fill={ink} fillOpacity="0.5" />
-                </g>))}
-              </g>)}
-              {framed ? (<g>
-                <line x1={CB_X0 + WALL + FRAME_INWARD / 2} y1={frontY + FRAME_DEPTH / 2} x2={CB_X0 + 4} y2={frontY + 60} stroke={ink} strokeOpacity="0.55" strokeWidth="0.6" />
-                <circle cx={CB_X0 + WALL + FRAME_INWARD / 2} cy={frontY + FRAME_DEPTH / 2} r="2" fill={ink} />
-                <text x={CB_X0 + 4} y={frontY + 76} fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.16em" fill={ink} fillOpacity="0.8" textAnchor="start" stroke="none">1{'\u00BD\u2033'} FRAME</text>
-                <text x={CB_X0 + 4} y={frontY + 92} fontSize="10" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="start" stroke="none">maple stile</text>
-                <line x1={doorOpenX - 3} y1={doorOpenY + 19} x2={CB_X1 - 4} y2={frontY + 70} stroke={ink} strokeOpacity="0.55" strokeWidth="0.6" />
-                <circle cx={doorOpenX - 3} cy={doorOpenY + 19} r="2" fill={ink} />
-                <text x={CB_X1 - 4} y={frontY + 86} fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.16em" fill={ink} fillOpacity="0.8" textAnchor="end" stroke="none">BUTT HINGE</text>
-                <text x={CB_X1 - 4} y={frontY + 102} fontSize="10" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="end" stroke="none">mortised</text>
-              </g>) : (<g>
-                <line x1={CB_X0 + WALL + 11} y1={CB_Y0 + 42} x2={CB_X0 + 4} y2={CB_Y0 + 8} stroke={ink} strokeOpacity="0.55" strokeWidth="0.6" />
-                <circle cx={CB_X0 + WALL + 11} cy={CB_Y0 + 42} r="2" fill={ink} />
-                <text x={CB_X0 + 4} y={CB_Y0 - 6} fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.16em" fill={ink} fillOpacity="0.8" textAnchor="start" stroke="none">35mm CUP</text>
-                <text x={CB_X0 + 4} y={CB_Y0 + 10} fontSize="10" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="start" stroke="none">3-way adj.</text>
-                <line x1={doorOpenX + DOOR_THK / 2} y1={doorOpenY + DOOR_LEN / 2} x2={CB_X1 - 4} y2={frontY + 90} stroke={ink} strokeOpacity="0.55" strokeWidth="0.6" />
-                <circle cx={doorOpenX + DOOR_THK / 2} cy={doorOpenY + DOOR_LEN / 2} r="2" fill={ink} />
-                <text x={CB_X1 - 4} y={frontY + 106} fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.16em" fill={ink} fillOpacity="0.8" textAnchor="end" stroke="none">FULL OVERLAY</text>
-                <text x={CB_X1 - 4} y={frontY + 122} fontSize="10" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="end" stroke="none">19mm slab</text>
-              </g>)}
-              <text x={CB_X0 + WALL / 2} y={CB_Y0 + (CB_Y1 - CB_Y0) / 2 + 3} fontSize="8" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="middle" stroke="none" transform={`rotate(-90, ${CB_X0 + WALL / 2}, ${CB_Y0 + (CB_Y1 - CB_Y0) / 2})`}>{'\u00BE\u2033'} PLY</text>
-              <text x={CB_X1 - WALL / 2} y={CB_Y0 + (CB_Y1 - CB_Y0) / 2 + 3} fontSize="8" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.55" textAnchor="middle" stroke="none" transform={`rotate(-90, ${CB_X1 - WALL / 2}, ${CB_Y0 + (CB_Y1 - CB_Y0) / 2})`}>{'\u00BE\u2033'} PLY</text>
-              <text x={doorOpenX + DOOR_THK + 6} y={doorOpenY + DOOR_LEN + 14} fontSize="9" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.5" stroke="none">DOOR · 90° OPEN</text>
-              <text x={CB_X1 - 6} y={(framed ? frameFrontY : frontY) - 4} fontSize="9" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={ink} fillOpacity="0.5" textAnchor="end" stroke="none">DOOR · CLOSED</text>
-              <g stroke={accent} strokeWidth="1.4" fill={accent}>
-                <line x1={openingStart} y1={500} x2={openingEnd} y2={500} />
-                <polygon points={`${openingStart},${500} ${openingStart + 12},${493} ${openingStart + 12},${507}`} />
-                <polygon points={`${openingEnd},${500} ${openingEnd - 12},${493} ${openingEnd - 12},${507}`} />
-                <line x1={openingStart} y1={488} x2={openingStart} y2={512} />
-                <line x1={openingEnd} y1={488} x2={openingEnd} y2={512} />
-              </g>
-              <g>
-                <rect x={MID - 80} y={488} width="160" height="24" fill={paper} stroke="none" />
-                <text x={MID} y={508} textAnchor="middle" fontSize="22" fontWeight="400" fontFamily="var(--font-heading), serif" fill={ink} stroke="none">{usableLabel}</text>
-              </g>
-              <text x={MID} y={530} textAnchor="middle" fontSize="11" fontFamily="ui-monospace, monospace" letterSpacing="0.18em" fill={accent} stroke="none">{framed ? '\u2014 30\u2033 EXT \u2212 1\u00BD\u2033 WALLS \u2212 1\u00BD\u2033 FRAME \u2014' : '\u2014 30\u2033 EXT \u2212 1\u00BD\u2033 WALLS \u2014'}</text>
-              <g fill={ink} fillOpacity="0.5" fontFamily="ui-monospace, monospace" fontSize="9" letterSpacing="0.16em">
-                <line x1={CB_X0} y1={552} x2={CB_X1} y2={552} stroke={ink} strokeOpacity="0.15" strokeWidth="0.5" />
-                <text x={CB_X0} y={570} stroke="none">SCALE 1:8 · SECTION A-A @ 17{'\u2033'} AFF</text>
-                <text x={CB_X1} y={570} textAnchor="end" stroke="none">B30 · 30{'\u2033'} {'\u00D7'} 24{'\u2033'} {'\u00D7'} 34{'\u00BD\u2033'} H</text>
-              </g>
+              ) : (
+                <g>
+                  <rect x={X0} y={Y0} width={X1 - X0} height={Y1 - Y0} fill={boxCol} stroke={ink} strokeWidth="1.2" />
+                  {slab(X0 + 4, Y0 + 4, X1 - X0 - 8, 98, 'drw')}
+                  {slab(X0 + 4, flDoorTop, (MID - g / 2) - (X0 + 4), (Y1 - 4) - flDoorTop, 'ld')}
+                  {slab(MID + g / 2, flDoorTop, (X1 - 4) - (MID + g / 2), (Y1 - 4) - flDoorTop, 'rd')}
+                  <g stroke={accent} strokeWidth="1.2" fill={accent}>
+                    <line x1={X0} y1={Y0 - 20} x2={X1} y2={Y0 - 20} />
+                    <polygon points={`${X0},${Y0 - 20} ${X0 + 11},${Y0 - 25} ${X0 + 11},${Y0 - 15}`} />
+                    <polygon points={`${X1},${Y0 - 20} ${X1 - 11},${Y0 - 25} ${X1 - 11},${Y0 - 15}`} />
+                  </g>
+                  <text x={MID} y={Y0 - 26} textAnchor="middle" fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.14em" fill={accent} stroke="none">FRONTS COVER THE BOX</text>
+                </g>
+              )}
+              <text x={MID} y={Y1 + 30} textAnchor="middle" fontSize="12" fontFamily="ui-monospace, monospace" letterSpacing="0.16em" fill={ink} fillOpacity="0.5" stroke="none">{framed ? '1½″ SOLID-WOOD FACE FRAME' : 'FULL-OVERLAY · SLIM REVEALS'}</text>
             </svg>
           </div>
           <div style={{ marginTop: 22, display: 'grid', gap: 10 }}>
-            {(framed ? [
-              'Face frame keeps door alignment consistent for decades',
-              'Traditional door styles (shaker, beaded, raised) need the frame to read correctly',
-              'Field-repairable \u2014 broken butt hinge swaps in 10 min, no special tools',
-              'Slight reveal between doors hides minor wood movement',
-            ] : [
-              'Zero face-frame intrusion · ~1\u00BD\u2033 more usable opening per cabinet',
-              'Doors flush with one another \u2014 no visible gaps, no shadow lines',
-              'Concealed European cup hinge adjusts in three planes after install',
-              'Required for handleless, integrated-channel, and push-to-open designs',
-            ]).map((p, i) => (
+            {bullets.map((p, i) => (
               <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: accent, marginTop: 7, flexShrink: 0 }} />
                 <span style={{ font: '400 14px/1.45 var(--font-body)', color: `${ink}dd` }}>{p}</span>
@@ -2362,7 +2285,7 @@
       const theme = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e6b' };
       return (
         <div className="installation-page">
-          <div className="install-hero">
+          <div className="install-hero cab-hero">
             <div className="install-hero-eyebrow">Anaheim Cabinet Showroom</div>
             <h1>Custom Kitchen &amp; Bath Cabinets in Anaheim &amp; Orange County</h1>
             <p>Three cabinet lines, designed in-house and installed by our own crew: <strong>Waypoint</strong> American-built face-frame cabinetry, <strong>Cabinets R Us</strong> wholesale-direct face-frame cabinetry, and <strong>Europa</strong> Italian-engineered frameless cabinetry. See every door style and finish on full display walls at our Anaheim showroom.</p>
