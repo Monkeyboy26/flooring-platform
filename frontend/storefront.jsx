@@ -285,13 +285,95 @@
       { key: 'cherry-clove', label: 'Clove', styles: { '750':'D_54CTS_24.jpg','720':'D_35CTS_24.jpg','660':'D_44CTS_47CTS_24.jpg','650':'D_40CTS_42CTS_24.jpg','580':'D_78CTS_CFO_24.jpg','540':'D_20CTS_30CTS_24.jpg','530':'D_39CTS_24.jpg','410':'D_28CTS_29CTS_24.jpeg' } },
     ];
 
+    // Cabinets R Us door styles — single-door swatches hotlinked from cabinetsrus.us (Wix),
+    // grouped by series. Sized down via Wix fill transform. Scraped 2026-08-16.
+    const CRU_DOOR_BASE = 'https://static.wixstatic.com/media/';
+    const cruImg = (id) => CRU_DOOR_BASE + id + '/v1/fill/w_420,h_840,al_c,q_85,enc_auto/door.jpg';
+    const CRU_SERIES = [
+      { key: 'shaker', label: 'Shaker', doors: [
+        { name: 'White',       img: 'cbec57_6254cdf193cc45bbaf2d231491abff16~mv2.jpg' },
+        { name: 'Gray',        img: 'cbec57_680d861311f54ee8b23a408b50052147~mv2.jpg' },
+        { name: 'Espresso',    img: 'cbec57_c7845d444b97419c9916a6b709d3e89d~mv2.jpg' },
+        { name: 'Blue',        img: 'cbec57_4e08281f329f419e964eb85cd67691c8~mv2.jpg' },
+        { name: 'Misty Grey',  img: 'cbec57_1f35ad53db1c4f0598ff307d2f4b4c1d~mv2.png' },
+        { name: 'Olive Green', img: 'cbec57_ac9bec8827ee4303a67c165a17fcb86b~mv2.jpg' },
+        { name: 'Black',       img: '300a98_40c557a207ad46aeb5228fa86f73ffd2~mv2.webp' },
+        { name: 'White Oak',   img: '300a98_51ee5ff689cb4bbe9a091aa5bf6c883d~mv2.jpg' },
+      ] },
+      { key: 'double-shaker', label: 'Double Shaker', doors: [
+        { name: 'Frosty White',    img: 'cbec57_48b0fbb060094047a984892f1987f79d~mv2.png' },
+        { name: 'Smoked Metallic', img: 'cbec57_02bea1bb280b47e58061814acf7a19e8~mv2.jpg' },
+        { name: 'Ash Brown',       img: 'cbec57_ca530f2cdaec48fa8f93c468eb32af13~mv2.jpg' },
+      ] },
+      { key: 'double-slim', label: 'Double Slim', doors: [
+        { name: 'Oak Natural',  img: '040f45_8d84f724e7b741b2a59268aaa7f2d097~mv2.jpg' },
+        { name: 'Oak Ivory',    img: '040f45_1ba4730e4db04022bd236279bf8e2128~mv2.jpg' },
+        { name: 'Oak Charcoal', img: '040f45_8a9178fd7fd54c77b3972c1c8e21f4e7~mv2.jpg' },
+        { name: 'Oak Mocha',    img: '040f45_bea9bfae3ecb4bd79e1cd6c5e57e8e7c~mv2.jpg' },
+      ] },
+      { key: 'classic', label: 'Classic', doors: [
+        { name: 'Antique White', img: 'cbec57_f01bd18aec244fd5a585ba0e868711d5~mv2.jpg' },
+        { name: 'Crimson Glaze', img: 'cbec57_57d2523a9d4045c28045d6b66ecfd88f~mv2.jpg' },
+      ] },
+      { key: 'flat-panel', label: 'Flat Panel', doors: [
+        { name: 'Glossy White', img: 'cbec57_63fb7297a2cf40c0a654f228694419cc~mv2.jpg' },
+        { name: 'Glossy Gray',  img: 'cbec57_3b1395491f8c4fcda9eaebbb70ceb65f~mv2.jpg' },
+      ] },
+    ];
+
     // Europa (Europa Cabinetry) is category-based — 75+ door styles, thousands of finish
     // combinations across these material families; no fixed swatch list is published.
-    const EUROPA_MATERIALS = [
-      { name: 'Painted', desc: 'Custom painted colors for a smooth, seamless modern front.' },
-      { name: 'Wood & Veneer', desc: 'Real-wood species and Eurotek wood veneers in natural to smoked tones.' },
-      { name: 'Matte & High-Gloss', desc: 'Thermofoil, melamine, and UltraLux surfaces in matte or high-gloss.' },
-      { name: 'Metal & Glass', desc: 'Aluminum-frame and glass door options for a contemporary look.' },
+    // Europa (Europa Cabinetry, a MasterBrand line) is a frameless material SYSTEM — any door
+    // style pairs with any finish (thousands of combinations). Finish names + swatch photos are
+    // Europa's REAL published assets (WP-hosted flat swatches, europacabinetry.com/wp-content/uploads,
+    // scraped 2026-08-16, all hotlink-verified). Wood family shown in Cherry (their per-species set).
+    // Europa has no per-color swatch family for metal/glass (those are door inserts, not finishes).
+    const EUROPA_SWATCH_BASE = 'https://www.europacabinetry.com/wp-content/uploads/';
+    const euImg = (f) => EUROPA_SWATCH_BASE + f;
+    const EUROPA_FINISHES = [
+      { key: 'painted', label: 'Painted', blurb: 'Smooth painted colors with seamless edges — add a Brown, Mocha, or Nickel glaze, or specify any color through the Custom Paint program.',
+        colors: [
+          { name: 'Arctic White', img: 'Arctic-White-Paint-1-600x600.jpg' }, { name: 'Simply White', img: 'Simply-White-Paint-1-600x600.jpg' },
+          { name: 'Melted Brie', img: 'Melted-Brie-Paint-1-600x600.jpg' }, { name: 'Wings', img: 'Wings-Paint-1-600x600.jpg' },
+          { name: 'Beach White', img: 'Beach-White-Paint-1-600x600.jpg' }, { name: 'Balboa Mist', img: 'Balboa-Mist-Paint-1-600x600.jpg' },
+          { name: 'Pebble Grey', img: 'Pebble-Grey-Paint-1-600x600.jpg' }, { name: 'Rag & Bone', img: 'Rag-and-Bone-Paint-1-600x600.jpg' },
+          { name: 'Repose Grey', img: 'Repose-Grey-Paint-1-600x600.jpg' }, { name: 'Network Grey', img: 'Network-Grey-Paint-1-600x600.jpg' },
+          { name: 'Moon Bay', img: 'Moon-Bay-Paint-1-600x600.jpg' }, { name: 'Moss Green', img: 'Moss-Green-Paint-1-600x600.jpg' },
+          { name: 'Mineral Grey', img: 'Mineral-Grey-Paint-1-600x600.jpg' }, { name: 'Pepper', img: 'Pepper-Paint-1-600x600.jpg' },
+          { name: 'Blue Ash', img: 'Blue-Ash-Paint-1-600x600.jpg' }, { name: 'Bottle Green', img: 'Bottle-Green-Paint-1-600x600.jpg' },
+          { name: 'Black', img: 'Black-Paint-1-600x600.jpg' },
+        ] },
+      { key: 'wood', label: 'Wood & Veneer', blurb: 'Shown in cherry — also available in maple, oak, walnut, and quartersawn white oak, plus Eurotek veneers; add a Brown, Mocha, or Nickel glaze.',
+        colors: [
+          { name: 'Natural', img: 'Natural-Cherry-1-600x600.jpg' }, { name: 'Dune', img: 'Dune-Cherry-600x600-1.jpg' },
+          { name: 'Caramel', img: 'Caramel-Cherry-1-600x600.jpg' }, { name: 'Nutmeg', img: 'Nutmeg-Cherry-1-600x600.jpg' },
+          { name: 'Coastal Grey', img: 'Coastal-Grey-Cherry-1-600x600.jpg' }, { name: 'Amber', img: 'Amber-Cherry-1-600x600.jpg' },
+          { name: 'Saddle', img: 'Saddle-Cherry-1-600x600.jpg' }, { name: 'Briarwood', img: 'Briarwood-Cherry-1-600x600.jpg' },
+          { name: 'Chestnut', img: 'Chestnut-Cherry-1-600x600.jpg' }, { name: 'Porcini', img: 'Porcini-Cherry-1-600x600.jpg' },
+          { name: 'Peppercorn', img: 'Peppercorn-Cherry-1-600x600.jpg' }, { name: 'Platinum Grey', img: 'Platinum-Grey-Cherry-1-600x600.jpg' },
+          { name: 'Cocoa', img: 'Cocoa-Cherry-1-600x600.jpg' }, { name: 'Wenge', img: 'Wenge-Cherry-1-600x600.jpg' },
+        ] },
+      { key: 'texture', label: 'Matte & Textured', blurb: 'Textured melamine woodtones with a soft matte hand — realistic grain, scratch- and fingerprint-resistant.',
+        colors: [
+          { name: 'Drift White', img: 'Drift-White-TexMel-1-600x600.jpg' }, { name: 'Raw Cotton', img: 'Raw-Cotton-TexMel-1-600x600.jpg' },
+          { name: 'Glacier', img: 'Glacier-TexMel-1-600x600.jpg' }, { name: 'Rift White Pine', img: 'Rift-White-Pine-TexMel-1-600x600.jpg' },
+          { name: 'Himalayan', img: 'Himalayan-TexMel-1-600x600.jpg' }, { name: 'Wired Silver', img: 'Wired-Silver-TexMel-1-600x600.jpg' },
+          { name: 'Wired Brown', img: 'Wired-Brown-TexMel-1-600x600.jpg' }, { name: 'Vineyard Oak', img: 'Vineyard-Oak-TexMel-1-600x600.jpg' },
+          { name: 'Cypress Gold', img: 'Cypress-Gold-TexMel-1-600x600.jpg' }, { name: 'Eclipse', img: 'Eclipse-TexMel-1-600x600.jpg' },
+          { name: 'Charred', img: 'Charred-TexMel-1-600x600.jpg' }, { name: 'Sienna', img: 'Sienna-TexMel-1-600x600.jpg' },
+          { name: 'Reclaimed Grey', img: 'Reclaimed-Grey-TexMel-1-600x600.jpg' }, { name: 'Husk', img: 'Husk-TexMel-1-600x600.jpg' },
+          { name: 'Light Carbonite', img: 'Light-Carbonite-TexMel-1-600x600.jpg' }, { name: 'Archicrete', img: 'ArchiCrete-TexMel-1-600x600.jpg' },
+        ] },
+      { key: 'gloss', label: 'High-Gloss & Metallic', blurb: 'UltraLux acrylic — high-gloss, ultra-matte, and metallic fronts with mirror-smooth, sealed edges.',
+        colors: [
+          { name: 'Pure White', img: 'Pure-White-HG-Acrylic-1-600x600.jpg' }, { name: 'Powder', img: 'Powder-HG-Acrylic-1-600x600.jpg' },
+          { name: 'Sage', img: 'Sage-UltraMatte-Acrylic-1-600x600.jpg' }, { name: 'Carbon', img: 'Carbon-HG-Acrylic-1-600x600.jpg' },
+          { name: 'Midnight', img: 'Midnight-HG-Acrylic-1-600x600.jpg' }, { name: 'Naval', img: 'Naval-UltraMatte-Acrylic-1-600x600.jpg' },
+          { name: 'Flint', img: 'Flint-HG-Acrylic-1-600x600.jpg' }, { name: 'Linear White', img: 'Linear-White-HG-Acrylic-1-600x600.jpg' },
+          { name: 'Linear Silver', img: 'Linear-Silver-HG-Acrylic-2-600x600.jpg' }, { name: 'Linear Bronze II', img: 'Linear-Bronze-II-HG-Acrylic-1-600x600.jpg' },
+          { name: 'Linear Black', img: 'Linear-Black-HG-Acrylic-1-600x600.jpg' }, { name: 'Silver Metallic', img: 'Silver-Metallic-look-HG-Acrylic-1-600x600.jpg' },
+          { name: 'Champagne Metallic', img: 'Champagne-Metallic-look-HG-Acrylic-1-600x600.jpg' }, { name: 'Mica Metallic', img: 'Mica-Metallic-look-HG-Acrylic-1-600x600.jpg' },
+        ] },
     ];
 
     function cabinetsJsonLd() {
@@ -2166,6 +2248,116 @@
       );
     }
 
+    function CruDoorTimeline() {
+      const flat = [];
+      const offsets = [];
+      CRU_SERIES.forEach((s) => { offsets.push(flat.length); s.doors.forEach((d) => flat.push({ ...d, series: s.label })); });
+      const [active, setActive] = useState(0);
+      const railRef = useRef(null);
+      const nodeRefs = useRef([]);
+      const [geo, setGeo] = useState({ cardLeft: 0, caretLeft: 124, ready: false });
+      const CARD_W = 248;
+      const cur = flat[active];
+      const measure = useCallback(() => {
+        const rail = railRef.current, node = nodeRefs.current[active];
+        if (!rail || !node) return;
+        const rr = rail.getBoundingClientRect(), nr = node.getBoundingClientRect();
+        const center = nr.left - rr.left + nr.width / 2;
+        const cardLeft = Math.max(0, Math.min(center - CARD_W / 2, rr.width - CARD_W));
+        setGeo({ cardLeft, caretLeft: center - cardLeft, ready: true });
+        // Mobile: the rail scrolls horizontally — keep the active door centered in view.
+        if (window.innerWidth <= 720 && rail.scrollWidth > rail.clientWidth + 4) {
+          rail.scrollTo({ left: rail.scrollLeft + center - rr.width / 2, behavior: 'smooth' });
+        }
+      }, [active]);
+      React.useLayoutEffect(() => { measure(); }, [measure]);
+      useEffect(() => {
+        const h = () => measure();
+        window.addEventListener('resize', h);
+        return () => window.removeEventListener('resize', h);
+      }, [measure]);
+      const move = (delta) => setActive((active + delta + flat.length) % flat.length);
+      const onKey = (e) => {
+        if (e.key === 'ArrowLeft') { e.preventDefault(); move(-1); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); move(1); }
+      };
+      return (
+        <div className="cru-tl" tabIndex={0} onKeyDown={onKey} aria-label="Cabinets R Us door styles timeline. Arrow keys move between doors.">
+          <div className="cru-tl-stage">
+            <div className="cru-tl-bloom" style={{ left: geo.cardLeft + 'px', width: CARD_W + 'px', opacity: geo.ready ? 1 : 0 }}>
+              <div className="cru-tl-bloom-frame">
+                <img key={cur.img} src={cruImg(cur.img)} alt={cur.name + ' ' + cur.series + ' cabinet door'} />
+              </div>
+              <div className="cru-tl-bloom-cap">
+                <span className="cru-tl-bloom-name">{cur.name}</span>
+                <span className="cru-tl-bloom-series">{cur.series} Series</span>
+              </div>
+              <span className="cru-tl-caret" style={{ left: geo.caretLeft + 'px' }} aria-hidden="true" />
+            </div>
+          </div>
+          <div className="cru-tl-rail" ref={railRef}>
+            {CRU_SERIES.map((s, si) => (
+              <div className={'cru-tl-seg' + (si > 0 ? ' divided' : '')} key={s.key} style={{ flexGrow: s.doors.length }}>
+                <div className="cru-tl-seg-label">{s.label}</div>
+                <div className="cru-tl-seg-nodes">
+                  {s.doors.map((d, di) => {
+                    const idx = offsets[si] + di;
+                    const on = idx === active;
+                    return (
+                      <button key={d.name} ref={(el) => { nodeRefs.current[idx] = el; }}
+                        className={'cru-tl-node' + (on ? ' active' : '')}
+                        onMouseEnter={() => setActive(idx)} onFocus={() => setActive(idx)} onClick={() => setActive(idx)}
+                        title={d.name + ' — ' + s.label} aria-label={d.name + ' ' + s.label + ' door'}>
+                        <img src={cruImg(d.img)} alt="" loading="lazy" decoding="async" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="cab-vis-hint">Hover or tap a door on the timeline {'—'} or use the {'← →'} keys</div>
+        </div>
+      );
+    }
+
+    function EuropaFinishWall() {
+      const [fam, setFam] = useState(EUROPA_FINISHES[0].key);
+      const family = EUROPA_FINISHES.find(f => f.key === fam) || EUROPA_FINISHES[0];
+      const [selName, setSelName] = useState(family.colors[0].name);
+      const cur = family.colors.find(c => c.name === selName) || family.colors[0];
+      const pickFamily = (k) => { const f = EUROPA_FINISHES.find(x => x.key === k); setFam(k); setSelName(f.colors[0].name); };
+      return (
+        <div className="eu-wall">
+          <div className="eu-tabs" role="tablist" aria-label="Europa finish families">
+            {EUROPA_FINISHES.map(f => (
+              <button key={f.key} role="tab" aria-selected={f.key === fam} className={'eu-tab' + (f.key === fam ? ' active' : '')} onClick={() => pickFamily(f.key)}>{f.label}</button>
+            ))}
+          </div>
+          <div className="eu-body">
+            <div className="eu-preview">
+              <div className="eu-chip-lg"><img key={cur.img} src={euImg(cur.img)} alt={cur.name + ' Europa finish'} decoding="async" /></div>
+              <div className="eu-preview-cap">
+                <span className="eu-preview-name">{cur.name}</span>
+                <span className="eu-preview-fam">{family.label}</span>
+                <p className="eu-preview-blurb">{family.blurb}</p>
+              </div>
+            </div>
+            <div className="eu-grid">
+              {family.colors.map(c => (
+                <button key={c.name} className={'eu-sw' + (c.name === selName ? ' active' : '')}
+                  onMouseEnter={() => setSelName(c.name)} onFocus={() => setSelName(c.name)} onClick={() => setSelName(c.name)} title={c.name}>
+                  <span className="eu-chip"><img src={euImg(c.img)} alt={c.name} loading="lazy" decoding="async" /></span>
+                  <span className="eu-sw-name">{c.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="cab-vis-hint">Europa offers thousands of finish combinations, plus a Custom Paint program — swatches shown; request samples to confirm exact color.</div>
+        </div>
+      );
+    }
+
     function CabinetsPage({ onRequestQuote }) {
       const theme = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e6b' };
       return (
@@ -2197,6 +2389,24 @@
             </div>
           </div>
 
+          <div className="install-types" style={{ background: 'var(--warm-bg)' }}>
+            <h2>Waypoint</h2>
+            <p className="cab-section-sub">Toggle through Waypoint door styles and finishes. Not every style is offered in every finish, so the arrows move to what's available.</p>
+            <CabDoorVisualizer />
+          </div>
+
+          <div className="install-types" style={{ background: 'rgba(28,25,23,0.03)' }}>
+            <h2>Europa</h2>
+            <p className="cab-section-sub">A frameless material system — pair any of 65+ door styles with any finish, for thousands of combinations. Explore the palette by family.</p>
+            <EuropaFinishWall />
+          </div>
+
+          <div className="install-types">
+            <h2>Cabinets R Us</h2>
+            <p className="cab-section-sub">Door styles across five series — Shaker, Double Shaker, Double Slim, Classic, and Flat Panel. Hover or tap any door to bring it forward.</p>
+            <CruDoorTimeline />
+          </div>
+
           <div className="install-types" style={{ background: 'rgba(28,25,23,0.03)' }}>
             <h2>Framed or Frameless</h2>
             <p className="cab-section-sub">The single construction choice that drives the look. Waypoint and Cabinets R Us are face-frame; Europa is frameless — same finishes, two ways into the box.</p>
@@ -2204,12 +2414,6 @@
               <CabAnatomyDiagram theme={theme} framed brand={CAB_BRANDS.waypoint} />
               <CabAnatomyDiagram theme={theme} brand={CAB_BRANDS.europa} />
             </div>
-          </div>
-
-          <div className="install-types" style={{ background: 'var(--warm-bg)' }}>
-            <h2>Waypoint</h2>
-            <p className="cab-section-sub">Toggle through Waypoint door styles and finishes. Not every style is offered in every finish, so the arrows move to what's available.</p>
-            <CabDoorVisualizer />
           </div>
 
           <div className="install-steps-section">
