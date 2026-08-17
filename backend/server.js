@@ -1712,7 +1712,7 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
       collections: colResult.rows.map(r => ({ name: r.collection, product_count: parseInt(r.product_count), image: r.image })),
       products: prodRows.map(r => ({
         sku_id: r.sku_id, product_name: r.product_name, collection: r.collection,
-        variant_name: r.variant_name, vendor_name: r.vendor_name, brand_name: r.brand_name, primary_image: r.primary_image,
+        variant_name: r.variant_name, vendor_name: r.vendor_name, brand_name: r.brand_name, brand_hidden: r.brand_hidden, primary_image: r.primary_image,
         vendor_sku: r.vendor_sku,
         retail_price: r.retail_price, price_basis: r.price_basis, sell_by: r.sell_by, sqft_per_box: r.sqft_per_box, sale_price: r.sale_price,
         color_family: colorMap[r.sku_id] || null
