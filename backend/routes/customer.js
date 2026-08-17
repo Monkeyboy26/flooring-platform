@@ -551,9 +551,22 @@ export default function createCustomerRoutes(ctx) {
           o.delivery_method, o.shipping_method, o.tracking_number, o.shipping_carrier, o.shipped_at, o.created_at,
           (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count,
           (SELECT json_agg(t) FROM (
-            SELECT oi.product_name,
+            SELECT oi.product_name, s.variant_name, s.accessory_label, s.variant_type,
+              s.vendor_sku, s.internal_sku, sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
+              COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+              COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
               (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
-            FROM order_items oi WHERE oi.order_id = o.id
+            FROM order_items oi
+            LEFT JOIN skus s ON s.id = oi.sku_id
+            LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+            LEFT JOIN vendors v ON v.id = p.vendor_id
+            LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+            LEFT JOIN brands br ON br.id = p.brand_id
+            LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+              AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+            LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
+              AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
+            WHERE oi.order_id = o.id
             ORDER BY COALESCE(oi.is_sample, false), oi.subtotal DESC NULLS LAST
             LIMIT 5
           ) t) as items_preview
@@ -583,8 +596,21 @@ export default function createCustomerRoutes(ctx) {
       }
       const itemsResult = await pool.query(`
         SELECT oi.*,
+          s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
+          sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
+          COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+          COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
           poi.status as fulfillment_status
         FROM order_items oi
+        LEFT JOIN skus s ON s.id = oi.sku_id
+        LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+        LEFT JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+        LEFT JOIN brands br ON br.id = p.brand_id
+        LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+          AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+        LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
+          AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
         LEFT JOIN LATERAL (
           SELECT status FROM purchase_order_items
           WHERE order_item_id = oi.id AND status != 'cancelled'
@@ -763,13 +789,16 @@ export default function createCustomerRoutes(ctx) {
       const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND customer_id = $2 AND status != \'draft\'', [req.params.id, req.customer.id]);
       if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
       const items = await pool.query(`
-        SELECT qi.*, v.name as vendor_name, s.vendor_sku, s.variant_name, sa_c.value as color, p.collection as current_collection
+        SELECT qi.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.variant_name, sa_c.value as color, sa_sz.value as size, p.collection as current_collection
         FROM quote_items qi
         LEFT JOIN skus s ON s.id = qi.sku_id
         LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
         LEFT JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN brands br ON br.id = p.brand_id
         LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
           AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+        LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = qi.sku_id
+          AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
         WHERE qi.quote_id = $1 ORDER BY qi.id
       `, [req.params.id]);
       res.json({ quote: quote.rows[0], items: items.rows });
@@ -789,15 +818,18 @@ export default function createCustomerRoutes(ctx) {
       if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
       const q = quote.rows[0];
       const items = await pool.query(`
-        SELECT qi.*, sk.variant_name, sa_c.value as color, v.name as vendor_name, sk.vendor_sku,
+        SELECT qi.*, sk.variant_name, sa_c.value as color, sa_sz.value as size, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, sk.vendor_sku,
           (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
            ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
         FROM quote_items qi
         LEFT JOIN skus sk ON sk.id = qi.sku_id
         LEFT JOIN products p ON p.id = COALESCE(sk.product_id, qi.product_id)
         LEFT JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN brands br ON br.id = p.brand_id
         LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
           AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+        LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = qi.sku_id
+          AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
         WHERE qi.quote_id = $1 ORDER BY qi.id
       `, [req.params.id]);
       const html = generateQuoteHtml(q, items.rows);
