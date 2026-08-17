@@ -80,7 +80,7 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
   estimate.deposit_amount = depositAmount(estimate);
 
   const itemsRes = await pool.query(`
-    SELECT ei.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.internal_sku, s.variant_name,
+    SELECT ei.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name,
       s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size,
       p.collection as current_collection, COALESCE(ei.cost, pr.cost) as vendor_cost,
       (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'

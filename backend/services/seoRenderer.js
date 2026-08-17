@@ -124,6 +124,7 @@ async function fetchSkuData(pool, skuId) {
       s.id as sku_id, s.variant_name, s.internal_sku, s.sell_by, s.variant_type,
       p.name as product_name, p.collection, p.description_long, p.description_short,
       COALESCE(br.name, v.name) as brand_name,
+      COALESCE(br.hide_public_name, v.hide_public_name, false) as brand_hidden,
       c.name as category_name, c.slug as category_slug,
       pr.retail_price,
       (SELECT ma.url FROM media_assets ma
@@ -172,6 +173,7 @@ async function fetchProductBySlug(pool, categorySlug, productSlug) {
       s.id as sku_id, s.variant_name, s.internal_sku, s.sell_by, s.variant_type,
       p.name as product_name, p.collection, p.slug as product_slug, p.description_long, p.description_short,
       COALESCE(br.name, v.name) as brand_name,
+      COALESCE(br.hide_public_name, v.hide_public_name, false) as brand_hidden,
       c.name as category_name, c.slug as category_slug,
       pr.retail_price,
       (SELECT ma.url FROM media_assets ma
@@ -482,7 +484,7 @@ function renderSkuPage(sku) {
         <h1>${escapeHtml(sku.product_name)}${sku.variant_name ? ' <span style="color:#78716c">- ' + escapeHtml(sku.variant_name) + '</span>' : ''}</h1>
         ${priceDisplay ? `<div class="price">$${priceDisplay}${unit}</div>` : ''}
         ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
-        <p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>
+        ${sku.brand_hidden ? '' : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
         <p><strong>SKU:</strong> ${escapeHtml(sku.internal_sku)}</p>
         ${sku.category_name ? `<p><strong>Category:</strong> <a href="/shop?category=${escapeHtml(sku.category_slug || '')}">${escapeHtml(sku.category_name)}</a></p>` : ''}
         ${sku.collection ? `<p><strong>Collection:</strong> <a href="/collections/${escapeHtml(slugify(sku.collection))}">${escapeHtml(sku.collection)}</a></p>` : ''}
@@ -568,7 +570,7 @@ function renderProductPage(sku) {
         <h1>${escapeHtml(sku.product_name)}${sku.variant_name ? ' <span style="color:#78716c">- ' + escapeHtml(sku.variant_name) + '</span>' : ''}</h1>
         ${priceDisplay ? `<div class="price">$${priceDisplay}${unit}</div>` : ''}
         ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
-        <p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>
+        ${sku.brand_hidden ? '' : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
         <p><strong>SKU:</strong> ${escapeHtml(sku.internal_sku)}</p>
         ${sku.category_name ? `<p><strong>Category:</strong> <a href="/shop?category=${escapeHtml(sku.category_slug || '')}">${escapeHtml(sku.category_name)}</a></p>` : ''}
         ${sku.collection ? `<p><strong>Collection:</strong> <a href="/collections/${escapeHtml(slugify(sku.collection))}">${escapeHtml(sku.collection)}</a></p>` : ''}

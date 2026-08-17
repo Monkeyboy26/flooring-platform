@@ -116,7 +116,7 @@ export function composeItemName(it = {}) {
     const carpet = [collection, color].filter(Boolean).join(' ') || product || null;
     const descriptors = [carpet, dims].filter(Boolean);
     const sku = g('vendor_sku') || g('internal_sku');
-    const vendor = g('brand_name') || g('vendor_name') || g('custom_vendor');
+    const vendor = it.brand_hidden === true ? g('custom_vendor') : (g('brand_name') || g('vendor_name') || g('custom_vendor'));
     const meta = []; for (const m of [vendor, sku]) if (m && !meta.includes(m)) meta.push(m);
     const nameLine = descriptors.length ? `Custom Area Rug${SEP}${descriptors.join(SEP)}` : 'Custom Area Rug';
     const metaLine = meta.join(SEP);
@@ -208,7 +208,10 @@ export function composeItemName(it = {}) {
     segsNoSpace.add(noSpace(kept));
   }
   const sku = g('vendor_sku') || g('internal_sku');
-  const vendor = g('brand_name') || g('vendor_name') || g('custom_vendor');
+  // Margin-protection gate: a public-hidden brand/vendor shows no brand line on
+  // customer docs (only a rep's one-off custom_vendor survives). Read the raw
+  // boolean — g() would stringify false to a truthy "false". See [[hide-public-brand]].
+  const vendor = it.brand_hidden === true ? g('custom_vendor') : (g('brand_name') || g('vendor_name') || g('custom_vendor'));
   const meta = [];
   for (const m of [vendor, sku]) if (m && !meta.includes(m)) meta.push(m);
   // Separator SEP must stay identical to the frontend helpers (formatLineItem in
@@ -1171,7 +1174,7 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
     const suffix = escDoc(_ci.descriptors.join(' · '));
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
-      i.vendor_name
+      i.brand_hidden ? null : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     const perBoxSqft = parseFloat(i.sqft_per_box || 0);
     let sqft = parseFloat(i.sqft_needed || 0);
@@ -1748,7 +1751,7 @@ export function generateCreditMemoDoc(memo, items, opts = {}) {
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
-      i.vendor_name
+      i.brand_hidden ? null : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     const reasonLine = [i.reason, i.condition ? i.condition.charAt(0).toUpperCase() + i.condition.slice(1) : null]
       .filter(Boolean).join(' · ');
@@ -1949,7 +1952,7 @@ export function generateReleaseFormDoc(release, items, opts = {}) {
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
-      i.vendor_name
+      i.brand_hidden ? null : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
     const swatchSrc = i.primary_image
@@ -2103,7 +2106,7 @@ export function generateWorkOrderDoc(order, items, opts = {}) {
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
-      i.vendor_name
+      i.brand_hidden ? null : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     return `<div class="grid-row keep" style="padding:11px 0;${idx < materials.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
       <div>

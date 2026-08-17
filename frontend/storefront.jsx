@@ -1578,7 +1578,10 @@
     function itemMetaLine(item) {
       if (!item) return '';
       const sku = item.vendor_sku || item.internal_sku || item.sku || null;
-      const parts = [item.vendor_name || item.custom_vendor, sku].filter(Boolean);
+      // Suppress the vendor name when the brand/vendor is public-hidden (keep the
+      // rep's one-off custom_vendor and the SKU). See itemBrand.
+      const metaBrand = item.brand_hidden ? (item.custom_vendor || null) : (item.vendor_name || item.custom_vendor);
+      const parts = [metaBrand, sku].filter(Boolean);
       // dedupe while preserving order
       const seen = new Set();
       const unique = parts.filter(p => {
@@ -1734,7 +1737,13 @@
       return title + (descriptors.length ? '  ·  ' + descriptors.join('  ·  ') : '');
     }
 
-    function itemBrand(it) { it = it || {}; return it.brand_name || it.vendor_name || it.custom_vendor || ''; }
+    // Brand/vendor with margin-protection gate: when the brand or vendor is
+    // flagged hide_public_name, we suppress the visible label everywhere a human
+    // browses (the real name is still kept in SEO JSON-LD/meta so we stay
+    // discoverable). custom_vendor is a rep's one-off free-text name, never gated.
+    function itemBrand(it) { it = it || {}; if (it.brand_hidden) return it.custom_vendor || ''; return it.brand_name || it.vendor_name || it.custom_vendor || ''; }
+    // Public brand label for a SKU card/detail — '' when hidden.
+    function publicBrand(sku) { sku = sku || {}; return sku.brand_hidden ? '' : (sku.brand_name || sku.vendor_name || ''); }
     function itemSku(it) { it = it || {}; return it.vendor_sku || it.internal_sku || it.sku || ''; }
 
     function cleanDescription(text, vendorName) {
@@ -4419,7 +4428,7 @@
                           <div className="search-panel-result-name">{highlightMatch(fullProductName(sku), searchInput)}</div>
                           <div className="search-panel-result-cat">
                             {colorInfo && colorInfo.hex && <span className="search-panel-color-dot" style={{ background: colorInfo.hex }} title={colorInfo.family} />}
-                            {sku.brand_name || sku.vendor_name || sku.category_name || ''}
+                            {publicBrand(sku) || sku.category_name || ''}
                           </div>
                         </div>
                         <span className="search-panel-result-price">
@@ -4935,7 +4944,7 @@
 
       const currentImg = media[imgIndex] || {};
       const catName = activeSku.category_name || '';
-      const vendorLabel = activeSku.brand_name || activeSku.vendor_name || '';
+      const vendorLabel = publicBrand(activeSku);
       const effectivePrice = displayPrice(activeSku, activeSku.trade_price || activeSku.sale_price || skuListPrice(activeSku) || 0);
       const sqftBox = parseFloat(activeSku.sqft_per_box) || 0;
       const boxPrice = sqftBox > 0 && !isUnit ? (effectivePrice * sqftBox) : 0;
@@ -5362,7 +5371,7 @@
                           <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>{highlightMatch(fullProductName(sku), query)}</div>
                           <div className="search-suggestion-vendor">
                             {colorInfo && colorInfo.hex && <span className="search-panel-color-dot" style={{ background: colorInfo.hex }} title={colorInfo.family} />}
-                            {sku.brand_name || sku.vendor_name || ''}
+                            {publicBrand(sku)}
                           </div>
                           <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
                             {sku.sale_price && <span className="search-panel-sale-tag">SALE</span>}
@@ -5533,7 +5542,7 @@
                         <div className="form-specimen-card-meta">No. {String(i + 1).padStart(2, '0')} &middot; {sku.category_name || 'Flooring'}</div>
                         {price && <div className="form-specimen-card-price">${displayPrice(sku, price).toFixed(2)}{priceSuffix(sku)}</div>}
                         <div className="form-specimen-card-name">{fullProductName(sku)}</div>
-                        <div className="form-specimen-card-desc">{sku.brand_name || sku.vendor_name}{sku.variant_name ? ' \u00B7 ' + sku.variant_name : ''}</div>
+                        <div className="form-specimen-card-desc">{[publicBrand(sku), sku.variant_name].filter(Boolean).join(' \u00B7 ')}</div>
                         <div className="form-specimen-card-cta">View in catalog &rarr;</div>
                       </div>
                     );
@@ -5694,7 +5703,7 @@
                         </div>
                         <div className="shop-featured-card-cat">{sku.category_name || 'Flooring'}</div>
                         <div className="shop-featured-card-name">{fullProductName(sku)}</div>
-                        <div className="shop-featured-card-meta">{sku.brand_name || sku.vendor_name}{sku.variant_name ? ' \u00B7 ' + sku.variant_name : ''}</div>
+                        <div className="shop-featured-card-meta">{[publicBrand(sku), sku.variant_name].filter(Boolean).join(' \u00B7 ')}</div>
                         <div className="shop-featured-card-bottom">
                           <span className="shop-featured-card-price">{price ? '$' + displayPrice(sku, price).toFixed(2) + priceSuffix(sku) : 'Call for price'}</span>
                           <span className="shop-featured-card-cta">View &rarr;</span>
@@ -6601,7 +6610,7 @@
       const variantLabel = cardHasVariants
         ? sku.variant_count + ' ' + ((sku.attributes || []).some(a => a.slug === 'color') ? 'colors' : 'options')
         : (sku.variant_name || '');
-      const vendorLabel = sku.brand_name || sku.vendor_name || '';
+      const vendorLabel = publicBrand(sku);
       // No real inventory feed → no stock claim on cards either
       const stockStatus = sku.vendor_has_inventory === false ? 'unknown' : (sku.stock_status || 'unknown');
       const lowStockQty = sku.low_stock_qty;
@@ -7575,8 +7584,8 @@
               {/* SKU · Vendor line */}
               <div className="pdp-sku-line">
                 {sku.vendor_sku && <><span style={{ color: 'var(--stone-500)' }}>SKU</span> <span style={{ margin: '0 0.25rem', color: 'var(--stone-400)' }}>&middot;</span> <span className="pdp-sku-val">{(sku.vendor_sku || '').toUpperCase()}</span><span className="pdp-sku-sep"></span></>}
-                {(sku.brand_name || sku.vendor_name)
-                  ? <button type="button" onClick={() => onBrandClick && onBrandClick(sku.brand_name || sku.vendor_name)} title={'Browse all ' + (sku.brand_name || sku.vendor_name)} style={{ background: 'none', border: 'none', padding: 0, margin: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}>{sku.brand_name || sku.vendor_name}</button>
+                {publicBrand(sku)
+                  ? <button type="button" onClick={() => onBrandClick && onBrandClick(publicBrand(sku))} title={'Browse all ' + publicBrand(sku)} style={{ background: 'none', border: 'none', padding: 0, margin: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}>{publicBrand(sku)}</button>
                   : null}
               </div>
 

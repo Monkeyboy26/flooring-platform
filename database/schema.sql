@@ -11,6 +11,10 @@ CREATE TABLE vendors (
     has_public_inventory BOOLEAN DEFAULT false,
     edi_config JSONB,
     is_active BOOLEAN DEFAULT true,
+    -- When true, this vendor's name is suppressed on customer-facing UI (cards,
+    -- PDP, cart, emails/PDFs) where it would be the shown label; the real name is
+    -- still kept in SEO structured data (JSON-LD/meta) so we remain discoverable.
+    hide_public_name BOOLEAN NOT NULL DEFAULT false,
     -- Auto-created from a rep's one-off custom line (name + email only, no catalog)
     is_one_off BOOLEAN DEFAULT false,
     -- Vendor company info (managed in admin Vendors section). Rep/contact people
@@ -49,6 +53,10 @@ CREATE TABLE brands (
     website TEXT,
     description TEXT,
     is_active BOOLEAN DEFAULT true,
+    -- When true, this brand's name is suppressed on customer-facing UI (cards,
+    -- PDP, cart, emails/PDFs); the real name is still kept in SEO structured data
+    -- (JSON-LD/meta) so we remain discoverable. See vendors.hide_public_name.
+    hide_public_name BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
