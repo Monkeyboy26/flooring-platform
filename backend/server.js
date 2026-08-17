@@ -16366,7 +16366,14 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         const sku = skuResult.rows[0];
         const numBoxes = parseInt(item.num_boxes) || 1;
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
-        const sqftNeeded = sqftPerBox > 0 ? sqftPerBox * numBoxes : null;
+        // Carpet (per_sqyd, no boxes): rep enters square yards. Persist coverage as
+        // sqft (from the client, else num_boxes × 9) so the order line shows sqft
+        // and the carpet PO computes real sqyd — never leave it null. Pricing is
+        // unchanged (unitPrice × sqft/9 == unitPrice × sqyd).
+        const sqftNeeded = sqftPerBox > 0 ? sqftPerBox * numBoxes
+          : (sku.price_basis === 'per_sqyd'
+              ? (item.sqft_needed ? parseFloat(item.sqft_needed) : numBoxes * 9)
+              : null);
         // Per-sqft slab sold as a unit with no coverage: the rep entered the slab's
         // size at line level; that area converts the SKU's per-sqft retail AND cost
         // into per-slab figures. [[slab-size-entry]]

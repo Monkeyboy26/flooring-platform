@@ -15020,15 +15020,17 @@
         const discount = data.customer && data.customer.type === 'trade' ? parseFloat(data.customer.discount_percent || 0) : 0;
         const unitPrice = rofTradeUnit(retailPrice, r.retail_locked, discount);
         const sqftPerBox = parseFloat(r.sqft_per_box || 0);
-        const sqftNeeded = sqftPerBox ? sqftPerBox * numBoxes : null;
         const sellBy = r.sell_by || 'box';
         const isUnit = sellBy === 'unit' || sellBy === 'piece';
-        const isCarpet = r.price_basis === 'per_sqyd';
+        // Carpet: quick-add qty is square yards (priced per sqyd); store coverage
+        // as sqft (qty × 9) so the line reads correctly.
+        const isCarpet = r.price_basis === 'per_sqyd' || sellBy === 'roll';
+        const sqftNeeded = isCarpet ? numBoxes * 9 : (sqftPerBox ? sqftPerBox * numBoxes : null);
         const needsSlab = slabNeedsSize(r);
         let subtotal;
         if (needsSlab) subtotal = 0;                      // priced once the rep enters slab size
         else if (isUnit) subtotal = unitPrice * numBoxes;
-        else if (isCarpet && sqftNeeded) subtotal = unitPrice * (sqftNeeded / 9);
+        else if (isCarpet) subtotal = unitPrice * numBoxes;
         else if (sqftNeeded) subtotal = unitPrice * sqftNeeded;
         else subtotal = unitPrice * numBoxes;
         const newItem = {
@@ -15253,10 +15255,10 @@
               const price = parseFloat(rawValue);
               if (isNaN(price) || price < 0) return item;
               const isUnit = item.sell_by === 'unit' || item.sell_by === 'piece';
-              const isCarpet = item.price_basis === 'per_sqyd';
+              const isCarpet = item.price_basis === 'per_sqyd' || item.sell_by === 'roll';
               let sub;
               if (isUnit) sub = price * item.num_boxes;
-              else if (isCarpet && item.sqft_needed) sub = price * (parseFloat(item.sqft_needed) / 9);
+              else if (isCarpet) sub = price * item.num_boxes;           // qty = sqyd
               else if (item.sqft_needed) sub = price * parseFloat(item.sqft_needed);
               else sub = price * item.num_boxes;
               return { ...item, unit_price: price, subtotal: sub };
@@ -15277,12 +15279,12 @@
                 cost, subtotal: unit * item.num_boxes, _needsSlabSize: false };
             } else if (field === 'qty') {
               const qty = Math.max(1, Math.round(parseFloat(rawValue) || 1));
-              const sqft = item.sqft_per_box ? item.sqft_per_box * qty : 0;
               const isUnit = item.sell_by === 'unit' || item.sell_by === 'piece';
-              const isCarpet = item.price_basis === 'per_sqyd';
+              const isCarpet = item.price_basis === 'per_sqyd' || item.sell_by === 'roll';
+              const sqft = isCarpet ? qty * 9 : (item.sqft_per_box ? item.sqft_per_box * qty : 0);
               let sub;
               if (isUnit) sub = item.unit_price * qty;
-              else if (isCarpet && sqft) sub = item.unit_price * (sqft / 9);
+              else if (isCarpet) sub = item.unit_price * qty;            // qty = sqyd
               else if (sqft) sub = item.unit_price * sqft;
               else sub = item.unit_price * qty;
               return { ...item, num_boxes: qty, sqft_needed: sqft || item.sqft_needed, subtotal: sub };
@@ -25249,7 +25251,7 @@
         setShowResults(false);
         setProductSearch('');
         try {
-        const isCarpet = sku.price_basis === 'per_sqyd';
+        const isCarpet = sku.price_basis === 'per_sqyd' || sku.sell_by === 'roll';
         const retail = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
         const price = tradeUnit(retail, sku.retail_locked, tradeDiscountFor(selectedCustomer));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
@@ -27672,7 +27674,7 @@
       const addProductToEstimate = async (sku) => {
         setShowResults(false);
         setProductSearch('');
-        const isCarpet = sku.price_basis === 'per_sqyd';
+        const isCarpet = sku.price_basis === 'per_sqyd' || sku.sell_by === 'roll';
         const retail = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
         const price = tradeUnit(retail, sku.retail_locked, tradeDiscountFor(selectedCustomer));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
