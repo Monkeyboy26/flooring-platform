@@ -4,6 +4,7 @@
 // computed subtotals. Per-area subtotals are always computed here, never
 // stored — estimates.materials_subtotal/labor_subtotal stay the only stored
 // rollups (see recalculateEstimateTotals in server.js).
+import { enrichItemsForNaming } from './enrichItems.js';
 
 export const LABOR_CATEGORY_LABELS = {
   installation: 'Installation', tearout: 'Tearout', underlayment: 'Underlayment',
@@ -80,7 +81,7 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
   estimate.deposit_amount = depositAmount(estimate);
 
   const itemsRes = await pool.query(`
-    SELECT ei.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name,
+    SELECT ei.*, v.name as vendor_name, v.code as vendor_code, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name,
       s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size,
       p.collection as current_collection, COALESCE(ei.cost, pr.cost) as vendor_cost,
       (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
@@ -130,6 +131,10 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
     delete estimate.internal_notes;
     items = items.map(({ vendor_cost, ...rest }) => rest);
   }
+
+  // Stamp PDP-identical display_name / display_meta onto every line (shared by
+  // rep workspace, PDF, email, and public customer page).
+  await enrichItemsForNaming(items);
 
   // Group items per area; NULL area_id lands in the synthetic "general" bucket
   // (legacy estimates and quick adds). General renders last.

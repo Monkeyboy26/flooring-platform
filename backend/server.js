@@ -460,7 +460,7 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const product = await pool.query(`
-      SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, c.name as category_name, c.slug as category_slug
+      SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, c.name as category_name, c.slug as category_slug
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
@@ -800,7 +800,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
         v.name as vendor_name,
-        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
@@ -873,7 +873,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
         v.name as vendor_name,
-        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
@@ -955,7 +955,7 @@ app.get('/api/storefront/featured', async (req, res) => {
             s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
             COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
             v.name as vendor_name,
-            COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
+            COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, br.code as brand_code,
             COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
             c.name as category_name, c.slug as category_slug,
             pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
@@ -1417,7 +1417,7 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
       const skuResult = await pool.query(`
         SELECT s.id as sku_id, s.product_id, COALESCE(p.display_name, p.name) as product_name, p.collection, s.variant_name,
           s.vendor_sku, s.internal_sku,
-          v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+          v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
           pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
           COALESCE(
@@ -1523,7 +1523,7 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
           SELECT DISTINCT ON (r.id)
             s.id as sku_id, r.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection, s.variant_name,
             s.vendor_sku,
-            v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+            v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
             pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             r.final_score, r.total_count
@@ -1579,7 +1579,7 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
           SELECT DISTINCT ON (tp.id)
             s.id as sku_id, tp.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection, s.variant_name,
             s.vendor_sku,
-            v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+            v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
             pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             0::float as final_score, tp.trgm_score
@@ -2087,8 +2087,8 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short, p.search_vector,
         p.slug as product_slug, p.format_label, p.format_group,
-        v.name as vendor_name, v.code as vendor_code,
-        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
+        v.name as vendor_name,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
@@ -2297,7 +2297,7 @@ app.get('/api/storefront/skus/compare', async (req, res) => {
         s.id as sku_id, s.variant_name, s.sell_by,
         COALESCE(p.display_name, p.name) as product_name, p.collection,
         v.name as vendor_name,
-        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
         c.name as category_name,
         pr.retail_price, pr.price_basis,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
@@ -2455,8 +2455,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.vendor_id, p.brand_id, p.description_long, p.description_short,
         p.slug as product_slug, p.format_group, p.format_label,
         p.prop65_warning, p.prop65_chemicals,
-        v.name as vendor_name, v.code as vendor_code,
-        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
+        v.name as vendor_name,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.retail_locked, pr.cost, pr.price_basis,
@@ -5506,7 +5506,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     const orderItems = await pool.query(`
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
         (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -5950,7 +5950,7 @@ app.get('/api/admin/stats', staffAuth, requireRole('admin', 'manager'), async (r
         (SELECT COUNT(*)::int FROM orders) as orders
     `);
     const recent = await pool.query(`
-      SELECT p.id, p.name, p.status, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, p.created_at
+      SELECT p.id, p.name, p.status, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, p.created_at
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
@@ -6642,7 +6642,7 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
     );
 
     const dataResult = await pool.query(
-      `SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code, c.name as category_name,
+      `SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, br.code as brand_code, c.name as category_name,
         (SELECT COUNT(*)::int FROM skus s WHERE s.product_id = p.id) as sku_count,
         (SELECT pr.retail_price FROM pricing pr
          JOIN skus s ON s.id = pr.sku_id
@@ -6711,7 +6711,7 @@ async function getLabelData(skuIds) {
       s.id AS sku_id, s.internal_sku, s.variant_name, s.product_id,
       p.name AS product_name, p.collection,
       COALESCE(br.name, v.name) AS vendor_name,
-      (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+      (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
       (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
          WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) AS color,
       (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
@@ -6783,7 +6783,7 @@ async function buildLabels(rows) {
       variantLabel,
       // Customer-facing showroom tag: show the brand (vendor fallback), suppressed
       // when the brand/vendor is public-hidden. See vendors.hide_public_name.
-      vendorName: r.brand_hidden ? '' : r.vendor_name,
+      vendorName: r.brand_hidden ? (r.vendor_code || '') : r.vendor_name,
       colorsCount: parseInt(r.colors_count || 0, 10),
       sizesCount: parseInt(r.sizes_count || 0, 10),
       colors: r.colors || [],
@@ -6972,7 +6972,7 @@ app.get('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
   try {
     const { id } = req.params;
     const product = await pool.query(`
-      SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, c.name as category_name, c.slug as category_slug
+      SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, c.name as category_name, c.slug as category_slug
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
@@ -8507,7 +8507,7 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -9469,7 +9469,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -9580,7 +9580,7 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -9777,7 +9777,7 @@ async function searchSkus(pool, rawQuery) {
   const baseCols = `
     s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
     COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
-    v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+    v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
     pr.retail_price, pr.retail_locked, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
     pk.sqft_per_box, pk.roll_width_ft,
     sa_c.value as color, sa_sz.value as size`;
@@ -12980,7 +12980,7 @@ app.get('/api/trade/orders', tradeAuth, async (req, res) => {
         SELECT oi.product_name, oi.collection, oi.num_boxes, oi.unit_price, oi.subtotal, oi.sqft_needed,
           oi.sku_id, oi.product_id, s.internal_sku as sku_code, s.internal_sku, s.vendor_sku,
           s.variant_name, s.accessory_label, s.variant_type, sa_c.value AS color, sa_sz.value AS size,
-          p.collection AS current_collection, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+          p.collection AS current_collection, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = oi.sku_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
         FROM order_items oi
         LEFT JOIN skus s ON s.id = oi.sku_id
@@ -13392,7 +13392,7 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
     const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const items = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -13659,7 +13659,7 @@ app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
     const q = quote.rows[0];
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sk.accessory_label, sk.variant_type, sa_c.value as color, sa_sz.value as size,
-        COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
+        COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, v.code as vendor_code, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -13816,7 +13816,7 @@ async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
   const memo = cm.rows[0];
 
   const items = await pool.query(`
-    SELECT cmi.*, sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+    SELECT cmi.*, sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
       ri.reason, ri.condition,
       (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
     FROM credit_memo_items cmi
@@ -13887,7 +13887,7 @@ async function generateReleaseFormHtml(releaseId, opts = {}) {
   const release = rel.rows[0];
   const items = await pool.query(`
     SELECT ri.*, oi.collection, oi.sell_by, oi.num_boxes AS ordered_qty,
-      sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+      sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
       (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
     FROM release_items ri
     LEFT JOIN order_items oi ON oi.id = ri.order_item_id
@@ -16823,7 +16823,7 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
         cat.name as category_name,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
@@ -17602,7 +17602,7 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -17658,7 +17658,7 @@ app.put('/api/rep/orders/:id/items/:itemId/cost', repAuth, async (req, res) => {
     setImmediate(() => recalculateCommission(pool, id));
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
         cat.name as category_name,
         (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
@@ -17971,7 +17971,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -18089,7 +18089,7 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -18533,7 +18533,7 @@ app.get('/api/rep/orders/:id/return-context', repAuth, async (req, res) => {
     const order = oRes.rows[0];
 
     const itemsRes = await pool.query(`
-      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, oi.vendor_id AS line_vendor_id,
+      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, oi.vendor_id AS line_vendor_id,
         COALESCE((SELECT SUM(ri.return_qty) FROM return_items ri WHERE ri.order_item_id = oi.id), 0) AS already_returned
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -18787,7 +18787,7 @@ app.get('/api/staff/orders/:id/return-context', staffAuth, async (req, res) => {
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
     const itemsRes = await pool.query(`
-      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, oi.vendor_id AS line_vendor_id,
+      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, oi.vendor_id AS line_vendor_id,
         COALESCE((SELECT SUM(ri.return_qty) FROM return_items ri WHERE ri.order_item_id = oi.id), 0) AS already_returned
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -18925,7 +18925,7 @@ async function processRelease(client, { id, order, lines, release_method, recipi
     const oiRes = await client.query(`
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
         COALESCE(p.vendor_id, oi.vendor_id) AS line_vendor_id
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -19045,7 +19045,7 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
       SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.qty_received, oi.sqft_needed, oi.sell_by, oi.sku_id,
         COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
         s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, sa_sz.value AS size, cat.name AS category_name,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
         COALESCE(p.vendor_id, oi.vendor_id) AS vendor_id,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
           JOIN material_releases mr ON mr.id = ri.release_id
@@ -19300,7 +19300,7 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
       SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.qty_received, oi.sqft_needed, oi.sell_by, oi.sku_id,
         COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
         s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, sa_sz.value AS size, cat.name AS category_name,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
         COALESCE(p.vendor_id, oi.vendor_id) AS vendor_id,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
           JOIN material_releases mr ON mr.id = ri.release_id
@@ -19611,7 +19611,7 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
         SELECT
           s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
           COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
-          v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+          v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code,
           pr.retail_price, pr.retail_locked, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
           pk.sqft_per_box, pk.roll_width_ft,
           sa_c.value as color, sa_sz.value as size,
@@ -19800,7 +19800,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
     // One row per active SKU (product context joined in)
     let query = `
       SELECT p.*, v.name as vendor_name, v.code as vendor_code,
-        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         s.id as sku_id, s.variant_name, s.variant_type, s.accessory_label,
@@ -21817,7 +21817,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
     // Return full quote with items
     const fullQuote = await pool.query('SELECT * FROM quotes WHERE id = $1', [quote.id]);
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
@@ -21855,7 +21855,7 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
     const items = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
@@ -22186,7 +22186,7 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
 
     // Fetch quote items for the email
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -22281,7 +22281,7 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
 
     const q = quote.rows[0];
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -22674,7 +22674,7 @@ app.get('/api/rep/quotes/:id/pdf', repAuth, async (req, res) => {
     const q = quote.rows[0];
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sk.accessory_label, sk.variant_type, sa_c.value as color, sa_sz.value as size,
-        COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
+        COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, v.code as vendor_code, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -22800,7 +22800,7 @@ app.get('/api/admin/quotes/:id', staffAuth, async (req, res) => {
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
     const items = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
@@ -22959,7 +22959,7 @@ app.get('/api/staff/quotes/:id/pdf', staffDocAuth, async (req, res) => {
     const q = quote.rows[0];
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sk.accessory_label, sk.variant_type, sa_c.value as color, sa_sz.value as size,
-        COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
+        COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, v.code as vendor_code, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -23944,7 +23944,7 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
     await client.query('COMMIT');
 
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)

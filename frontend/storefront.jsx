@@ -1454,7 +1454,7 @@
       const sku = item.vendor_sku || item.internal_sku || item.sku || null;
       // Suppress the vendor name when the brand/vendor is public-hidden (keep the
       // rep's one-off custom_vendor and the SKU). See itemBrand.
-      const metaBrand = item.brand_hidden ? (item.custom_vendor || null) : (item.vendor_name || item.custom_vendor);
+      const metaBrand = item.brand_hidden ? (item.vendor_code || item.custom_vendor || null) : (item.vendor_name || item.custom_vendor);
       const parts = [metaBrand, sku].filter(Boolean);
       // dedupe while preserving order
       const seen = new Set();
@@ -1620,9 +1620,9 @@
     // flagged hide_public_name, we suppress the visible label everywhere a human
     // browses (the real name is still kept in SEO JSON-LD/meta so we stay
     // discoverable). custom_vendor is a rep's one-off free-text name, never gated.
-    function itemBrand(it) { it = it || {}; if (it.brand_hidden) return it.custom_vendor || ''; return it.brand_name || it.vendor_name || it.custom_vendor || ''; }
-    // Public brand label for a SKU card/detail — '' when hidden.
-    function publicBrand(sku) { sku = sku || {}; return sku.brand_hidden ? '' : (sku.brand_name || sku.vendor_name || ''); }
+    function itemBrand(it) { it = it || {}; if (it.brand_hidden) return (it.vendor_code != null ? String(it.vendor_code) : '') || it.custom_vendor || ''; return it.brand_name || it.vendor_name || it.custom_vendor || ''; }
+    // Public brand label for a SKU card/detail — the bare vendor code when hidden.
+    function publicBrand(sku) { sku = sku || {}; return sku.brand_hidden ? (sku.vendor_code != null ? String(sku.vendor_code) : '') : (sku.brand_name || sku.vendor_name || ''); }
     function itemSku(it) { it = it || {}; return it.vendor_sku || it.internal_sku || it.sku || ''; }
 
     function cleanDescription(text, vendorName) {
@@ -7479,7 +7479,9 @@
               <div className="pdp-sku-line">
                 {sku.vendor_sku && <><span style={{ color: 'var(--stone-500)' }}>SKU</span> <span style={{ margin: '0 0.25rem', color: 'var(--stone-400)' }}>&middot;</span> <span className="pdp-sku-val">{(sku.vendor_sku || '').toUpperCase()}</span><span className="pdp-sku-sep"></span></>}
                 {publicBrand(sku)
-                  ? <button type="button" onClick={() => onBrandClick && onBrandClick(publicBrand(sku))} title={'Browse all ' + publicBrand(sku)} style={{ background: 'none', border: 'none', padding: 0, margin: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}>{publicBrand(sku)}</button>
+                  ? (sku.brand_hidden
+                      ? <span className="pdp-sku-val">{publicBrand(sku)}</span>
+                      : <button type="button" onClick={() => onBrandClick && onBrandClick(publicBrand(sku))} title={'Browse all ' + publicBrand(sku)} style={{ background: 'none', border: 'none', padding: 0, margin: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}>{publicBrand(sku)}</button>)
                   : null}
               </div>
 

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { laborUnitShort, laborDisplayName } from './estimateBundle.js';
 import { formatRugDims } from './rugPricing.js';
+import { fullProductName, skuShapeFromLine } from './productName.js';
 
 let LOGO_DATA_URI = '';
 try {
@@ -101,126 +102,72 @@ export function productExtra(product, collection, color) {
  */
 export function composeItemName(it = {}) {
   const g = (k) => (it[k] != null && String(it[k]).trim() !== '') ? String(it[k]).trim() : null;
-  const product = g('product_name');
+  const SEP = '  ·  ';
+  const product = g('product_name') || g('current_product_name');
   const collection = g('collection') || g('current_collection');
   const color = g('color');
   const variant = g('variant_name');
-  const SEP = '  ·  ';
-  // Custom bound area rug: "Custom Area Rug  ·  <carpet>  ·  9' × 4'". Dimensions
-  // come from custom_width_ft/length_ft when selected, else from the stored
-  // description ("Custom Area Rug — 9' × 4'") — see [[custom-rug-calculator]].
-  if (g('is_custom_rug') || (g('description') || '').startsWith('Custom Area Rug')) {
-    const dims = (it.custom_width_ft && it.custom_length_ft)
-      ? formatRugDims(it.custom_width_ft, it.custom_length_ft)
-      : (g('description') || '').replace(/^Custom Area Rug\s*[—-]\s*/, '');
-    const carpet = [collection, color].filter(Boolean).join(' ') || product || null;
-    const descriptors = [carpet, dims].filter(Boolean);
-    const sku = g('vendor_sku') || g('internal_sku');
-    const vendor = it.brand_hidden === true ? g('custom_vendor') : (g('brand_name') || g('vendor_name') || g('custom_vendor'));
-    const meta = []; for (const m of [vendor, sku]) if (m && !meta.includes(m)) meta.push(m);
-    const nameLine = descriptors.length ? `Custom Area Rug${SEP}${descriptors.join(SEP)}` : 'Custom Area Rug';
-    const metaLine = meta.join(SEP);
-    return { title: 'Custom Area Rug', descriptors, sku, vendor, meta, nameLine, metaLine, oneLine: [nameLine, metaLine].filter(Boolean).join(SEP) };
-  }
-  const isAcc = g('variant_type') === 'accessory';
-  const accLabel = isAcc ? (g('accessory_label') || variant) : null;
-  // Accessory bought for a specific floor: lead with that floor's collection +
-  // color, then the accessory itself → "Metropolitan  ·  Los Angeles  ·  T-Moulding".
-  // Generic accessory SKUs are shared across floors, so this parent snapshot is
-  // the only thing that says which floor it's for. Falls back to the accessory's
-  // own collection/name when no parent (see [[line-item-display]]).
-  const parentCollection = isAcc ? g('parent_collection') : null;
-  const parentColor = isAcc ? g('parent_color') : null;
-  let title, ordered;
-  if (parentCollection) {
-    title = parentCollection;
-    ordered = [parentColor, accLabel || product];
-  } else {
-    title = collection || product || 'Product';
-    const design = color || (product && product !== title ? product : null);
-    // When a Color already names the design, the size/finish that distinguishes
-    // this SKU often lives only in product_name (e.g. collection "Ecoslate", color
-    // "White", product_name "Ecoslate 24x48" → "24x48" would otherwise be dropped).
-    const sizeInfo = color ? productExtra(product, collection, color) : null;
-    // Fallback: size held only in the size attribute (no-op until a query selects it).
-    const sizeDesc = sizeFromAttr(g('size'), [title, design, sizeInfo, variant].filter(Boolean).join(' '));
-    ordered = [design, sizeInfo, sizeDesc, variant, accLabel];
-  }
-  // Containment-aware dedup: drop a descriptor already present in what has been
-  // assembled so far — an exact echo (color "Shore" + variant "SHORE") or an
-  // embedded phrase (color "Arabescato Gold" inside product "Arabescato Gold
-  // Quartz Countertop"). Word-bounded + punctuation-insensitive so 9'x52" and
-  // 9 x 52 match. Mirrored in formatLineItem (rep/admin) + itemLineName (storefront).
-  const normSeg = (s) => (' ' + String(s).toLowerCase()
-    .replace(/(\d)\.(\d)/g, '$1§$2')     // protect decimal points (7.5)
-    .replace(/[^a-z0-9§]+/g, ' ')        // "Ave." ≈ "Ave", "&" drops
-    .replace(/§/g, '.')
-    .replace(/(\d(?:\.\d+)?)\s*x\s*(?=\d)/g, '$1x')
-    .replace(/\bmou?ldings?\b/g, 'mold') // trim-term stem: "T-Molding" ≈ "T-Mold"
-    .replace(/\s+/g, ' ').trim() + ' ');
-  let acc = normSeg(title);
-  // Partial overlap: iteratively strip already-covered LEADING and TRAILING
-  // phrases from a descriptor ("Grafito Bullnose 3X12" after color "Grafito" →
-  // "Bullnose 3X12"; "Blanco 2.5x5 Bullnose 2.5X5" → "Bullnose"). A phrase may
-  // strip when it's multi-word, digit-bearing, or exactly equals a WHOLE earlier
-  // segment — a single plain word inside a longer segment never strips, so
-  // "White" (from "White Oak Herringbone") can't truncate color "White Smoke".
-  const segsWhole = new Set([normSeg(title)]);
-  const stripCovered = (d) => {
-    let toks = String(d).trim().split(/\s+/);
-    const canStrip = (phrase, k) => {
-      const pn = normSeg(phrase);
-      if (!pn.trim() || !acc.includes(pn)) return false;
-      return k >= 2 || /\d/.test(phrase) || segsWhole.has(pn);
-    };
-    // Remove ANY covered window (leading, trailing, or interior — Daltile-style
-    // comma lists repeat the color mid-descriptor), longest first, until stable.
-    let changed = true;
-    outer: while (changed && toks.length > 1) {
-      changed = false;
-      for (let k = toks.length - 1; k >= 1; k--) {
-        for (let i = 0; i + k <= toks.length; i++) {
-          if (toks.length - k < 1) break;
-          if (canStrip(toks.slice(i, i + k).join(' '), k)) {
-            toks = toks.slice(0, i).concat(toks.slice(i + k));
-            changed = true; continue outer;
-          }
-        }
-      }
-    }
-    return toks.join(' ');
-  };
-  // Compound-word echoes ("Stair Nose" vs "Stairnose"): whole-segment equality
-  // on space-stripped forms only — never substring, so "Rose" ≠ "Primrose".
-  const noSpace = (s) => normSeg(s).replace(/ /g, '');
-  const segsNoSpace = new Set([noSpace(title)]);
-  const descriptors = [];
-  for (const d of ordered) {
-    if (!d) continue;
-    const p = normSeg(d);
-    if (p.trim() === '' || acc.includes(p) || segsNoSpace.has(noSpace(d))) continue;
-    const kept = stripCovered(d).replace(/^[\s·\-–—,]+|[\s·\-–—,]+$/g, '').trim();
-    const kp = normSeg(kept);
-    if (kp.trim() === '' || acc.includes(kp) || segsNoSpace.has(noSpace(kept))) continue;
-    descriptors.push(kept);
-    acc += kp;
-    segsWhole.add(kp);
-    segsNoSpace.add(noSpace(kept));
-  }
+  // vendor/sku meta is identical for every branch — the SKU always appears so
+  // indistinguishable items (e.g. 1,622 "Reducer" accessories) stay identifiable.
   const sku = g('vendor_sku') || g('internal_sku');
   // Margin-protection gate: a public-hidden brand/vendor shows no brand line on
   // customer docs (only a rep's one-off custom_vendor survives). Read the raw
   // boolean — g() would stringify false to a truthy "false". See [[hide-public-brand]].
-  const vendor = it.brand_hidden === true ? g('custom_vendor') : (g('brand_name') || g('vendor_name') || g('custom_vendor'));
+  const vendor = it.brand_hidden === true ? (g('vendor_code') || g('custom_vendor')) : (g('brand_name') || g('vendor_name') || g('custom_vendor'));
   const meta = [];
   for (const m of [vendor, sku]) if (m && !meta.includes(m)) meta.push(m);
-  // Separator SEP must stay identical to the frontend helpers (formatLineItem in
-  // rep.html/admin.html, itemLineName/itemMetaLine in storefront.jsx) so a line
-  // item renders identically on every surface \u2014 see [[line-item-display]].
-  const nameLine = descriptors.length ? `${title}${SEP}${descriptors.join(SEP)}` : title;
   const metaLine = meta.join(SEP);
-  const oneLine = [nameLine, metaLine].filter(Boolean).join(SEP);
-  return { title, descriptors, sku, vendor, meta, nameLine, metaLine, oneLine };
+  // Assemble the return object. SEP must stay identical to the storefront helpers
+  // (itemLineName/itemMetaLine in storefront.jsx) so a line renders the same on
+  // every surface — see [[line-item-display]].
+  const build = (title, descriptors) => {
+    descriptors = (descriptors || []).filter(Boolean);
+    const nameLine = descriptors.length ? `${title}${SEP}${descriptors.join(SEP)}` : title;
+    return { title, descriptors, sku, vendor, meta, nameLine, metaLine, oneLine: [nameLine, metaLine].filter(Boolean).join(SEP) };
+  };
+
+  // 1) Custom bound area rug: "Custom Area Rug  ·  <carpet>  ·  9' × 4'". No live
+  // SKU identity — dimensions come from custom_width_ft/length_ft when selected,
+  // else from the stored description. See [[custom-rug-calculator]].
+  // NB: test the raw boolean, NOT g() — g() stringifies, so a Postgres boolean
+  // false (present on cart_items.* rows) would become the truthy string "false"
+  // and mislabel every normal item as a rug.
+  const isCustomRug = it.is_custom_rug === true || it.is_custom_rug === 't' || it.is_custom_rug === 1;
+  if (isCustomRug || (g('description') || '').startsWith('Custom Area Rug')) {
+    const dims = (it.custom_width_ft && it.custom_length_ft)
+      ? formatRugDims(it.custom_width_ft, it.custom_length_ft)
+      : (g('description') || '').replace(/^Custom Area Rug\s*[—-]\s*/, '');
+    const carpet = [collection, color].filter(Boolean).join(' ') || product || null;
+    return build('Custom Area Rug', [carpet, dims]);
+  }
+
+  // 2) Accessory bought for a specific floor: lead with that floor's collection +
+  // color, then the accessory itself → "Metropolitan  ·  Los Angeles  ·  T-Moulding".
+  // Generic accessory SKUs are shared across floors, so this parent snapshot is the
+  // ONLY thing that says which floor it's for — it lives on the line, never on the
+  // shared SKU, so fullProductName can't recover it. See [[line-item-display]].
+  if (g('variant_type') === 'accessory' && g('parent_collection')) {
+    const accLabel = g('accessory_label') || variant;
+    const norm = (s) => (' ' + String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ');
+    const title = g('parent_collection');
+    let acc = norm(title);
+    const descriptors = [];
+    for (const d of [g('parent_color'), accLabel]) {
+      if (!d) continue;
+      const p = norm(d);
+      if (p.trim() === '' || acc.includes(p)) continue;
+      descriptors.push(d); acc += p;
+    }
+    return build(title, descriptors);
+  }
+
+  // 3) Everything else — identical to the storefront PDP title (fullProductName).
+  // Queries that select the sku_attributes JSON get full parity; older callers
+  // that only select color/size still get a PDP-structured name from those two.
+  // Fall back to the 'Product' sentinel for a nameless manual line so downstream
+  // renderers keep detecting it (title === 'Product' → use the typed description).
+  const pdpName = (fullProductName(skuShapeFromLine(it)) || '').trim();
+  return build(pdpName || product || 'Product', []);
 }
 
 /** Stacked HTML cell: muted brand line (vendor) on top, bold name line in the
@@ -1174,7 +1121,7 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
     const suffix = escDoc(_ci.descriptors.join(' · '));
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
-      i.brand_hidden ? null : (i.brand_name || i.vendor_name)
+      i.brand_hidden ? (i.vendor_code || null) : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     const perBoxSqft = parseFloat(i.sqft_per_box || 0);
     let sqft = parseFloat(i.sqft_needed || 0);
@@ -1751,7 +1698,7 @@ export function generateCreditMemoDoc(memo, items, opts = {}) {
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
-      i.brand_hidden ? null : (i.brand_name || i.vendor_name)
+      i.brand_hidden ? (i.vendor_code || null) : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     const reasonLine = [i.reason, i.condition ? i.condition.charAt(0).toUpperCase() + i.condition.slice(1) : null]
       .filter(Boolean).join(' · ');
@@ -1952,7 +1899,7 @@ export function generateReleaseFormDoc(release, items, opts = {}) {
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
-      i.brand_hidden ? null : (i.brand_name || i.vendor_name)
+      i.brand_hidden ? (i.vendor_code || null) : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
     const swatchSrc = i.primary_image
@@ -2106,7 +2053,7 @@ export function generateWorkOrderDoc(order, items, opts = {}) {
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
-      i.brand_hidden ? null : (i.brand_name || i.vendor_name)
+      i.brand_hidden ? (i.vendor_code || null) : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     return `<div class="grid-row keep" style="padding:11px 0;${idx < materials.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
       <div>

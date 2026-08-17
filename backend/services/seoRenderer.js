@@ -73,6 +73,7 @@ function parsePath(reqPath, query) {
   if (path === '/trade') return { type: 'static', page: 'trade' };
   if (path === '/installation') return { type: 'static', page: 'installation' };
   if (path === '/custom-accessories') return { type: 'static', page: 'custom-accessories' };
+  if (path === '/custom-area-rugs') return { type: 'static', page: 'custom-area-rugs' };
   if (path === '/cabinets') return { type: 'static', page: 'cabinets' };
   if (path === '/privacy') return { type: 'static', page: 'privacy' };
   if (path === '/terms') return { type: 'static', page: 'terms' };
@@ -124,7 +125,8 @@ async function fetchSkuData(pool, skuId) {
       s.id as sku_id, s.variant_name, s.internal_sku, s.sell_by, s.variant_type,
       p.name as product_name, p.collection, p.description_long, p.description_short,
       COALESCE(br.name, v.name) as brand_name,
-      COALESCE(br.hide_public_name, v.hide_public_name, false) as brand_hidden,
+      (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden,
+      v.code as vendor_code,
       c.name as category_name, c.slug as category_slug,
       pr.retail_price,
       (SELECT ma.url FROM media_assets ma
@@ -173,7 +175,8 @@ async function fetchProductBySlug(pool, categorySlug, productSlug) {
       s.id as sku_id, s.variant_name, s.internal_sku, s.sell_by, s.variant_type,
       p.name as product_name, p.collection, p.slug as product_slug, p.description_long, p.description_short,
       COALESCE(br.name, v.name) as brand_name,
-      COALESCE(br.hide_public_name, v.hide_public_name, false) as brand_hidden,
+      (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden,
+      v.code as vendor_code,
       c.name as category_name, c.slug as category_slug,
       pr.retail_price,
       (SELECT ma.url FROM media_assets ma
@@ -484,7 +487,7 @@ function renderSkuPage(sku) {
         <h1>${escapeHtml(sku.product_name)}${sku.variant_name ? ' <span style="color:#78716c">- ' + escapeHtml(sku.variant_name) + '</span>' : ''}</h1>
         ${priceDisplay ? `<div class="price">$${priceDisplay}${unit}</div>` : ''}
         ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
-        ${sku.brand_hidden ? '' : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
+        ${sku.brand_hidden ? (sku.vendor_code ? `<p><strong>Brand:</strong> ${escapeHtml(String(sku.vendor_code))}</p>` : '') : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
         <p><strong>SKU:</strong> ${escapeHtml(sku.internal_sku)}</p>
         ${sku.category_name ? `<p><strong>Category:</strong> <a href="/shop?category=${escapeHtml(sku.category_slug || '')}">${escapeHtml(sku.category_name)}</a></p>` : ''}
         ${sku.collection ? `<p><strong>Collection:</strong> <a href="/collections/${escapeHtml(slugify(sku.collection))}">${escapeHtml(sku.collection)}</a></p>` : ''}
@@ -570,7 +573,7 @@ function renderProductPage(sku) {
         <h1>${escapeHtml(sku.product_name)}${sku.variant_name ? ' <span style="color:#78716c">- ' + escapeHtml(sku.variant_name) + '</span>' : ''}</h1>
         ${priceDisplay ? `<div class="price">$${priceDisplay}${unit}</div>` : ''}
         ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
-        ${sku.brand_hidden ? '' : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
+        ${sku.brand_hidden ? (sku.vendor_code ? `<p><strong>Brand:</strong> ${escapeHtml(String(sku.vendor_code))}</p>` : '') : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
         <p><strong>SKU:</strong> ${escapeHtml(sku.internal_sku)}</p>
         ${sku.category_name ? `<p><strong>Category:</strong> <a href="/shop?category=${escapeHtml(sku.category_slug || '')}">${escapeHtml(sku.category_name)}</a></p>` : ''}
         ${sku.collection ? `<p><strong>Collection:</strong> <a href="/collections/${escapeHtml(slugify(sku.collection))}">${escapeHtml(sku.collection)}</a></p>` : ''}
@@ -896,6 +899,79 @@ function renderCustomAccessoriesPage() {
   return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd: customAccessoriesJsonLd(), bodyContent };
 }
 
+// ==================== Custom Area Rugs (local SEO) ====================
+// Keep RUG_* identical to frontend/storefront.jsx so prerender + SPA match.
+const RUG_OPTIONS = [
+  ['Custom-Size Rugs', 'Cut to any dimension your space needs — from entry mats to great-room rugs — so the fit is exact.'],
+  ['Shapes & Runners', 'Rectangles, rounds, ovals, and custom outlines, plus hall and stair runners cut to length.'],
+  ['Choose Your Carpet', 'Made from broadloom carpet — wool, nylon, and natural fibers in hundreds of colors and textures.'],
+  ['Layer Over Any Floor', 'Define a room and protect hardwood, tile, and vinyl with a rug that coordinates with your floor.'],
+];
+const RUG_EDGES = [
+  ['Serged Edge', 'Yarn wrapped tight to the pile for a clean, classic finished edge.'],
+  ['Machine Binding', 'A durable fabric-tape border in a color to match or contrast your carpet.'],
+  ['Cotton & Canvas Tape', 'A wide woven-tape border for a relaxed, casual look.'],
+  ['Leather Binding', 'A premium leather or faux-leather border for a tailored, high-end edge.'],
+];
+const RUG_FAQ = [
+  ['Can you make a custom-size area rug?', 'Yes. We cut and finish area rugs to any size and shape — rectangles, runners, rounds, and custom outlines — from broadloom carpet, so you get a rug that fits your space exactly.'],
+  ['What carpet can I choose for my rug?', 'We make rugs from wool, nylon, and natural-fiber broadloom in a wide range of colors, patterns, and textures, including performance and indoor/outdoor options for high-traffic areas.'],
+  ['What edge finishes do you offer?', 'Common finishes include a serged (yarn-wrapped) edge, machine binding, wide cotton or canvas tape, and leather or faux-leather binding — chosen to match or contrast your carpet.'],
+  ['Can you make stair and hallway runners?', 'Yes. We cut and bind runners to length for stairs, halls, and entries so they coordinate with your rugs and flooring.'],
+  ['Do I have to buy the carpet from Roma?', 'We bind rugs from carpet purchased at our Anaheim showroom, and in many cases from carpet you already have. Contact us and we will review your project.'],
+  ['How long does a custom rug take?', 'Because every rug is made to order, lead times vary by size, material, and edge finish. We give you a firm timeline with your quote.'],
+  ['Do you serve my area?', 'Our showroom is in Anaheim and we make custom area rugs for clients throughout Orange County.'],
+];
+
+function rugsJsonLd() {
+  const business = {
+    '@type': 'HomeAndConstructionBusiness', '@id': BUSINESS_ID, name: 'Roma Flooring Designs',
+    url: SITE_URL + '/custom-area-rugs', telephone: '(714) 999-0009', priceRange: '$$', image: SITE_URL + '/uploads/og-default.jpg',
+    address: { '@type': 'PostalAddress', streetAddress: '1440 S. State College Blvd #6M', addressLocality: 'Anaheim', addressRegion: 'CA', postalCode: '92806', addressCountry: 'US' },
+    geo: { '@type': 'GeoCoordinates', latitude: 33.8271, longitude: -117.8827 },
+    areaServed: { '@type': 'AdministrativeArea', name: 'Orange County' },
+    hasCredential: { '@type': 'EducationalOccupationalCredential', credentialCategory: 'California Contractor License', identifier: '830966' }
+  };
+  const offers = [...RUG_OPTIONS, ...RUG_EDGES].map(([n, d]) => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: n, description: d } }));
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      business,
+      {
+        '@type': 'Service', name: 'Custom Area Rug Fabrication', serviceType: 'Custom area rug and runner fabrication and binding',
+        provider: { '@id': BUSINESS_ID }, areaServed: { '@type': 'AdministrativeArea', name: 'Orange County' },
+        hasOfferCatalog: { '@type': 'OfferCatalog', name: 'Custom Area Rugs & Runners', itemListElement: offers }
+      },
+      { '@type': 'FAQPage', mainEntity: RUG_FAQ.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
+      { '@type': 'BreadcrumbList', itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+        { '@type': 'ListItem', position: 2, name: 'Custom Area Rugs', item: SITE_URL + '/custom-area-rugs' }
+      ]}
+    ]
+  };
+}
+
+function renderCustomAreaRugsPage() {
+  const title = 'Custom Area Rugs & Runners in Anaheim & Orange County | Roma Flooring Designs';
+  const description = 'Custom area rugs & runners in Anaheim & Orange County — cut and bound to any size and shape from wool, nylon & natural-fiber carpet, with serged, bound, or leather edges. Made to order. Call (714) 999-0009.';
+  const canonicalUrl = SITE_URL + '/custom-area-rugs';
+  const optHtml = RUG_OPTIONS.map(([n, d]) => `<li><strong>${escapeHtml(n)}:</strong> ${escapeHtml(d)}</li>`).join('');
+  const edgeHtml = RUG_EDGES.map(([n, d]) => `<li><strong>${escapeHtml(n)}:</strong> ${escapeHtml(d)}</li>`).join('');
+  const faqHtml = RUG_FAQ.map(([q, a]) => `<h3>${escapeHtml(q)}</h3><p>${escapeHtml(a)}</p>`).join('');
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li>Custom Area Rugs</li></ol></nav>
+    <h1>Custom Area Rugs &amp; Runners in Anaheim &amp; Orange County</h1>
+    <p>Roma Flooring Designs cuts and binds custom area rugs and runners from broadloom carpet — made to any size, shape, and edge finish, and chosen to coordinate with your floor. Every rug is made to order at our Anaheim showroom at 1440 S. State College Blvd #6M, Anaheim, CA 92806, serving all of Orange County. Call (714) 999-0009.</p>
+    <h2>Custom Rugs, Made Your Way</h2>
+    <ul>${optHtml}</ul>
+    <h2>Edge &amp; Binding Finishes</h2>
+    <ul>${edgeHtml}</ul>
+    <h2>Frequently Asked Questions</h2>
+    ${faqHtml}
+    <p><a href="/shop">Shop flooring</a> &middot; <a href="/custom-accessories">Custom accessories</a> &middot; <a href="/installation">Flooring installation</a></p>`;
+  return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd: rugsJsonLd(), bodyContent };
+}
+
 // ==================== Cabinets (local SEO) ====================
 const CAB_LINES = [
   ['Waypoint — Face-Frame Cabinetry', 'American-built', 'Classic, transitional & traditional kitchens', 'Painted maple and stained oak with a wood frame around the box for a classic, substantial look and time-tested strength.', ['Soft-close doors and drawers standard', 'Durable, dent-resistant painted and stained finishes', 'Six door styles from Shaker to arched and mullion']],
@@ -966,6 +1042,7 @@ function renderCabinetsPage() {
 function renderStaticPage(page) {
   if (page === 'installation') return renderInstallationPage();
   if (page === 'custom-accessories') return renderCustomAccessoriesPage();
+  if (page === 'custom-area-rugs') return renderCustomAreaRugsPage();
   if (page === 'cabinets') return renderCabinetsPage();
   const pages = {
     home: {
