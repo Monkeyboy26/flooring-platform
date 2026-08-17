@@ -235,16 +235,17 @@ const PORCELAIN = [
 
 // ==================== Helpers ====================
 
-async function upsertProduct(vendor_id, { name, collection, category_id, description_short }) {
+async function upsertProduct(vendor_id, { name, collection, category_id, description_short, brand_id }) {
   const result = await pool.query(`
-    INSERT INTO products (vendor_id, name, collection, category_id, status, description_short)
-    VALUES ($1, $2, $3, $4, 'draft', $5)
+    INSERT INTO products (vendor_id, name, collection, category_id, status, description_short, brand_id)
+    VALUES ($1, $2, $3, $4, 'draft', $5, $6)
     ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique DO UPDATE SET
       category_id = COALESCE(EXCLUDED.category_id, products.category_id),
       description_short = COALESCE(EXCLUDED.description_short, products.description_short),
+      brand_id = COALESCE(EXCLUDED.brand_id, products.brand_id),
       updated_at = CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
-  `, [vendor_id, name, collection || '', category_id || null, description_short || null]);
+  `, [vendor_id, name, collection || '', category_id || null, description_short || null, brand_id || null]);
   return result.rows[0];
 }
 
@@ -299,6 +300,21 @@ function variantLabel(code) {
   return labels[code] || code;
 }
 
+// Collapse the regular-vs-jumbo slab-size axis: a single product must not offer
+// both Standard and Jumbo at the same thickness (that renders a redundant size
+// pill on the storefront). For each thickness (2cm/3cm), prefer Jumbo when both
+// are listed; otherwise keep whichever single size is offered.
+function collapseSizes(availStr) {
+  const codes = availStr.split(',');
+  const byThickness = {};
+  for (const c of codes) {
+    const thick = c.slice(1);              // '2' or '3'
+    // Prefer Jumbo (J*) over Standard (S*) for the same thickness.
+    if (!byThickness[thick] || c.startsWith('J')) byThickness[thick] = c;
+  }
+  return Object.values(byThickness).sort();
+}
+
 function slabSqft(code) {
   return code.startsWith('S') ? STD_SLAB_SQFT : JUMBO_SLAB_SQFT;
 }
@@ -315,21 +331,29 @@ function tierDisplay(tier) {
 // ==================== Main ====================
 
 async function main() {
-  // Ensure vendor exists
-  let vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'CS'");
-  let vendorId;
-  if (!vendorRes.rows.length) {
-    const ins = await pool.query(`
-      INSERT INTO vendors (name, code, website)
-      VALUES ('Caesarstone', 'CS', 'https://www.caesarstoneus.com')
-      RETURNING id
-    `);
-    vendorId = ins.rows[0].id;
-    console.log(`Created vendor: Caesarstone (${vendorId})`);
-  } else {
-    vendorId = vendorRes.rows[0].id;
-    console.log(`Using existing vendor: Caesarstone (${vendorId})`);
-  }
+  // Distributor is Marble Express; Caesarstone is a brand under it (customers see
+  // the brand, POs go to Marble Express). Shares this vendor with Cambria.
+  const venRes = await pool.query(`
+    INSERT INTO vendors (name, code, notes)
+    VALUES ('Marble Express','MRBX','Slab distributor; carries Cambria + Caesarstone quartz brands.')
+    ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name
+    RETURNING id
+  `);
+  const vendorId = venRes.rows[0].id;
+  console.log(`Using vendor: Marble Express (${vendorId})`);
+
+  // Caesarstone brand — products.brand_id drives storefront brand display.
+  const brRes = await pool.query(`
+    INSERT INTO brands (name, code, website)
+    VALUES ('Caesarstone','CAESARSTONE','https://www.caesarstoneus.com')
+    ON CONFLICT (code) DO UPDATE SET website = EXCLUDED.website
+    RETURNING id
+  `);
+  const brandId = brRes.rows[0].id;
+  await pool.query(`
+    INSERT INTO vendor_brands (vendor_id, brand_id, is_primary) VALUES ($1, $2, false)
+    ON CONFLICT (vendor_id, brand_id) DO NOTHING
+  `, [vendorId, brandId]);
 
   let productsCreated = 0, productsUpdated = 0;
   let skusCreated = 0, skusUpdated = 0;
@@ -353,10 +377,11 @@ async function main() {
         collection: line.collection,
         category_id: line.category,
         description_short: desc,
+        brand_id: brandId,
       });
       if (prod.is_new) productsCreated++; else productsUpdated++;
 
-      const variants = availStr.split(',');
+      const variants = collapseSizes(availStr);
       for (const v of variants) {
         const prices = TIER_PRICES[tier];
         if (!prices || !prices[v]) {
@@ -407,6 +432,7 @@ async function main() {
       collection: 'Porcelain',
       category_id: CAT_PORCELAIN,
       description_short: desc,
+      brand_id: brandId,
     });
     if (prod.is_new) productsCreated++; else productsUpdated++;
 
