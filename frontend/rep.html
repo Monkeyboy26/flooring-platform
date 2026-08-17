@@ -14513,7 +14513,10 @@
       const sk = stockDisplay(p);
       const active = qty > 0;
       const isUnit = p.sell_by === 'unit' || p.sell_by === 'piece';
-      const qtyUnit = isUnit ? 'units' : 'boxes';
+      // Carpet / broadloom is priced per square yard — the quantity is entered in
+      // sq yd (rofCatExt returns price × qty for per_sqyd), not boxes.
+      const isCarpet = p.price_basis === 'per_sqyd' || p.sell_by === 'roll';
+      const qtyUnit = isCarpet ? 'sq yd' : isUnit ? 'units' : 'boxes';
       const priceUnit = skuPriceSuffix(p);
       const hasAcc = (p.accessory_count || 0) > 0;
       const accLoading = accessories === 'loading' || accessories === undefined;
@@ -14579,7 +14582,9 @@
               <button onClick={() => onBump(1)} style={stepBtn}>+</button>
             </div>
             <span style={{ ...mono(TH.muted), fontSize: 9, letterSpacing: '0.12em' }}>
-              {qtyUnit}{!isUnit && parseFloat(p.sqft_per_box || 0) > 0 && qty > 0 ? ' · ≈' + Math.round(parseFloat(p.sqft_per_box) * qty) + ' sf' : ''}
+              {qtyUnit}{isCarpet
+                ? (qty > 0 ? ' · ≈' + Math.round(qty * 9) + ' sf' : '')
+                : (!isUnit && parseFloat(p.sqft_per_box || 0) > 0 && qty > 0 ? ' · ≈' + Math.round(parseFloat(p.sqft_per_box) * qty) + ' sf' : '')}
             </span>
             <button onClick={() => onBump(1)} style={{
               marginLeft: 'auto', padding: '8px 16px', cursor: 'pointer',
@@ -14860,7 +14865,7 @@
                 <div style={{ minWidth: 0 }}>
                   <div style={{ font: '400 13px/1.2 var(--roma-sans)', color: TH.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.display_name || item.name}</div>
                   <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>
-                    {qty} {(item.sell_by === 'unit' || item.sell_by === 'piece') ? 'units' : 'bx'} {'×'} {fmtMoney(tUnit)}
+                    {qty} {(item.price_basis === 'per_sqyd' || item.sell_by === 'roll') ? 'sq yd' : (item.sell_by === 'unit' || item.sell_by === 'piece') ? 'units' : 'bx'} {'×'} {fmtMoney(tUnit)}
                   </div>
                 </div>
                 <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(rofCatExtOv(item, qty, tUnit, overage))}</span>
@@ -14972,7 +14977,7 @@
       const [catalogOpen, setCatalogOpen] = useState(false);
 
       const items = data.items || [];
-      const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sqft' : 'boxes';
+      const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sq yd' : 'boxes';
 
       // Slabs priced per sqft but sold as a unit with no coverage can't produce a
       // line total (price × qty would be one square foot). Flag them so the rep can
@@ -15133,15 +15138,17 @@
             const rawCost = parseFloat(p.cost || 0);
             const unitPrice = rofTradeUnit(retailPrice, p.retail_locked, discount);
             const sqftPerBox = parseFloat(p.sqft_per_box || 0);
-            const sqftNeeded = sqftPerBox ? sqftPerBox * qty : null;
             const sellBy = p.sell_by || 'box';
             const isUnit = sellBy === 'unit' || sellBy === 'piece';
-            const isCarpet = p.price_basis === 'per_sqyd';
+            // Carpet: catalog qty is square yards; price is per sqyd. Store the
+            // coverage as sqft (qty × 9) so the line reads correctly downstream.
+            const isCarpet = p.price_basis === 'per_sqyd' || sellBy === 'roll';
+            const sqftNeeded = isCarpet ? qty * 9 : (sqftPerBox ? sqftPerBox * qty : null);
             const needsSlab = slabNeedsSize(p);
             let subtotal;
             if (needsSlab) subtotal = 0;
             else if (isUnit) subtotal = unitPrice * qty;
-            else if (isCarpet && sqftNeeded) subtotal = unitPrice * (sqftNeeded / 9);
+            else if (isCarpet) subtotal = unitPrice * qty;
             else if (sqftNeeded) subtotal = unitPrice * sqftNeeded;
             else subtotal = unitPrice * qty;
             newItems.push({
