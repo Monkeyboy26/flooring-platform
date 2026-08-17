@@ -1734,7 +1734,7 @@
       return title + (descriptors.length ? '  ·  ' + descriptors.join('  ·  ') : '');
     }
 
-    function itemBrand(it) { it = it || {}; return it.vendor_name || it.custom_vendor || ''; }
+    function itemBrand(it) { it = it || {}; return it.brand_name || it.vendor_name || it.custom_vendor || ''; }
     function itemSku(it) { it = it || {}; return it.vendor_sku || it.internal_sku || it.sku || ''; }
 
     function cleanDescription(text, vendorName) {

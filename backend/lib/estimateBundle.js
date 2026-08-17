@@ -80,7 +80,7 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
   estimate.deposit_amount = depositAmount(estimate);
 
   const itemsRes = await pool.query(`
-    SELECT ei.*, v.name as vendor_name, s.vendor_sku, s.internal_sku, s.variant_name,
+    SELECT ei.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, s.vendor_sku, s.internal_sku, s.variant_name,
       s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size,
       p.collection as current_collection, COALESCE(ei.cost, pr.cost) as vendor_cost,
       (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
@@ -89,6 +89,7 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
     LEFT JOIN skus s ON s.id = ei.sku_id
     LEFT JOIN products p ON p.id = COALESCE(s.product_id, ei.product_id)
     LEFT JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN brands br ON br.id = p.brand_id
     LEFT JOIN pricing pr ON pr.sku_id = ei.sku_id
     LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ei.sku_id
       AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)

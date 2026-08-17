@@ -116,7 +116,7 @@ export function composeItemName(it = {}) {
     const carpet = [collection, color].filter(Boolean).join(' ') || product || null;
     const descriptors = [carpet, dims].filter(Boolean);
     const sku = g('vendor_sku') || g('internal_sku');
-    const vendor = g('vendor_name') || g('custom_vendor');
+    const vendor = g('brand_name') || g('vendor_name') || g('custom_vendor');
     const meta = []; for (const m of [vendor, sku]) if (m && !meta.includes(m)) meta.push(m);
     const nameLine = descriptors.length ? `Custom Area Rug${SEP}${descriptors.join(SEP)}` : 'Custom Area Rug';
     const metaLine = meta.join(SEP);
@@ -208,7 +208,7 @@ export function composeItemName(it = {}) {
     segsNoSpace.add(noSpace(kept));
   }
   const sku = g('vendor_sku') || g('internal_sku');
-  const vendor = g('vendor_name') || g('custom_vendor');
+  const vendor = g('brand_name') || g('vendor_name') || g('custom_vendor');
   const meta = [];
   for (const m of [vendor, sku]) if (m && !meta.includes(m)) meta.push(m);
   // Separator SEP must stay identical to the frontend helpers (formatLineItem in

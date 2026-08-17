@@ -5484,13 +5484,14 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     const orderItems = await pool.query(`
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name,
         (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
@@ -12527,6 +12528,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
@@ -12901,13 +12903,14 @@ app.get('/api/trade/orders', tradeAuth, async (req, res) => {
         SELECT oi.product_name, oi.collection, oi.num_boxes, oi.unit_price, oi.subtotal, oi.sqft_needed,
           oi.sku_id, oi.product_id, s.internal_sku as sku_code, s.internal_sku, s.vendor_sku,
           s.variant_name, s.accessory_label, s.variant_type, sa_c.value AS color, sa_sz.value AS size,
-          p.collection AS current_collection, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+          p.collection AS current_collection, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name,
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = oi.sku_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
         FROM order_items oi
         LEFT JOIN skus s ON s.id = oi.sku_id
         LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
         LEFT JOIN vendors v ON v.id = p.vendor_id
         LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+        LEFT JOIN brands br ON br.id = p.brand_id
         LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
           AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
         LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
@@ -12934,6 +12937,7 @@ app.get('/api/trade/orders/:id', tradeAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
@@ -13309,7 +13313,7 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
     const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const items = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -13317,6 +13321,7 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = qi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = qi.sku_id
@@ -16656,6 +16661,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
@@ -18431,13 +18437,14 @@ app.get('/api/rep/orders/:id/return-context', repAuth, async (req, res) => {
     const order = oRes.rows[0];
 
     const itemsRes = await pool.query(`
-      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, oi.vendor_id AS line_vendor_id,
+      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, oi.vendor_id AS line_vendor_id,
         COALESCE((SELECT SUM(ri.return_qty) FROM return_items ri WHERE ri.order_item_id = oi.id), 0) AS already_returned
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor'
       ORDER BY oi.id
     `, [id]);
@@ -18683,13 +18690,14 @@ app.get('/api/staff/orders/:id/return-context', staffAuth, async (req, res) => {
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
     const itemsRes = await pool.query(`
-      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, oi.vendor_id AS line_vendor_id,
+      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, oi.vendor_id AS line_vendor_id,
         COALESCE((SELECT SUM(ri.return_qty) FROM return_items ri WHERE ri.order_item_id = oi.id), 0) AS already_returned
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor' ORDER BY oi.id`, [id]);
     const payRes = await pool.query(
       `SELECT * FROM order_payments WHERE order_id = $1 AND payment_type IN ('charge','additional_charge') AND status = 'completed' AND amount > 0 ORDER BY created_at`, [id]);
@@ -18819,13 +18827,14 @@ async function processRelease(client, { id, order, lines, release_method, recipi
     const oiRes = await client.query(`
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name,
         COALESCE(p.vendor_id, oi.vendor_id) AS line_vendor_id
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
@@ -18935,7 +18944,7 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
       SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.qty_received, oi.sqft_needed, oi.sell_by, oi.sku_id,
         COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
         s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, sa_sz.value AS size, cat.name AS category_name,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name,
         COALESCE(p.vendor_id, oi.vendor_id) AS vendor_id,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
           JOIN material_releases mr ON mr.id = ri.release_id
@@ -18946,6 +18955,7 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories cat ON cat.id = p.category_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -19188,7 +19198,7 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
       SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.qty_received, oi.sqft_needed, oi.sell_by, oi.sku_id,
         COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
         s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, sa_sz.value AS size, cat.name AS category_name,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name,
         COALESCE(p.vendor_id, oi.vendor_id) AS vendor_id,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
           JOIN material_releases mr ON mr.id = ri.release_id
@@ -19199,6 +19209,7 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories cat ON cat.id = p.category_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -20450,6 +20461,7 @@ async function generateWorkOrderHtml(orderId, { repId } = {}) {
     LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
     LEFT JOIN vendors v ON v.id = p.vendor_id
     LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+    LEFT JOIN brands br ON br.id = p.brand_id
     LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
       AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
     LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
@@ -21701,7 +21713,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
     // Return full quote with items
     const fullQuote = await pool.query('SELECT * FROM quotes WHERE id = $1', [quote.id]);
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
@@ -21710,6 +21722,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = qi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = qi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -21737,7 +21750,7 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
     const items = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
@@ -21746,6 +21759,7 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = qi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = qi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -22066,7 +22080,7 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
 
     // Fetch quote items for the email
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -22074,6 +22088,7 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = qi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = qi.sku_id
@@ -22159,7 +22174,7 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
 
     const q = quote.rows[0];
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -22167,6 +22182,7 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = qi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = qi.sku_id
@@ -22398,6 +22414,7 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
@@ -22675,7 +22692,7 @@ app.get('/api/admin/quotes/:id', staffAuth, async (req, res) => {
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
     const items = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
@@ -22684,6 +22701,7 @@ app.get('/api/admin/quotes/:id', staffAuth, async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = qi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN pricing pr ON pr.sku_id = qi.sku_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
@@ -23816,12 +23834,13 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
     await client.query('COMMIT');
 
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = qi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = qi.sku_id
@@ -24044,6 +24063,7 @@ app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) =>
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
@@ -24299,6 +24319,7 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
@@ -27880,13 +27901,15 @@ async function autoGenerateAndSendInvoice(orderId, { sendEmail = true } = {}) {
         SELECT ii.*, COALESCE(oi.product_name, pr.display_name, pr.name) AS product_name,
           pr.collection AS current_collection, sk.variant_name, sk.accessory_label, sk.variant_type,
           sk.vendor_sku, sk.internal_sku, sa_c.value AS color, sa_sz.value AS size,
-          COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name
+          COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+          COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name
         FROM invoice_items ii
         LEFT JOIN order_items oi ON oi.id = ii.order_item_id
         LEFT JOIN skus sk ON sk.id = ii.sku_id
         LEFT JOIN products pr ON pr.id = COALESCE(sk.product_id, oi.product_id)
         LEFT JOIN vendors v ON v.id = pr.vendor_id
         LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+        LEFT JOIN brands br ON br.id = pr.brand_id
         LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ii.sku_id
           AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
         LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = ii.sku_id
@@ -28090,13 +28113,15 @@ app.post('/api/admin/accounting/invoices/:id/send', staffAuth, requireRole('admi
       SELECT ii.*, COALESCE(oi.product_name, pr.display_name, pr.name) AS product_name,
         pr.collection AS current_collection, sk.variant_name, sk.accessory_label, sk.variant_type,
         sk.vendor_sku, sk.internal_sku, sa_c.value AS color, sa_sz.value AS size,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
+        COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name
       FROM invoice_items ii
       LEFT JOIN order_items oi ON oi.id = ii.order_item_id
       LEFT JOIN skus sk ON sk.id = ii.sku_id
       LEFT JOIN products pr ON pr.id = COALESCE(sk.product_id, oi.product_id)
       LEFT JOIN vendors v ON v.id = pr.vendor_id
       LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = pr.brand_id
       LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ii.sku_id
         AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = ii.sku_id

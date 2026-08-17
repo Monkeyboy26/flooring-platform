@@ -35,7 +35,7 @@ export default function createCartRoutes(ctx) {
     SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection,
       CASE WHEN ci.is_custom_rug THEN 'unit' ELSE s.sell_by END as sell_by,
       s.variant_type, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, c.name as category_name, c.slug as category_slug,
-      v.name as vendor_name, sa_c.value as color, sa_sz.value as size,
+      v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, sa_c.value as color, sa_sz.value as size,
       pr.cut_price, pr.roll_price, pr.roll_min_sqft,
       COALESCE(ma_sku.url, ma_prod.url) as primary_image,
       COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
@@ -51,6 +51,7 @@ export default function createCartRoutes(ctx) {
     LEFT JOIN categories c ON c.id = p.category_id
     LEFT JOIN pricing pr ON pr.sku_id = ci.sku_id
     LEFT JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN brands br ON br.id = p.brand_id
     LEFT JOIN inventory_snapshots inv ON inv.sku_id = ci.sku_id AND inv.warehouse = 'default'
     LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = ci.sku_id
       AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)

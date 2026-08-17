@@ -1698,7 +1698,7 @@
   }
   function itemBrand(it) {
     it = it || {};
-    return it.vendor_name || it.custom_vendor || "";
+    return it.brand_name || it.vendor_name || it.custom_vendor || "";
   }
   function itemSku(it) {
     it = it || {};
