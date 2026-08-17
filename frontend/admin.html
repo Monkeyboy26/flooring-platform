@@ -1435,6 +1435,10 @@
     // (e.g. bare "Reducer") always carry their parent product + distinguishing info.
     function formatLineItem(it) {
       it = it || {};
+      // Prefer the server-computed title — the backend composes it with the SAME
+      // logic as the storefront PDP (fullProductName), so an order/quote line reads
+      // identically everywhere. Client fallback below covers un-enriched surfaces.
+      if (it.display_name) return { brand: it.vendor_name || it.custom_vendor || '', name: it.display_name, sku: it.vendor_sku || it.internal_sku || '' };
       // Custom bound area rug → "Custom Area Rug  ·  <carpet>  ·  9' × 4'". Dims come
       // from custom_width_ft/length_ft, else parsed from the stored description.
       if (it.is_custom_rug || (it.description || '').startsWith('Custom Area Rug')) {
@@ -4636,10 +4640,10 @@
               </div>
               <div className="form-group">
                 <label>Code *</label>
-                <input value={form.code} maxLength={4}
-                  onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) }))}
-                  placeholder="e.g. MSI" />
-                <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>2–4 letters (A–Z)</span>
+                <input value={form.code} maxLength={3}
+                  onChange={e => setForm(f => ({ ...f, code: e.target.value.replace(/[^0-9]/g, '').slice(0, 3) }))}
+                  placeholder="e.g. 145" />
+                <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>3 digits (0–9)</span>
               </div>
               <div className="form-group full">
                 <label>Website</label>

@@ -28,6 +28,7 @@ import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, comp
 import { createCustomerHelpers, findExactDuplicate } from './lib/customerHelpers.js';
 import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateWorkOrderDoc, generateLabelSheetHtml, generateLabelRollHtml, renderLabelPngs, generateLabelImageRollHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
 import { formatRugDims, computeRugCost, computeRugQuote } from './lib/rugPricing.js';
+import { enrichItemsForNaming } from './lib/enrichItems.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -459,7 +460,7 @@ app.get('/api/products/:id', optionalTradeAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const product = await pool.query(`
-      SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, c.name as category_name, c.slug as category_slug
+      SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, c.name as category_name, c.slug as category_slug
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
@@ -799,7 +800,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
         v.name as vendor_name,
-        COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, br.code as brand_code,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
@@ -872,7 +873,7 @@ app.get('/api/storefront/featured', async (req, res) => {
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
         v.name as vendor_name,
-        COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, br.code as brand_code,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
@@ -954,7 +955,7 @@ app.get('/api/storefront/featured', async (req, res) => {
             s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.created_at,
             COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short,
             v.name as vendor_name,
-            COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, br.code as brand_code,
+            COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
             COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
             c.name as category_name, c.slug as category_slug,
             pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
@@ -1416,7 +1417,7 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
       const skuResult = await pool.query(`
         SELECT s.id as sku_id, s.product_id, COALESCE(p.display_name, p.name) as product_name, p.collection, s.variant_name,
           s.vendor_sku, s.internal_sku,
-          v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+          v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
           pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
           COALESCE(
@@ -1522,7 +1523,7 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
           SELECT DISTINCT ON (r.id)
             s.id as sku_id, r.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection, s.variant_name,
             s.vendor_sku,
-            v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+            v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
             pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             r.final_score, r.total_count
@@ -1578,7 +1579,7 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
           SELECT DISTINCT ON (tp.id)
             s.id as sku_id, tp.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection, s.variant_name,
             s.vendor_sku,
-            v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+            v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
             pr.retail_price, pr.price_basis, s.sell_by, pk.sqft_per_box,
             CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
             0::float as final_score, tp.trgm_score
@@ -1864,6 +1865,16 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       paramIndex++;
     }
 
+    // Collection vendor scope — a collection name is unique per vendor
+    // (unique constraint on vendor_id, collection, name), so identically-named
+    // collections from different vendors must not leak into one another.
+    // Opaque vendor_id (never a name) so hidden brands aren't exposed in the URL.
+    if (req.query.collection_vendor) {
+      params.push(req.query.collection_vendor);
+      whereClauses.push(`p.vendor_id = $${paramIndex}`);
+      paramIndex++;
+    }
+
     // Search — Progressive FTS (AND → OR cascade) + trigram hybrid (with synonym expansion)
     let searchParamIdx = null;
     let searchTsQueryIdx = null;
@@ -1953,7 +1964,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       whereClauses.push(`p.id IN (SELECT pt.product_id FROM product_tags pt JOIN tag_definitions td ON td.id = pt.tag_id WHERE td.slug IN (${tagPlaceholders.join(',')}))`);
     }
 
-    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids', 'sku_ids', 'vendor', 'brand', 'price_min', 'price_max', 'sale', 'tags'];
+    const reservedParams = ['category', 'collection', 'collection_vendor', 'search', 'q', 'sort', 'limit', 'offset', 'product_ids', 'sku_ids', 'vendor', 'brand', 'price_min', 'price_max', 'sale', 'tags'];
     const attrFilters = {};
     for (const [key, val] of Object.entries(req.query)) {
       if (!reservedParams.includes(key) && val) {
@@ -2077,7 +2088,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.description_short, p.search_vector,
         p.slug as product_slug, p.format_label, p.format_group,
         v.name as vendor_name, v.code as vendor_code,
-        COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, br.code as brand_code,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.retail_locked, pr.price_basis, pr.cut_price,
@@ -2286,7 +2297,7 @@ app.get('/api/storefront/skus/compare', async (req, res) => {
         s.id as sku_id, s.variant_name, s.sell_by,
         COALESCE(p.display_name, p.name) as product_name, p.collection,
         v.name as vendor_name,
-        COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
         c.name as category_name,
         pr.retail_price, pr.price_basis,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
@@ -2445,7 +2456,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         p.slug as product_slug, p.format_group, p.format_label,
         p.prop65_warning, p.prop65_chemicals,
         v.name as vendor_name, v.code as vendor_code,
-        COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, br.code as brand_code,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         pr.retail_price, pr.retail_locked, pr.cost, pr.price_basis,
@@ -2728,7 +2739,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     // JMV vanities: find matching "Cabinet" (no countertop) product in same collection
     // Cabinet products are separate products in "Storage Cabinets" category with same color
     // Match by closest width (36.0" vanity → 35.88" cabinet)
-    if (curHasCt && sku.vendor_code === 'JMV' && sku.collection) {
+    if (curHasCt && sku.vendor_code === '474' && sku.collection) { // James Martin Vanities
       const skuColorAttr = (sku.attributes || []).find(a => a.slug === 'color');
       const skuColorVal = skuColorAttr ? skuColorAttr.value : null;
       const skuWidthAttr = (sku.attributes || []).find(a => a.slug === 'width');
@@ -2796,7 +2807,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
 
     // JMV cabinets (no countertop): find matching Vanity SKUs with countertop finishes
     // so the countertop pill selector still appears on cabinet pages
-    if (!curHasCt && sku.vendor_code === 'JMV' && sku.collection && /cabinet/i.test(sku.product_name)) {
+    if (!curHasCt && sku.vendor_code === '474' && sku.collection && /cabinet/i.test(sku.product_name)) { // James Martin Vanities
       const skuColorAttr = (sku.attributes || []).find(a => a.slug === 'color');
       const skuColorVal = skuColorAttr ? skuColorAttr.value : null;
       const skuWidthAttr = (sku.attributes || []).find(a => a.slug === 'width');
@@ -3345,6 +3356,13 @@ app.get('/api/storefront/facets', async (req, res) => {
       baseWhere.push(`LOWER(p.collection) = LOWER($${paramIndex})`);
       paramIndex++;
     }
+    // Collection vendor scope — keep identically-named collections from
+    // different vendors from leaking together (see /api/storefront/skus).
+    if (req.query.collection_vendor) {
+      params.push(req.query.collection_vendor);
+      baseWhere.push(`p.vendor_id = $${paramIndex}`);
+      paramIndex++;
+    }
     if (searchTerm) {
       const sanitized = searchTerm.replace(/[^\w\s'.-]/g, '').trim();
       if (sanitized) {
@@ -3399,7 +3417,7 @@ app.get('/api/storefront/facets', async (req, res) => {
     }
 
     // Collect attribute filters from query params
-    const reservedParams = ['category', 'collection', 'search', 'q', 'sort', 'limit', 'offset', 'vendor', 'brand', 'price_min', 'price_max', 'product_ids', 'sale', 'tags'];
+    const reservedParams = ['category', 'collection', 'collection_vendor', 'search', 'q', 'sort', 'limit', 'offset', 'vendor', 'brand', 'price_min', 'price_max', 'product_ids', 'sale', 'tags'];
     const attrFilters = {};
     for (const [key, val] of Object.entries(req.query)) {
       if (!reservedParams.includes(key) && val) {
@@ -3511,7 +3529,7 @@ app.get('/api/storefront/facets', async (req, res) => {
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       WHERE ${brandReindexed.where}
-        AND NOT COALESCE(br.hide_public_name, v.hide_public_name, false)
+        AND NOT (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false))
       GROUP BY COALESCE(br.name, v.name)
       ORDER BY count DESC
     `;
@@ -4706,19 +4724,19 @@ async function findOrCreateOneOffVendor(client, name, email) {
     }
     return v.id;
   }
-  // Vendor codes are 2-4 letters (A-Z). Derive a base from the name, then on
-  // collision cycle through letter suffixes while staying within the 4-letter cap.
-  const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const letters = trimmed.toUpperCase().replace(/[^A-Z]+/g, '');
-  let base = letters.slice(0, 4) || 'ONE';
-  if (base.length < 2) base = (base + 'XX').slice(0, 2);
-  let code = base;
-  for (let attempt = 1; (await client.query('SELECT 1 FROM vendors WHERE code = $1', [code])).rows.length; attempt++) {
-    let suffix = '', n = attempt - 1;
-    do { suffix = alpha[n % 26] + suffix; n = Math.floor(n / 26) - 1; } while (n >= 0);
-    const prefixLen = Math.max(1, Math.min(base.length, 4 - suffix.length));
-    code = (base.slice(0, prefixLen) + suffix).slice(0, 4);
+  // Vendor codes are random 3-digit numbers (100-999). Draw until we find an
+  // unused one; fall back to a linear scan if the random space gets crowded.
+  let code = null;
+  for (let attempt = 0; attempt < 50 && !code; attempt++) {
+    const candidate = String(100 + Math.floor(Math.random() * 900));
+    if (!(await client.query('SELECT 1 FROM vendors WHERE code = $1', [candidate])).rows.length) code = candidate;
   }
+  if (!code) {
+    for (let n = 100; n <= 999 && !code; n++) {
+      if (!(await client.query('SELECT 1 FROM vendors WHERE code = $1', [String(n)])).rows.length) code = String(n);
+    }
+  }
+  if (!code) throw new Error('No vendor code available (100-999 exhausted)');
   const ins = await client.query(
     `INSERT INTO vendors (name, code, email, is_active, is_one_off)
      VALUES ($1, $2, $3, true, true) RETURNING id`,
@@ -5064,6 +5082,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
             (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
           FROM order_items oi WHERE oi.order_id = $1
         `, [existingOrder.rows[0].id]);
+        await enrichItemsForNaming(existingItems.rows);
         return res.json({ order: { ...existingOrder.rows[0], items: existingItems.rows }, sample_request: null, already_placed: true });
       }
     } else {
@@ -5078,6 +5097,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
             (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
           FROM order_items oi WHERE oi.order_id = $1
         `, [recentOrder.rows[0].id]);
+        await enrichItemsForNaming(existingItems.rows);
         return res.json({ order: { ...recentOrder.rows[0], items: existingItems.rows }, sample_request: null, already_placed: true });
       }
     }
@@ -5442,6 +5462,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         `, [sampleRequest.id, productId, skuId, productName, collection, variantName, primaryImage, i]);
         resolvedSampleItems.push(itemRes.rows[0]);
       }
+      await enrichItemsForNaming(resolvedSampleItems);
       sampleRequest.items = resolvedSampleItems;
     }
 
@@ -5485,7 +5506,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     const orderItems = await pool.query(`
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
         (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -5499,6 +5520,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1
     `, [order.id]);
+    await enrichItemsForNaming(orderItems.rows);
     const response = { order: { ...order, items: orderItems.rows }, sample_request: sampleRequest || null };
     if (isBankTransfer && bankInstructions) {
       response.bank_instructions = bankInstructions;
@@ -5553,6 +5575,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
               (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
             FROM order_items oi WHERE oi.order_id = $1
           `, [dup.rows[0].id]);
+          await enrichItemsForNaming(dupItems.rows);
           return res.json({ order: { ...dup.rows[0], items: dupItems.rows }, sample_request: null, already_placed: true });
         }
       } catch (e2) { console.error(e2); }
@@ -5927,7 +5950,7 @@ app.get('/api/admin/stats', staffAuth, requireRole('admin', 'manager'), async (r
         (SELECT COUNT(*)::int FROM orders) as orders
     `);
     const recent = await pool.query(`
-      SELECT p.id, p.name, p.status, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, p.created_at
+      SELECT p.id, p.name, p.status, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, p.created_at
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
@@ -6619,7 +6642,7 @@ app.get('/api/admin/products', staffAuth, requireRole('admin', 'manager'), async
     );
 
     const dataResult = await pool.query(
-      `SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, br.code as brand_code, c.name as category_name,
+      `SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code, c.name as category_name,
         (SELECT COUNT(*)::int FROM skus s WHERE s.product_id = p.id) as sku_count,
         (SELECT pr.retail_price FROM pricing pr
          JOIN skus s ON s.id = pr.sku_id
@@ -6688,7 +6711,7 @@ async function getLabelData(skuIds) {
       s.id AS sku_id, s.internal_sku, s.variant_name, s.product_id,
       p.name AS product_name, p.collection,
       COALESCE(br.name, v.name) AS vendor_name,
-      COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+      (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
       (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
          WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) AS color,
       (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
@@ -6949,7 +6972,7 @@ app.get('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
   try {
     const { id } = req.params;
     const product = await pool.query(`
-      SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, c.name as category_name, c.slug as category_slug
+      SELECT p.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, c.name as category_name, c.slug as category_slug
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
@@ -7662,8 +7685,8 @@ app.post('/api/admin/vendors', staffAuth, requireRole('admin', 'manager'), async
   try {
     const { name, code, website, email, phone, address, account_number, notes } = req.body;
     if (!name || !code) return res.status(400).json({ error: 'Name and code are required' });
-    const normCode = String(code).trim().toUpperCase();
-    if (!/^[A-Z]{2,4}$/.test(normCode)) return res.status(400).json({ error: 'Code must be 2-4 letters (A-Z)' });
+    const normCode = String(code).trim();
+    if (!/^[0-9]{3}$/.test(normCode)) return res.status(400).json({ error: 'Code must be exactly 3 digits (0-9)' });
 
     const result = await pool.query(`
       INSERT INTO vendors (name, code, website, email, phone, address, account_number, notes)
@@ -7685,8 +7708,8 @@ app.put('/api/admin/vendors/:id', staffAuth, requireRole('admin', 'manager'), as
     const { name, code, website, email, phone, address, account_number, notes } = req.body;
     let normCode = null;
     if (code != null && String(code).trim() !== '') {
-      normCode = String(code).trim().toUpperCase();
-      if (!/^[A-Z]{2,4}$/.test(normCode)) return res.status(400).json({ error: 'Code must be 2-4 letters (A-Z)' });
+      normCode = String(code).trim();
+      if (!/^[0-9]{3}$/.test(normCode)) return res.status(400).json({ error: 'Code must be exactly 3 digits (0-9)' });
     }
 
     const result = await pool.query(`
@@ -8484,7 +8507,7 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -8500,6 +8523,7 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
       WHERE oi.order_id = $1
       ORDER BY oi.id
     `, [id]);
+    await enrichItemsForNaming(items.rows);
 
     const payments = await pool.query('SELECT * FROM order_payments WHERE order_id = $1 ORDER BY created_at', [id]);
     const paymentRequests = await pool.query('SELECT * FROM payment_requests WHERE order_id = $1 ORDER BY created_at DESC', [id]);
@@ -9445,7 +9469,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -9460,6 +9484,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
+    await enrichItemsForNaming(updatedItems.rows);
 
     // Fetch updated POs for response
     const posResult = await pool.query(`
@@ -9555,7 +9580,7 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -9570,6 +9595,7 @@ app.delete('/api/admin/orders/:id/items/:itemId', staffAuth, requireRole('admin'
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
+    await enrichItemsForNaming(updatedItems.rows);
 
     // Fetch updated POs
     const posResult = await pool.query(`
@@ -9687,6 +9713,7 @@ app.post('/api/admin/orders/:id/payment-request', staffAuth, requireRole('admin'
           WHERE oi.order_id = $1 ORDER BY oi.id
         `, [id]);
         items = itemsResult.rows;
+        await enrichItemsForNaming(items);
       } catch (itemsErr) {
         console.error(`[Admin] Payment request: failed to load items for ${o.order_number}:`, itemsErr.message);
       }
@@ -9750,7 +9777,7 @@ async function searchSkus(pool, rawQuery) {
   const baseCols = `
     s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
     COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
-    v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+    v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
     pr.retail_price, pr.retail_locked, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
     pk.sqft_per_box, pk.roll_width_ft,
     sa_c.value as color, sa_sz.value as size`;
@@ -12583,6 +12610,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1`, [order.id]);
+            await enrichItemsForNaming(orderItems.rows);
             const emailOrder = { ...order, status: 'confirmed', amount_paid: settledAmount.toFixed(2), items: orderItems.rows };
             setImmediate(async () => { await attachRep(emailOrder); sendOrderConfirmation(emailOrder); });
             // Notify reps
@@ -12952,7 +12980,7 @@ app.get('/api/trade/orders', tradeAuth, async (req, res) => {
         SELECT oi.product_name, oi.collection, oi.num_boxes, oi.unit_price, oi.subtotal, oi.sqft_needed,
           oi.sku_id, oi.product_id, s.internal_sku as sku_code, s.internal_sku, s.vendor_sku,
           s.variant_name, s.accessory_label, s.variant_type, sa_c.value AS color, sa_sz.value AS size,
-          p.collection AS current_collection, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+          p.collection AS current_collection, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
           (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = oi.sku_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
         FROM order_items oi
         LEFT JOIN skus s ON s.id = oi.sku_id
@@ -12992,6 +13020,7 @@ app.get('/api/trade/orders/:id', tradeAuth, async (req, res) => {
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id`, [req.params.id]);
+    await enrichItemsForNaming(items.rows);
     res.json({ order: order.rows[0], items: items.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -13335,6 +13364,7 @@ app.post('/api/trade/bulk-order/confirm', tradeAuth, async (req, res) => {
     if (tierChange) console.log(`[Trade] Bulk order ${tierChange.promoted ? 'promoted' : 'demoted'} ${req.tradeCustomer.id} to ${tierChange.name}`);
 
     await client.query('COMMIT');
+    await enrichItemsForNaming(items);
     res.json({ order: { ...order, items } });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -13362,7 +13392,7 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
     const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const items = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -13385,6 +13415,7 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
       actorName: req.tradeCustomer.contact_name || req.tradeCustomer.company_name || quote.rows[0].customer_name
     });
 
+    await enrichItemsForNaming(items.rows);
     res.json({ quote: quote.rows[0], items: items.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -13628,7 +13659,7 @@ app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
     const q = quote.rows[0];
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sk.accessory_label, sk.variant_type, sa_c.value as color, sa_sz.value as size,
-        COALESCE(br.name, v.name) as vendor_name, COALESCE(br.hide_public_name, v.hide_public_name, false) as brand_hidden, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
+        COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -13645,6 +13676,7 @@ app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
     const customer = await pool.query('SELECT * FROM trade_customers WHERE id = $1', [req.tradeCustomer.id]);
     const c = customer.rows[0] || {};
 
+    await enrichItemsForNaming(items.rows);
     const html = generateQuoteHtml({
       ...q,
       company_name: c.company_name || null,
@@ -13698,6 +13730,7 @@ async function generateOrderInvoiceHtml(orderId) {
   const msRows = await pool.query(
     'SELECT * FROM payment_milestones WHERE order_id = $1 ORDER BY sort_order, created_at', [orderId]);
   const milestones = computeSchedule(msRows.rows, o.total, o.amount_paid);
+  await enrichItemsForNaming(items.rows);
   return { html: generateOrderInvoiceDoc(o, items.rows, payRow.rows[0], milestones), filename: `invoice-${o.order_number}.pdf` };
 }
 
@@ -13713,6 +13746,7 @@ async function generateSampleRequestConfirmationHtml(sampleRequestId) {
       AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
     WHERE sri.sample_request_id = $1 ORDER BY sri.sort_order
   `, [sampleRequestId]);
+  await enrichItemsForNaming(items.rows);
   const s = sr.rows[0];
   const isPickup = s.delivery_method === 'pickup';
 
@@ -13782,7 +13816,7 @@ async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
   const memo = cm.rows[0];
 
   const items = await pool.query(`
-    SELECT cmi.*, sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+    SELECT cmi.*, sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
       ri.reason, ri.condition,
       (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
     FROM credit_memo_items cmi
@@ -13807,6 +13841,7 @@ async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
     rep_name: r.rep_name,
     rep_email: r.rep_email,
   };
+  await enrichItemsForNaming(items.rows);
   return {
     html: generateCreditMemoDoc(enriched, items.rows, { orderNumber: r.order_number }),
     filename: `${memo.credit_memo_number}-credit-memo.pdf`,
@@ -13852,7 +13887,7 @@ async function generateReleaseFormHtml(releaseId, opts = {}) {
   const release = rel.rows[0];
   const items = await pool.query(`
     SELECT ri.*, oi.collection, oi.sell_by, oi.num_boxes AS ordered_qty,
-      sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+      sk.variant_name, sk.vendor_sku, sa_c.value AS color, sa_sz.value AS size, COALESCE(br.name, v.name) AS vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
       (SELECT url FROM media_assets WHERE product_id = COALESCE(sk.product_id, oi.product_id) AND asset_type = 'primary' ORDER BY CASE WHEN sku_id = oi.sku_id THEN 0 WHEN sku_id IS NULL THEN 1 ELSE 2 END, sort_order LIMIT 1) AS primary_image
     FROM release_items ri
     LEFT JOIN order_items oi ON oi.id = ri.order_item_id
@@ -13865,6 +13900,7 @@ async function generateReleaseFormHtml(releaseId, opts = {}) {
     LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = ri.sku_id
       AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
     WHERE ri.release_id = $1 ORDER BY ri.created_at`, [release.id]);
+  await enrichItemsForNaming(items.rows);
   return {
     html: generateReleaseFormDoc(release, items.rows),
     filename: `${release.release_number}-release.pdf`,
@@ -13908,6 +13944,7 @@ app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
       FROM order_items oi LEFT JOIN packaging p ON p.sku_id = oi.sku_id
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
+    await enrichItemsForNaming(items.rows);
 
     const invoiceResult = await generateOrderInvoiceHtml(id);
     if (!invoiceResult) return res.status(500).json({ error: 'Failed to generate invoice' });
@@ -15265,6 +15302,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
     }
 
     await client.query('COMMIT');
+    await enrichItemsForNaming(resolvedItems);
 
     // Fire-and-forget: confirmation email + notification
     if (customer_email) {
@@ -15367,6 +15405,7 @@ app.get('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
       WHERE sri.sample_request_id = $1
       ORDER BY v.name, sri.sort_order
     `, [req.params.id]);
+    await enrichItemsForNaming(itemsRes.rows);
     res.json({ sample_request: srRes.rows[0], items: itemsRes.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -15433,6 +15472,7 @@ app.put('/api/rep/sample-requests/:id/ship', repAuth, async (req, res) => {
     // Fire-and-forget: email + notification
     if (sr.customer_email) {
       const itemsRes = await pool.query('SELECT * FROM sample_request_items WHERE sample_request_id = $1 ORDER BY sort_order', [sr.id]);
+      await enrichItemsForNaming(itemsRes.rows);
       setImmediate(() => sendSampleRequestShipped({
         customer_name: sr.customer_name,
         customer_email: sr.customer_email,
@@ -16716,6 +16756,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1`, [order.id]);
+    await enrichItemsForNaming(orderItems.rows);
     res.json({ order: { ...order, items: orderItems.rows } });
 
     // Recalculate commission for rep-created order
@@ -16782,7 +16823,7 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
 
     const items = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
         cat.name as category_name,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
@@ -16804,6 +16845,7 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       WHERE oi.order_id = $1
       ORDER BY oi.id
     `, [id]);
+    await enrichItemsForNaming(items.rows);
 
     // Material releases for this order (newest first) with a per-release qty summary.
     const releases = await pool.query(`
@@ -17560,7 +17602,7 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -17575,6 +17617,7 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
+    await enrichItemsForNaming(updatedItems.rows);
     const adjustments = await pool.query(`
       SELECT opa.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM order_price_adjustments opa
@@ -17615,7 +17658,7 @@ app.put('/api/rep/orders/:id/items/:itemId/cost', repAuth, async (req, res) => {
     setImmediate(() => recalculateCommission(pool, id));
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
         cat.name as category_name,
         (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
@@ -17633,6 +17676,7 @@ app.put('/api/rep/orders/:id/items/:itemId/cost', repAuth, async (req, res) => {
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
+    await enrichItemsForNaming(updatedItems.rows);
     res.json({ items: updatedItems.rows });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -17927,7 +17971,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -17942,6 +17986,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
+    await enrichItemsForNaming(updatedItems.rows);
 
     const posResult = await pool.query(`
       SELECT po.*, v.name as vendor_name, v.edi_config
@@ -18044,7 +18089,7 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
     const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     const updatedItems = await pool.query(`
       SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
         sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -18059,6 +18104,7 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 ORDER BY oi.id
     `, [id]);
+    await enrichItemsForNaming(updatedItems.rows);
 
     // Fetch updated POs
     const posResult = await pool.query(`
@@ -18190,6 +18236,7 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
           WHERE oi.order_id = $1 ORDER BY oi.id
         `, [id]);
         items = itemsResult.rows;
+        await enrichItemsForNaming(items);
       } catch (itemsErr) {
         console.error(`[Rep] Payment request: failed to load items for ${o.order_number}:`, itemsErr.message);
       }
@@ -18486,7 +18533,7 @@ app.get('/api/rep/orders/:id/return-context', repAuth, async (req, res) => {
     const order = oRes.rows[0];
 
     const itemsRes = await pool.query(`
-      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, oi.vendor_id AS line_vendor_id,
+      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, oi.vendor_id AS line_vendor_id,
         COALESCE((SELECT SUM(ri.return_qty) FROM return_items ri WHERE ri.order_item_id = oi.id), 0) AS already_returned
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -18510,6 +18557,7 @@ app.get('/api/rep/orders/:id/return-context', repAuth, async (req, res) => {
 
     const subtotal = parseFloat(order.subtotal || 0);
     const taxRate = subtotal > 0 ? parseFloat(order.tax_amount || 0) / subtotal : 0;
+    await enrichItemsForNaming(itemsRes.rows);
     res.json({ order, items: itemsRes.rows, tenders, tax_rate: parseFloat(taxRate.toFixed(6)) });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -18739,7 +18787,7 @@ app.get('/api/staff/orders/:id/return-context', staffAuth, async (req, res) => {
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
     const itemsRes = await pool.query(`
-      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, oi.vendor_id AS line_vendor_id,
+      SELECT oi.*, COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, oi.vendor_id AS line_vendor_id,
         COALESCE((SELECT SUM(ri.return_qty) FROM return_items ri WHERE ri.order_item_id = oi.id), 0) AS already_returned
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -18757,6 +18805,7 @@ app.get('/api/staff/orders/:id/return-context', staffAuth, async (req, res) => {
     }
     const subtotal = parseFloat(order.subtotal || 0);
     const taxRate = subtotal > 0 ? parseFloat(order.tax_amount || 0) / subtotal : 0;
+    await enrichItemsForNaming(itemsRes.rows);
     res.json({ order, items: itemsRes.rows, tenders, tax_rate: parseFloat(taxRate.toFixed(6)) });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -18876,7 +18925,7 @@ async function processRelease(client, { id, order, lines, release_method, recipi
     const oiRes = await client.query(`
       SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
         sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
         COALESCE(p.vendor_id, oi.vendor_id) AS line_vendor_id
       FROM order_items oi
       LEFT JOIN skus s ON s.id = oi.sku_id
@@ -18960,6 +19009,14 @@ async function emailMaterialRelease({ order, release, computed, actorName, actor
       const dv = await pool.query('SELECT name, address, phone FROM vendors WHERE id = $1', [release.vendor_id]);
       if (dv.rows.length) distributor = dv.rows[0];
     }
+    const releaseEmailItems = computed.map(c => ({
+      sku_id: c.oi.sku_id,
+      product_name: c.oi.product_name, collection: c.oi.collection, current_collection: c.oi.current_collection,
+      color: c.oi.color, variant_name: c.oi.variant_name, accessory_label: c.oi.accessory_label,
+      variant_type: c.oi.variant_type, vendor_name: c.oi.vendor_name, vendor_sku: c.oi.vendor_sku,
+      internal_sku: c.oi.internal_sku, description: c.oi.product_name, qty: c.qty, sell_by: c.oi.sell_by,
+    }));
+    await enrichItemsForNaming(releaseEmailItems);
     await sendMaterialRelease({
       release_number: release.release_number, order_number: order.order_number,
       customer_name: order.customer_name, customer_email: order.customer_email,
@@ -18970,12 +19027,7 @@ async function emailMaterialRelease({ order, release, computed, actorName, actor
       distributor_address: distributor ? distributor.address : null,
       distributor_phone: distributor ? distributor.phone : null,
       rep_name: actorName, rep_email: actorEmail,
-      items: computed.map(c => ({
-        product_name: c.oi.product_name, collection: c.oi.collection, current_collection: c.oi.current_collection,
-        color: c.oi.color, variant_name: c.oi.variant_name, accessory_label: c.oi.accessory_label,
-        variant_type: c.oi.variant_type, vendor_name: c.oi.vendor_name, vendor_sku: c.oi.vendor_sku,
-        internal_sku: c.oi.internal_sku, description: c.oi.product_name, qty: c.qty, sell_by: c.oi.sell_by,
-      })),
+      items: releaseEmailItems,
     });
   } catch (mailErr) {
     console.error('[Releases] Release email failed for', release.release_number, '-', mailErr.message);
@@ -18993,7 +19045,7 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
       SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.qty_received, oi.sqft_needed, oi.sell_by, oi.sku_id,
         COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
         s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, sa_sz.value AS size, cat.name AS category_name,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
         COALESCE(p.vendor_id, oi.vendor_id) AS vendor_id,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
           JOIN material_releases mr ON mr.id = ri.release_id
@@ -19011,6 +19063,7 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor' ORDER BY oi.id`, [id]);
+    await enrichItemsForNaming(itemsRes.rows);
     const bal = await recalculateBalance(pool, id);
     const paid = !!(bal && (bal.balance_status === 'paid' || bal.balance_status === 'credit'));
     const pend = await unsettledPaymentInfo(id);
@@ -19247,7 +19300,7 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
       SELECT oi.id, oi.product_name, oi.collection, oi.num_boxes, oi.qty_received, oi.sqft_needed, oi.sell_by, oi.sku_id,
         COALESCE(p.display_name, p.name) AS current_product_name, p.collection AS current_collection,
         s.vendor_sku, s.variant_name, s.variant_type, sa_c.value AS color, sa_sz.value AS size, cat.name AS category_name,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
         COALESCE(p.vendor_id, oi.vendor_id) AS vendor_id,
         COALESCE((SELECT SUM(ri.release_qty) FROM release_items ri
           JOIN material_releases mr ON mr.id = ri.release_id
@@ -19265,6 +19318,7 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1 AND NOT oi.is_sample AND COALESCE(oi.item_type, 'material') != 'labor' ORDER BY oi.id`, [id]);
+    await enrichItemsForNaming(itemsRes.rows);
     const bal = await recalculateBalance(pool, id);
     const paid = !!(bal && (bal.balance_status === 'paid' || bal.balance_status === 'credit'));
     const pend = await unsettledPaymentInfo(id);
@@ -19557,7 +19611,7 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
         SELECT
           s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
           COALESCE(p.display_name, p.name) as product_name, p.collection, p.vendor_id,
-          v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+          v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
           pr.retail_price, pr.retail_locked, pr.cost as vendor_cost, pr.price_basis, pr.cut_price, pr.roll_price,
           pk.sqft_per_box, pk.roll_width_ft,
           sa_c.value as color, sa_sz.value as size,
@@ -19746,7 +19800,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
     // One row per active SKU (product context joined in)
     let query = `
       SELECT p.*, v.name as vendor_name, v.code as vendor_code,
-        COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, br.code as brand_code,
+        COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
         s.id as sku_id, s.variant_name, s.variant_type, s.accessory_label,
@@ -20516,6 +20570,7 @@ async function generateWorkOrderHtml(orderId, { repId } = {}) {
     LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
       AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
     WHERE oi.order_id = $1 ORDER BY oi.item_type DESC, oi.id`, [orderId]);
+  await enrichItemsForNaming(items.rows);
   return {
     html: generateWorkOrderDoc(o.rows[0], items.rows),
     filename: `work-order-${o.rows[0].order_number}.pdf`,
@@ -21762,7 +21817,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
     // Return full quote with items
     const fullQuote = await pool.query('SELECT * FROM quotes WHERE id = $1', [quote.id]);
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
@@ -21779,6 +21834,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE qi.quote_id = $1
     `, [quote.id]);
+    await enrichItemsForNaming(quoteItems.rows);
     res.json({ quote: fullQuote.rows[0], items: quoteItems.rows });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -21799,7 +21855,7 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
     const items = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
@@ -21847,6 +21903,7 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
       customer = retail.rows[0] || null;
     }
 
+    await enrichItemsForNaming(items.rows);
     res.json({ quote: q, items: items.rows, customer });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -22129,7 +22186,7 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
 
     // Fetch quote items for the email
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -22144,6 +22201,7 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE qi.quote_id = $1 ORDER BY qi.id
     `, [id]);
+    await enrichItemsForNaming(quoteItems.rows);
 
     // Send email and report delivery status
     const emailData = {
@@ -22223,7 +22281,7 @@ app.get('/api/rep/quotes/:id/preview', repAuth, async (req, res) => {
 
     const q = quote.rows[0];
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -22616,7 +22674,7 @@ app.get('/api/rep/quotes/:id/pdf', repAuth, async (req, res) => {
     const q = quote.rows[0];
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sk.accessory_label, sk.variant_type, sa_c.value as color, sa_sz.value as size,
-        COALESCE(br.name, v.name) as vendor_name, COALESCE(br.hide_public_name, v.hide_public_name, false) as brand_hidden, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
+        COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -22631,6 +22689,7 @@ app.get('/api/rep/quotes/:id/pdf', repAuth, async (req, res) => {
       WHERE qi.quote_id = $1 ORDER BY qi.id
     `, [req.params.id]);
 
+    await enrichItemsForNaming(items.rows);
     const html = generateQuoteHtml(q, items.rows);
 
     await generatePDF(html, `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`, req, res);
@@ -22741,7 +22800,7 @@ app.get('/api/admin/quotes/:id', staffAuth, async (req, res) => {
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
     const items = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
         COALESCE(qi.cost, pr.cost) as vendor_cost,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
@@ -22758,6 +22817,7 @@ app.get('/api/admin/quotes/:id', staffAuth, async (req, res) => {
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE qi.quote_id = $1 ORDER BY qi.id
     `, [id]);
+    await enrichItemsForNaming(items.rows);
 
     const q = quote.rows[0];
     let customer = null;
@@ -22899,7 +22959,7 @@ app.get('/api/staff/quotes/:id/pdf', staffDocAuth, async (req, res) => {
     const q = quote.rows[0];
     const items = await pool.query(`
       SELECT qi.*, sk.variant_name, sk.accessory_label, sk.variant_type, sa_c.value as color, sa_sz.value as size,
-        COALESCE(br.name, v.name) as vendor_name, COALESCE(br.hide_public_name, v.hide_public_name, false) as brand_hidden, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
+        COALESCE(br.name, v.name) as vendor_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden, sk.vendor_sku, sk.internal_sku, p.collection as current_collection,
         (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
          ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
       FROM quote_items qi
@@ -22914,6 +22974,7 @@ app.get('/api/staff/quotes/:id/pdf', staffDocAuth, async (req, res) => {
       WHERE qi.quote_id = $1 ORDER BY qi.id
     `, [req.params.id]);
 
+    await enrichItemsForNaming(items.rows);
     const html = generateQuoteHtml(q, items.rows);
     await generatePDF(html, `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`, req, res);
   } catch (err) {
@@ -23883,7 +23944,7 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
     await client.query('COMMIT');
 
     const quoteItems = await pool.query(`
-      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection
+      SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size, p.collection as current_collection
       FROM quote_items qi
       LEFT JOIN skus s ON s.id = qi.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
@@ -23896,6 +23957,7 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE qi.quote_id = $1
     `, [quote.id]);
+    await enrichItemsForNaming(quoteItems.rows);
     res.json({ quote: { ...quote, subtotal: quoteSubtotal.toFixed(2), total: quoteSubtotal.toFixed(2) }, items: quoteItems.rows });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -24118,6 +24180,7 @@ app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) =>
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1`, [order.id]);
+    await enrichItemsForNaming(orderItems.rows);
     res.json({ order: { ...order, items: orderItems.rows } });
 
     // Fire-and-forget: order confirmation email to the customer, same as the
@@ -24374,6 +24437,7 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE oi.order_id = $1`, [order.id]);
+    await enrichItemsForNaming(orderItems.rows);
     setImmediate(async () => { const eo = { ...order, items: orderItems.rows }; await attachRep(eo); sendOrderConfirmation(eo).catch(err => console.error('[Email] deposit order confirmation error:', err.message)); });
 
     res.json({ checkout_url: await createDepositSession(order, deposit) });
@@ -27951,7 +28015,7 @@ async function autoGenerateAndSendInvoice(orderId, { sendEmail = true } = {}) {
           pr.collection AS current_collection, sk.variant_name, sk.accessory_label, sk.variant_type,
           sk.vendor_sku, sk.internal_sku, sa_c.value AS color, sa_sz.value AS size,
           COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
-          COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden
+          COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden
         FROM invoice_items ii
         LEFT JOIN order_items oi ON oi.id = ii.order_item_id
         LEFT JOIN skus sk ON sk.id = ii.sku_id
@@ -27964,6 +28028,7 @@ async function autoGenerateAndSendInvoice(orderId, { sendEmail = true } = {}) {
         LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = ii.sku_id
           AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
         WHERE ii.invoice_id = $1 ORDER BY ii.sort_order`, [invoice.id]);
+      await enrichItemsForNaming(items.rows);
       try {
         await sendInvoiceSent({ ...invoice, items: items.rows });
       } catch (e) { console.log('[AutoInvoice] Email send skipped:', e.message); }
@@ -28004,6 +28069,7 @@ app.get('/api/admin/accounting/invoices/:id', staffAuth, requireRole('admin', 'm
     );
     if (!inv.rows.length) return res.status(404).json({ error: 'Invoice not found' });
     const items = await pool.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY sort_order', [req.params.id]);
+    await enrichItemsForNaming(items.rows);
     const payments = await pool.query(
       `SELECT ip.*, sa.first_name || \' \' || sa.last_name as recorded_by_name
        FROM invoice_payments ip LEFT JOIN staff_accounts sa ON sa.id = ip.recorded_by
@@ -28163,7 +28229,7 @@ app.post('/api/admin/accounting/invoices/:id/send', staffAuth, requireRole('admi
         pr.collection AS current_collection, sk.variant_name, sk.accessory_label, sk.variant_type,
         sk.vendor_sku, sk.internal_sku, sa_c.value AS color, sa_sz.value AS size,
         COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
-        COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden
+        COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden
       FROM invoice_items ii
       LEFT JOIN order_items oi ON oi.id = ii.order_item_id
       LEFT JOIN skus sk ON sk.id = ii.sku_id
@@ -28176,6 +28242,7 @@ app.post('/api/admin/accounting/invoices/:id/send', staffAuth, requireRole('admi
       LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = ii.sku_id
         AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
       WHERE ii.invoice_id = $1 ORDER BY ii.sort_order`, [req.params.id]);
+    await enrichItemsForNaming(items.rows);
 
     // Send email
     try {

@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS unaccent;
 CREATE TABLE vendors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
-    code TEXT UNIQUE NOT NULL CHECK (code ~ '^[A-Za-z]{2,4}$'),
+    code TEXT UNIQUE NOT NULL CHECK (code ~ '^[0-9]{3}$'),
     website TEXT,
     email TEXT,
     has_public_inventory BOOLEAN DEFAULT false,

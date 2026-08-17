@@ -1,15 +1,15 @@
 -- Vendors
 INSERT INTO vendors (id, name, code, website) VALUES
-('550e8400-e29b-41d4-a716-446655440001', 'MSI Surfaces', 'MSI', 'https://www.msisurfaces.com'),
-('550e8400-e29b-41d4-a716-446655440002', 'Bedrosians Tile', 'BEDRO', 'https://www.bedrosians.com'),
-('550e8400-e29b-41d4-a716-446655440003', 'Daltile', 'DAL', 'https://www.daltile.com'),
-('550e8400-e29b-41d4-a716-446655440004', 'American Olean', 'AO', 'https://www.americanolean.com'),
-('550e8400-e29b-41d4-a716-446655440005', 'Marazzi', 'MZ', 'https://www.marazziusa.com'),
-('550e8400-e29b-41d4-a716-446655440006', 'Elysium Tile', 'ELY', 'http://elysiumtile.com'),
-('550e8400-e29b-41d4-a716-446655440007', 'Arizona Tile', 'AZT', 'https://www.arizonatile.com'),
-('550e8400-e29b-41d4-a716-446655440008', 'Tri-West', 'TW', 'https://www.triwestltd.com'),
-('550e8400-e29b-41d4-a716-446655440009', 'Roca USA', 'ROCA', 'https://rocatileusa.com'),
-('550e8400-e29b-41d4-a716-446655440010', 'Ottimo Ceramics', 'OTTIMO', 'https://ottimoceramics.com')
+('550e8400-e29b-41d4-a716-446655440001', 'MSI Surfaces', '820', 'https://www.msisurfaces.com'),
+('550e8400-e29b-41d4-a716-446655440002', 'Bedrosians Tile', '810', 'https://www.bedrosians.com'),
+('550e8400-e29b-41d4-a716-446655440003', 'Daltile', '145', 'https://www.daltile.com'),
+('550e8400-e29b-41d4-a716-446655440004', 'American Olean', '127', 'https://www.americanolean.com'),
+('550e8400-e29b-41d4-a716-446655440005', 'Marazzi', '424', 'https://www.marazziusa.com'),
+('550e8400-e29b-41d4-a716-446655440006', 'Elysium Tile', '991', 'http://elysiumtile.com'),
+('550e8400-e29b-41d4-a716-446655440007', 'Arizona Tile', '671', 'https://www.arizonatile.com'),
+('550e8400-e29b-41d4-a716-446655440008', 'Tri-West', '221', 'https://www.triwestltd.com'),
+('550e8400-e29b-41d4-a716-446655440009', 'Roca USA', '188', 'https://rocatileusa.com'),
+('550e8400-e29b-41d4-a716-446655440010', 'Ottimo Ceramics', '198', 'https://ottimoceramics.com')
 ON CONFLICT DO NOTHING;
 
 -- Categories: 8 parents + 27 children (full MSI catalog)

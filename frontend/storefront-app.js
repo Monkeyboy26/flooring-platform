@@ -1293,109 +1293,6 @@
     const re = new RegExp("\\s+" + escaped + "\\s*$", "i");
     return text.replace(re, "").trim();
   }
-  function cleanProductTitle(name, sku) {
-    if (!name) return name;
-    let cleaned = name;
-    const cat = (sku.category_name || "").toLowerCase();
-    const isCountertop = cat.includes("countertop") || cat.includes("slab");
-    if (!isCountertop) {
-      cleaned = cleaned.replace(/\s+\d+\s*[xX×]\s*\d+\s*$/, "");
-    }
-    cleaned = cleaned.replace(/\s+SPC\b/gi, "");
-    cleaned = cleaned.replace(/\s+WPC\b/gi, "");
-    cleaned = cleaned.replace(/\s+W\/?\s*pad\b/gi, "");
-    cleaned = cleaned.replace(/\s+\d+\s*mil\b/gi, "");
-    cleaned = cleaned.replace(/\s+\d+mm\b/gi, "");
-    cleaned = cleaned.trim();
-    if (cleaned.length < 3) return name;
-    return cleaned;
-  }
-  function pdpSubtitle(sku) {
-    if (sku.variant_type === "accessory") return formatVariantName(sku.variant_name);
-    const attrs = sku.attributes || [];
-    const colorAttr = attrs.find((a) => a.slug === "color");
-    const sizeAttr = attrs.find((a) => a.slug === "size");
-    const finishAttr = attrs.find((a) => a.slug === "finish");
-    if (colorAttr && colorAttr.value && sizeAttr && sizeAttr.value) {
-      const sizePart = isPrefabFormatSize(sizeAttr.value) ? formatPrefabVariant(sku.variant_name || sizeAttr.value) : formatSizeDim(sizeAttr.value);
-      const parts2 = [formatCarpetValue(colorAttr.value), sizePart];
-      if (finishAttr && finishAttr.value) parts2.push(formatCarpetValue(finishAttr.value));
-      return parts2.join(", ");
-    }
-    if (sku.variant_name && sku.variant_name.includes(",")) return formatVariantName(sku.variant_name);
-    const titleName = cleanProductTitle(sku.product_name, sku) || sku.product_name || "";
-    const titleLower = titleName.toLowerCase();
-    const parts = [];
-    if (colorAttr && colorAttr.value) {
-      const colorVal = formatCarpetValue(colorAttr.value);
-      if (!titleLower.includes(colorVal.toLowerCase())) {
-        parts.push(colorVal);
-      }
-    }
-    if (sizeAttr && sizeAttr.value) {
-      parts.push(formatSizeDim(sizeAttr.value));
-    }
-    if (finishAttr && finishAttr.value) {
-      const finishVal = formatCarpetValue(finishAttr.value);
-      if (!titleLower.includes(finishVal.toLowerCase())) {
-        parts.push(finishVal);
-      }
-    }
-    if (parts.length === 0) return formatVariantName(sku.variant_name);
-    return parts.join(", ");
-  }
-  function pdpHeroTitle(sku, siblings) {
-    const base = cleanProductTitle(sku.product_name, sku) || fullProductName(sku);
-    if (sku.variant_type === "accessory") return { hoist: false, title: base, base };
-    const ca = (sku.attributes || []).find((a) => a.slug === "color");
-    const color = ca && ca.value ? ca.value.trim() : null;
-    const colorSet = new Set((siblings || []).flatMap((s) => (s.attributes || []).filter((a) => a.slug === "color").map((a) => (a.value || "").toLowerCase())).filter(Boolean));
-    if (color) colorSet.add(color.toLowerCase());
-    const inBase = color && base.toLowerCase().includes(color.toLowerCase());
-    const hoist = !!color && (colorSet.size > 1 || inBase);
-    return { hoist, title: hoist ? formatCarpetValue(color) : base, base };
-  }
-  function pdpH1Title(sku, siblings) {
-    let title = pdpHeroTitle(sku, siblings).title;
-    if (sku.variant_type !== "accessory") {
-      const col = (sku.collection || "").trim();
-      const distinct = col && col !== sku.category_name && col !== sku.vendor_name && col !== sku.brand_name;
-      if (distinct && !title.toLowerCase().includes(col.toLowerCase())) {
-        const colWords = formatCarpetValue(col).split(/\s+/);
-        const titleWords = new Set(title.toLowerCase().split(/\s+/));
-        if (colWords.some((w) => titleWords.has(w.toLowerCase()))) {
-          const rest = colWords.filter((w) => !titleWords.has(w.toLowerCase())).join(" ");
-          if (rest) title = title + " " + rest;
-        } else {
-          title = formatCarpetValue(col) + " " + title;
-        }
-      }
-    }
-    const vend = (sku.vendor_name || "").trim();
-    if (vend === "Daltile" && !title.toLowerCase().startsWith(vend.toLowerCase() + " ")) {
-      title = vend + " " + title;
-    }
-    return title;
-  }
-  function pdpHoistedSubtitle(sku, base) {
-    const gradeAttr = (sku.attributes || []).find((a) => a.slug === "grade");
-    const sizeAttr = (sku.attributes || []).find((a) => a.slug === "size");
-    const finishAttr = (sku.attributes || []).find((a) => a.slug === "finish");
-    const colorAttr = (sku.attributes || []).find((a) => a.slug === "color");
-    let lead = base || "";
-    lead = lead.replace(/\b\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?\w*/g, " ");
-    const strip = [finishAttr && finishAttr.value, gradeAttr && gradeAttr.value, colorAttr && colorAttr.value, (sku.collection || "").trim()];
-    for (const v of strip) {
-      if (v) lead = lead.replace(new RegExp("\\b" + v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "ig"), " ");
-    }
-    lead = lead.replace(/\s*,\s*/g, " ").replace(/\s+/g, " ").replace(/^[\s,–—-]+|[\s,–—-]+$/g, "").trim();
-    const tail = [];
-    if (gradeAttr && gradeAttr.value) tail.push(formatCarpetValue(gradeAttr.value));
-    if (sizeAttr && sizeAttr.value) tail.push(formatSizeDim(sizeAttr.value));
-    if (finishAttr && finishAttr.value) tail.push(formatCarpetValue(finishAttr.value));
-    if (!lead) return tail.join(", ");
-    return tail.length ? `${lead} \u2014 ${tail.join(", ")}` : lead;
-  }
   function fullProductName(sku) {
     const rawName = sku.product_name || "";
     const col = sku.collection || "";
@@ -1507,12 +1404,14 @@
       if (variantIsColor || variantIsEmpty) {
         const rawSizeAttr = sku.sell_by !== "roll" ? (sku.attributes || []).find((a) => a.slug === "size") : null;
         const rawSizeVal = rawSizeAttr ? (rawSizeAttr.value || "").trim() : "";
-        const isAdexVendor = (sku.vendor_code || "").toUpperCase() === "ADEX";
+        const isAdexVendor = (sku.vendor_code || "") === "167";
         const sizeAttr = rawSizeAttr && !isAdexVendor && (/^\d+\s*[xX×]\s*\d+\s*ft$/i.test(rawSizeVal) || /^\d+\.\d+\s*[xX×]\s*\d+\.\d+$/.test(rawSizeVal) || /^\d+\.\d+\s+Wide$/i.test(rawSizeVal) || /^\d+\s+in$/i.test(rawSizeVal) || /^\d+\u2033$/.test(rawSizeVal)) ? null : rawSizeAttr;
         const patternAttr = (sku.attributes || []).find((a) => a.slug === "pattern");
         const finishAttr = (sku.attributes || []).find((a) => a.slug === "finish");
         const nameLowerDedup = name.toLowerCase();
-        const extras = [patternAttr, sizeAttr].filter(Boolean).filter((a) => !nameLowerDedup.includes(a.value.toLowerCase())).map((a) => a.value);
+        const normDim = (s) => String(s).toLowerCase().replace(/["″”'’\s]/g, "").replace(/×/g, "x");
+        const nameDimNorm = normDim(name);
+        const extras = [patternAttr, sizeAttr].filter(Boolean).filter((a) => !nameLowerDedup.includes(a.value.toLowerCase()) && !(a === sizeAttr && nameDimNorm.includes(normDim(a.value)))).map((a) => a.value);
         if (extras.length > 0) {
           const sizePart = extras.join(" ");
           const colorVal = variantIsColor ? variant : null;
@@ -1633,6 +1532,7 @@
   }
   function itemLineName(it) {
     it = it || {};
+    if (it.display_name) return it.display_name;
     if (it.is_custom_rug) {
       const dims = it.custom_width_ft && it.custom_length_ft ? formatRugDims(it.custom_width_ft, it.custom_length_ft) : "";
       const carpet = [it.collection, it.color].filter(Boolean).join(" ") || it.product_name || "";
@@ -2232,6 +2132,12 @@
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedCollection, setSelectedCollection] = useState(null);
+    const [selectedCollectionVendor, setSelectedCollectionVendor] = useState(null);
+    const collVendorRef = useRef(null);
+    const setCollVendor = (v) => {
+      collVendorRef.current = v || null;
+      setSelectedCollectionVendor(v || null);
+    };
     const [searchQuery, setSearchQuery] = useState("");
     const [searchDidYouMean, setSearchDidYouMean] = useState(null);
     const [searchTimeMs, setSearchTimeMs] = useState(null);
@@ -2399,9 +2305,10 @@
     const fetchFacetsAbort = useRef(null);
     const fetchSkus = useCallback((opts = {}) => {
       const PAGE_SIZE = 24;
-      const { cat, coll, search, activeFilters, sort, page, vendors, priceMin, priceMax, tags, restoreScroll } = {
+      const { cat, coll, collVendor, search, activeFilters, sort, page, vendors, priceMin, priceMax, tags, restoreScroll } = {
         cat: selectedCategory,
         coll: selectedCollection,
+        collVendor: selectedCollectionVendor,
         search: searchQuery,
         activeFilters: filters,
         sort: sortBy,
@@ -2415,6 +2322,7 @@
       const params = new URLSearchParams();
       if (cat) params.set("category", cat);
       if (coll) params.set("collection", coll);
+      if (coll && collVendor) params.set("collection_vendor", collVendor);
       if (search) params.set("q", search);
       if (sort && sort !== "relevance") params.set("sort", sort);
       params.set("limit", String(PAGE_SIZE));
@@ -2451,11 +2359,12 @@
           setLoadingSkus(false);
         }
       });
-    }, [selectedCategory, selectedCollection, searchQuery, filters, sortBy, currentPage, vendorFilters, userPriceRange, tagFilters]);
+    }, [selectedCategory, selectedCollection, selectedCollectionVendor, searchQuery, filters, sortBy, currentPage, vendorFilters, userPriceRange, tagFilters]);
     const fetchFacets = useCallback((opts = {}) => {
-      const { cat, coll, search, activeFilters, vendors, priceMin, priceMax, tags } = {
+      const { cat, coll, collVendor, search, activeFilters, vendors, priceMin, priceMax, tags } = {
         cat: selectedCategory,
         coll: selectedCollection,
+        collVendor: selectedCollectionVendor,
         search: searchQuery,
         activeFilters: filters,
         vendors: vendorFilters,
@@ -2467,6 +2376,7 @@
       const params = new URLSearchParams();
       if (cat) params.set("category", cat);
       if (coll) params.set("collection", coll);
+      if (coll && collVendor) params.set("collection_vendor", collVendor);
       if (search) params.set("q", search);
       const af = activeFilters || {};
       Object.keys(af).forEach((slug) => {
@@ -2492,13 +2402,14 @@
       }).catch((err) => {
         if (err.name !== "AbortError") console.error(err);
       });
-    }, [selectedCategory, selectedCollection, searchQuery, filters, vendorFilters, userPriceRange, tagFilters]);
+    }, [selectedCategory, selectedCollection, selectedCollectionVendor, searchQuery, filters, vendorFilters, userPriceRange, tagFilters]);
     fetchSkusRef.current = fetchSkus;
     fetchFacetsRef.current = fetchFacets;
     const buildShopUrl = (cat, coll, search, af, vf, prMin, prMax, tf) => {
       const params = new URLSearchParams();
       if (cat) params.set("category", cat);
       if (coll) params.set("collection", coll);
+      if (coll && collVendorRef.current) params.set("collection_vendor", collVendorRef.current);
       if (search) params.set("q", search);
       const f = af || {};
       Object.keys(f).forEach((slug) => {
@@ -2513,7 +2424,7 @@
     };
     const pushShopUrl = (cat, coll, search, af, replace, vf, prMin, prMax, tf) => {
       const url = buildShopUrl(cat, coll, search, af, vf, prMin, prMax, tf);
-      const state = { view: "browse", cat, coll, search, filters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: currentPage, scrollPos: scrollY.current };
+      const state = { view: "browse", cat, coll, collVendor: coll ? collVendorRef.current : null, search, filters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: currentPage, scrollPos: scrollY.current };
       if (replace) history.replaceState(state, "", url);
       else history.pushState(state, "", url);
     };
@@ -2854,17 +2765,18 @@
         return;
       }
     };
-    const handleCollectionClick = (collectionName) => {
+    const handleCollectionClick = (collectionName, vendorId) => {
       setSelectedCategory(null);
       setSelectedCollection(collectionName);
+      setCollVendor(vendorId || null);
       setFilters({});
       setVendorFilters([]);
       setTagFilters([]);
       setUserPriceRange({ min: null, max: null });
       setCurrentPage(1);
       setView("browse");
-      fetchSkus({ cat: null, coll: collectionName, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
-      fetchFacets({ cat: null, coll: collectionName, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
+      fetchSkus({ cat: null, coll: collectionName, collVendor: vendorId || null, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+      fetchFacets({ cat: null, coll: collectionName, collVendor: vendorId || null, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
       pushShopUrl(null, collectionName, "", {}, false, [], null, null, []);
       window.scrollTo(0, 0);
     };
@@ -3220,11 +3132,13 @@
       } else if (path === "/collections" || path === "/shop/collections") {
         setView("collections");
       } else if (path.startsWith("/collections/")) {
-        const slug = path.replace("/collections/", "");
+        const slug = path.replace("/collections/", "").split("?")[0];
+        const cv = new URLSearchParams(path.split("?")[1] || "").get("collection_vendor");
         setSelectedCollection(slug);
+        setCollVendor(cv);
         setView("browse");
-        fetchSkus({ coll: slug, activeFilters: {}, tags: [] });
-        fetchFacets({ coll: slug, activeFilters: {}, tags: [] });
+        fetchSkus({ coll: slug, collVendor: cv, activeFilters: {}, tags: [] });
+        fetchFacets({ coll: slug, collVendor: cv, activeFilters: {}, tags: [] });
       } else if (path === "/trade/apply") {
         setView("trade-apply");
       } else if (path === "/trade" && !path.startsWith("/trade/")) {
@@ -3276,8 +3190,9 @@
         setView("browse");
         const cat = sp.get("category");
         const coll = sp.get("collection");
+        const collVendor = sp.get("collection_vendor");
         const q = sp.get("q");
-        const reserved = ["category", "collection", "q", "vendor", "price_min", "price_max", "sort", "tags"];
+        const reserved = ["category", "collection", "collection_vendor", "q", "vendor", "price_min", "price_max", "sort", "tags"];
         const af = {};
         sp.forEach((val, key) => {
           if (!reserved.includes(key)) af[key] = val.split("|");
@@ -3288,6 +3203,7 @@
         const tf = sp.get("tags") ? sp.get("tags").split("|") : [];
         if (cat) setSelectedCategory(cat);
         if (coll) setSelectedCollection(coll);
+        setCollVendor(coll ? collVendor : null);
         if (q) {
           setSearchQuery(q);
           setSortBy("relevance");
@@ -3297,8 +3213,8 @@
         if (tf.length) setTagFilters(tf);
         if (prMin != null || prMax != null) setUserPriceRange({ min: prMin, max: prMax });
         if (cat || coll || q || Object.keys(af).length > 0 || vf.length > 0 || tf.length > 0) {
-          fetchSkus({ cat, coll, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, sort: q ? "relevance" : void 0 });
-          fetchFacets({ cat, coll, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+          fetchSkus({ cat, coll, collVendor, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, sort: q ? "relevance" : void 0 });
+          fetchFacets({ cat, coll, collVendor, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
           if (q) {
             fetch(API + "/api/storefront/search/related?q=" + encodeURIComponent(q)).then((r) => r.ok ? r.json() : { terms: [] }).then((d) => setRelatedSearches(d.terms || [])).catch(() => {
             });
@@ -3318,6 +3234,7 @@
           if (state.view === "browse") {
             setSelectedCategory(state.cat || null);
             setSelectedCollection(state.coll || null);
+            setCollVendor(state.coll ? state.collVendor || null : null);
             setSearchQuery(state.search || "");
             setFilters(state.filters || {});
             setVendorFilters(state.vendors || []);
@@ -3327,8 +3244,8 @@
             const savedScroll = state.scrollPos || 0;
             setCurrentPage(savedPage);
             scrollY.current = savedScroll;
-            fetchSkusRef.current({ cat: state.cat, coll: state.coll, search: state.search || "", activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [], page: savedPage, restoreScroll: savedScroll });
-            fetchFacetsRef.current({ cat: state.cat, coll: state.coll, search: state.search || "", activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [] });
+            fetchSkusRef.current({ cat: state.cat, coll: state.coll, collVendor: state.collVendor || null, search: state.search || "", activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [], page: savedPage, restoreScroll: savedScroll });
+            fetchFacetsRef.current({ cat: state.cat, coll: state.coll, collVendor: state.collVendor || null, search: state.search || "", activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [] });
           }
           if (state.view === "visit-recap" && state.token) setVisitRecapToken(state.token);
           if (state.view === "estimate-view" && state.token) setEstimateToken(state.token);
@@ -3366,8 +3283,9 @@
             const sp2 = new URLSearchParams(window.location.search);
             const cat = sp2.get("category");
             const coll = sp2.get("collection");
+            const collVendor = sp2.get("collection_vendor");
             const q = sp2.get("q");
-            const reserved2 = ["category", "collection", "q", "vendor", "price_min", "price_max", "sort", "tags"];
+            const reserved2 = ["category", "collection", "collection_vendor", "q", "vendor", "price_min", "price_max", "sort", "tags"];
             const af = {};
             sp2.forEach((val, key) => {
               if (!reserved2.includes(key)) af[key] = val.split("|");
@@ -3378,14 +3296,15 @@
             const tf = sp2.get("tags") ? sp2.get("tags").split("|") : [];
             setSelectedCategory(cat);
             setSelectedCollection(coll);
+            setCollVendor(coll ? collVendor : null);
             setSearchQuery(q || "");
             if (Object.keys(af).length) setFilters(af);
             setVendorFilters(vf);
             setTagFilters(tf);
             setUserPriceRange({ min: prMin, max: prMax });
             setCurrentPage(1);
-            fetchSkusRef.current({ cat, coll, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: 1 });
-            fetchFacetsRef.current({ cat, coll, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+            fetchSkusRef.current({ cat, coll, collVendor, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: 1 });
+            fetchFacetsRef.current({ cat, coll, collVendor, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
           }
         }
       };
@@ -5730,11 +5649,8 @@
     })(), /* @__PURE__ */ React.createElement("span", { className: "pdp-pdf-type" }, "PDF"))))))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-info", ref: infoRef }, /* @__PURE__ */ React.createElement("div", { className: "pdp-category-label" }, (() => {
       const linkStyle = { background: "none", border: "none", padding: 0, margin: 0, font: "inherit", color: "inherit", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" };
       const showColl = sku.collection && sku.collection !== sku.category_name;
-      return /* @__PURE__ */ React.createElement(React.Fragment, null, sku.category_name && sku.category_slug ? /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => onCategoryClick && onCategoryClick(sku.category_slug), title: "Browse all " + sku.category_name, style: linkStyle }, sku.category_name) : sku.category_name, showColl && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => onCollectionClick && onCollectionClick(sku.collection), title: "Browse the " + sku.collection + " collection", style: linkStyle }, sku.collection)));
-    })()), /* @__PURE__ */ React.createElement("div", { className: "pdp-title-row" }, /* @__PURE__ */ React.createElement("h1", { className: "sku-detail-title-row" }, pdpH1Title(sku, siblings)), /* @__PURE__ */ React.createElement("button", { className: "pdp-wishlist-heart" + (wishlist.includes(sku.sku_id) ? " active" : ""), onClick: () => toggleWishlist2(sku.sku_id), "aria-label": wishlist.includes(sku.sku_id) ? "Remove from wishlist" : "Add to wishlist" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: wishlist.includes(sku.sku_id) ? "currentColor" : "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" })))), (sku.variant_name || sku.attributes && sku.attributes.length > 0) && (() => {
-      const ht = pdpHeroTitle(sku, siblings);
-      return /* @__PURE__ */ React.createElement("div", { className: "pdp-variant-name" }, ht.hoist ? pdpHoistedSubtitle(sku, ht.base) : pdpSubtitle(sku));
-    })(), /* @__PURE__ */ React.createElement("div", { className: "pdp-sku-line" }, sku.vendor_sku && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-500)" } }, "SKU"), " ", /* @__PURE__ */ React.createElement("span", { style: { margin: "0 0.25rem", color: "var(--stone-400)" } }, "\xB7"), " ", /* @__PURE__ */ React.createElement("span", { className: "pdp-sku-val" }, (sku.vendor_sku || "").toUpperCase()), /* @__PURE__ */ React.createElement("span", { className: "pdp-sku-sep" })), publicBrand(sku) ? /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => onBrandClick && onBrandClick(publicBrand(sku)), title: "Browse all " + publicBrand(sku), style: { background: "none", border: "none", padding: 0, margin: 0, font: "inherit", color: "inherit", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" } }, publicBrand(sku)) : null), productTags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "product-tag-badges" }, productTags.map((t) => /* @__PURE__ */ React.createElement("span", { key: t.slug, className: "product-tag-badge" }, t.name))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-price" }, isCarpet(sku) ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", parseFloat(sku.cut_price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, "/sqyd \xB7 $", carpetSqftPrice(sku.cut_price), "/sqft"), tradePrice && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge trade" }, "Trade")), sku.roll_price && parseFloat(sku.roll_price) < parseFloat(sku.cut_price) && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-roll-badge" }, "Roll $", parseFloat(sku.roll_price).toFixed(2), "/sqyd", sku.roll_min_sqft ? " \xB7 " + parseFloat(sku.roll_min_sqft).toFixed(0) + " sqft min" : "")) : tradePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", tradePrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, priceSuffix(sku)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", retailPrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge trade" }, "Trade")), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (tradePrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : "")) : salePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", salePrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, priceSuffix(sku)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", retailPrice.toFixed(2)), retailPrice > 0 && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge sale" }, Math.round((1 - salePrice / retailPrice) * 100), "% off")), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (salePrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : "")) : retailPrice > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, msrpPrice && msrpPrice > retailPrice && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", msrpPrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", retailPrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, priceSuffix(sku))), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (retailPrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : "")) : /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount", style: { fontSize: "1.5rem" } }, "Call for Price"))), slabSizeItems.length > 0 && (() => {
+      return /* @__PURE__ */ React.createElement(React.Fragment, null, sku.category_name && sku.category_slug ? /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => onCategoryClick && onCategoryClick(sku.category_slug), title: "Browse all " + sku.category_name, style: linkStyle }, sku.category_name) : sku.category_name, showColl && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => onCollectionClick && onCollectionClick(sku.collection, sku.vendor_id), title: "Browse the " + sku.collection + " collection", style: linkStyle }, sku.collection)));
+    })()), /* @__PURE__ */ React.createElement("div", { className: "pdp-title-row" }, /* @__PURE__ */ React.createElement("h1", { className: "sku-detail-title-row" }, fullProductName(sku)), /* @__PURE__ */ React.createElement("button", { className: "pdp-wishlist-heart" + (wishlist.includes(sku.sku_id) ? " active" : ""), onClick: () => toggleWishlist2(sku.sku_id), "aria-label": wishlist.includes(sku.sku_id) ? "Remove from wishlist" : "Add to wishlist" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: wishlist.includes(sku.sku_id) ? "currentColor" : "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" })))), /* @__PURE__ */ React.createElement("div", { className: "pdp-sku-line" }, sku.vendor_sku && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-500)" } }, "SKU"), " ", /* @__PURE__ */ React.createElement("span", { style: { margin: "0 0.25rem", color: "var(--stone-400)" } }, "\xB7"), " ", /* @__PURE__ */ React.createElement("span", { className: "pdp-sku-val" }, (sku.vendor_sku || "").toUpperCase()), /* @__PURE__ */ React.createElement("span", { className: "pdp-sku-sep" })), publicBrand(sku) ? /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => onBrandClick && onBrandClick(publicBrand(sku)), title: "Browse all " + publicBrand(sku), style: { background: "none", border: "none", padding: 0, margin: 0, font: "inherit", color: "inherit", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: "2px" } }, publicBrand(sku)) : null), productTags.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "product-tag-badges" }, productTags.map((t) => /* @__PURE__ */ React.createElement("span", { key: t.slug, className: "product-tag-badge" }, t.name))), /* @__PURE__ */ React.createElement("div", { className: "sku-detail-price" }, isCarpet(sku) ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", parseFloat(sku.cut_price).toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, "/sqyd \xB7 $", carpetSqftPrice(sku.cut_price), "/sqft"), tradePrice && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge trade" }, "Trade")), sku.roll_price && parseFloat(sku.roll_price) < parseFloat(sku.cut_price) && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-roll-badge" }, "Roll $", parseFloat(sku.roll_price).toFixed(2), "/sqyd", sku.roll_min_sqft ? " \xB7 " + parseFloat(sku.roll_min_sqft).toFixed(0) + " sqft min" : "")) : tradePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", tradePrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, priceSuffix(sku)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", retailPrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge trade" }, "Trade")), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (tradePrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : "")) : salePrice ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", salePrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, priceSuffix(sku)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", retailPrice.toFixed(2)), retailPrice > 0 && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-badge sale" }, Math.round((1 - salePrice / retailPrice) * 100), "% off")), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (salePrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : "")) : retailPrice > 0 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, msrpPrice && msrpPrice > retailPrice && /* @__PURE__ */ React.createElement("span", { className: "pdp-price-strike" }, "$", msrpPrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount" }, "$", retailPrice.toFixed(2)), /* @__PURE__ */ React.createElement("span", { className: "pdp-price-suffix" }, priceSuffix(sku))), !isPerUnit && sqftPerBox > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdp-price-per-box" }, "$", (retailPrice * sqftPerBox).toFixed(2), " per ", boxLabel, " \xB7 ", sqftPerBox, " sqft", sku.pieces_per_box ? " \xB7 " + sku.pieces_per_box + " pieces" : "")) : /* @__PURE__ */ React.createElement("div", { className: "pdp-price-main" }, /* @__PURE__ */ React.createElement("span", { className: "pdp-price-amount", style: { fontSize: "1.5rem" } }, "Call for Price"))), slabSizeItems.length > 0 && (() => {
       const current = slabSizeItems.find((it) => it.is_current);
       return /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group pdp-size-selector" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", current ? /* @__PURE__ */ React.createElement("span", null, current.label) : null), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, slabSizeItems.map((it) => /* @__PURE__ */ React.createElement("button", { key: it.sku_id, className: "attr-pill" + (it.is_current ? " active" : ""), onClick: () => {
         if (!it.is_current) onSkuClick(it.sku_id);
@@ -5960,7 +5876,7 @@
       const collColorKeys = new Set(_nonAccCollSiblings.map((s) => siblingColorKey(s.product_name)));
       if (_nonAccCollSiblings.length > 0) collColorKeys.add(siblingColorKey(sku.product_name));
       const multiColorCollection = collColorKeys.size > 1;
-      const _isDecorativeHW = (sku.vendor_code || "").toUpperCase() === "HR";
+      const _isDecorativeHW = (sku.vendor_code || "") === "903";
       let collectionSizeItems = [];
       if (collectionSiblings.length > 0) {
         const extractDims = (name) => {
@@ -6243,9 +6159,15 @@
       }
       const showAttrSizes = attrSizeItems.length > 0;
       if (colorItems.length <= 1 && _nonAccCollSiblings.length > 0) {
+        const _finClause = (n) => {
+          const m = (n || "").match(/,\s*(.+?)(?:\s*\(|$)/);
+          return m ? m[1].trim().toLowerCase() : "";
+        };
+        const _curFinClause = _finClause(sku.product_name);
+        const _colorSibs = _nonAccCollSiblings.filter((s) => _finClause(s.product_name) === _curFinClause);
         const candidates = [
           { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: media && media[0] ? media[0].url : null, is_current: true },
-          ..._nonAccCollSiblings
+          ..._colorSibs
         ];
         let eligible = !showSizePills;
         if (!eligible && multiColorCollection) {
@@ -6534,15 +6456,21 @@
         return /* @__PURE__ */ React.createElement("div", { key: c.sku_id, className: "color-swatch-wrap" + (!compatible ? " limited" : ""), onClick: () => {
           if (!c.is_current) onSkuClick(c.sku_id);
         } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (c.is_current ? " active" : "") + (!compatible ? " limited" : "") }, c.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(c.primary_image, 120), alt: label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 600, color: "var(--stone-500)", textAlign: "center", lineHeight: 1.2, padding: "4px" } }, label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, label, !compatible ? " (other options may change)" : ""));
-      }))), showFormatSiblings && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Style", /* @__PURE__ */ React.createElement("span", null, formatLabel)), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, /* @__PURE__ */ React.createElement("button", { className: "attr-pill active" }, formatLabel), formatSiblings.map((fs) => /* @__PURE__ */ React.createElement("button", { key: fs.sku_id, className: "attr-pill", onClick: () => onSkuClick(fs.sku_id) }, fs.format_label)))), showSizePills && !attrSlugs.includes("shape") && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, collectionSizeItems.find((s) => s.is_current)?.label || "")), sku.vendor_code === "JMV" ? /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, collectionSizeItems.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "color-swatch-wrap", onClick: () => {
-        if (!s.is_current) onSkuClick(s.sku_id);
-      } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (s.is_current ? " active" : "") }, s.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(s.primary_image, 120), alt: s.label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 600, color: "var(--stone-500)", textAlign: "center", lineHeight: 1.2, padding: "4px" } }, s.label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, s.label)))) : /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, collectionSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
+      }))), showFormatSiblings && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Style", /* @__PURE__ */ React.createElement("span", null, formatLabel)), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, /* @__PURE__ */ React.createElement("button", { className: "attr-pill active" }, formatLabel), formatSiblings.map((fs) => /* @__PURE__ */ React.createElement("button", { key: fs.sku_id, className: "attr-pill", onClick: () => onSkuClick(fs.sku_id) }, fs.format_label)))), showSizePills && !attrSlugs.includes("shape") && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, collectionSizeItems.find((s) => s.is_current)?.label || "")), sku.vendor_code === "474" ? (
+        // James Martin Vanities
+        /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, collectionSizeItems.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "color-swatch-wrap", onClick: () => {
+          if (!s.is_current) onSkuClick(s.sku_id);
+        } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (s.is_current ? " active" : "") }, s.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(s.primary_image, 120), alt: s.label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 600, color: "var(--stone-500)", textAlign: "center", lineHeight: 1.2, padding: "4px" } }, s.label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, s.label))))
+      ) : /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, collectionSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
         if (!s.is_current) onSkuClick(s.sku_id);
       } }, s.label)))), showFinishPills && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Finish", /* @__PURE__ */ React.createElement("span", null, collectionFinishItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, collectionFinishItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : "") + (s.is_cross_product ? " limited" : ""), title: s.is_cross_product ? "Available in other colors" : "", onClick: () => {
         if (!s.is_current && s.sku_id) onSkuClick(s.sku_id);
-      } }, s.label)))), showSibSizes && !attrSlugs.includes("shape") && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, sibSizeItems.find((s) => s.is_current)?.label || "")), sku.vendor_code === "JMV" ? /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, sibSizeItems.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "color-swatch-wrap", onClick: () => {
-        if (!s.is_current) onSkuClick(s.sku_id);
-      } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (s.is_current ? " active" : "") }, s.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(s.primary_image, 120), alt: s.label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 600, color: "var(--stone-500)", textAlign: "center", lineHeight: 1.2, padding: "4px" } }, s.label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, s.label)))) : /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, sibSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
+      } }, s.label)))), showSibSizes && !attrSlugs.includes("shape") && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, sibSizeItems.find((s) => s.is_current)?.label || "")), sku.vendor_code === "474" ? (
+        // James Martin Vanities
+        /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, sibSizeItems.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "color-swatch-wrap", onClick: () => {
+          if (!s.is_current) onSkuClick(s.sku_id);
+        } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (s.is_current ? " active" : "") }, s.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(s.primary_image, 120), alt: s.label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 600, color: "var(--stone-500)", textAlign: "center", lineHeight: 1.2, padding: "4px" } }, s.label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, s.label))))
+      ) : /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, sibSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : ""), onClick: () => {
         if (!s.is_current) onSkuClick(s.sku_id);
       } }, s.label)))), showAttrSizes && !attrSlugs.includes("shape") && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, attrSizeItems.find((s) => s.is_current)?.label || "")), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, attrSizeItems.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.label, className: "attr-pill" + (s.is_current ? " active" : "") + (s.is_cross_product ? " limited" : ""), title: s.is_cross_product ? "Available in other colors" : "", onClick: () => {
         if (!s.is_current && s.sku_id) onSkuClick(s.sku_id);
@@ -7045,20 +6973,41 @@
         byCategory[cat].push(gp);
       });
       return /* @__PURE__ */ React.createElement("div", { className: "siblings-section", ref: sectionRefs.companions }, /* @__PURE__ */ React.createElement("div", { className: "siblings-section-header" }, /* @__PURE__ */ React.createElement("div", { className: "siblings-section-eyebrow" }, "02 \u2014 Complete the Look"), /* @__PURE__ */ React.createElement("h2", null, "Companion Products")), Object.entries(byCategory).map(([catName, items]) => /* @__PURE__ */ React.createElement("div", { key: catName, style: { marginBottom: "1.5rem" } }, /* @__PURE__ */ React.createElement("div", { className: "sibling-card-meta", style: { marginBottom: "0.75rem", fontSize: "0.6875rem" } }, catName), /* @__PURE__ */ React.createElement("div", { className: "siblings-strip" }, items.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.sku_id, className: "sibling-card", onClick: () => onSkuClick(s.sku_id) }, /* @__PURE__ */ React.createElement("div", { className: "sibling-card-image" }, s.primary_image && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(s.primary_image, 400), alt: s.product_name, loading: "lazy", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "sibling-card-name" }, s.product_name), skuListPrice(s) && /* @__PURE__ */ React.createElement("div", { className: "sibling-card-price" }, "from $", displayPrice(s, skuListPrice(s)).toFixed(2), priceSuffix(s))))))));
-    })(), !isAdexProduct && mainSiblings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "siblings-section", ref: sectionRefs.variants }, /* @__PURE__ */ React.createElement("div", { className: "siblings-section-header" }, /* @__PURE__ */ React.createElement("div", { className: "siblings-section-eyebrow" }, "03 \u2014 Variants"), /* @__PURE__ */ React.createElement("h2", null, "Other Sizes & Finishes"), /* @__PURE__ */ React.createElement("div", { className: "siblings-section-sub" }, "Same species, same finish \u2014 different plank dimensions and price points.")), /* @__PURE__ */ React.createElement("div", { className: "siblings-strip" }, mainSiblings.map((s) => {
-      const isCurrent = s.sku_id === skuId;
-      return /* @__PURE__ */ React.createElement("div", { key: s.sku_id, className: "sibling-card" + (isCurrent ? " is-current" : ""), onClick: () => !isCurrent && onSkuClick(s.sku_id) }, /* @__PURE__ */ React.createElement("div", { className: "sibling-card-image" }, s.primary_image && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(s.primary_image, 400), alt: formatVariantName(s.variant_name), loading: "lazy", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "sibling-card-name" }, formatCarpetValue(s.variant_name) || "Variant"), s.attributes && s.attributes.length > 0 && (() => {
-        const SKIP = /* @__PURE__ */ new Set(["price_list", "material_class", "style_code", "subcategory", "upc", "color", "color_code", "collection", "material", "companion_skus", "brand", "application", "roll_width", "roll_length", "weight_per_sqyd"]);
-        const useful = s.attributes.filter((a) => !SKIP.has(a.slug));
-        const currentVals = (sku.attributes || []).reduce((m, a) => {
-          m[a.slug] = a.value;
-          return m;
-        }, {});
-        const differing = useful.filter((a) => currentVals[a.slug] !== a.value);
-        if (differing.length === 0) return null;
-        return /* @__PURE__ */ React.createElement("div", { className: "sibling-card-meta" }, differing.map((a) => formatCarpetValue(a.value)).join(" \xB7 "));
-      })(), /* @__PURE__ */ React.createElement("div", { className: "sibling-card-footer" }, skuListPrice(s) && /* @__PURE__ */ React.createElement("span", { className: "sibling-card-price" }, "$", displayPrice(s, skuListPrice(s)).toFixed(2), priceSuffix(s)), /* @__PURE__ */ React.createElement("span", { className: "sibling-card-cta" }, isCurrent ? "Current" : "View \u2192")));
-    }))), (() => {
+    })(), !isAdexProduct && mainSiblings.length > 0 && (() => {
+      const _curVals = (sku.attributes || []).reduce((m, a) => {
+        m[a.slug] = a.value;
+        return m;
+      }, {});
+      const _diffSlugs = /* @__PURE__ */ new Set();
+      mainSiblings.forEach((s) => {
+        if (s.sku_id === skuId) return;
+        (s.attributes || []).forEach((a) => {
+          if (_curVals[a.slug] !== a.value) _diffSlugs.add(a.slug);
+        });
+      });
+      const _AXES = [
+        { slugs: ["color", "color_family"], label: "Colors" },
+        { slugs: ["size", "width", "length", "plank_width", "plank_length"], label: "Sizes" },
+        { slugs: ["finish", "countertop_finish", "surface_texture"], label: "Finishes" }
+      ];
+      const _axes = _AXES.filter((ax) => ax.slugs.some((sl) => _diffSlugs.has(sl)));
+      const _titleAxes = _axes.length ? _axes.map((a) => a.label).join(" & ") : "Variants";
+      const _subAxes = _axes.length ? _axes.map((a) => a.label.toLowerCase()).join(" & ") : "options";
+      return /* @__PURE__ */ React.createElement("div", { className: "siblings-section", ref: sectionRefs.variants }, /* @__PURE__ */ React.createElement("div", { className: "siblings-section-header" }, /* @__PURE__ */ React.createElement("div", { className: "siblings-section-eyebrow" }, "03 \u2014 Variants"), /* @__PURE__ */ React.createElement("h2", null, "Other ", _titleAxes), /* @__PURE__ */ React.createElement("div", { className: "siblings-section-sub" }, "The same design in other ", _subAxes, " and price points.")), /* @__PURE__ */ React.createElement("div", { className: "siblings-strip" }, mainSiblings.map((s) => {
+        const isCurrent = s.sku_id === skuId;
+        return /* @__PURE__ */ React.createElement("div", { key: s.sku_id, className: "sibling-card" + (isCurrent ? " is-current" : ""), onClick: () => !isCurrent && onSkuClick(s.sku_id) }, /* @__PURE__ */ React.createElement("div", { className: "sibling-card-image" }, s.primary_image && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(s.primary_image, 400), alt: formatVariantName(s.variant_name), loading: "lazy", decoding: "async" })), /* @__PURE__ */ React.createElement("div", { className: "sibling-card-name" }, formatCarpetValue(s.variant_name) || "Variant"), s.attributes && s.attributes.length > 0 && (() => {
+          const SKIP = /* @__PURE__ */ new Set(["price_list", "material_class", "style_code", "subcategory", "upc", "color", "color_code", "collection", "material", "companion_skus", "brand", "application", "roll_width", "roll_length", "weight_per_sqyd"]);
+          const useful = s.attributes.filter((a) => !SKIP.has(a.slug));
+          const currentVals = (sku.attributes || []).reduce((m, a) => {
+            m[a.slug] = a.value;
+            return m;
+          }, {});
+          const differing = useful.filter((a) => currentVals[a.slug] !== a.value);
+          if (differing.length === 0) return null;
+          return /* @__PURE__ */ React.createElement("div", { className: "sibling-card-meta" }, differing.map((a) => formatCarpetValue(a.value)).join(" \xB7 "));
+        })(), /* @__PURE__ */ React.createElement("div", { className: "sibling-card-footer" }, skuListPrice(s) && /* @__PURE__ */ React.createElement("span", { className: "sibling-card-price" }, "$", displayPrice(s, skuListPrice(s)).toFixed(2), priceSuffix(s)), /* @__PURE__ */ React.createElement("span", { className: "sibling-card-cta" }, isCurrent ? "Current" : "View \u2192")));
+      })));
+    })(), (() => {
       if (isAdexProduct) return null;
       if (collectionSiblings.length === 0) return null;
       return /* @__PURE__ */ React.createElement("div", { className: "siblings-section", ref: sectionRefs.collection }, /* @__PURE__ */ React.createElement("div", { className: "siblings-section-header" }, /* @__PURE__ */ React.createElement("div", { className: "siblings-section-eyebrow" }, "04 \u2014 Collection"), /* @__PURE__ */ React.createElement("h2", null, "More from ", /* @__PURE__ */ React.createElement("em", null, sku.collection))), /* @__PURE__ */ React.createElement("div", { className: "siblings-strip" }, collectionSiblings.map((s) => {

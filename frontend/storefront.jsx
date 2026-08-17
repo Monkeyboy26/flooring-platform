@@ -1154,8 +1154,13 @@
       const cat = (sku.category_name || '').toLowerCase();
       const isCountertop = cat.includes('countertop') || cat.includes('slab');
       if (!isCountertop) {
-        // Strip trailing plank/tile dimensions: "9 X60", "7 X48", "9x60", "7x48", "12 X24"
-        cleaned = cleaned.replace(/\s+\d+\s*[xX×]\s*\d+\s*$/, '');
+        // Strip plank/tile dimensions wherever they appear as a standalone token —
+        // trailing ("Dea 24x48" → "Dea") or mid-name before a finish/qualifier suffix
+        // ("Levante 12x24, Natural" → "Levante, Natural", "Alaska 10x30 Wall" →
+        // "Alaska Wall"). The size lives in the subtitle, so it's redundant in the title.
+        cleaned = cleaned.replace(/(^|\s)\d+\s*[xX×]\s*\d+(?=$|[\s,])/g, '$1');
+        // Tidy leftover separators (" , " → ", ", collapse double spaces, trim edges)
+        cleaned = cleaned.replace(/\s+,/g, ',').replace(/\s{2,}/g, ' ').replace(/^[\s,]+|[\s,]+$/g, '');
       }
       // Strip common LVP/LVT technical spec tokens (case-insensitive, from end or mid-name)
       cleaned = cleaned.replace(/\s+SPC\b/gi, '');
@@ -1168,145 +1173,6 @@
       // Safety: don't strip if result is too short
       if (cleaned.length < 3) return name;
       return cleaned;
-    }
-
-    // Build a uniform PDP subtitle from SKU attributes: "Color, Size, Finish"
-    // (e.g. "Cream, 12″ × 24″, Matte") — the variant line always carries the
-    // full variant identity even when size/finish also appear in the title.
-    function pdpSubtitle(sku) {
-      // Accessories: keep existing formatVariantName behavior
-      if (sku.variant_type === 'accessory') return formatVariantName(sku.variant_name);
-
-      const attrs = sku.attributes || [];
-      const colorAttr = attrs.find(a => a.slug === 'color');
-      const sizeAttr = attrs.find(a => a.slug === 'size');
-      const finishAttr = attrs.find(a => a.slug === 'finish');
-
-      // Uniform structure whenever color + size are known
-      if (colorAttr && colorAttr.value && sizeAttr && sizeAttr.value) {
-        const sizePart = isPrefabFormatSize(sizeAttr.value)
-          ? formatPrefabVariant(sku.variant_name || sizeAttr.value)
-          : formatSizeDim(sizeAttr.value);
-        const parts = [formatCarpetValue(colorAttr.value), sizePart];
-        if (finishAttr && finishAttr.value) parts.push(formatCarpetValue(finishAttr.value));
-        return parts.join(', ');
-      }
-
-      // If variant_name already has a good compound format (contains comma → e.g. "12x24, Matte"), keep it
-      if (sku.variant_name && sku.variant_name.includes(',')) return formatVariantName(sku.variant_name);
-
-      const titleName = cleanProductTitle(sku.product_name, sku) || sku.product_name || '';
-      const titleLower = titleName.toLowerCase();
-      const parts = [];
-
-      // Color — only if not already in the product title
-      if (colorAttr && colorAttr.value) {
-        const colorVal = formatCarpetValue(colorAttr.value);
-        if (!titleLower.includes(colorVal.toLowerCase())) {
-          parts.push(colorVal);
-        }
-      }
-
-      // Size — formatted with inch/foot marks
-      if (sizeAttr && sizeAttr.value) {
-        parts.push(formatSizeDim(sizeAttr.value));
-      }
-
-      // Finish — if available and not redundant with title
-      if (finishAttr && finishAttr.value) {
-        const finishVal = formatCarpetValue(finishAttr.value);
-        if (!titleLower.includes(finishVal.toLowerCase())) {
-          parts.push(finishVal);
-        }
-      }
-
-      // Fall back to variant_name if no attributes built anything
-      if (parts.length === 0) return formatVariantName(sku.variant_name);
-      return parts.join(', ');
-    }
-
-    // The H1 is "Collection Color" (collection prepended by pdpH1Title); all
-    // other variant info (line, grade, size, finish) belongs in the subtitle.
-    // Hoist the color into the title whenever the product carries multiple
-    // colors (grouped products — Patina Modern Elegance, Fujiwa Joya — whose
-    // name is the line/format) OR the product is named after its color (one
-    // product per color: the name would otherwise drag size/finish words into
-    // the H1). Only a single-color product whose name is unrelated to the
-    // color keeps its name as the identity.
-    function pdpHeroTitle(sku, siblings) {
-      const base = cleanProductTitle(sku.product_name, sku) || fullProductName(sku);
-      if (sku.variant_type === 'accessory') return { hoist: false, title: base, base };
-      const ca = (sku.attributes || []).find(a => a.slug === 'color');
-      const color = ca && ca.value ? ca.value.trim() : null;
-      const colorSet = new Set((siblings || [])
-        .flatMap(s => (s.attributes || []).filter(a => a.slug === 'color').map(a => (a.value || '').toLowerCase()))
-        .filter(Boolean));
-      if (color) colorSet.add(color.toLowerCase());
-      const inBase = color && base.toLowerCase().includes(color.toLowerCase());
-      const hoist = !!color && (colorSet.size > 1 || inBase);
-      return { hoist, title: hoist ? formatCarpetValue(color) : base, base };
-    }
-
-    // Lead the PDP H1 with the collection name (e.g. "Bohol Series Verde"), then
-    // the product/color title. Collection used to live in the breadcrumb above the
-    // H1; it now heads the H1. Skip when the collection is empty, is really just the
-    // category/vendor/brand, or already appears inside the title (avoids
-    // "Bohol Series Bohol Series Verde").
-    function pdpH1Title(sku, siblings) {
-      let title = pdpHeroTitle(sku, siblings).title;
-      if (sku.variant_type !== 'accessory') {
-        const col = (sku.collection || '').trim();
-        const distinct = col && col !== sku.category_name && col !== sku.vendor_name && col !== sku.brand_name;
-        if (distinct && !title.toLowerCase().includes(col.toLowerCase())) {
-          // Format-split collections repeat the line/color name plus a format word
-          // ("Bianco Carrara Mosaics", "Canyon Stacked Stone"). Blind prepending
-          // doubles the shared words ("Bianco Carrara Mosaics Bianco Carrara") —
-          // when the collection shares words with the title, append only its
-          // non-shared words instead ("Bianco Carrara Mosaics", "Canyon Brown
-          // Stacked Stone"). Disjoint collections still lead ("Bohol Series Verde").
-          const colWords = formatCarpetValue(col).split(/\s+/);
-          const titleWords = new Set(title.toLowerCase().split(/\s+/));
-          if (colWords.some(w => titleWords.has(w.toLowerCase()))) {
-            const rest = colWords.filter(w => !titleWords.has(w.toLowerCase())).join(' ');
-            if (rest) title = title + ' ' + rest;
-          } else {
-            title = formatCarpetValue(col) + ' ' + title;
-          }
-        }
-      }
-      // Daltile PDPs lead the H1 with the brand name; guard against doubling for
-      // the products whose name already begins with "Daltile".
-      const vend = (sku.vendor_name || '').trim();
-      if (vend === 'Daltile' && !title.toLowerCase().startsWith(vend.toLowerCase() + ' ')) {
-        title = vend + ' ' + title;
-      }
-      return title;
-    }
-
-    // Subtitle when the color has been hoisted into the H1: lead with the
-    // line/format name, then dimensions and finish (color is already the title).
-    function pdpHoistedSubtitle(sku, base) {
-      const gradeAttr = (sku.attributes || []).find(a => a.slug === 'grade');
-      const sizeAttr = (sku.attributes || []).find(a => a.slug === 'size');
-      const finishAttr = (sku.attributes || []).find(a => a.slug === 'finish');
-      const colorAttr = (sku.attributes || []).find(a => a.slug === 'color');
-      // Strip size/finish/grade already embedded in the line name — plus the
-      // collection and color, which now lead the H1 — so the subtitle doesn't
-      // repeat them (e.g. base "Marmi Lux 24x48, Natural" → "Marmi Lux"; and if
-      // the line name is just the collection/color, the lead drops out entirely).
-      let lead = base || '';
-      lead = lead.replace(/\b\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?\w*/g, ' ');
-      const strip = [finishAttr && finishAttr.value, gradeAttr && gradeAttr.value, colorAttr && colorAttr.value, (sku.collection || '').trim()];
-      for (const v of strip) {
-        if (v) lead = lead.replace(new RegExp('\\b' + v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'ig'), ' ');
-      }
-      lead = lead.replace(/\s*,\s*/g, ' ').replace(/\s+/g, ' ').replace(/^[\s,–—-]+|[\s,–—-]+$/g, '').trim();
-      const tail = [];
-      if (gradeAttr && gradeAttr.value) tail.push(formatCarpetValue(gradeAttr.value));
-      if (sizeAttr && sizeAttr.value) tail.push(formatSizeDim(sizeAttr.value));
-      if (finishAttr && finishAttr.value) tail.push(formatCarpetValue(finishAttr.value));
-      if (!lead) return tail.join(', ');
-      return tail.length ? `${lead} — ${tail.join(', ')}` : lead;
     }
 
     function fullProductName(sku) {
@@ -1473,7 +1339,7 @@
           // Skip roll dimensions (e.g. "12x150FT"), plank dimensions with decimals (e.g. "4.96x48.04", "9.06 Wide"),
           // and simple width values (e.g. "5 in", "7 in") — the product name already carries the width
           const rawSizeVal = rawSizeAttr ? (rawSizeAttr.value || '').trim() : '';
-          const isAdexVendor = (sku.vendor_code || '').toUpperCase() === 'ADEX';
+          const isAdexVendor = (sku.vendor_code || '') === '167'; // ADEX USA
           const sizeAttr = rawSizeAttr && !isAdexVendor && (
             /^\d+\s*[xX×]\s*\d+\s*ft$/i.test(rawSizeVal) ||
             /^\d+\.\d+\s*[xX×]\s*\d+\.\d+$/.test(rawSizeVal) ||
@@ -1484,9 +1350,17 @@
           const patternAttr = (sku.attributes || []).find(a => a.slug === 'pattern');
           const finishAttr = (sku.attributes || []).find(a => a.slug === 'finish');
           const nameLowerDedup = name.toLowerCase();
+          // Dimension comparison is punctuation-insensitive so a size attr with inch
+          // marks (10"x30") is recognized as already present in a name that carries
+          // the bare dimension (10x30) — otherwise the size gets appended twice
+          // ("Alaska Muretto Grey 10\"x30\" 10x30 Wall"). Only the size attr gets the
+          // normalized check; patterns keep the plain substring test.
+          const normDim = (s) => String(s).toLowerCase().replace(/["″”'’\s]/g, '').replace(/×/g, 'x');
+          const nameDimNorm = normDim(name);
           const extras = [patternAttr, sizeAttr]
             .filter(Boolean)
-            .filter(a => !nameLowerDedup.includes(a.value.toLowerCase()))
+            .filter(a => !nameLowerDedup.includes(a.value.toLowerCase())
+              && !(a === sizeAttr && nameDimNorm.includes(normDim(a.value))))
             .map(a => a.value);
           if (extras.length > 0) {
             const sizePart = extras.join(' ');
@@ -1652,6 +1526,11 @@
 
     function itemLineName(it) {
       it = it || {};
+      // Prefer the server-computed title — the backend composes it with the SAME
+      // logic as the PDP (fullProductName), so a cart/order line reads identically
+      // to the product page. The client fallback below stays for any surface not
+      // yet enriched by the API. See [[line-item-display]].
+      if (it.display_name) return it.display_name;
       // Custom bound area rug → "Custom Area Rug  ·  <carpet>  ·  9' × 4'"
       if (it.is_custom_rug) {
         const dims = (it.custom_width_ft && it.custom_length_ft) ? formatRugDims(it.custom_width_ft, it.custom_length_ft) : '';
@@ -2499,6 +2378,14 @@
       const [categories, setCategories] = useState([]);
       const [selectedCategory, setSelectedCategory] = useState(null);
       const [selectedCollection, setSelectedCollection] = useState(null);
+      // Vendor scope for the selected collection (opaque vendor_id). A collection
+      // name is unique per vendor, so browsing a collection must be scoped to the
+      // vendor it was opened from — otherwise identically-named collections from
+      // other vendors leak in. Mirrored in a ref so buildShopUrl (called
+      // synchronously right after setState) always sees the fresh value.
+      const [selectedCollectionVendor, setSelectedCollectionVendor] = useState(null);
+      const collVendorRef = useRef(null);
+      const setCollVendor = (v) => { collVendorRef.current = v || null; setSelectedCollectionVendor(v || null); };
       const [searchQuery, setSearchQuery] = useState('');
       const [searchDidYouMean, setSearchDidYouMean] = useState(null);
       const [searchTimeMs, setSearchTimeMs] = useState(null);
@@ -2663,14 +2550,15 @@
       // ---- Fetch SKUs ----
       const fetchSkus = useCallback((opts = {}) => {
         const PAGE_SIZE = 24;
-        const { cat, coll, search, activeFilters, sort, page, vendors, priceMin, priceMax, tags, restoreScroll } = {
-          cat: selectedCategory, coll: selectedCollection, search: searchQuery,
+        const { cat, coll, collVendor, search, activeFilters, sort, page, vendors, priceMin, priceMax, tags, restoreScroll } = {
+          cat: selectedCategory, coll: selectedCollection, collVendor: selectedCollectionVendor, search: searchQuery,
           activeFilters: filters, sort: sortBy, page: currentPage,
           vendors: vendorFilters, priceMin: userPriceRange.min, priceMax: userPriceRange.max, tags: tagFilters, ...opts
         };
         const params = new URLSearchParams();
         if (cat) params.set('category', cat);
         if (coll) params.set('collection', coll);
+        if (coll && collVendor) params.set('collection_vendor', collVendor);
         if (search) params.set('q', search);
         if (sort && sort !== 'relevance') params.set('sort', sort);
         params.set('limit', String(PAGE_SIZE));
@@ -2707,18 +2595,19 @@
             }
           })
           .catch(err => { if (err.name !== 'AbortError') { console.error(err); setLoadingSkus(false); } });
-      }, [selectedCategory, selectedCollection, searchQuery, filters, sortBy, currentPage, vendorFilters, userPriceRange, tagFilters]);
+      }, [selectedCategory, selectedCollection, selectedCollectionVendor, searchQuery, filters, sortBy, currentPage, vendorFilters, userPriceRange, tagFilters]);
 
       // ---- Fetch Facets ----
       const fetchFacets = useCallback((opts = {}) => {
-        const { cat, coll, search, activeFilters, vendors, priceMin, priceMax, tags } = {
-          cat: selectedCategory, coll: selectedCollection, search: searchQuery,
+        const { cat, coll, collVendor, search, activeFilters, vendors, priceMin, priceMax, tags } = {
+          cat: selectedCategory, coll: selectedCollection, collVendor: selectedCollectionVendor, search: searchQuery,
           activeFilters: filters, vendors: vendorFilters,
           priceMin: userPriceRange.min, priceMax: userPriceRange.max, tags: tagFilters, ...opts
         };
         const params = new URLSearchParams();
         if (cat) params.set('category', cat);
         if (coll) params.set('collection', coll);
+        if (coll && collVendor) params.set('collection_vendor', collVendor);
         if (search) params.set('q', search);
         const af = activeFilters || {};
         Object.keys(af).forEach(slug => {
@@ -2743,7 +2632,7 @@
             if (data.priceRange) setPriceRange(data.priceRange);
           })
           .catch(err => { if (err.name !== 'AbortError') console.error(err); });
-      }, [selectedCategory, selectedCollection, searchQuery, filters, vendorFilters, userPriceRange, tagFilters]);
+      }, [selectedCategory, selectedCollection, selectedCollectionVendor, searchQuery, filters, vendorFilters, userPriceRange, tagFilters]);
 
       // Keep refs up to date so popstate always uses latest versions
       fetchSkusRef.current = fetchSkus;
@@ -2754,6 +2643,7 @@
         const params = new URLSearchParams();
         if (cat) params.set('category', cat);
         if (coll) params.set('collection', coll);
+        if (coll && collVendorRef.current) params.set('collection_vendor', collVendorRef.current);
         if (search) params.set('q', search);
         const f = af || {};
         Object.keys(f).forEach(slug => {
@@ -2769,7 +2659,7 @@
 
       const pushShopUrl = (cat, coll, search, af, replace, vf, prMin, prMax, tf) => {
         const url = buildShopUrl(cat, coll, search, af, vf, prMin, prMax, tf);
-        const state = { view: 'browse', cat, coll, search, filters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: currentPage, scrollPos: scrollY.current };
+        const state = { view: 'browse', cat, coll, collVendor: coll ? collVendorRef.current : null, search, filters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: currentPage, scrollPos: scrollY.current };
         if (replace) history.replaceState(state, '', url);
         else history.pushState(state, '', url);
       };
@@ -3123,17 +3013,20 @@
         }
       };
 
-      const handleCollectionClick = (collectionName) => {
+      const handleCollectionClick = (collectionName, vendorId) => {
         setSelectedCategory(null);
         setSelectedCollection(collectionName);
+        // Scope to the vendor the collection was opened from (opaque vendor_id).
+        // Set the ref synchronously so the pushShopUrl call below emits it.
+        setCollVendor(vendorId || null);
         setFilters({});
         setVendorFilters([]);
         setTagFilters([]);
         setUserPriceRange({ min: null, max: null });
         setCurrentPage(1);
         setView('browse');
-        fetchSkus({ cat: null, coll: collectionName, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
-        fetchFacets({ cat: null, coll: collectionName, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
+        fetchSkus({ cat: null, coll: collectionName, collVendor: vendorId || null, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1 });
+        fetchFacets({ cat: null, coll: collectionName, collVendor: vendorId || null, activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
         pushShopUrl(null, collectionName, '', {}, false, [], null, null, []);
         window.scrollTo(0, 0);
       };
@@ -3513,11 +3406,13 @@
         } else if (path === '/collections' || path === '/shop/collections') {
           setView('collections');
         } else if (path.startsWith('/collections/')) {
-          const slug = path.replace('/collections/', '');
+          const slug = path.replace('/collections/', '').split('?')[0];
+          const cv = new URLSearchParams(path.split('?')[1] || '').get('collection_vendor');
           setSelectedCollection(slug);
+          setCollVendor(cv);
           setView('browse');
-          fetchSkus({ coll: slug, activeFilters: {}, tags: [] });
-          fetchFacets({ coll: slug, activeFilters: {}, tags: [] });
+          fetchSkus({ coll: slug, collVendor: cv, activeFilters: {}, tags: [] });
+          fetchFacets({ coll: slug, collVendor: cv, activeFilters: {}, tags: [] });
         } else if (path === '/trade/apply') {
           setView('trade-apply');
         } else if (path === '/trade' && !path.startsWith('/trade/')) {
@@ -3570,8 +3465,9 @@
           setView('browse');
           const cat = sp.get('category');
           const coll = sp.get('collection');
+          const collVendor = sp.get('collection_vendor');
           const q = sp.get('q');
-          const reserved = ['category', 'collection', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags'];
+          const reserved = ['category', 'collection', 'collection_vendor', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags'];
           const af = {};
           sp.forEach((val, key) => {
             if (!reserved.includes(key)) af[key] = val.split('|');
@@ -3582,14 +3478,15 @@
           const tf = sp.get('tags') ? sp.get('tags').split('|') : [];
           if (cat) setSelectedCategory(cat);
           if (coll) setSelectedCollection(coll);
+          setCollVendor(coll ? collVendor : null);
           if (q) { setSearchQuery(q); setSortBy('relevance'); }
           if (Object.keys(af).length) setFilters(af);
           if (vf.length) setVendorFilters(vf);
           if (tf.length) setTagFilters(tf);
           if (prMin != null || prMax != null) setUserPriceRange({ min: prMin, max: prMax });
           if (cat || coll || q || Object.keys(af).length > 0 || vf.length > 0 || tf.length > 0) {
-            fetchSkus({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, sort: q ? 'relevance' : undefined });
-            fetchFacets({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+            fetchSkus({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, sort: q ? 'relevance' : undefined });
+            fetchFacets({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
             // Fetch related searches & matching categories for URL-based search
             if (q) {
               fetch(API + '/api/storefront/search/related?q=' + encodeURIComponent(q))
@@ -3619,6 +3516,7 @@
             if (state.view === 'browse') {
               setSelectedCategory(state.cat || null);
               setSelectedCollection(state.coll || null);
+              setCollVendor(state.coll ? (state.collVendor || null) : null);
               setSearchQuery(state.search || '');
               setFilters(state.filters || {});
               setVendorFilters(state.vendors || []);
@@ -3628,8 +3526,8 @@
               const savedScroll = state.scrollPos || 0;
               setCurrentPage(savedPage);
               scrollY.current = savedScroll;
-              fetchSkusRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [], page: savedPage, restoreScroll: savedScroll });
-              fetchFacetsRef.current({ cat: state.cat, coll: state.coll, search: state.search || '', activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [] });
+              fetchSkusRef.current({ cat: state.cat, coll: state.coll, collVendor: state.collVendor || null, search: state.search || '', activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [], page: savedPage, restoreScroll: savedScroll });
+              fetchFacetsRef.current({ cat: state.cat, coll: state.coll, collVendor: state.collVendor || null, search: state.search || '', activeFilters: state.filters || {}, vendors: state.vendors || [], priceMin: state.priceMin, priceMax: state.priceMax, tags: state.tags || [] });
             }
             if (state.view === 'visit-recap' && state.token) setVisitRecapToken(state.token);
             if (state.view === 'estimate-view' && state.token) setEstimateToken(state.token);
@@ -3657,8 +3555,9 @@
               const sp2 = new URLSearchParams(window.location.search);
               const cat = sp2.get('category');
               const coll = sp2.get('collection');
+              const collVendor = sp2.get('collection_vendor');
               const q = sp2.get('q');
-              const reserved2 = ['category', 'collection', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags'];
+              const reserved2 = ['category', 'collection', 'collection_vendor', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags'];
               const af = {};
               sp2.forEach((val, key) => {
                 if (!reserved2.includes(key)) af[key] = val.split('|');
@@ -3669,14 +3568,15 @@
               const tf = sp2.get('tags') ? sp2.get('tags').split('|') : [];
               setSelectedCategory(cat);
               setSelectedCollection(coll);
+              setCollVendor(coll ? collVendor : null);
               setSearchQuery(q || '');
               if (Object.keys(af).length) setFilters(af);
               setVendorFilters(vf);
               setTagFilters(tf);
               setUserPriceRange({ min: prMin, max: prMax });
               setCurrentPage(1);
-              fetchSkusRef.current({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: 1 });
-              fetchFacetsRef.current({ cat, coll, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+              fetchSkusRef.current({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: 1 });
+              fetchFacetsRef.current({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
             }
           }
         };
@@ -7554,7 +7454,7 @@
                     {showColl && (
                       <React.Fragment>
                         {' · '}
-                        <button type="button" onClick={() => onCollectionClick && onCollectionClick(sku.collection)} title={'Browse the ' + sku.collection + ' collection'} style={linkStyle}>
+                        <button type="button" onClick={() => onCollectionClick && onCollectionClick(sku.collection, sku.vendor_id)} title={'Browse the ' + sku.collection + ' collection'} style={linkStyle}>
                           {sku.collection}
                         </button>
                       </React.Fragment>
@@ -7566,7 +7466,7 @@
               {/* Title row with wishlist heart */}
               <div className="pdp-title-row">
                 <h1 className="sku-detail-title-row">
-                  {pdpH1Title(sku, siblings)}
+                  {fullProductName(sku)}
                 </h1>
                 <button className={'pdp-wishlist-heart' + (wishlist.includes(sku.sku_id) ? ' active' : '')} onClick={() => toggleWishlist(sku.sku_id)} aria-label={wishlist.includes(sku.sku_id) ? 'Remove from wishlist' : 'Add to wishlist'}>
                   <svg viewBox="0 0 24 24" fill={wishlist.includes(sku.sku_id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}>
@@ -7574,12 +7474,6 @@
                   </svg>
                 </button>
               </div>
-
-              {/* Variant name (italic) — when the color is hoisted into the H1, lead with the line/format */}
-              {(sku.variant_name || (sku.attributes && sku.attributes.length > 0)) && (() => {
-                const ht = pdpHeroTitle(sku, siblings);
-                return <div className="pdp-variant-name">{ht.hoist ? pdpHoistedSubtitle(sku, ht.base) : pdpSubtitle(sku)}</div>;
-              })()}
 
               {/* SKU · Vendor line */}
               <div className="pdp-sku-line">
@@ -8073,7 +7967,7 @@
 
                 // Size pills from collection siblings (vanities where sizes are separate products)
                 // Computed BEFORE the merge so we can skip merging sizes into colorItems
-                const _isDecorativeHW = (sku.vendor_code || '').toUpperCase() === 'HR';
+                const _isDecorativeHW = (sku.vendor_code || '') === '903'; // Hardware Resources
                 let collectionSizeItems = [];
                 if (collectionSiblings.length > 0) {
                   const extractDims = (name) => {
@@ -8320,9 +8214,16 @@
                 // Exception: when size pills were color-scoped and the sibling products are clearly
                 // colors (name-derived color keys map 1:1 to color attribute values), still show them.
                 if (colorItems.length <= 1 && _nonAccCollSiblings.length > 0) {
+                  // Only siblings sharing the current FINISH are alternate colors. Collections
+                  // that split finish into separate products (MOMA: "…12x24, R11" vs "…, Natural")
+                  // otherwise leak finish variants in as bogus color swatches labeled ", R11".
+                  // Finish already has its own pill row, so drop differing-finish siblings here.
+                  const _finClause = (n) => { const m = (n || '').match(/,\s*(.+?)(?:\s*\(|$)/); return m ? m[1].trim().toLowerCase() : ''; };
+                  const _curFinClause = _finClause(sku.product_name);
+                  const _colorSibs = _nonAccCollSiblings.filter(s => _finClause(s.product_name) === _curFinClause);
                   const candidates = [
                     { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
-                    ..._nonAccCollSiblings
+                    ..._colorSibs
                   ];
                   let eligible = !showSizePills;
                   if (!eligible && multiColorCollection) {
@@ -8684,7 +8585,7 @@
                     {showSizePills && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{collectionSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        {sku.vendor_code === 'JMV' ? (
+                        {sku.vendor_code === '474' ? ( // James Martin Vanities
                           <div className="color-swatches">
                             {collectionSizeItems.map(s => (
                               <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
@@ -8725,7 +8626,7 @@
                     {showSibSizes && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{sibSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        {sku.vendor_code === 'JMV' ? (
+                        {sku.vendor_code === '474' ? ( // James Martin Vanities
                           <div className="color-swatches">
                             {sibSizeItems.map(s => (
                               <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
@@ -9617,12 +9518,30 @@
             })()}
 
             {/* Same Product Siblings (non-accessory) — hidden for ADEX (brochure catalog below covers it) */}
-            {!isAdexProduct && mainSiblings.length > 0 && (
+            {!isAdexProduct && mainSiblings.length > 0 && (() => {
+              // Title/subcopy follow whatever axis the siblings actually vary by (color,
+              // size, finish) instead of assuming plank sizes — a tile product's siblings
+              // are usually colors, not "different plank dimensions".
+              const _curVals = (sku.attributes || []).reduce((m, a) => { m[a.slug] = a.value; return m; }, {});
+              const _diffSlugs = new Set();
+              mainSiblings.forEach(s => {
+                if (s.sku_id === skuId) return;
+                (s.attributes || []).forEach(a => { if (_curVals[a.slug] !== a.value) _diffSlugs.add(a.slug); });
+              });
+              const _AXES = [
+                { slugs: ['color', 'color_family'], label: 'Colors' },
+                { slugs: ['size', 'width', 'length', 'plank_width', 'plank_length'], label: 'Sizes' },
+                { slugs: ['finish', 'countertop_finish', 'surface_texture'], label: 'Finishes' },
+              ];
+              const _axes = _AXES.filter(ax => ax.slugs.some(sl => _diffSlugs.has(sl)));
+              const _titleAxes = _axes.length ? _axes.map(a => a.label).join(' & ') : 'Variants';
+              const _subAxes = _axes.length ? _axes.map(a => a.label.toLowerCase()).join(' & ') : 'options';
+              return (
               <div className="siblings-section" ref={sectionRefs.variants}>
                 <div className="siblings-section-header">
                   <div className="siblings-section-eyebrow">03 &mdash; Variants</div>
-                  <h2>Other Sizes &amp; Finishes</h2>
-                  <div className="siblings-section-sub">Same species, same finish &mdash; different plank dimensions and price points.</div>
+                  <h2>Other {_titleAxes}</h2>
+                  <div className="siblings-section-sub">The same design in other {_subAxes} and price points.</div>
                 </div>
                 <div className="siblings-strip">
                   {mainSiblings.map(s => {
@@ -9650,7 +9569,8 @@
                   })}
                 </div>
               </div>
-            )}
+              );
+            })()}
 
             {/* Collection Siblings */}
             {(() => {
