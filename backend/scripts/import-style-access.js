@@ -267,17 +267,30 @@ async function upsertVendor(name, code, website) {
   return res.rows[0].id;
 }
 
-async function upsertProduct(vendorId, { name, collection, categoryId, descriptionShort }) {
+async function upsertProduct(vendorId, { name, collection, categoryId, descriptionShort, brandId }) {
   const res = await pool.query(`
-    INSERT INTO products (vendor_id, name, collection, category_id, description_short)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO products (vendor_id, name, collection, category_id, description_short, brand_id)
+    VALUES ($1, $2, $3, $4, $5, $6)
     ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique
     DO UPDATE SET category_id = EXCLUDED.category_id,
       description_short = COALESCE(EXCLUDED.description_short, products.description_short),
+      brand_id = COALESCE(EXCLUDED.brand_id, products.brand_id),
       updated_at = CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
-  `, [vendorId, name, collection, categoryId, descriptionShort || null]);
+  `, [vendorId, name, collection, categoryId, descriptionShort || null, brandId || null]);
   return res.rows[0];
+}
+
+// Sub-brands live under the single "Style Access" vendor: Lungarno (decorative
+// ceramic/mosaic) and CommodiTile (porcelain field/mosaic). products.brand_id
+// drives storefront brand display, so every product is stamped with its brand.
+async function upsertBrand(name, code, website) {
+  const res = await pool.query(`
+    INSERT INTO brands (name, code, website) VALUES ($1, $2, $3)
+    ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, website = EXCLUDED.website
+    RETURNING id
+  `, [name, code, website]);
+  return res.rows[0].id;
 }
 
 async function upsertSku(productId, { vendorSku, internalSku, variantName, sellBy, variantType }) {
@@ -355,9 +368,19 @@ async function main() {
   const imageMap = new Map();
   console.log(`Skipping image fetch (will be handled separately)\n`);
 
-  // 3. Create vendor
-  const vendorId = await upsertVendor('Style Access (Lungarno / CommodiTile)', 'SA', 'https://style-access.com');
+  // 3. Create vendor + its two sub-brands
+  const vendorId = await upsertVendor('Style Access', 'SA', 'https://style-access.com');
   console.log(`Vendor ID: ${vendorId}\n`);
+
+  const brandIds = {
+    Lungarno: await upsertBrand('Lungarno', 'LUNGARNO', 'https://style-access.com/lungarno/'),
+    CommodiTile: await upsertBrand('CommodiTile', 'COMMODITILE', 'https://style-access.com/commoditile/'),
+  };
+  // Lungarno is the larger line — mark it primary for the vendor.
+  await pool.query(`
+    INSERT INTO vendor_brands (vendor_id, brand_id, is_primary) VALUES ($1, $2, true), ($1, $3, false)
+    ON CONFLICT (vendor_id, brand_id) DO NOTHING
+  `, [vendorId, brandIds.Lungarno, brandIds.CommodiTile]);
 
   // 4. Group rows into products
   // Product key = (series, baseColor)
@@ -394,6 +417,8 @@ async function main() {
     const catId = group.catId || CAT.ceramic; // fallback for trim-only groups
     const productName = group.baseColor || group.rows[0].description;
     const collection = group.series;
+    // Brand from the group's rows (all SKUs in a series share one brand).
+    const brandName = group.rows.find(r => brandIds[r.brand])?.brand;
 
     // Create product
     const prod = await upsertProduct(vendorId, {
@@ -401,6 +426,7 @@ async function main() {
       collection,
       categoryId: catId,
       descriptionShort: `${collection} - ${productName}`,
+      brandId: brandName ? brandIds[brandName] : null,
     });
 
     if (prod.is_new) productsCreated++;
