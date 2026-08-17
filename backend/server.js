@@ -27,6 +27,7 @@ import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_D
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, computeSchedule, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers, findExactDuplicate } from './lib/customerHelpers.js';
 import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateWorkOrderDoc, generateLabelSheetHtml, generateLabelRollHtml, renderLabelPngs, generateLabelImageRollHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
+import { formatRugDims, computeRugCost, computeRugQuote } from './lib/rugPricing.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -4724,17 +4725,51 @@ async function findOrCreateOneOffVendor(client, name, email) {
   return ins.rows[0].id;
 }
 
+// Resolve a rep-entered custom rug line (order/quote/estimate) into a stored line
+// with server-authoritative price + cost, computed from the carpet SKU's own
+// per-sqyd price/cost + roll width. Returns { error } on a bad/oversized rug.
+// [[custom-rug-calculator]]
+async function resolveRepRugItem(client, item) {
+  const r = await client.query(`
+    SELECT s.id as sku_id, s.product_id, s.vendor_sku, COALESCE(p.display_name, p.name) as product_name,
+      p.collection, p.category_id, p.vendor_id,
+      COALESCE(pr.cut_price, pr.retail_price) as cut_price,
+      COALESCE(pr.cut_cost, pr.cost) as material_cost, pk.roll_width_ft
+    FROM skus s JOIN products p ON p.id = s.product_id
+    LEFT JOIN pricing pr ON pr.sku_id = s.id
+    LEFT JOIN packaging pk ON pk.sku_id = s.id
+    WHERE s.id = $1 AND s.status = 'active'`, [item.sku_id]);
+  if (!r.rows.length) return { error: 'Carpet not found for custom rug: ' + item.sku_id };
+  const rc = r.rows[0];
+  const quote = computeRugQuote({ widthFt: item.custom_width_ft, lengthFt: item.custom_length_ft, rollWidthFt: rc.roll_width_ft, cutPricePerSqyd: rc.cut_price });
+  if (!quote.valid) return { error: quote.oversized ? 'Custom rug exceeds the roll width on both sides — call it in.' : 'Invalid custom rug dimensions.' };
+  const cost = computeRugCost({ widthFt: item.custom_width_ft, lengthFt: item.custom_length_ft, rollWidthFt: rc.roll_width_ft, materialCostPerSqyd: rc.material_cost });
+  const qty = Math.max(1, parseInt(item.num_boxes) || 1);
+  return {
+    product_id: rc.product_id, sku_id: rc.sku_id, product_name: rc.product_name,
+    collection: rc.collection, category_id: rc.category_id,
+    description: 'Custom Area Rug — ' + formatRugDims(item.custom_width_ft, item.custom_length_ft),
+    sqft_needed: null, num_boxes: qty, unit_price: quote.perRug, subtotal: quote.perRug * qty,
+    sell_by: 'unit', cost: cost.valid ? cost.totalCost : null, is_sample: false,
+    is_custom_rug: true, custom_width_ft: item.custom_width_ft, custom_length_ft: item.custom_length_ft,
+    // Extra fields for the LF carpet PO on the add-item-to-existing-order path:
+    vendor_id: rc.vendor_id, vendor_sku: rc.vendor_sku, roll_width_ft: quote.rollWidthFt, linear_feet: quote.linearFeet,
+    material_cost_per_sqyd: rc.material_cost,
+  };
+}
+
 async function generatePurchaseOrders(orderId, client) {
   // Get order items with vendor and cost info (exclude samples and custom items)
   const itemsResult = await client.query(`
     SELECT oi.id as order_item_id, oi.product_name, oi.num_boxes as qty, oi.unit_price,
            oi.sqft_needed, oi.sell_by, oi.description, oi.price_tier,
+           oi.is_custom_rug, oi.custom_width_ft, oi.custom_length_ft,
            p.vendor_id, v.code as vendor_code, v.name as vendor_name,
            s.id as sku_id, s.vendor_sku,
            COALESCE(pr.cost, 0) as vendor_cost,
            COALESCE(pr.price_basis, 'per_sqft') as price_basis,
            pr.cut_cost, pr.roll_cost,
-           pk.sqft_per_box
+           pk.sqft_per_box, pk.roll_width_ft
     FROM order_items oi
     JOIN products p ON p.id = oi.product_id
     JOIN vendors v ON v.id = p.vendor_id
@@ -4802,12 +4837,35 @@ async function generatePurchaseOrders(orderId, client) {
 
   const createdPOs = [];
 
+  // Custom bound area rug → order carpet by the LINEAR FOOT off the roll. The
+  // cut is roll_width × linearFeet per rug; the vendor bills per sqyd, so cost
+  // per LF = cost/sqyd × (rollWidth / 9). Qty is whole LF (rounded up — you buy
+  // whole feet off a roll). Returns null for non-rug lines. [[custom-rug-calculator]]
+  const rugPoLine = (item) => {
+    if (!item.is_custom_rug) return null;
+    const q = computeRugQuote({
+      widthFt: item.custom_width_ft, lengthFt: item.custom_length_ft,
+      rollWidthFt: item.roll_width_ft, cutPricePerSqyd: 0,
+    });
+    if (!q.valid) return null;
+    const rugs = Math.max(1, parseInt(item.qty) || 1);
+    const totalLinearFt = Math.ceil(q.linearFeet * rugs);
+    const costPerSqyd = item.cut_cost != null ? parseFloat(item.cut_cost) : parseFloat(item.vendor_cost || 0);
+    const costPerLf = costPerSqyd * (q.rollWidthFt / 9);
+    const subtotal = costPerLf * totalLinearFt;
+    const totalSqyd = (q.rollWidthFt * totalLinearFt) / 9;
+    const note = `${formatRugDims(item.custom_width_ft, item.custom_length_ft)}${rugs > 1 ? ` × ${rugs} rugs` : ''} — cut ${totalLinearFt} LF off ${q.rollWidthFt}' roll (${totalSqyd.toFixed(1)} sqyd)`;
+    return { totalLinearFt, costPerLf, subtotal, note };
+  };
+
   for (const group of Object.values(vendorGroups)) {
     const poNumber = await getNextPONumber();
 
     // Calculate subtotal — cost per box * qty (boxes), or cost per sqyd * sqyd for carpet
     let poSubtotal = 0;
     for (const item of group.items) {
+      const rug = rugPoLine(item);
+      if (rug) { poSubtotal += rug.subtotal; continue; }
       const sqftPerBox = parseFloat(item.sqft_per_box || 1);
       // For carpet items, use cut_cost or roll_cost based on price_tier
       let vendorCost = parseFloat(item.vendor_cost);
@@ -4840,6 +4898,18 @@ async function generatePurchaseOrders(orderId, client) {
 
     // Create purchase order items
     for (const item of group.items) {
+      // Custom rug: order carpet in linear feet (see rugPoLine above).
+      const rug = rugPoLine(item);
+      if (rug) {
+        await client.query(`
+          INSERT INTO purchase_order_items
+            (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal, line_note)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, 'LF', $8, $8, NULL, $9, $10)
+        `, [po.id, item.order_item_id, item.sku_id, item.product_name, item.vendor_sku,
+            item.description, rug.totalLinearFt, rug.costPerLf.toFixed(2),
+            rug.subtotal.toFixed(2), rug.note]);
+        continue;
+      }
       const sqftPerBox = parseFloat(item.sqft_per_box || 1);
       let vendorCost = parseFloat(item.vendor_cost);
       if (item.price_tier === 'roll' && item.roll_cost != null) {
@@ -5011,12 +5081,16 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       }
     }
 
-    // Get cart items
+    // Get cart items (pricing.cost + roll width joined so a custom rug can store
+    // its true material+binding+fabrication cost for commission — see below)
     const cartResult = await client.query(`
-      SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id
+      SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
+        COALESCE(pr.cut_cost, pr.cost) as material_cost_per_sqyd, pk.roll_width_ft
       FROM cart_items ci
       LEFT JOIN skus s ON s.id = ci.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, ci.product_id)
+      LEFT JOIN pricing pr ON pr.sku_id = ci.sku_id
+      LEFT JOIN packaging pk ON pk.sku_id = ci.sku_id
       WHERE ci.session_id = $1
       ORDER BY ci.created_at
     `, [session_id]);
@@ -5183,17 +5257,36 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
 
     // Insert only product items into order_items
     for (const item of productItems) {
+      // Custom bound rug: carry the dimensions + a human description so every
+      // document/surface can render "Custom Area Rug — 9' × 4'" even if a query
+      // doesn't select the is_custom_rug columns (see [[custom-rug-calculator]]).
+      const rugDesc = item.is_custom_rug
+        ? 'Custom Area Rug — ' + formatRugDims(item.custom_width_ft, item.custom_length_ft)
+        : null;
+      // Per-rug internal cost (material + binding + fabrication) so commission
+      // margin reflects true cost, not the default_cost_ratio guess. Stored
+      // per-unit on order_items.cost (recalculateCommission multiplies by qty).
+      let rugCost = null;
+      if (item.is_custom_rug) {
+        const rc = computeRugCost({
+          widthFt: item.custom_width_ft, lengthFt: item.custom_length_ft,
+          rollWidthFt: item.roll_width_ft, materialCostPerSqyd: item.material_cost_per_sqyd,
+        });
+        if (rc.valid) rugCost = rc.totalCost.toFixed(2);
+      }
       await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection,
-          parent_collection, parent_color,
-          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, price_tier)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          parent_collection, parent_color, description,
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, price_tier,
+          is_custom_rug, custom_width_ft, custom_length_ft, cost)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       `, [order.id, item.product_id || null, item.sku_id || null,
           item.product_name || null, item.collection || null,
-          item.parent_collection || null, item.parent_color || null,
+          item.parent_collection || null, item.parent_color || null, rugDesc,
           item.sqft_needed || null, item.num_boxes,
           item.unit_price || null, item.subtotal || null, false,
-          item.sell_by || null, item.price_tier || null]);
+          item.sell_by || null, item.price_tier || null,
+          item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null, rugCost]);
     }
 
     // Record the Stripe charge in the order_payments ledger for the ACTUAL
@@ -9053,6 +9146,8 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
     }
 
     let sku = null;
+    let rug = null;
+    const isRug = !!req.body.is_custom_rug && !!sku_id;
     let unitPrice, sqftPerBox, isPerSqft, computedSqft, itemSubtotal;
     let itemVendorId;
 
@@ -9076,6 +9171,12 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       `, [sku_id]);
       if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
       sku = skuResult.rows[0];
+
+      // Custom rug: server-authoritative price+cost from the carpet + dimensions.
+      if (isRug) {
+        rug = await resolveRepRugItem(client, req.body);
+        if (rug.error) return res.status(400).json({ error: rug.error });
+      }
 
       const isCarpet = sku.price_basis === 'per_sqyd';
       // Default to retail, or the customer's trade price when this is a trade
@@ -9112,6 +9213,8 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         computedSqft = null;
         itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       }
+      // Custom rug overrides the carpet per-sqyd math with the computed rug price.
+      if (isRug) { unitPrice = rug.unit_price; itemSubtotal = rug.subtotal; computedSqft = null; }
       itemVendorId = sku.vendor_id;
     } else {
       // Custom mode
@@ -9144,6 +9247,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         ? (descParts ? sku.collection + ' — ' + descParts : sku.collection)
         : (descParts ? sku.product_name + ' — ' + descParts : sku.product_name);
       storedDescription = descParts || null;
+      if (isRug) storedDescription = rug.description;
     }
 
     // Insert order item
@@ -9152,12 +9256,16 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       const isCarpet = sku.price_basis === 'per_sqyd';
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
-          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, cost)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11, $12)
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, cost,
+          is_custom_rug, custom_width_ft, custom_length_ft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11, $12, $13, $14, $15)
         RETURNING id
       `, [id, sku.product_id, sku_id, storedProductName, sku.collection, storedDescription,
-          sqft_needed || computedSqft || null, isCarpet ? 1 : num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-          isCarpet ? 'roll' : (sku.sell_by || null), customCost != null ? customCost.toFixed(2) : null]);
+          isRug ? null : (sqft_needed || computedSqft || null),
+          isRug ? rug.num_boxes : (isCarpet ? 1 : num_boxes), unitPrice.toFixed(2), itemSubtotal.toFixed(2),
+          isRug ? 'unit' : (isCarpet ? 'roll' : (sku.sell_by || null)),
+          isRug ? (rug.cost != null ? rug.cost.toFixed(2) : null) : (customCost != null ? customCost.toFixed(2) : null),
+          isRug, isRug ? rug.custom_width_ft : null, isRug ? rug.custom_length_ft : null]);
       newItemId = insertResult.rows[0].id;
     } else {
       const isCustomCarpet = customSellBy === 'roll';
@@ -9207,8 +9315,16 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       }
 
       // Build PO item values
-      let poCost, poRetail, poQty, poSubtotal, poVendorSku, poProductName;
-      if (sku) {
+      let poCost, poRetail, poQty, poSubtotal, poVendorSku, poProductName, poSellBy = null, poLineNote = null;
+      if (sku && isRug) {
+        // Custom rug: order the carpet MATERIAL by the linear foot off the roll.
+        const rollW = rug.roll_width_ft && rug.roll_width_ft > 0 ? parseFloat(rug.roll_width_ft) : 12;
+        const totalLinearFt = Math.ceil(rug.linear_feet * rug.num_boxes);
+        const costPerLf = (parseFloat(rug.material_cost_per_sqyd) || 0) * (rollW / 9);
+        poCost = costPerLf; poRetail = null; poQty = totalLinearFt; poSubtotal = costPerLf * totalLinearFt;
+        poVendorSku = sku.vendor_sku; poProductName = storedProductName; poSellBy = 'LF';
+        poLineNote = formatRugDims(rug.custom_width_ft, rug.custom_length_ft) + (rug.num_boxes > 1 ? ' × ' + rug.num_boxes + ' rugs' : '') + ' — cut ' + totalLinearFt + " LF off " + rollW + "' roll (" + ((rollW * totalLinearFt) / 9).toFixed(1) + ' sqyd)';
+      } else if (sku) {
         const skuSqftPerBox = parseFloat(sku.sqft_per_box || 1);
         let vendorCost = parseFloat(sku.cost || 0);
         if (sku.price_basis === 'per_sqyd' && sku.cut_cost != null) vendorCost = parseFloat(sku.cut_cost);
@@ -9254,12 +9370,13 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       await client.query(`
         INSERT INTO purchase_order_items
           (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description,
-           qty, sell_by, cost, original_cost, retail_price, subtotal)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11)
+           qty, sell_by, cost, original_cost, retail_price, subtotal, line_note)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11, $12)
       `, [poId, newItemId, sku?.id || null, poProductName, poVendorSku,
-          description || null, poQty, sku ? (sku.sell_by || null) : (customSellBy || null),
+          isRug ? rug.description : (description || null), poQty,
+          poSellBy || (sku ? (sku.sell_by || null) : (customSellBy || null)),
           poCost.toFixed(2), poRetail ? poRetail.toFixed(2) : null,
-          poSubtotal.toFixed(2)]);
+          poSubtotal.toFixed(2), poLineNote]);
 
       // Recalculate PO subtotal
       await client.query(`
@@ -13251,10 +13368,11 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
     const order = orderResult.rows[0];
     for (const item of qItems.rows) {
       await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.parent_collection || null, item.parent_color || null, item.description,
-          item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample]);
+          item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
+          item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
     await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
@@ -13382,10 +13500,11 @@ app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) =
 
     for (const item of qItems.rows) {
       await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.parent_collection || null, item.parent_color || null, item.description,
-          item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample]);
+          item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
+          item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
     await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
@@ -13581,7 +13700,8 @@ app.get('/api/staff/orders/:id/invoice', staffDocAuth, async (req, res) => {
   try {
     const result = await generateOrderInvoiceHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
-    await generatePDF(result.html, result.filename, req, res);
+    // Tighter bottom margin so the bottom-pinned summary/footer sits lower.
+    await generatePDF(result.html, result.filename, req, res, { margin: { top: '0.6in', bottom: '0.4in', left: '0.65in', right: '0.65in' } });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -16219,7 +16339,12 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     // Resolve items
     const resolvedItems = [];
     for (const item of items) {
-      if (item.sku_id) {
+      if (item.is_custom_rug && item.sku_id) {
+        // Custom bound area rug cut from a carpet SKU — server-authoritative price+cost.
+        const rug = await resolveRepRugItem(client, item);
+        if (rug.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: rug.error }); }
+        resolvedItems.push(rug);
+      } else if (item.sku_id) {
         // SKU-based item
         const skuResult = await client.query(`
           SELECT s.id as sku_id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.is_sample,
@@ -16441,12 +16566,14 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     for (const item of resolvedItems) {
       await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
-          sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost,
+          is_custom_rug, custom_width_ft, custom_length_ft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
           item.description || null, item.sqft_needed, item.num_boxes,
           item.unit_price.toFixed(2), item.subtotal.toFixed(2), item.sell_by || null, item.is_sample,
-          item.vendor_id || null, item.custom_vendor || null, item.cost != null ? item.cost.toFixed(2) : null]);
+          item.vendor_id || null, item.custom_vendor || null, item.cost != null ? item.cost.toFixed(2) : null,
+          item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
     // Link uploaded documents to the order
@@ -17486,6 +17613,8 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
     }
 
     let sku = null;
+    let rug = null;
+    const isRug = !!req.body.is_custom_rug && !!sku_id;
     let unitPrice, sqftPerBox, isPerSqft, computedSqft, itemSubtotal;
     let itemVendorId;
 
@@ -17508,6 +17637,12 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       `, [sku_id]);
       if (!skuResult.rows.length) return res.status(404).json({ error: 'SKU not found' });
       sku = skuResult.rows[0];
+
+      // Custom rug: server-authoritative price+cost from the carpet + dimensions.
+      if (isRug) {
+        rug = await resolveRepRugItem(client, req.body);
+        if (rug.error) return res.status(400).json({ error: rug.error });
+      }
 
       const isCarpet = sku.price_basis === 'per_sqyd';
       // Default to retail, or the customer's trade price when this is a trade
@@ -17545,6 +17680,8 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         computedSqft = null;
         itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       }
+      // Custom rug overrides the carpet per-sqyd math with the computed rug price.
+      if (isRug) { unitPrice = rug.unit_price; itemSubtotal = rug.subtotal; computedSqft = null; }
       itemVendorId = sku.vendor_id;
     } else {
       unitPrice = parseFloat(unit_price);
@@ -17575,6 +17712,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         ? (descParts ? sku.collection + ' — ' + descParts : sku.collection)
         : (descParts ? sku.product_name + ' — ' + descParts : sku.product_name);
       storedDescription = descParts || null;
+      if (isRug) storedDescription = rug.description;
     }
 
     let newItemId;
@@ -17582,12 +17720,16 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       const isCarpet = sku.price_basis === 'per_sqyd';
       const insertResult = await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
-          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, cost)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11, $12)
+          sqft_needed, num_boxes, unit_price, subtotal, is_sample, sell_by, cost,
+          is_custom_rug, custom_width_ft, custom_length_ft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, $11, $12, $13, $14, $15)
         RETURNING id
       `, [id, sku.product_id, sku_id, storedProductName, sku.collection, storedDescription,
-          sqft_needed || computedSqft || null, isCarpet ? 1 : num_boxes, unitPrice.toFixed(2), itemSubtotal.toFixed(2),
-          isCarpet ? 'roll' : (sku.sell_by || null), customCost != null ? customCost.toFixed(2) : null]);
+          isRug ? null : (sqft_needed || computedSqft || null),
+          isRug ? rug.num_boxes : (isCarpet ? 1 : num_boxes), unitPrice.toFixed(2), itemSubtotal.toFixed(2),
+          isRug ? 'unit' : (isCarpet ? 'roll' : (sku.sell_by || null)),
+          isRug ? (rug.cost != null ? rug.cost.toFixed(2) : null) : (customCost != null ? customCost.toFixed(2) : null),
+          isRug, isRug ? rug.custom_width_ft : null, isRug ? rug.custom_length_ft : null]);
       newItemId = insertResult.rows[0].id;
     } else {
       const isCustomCarpet = customSellBy === 'roll';
@@ -17633,8 +17775,16 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         poId = newPO.rows[0].id;
       }
 
-      let poCost, poRetail, poQty, poSubtotal, poVendorSku, poProductName;
-      if (sku) {
+      let poCost, poRetail, poQty, poSubtotal, poVendorSku, poProductName, poSellBy = null, poLineNote = null;
+      if (sku && isRug) {
+        // Custom rug: order the carpet MATERIAL by the linear foot off the roll.
+        const rollW = rug.roll_width_ft && rug.roll_width_ft > 0 ? parseFloat(rug.roll_width_ft) : 12;
+        const totalLinearFt = Math.ceil(rug.linear_feet * rug.num_boxes);
+        const costPerLf = (parseFloat(rug.material_cost_per_sqyd) || 0) * (rollW / 9);
+        poCost = costPerLf; poRetail = null; poQty = totalLinearFt; poSubtotal = costPerLf * totalLinearFt;
+        poVendorSku = sku.vendor_sku; poProductName = storedProductName; poSellBy = 'LF';
+        poLineNote = formatRugDims(rug.custom_width_ft, rug.custom_length_ft) + (rug.num_boxes > 1 ? ' × ' + rug.num_boxes + ' rugs' : '') + ' — cut ' + totalLinearFt + " LF off " + rollW + "' roll (" + ((rollW * totalLinearFt) / 9).toFixed(1) + ' sqyd)';
+      } else if (sku) {
         const skuSqftPerBox = parseFloat(sku.sqft_per_box || 1);
         let vendorCost = parseFloat(sku.cost || 0);
         // Use cut_cost / roll_cost when applicable (matches generatePurchaseOrders logic)
@@ -17681,12 +17831,13 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       await client.query(`
         INSERT INTO purchase_order_items
           (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description,
-           qty, sell_by, cost, original_cost, retail_price, subtotal)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11)
+           qty, sell_by, cost, original_cost, retail_price, subtotal, line_note)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9, $10, $11, $12)
       `, [poId, newItemId, sku?.id || null, poProductName, poVendorSku,
-          description || null, poQty, sku ? (sku.sell_by || null) : (customSellBy || null),
+          isRug ? rug.description : (description || null), poQty,
+          poSellBy || (sku ? (sku.sell_by || null) : (customSellBy || null)),
           poCost.toFixed(2), poRetail ? poRetail.toFixed(2) : null,
-          poSubtotal.toFixed(2)]);
+          poSubtotal.toFixed(2), poLineNote]);
 
       await client.query(`
         UPDATE purchase_orders SET subtotal = (
@@ -20269,7 +20420,8 @@ app.get('/api/rep/orders/:id/invoice', repAuth, async (req, res) => {
   try {
     const result = await generateOrderInvoiceHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
-    await generatePDF(result.html, result.filename, req, res);
+    // Tighter bottom margin so the bottom-pinned summary/footer sits lower.
+    await generatePDF(result.html, result.filename, req, res, { margin: { top: '0.6in', bottom: '0.4in', left: '0.65in', right: '0.65in' } });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -21455,7 +21607,14 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
 
     // Insert items if provided
     if (items && items.length > 0) {
-      for (const item of items) {
+      for (const rawItem of items) {
+        // Custom rug: recompute price+cost server-side and store rug metadata.
+        let item = rawItem, rug = null;
+        if (rawItem.is_custom_rug && rawItem.sku_id) {
+          rug = await resolveRepRugItem(client, rawItem);
+          if (rug.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: rug.error }); }
+          item = { ...rawItem, ...rug };
+        }
         const oneOffName = !item.sku_id && !item.vendor_id && item.custom_vendor
           ? String(item.custom_vendor).trim().slice(0, 120) : '';
         const oneOffEmail = item.custom_vendor_email ? String(item.custom_vendor_email).trim() : '';
@@ -21464,9 +21623,11 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         if (oneOffName && /^\S+@\S+\.\S+$/.test(oneOffEmail)) {
           itemVendorId = await findOrCreateOneOffVendor(client, oneOffName, oneOffEmail);
         }
+        const rugCost = rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null)
+          : (!item.sku_id && item.cost != null && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) > 0 ? parseFloat(item.cost).toFixed(2) : null);
         await client.query(`
-          INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
         `, [quote.id, item.product_id || null, item.sku_id || null,
             item.product_name || null, item.collection || null,
             item.description || null,
@@ -21477,7 +21638,8 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
             item.is_sample || false,
             itemVendorId,
             oneOffName || null,
-            !item.sku_id && item.cost != null && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) > 0 ? parseFloat(item.cost).toFixed(2) : null]);
+            rugCost,
+            item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
       }
 
       // Recalculate totals
@@ -21724,6 +21886,13 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
+    // Custom rug: recompute price+cost server-side; overrides the body values below.
+    let rug = null;
+    if (req.body.is_custom_rug && sku_id) {
+      rug = await resolveRepRugItem(client, req.body);
+      if (rug.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: rug.error }); }
+    }
+
     const customVendorName = req.body.custom_vendor ? String(req.body.custom_vendor).trim().slice(0, 120) : '';
     const customVendorEmail = req.body.custom_vendor_email ? String(req.body.custom_vendor_email).trim() : '';
     const customCost = req.body.cost != null && !isNaN(parseFloat(req.body.cost)) && parseFloat(req.body.cost) > 0
@@ -21735,19 +21904,21 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
       quoteItemVendorId = await findOrCreateOneOffVendor(client, customVendorName, customVendorEmail);
     }
     const itemResult = await client.query(`
-      INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
       RETURNING *
-    `, [id, product_id || null, sku_id || null, product_name || null, collection || null,
-        description || null,
-        sqft_needed || null, num_boxes || 1,
-        parseFloat(unit_price || 0).toFixed(2),
-        parseFloat(subtotal || 0).toFixed(2),
-        sell_by || null,
-        is_sample || false,
-        quoteItemVendorId,
-        !sku_id ? (customVendorName || null) : null,
-        !sku_id && customCost != null ? customCost.toFixed(2) : null]);
+    `, [id, rug ? rug.product_id : (product_id || null), rug ? rug.sku_id : (sku_id || null),
+        rug ? rug.product_name : (product_name || null), rug ? rug.collection : (collection || null),
+        rug ? rug.description : (description || null),
+        rug ? null : (sqft_needed || null), rug ? rug.num_boxes : (num_boxes || 1),
+        parseFloat((rug ? rug.unit_price : unit_price) || 0).toFixed(2),
+        parseFloat((rug ? rug.subtotal : subtotal) || 0).toFixed(2),
+        rug ? 'unit' : (sell_by || null),
+        rug ? false : (is_sample || false),
+        rug ? null : quoteItemVendorId,
+        rug ? null : (!sku_id ? (customVendorName || null) : null),
+        rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : (!sku_id && customCost != null ? customCost.toFixed(2) : null),
+        rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null]);
 
     // Recalculate quote totals
     const totals = await client.query(
@@ -22115,15 +22286,16 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
 
     const order = orderResult.rows[0];
 
-    // Copy quote items to order items (incl. custom-line vendor + cost)
+    // Copy quote items to order items (incl. custom-line vendor + cost + custom rug)
     for (const item of itemsResult.rows) {
       await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
           item.parent_collection || null, item.parent_color || null,
           item.description, item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
-          item.vendor_id || null, item.custom_vendor || null, item.cost || null]);
+          item.vendor_id || null, item.custom_vendor || null, item.cost || null,
+          item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
     // Link uploaded documents to the order
@@ -23030,19 +23202,27 @@ app.post('/api/rep/estimates/:id/items', repAuth, async (req, res) => {
 
     await client.query('BEGIN');
 
+    // Custom rug: recompute price+cost server-side; overrides the body values.
+    let rug = null;
+    if (req.body.is_custom_rug && sku_id) {
+      rug = await resolveRepRugItem(client, req.body);
+      if (rug.error) { await client.query('ROLLBACK'); return res.status(400).json({ error: rug.error }); }
+    }
+
     const itemResult = await client.query(`
       INSERT INTO estimate_items (estimate_id, item_type, product_id, sku_id, product_name, collection, description,
         sqft_needed, num_boxes, sell_by, labor_category, rate_type, rate_sqft, labor_sqft,
-        unit_price, quantity, subtotal, sort_order, area_id, cost)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+        unit_price, quantity, subtotal, sort_order, area_id, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
       RETURNING *
-    `, [id, item_type || 'material', product_id || null, sku_id || null,
-        product_name || null, collection || null, description || null,
-        sqft_needed || null, num_boxes || null, sell_by || null,
-        labor_category || null, rate_type || null, rate_sqft || null, labor_sqft || null,
-        parseFloat(unit_price || 0).toFixed(2), quantity || 1,
-        parseFloat(subtotal || 0).toFixed(2), sort_order || 0, area_id || null,
-        (vendor_cost == null || vendor_cost === '') ? null : parseFloat(vendor_cost).toFixed(2)]);
+    `, [id, rug ? 'material' : (item_type || 'material'), rug ? rug.product_id : (product_id || null), rug ? rug.sku_id : (sku_id || null),
+        rug ? rug.product_name : (product_name || null), rug ? rug.collection : (collection || null), rug ? rug.description : (description || null),
+        rug ? null : (sqft_needed || null), rug ? rug.num_boxes : (num_boxes || null), rug ? 'unit' : (sell_by || null),
+        rug ? null : (labor_category || null), rug ? null : (rate_type || null), rug ? null : (rate_sqft || null), rug ? null : (labor_sqft || null),
+        parseFloat((rug ? rug.unit_price : unit_price) || 0).toFixed(2), rug ? rug.num_boxes : (quantity || 1),
+        parseFloat((rug ? rug.subtotal : subtotal) || 0).toFixed(2), sort_order || 0, area_id || null,
+        rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : ((vendor_cost == null || vendor_cost === '') ? null : parseFloat(vendor_cost).toFixed(2)),
+        rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null]);
 
     await recalculateEstimateTotals(id, client);
     await client.query('COMMIT');
@@ -23596,11 +23776,12 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
         : item.description;
       await client.query(`
         INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description,
-          sqft_needed, num_boxes, unit_price, subtotal, sell_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          sqft_needed, num_boxes, unit_price, subtotal, sell_by, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       `, [quote.id, item.product_id, item.sku_id, item.product_name, item.collection,
           desc, item.sqft_needed, item.num_boxes || item.quantity || 1,
-          item.unit_price, item.subtotal, item.sell_by]);
+          item.unit_price, item.subtotal, item.sell_by,
+          item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
     // Recalculate quote totals
@@ -23715,15 +23896,18 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
 
   const order = orderResult.rows[0];
 
-  // Copy material items to order items
+  // Copy material items to order items (custom rug metadata + cost carried so the
+  // LF carpet PO + commission work post-conversion)
   for (const item of materialItems) {
     await client.query(`
       INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, description,
-        sqft_needed, num_boxes, unit_price, subtotal, sell_by, item_type, source_estimate_area)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'material', $12)
+        sqft_needed, num_boxes, unit_price, subtotal, sell_by, item_type, source_estimate_area,
+        cost, is_custom_rug, custom_width_ft, custom_length_ft)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'material', $12, $13, $14, $15, $16)
     `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection,
         item.description, item.sqft_needed, item.num_boxes || item.quantity || 1,
-        item.unit_price, item.subtotal, item.sell_by, item.area_name || null]);
+        item.unit_price, item.subtotal, item.sell_by, item.area_name || null,
+        item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
   }
 
   // Copy labor items as labor lines. num_boxes is NOT NULL and generic
@@ -29753,7 +29937,7 @@ app.get('/api/sitemap.xml', async (req, res) => {
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     // Static pages
-    const staticPages = ['/', '/shop', '/collections', '/trade', '/privacy', '/terms'];
+    const staticPages = ['/', '/shop', '/collections', '/trade', '/installation', '/custom-accessories', '/custom-area-rugs', '/cabinets', '/privacy', '/terms'];
     for (const page of staticPages) {
       xml += `  <url><loc>${baseUrl}${page}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>${page === '/' ? '1.0' : '0.8'}</priority></url>\n`;
     }

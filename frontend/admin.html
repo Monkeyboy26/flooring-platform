@@ -1415,6 +1415,135 @@
       return url;
     }
 
+    // Canonical price-unit suffix — mirrors storefront.jsx priceSuffix().
+    // Slabs (sell_by='unit' + per-sqft rate + no known box area) show /sqft
+    // since a piece price can't be computed; everything else follows sell_by.
+    function skuPriceSuffix(row) {
+      row = row || {};
+      const basis = row.price_basis;
+      const soldPerUnit = row.sell_by ? row.sell_by === 'unit' : basis === 'per_unit';
+      if (soldPerUnit) {
+        if ((basis === 'sqft' || basis === 'per_sqft') && !(parseFloat(row.sqft_per_box) > 0)) return '/sqft';
+        return '/ea';
+      }
+      if ((row.sell_by ? row.sell_by === 'roll' : basis === 'per_sqyd')) return '/sqyd';
+      return '/sqft';
+    }
+
+    // ========== Canonical line-item formatter ==========
+    // Returns { name, meta } for any order/quote/PO line so accessories
+    // (e.g. bare "Reducer") always carry their parent product + distinguishing info.
+    function formatLineItem(it) {
+      it = it || {};
+      // Custom bound area rug → "Custom Area Rug  ·  <carpet>  ·  9' × 4'". Dims come
+      // from custom_width_ft/length_ft, else parsed from the stored description.
+      if (it.is_custom_rug || (it.description || '').startsWith('Custom Area Rug')) {
+        const fmtFt = (ft) => { const n = parseFloat(ft) || 0, w = Math.floor(n); let i = Math.round((n - w) * 12); if (i === 12) return (w + 1) + "'"; return i === 0 ? w + "'" : w + "'" + i + '"'; };
+        const dims = (it.custom_width_ft && it.custom_length_ft) ? (fmtFt(it.custom_width_ft) + ' × ' + fmtFt(it.custom_length_ft)) : (it.description || '').replace(/^Custom Area Rug\s*[—-]\s*/, '');
+        const carpet = [it.collection, it.color].filter(Boolean).join(' ') || it.product_name || '';
+        return {
+          brand: it.vendor_name || it.custom_vendor || '',
+          name: ['Custom Area Rug', carpet, dims].filter(Boolean).join('  ·  '),
+          sku: it.vendor_sku || it.internal_sku || '',
+        };
+      }
+      const isAcc = (it.variant_type || '').toLowerCase() === 'accessory';
+      const accLabel = isAcc ? (it.accessory_label || it.variant_name) : null;
+      // Accessory bought for a specific floor → "Collection · Color · Accessory"
+      // (parent snapshot); falls back to the accessory's own name when absent.
+      const parentCollection = isAcc ? it.parent_collection : null;
+      const parentColor = isAcc ? it.parent_color : null;
+      let title, ordered;
+      if (parentCollection) {
+        title = parentCollection;
+        ordered = [parentColor, accLabel || it.product_name];
+      } else {
+        title = it.collection || it.current_collection || it.product_name || 'Product';
+        const design = it.color || (it.product_name && it.product_name !== title ? it.product_name : null);
+        // Size/finish often lives only in product_name (e.g. "Ecoslate 24x48")
+        // when a Color already names the design — surface it as a descriptor.
+        let sizeInfo = null;
+        if (it.color && it.product_name) {
+          let rem = String(it.product_name).trim();
+          if (rem.toLowerCase().indexOf(String(title).toLowerCase()) === 0) rem = rem.slice(String(title).length);
+          rem = rem.replace(new RegExp(String(it.color).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig'), ' ')
+                   .replace(/^[\s,·\-–—]+|[\s,·\-–—]+$/g, '').replace(/\s+/g, ' ').trim();
+          if (rem && /\d\s*(?:[xX×]|["″”'’]|\s*(?:cm|mm|in\b))/.test(rem)) sizeInfo = rem;
+        }
+        // Fallback: size held only in the size attribute (no-op until query selects it).
+        let sizeDesc = null;
+        const _ex = [title, design, sizeInfo, it.variant_name].filter(Boolean).join(' ');
+        if (it.size && !/slab|jumbo|standard|panel|prefab|countertop/i.test(_ex)) {
+          const sd = (String(it.size).match(/\d+(?:\.\d+)?\s*[xX×]\s*\d+(?:\.\d+)?/) || [])[0];
+          const nz = x => x.toLowerCase().replace(/["″”'’\s]/g, '').replace(/×/g, 'x');
+          if (sd && !nz(_ex).includes(nz(sd))) sizeDesc = String(it.size).trim();
+        }
+        ordered = [design, sizeInfo, sizeDesc, it.variant_name, accLabel];
+      }
+      // Containment-aware dedup (mirrors composeItemName in lib/documents.js):
+      // drop a descriptor already present in what's assembled so far — exact echo
+      // or embedded phrase ("Arabescato Gold" inside "Arabescato Gold Quartz
+      // Countertop"). Word-bounded + punctuation-insensitive (9'x52" ≈ 9 x 52).
+      const _normSeg = (s) => (' ' + String(s).toLowerCase()
+        .replace(/(\d)\.(\d)/g, '$1§$2')     // protect decimal points (7.5)
+        .replace(/[^a-z0-9§]+/g, ' ')        // "Ave." ≈ "Ave", "&" drops
+        .replace(/§/g, '.')
+        .replace(/(\d(?:\.\d+)?)\s*x\s*(?=\d)/g, '$1x')
+        .replace(/\bmou?ldings?\b/g, 'mold') // trim-term stem: "T-Molding" ≈ "T-Mold"
+        .replace(/\s+/g, ' ').trim() + ' ');
+      let _acc = _normSeg(title);
+      // Partial overlap: remove ANY covered window from a descriptor (leading,
+      // trailing, or interior — Daltile comma lists repeat the color mid-list),
+      // longest first, until stable. A window may strip when it's multi-word,
+      // digit-bearing, or exactly equals a WHOLE earlier segment — a single plain
+      // word inside a longer segment never strips ("White Smoke" stays intact).
+      const _segsWhole = new Set([_normSeg(title)]);
+      const _stripCovered = (d) => {
+        let toks = String(d).trim().split(/\s+/);
+        const canStrip = (phrase, k) => {
+          const pn = _normSeg(phrase);
+          if (!pn.trim() || !_acc.includes(pn)) return false;
+          return k >= 2 || /\d/.test(phrase) || _segsWhole.has(pn);
+        };
+        let changed = true;
+        outer: while (changed && toks.length > 1) {
+          changed = false;
+          for (let k = toks.length - 1; k >= 1; k--) {
+            for (let i = 0; i + k <= toks.length; i++) {
+              if (toks.length - k < 1) break;
+              if (canStrip(toks.slice(i, i + k).join(' '), k)) {
+                toks = toks.slice(0, i).concat(toks.slice(i + k));
+                changed = true; continue outer;
+              }
+            }
+          }
+        }
+        return toks.join(' ');
+      };
+      // Compound-word echoes ("Stair Nose" vs "Stairnose"): whole-segment equality
+      // on space-stripped forms only — never substring, so "Rose" ≠ "Primrose".
+      const _noSpace = (s) => _normSeg(s).replace(/ /g, '');
+      const _segsNS = new Set([_noSpace(title)]);
+      const descriptors = [];
+      for (const v of ordered) {
+        if (!v) continue;
+        const p = _normSeg(v);
+        if (p.trim() === '' || _acc.includes(p) || _segsNS.has(_noSpace(v))) continue;
+        const kept = _stripCovered(v).replace(/^[\s·\-–—,]+|[\s·\-–—,]+$/g, '').trim();
+        const kp = _normSeg(kept);
+        if (kp.trim() === '' || _acc.includes(kp) || _segsNS.has(_noSpace(kept))) continue;
+        descriptors.push(kept);
+        _acc += kp;
+        _segsWhole.add(kp);
+        _segsNS.add(_noSpace(kept));
+      }
+      return {
+        brand: it.vendor_name || it.custom_vendor || '',
+        name: title + (descriptors.length ? '  ·  ' + descriptors.join('  ·  ') : ''),
+        sku: it.vendor_sku || it.internal_sku || '',
+      };
+    }
+
     // ========== Admin Fetch Helper ==========
     function getAuthHeaders() {
       const staffToken = sessionStorage.getItem('staff_token');
@@ -2955,7 +3084,7 @@
                     {p.name}
                   </td>
                   <td>{p.category_name || '—'}</td>
-                  <td>{p.price ? '$' + parseFloat(p.price).toFixed(2) : '—'}</td>
+                  <td>{p.price ? '$' + parseFloat(p.price).toFixed(2) + skuPriceSuffix(p) : '—'}</td>
                   <td>{p.sku_count}</td>
                   <td>
                     <span className={'quality-badge ' + qClass}>{qs != null ? qs : '—'}</span>
@@ -4679,8 +4808,9 @@
                           {pane.detail.items.map(l => (
                             <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '1fr 66px 72px', gap: 10, alignItems: 'baseline' }}>
                               <span style={{ minWidth: 0 }}>
-                                <span style={{ display: 'block', font: '400 12px/1.35 var(--sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.product_name}</span>
-                                <span style={{ display: 'block', marginTop: 3, font: '400 9px/1 var(--mono)', color: 'var(--faint)' }}>{l.vendor_sku || l.item_type || ''}</span>
+                                {formatLineItem(l).brand && <span style={{ display: 'block', marginBottom: 3, font: '400 9px/1 var(--mono)', color: 'var(--faint)' }}>{formatLineItem(l).brand}</span>}
+                                <span style={{ display: 'block', font: '400 12px/1.35 var(--sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatLineItem(l).name}</span>
+                                <span style={{ display: 'block', marginTop: 3, font: '400 9px/1 var(--mono)', color: 'var(--faint)' }}>{formatLineItem(l).sku || l.item_type || ''}</span>
                               </span>
                               <span style={{ font: '400 11px/1 var(--mono)', color: 'var(--dim)', textAlign: 'right' }}>
                                 {l.item_type === 'labor' ? '—' : l.sqft_needed ? parseFloat(l.sqft_needed) + ' sf' : (l.num_boxes || 0) + (l.sell_by === 'unit' ? ' ea' : ' bx')}
@@ -4954,10 +5084,9 @@
                           {pane.items.map(l => (
                             <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '1fr 66px 72px', gap: 10, alignItems: 'baseline' }}>
                               <span style={{ minWidth: 0 }}>
-                                <span style={{ display: 'block', font: '400 12px/1.35 var(--sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {(l.collection || l.current_collection || l.product_name || '—') + (l.color ? ' ' + l.color : '')}
-                                </span>
-                                <span style={{ display: 'block', marginTop: 3, font: '400 9px/1 var(--mono)', color: 'var(--faint)' }}>{l.vendor_sku || l.vendor_name || ''}</span>
+                                {formatLineItem(l).brand && <span style={{ display: 'block', marginBottom: 3, font: '400 9px/1 var(--mono)', color: 'var(--faint)' }}>{formatLineItem(l).brand}</span>}
+                                <span style={{ display: 'block', font: '400 12px/1.35 var(--sans)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatLineItem(l).name}</span>
+                                <span style={{ display: 'block', marginTop: 3, font: '400 9px/1 var(--mono)', color: 'var(--faint)' }}>{formatLineItem(l).sku}</span>
                               </span>
                               <span style={{ font: '400 11px/1 var(--mono)', color: 'var(--dim)', textAlign: 'right' }}>
                                 {l.sqft_needed ? parseFloat(l.sqft_needed) + ' sf' : (l.num_boxes || 0) + (l.sell_by === 'unit' ? ' ea' : ' bx')}
@@ -5264,16 +5393,12 @@
                 {items.map(item => (
                   <tr key={item.id}>
                     <td data-label="Product">
+                      {formatLineItem(item).brand && <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>{formatLineItem(item).brand}</div>}
                       <div style={{ fontWeight: 500 }}>
-                        {item.collection || item.current_collection || item.product_name || '—'}
-                        {item.color ? ' ' + item.color : ''}
-                        {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
+                        {formatLineItem(item).name}
                         {item.is_sample && <span className="badge" style={{ fontSize: '0.6rem', marginLeft: '0.5rem', background: 'var(--stone-200)', color: 'var(--stone-700)' }}>Sample</span>}
                       </div>
-                      <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>
-                        {(item.collection || item.current_collection) && item.product_name ? item.product_name : ''}
-                        {item.vendor_sku ? ((item.collection || item.current_collection) && item.product_name ? ' · ' : '') + item.vendor_sku : ''}
-                      </div>
+                      {formatLineItem(item).sku && <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>{formatLineItem(item).sku}</div>}
                     </td>
                     <td data-label="Vendor"><span style={{ font: '400 11px/1.4 var(--sans)', color: 'var(--dim)' }}>{item.vendor_name || '—'}</span></td>
                     <td data-label="Qty">
@@ -5728,9 +5853,10 @@
                       return (
                         <tr key={it.id}>
                           <td>
-                            <div style={{ fontWeight: 500 }}>{it.product_name}</div>
+                            {formatLineItem(it).brand && <div style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>{formatLineItem(it).brand}</div>}
+                            <div style={{ fontWeight: 500 }}>{formatLineItem(it).name}</div>
                             <div style={{ fontSize: '0.6875rem', color: 'var(--stone-400)' }}>
-                              {it.vendor_name || ''}{' · '}{money(it.unit_price)}/ea{' · '}{remaining} available
+                              {(formatLineItem(it).sku || it.vendor_name || '')}{' · '}{money(it.unit_price)}/ea{' · '}{remaining} available
                             </div>
                           </td>
                           <td style={{ width: '90px' }}>
@@ -6123,7 +6249,7 @@
       };
 
       const actionLabel = (action) => {
-        const labels = { sent: 'Sent', resent: 'Resent', revised_and_sent: 'Revised & Sent', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled', cancelled: 'Cancelled', reverted: 'Reverted to Draft', created: 'Created', notes_updated: 'Notes Updated', edi_sent: 'Sent via EDI', edi_acknowledged: 'EDI Acknowledged', edi_shipped: 'EDI Ship Notice', edi_invoiced: 'EDI Invoice Received' };
+        const labels = { sent: 'Sent', resent: 'Resent', revised_and_sent: 'Revised & Sent', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled', cancelled: 'Cancelled', reverted: 'Reverted to Draft', created: 'Created', notes_updated: 'Notes Updated', edi_sent: 'Sent via EDI', edi_acknowledged: 'EDI Acknowledged', edi_ack_rejected: 'EDI Rejected', edi_ack_partial: 'EDI Partial Ack', confirmation_attached: 'Confirmation Attached', edi_shipped: 'EDI Ship Notice', edi_invoiced: 'EDI Invoice Received' };
         return labels[action] || action;
       };
 
@@ -6538,14 +6664,11 @@
                   return (
                   <tr key={item.id}>
                     <td data-label="Product">
-                      <div style={{ fontWeight: 500 }}>
-                        {item.collection || item.current_collection || item.product_name || '—'}
-                        {item.color ? ' ' + item.color : ''}
-                        {item.variant_name && item.variant_name !== item.color ? ' ' + item.variant_name : ''}
-                      </div>
+                      {formatLineItem(item).brand && <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>{formatLineItem(item).brand}</div>}
+                      <div style={{ fontWeight: 500 }}>{formatLineItem(item).name}</div>
                       <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>
-                        {item.vendor_name || ''}{item.vendor_sku ? ' · ' + item.vendor_sku : ''}
-                        {item.is_sample && <span className="badge badge-draft" style={{ fontSize: '0.6rem', marginLeft: item.vendor_name ? '0.5rem' : '0' }}>Sample</span>}
+                        {formatLineItem(item).sku}
+                        {item.is_sample && <span className="badge badge-draft" style={{ fontSize: '0.6rem', marginLeft: formatLineItem(item).sku ? '0.5rem' : '0' }}>Sample</span>}
                       </div>
                     </td>
                     <td data-label="Vendor · PO">
@@ -6715,14 +6838,11 @@
                                     : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
                                   }
                                   <div className="sku-info">
-                                    <div className="sku-name">
-                                      {r.collection || r.product_name}
-                                      {r.color ? ' — ' + r.color : ''}
-                                      {r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
-                                    </div>
+                                    {formatLineItem(r).brand && <div className="product-meta">{formatLineItem(r).brand}</div>}
+                                    <div className="sku-name">{formatLineItem(r).name}</div>
                                     <div className="product-meta">
-                                      {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
-                                      {r.price ? ' · $' + parseFloat(r.price).toFixed(2) + (r.price_basis === 'per_sqyd' ? '/sqyd' : r.sell_by === 'unit' ? '/ea' : '/sqft') : ''}
+                                      {formatLineItem(r).sku}
+                                      {r.price ? (formatLineItem(r).sku ? '  ·  ' : '') + '$' + parseFloat(r.price).toFixed(2) + skuPriceSuffix(r) : ''}
                                     </div>
                                   </div>
                                 </div>
@@ -6942,7 +7062,9 @@
                           return (
                             <tr key={item.id}>
                               <td data-label="Product">
-                                <div style={{ fontWeight: 500 }}>{item.product_name || '—'}</div>
+                                {formatLineItem(item).brand && <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>{formatLineItem(item).brand}</div>}
+                                <div style={{ fontWeight: 500 }}>{formatLineItem(item).name}</div>
+                                {formatLineItem(item).sku && <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>{formatLineItem(item).sku}</div>}
                               </td>
                               <td data-label="Vendor SKU">{item.vendor_sku || '—'}</td>
                               <td data-label="Qty">
@@ -7608,15 +7730,19 @@
                   }}>PDF {'↓'}</button>
                 </div>
               )}
-              <div className="rb-doc">
-                <span style={{ minWidth: 0 }}>
-                  <span className="rb-doc-name" style={{ display: 'block' }}>Packing slip</span>
-                  <span className="rb-doc-sub" style={{ display: 'block' }}>Warehouse copy</span>
-                </span>
-                <button className="rb-doc-link" onClick={() => {
-                  setDocPreview({ path: '/api/staff/orders/' + editId + '/packing-slip', title: 'Packing Slip' });
-                }}>PDF {'↓'}</button>
-              </div>
+              {payments.filter(p => p.stripe_receipt_url).map(p => (
+                <div className="rb-doc" key={'rcpt-' + p.id}>
+                  <span style={{ minWidth: 0 }}>
+                    <span className="rb-doc-name" style={{ display: 'block' }}>Stripe receipt</span>
+                    <span className="rb-doc-sub" style={{ display: 'block' }}>
+                      {(p.card_brand ? p.card_brand.charAt(0).toUpperCase() + p.card_brand.slice(1) + (p.card_last4 ? ' ····' + p.card_last4 : '') : (p.payment_method || 'card').toUpperCase())}
+                      {' · $' + parseFloat(p.amount || 0).toFixed(2)}
+                      {p.stripe_receipt_number ? ' · #' + p.stripe_receipt_number : ''}
+                    </span>
+                  </span>
+                  <button className="rb-doc-link" onClick={() => window.open(p.stripe_receipt_url, '_blank', 'noopener')}>Open {'↗'}</button>
+                </div>
+              ))}
               {purchaseOrders.filter(po => po.status !== 'cancelled').map(po => (
                 <div className="rb-doc" key={po.id}>
                   <span style={{ minWidth: 0 }}>
@@ -8326,7 +8452,7 @@
               ) : tiers.map(t => (
                 <tr key={t.id}>
                   <td><strong>{t.name}</strong></td>
-                  <td>{parseFloat(t.discount_percent || 0).toFixed(1)}%</td>
+                  <td>{parseFloat(t.discount_percent || 0)}%</td>
                   <td>${parseFloat(t.spend_threshold || 0).toLocaleString()}+</td>
                   <td>{t.customer_count}</td>
                   <td>${(10 * (1 - parseFloat(t.discount_percent || 0) / 100)).toFixed(2)}</td>
@@ -8513,7 +8639,7 @@
                       <select value={c.margin_tier_id || ''} onClick={e => e.stopPropagation()} onChange={e => updateCustomer(c.id, { margin_tier_id: e.target.value || null })}
                         style={{ padding: '0.3rem 0.4rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }}>
                         <option value="">No tier</option>
-                        {tiers.map(t => <option key={t.id} value={t.id}>{t.name} ({parseFloat(t.discount_percent || 0).toFixed(0)}%)</option>)}
+                        {tiers.map(t => <option key={t.id} value={t.id}>{t.name} ({parseFloat(t.discount_percent || 0)}%)</option>)}
                       </select>
                     </td>
                     <td>
@@ -10467,8 +10593,9 @@
                     <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
                       {i.primary_image && <img src={i.primary_image} alt="" style={{ width: 36, height: 36, objectFit: 'cover', flexShrink: 0 }} onError={e => { e.target.style.display = 'none'; }} />}
                       <span style={{ minWidth: 0 }}>
-                        <span style={{ display: 'block', font: '400 13px/1.35 var(--sans)' }}>{i.product_name}{i.variant_name ? ' · ' + i.variant_name : ''}</span>
-                        <span style={{ display: 'block', marginTop: 3, font: '400 10px/1 var(--mono)', color: 'var(--faint)' }}>{i.collection || '—'}</span>
+                        {formatLineItem(i).brand && <span style={{ display: 'block', marginBottom: 3, font: '400 10px/1 var(--mono)', color: 'var(--faint)' }}>{formatLineItem(i).brand}</span>}
+                        <span style={{ display: 'block', font: '400 13px/1.35 var(--sans)' }}>{formatLineItem(i).name}</span>
+                        <span style={{ display: 'block', marginTop: 3, font: '400 10px/1 var(--mono)', color: 'var(--faint)' }}>{formatLineItem(i).sku || '—'}</span>
                       </span>
                     </span>
                     <span style={{ font: '400 11px/1.3 var(--mono)', textAlign: 'right', color: i.retail_price == null ? 'var(--faint)' : undefined }}>
@@ -10538,7 +10665,11 @@
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
               {items.map(i => (
                 <div key={i.id} style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-                  <span style={{ font: '400 12px/1.35 var(--sans)', minWidth: 0 }}>{i.product_name}</span>
+                  <span style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                    {formatLineItem(i).brand && <span style={{ font: '400 10px/1 var(--mono)', color: 'var(--faint)', marginBottom: 3 }}>{formatLineItem(i).brand}</span>}
+                    <span style={{ font: '400 12px/1.35 var(--sans)' }}>{formatLineItem(i).name}</span>
+                    {formatLineItem(i).sku && <span style={{ font: '400 10px/1 var(--mono)', color: 'var(--faint)', marginTop: 3 }}>{formatLineItem(i).sku}</span>}
+                  </span>
                   <span style={{ marginLeft: 'auto', font: '400 10px/1 var(--mono)', color: 'var(--faint)', whiteSpace: 'nowrap' }}>
                     {money(i.retail_price)}{i.retail_price != null && i.price_basis === 'per_sqft' ? '/sf' : ''}
                   </span>
@@ -10894,6 +11025,19 @@
         setPoUpdating(false);
       };
 
+      // Manual placement: staff called the vendor or ordered on their site. Marks
+      // the PO sent and records how, without any EDI/email transmission.
+      const markPOManual = async (channel) => {
+        const phrase = channel === 'phone' ? 'over the phone' : 'online';
+        if (!confirm('Mark this PO as ordered ' + phrase + '? No email or EDI will be sent to the vendor.')) return;
+        setPoUpdating(true);
+        try {
+          await adminFetch('/api/admin/purchase-orders/' + editId + '/send', { method: 'POST', body: JSON.stringify({ method: channel }) });
+          load();
+        } catch (err) { alert(err.message); }
+        setPoUpdating(false);
+      };
+
       const updatePOItemStatus = async (itemId, status) => {
         try {
           await adminFetch('/api/admin/purchase-orders/' + editId + '/items/' + itemId + '/status', {
@@ -10959,7 +11103,7 @@
       };
 
       const actionLabel = (action) => {
-        const labels = { sent: 'Sent', resent: 'Resent', revised_and_sent: 'Revised & Sent', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled', cancelled: 'Cancelled', reverted: 'Reverted to Draft', created: 'Created', notes_updated: 'Notes Updated', edi_sent: 'Sent via EDI', edi_acknowledged: 'EDI Acknowledged', edi_shipped: 'EDI Ship Notice', edi_invoiced: 'EDI Invoice Received' };
+        const labels = { sent: 'Sent', resent: 'Resent', revised_and_sent: 'Revised & Sent', acknowledged: 'Acknowledged', fulfilled: 'Fulfilled', cancelled: 'Cancelled', reverted: 'Reverted to Draft', created: 'Created', notes_updated: 'Notes Updated', edi_sent: 'Sent via EDI', edi_acknowledged: 'EDI Acknowledged', edi_ack_rejected: 'EDI Rejected', edi_ack_partial: 'EDI Partial Ack', confirmation_attached: 'Confirmation Attached', edi_shipped: 'EDI Ship Notice', edi_invoiced: 'EDI Invoice Received' };
         return labels[action] || action;
       };
 
@@ -10980,6 +11124,11 @@
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
             <h1 style={{ margin: 0 }}><code style={{ fontSize: 'inherit', background: 'var(--stone-50)', padding: '0.1rem 0.5rem', borderRadius: '6px', border: '1px solid var(--stone-200)' }}>{po.po_number}</code></h1>
             {statusBadge(po.status)}
+            {po.sent_via && (
+              <span style={{ fontSize: '0.72rem', color: 'var(--stone-600)', background: 'var(--stone-100)', padding: '0.15rem 0.5rem', borderRadius: '6px', border: '1px solid var(--stone-200)' }}>
+                {{ edi: 'via EDI', email: 'via email', phone: 'ordered by phone', online: 'ordered online' }[po.sent_via] || ('via ' + po.sent_via)}
+              </span>
+            )}
           </div>
 
           {/* PO Status Stepper */}
@@ -11048,6 +11197,12 @@
                       <button className="btn btn-primary" disabled={poUpdating} onClick={sendPOToVendor}>
                         {poUpdating ? 'Sending...' : 'Send to Vendor'}
                       </button>
+                    )}
+                    {isDraft && items.length > 0 && (
+                      <button className="btn btn-secondary" disabled={poUpdating} onClick={() => markPOManual('phone')}>Ordered by phone</button>
+                    )}
+                    {isDraft && items.length > 0 && (
+                      <button className="btn btn-secondary" disabled={poUpdating} onClick={() => markPOManual('online')}>Ordered online</button>
                     )}
                     {po.status === 'sent' && (
                       <button className="btn btn-primary" disabled={poUpdating} onClick={() => updatePOStatus('acknowledged')}>Mark Acknowledged</button>
@@ -11147,13 +11302,12 @@
                               : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
                             }
                             <div className="sku-info">
-                              <div className="sku-name">
-                                {r.product_name}{r.color ? ' — ' + r.color : ''}{r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
-                              </div>
+                              {formatLineItem(r).brand && <div className="product-meta">{formatLineItem(r).brand}</div>}
+                              <div className="sku-name">{formatLineItem(r).name}</div>
                               <div className="product-meta">
-                                {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
-                                {r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + '/' + (r.sell_by === 'unit' ? 'ea' : 'sqft') : ''}
-                                {r.retail_price ? ' · Retail $' + parseFloat(r.retail_price).toFixed(2) : ''}
+                                {formatLineItem(r).sku}
+                                {r.cost ? (formatLineItem(r).sku ? '  ·  ' : '') + 'Cost $' + parseFloat(r.cost).toFixed(2) + skuPriceSuffix(r) : ''}
+                                {r.retail_price ? '  ·  Retail $' + parseFloat(r.retail_price).toFixed(2) : ''}
                               </div>
                             </div>
                           </div>
@@ -11225,10 +11379,9 @@
                   return (
                   <tr key={item.id}>
                     <td data-label="Product">
-                      <div style={{ fontWeight: 500 }}>{item.product_name}</div>
-                      <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>
-                        {item.vendor_sku || ''}{item.description ? (item.vendor_sku ? ' · ' : '') + item.description : ''}
-                      </div>
+                      {formatLineItem(item).brand && <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>{formatLineItem(item).brand}</div>}
+                      <div style={{ fontWeight: 500 }}>{formatLineItem(item).name}</div>
+                      {item.description && <div style={{ fontSize: '0.6875rem', color: '#a4a09a' }}>{item.description}</div>}
                     </td>
                     <td data-label="Vendor SKU" style={{ fontSize: '0.8125rem' }}>{item.vendor_sku || '—'}</td>
                     <td data-label="Qty">

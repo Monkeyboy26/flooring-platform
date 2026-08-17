@@ -78,14 +78,31 @@ export async function recalculateCommission(queryable, orderId) {
     const defaultCostRatio = parseFloat(config.default_cost_ratio);
 
     // Calculate vendor cost from purchase_order_items (excluding cancelled POs).
-    // POs only carry material lines, so this cost is materials-only.
+    // POs only carry material lines, so this cost is materials-only. Custom rug
+    // lines are EXCLUDED here — they carry their own true cost on order_items.cost
+    // (material + binding + fabrication), added below, so counting a rug's PO too
+    // would double-count. (A rug PO is $0 today anyway; the join future-proofs it.)
     const costRes = await queryable.query(`
       SELECT COALESCE(SUM(poi.subtotal), 0) as vendor_cost
       FROM purchase_order_items poi
       JOIN purchase_orders po ON po.id = poi.purchase_order_id
+      LEFT JOIN order_items oi ON oi.id = poi.order_item_id
       WHERE po.order_id = $1 AND po.status != 'cancelled'
+        AND COALESCE(oi.is_custom_rug, false) = false
     `, [orderId]);
     let vendorCost = parseFloat(costRes.rows[0].vendor_cost);
+
+    // Custom bound area rugs: real per-line cost (material + binding + fabrication)
+    // stored on order_items.cost at checkout. num_boxes = rug quantity.
+    const rugRes = await queryable.query(`
+      SELECT COALESCE(SUM(subtotal), 0) as rug_revenue,
+             COALESCE(SUM(COALESCE(cost, 0) * num_boxes), 0) as rug_cost
+      FROM order_items
+      WHERE order_id = $1 AND COALESCE(is_sample, false) = false
+        AND COALESCE(item_type, 'material') <> 'labor' AND is_custom_rug = true
+    `, [orderId]);
+    const rugRevenue = parseFloat(rugRes.rows[0].rug_revenue);
+    const rugCost = parseFloat(rugRes.rows[0].rug_cost);
 
     // Labor lines are commissioned separately (flat labor_rate on labor revenue),
     // so they must be pulled out of the material margin base to avoid paying the
@@ -103,12 +120,16 @@ export async function recalculateCommission(queryable, orderId) {
     // shipping/tax, matching the prior behavior for the material portion).
     const materialsBase = Math.max(0, orderTotal - laborSubtotal);
 
-    // Fallback: if no PO data, estimate materials cost from the materials base.
+    // Fallback: if no PO data, estimate materials cost from the materials base —
+    // but only for the NON-rug portion, since rugs carry their own real cost
+    // (added separately below). Otherwise the rug would be costed twice.
     if (vendorCost === 0) {
-      vendorCost = materialsBase * defaultCostRatio;
+      vendorCost = Math.max(0, materialsBase - rugRevenue) * defaultCostRatio;
     }
 
-    const margin = Math.max(0, materialsBase - vendorCost); // materials gross profit
+    // Total materials cost = PO/estimated cost (non-rug) + rugs' real cost.
+    const totalVendorCost = vendorCost + rugCost;
+    const margin = Math.max(0, materialsBase - totalVendorCost); // materials gross profit
     const materialsCommission = margin * rate;
     const laborCommission = laborSubtotal * laborRate;
     const commissionAmount = materialsCommission + laborCommission;
@@ -137,7 +158,7 @@ export async function recalculateCommission(queryable, orderId) {
         labor_commission = EXCLUDED.labor_commission,
         status = CASE WHEN rep_commissions.status = 'paid' THEN 'paid' ELSE EXCLUDED.status END,
         updated_at = CURRENT_TIMESTAMP
-    `, [orderId, order.sales_rep_id, orderTotal.toFixed(2), vendorCost.toFixed(2),
+    `, [orderId, order.sales_rep_id, orderTotal.toFixed(2), totalVendorCost.toFixed(2),
         margin.toFixed(2), rate, commissionAmount.toFixed(2),
         laborSubtotal.toFixed(2), laborCommission.toFixed(2), commissionStatus]);
   } catch (err) {

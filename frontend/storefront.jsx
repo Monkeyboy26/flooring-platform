@@ -193,6 +193,63 @@
       };
     }
 
+    // ==================== Custom Area Rugs — local SEO source of truth ====================
+    // Keep RUG_* identical to backend/services/seoRenderer.js so prerender + SPA match.
+    const RUG_OPTIONS = [
+      { name: 'Custom-Size Rugs', desc: 'Cut to any dimension your space needs — from entry mats to great-room rugs — so the fit is exact.', icon: 'size' },
+      { name: 'Shapes & Runners', desc: 'Rectangles, rounds, ovals, and custom outlines, plus hall and stair runners cut to length.', icon: 'shapes' },
+      { name: 'Choose Your Carpet', desc: 'Made from broadloom carpet — wool, nylon, and natural fibers in hundreds of colors and textures.', icon: 'carpet' },
+      { name: 'Layer Over Any Floor', desc: 'Define a room and protect hardwood, tile, and vinyl with a rug that coordinates with your floor.', icon: 'layers' },
+    ];
+    const RUG_EDGES = [
+      { name: 'Serged Edge', desc: 'Yarn wrapped tight to the pile for a clean, classic finished edge.', icon: 'serge' },
+      { name: 'Machine Binding', desc: 'A durable fabric-tape border in a color to match or contrast your carpet.', icon: 'bind' },
+      { name: 'Cotton & Canvas Tape', desc: 'A wide woven-tape border for a relaxed, casual look.', icon: 'tape' },
+      { name: 'Leather Binding', desc: 'A premium leather or faux-leather border for a tailored, high-end edge.', icon: 'leather' },
+    ];
+    const RUG_FAQ = [
+      ['Can you make a custom-size area rug?', 'Yes. We cut and finish area rugs to any size and shape — rectangles, runners, rounds, and custom outlines — from broadloom carpet, so you get a rug that fits your space exactly.'],
+      ['What carpet can I choose for my rug?', 'We make rugs from wool, nylon, and natural-fiber broadloom in a wide range of colors, patterns, and textures, including performance and indoor/outdoor options for high-traffic areas.'],
+      ['What edge finishes do you offer?', 'Common finishes include a serged (yarn-wrapped) edge, machine binding, wide cotton or canvas tape, and leather or faux-leather binding — chosen to match or contrast your carpet.'],
+      ['Can you make stair and hallway runners?', 'Yes. We cut and bind runners to length for stairs, halls, and entries so they coordinate with your rugs and flooring.'],
+      ['Do I have to buy the carpet from Roma?', 'We bind rugs from carpet purchased at our Anaheim showroom, and in many cases from carpet you already have. Contact us and we will review your project.'],
+      ['How long does a custom rug take?', 'Because every rug is made to order, lead times vary by size, material, and edge finish. We give you a firm timeline with your quote.'],
+      ['Do you serve my area?', 'Our showroom is in Anaheim and we make custom area rugs for clients throughout Orange County.'],
+    ];
+
+    function rugsJsonLd() {
+      const business = {
+        '@type': 'HomeAndConstructionBusiness',
+        '@id': BUSINESS_ID,
+        name: 'Roma Flooring Designs',
+        url: SITE_URL + '/custom-area-rugs',
+        telephone: '(714) 999-0009',
+        priceRange: '$$',
+        image: SITE_URL + '/uploads/og-default.jpg',
+        address: { '@type': 'PostalAddress', streetAddress: '1440 S. State College Blvd #6M', addressLocality: 'Anaheim', addressRegion: 'CA', postalCode: '92806', addressCountry: 'US' },
+        geo: { '@type': 'GeoCoordinates', latitude: 33.8271, longitude: -117.8827 },
+        areaServed: { '@type': 'AdministrativeArea', name: 'Orange County' },
+        hasCredential: { '@type': 'EducationalOccupationalCredential', credentialCategory: 'California Contractor License', identifier: '830966' }
+      };
+      const offers = [...RUG_OPTIONS, ...RUG_EDGES].map(t => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: t.name, description: t.desc } }));
+      return {
+        '@context': 'https://schema.org',
+        '@graph': [
+          business,
+          {
+            '@type': 'Service', name: 'Custom Area Rug Fabrication', serviceType: 'Custom area rug and runner fabrication and binding',
+            provider: { '@id': BUSINESS_ID }, areaServed: { '@type': 'AdministrativeArea', name: 'Orange County' },
+            hasOfferCatalog: { '@type': 'OfferCatalog', name: 'Custom Area Rugs & Runners', itemListElement: offers }
+          },
+          { '@type': 'FAQPage', mainEntity: RUG_FAQ.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
+          { '@type': 'BreadcrumbList', itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Custom Area Rugs', item: SITE_URL + '/custom-area-rugs' }
+          ]}
+        ]
+      };
+    }
+
     // ==================== Cabinets — local SEO source of truth ====================
     // Keep CAB_LINES / CAB_FAQ identical to backend/services/seoRenderer.js.
     const CAB_LINES = [
@@ -1558,8 +1615,46 @@
       return String(sizeAttr).trim();
     }
 
+    // Custom bound area rug pricing — mirrors backend/lib/rugPricing.js. The cart
+    // endpoint recomputes server-side (authoritative); this is the live preview.
+    const RUG_BINDING_PER_FT = 6;
+    const RUG_SETUP_FEE = 50;
+    const RUG_DEFAULT_ROLL_WIDTH_FT = 12;
+    function computeRugQuote(widthFt, lengthFt, rollWidthFt, cutPricePerSqyd) {
+      const w = parseFloat(widthFt) || 0;
+      const l = parseFloat(lengthFt) || 0;
+      const roll = parseFloat(rollWidthFt) > 0 ? parseFloat(rollWidthFt) : RUG_DEFAULT_ROLL_WIDTH_FT;
+      const price = parseFloat(cutPricePerSqyd) || 0;
+      if (w <= 0 || l <= 0) return { valid: false, oversized: false, rollWidthFt: roll };
+      const a = Math.max(w, l), b = Math.min(w, l);
+      let linearFeet;
+      if (a <= roll) linearFeet = b;
+      else if (b <= roll) linearFeet = a;
+      else return { valid: false, oversized: true, rollWidthFt: roll };
+      const cutAreaSqft = roll * linearFeet;
+      const material = (cutAreaSqft / 9) * price;
+      const perimeterFt = 2 * (w + l);
+      const binding = perimeterFt * RUG_BINDING_PER_FT;
+      const perRug = material + binding + RUG_SETUP_FEE;
+      return { valid: true, oversized: false, rollWidthFt: roll, linearFeet, cutAreaSqft, perimeterFt, material, binding, setup: RUG_SETUP_FEE, perRug };
+    }
+    function fmtRugFeet(ft) {
+      const n = parseFloat(ft) || 0;
+      const whole = Math.floor(n);
+      let inches = Math.round((n - whole) * 12);
+      if (inches === 12) return (whole + 1) + "'";
+      return inches === 0 ? whole + "'" : whole + "'" + inches + '"';
+    }
+    function formatRugDims(w, l) { return fmtRugFeet(w) + ' × ' + fmtRugFeet(l); }
+
     function itemLineName(it) {
       it = it || {};
+      // Custom bound area rug → "Custom Area Rug  ·  <carpet>  ·  9' × 4'"
+      if (it.is_custom_rug) {
+        const dims = (it.custom_width_ft && it.custom_length_ft) ? formatRugDims(it.custom_width_ft, it.custom_length_ft) : '';
+        const carpet = [it.collection, it.color].filter(Boolean).join(' ') || it.product_name || '';
+        return ['Custom Area Rug', carpet, dims].filter(Boolean).join('  ·  ');
+      }
       const isAcc = (it.variant_type || '').toLowerCase() === 'accessory';
       const accLabel = isAcc ? (it.accessory_label || it.variant_name) : null;
       // Accessory bought for a specific floor → lead with that floor's
@@ -2949,6 +3044,12 @@
           window.scrollTo(0, 0);
           return;
         }
+        if (path === '/custom-area-rugs') {
+          setView('custom-area-rugs');
+          history.pushState({ view: 'custom-area-rugs' }, '', '/custom-area-rugs');
+          window.scrollTo(0, 0);
+          return;
+        }
         if (path === '/trade/apply') {
           goTradeApply();
           return;
@@ -3002,8 +3103,7 @@
         }
         // Service page placeholders
         const servicePages = {
-          '/design-services': 'Design Services',
-          '/custom-area-rugs': 'Custom Area Rugs'
+          '/design-services': 'Design Services'
         };
         if (servicePages[path]) {
           setComingSoonTitle(servicePages[path]);
@@ -3455,8 +3555,7 @@
         } else if (path === '/custom-accessories') {
           setView('custom-accessories');
         } else if (path === '/custom-area-rugs') {
-          setComingSoonTitle('Custom Area Rugs');
-          setView('coming-soon');
+          setView('custom-area-rugs');
         } else if (path === '/shop' || path.startsWith('/shop')) {
           // Browse view
           setView('browse');
@@ -3596,6 +3695,7 @@
           about: { title: 'About Us | Roma Flooring Designs', description: 'A family flooring house in Anaheim, California — hardwood, stone, tile, and cabinetry since 1999. Visit our showroom on State College Blvd.', url: SITE_URL + '/about' },
           installation: { title: 'Flooring Installation in Anaheim & Orange County | Roma Flooring Designs', description: 'Licensed, insured flooring installation in Anaheim & Orange County — hardwood, tile, luxury vinyl, stone, carpet & laminate. Free estimates. CA Lic #830966. Call (714) 999-0009.', url: SITE_URL + '/installation', image: SITE_URL + '/uploads/og-default.jpg' },
           'custom-accessories': { title: 'Custom Tile Trim & Wood Floor Moldings | Roma Flooring Designs', description: 'Custom floor accessories in Anaheim & Orange County — bullnose, cut-downs, mosaics & tile stair treads fabricated from your tile, plus color-matched wood moldings & stair parts. Made to order. Call (714) 999-0009.', url: SITE_URL + '/custom-accessories', image: SITE_URL + '/uploads/og-default.jpg' },
+        'custom-area-rugs': { title: 'Custom Area Rugs & Runners in Anaheim & Orange County | Roma Flooring Designs', description: 'Custom area rugs & runners in Anaheim & Orange County — cut and bound to any size and shape from wool, nylon & natural-fiber carpet, with serged, bound, or leather edges. Made to order. Call (714) 999-0009.', url: SITE_URL + '/custom-area-rugs', image: SITE_URL + '/uploads/og-default.jpg' },
           cabinets: { title: 'Custom Kitchen & Bath Cabinets in Anaheim & Orange County | Roma Flooring Designs', description: 'Custom kitchen & bath cabinets in Anaheim & Orange County — American-built face-frame and Italian-engineered frameless lines, designed in-house and installed by our crew. Visit our showroom. Call (714) 999-0009.', url: SITE_URL + '/cabinets', image: SITE_URL + '/uploads/og-default.jpg' },
         };
 
@@ -3653,6 +3753,8 @@
           setDynamicJsonLd(installationJsonLd());
         } else if (view === 'custom-accessories') {
           setDynamicJsonLd(customAccessoriesJsonLd());
+        } else if (view === 'custom-area-rugs') {
+          setDynamicJsonLd(rugsJsonLd());
         } else if (view === 'cabinets') {
           setDynamicJsonLd(cabinetsJsonLd());
         } else if (view !== 'detail') {
@@ -3899,6 +4001,9 @@
 
           {view === 'custom-accessories' && (
             <CustomAccessoriesPage onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
+          )}
+          {view === 'custom-area-rugs' && (
+            <CustomAreaRugsPage onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
           )}
 
           {view === 'inspiration' && (
@@ -6611,6 +6716,13 @@
       const [roomLength, setRoomLength] = useState('');
       const [linearFeet, setLinearFeet] = useState('');
       const [includeCarpetOverage, setIncludeCarpetOverage] = useState(false);
+      // Custom bound area rug calculator state
+      const [showRugCalc, setShowRugCalc] = useState(false);
+      const [rugWidthFt, setRugWidthFt] = useState('');
+      const [rugWidthIn, setRugWidthIn] = useState('');
+      const [rugLengthFt, setRugLengthFt] = useState('');
+      const [rugLengthIn, setRugLengthIn] = useState('');
+      const [rugQty, setRugQty] = useState(1);
 
       // Review state
       const [reviews, setReviews] = useState([]);
@@ -6921,6 +7033,12 @@
       const carpetNeedsSeam = isCarpetSku && effectiveCarpetMode === 'dimensions' && rollWidthFt > 0 && (parseFloat(roomWidth) || 0) > rollWidthFt;
       const effectivePrice = isCarpetSku ? carpetActivePrice : (tradePrice || salePrice || retailPrice);
 
+      // Custom bound area rug — finished dimensions in decimal feet + live quote
+      const rugWFt = (parseFloat(rugWidthFt) || 0) + (parseFloat(rugWidthIn) || 0) / 12;
+      const rugLFt = (parseFloat(rugLengthFt) || 0) + (parseFloat(rugLengthIn) || 0) / 12;
+      const rugQuote = isCarpetSku ? computeRugQuote(rugWFt, rugLFt, rollWidthFt, cutPrice) : { valid: false };
+      const rugTotal = rugQuote.valid ? rugQuote.perRug * Math.max(1, rugQty) : 0;
+
       const handleSqftChange = (val) => {
         setSqftInput(val);
         if (sqftPerBox > 0 && val) {
@@ -7029,6 +7147,20 @@
       };
 
       const isOutOfStock = sku && sku.stock_status === 'out_of_stock' && sku.vendor_has_inventory !== false;
+
+      const handleAddRug = () => {
+        if (!sku || addingToCart || !rugQuote.valid) return;
+        setAddingToCart(true);
+        setTimeout(() => setAddingToCart(false), 1500);
+        addToCart({
+          product_id: sku.product_id,
+          sku_id: sku.sku_id,
+          num_boxes: Math.max(1, rugQty),
+          is_custom_rug: true,
+          custom_width_ft: rugWFt.toFixed(2),
+          custom_length_ft: rugLFt.toFixed(2),
+        });
+      };
 
       const handleAddToCart = () => {
         if (!sku || addingToCart || isOutOfStock) return;
@@ -9052,6 +9184,85 @@
                     onClick={handleAddToCart} disabled={carpetSqft <= 0 || isOutOfStock}>
                     {isOutOfStock ? 'Out of Stock' : ('Add to Cart ' + (carpetSqft > 0 ? '\u2014 $' + carpetSubtotal.toFixed(2) : ''))}
                   </button>
+                </div>
+              )}
+
+              {/* Custom bound area rug — made-to-order rug cut from this carpet */}
+              {isCarpetSku && cutPrice > 0 && !isOutOfStock && (
+                <div className="calculator-widget" style={{ marginTop: '1rem' }}>
+                  <button
+                    onClick={() => setShowRugCalc(v => !v)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
+                    <h3 style={{ margin: 0 }}>Design a Custom Area Rug</h3>
+                    <span style={{ fontSize: '1.25rem', color: 'var(--stone-400)', lineHeight: 1 }}>{showRugCalc ? '−' : '+'}</span>
+                  </button>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', margin: '0.5rem 0 0' }}>
+                    Turn this carpet into a bound area rug — any size, finished edges.
+                  </p>
+                  {showRugCalc && (
+                    <div style={{ marginTop: '1rem' }}>
+                      <div className="calc-input-row">
+                        <div className="calc-input-group">
+                          <label>Width</label>
+                          <div style={{ display: 'flex', gap: '0.375rem' }}>
+                            <input className="calc-input" type="number" min="0" step="1" placeholder="ft"
+                              value={rugWidthFt} onChange={(e) => setRugWidthFt(e.target.value)} />
+                            <input className="calc-input" type="number" min="0" max="11" step="1" placeholder="in"
+                              value={rugWidthIn} onChange={(e) => setRugWidthIn(e.target.value)} />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'flex-end', padding: '0 0.25rem 0.5rem', fontSize: '1.25rem', color: 'var(--stone-400)' }}>&times;</div>
+                        <div className="calc-input-group">
+                          <label>Length</label>
+                          <div style={{ display: 'flex', gap: '0.375rem' }}>
+                            <input className="calc-input" type="number" min="0" step="1" placeholder="ft"
+                              value={rugLengthFt} onChange={(e) => setRugLengthFt(e.target.value)} />
+                            <input className="calc-input" type="number" min="0" max="11" step="1" placeholder="in"
+                              value={rugLengthIn} onChange={(e) => setRugLengthIn(e.target.value)} />
+                          </div>
+                        </div>
+                      </div>
+                      {rugQuote.oversized && (
+                        <div className="carpet-seam-note">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                          Both sides exceed the {rugQuote.rollWidthFt}' roll width — call (714) 999-0009 for oversized rugs.
+                        </div>
+                      )}
+                      {rugQuote.valid && (
+                        <div className="calc-summary">
+                          <div className="calc-summary-row">
+                            <span>Cut Size</span><span>{rugQuote.rollWidthFt}' &times; {rugQuote.linearFeet.toFixed(1)}' ({(rugQuote.cutAreaSqft / 9).toFixed(1)} sqyd)</span>
+                          </div>
+                          <div className="calc-summary-row">
+                            <span>Material</span><span>${rugQuote.material.toFixed(2)}</span>
+                          </div>
+                          <div className="calc-summary-row">
+                            <span>Binding ({rugQuote.perimeterFt.toFixed(1)}' &times; ${RUG_BINDING_PER_FT.toFixed(2)})</span><span>${rugQuote.binding.toFixed(2)}</span>
+                          </div>
+                          <div className="calc-summary-row">
+                            <span>Fabrication</span><span>${rugQuote.setup.toFixed(2)}</span>
+                          </div>
+                          <div className="calc-summary-row">
+                            <span>Per Rug</span><span>${rugQuote.perRug.toFixed(2)}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.75rem', marginBottom: '1.5rem' }}>
+                            <span style={{ fontSize: '0.875rem', color: 'var(--stone-600)' }}>Quantity</span>
+                            <div className="unit-qty-stepper">
+                              <button onClick={() => setRugQty(q => Math.max(1, q - 1))} aria-label="Decrease quantity">&minus;</button>
+                              <input type="number" min="1" value={rugQty}
+                                onChange={(e) => setRugQty(Math.max(1, parseInt(e.target.value) || 1))} />
+                              <button onClick={() => setRugQty(q => q + 1)} aria-label="Increase quantity">+</button>
+                            </div>
+                          </div>
+                          <div className="calc-summary-total"><span>Subtotal</span><span>${rugTotal.toFixed(2)}</span></div>
+                        </div>
+                      )}
+                      <button className="pdp-btn pdp-btn-primary" style={{ marginTop: '1.25rem' }}
+                        onClick={handleAddRug} disabled={!rugQuote.valid}>
+                        {'Add Custom Rug to Cart ' + (rugQuote.valid ? '— $' + rugTotal.toFixed(2) : '')}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -15325,6 +15536,19 @@
       return null;
     }
 
+    function RugIcon({ name }) {
+      const p = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5 };
+      if (name === 'size') return <svg {...p}><rect x="3" y="8" width="18" height="8" rx="1"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/></svg>;
+      if (name === 'shapes') return <svg {...p}><circle cx="8" cy="8" r="4.5"/><rect x="12.5" y="12.5" width="7.5" height="7.5" rx="1"/></svg>;
+      if (name === 'carpet') return <svg {...p}><rect x="3" y="5" width="18" height="11" rx="1"/><path d="M5 16v2.5M9 16v2.5M13 16v2.5M17 16v2.5"/></svg>;
+      if (name === 'layers') return <svg {...p}><path d="M12 3 2 8l10 5 10-5-10-5Z"/><path d="M2 13l10 5 10-5"/></svg>;
+      if (name === 'serge') return <svg {...p}><path d="M3 12h18"/><path d="M5 9l1.6 3-1.6 3M9 9l1.6 3-1.6 3M13 9l1.6 3-1.6 3M17 9l1.6 3-1.6 3"/></svg>;
+      if (name === 'bind') return <svg {...p}><rect x="3" y="3" width="18" height="18" rx="1"/><rect x="7" y="7" width="10" height="10"/></svg>;
+      if (name === 'tape') return <svg {...p}><rect x="3" y="8" width="18" height="8" rx="1"/><path d="M3 12h18"/></svg>;
+      if (name === 'leather') return <svg {...p}><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M6 5v14" strokeDasharray="2 2"/></svg>;
+      return null;
+    }
+
     function CustomAccessoriesPage({ onRequestQuote }) {
       return (
         <div className="installation-page">
@@ -15420,6 +15644,107 @@
           <div className="install-cta-band">
             <h2>Finish Your Floor the Right Way</h2>
             <p>Get matching trim, stairs, and transitions made to order — request a free quote today.</p>
+            <button className="btn btn-gold" onClick={onRequestQuote}>Request a Quote</button>
+          </div>
+        </div>
+      );
+    }
+
+    function CustomAreaRugsPage({ onRequestQuote }) {
+      return (
+        <div className="installation-page">
+          <div className="install-hero">
+            <div className="install-hero-eyebrow">Made to Fit Your Space</div>
+            <h1>Custom Area Rugs</h1>
+            <p>Turn beautiful carpet into a one-of-a-kind area rug. Roma Flooring Designs cuts and binds custom rugs and runners to any size, shape, and edge finish — made to coordinate with your floor. Anaheim showroom, serving all of Orange County.</p>
+            <div className="install-hero-actions">
+              <button className="btn btn-gold" onClick={onRequestQuote}>Request a Quote</button>
+              <a className="install-hero-phone" href="tel:+17149990009">Call (714) 999-0009</a>
+            </div>
+          </div>
+
+          <div className="install-types">
+            <h2>Custom Rugs, Made Your Way</h2>
+            <div className="install-types-grid">
+              {RUG_OPTIONS.map(t => (
+                <div key={t.name} className="install-type-card">
+                  <RugIcon name={t.icon} />
+                  <h3>{t.name}</h3>
+                  <p>{t.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="install-types" style={{ paddingTop: 0 }}>
+            <h2>Edge &amp; Binding Finishes</h2>
+            <div className="install-types-grid">
+              {RUG_EDGES.map(t => (
+                <div key={t.name} className="install-type-card">
+                  <RugIcon name={t.icon} />
+                  <h3>{t.name}</h3>
+                  <p>{t.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="install-benefits">
+            <h2>Why Order a Custom Rug</h2>
+            <div className="install-benefits-grid">
+              <div className="benefit-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="8" width="18" height="8" rx="1"/><path d="M7 8v3M11 8v4M15 8v3M19 8v4"/></svg>
+                <h3>Made to Fit</h3>
+                <p>Cut to the exact size and shape of your room — no standard sizes to compromise on.</p>
+              </div>
+              <div className="benefit-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 7h-9M14 17H5M17 3l4 4-4 4M7 21l-4-4 4-4"/></svg>
+                <h3>Coordinates with Your Floor</h3>
+                <p>Choose a carpet that complements your hardwood, tile, or vinyl for a pulled-together look.</p>
+              </div>
+              <div className="benefit-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 12h18"/><path d="M5 9l1.6 3-1.6 3M13 9l1.6 3-1.6 3"/></svg>
+                <h3>Finished, Durable Edges</h3>
+                <p>Serged, bound, or leather-wrapped edges that hold up to everyday traffic.</p>
+              </div>
+              <div className="benefit-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+                <h3>One Source</h3>
+                <p>Rug, carpet, and flooring — specced and made by one team at our Anaheim showroom.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="install-steps-section">
+            <h2>How It Works</h2>
+            <div className="install-steps">
+              <div className="install-step"><div className="step-number">1</div><h3>Choose Your Carpet</h3><p>Pick from wool, nylon, and natural-fiber broadloom, or bring in carpet you already have.</p></div>
+              <div className="install-step"><div className="step-number">2</div><h3>Pick Size &amp; Shape</h3><p>Tell us the dimensions and outline — rectangle, round, runner, or custom.</p></div>
+              <div className="install-step"><div className="step-number">3</div><h3>Choose Your Edge</h3><p>Serged, machine-bound, cotton tape, or leather binding in a matching or contrast color.</p></div>
+              <div className="install-step"><div className="step-number">4</div><h3>We Bind &amp; Deliver</h3><p>Your rug is fabricated to order — delivered or ready to pick up at our showroom.</p></div>
+            </div>
+          </div>
+
+          <div className="install-quote-section" id="quote">
+            <div className="install-quote-inner">
+              <div className="install-quote-copy">
+                <h2>Request a Custom Rug Quote</h2>
+                <p>Tell us your size, the carpet you like, and the edge finish you want — and our Anaheim team will follow up within one business day.</p>
+              </div>
+              <div className="install-quote-card">
+                <InstallQuoteForm />
+              </div>
+            </div>
+          </div>
+
+          <div className="install-faq-section">
+            <h2>Custom Area Rug FAQ</h2>
+            <InstallFAQ items={RUG_FAQ} />
+          </div>
+
+          <div className="install-cta-band">
+            <h2>Bring Your Space Together</h2>
+            <p>Design a custom area rug that fits your room and coordinates with your floor — request a free quote today.</p>
             <button className="btn btn-gold" onClick={onRequestQuote}>Request a Quote</button>
           </div>
         </div>

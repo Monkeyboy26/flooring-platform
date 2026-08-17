@@ -189,6 +189,62 @@
       ]
     };
   }
+  const RUG_OPTIONS = [
+    { name: "Custom-Size Rugs", desc: "Cut to any dimension your space needs \u2014 from entry mats to great-room rugs \u2014 so the fit is exact.", icon: "size" },
+    { name: "Shapes & Runners", desc: "Rectangles, rounds, ovals, and custom outlines, plus hall and stair runners cut to length.", icon: "shapes" },
+    { name: "Choose Your Carpet", desc: "Made from broadloom carpet \u2014 wool, nylon, and natural fibers in hundreds of colors and textures.", icon: "carpet" },
+    { name: "Layer Over Any Floor", desc: "Define a room and protect hardwood, tile, and vinyl with a rug that coordinates with your floor.", icon: "layers" }
+  ];
+  const RUG_EDGES = [
+    { name: "Serged Edge", desc: "Yarn wrapped tight to the pile for a clean, classic finished edge.", icon: "serge" },
+    { name: "Machine Binding", desc: "A durable fabric-tape border in a color to match or contrast your carpet.", icon: "bind" },
+    { name: "Cotton & Canvas Tape", desc: "A wide woven-tape border for a relaxed, casual look.", icon: "tape" },
+    { name: "Leather Binding", desc: "A premium leather or faux-leather border for a tailored, high-end edge.", icon: "leather" }
+  ];
+  const RUG_FAQ = [
+    ["Can you make a custom-size area rug?", "Yes. We cut and finish area rugs to any size and shape \u2014 rectangles, runners, rounds, and custom outlines \u2014 from broadloom carpet, so you get a rug that fits your space exactly."],
+    ["What carpet can I choose for my rug?", "We make rugs from wool, nylon, and natural-fiber broadloom in a wide range of colors, patterns, and textures, including performance and indoor/outdoor options for high-traffic areas."],
+    ["What edge finishes do you offer?", "Common finishes include a serged (yarn-wrapped) edge, machine binding, wide cotton or canvas tape, and leather or faux-leather binding \u2014 chosen to match or contrast your carpet."],
+    ["Can you make stair and hallway runners?", "Yes. We cut and bind runners to length for stairs, halls, and entries so they coordinate with your rugs and flooring."],
+    ["Do I have to buy the carpet from Roma?", "We bind rugs from carpet purchased at our Anaheim showroom, and in many cases from carpet you already have. Contact us and we will review your project."],
+    ["How long does a custom rug take?", "Because every rug is made to order, lead times vary by size, material, and edge finish. We give you a firm timeline with your quote."],
+    ["Do you serve my area?", "Our showroom is in Anaheim and we make custom area rugs for clients throughout Orange County."]
+  ];
+  function rugsJsonLd() {
+    const business = {
+      "@type": "HomeAndConstructionBusiness",
+      "@id": BUSINESS_ID,
+      name: "Roma Flooring Designs",
+      url: SITE_URL + "/custom-area-rugs",
+      telephone: "(714) 999-0009",
+      priceRange: "$$",
+      image: SITE_URL + "/uploads/og-default.jpg",
+      address: { "@type": "PostalAddress", streetAddress: "1440 S. State College Blvd #6M", addressLocality: "Anaheim", addressRegion: "CA", postalCode: "92806", addressCountry: "US" },
+      geo: { "@type": "GeoCoordinates", latitude: 33.8271, longitude: -117.8827 },
+      areaServed: { "@type": "AdministrativeArea", name: "Orange County" },
+      hasCredential: { "@type": "EducationalOccupationalCredential", credentialCategory: "California Contractor License", identifier: "830966" }
+    };
+    const offers = [...RUG_OPTIONS, ...RUG_EDGES].map((t) => ({ "@type": "Offer", itemOffered: { "@type": "Service", name: t.name, description: t.desc } }));
+    return {
+      "@context": "https://schema.org",
+      "@graph": [
+        business,
+        {
+          "@type": "Service",
+          name: "Custom Area Rug Fabrication",
+          serviceType: "Custom area rug and runner fabrication and binding",
+          provider: { "@id": BUSINESS_ID },
+          areaServed: { "@type": "AdministrativeArea", name: "Orange County" },
+          hasOfferCatalog: { "@type": "OfferCatalog", name: "Custom Area Rugs & Runners", itemListElement: offers }
+        },
+        { "@type": "FAQPage", mainEntity: RUG_FAQ.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
+        { "@type": "BreadcrumbList", itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL + "/" },
+          { "@type": "ListItem", position: 2, name: "Custom Area Rugs", item: SITE_URL + "/custom-area-rugs" }
+        ] }
+      ]
+    };
+  }
   const CAB_LINES = [
     {
       brand: "Waypoint",
@@ -1544,8 +1600,44 @@
     if (norm(ex).includes(norm(sd))) return null;
     return String(sizeAttr).trim();
   }
+  const RUG_BINDING_PER_FT = 6;
+  const RUG_SETUP_FEE = 50;
+  const RUG_DEFAULT_ROLL_WIDTH_FT = 12;
+  function computeRugQuote(widthFt, lengthFt, rollWidthFt, cutPricePerSqyd) {
+    const w = parseFloat(widthFt) || 0;
+    const l = parseFloat(lengthFt) || 0;
+    const roll = parseFloat(rollWidthFt) > 0 ? parseFloat(rollWidthFt) : RUG_DEFAULT_ROLL_WIDTH_FT;
+    const price = parseFloat(cutPricePerSqyd) || 0;
+    if (w <= 0 || l <= 0) return { valid: false, oversized: false, rollWidthFt: roll };
+    const a = Math.max(w, l), b = Math.min(w, l);
+    let linearFeet;
+    if (a <= roll) linearFeet = b;
+    else if (b <= roll) linearFeet = a;
+    else return { valid: false, oversized: true, rollWidthFt: roll };
+    const cutAreaSqft = roll * linearFeet;
+    const material = cutAreaSqft / 9 * price;
+    const perimeterFt = 2 * (w + l);
+    const binding = perimeterFt * RUG_BINDING_PER_FT;
+    const perRug = material + binding + RUG_SETUP_FEE;
+    return { valid: true, oversized: false, rollWidthFt: roll, linearFeet, cutAreaSqft, perimeterFt, material, binding, setup: RUG_SETUP_FEE, perRug };
+  }
+  function fmtRugFeet(ft) {
+    const n = parseFloat(ft) || 0;
+    const whole = Math.floor(n);
+    let inches = Math.round((n - whole) * 12);
+    if (inches === 12) return whole + 1 + "'";
+    return inches === 0 ? whole + "'" : whole + "'" + inches + '"';
+  }
+  function formatRugDims(w, l) {
+    return fmtRugFeet(w) + " \xD7 " + fmtRugFeet(l);
+  }
   function itemLineName(it) {
     it = it || {};
+    if (it.is_custom_rug) {
+      const dims = it.custom_width_ft && it.custom_length_ft ? formatRugDims(it.custom_width_ft, it.custom_length_ft) : "";
+      const carpet = [it.collection, it.color].filter(Boolean).join(" ") || it.product_name || "";
+      return ["Custom Area Rug", carpet, dims].filter(Boolean).join("  \xB7  ");
+    }
     const isAcc = (it.variant_type || "").toLowerCase() === "accessory";
     const accLabel = isAcc ? it.accessory_label || it.variant_name : null;
     const parentCollection = isAcc ? it.parent_collection : null;
@@ -2689,6 +2781,12 @@
         window.scrollTo(0, 0);
         return;
       }
+      if (path === "/custom-area-rugs") {
+        setView("custom-area-rugs");
+        history.pushState({ view: "custom-area-rugs" }, "", "/custom-area-rugs");
+        window.scrollTo(0, 0);
+        return;
+      }
       if (path === "/trade/apply") {
         goTradeApply();
         return;
@@ -2741,8 +2839,7 @@
         return;
       }
       const servicePages = {
-        "/design-services": "Design Services",
-        "/custom-area-rugs": "Custom Area Rugs"
+        "/design-services": "Design Services"
       };
       if (servicePages[path]) {
         setComingSoonTitle(servicePages[path]);
@@ -3169,8 +3266,7 @@
       } else if (path === "/custom-accessories") {
         setView("custom-accessories");
       } else if (path === "/custom-area-rugs") {
-        setComingSoonTitle("Custom Area Rugs");
-        setView("coming-soon");
+        setView("custom-area-rugs");
       } else if (path === "/shop" || path.startsWith("/shop")) {
         setView("browse");
         const cat = sp.get("category");
@@ -3310,6 +3406,7 @@
         about: { title: "About Us | Roma Flooring Designs", description: "A family flooring house in Anaheim, California \u2014 hardwood, stone, tile, and cabinetry since 1999. Visit our showroom on State College Blvd.", url: SITE_URL + "/about" },
         installation: { title: "Flooring Installation in Anaheim & Orange County | Roma Flooring Designs", description: "Licensed, insured flooring installation in Anaheim & Orange County \u2014 hardwood, tile, luxury vinyl, stone, carpet & laminate. Free estimates. CA Lic #830966. Call (714) 999-0009.", url: SITE_URL + "/installation", image: SITE_URL + "/uploads/og-default.jpg" },
         "custom-accessories": { title: "Custom Tile Trim & Wood Floor Moldings | Roma Flooring Designs", description: "Custom floor accessories in Anaheim & Orange County \u2014 bullnose, cut-downs, mosaics & tile stair treads fabricated from your tile, plus color-matched wood moldings & stair parts. Made to order. Call (714) 999-0009.", url: SITE_URL + "/custom-accessories", image: SITE_URL + "/uploads/og-default.jpg" },
+        "custom-area-rugs": { title: "Custom Area Rugs & Runners in Anaheim & Orange County | Roma Flooring Designs", description: "Custom area rugs & runners in Anaheim & Orange County \u2014 cut and bound to any size and shape from wool, nylon & natural-fiber carpet, with serged, bound, or leather edges. Made to order. Call (714) 999-0009.", url: SITE_URL + "/custom-area-rugs", image: SITE_URL + "/uploads/og-default.jpg" },
         cabinets: { title: "Custom Kitchen & Bath Cabinets in Anaheim & Orange County | Roma Flooring Designs", description: "Custom kitchen & bath cabinets in Anaheim & Orange County \u2014 American-built face-frame and Italian-engineered frameless lines, designed in-house and installed by our crew. Visit our showroom. Call (714) 999-0009.", url: SITE_URL + "/cabinets", image: SITE_URL + "/uploads/og-default.jpg" }
       };
       if (view === "browse" && selectedCategory) {
@@ -3358,6 +3455,8 @@
         setDynamicJsonLd(installationJsonLd());
       } else if (view === "custom-accessories") {
         setDynamicJsonLd(customAccessoriesJsonLd());
+      } else if (view === "custom-area-rugs") {
+        setDynamicJsonLd(rugsJsonLd());
       } else if (view === "cabinets") {
         setDynamicJsonLd(cabinetsJsonLd());
       } else if (view !== "detail") {
@@ -3596,6 +3695,9 @@
       setInstallModalProduct(null);
       setShowInstallModal(true);
     } }), view === "custom-accessories" && /* @__PURE__ */ React.createElement(CustomAccessoriesPage, { onRequestQuote: () => {
+      setInstallModalProduct(null);
+      setShowInstallModal(true);
+    } }), view === "custom-area-rugs" && /* @__PURE__ */ React.createElement(CustomAreaRugsPage, { onRequestQuote: () => {
       setInstallModalProduct(null);
       setShowInstallModal(true);
     } }), view === "inspiration" && /* @__PURE__ */ React.createElement(InspirationPage, { navigate, goBrowse }), view === "sale" && /* @__PURE__ */ React.createElement(SalePage, { onSkuClick: goSkuDetail, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }), view === "cabinets" && /* @__PURE__ */ React.createElement(CabinetsPage, { onRequestQuote: () => {
@@ -5006,6 +5108,12 @@
     const [roomLength, setRoomLength] = useState("");
     const [linearFeet, setLinearFeet] = useState("");
     const [includeCarpetOverage, setIncludeCarpetOverage] = useState(false);
+    const [showRugCalc, setShowRugCalc] = useState(false);
+    const [rugWidthFt, setRugWidthFt] = useState("");
+    const [rugWidthIn, setRugWidthIn] = useState("");
+    const [rugLengthFt, setRugLengthFt] = useState("");
+    const [rugLengthIn, setRugLengthIn] = useState("");
+    const [rugQty, setRugQty] = useState(1);
     const [reviews, setReviews] = useState([]);
     const [avgRating, setAvgRating] = useState(0);
     const [reviewCount, setReviewCount] = useState(0);
@@ -5290,6 +5398,10 @@
     const carpetEstWeight = carpetWeightPerSqyd > 0 ? carpetSqyd * carpetWeightPerSqyd : 0;
     const carpetNeedsSeam = isCarpetSku && effectiveCarpetMode === "dimensions" && rollWidthFt > 0 && (parseFloat(roomWidth) || 0) > rollWidthFt;
     const effectivePrice = isCarpetSku ? carpetActivePrice : tradePrice || salePrice || retailPrice;
+    const rugWFt = (parseFloat(rugWidthFt) || 0) + (parseFloat(rugWidthIn) || 0) / 12;
+    const rugLFt = (parseFloat(rugLengthFt) || 0) + (parseFloat(rugLengthIn) || 0) / 12;
+    const rugQuote = isCarpetSku ? computeRugQuote(rugWFt, rugLFt, rollWidthFt, cutPrice) : { valid: false };
+    const rugTotal = rugQuote.valid ? rugQuote.perRug * Math.max(1, rugQty) : 0;
     const handleSqftChange = (val) => {
       setSqftInput(val);
       if (sqftPerBox > 0 && val) {
@@ -5385,6 +5497,19 @@
       setAlertLoading(false);
     };
     const isOutOfStock = sku && sku.stock_status === "out_of_stock" && sku.vendor_has_inventory !== false;
+    const handleAddRug = () => {
+      if (!sku || addingToCart || !rugQuote.valid) return;
+      setAddingToCart(true);
+      setTimeout(() => setAddingToCart(false), 1500);
+      addToCart({
+        product_id: sku.product_id,
+        sku_id: sku.sku_id,
+        num_boxes: Math.max(1, rugQty),
+        is_custom_rug: true,
+        custom_width_ft: rugWFt.toFixed(2),
+        custom_length_ft: rugLFt.toFixed(2)
+      });
+    };
     const handleAddToCart = () => {
       if (!sku || addingToCart || isOutOfStock) return;
       setAddingToCart(true);
@@ -6675,7 +6800,78 @@
         disabled: carpetSqft <= 0 || isOutOfStock
       },
       isOutOfStock ? "Out of Stock" : "Add to Cart " + (carpetSqft > 0 ? "\u2014 $" + carpetSubtotal.toFixed(2) : "")
-    )), !isCarpetSku && isSoldPerSqft && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Coverage Calculator"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
+    )), isCarpetSku && cutPrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget", style: { marginTop: "1rem" } }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => setShowRugCalc((v) => !v),
+        style: { display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }
+      },
+      /* @__PURE__ */ React.createElement("h3", { style: { margin: 0 } }, "Design a Custom Area Rug"),
+      /* @__PURE__ */ React.createElement("span", { style: { fontSize: "1.25rem", color: "var(--stone-400)", lineHeight: 1 } }, showRugCalc ? "\u2212" : "+")
+    ), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.8125rem", color: "var(--stone-500)", margin: "0.5rem 0 0" } }, "Turn this carpet into a bound area rug \u2014 any size, finished edges."), showRugCalc && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1rem" } }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group" }, /* @__PURE__ */ React.createElement("label", null, "Width"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.375rem" } }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "calc-input",
+        type: "number",
+        min: "0",
+        step: "1",
+        placeholder: "ft",
+        value: rugWidthFt,
+        onChange: (e) => setRugWidthFt(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "calc-input",
+        type: "number",
+        min: "0",
+        max: "11",
+        step: "1",
+        placeholder: "in",
+        value: rugWidthIn,
+        onChange: (e) => setRugWidthIn(e.target.value)
+      }
+    ))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "flex-end", padding: "0 0.25rem 0.5rem", fontSize: "1.25rem", color: "var(--stone-400)" } }, "\xD7"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-group" }, /* @__PURE__ */ React.createElement("label", null, "Length"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.375rem" } }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "calc-input",
+        type: "number",
+        min: "0",
+        step: "1",
+        placeholder: "ft",
+        value: rugLengthFt,
+        onChange: (e) => setRugLengthFt(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "calc-input",
+        type: "number",
+        min: "0",
+        max: "11",
+        step: "1",
+        placeholder: "in",
+        value: rugLengthIn,
+        onChange: (e) => setRugLengthIn(e.target.value)
+      }
+    )))), rugQuote.oversized && /* @__PURE__ */ React.createElement("div", { className: "carpet-seam-note" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "8", x2: "12", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "16", x2: "12.01", y2: "16" })), "Both sides exceed the ", rugQuote.rollWidthFt, "' roll width \u2014 call (714) 999-0009 for oversized rugs."), rugQuote.valid && /* @__PURE__ */ React.createElement("div", { className: "calc-summary" }, /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Cut Size"), /* @__PURE__ */ React.createElement("span", null, rugQuote.rollWidthFt, "' \xD7 ", rugQuote.linearFeet.toFixed(1), "' (", (rugQuote.cutAreaSqft / 9).toFixed(1), " sqyd)")), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Material"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.material.toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Binding (", rugQuote.perimeterFt.toFixed(1), "' \xD7 $", RUG_BINDING_PER_FT.toFixed(2), ")"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.binding.toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Fabrication"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.setup.toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Per Rug"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.perRug.toFixed(2))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem", marginBottom: "1.5rem" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "0.875rem", color: "var(--stone-600)" } }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setRugQty((q) => Math.max(1, q - 1)), "aria-label": "Decrease quantity" }, "\u2212"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "number",
+        min: "1",
+        value: rugQty,
+        onChange: (e) => setRugQty(Math.max(1, parseInt(e.target.value) || 1))
+      }
+    ), /* @__PURE__ */ React.createElement("button", { onClick: () => setRugQty((q) => q + 1), "aria-label": "Increase quantity" }, "+"))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-total" }, /* @__PURE__ */ React.createElement("span", null, "Subtotal"), /* @__PURE__ */ React.createElement("span", null, "$", rugTotal.toFixed(2)))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "pdp-btn pdp-btn-primary",
+        style: { marginTop: "1.25rem" },
+        onClick: handleAddRug,
+        disabled: !rugQuote.valid
+      },
+      "Add Custom Rug to Cart " + (rugQuote.valid ? "\u2014 $" + rugTotal.toFixed(2) : "")
+    ))), !isCarpetSku && isSoldPerSqft && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Coverage Calculator"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group", style: { flex: 1 } }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "calc-input",
@@ -10497,8 +10693,23 @@
     if (name === "swatch") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 17.5V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v13.5a3.5 3.5 0 1 1-7 0Z" }), /* @__PURE__ */ React.createElement("path", { d: "M10 8.5 15 3.6a2 2 0 0 1 2.8 0l2.6 2.6a2 2 0 0 1 0 2.8L10 19.5" }), /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "17", r: ".5" }));
     return null;
   }
+  function RugIcon({ name }) {
+    const p = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5 };
+    if (name === "size") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "8", width: "18", height: "8", rx: "1" }), /* @__PURE__ */ React.createElement("path", { d: "M7 8v3M11 8v4M15 8v3M19 8v4" }));
+    if (name === "shapes") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "8", cy: "8", r: "4.5" }), /* @__PURE__ */ React.createElement("rect", { x: "12.5", y: "12.5", width: "7.5", height: "7.5", rx: "1" }));
+    if (name === "carpet") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "5", width: "18", height: "11", rx: "1" }), /* @__PURE__ */ React.createElement("path", { d: "M5 16v2.5M9 16v2.5M13 16v2.5M17 16v2.5" }));
+    if (name === "layers") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M12 3 2 8l10 5 10-5-10-5Z" }), /* @__PURE__ */ React.createElement("path", { d: "M2 13l10 5 10-5" }));
+    if (name === "serge") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M3 12h18" }), /* @__PURE__ */ React.createElement("path", { d: "M5 9l1.6 3-1.6 3M9 9l1.6 3-1.6 3M13 9l1.6 3-1.6 3M17 9l1.6 3-1.6 3" }));
+    if (name === "bind") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "1" }), /* @__PURE__ */ React.createElement("rect", { x: "7", y: "7", width: "10", height: "10" }));
+    if (name === "tape") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "8", width: "18", height: "8", rx: "1" }), /* @__PURE__ */ React.createElement("path", { d: "M3 12h18" }));
+    if (name === "leather") return /* @__PURE__ */ React.createElement("svg", { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "5", width: "18", height: "14", rx: "2" }), /* @__PURE__ */ React.createElement("path", { d: "M6 5v14", strokeDasharray: "2 2" }));
+    return null;
+  }
   function CustomAccessoriesPage({ onRequestQuote }) {
     return /* @__PURE__ */ React.createElement("div", { className: "installation-page" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero-eyebrow" }, "Made to Match Your Floor"), /* @__PURE__ */ React.createElement("h1", null, "Custom Floor Trim & Tile Accessories"), /* @__PURE__ */ React.createElement("p", null, "Off-the-shelf trim rarely matches. Roma Flooring Designs fabricates custom tile edging and color-matched wood moldings made to order for your specific tile or plank \u2014 so stairs, transitions, and borders look built-in, not bolted on. Anaheim showroom, serving all of Orange County."), /* @__PURE__ */ React.createElement("div", { className: "install-hero-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Quote"), /* @__PURE__ */ React.createElement("a", { className: "install-hero-phone", href: "tel:+17149990009" }, "Call (714) 999-0009"))), /* @__PURE__ */ React.createElement("div", { className: "install-types" }, /* @__PURE__ */ React.createElement("h2", null, "Custom Tile Trim & Edging"), /* @__PURE__ */ React.createElement("div", { className: "install-types-grid" }, ACC_TILE.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.name, className: "install-type-card" }, /* @__PURE__ */ React.createElement(AccIcon, { name: t.icon }), /* @__PURE__ */ React.createElement("h3", null, t.name), /* @__PURE__ */ React.createElement("p", null, t.desc))))), /* @__PURE__ */ React.createElement("div", { className: "install-types", style: { paddingTop: 0 } }, /* @__PURE__ */ React.createElement("h2", null, "Custom Wood Trim & Moldings"), /* @__PURE__ */ React.createElement("div", { className: "install-types-grid" }, ACC_WOOD.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.name, className: "install-type-card" }, /* @__PURE__ */ React.createElement(AccIcon, { name: t.icon }), /* @__PURE__ */ React.createElement("h3", null, t.name), /* @__PURE__ */ React.createElement("p", null, t.desc))))), /* @__PURE__ */ React.createElement("div", { className: "install-benefits" }, /* @__PURE__ */ React.createElement("h2", null, "Why Order Custom"), /* @__PURE__ */ React.createElement("div", { className: "install-benefits-grid" }, /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" })), /* @__PURE__ */ React.createElement("h3", null, "Made to Match"), /* @__PURE__ */ React.createElement("p", null, "Fabricated from your own tile or color-matched to your plank to keep variation to a minimum.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "8", r: "7" }), /* @__PURE__ */ React.createElement("polyline", { points: "8.21 13.89 7 23 12 20 17 23 15.79 13.88" })), /* @__PURE__ */ React.createElement("h3", null, "Factory-Grade Finish"), /* @__PURE__ */ React.createElement("p", null, "Glazed, kiln-fired tile edges and milled wood profiles built to last.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M3 20h4v-4h4v-4h4V8h4V4" })), /* @__PURE__ */ React.createElement("h3", null, "Finished Stairs & Edges"), /* @__PURE__ */ React.createElement("p", null, "Bullnose, stair treads, nosing, and transitions that complete the installation.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 7h-9M14 17H5M17 3l4 4-4 4M7 21l-4-4 4-4" })), /* @__PURE__ */ React.createElement("h3", null, "One Source"), /* @__PURE__ */ React.createElement("p", null, "Order your accessories alongside your flooring \u2014 specced, made, and installed by one team.")))), /* @__PURE__ */ React.createElement("div", { className: "install-steps-section" }, /* @__PURE__ */ React.createElement("h2", null, "How It Works"), /* @__PURE__ */ React.createElement("div", { className: "install-steps" }, /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "1"), /* @__PURE__ */ React.createElement("h3", null, "Pick Your Floor"), /* @__PURE__ */ React.createElement("p", null, "Choose your tile or plank, or bring in the material you already have.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "2"), /* @__PURE__ */ React.createElement("h3", null, "We Spec the Trim"), /* @__PURE__ */ React.createElement("p", null, "We identify every edge, stair, and transition your project needs.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "3"), /* @__PURE__ */ React.createElement("h3", null, "Made to Match"), /* @__PURE__ */ React.createElement("p", null, "Your bullnose, stair treads, and moldings are fabricated to order.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "4"), /* @__PURE__ */ React.createElement("h3", null, "Install or Pick Up"), /* @__PURE__ */ React.createElement("p", null, "Our crews install the accessories, or you collect them at our showroom.")))), /* @__PURE__ */ React.createElement("div", { className: "install-quote-section", id: "quote" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-inner" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-copy" }, /* @__PURE__ */ React.createElement("h2", null, "Request a Custom Accessory Quote"), /* @__PURE__ */ React.createElement("p", null, "Tell us about your floor and the pieces you need \u2014 bullnose, stair treads, moldings, transitions \u2014 and our Anaheim team will follow up within one business day.")), /* @__PURE__ */ React.createElement("div", { className: "install-quote-card" }, /* @__PURE__ */ React.createElement(InstallQuoteForm, null)))), /* @__PURE__ */ React.createElement("div", { className: "install-faq-section" }, /* @__PURE__ */ React.createElement("h2", null, "Custom Accessories FAQ"), /* @__PURE__ */ React.createElement(InstallFAQ, { items: ACC_FAQ })), /* @__PURE__ */ React.createElement("div", { className: "install-cta-band" }, /* @__PURE__ */ React.createElement("h2", null, "Finish Your Floor the Right Way"), /* @__PURE__ */ React.createElement("p", null, "Get matching trim, stairs, and transitions made to order \u2014 request a free quote today."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Quote")));
+  }
+  function CustomAreaRugsPage({ onRequestQuote }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "installation-page" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero-eyebrow" }, "Made to Fit Your Space"), /* @__PURE__ */ React.createElement("h1", null, "Custom Area Rugs"), /* @__PURE__ */ React.createElement("p", null, "Turn beautiful carpet into a one-of-a-kind area rug. Roma Flooring Designs cuts and binds custom rugs and runners to any size, shape, and edge finish \u2014 made to coordinate with your floor. Anaheim showroom, serving all of Orange County."), /* @__PURE__ */ React.createElement("div", { className: "install-hero-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Quote"), /* @__PURE__ */ React.createElement("a", { className: "install-hero-phone", href: "tel:+17149990009" }, "Call (714) 999-0009"))), /* @__PURE__ */ React.createElement("div", { className: "install-types" }, /* @__PURE__ */ React.createElement("h2", null, "Custom Rugs, Made Your Way"), /* @__PURE__ */ React.createElement("div", { className: "install-types-grid" }, RUG_OPTIONS.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.name, className: "install-type-card" }, /* @__PURE__ */ React.createElement(RugIcon, { name: t.icon }), /* @__PURE__ */ React.createElement("h3", null, t.name), /* @__PURE__ */ React.createElement("p", null, t.desc))))), /* @__PURE__ */ React.createElement("div", { className: "install-types", style: { paddingTop: 0 } }, /* @__PURE__ */ React.createElement("h2", null, "Edge & Binding Finishes"), /* @__PURE__ */ React.createElement("div", { className: "install-types-grid" }, RUG_EDGES.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.name, className: "install-type-card" }, /* @__PURE__ */ React.createElement(RugIcon, { name: t.icon }), /* @__PURE__ */ React.createElement("h3", null, t.name), /* @__PURE__ */ React.createElement("p", null, t.desc))))), /* @__PURE__ */ React.createElement("div", { className: "install-benefits" }, /* @__PURE__ */ React.createElement("h2", null, "Why Order a Custom Rug"), /* @__PURE__ */ React.createElement("div", { className: "install-benefits-grid" }, /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "8", width: "18", height: "8", rx: "1" }), /* @__PURE__ */ React.createElement("path", { d: "M7 8v3M11 8v4M15 8v3M19 8v4" })), /* @__PURE__ */ React.createElement("h3", null, "Made to Fit"), /* @__PURE__ */ React.createElement("p", null, "Cut to the exact size and shape of your room \u2014 no standard sizes to compromise on.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 7h-9M14 17H5M17 3l4 4-4 4M7 21l-4-4 4-4" })), /* @__PURE__ */ React.createElement("h3", null, "Coordinates with Your Floor"), /* @__PURE__ */ React.createElement("p", null, "Choose a carpet that complements your hardwood, tile, or vinyl for a pulled-together look.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M3 12h18" }), /* @__PURE__ */ React.createElement("path", { d: "M5 9l1.6 3-1.6 3M13 9l1.6 3-1.6 3" })), /* @__PURE__ */ React.createElement("h3", null, "Finished, Durable Edges"), /* @__PURE__ */ React.createElement("p", null, "Serged, bound, or leather-wrapped edges that hold up to everyday traffic.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "8", r: "7" }), /* @__PURE__ */ React.createElement("polyline", { points: "8.21 13.89 7 23 12 20 17 23 15.79 13.88" })), /* @__PURE__ */ React.createElement("h3", null, "One Source"), /* @__PURE__ */ React.createElement("p", null, "Rug, carpet, and flooring \u2014 specced and made by one team at our Anaheim showroom.")))), /* @__PURE__ */ React.createElement("div", { className: "install-steps-section" }, /* @__PURE__ */ React.createElement("h2", null, "How It Works"), /* @__PURE__ */ React.createElement("div", { className: "install-steps" }, /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "1"), /* @__PURE__ */ React.createElement("h3", null, "Choose Your Carpet"), /* @__PURE__ */ React.createElement("p", null, "Pick from wool, nylon, and natural-fiber broadloom, or bring in carpet you already have.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "2"), /* @__PURE__ */ React.createElement("h3", null, "Pick Size & Shape"), /* @__PURE__ */ React.createElement("p", null, "Tell us the dimensions and outline \u2014 rectangle, round, runner, or custom.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "3"), /* @__PURE__ */ React.createElement("h3", null, "Choose Your Edge"), /* @__PURE__ */ React.createElement("p", null, "Serged, machine-bound, cotton tape, or leather binding in a matching or contrast color.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "4"), /* @__PURE__ */ React.createElement("h3", null, "We Bind & Deliver"), /* @__PURE__ */ React.createElement("p", null, "Your rug is fabricated to order \u2014 delivered or ready to pick up at our showroom.")))), /* @__PURE__ */ React.createElement("div", { className: "install-quote-section", id: "quote" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-inner" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-copy" }, /* @__PURE__ */ React.createElement("h2", null, "Request a Custom Rug Quote"), /* @__PURE__ */ React.createElement("p", null, "Tell us your size, the carpet you like, and the edge finish you want \u2014 and our Anaheim team will follow up within one business day.")), /* @__PURE__ */ React.createElement("div", { className: "install-quote-card" }, /* @__PURE__ */ React.createElement(InstallQuoteForm, null)))), /* @__PURE__ */ React.createElement("div", { className: "install-faq-section" }, /* @__PURE__ */ React.createElement("h2", null, "Custom Area Rug FAQ"), /* @__PURE__ */ React.createElement(InstallFAQ, { items: RUG_FAQ })), /* @__PURE__ */ React.createElement("div", { className: "install-cta-band" }, /* @__PURE__ */ React.createElement("h2", null, "Bring Your Space Together"), /* @__PURE__ */ React.createElement("p", null, "Design a custom area rug that fits your room and coordinates with your floor \u2014 request a free quote today."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Quote")));
   }
   function SalePage({ onSkuClick, wishlist, toggleWishlist: toggleWishlist2, setQuickViewSku, navigate }) {
     const [skus, setSkus] = useState([]);

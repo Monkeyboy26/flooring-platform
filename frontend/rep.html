@@ -6682,6 +6682,17 @@
     // (e.g. bare "Reducer") always carry their parent product + distinguishing info.
     function formatLineItem(it) {
       it = it || {};
+      // Custom bound area rug → "Custom Area Rug  ·  <carpet>  ·  9' × 4'".
+      if (it.is_custom_rug || (it.description || '').startsWith('Custom Area Rug')) {
+        const fmtFt = (ft) => { const n = parseFloat(ft) || 0, w = Math.floor(n); let i = Math.round((n - w) * 12); if (i === 12) return (w + 1) + "'"; return i === 0 ? w + "'" : w + "'" + i + '"'; };
+        const dims = (it.custom_width_ft && it.custom_length_ft) ? (fmtFt(it.custom_width_ft) + ' × ' + fmtFt(it.custom_length_ft)) : (it.description || '').replace(/^Custom Area Rug\s*[—-]\s*/, '');
+        const carpet = [it.collection, it.color].filter(Boolean).join(' ') || it.product_name || '';
+        return {
+          brand: it.vendor_name || it.custom_vendor || '',
+          name: ['Custom Area Rug', carpet, dims].filter(Boolean).join('  ·  '),
+          sku: it.vendor_sku || it.internal_sku || '',
+        };
+      }
       const isAcc = (it.variant_type || '').toLowerCase() === 'accessory';
       const accLabel = isAcc ? (it.accessory_label || it.variant_name) : null;
       // Accessory bought for a specific floor → "Collection · Color · Accessory"
@@ -14077,8 +14088,153 @@
       return d > 0 ? retail * (1 - d / 100) : retail;
     }
 
-    function RofCatalogModal({ data, showCost, orderNumber, onClose, onAdd, contextLabel, overage, onOverageChange }) {
+    // Custom bound area rug — mirrors backend/lib/rugPricing.js (price + cost). The
+    // rep order endpoint recomputes server-side (authoritative); this drives the
+    // wizard preview + draft line. See [[custom-rug-calculator]].
+    const RUG_BINDING_PER_FT = 6;      // charge $/lf
+    const RUG_SETUP_FEE = 50;          // charge $/rug
+    const RUG_BINDING_COST_PER_FT = 2.5; // cost $/lf
+    const RUG_FABRICATION_COST = 25;   // cost $/rug
+    const RUG_DEFAULT_ROLL_WIDTH_FT = 12;
+    function repRugQuote(widthFt, lengthFt, rollWidthFt, cutPricePerSqyd, materialCostPerSqyd) {
+      const w = parseFloat(widthFt) || 0, l = parseFloat(lengthFt) || 0;
+      const roll = parseFloat(rollWidthFt) > 0 ? parseFloat(rollWidthFt) : RUG_DEFAULT_ROLL_WIDTH_FT;
+      const price = parseFloat(cutPricePerSqyd) || 0, mcost = parseFloat(materialCostPerSqyd) || 0;
+      if (w <= 0 || l <= 0) return { valid: false, oversized: false, rollWidthFt: roll };
+      const a = Math.max(w, l), b = Math.min(w, l);
+      let lf;
+      if (a <= roll) lf = b; else if (b <= roll) lf = a; else return { valid: false, oversized: true, rollWidthFt: roll };
+      const cutArea = roll * lf, perim = 2 * (w + l);
+      const material = (cutArea / 9) * price, binding = perim * RUG_BINDING_PER_FT;
+      const perRug = material + binding + RUG_SETUP_FEE;
+      const costPerRug = (cutArea / 9) * mcost + perim * RUG_BINDING_COST_PER_FT + RUG_FABRICATION_COST;
+      return { valid: true, oversized: false, rollWidthFt: roll, linearFeet: lf, cutAreaSqft: cutArea, perimeterFt: perim, material, binding, setup: RUG_SETUP_FEE, perRug, costPerRug };
+    }
+    function repRugDims(w, l) {
+      const f = (ft) => { const n = parseFloat(ft) || 0, wh = Math.floor(n); let i = Math.round((n - wh) * 12); if (i === 12) return (wh + 1) + "'"; return i === 0 ? wh + "'" : wh + "'" + i + '"'; };
+      return f(w) + ' × ' + f(l);
+    }
+    const repIsCarpetRow = (r) => r && (r.price_basis === 'per_sqyd' || r.sell_by === 'roll' || r.cut_price != null);
+
+    // Shared custom-rug popup — opened from a carpet line in the order/quote/estimate
+    // builders. `carpet` is that carpet line (carries cut_price/cut_cost/roll_width_ft).
+    // onAdd receives the built rug line item; the caller augments (area_id, item_type)
+    // and appends it. Price/cost are recomputed server-side on submit. [[custom-rug-calculator]]
+    function RugConfigModal({ carpet: carpetProp, showCost, onClose, onAdd }) {
+      const [form, setForm] = useState({ widthFt: '', widthIn: '', lengthFt: '', lengthIn: '', qty: 1 });
+      // Reloaded quote/estimate lines don't carry cut_price/roll_width_ft (not stored
+      // columns) — fetch the carpet's live pricing by SKU when missing.
+      const [fetched, setFetched] = useState(null);
+      useEffect(() => {
+        if (carpetProp && carpetProp.cut_price == null && carpetProp.sku_id) {
+          repFetch('/api/rep/skus/search?sku_id=' + encodeURIComponent(carpetProp.sku_id))
+            .then(d => { const r = (d.results || [])[0]; if (r) setFetched(r); })
+            .catch(() => {});
+        }
+      }, [carpetProp && carpetProp.sku_id]);
+      const carpet = fetched ? {
+        ...carpetProp,
+        cut_price: fetched.cut_price, cut_cost: fetched.cut_cost, roll_width_ft: fetched.roll_width_ft,
+        vendor_cost: fetched.vendor_cost, retail_price: carpetProp.retail_price != null ? carpetProp.retail_price : fetched.retail_price
+      } : carpetProp;
+      const wFt = (parseFloat(form.widthFt) || 0) + (parseFloat(form.widthIn) || 0) / 12;
+      const lFt = (parseFloat(form.lengthFt) || 0) + (parseFloat(form.lengthIn) || 0) / 12;
+      const q = repRugQuote(wFt, lFt, carpet.roll_width_ft,
+        carpet.cut_price != null ? carpet.cut_price : carpet.retail_price,
+        carpet.cut_cost != null ? carpet.cut_cost : (carpet.vendor_cost != null ? carpet.vendor_cost : carpet.cost));
+      const qty = Math.max(1, parseInt(form.qty) || 1);
+      const add = () => {
+        if (!q.valid) return;
+        onAdd({
+          _key: Date.now(),
+          is_custom_rug: true,
+          sku_id: carpet.sku_id,
+          product_id: carpet.product_id,
+          product_name: carpet.product_name || '',
+          collection: carpet.collection || '',
+          color: carpet.color || '',
+          vendor_id: carpet.vendor_id,
+          vendor_name: carpet.vendor_name,
+          vendor_sku: carpet.vendor_sku || carpet.internal_sku || '',
+          custom_width_ft: wFt.toFixed(2),
+          custom_length_ft: lFt.toFixed(2),
+          num_boxes: qty,
+          unit_price: q.perRug,
+          subtotal: q.perRug * qty,
+          cost: q.costPerRug,
+          sell_by: 'unit',
+          price_basis: null,
+          description: 'Custom Area Rug — ' + repRugDims(wFt, lFt),
+          primary_image: carpet.primary_image || null,
+          category_name: carpet.category_name || 'Carpet'
+        });
+      };
+      const inp = { width: '100%', padding: '7px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: '#ece5d8', font: '400 13px/1 Inter, sans-serif', boxSizing: 'border-box' };
+      const lbl = { display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 5 };
+      return (
+        <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(28,25,23,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#f4efe6', width: '100%', maxWidth: 440, maxHeight: '90vh', overflowY: 'auto', border: '0.5px solid rgba(28,25,23,0.25)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '1rem 1.25rem', borderBottom: '0.5px solid rgba(28,25,23,0.12)' }}>
+              <div>
+                <div style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Custom Area Rug</div>
+                <div style={{ font: '400 0.9375rem/1.3 Inter, sans-serif', color: '#1c1917' }}>{formatLineItem(carpet).name}</div>
+                <div style={{ font: '400 0.75rem/1.3 Inter, sans-serif', color: '#8a7e68', marginTop: 2 }}>
+                  {(carpet.roll_width_ft ? parseFloat(carpet.roll_width_ft) : 12) + "' roll · $" + parseFloat(carpet.cut_price != null ? carpet.cut_price : (carpet.retail_price || 0)).toFixed(2) + '/sqyd'}
+                </div>
+              </div>
+              <button onClick={onClose} style={{ background: 'none', border: 'none', font: '400 1.5rem/1 Inter', color: '#8a7e68', cursor: 'pointer', padding: 0 }}>×</button>
+            </div>
+            <div style={{ padding: '1.25rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '0.875rem' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={lbl}>Width</label>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <input type="number" min="0" placeholder="ft" value={form.widthFt} onChange={e => setForm(f => ({ ...f, widthFt: e.target.value }))} style={inp} />
+                    <input type="number" min="0" max="11" placeholder="in" value={form.widthIn} onChange={e => setForm(f => ({ ...f, widthIn: e.target.value }))} style={inp} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 8, color: '#a89e86' }}>×</div>
+                <div style={{ flex: 1 }}>
+                  <label style={lbl}>Length</label>
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <input type="number" min="0" placeholder="ft" value={form.lengthFt} onChange={e => setForm(f => ({ ...f, lengthFt: e.target.value }))} style={inp} />
+                    <input type="number" min="0" max="11" placeholder="in" value={form.lengthIn} onChange={e => setForm(f => ({ ...f, lengthIn: e.target.value }))} style={inp} />
+                  </div>
+                </div>
+              </div>
+              {q.oversized && (
+                <div style={{ padding: '0.625rem 0.75rem', background: '#faf3e4', border: '0.5px solid var(--gold, #c9a668)', font: '400 0.75rem/1.4 Inter, sans-serif', color: '#8a6d3b', marginBottom: '0.875rem' }}>
+                  Both sides exceed the {q.rollWidthFt}' roll width — this rug needs seaming. Call it in or add it as a Custom Item.
+                </div>
+              )}
+              {q.valid && (
+                <div style={{ background: 'rgba(28,25,23,0.03)', border: '0.5px solid rgba(28,25,23,0.08)', padding: '0.75rem', marginBottom: '0.875rem', font: '400 0.8125rem/1.6 Inter, sans-serif', color: '#4a4441' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Cut</span><span>{q.rollWidthFt}' × {q.linearFeet.toFixed(1)}' ({(q.cutAreaSqft / 9).toFixed(1)} sqyd)</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Material</span><span>${q.material.toFixed(2)}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Binding ({q.perimeterFt.toFixed(1)}' × ${RUG_BINDING_PER_FT})</span><span>${q.binding.toFixed(2)}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Fabrication</span><span>${q.setup.toFixed(2)}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 500, color: '#1c1917', borderTop: '0.5px solid rgba(28,25,23,0.12)', marginTop: 5, paddingTop: 5 }}><span>Per rug</span><span>${q.perRug.toFixed(2)}</span></div>
+                  {showCost && <div style={{ display: 'flex', justifyContent: 'space-between', font: '400 0.6875rem/1.4 ui-monospace, monospace', color: '#8a7e68', marginTop: 3 }}><span>cost / rug</span><span>${q.costPerRug.toFixed(2)}</span></div>}
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>Qty</label>
+                  <input type="number" min="1" value={form.qty} onChange={e => setForm(f => ({ ...f, qty: e.target.value }))} style={{ ...inp, width: 56, textAlign: 'center' }} />
+                </div>
+                <button onClick={add} disabled={!q.valid} style={{ flex: 1, padding: '10px 14px', background: q.valid ? '#1c1917' : '#b5ada0', color: '#ece5d8', border: 'none', font: '500 13px/1 Inter, sans-serif', cursor: q.valid ? 'pointer' : 'default' }}>
+                  {q.valid ? 'Add Rug — $' + (q.perRug * qty).toFixed(2) : 'Enter dimensions'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function RofCatalogModal({ data, showCost, orderNumber, onClose, onAdd, onAddRug, contextLabel, overage, onOverageChange }) {
       const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
+      const [rugFor, setRugFor] = useState(null); // carpet product card being turned into a custom rug
       const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
       const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -14100,6 +14256,7 @@
       const [expanded, setExpanded] = useState(null);
       const [accCache, setAccCache] = useState({}); // parent sku_id -> accessories[] | 'loading'
       const [customList, setCustomList] = useState([]);
+      const [rugList, setRugList] = useState([]); // custom rugs staged into the tray
       const [customVendors, setCustomVendors] = useState([]);
 
       // Esc to close + lock page scroll behind the dialog
@@ -14165,7 +14322,7 @@
 
       const lineList = Object.values(added);
       const accList = Object.values(accAdded);
-      const itemCount = lineList.length + accList.length + customList.length;
+      const itemCount = lineList.length + accList.length + customList.length + rugList.length;
       const catalogRetail =
         lineList.reduce((t, { item, qty }) => t + rofCatExtOv(item, qty, parseFloat(item.price || 0), overage), 0) +
         accList.reduce((t, { acc, qty }) => t + parseFloat(acc.retail_price || 0) * qty, 0);
@@ -14175,13 +14332,16 @@
         lineList.reduce((t, { item, qty }) => t + rofCatExtOv(item, qty, rofTradeUnit(parseFloat(item.price || 0), item.retail_locked, discount), overage), 0) +
         accList.reduce((t, { acc, qty }) => t + rofTradeUnit(parseFloat(acc.retail_price || 0), acc.retail_locked, discount) * qty, 0);
       const customSubtotal = customList.reduce((t, c) => t + c.subtotal, 0);
-      const retailSubtotal = catalogRetail + customSubtotal;
-      const discountedTotal = catalogTrade + customSubtotal;
+      const rugSubtotal = rugList.reduce((t, r) => t + (parseFloat(r.subtotal) || 0), 0);
+      const retailSubtotal = catalogRetail + customSubtotal + rugSubtotal;
+      const discountedTotal = catalogTrade + customSubtotal + rugSubtotal;
 
 
       const confirm = () => {
         if (itemCount === 0) return;
         onAdd({ lines: lineList, accessories: accList, customs: customList });
+        // Custom rugs are delivered through onAddRug (each surface adds/persists it)
+        if (onAddRug) rugList.forEach(r => onAddRug(r));
         onClose();
       };
 
@@ -14278,6 +14438,7 @@
                       accessories={accCache[p.sku_id]}
                       accAdded={accAdded}
                       onToggleAcc={(acc) => toggleAcc(acc, p)}
+                      onRug={onAddRug ? setRugFor : null}
                     />
                   ))}
                   {!loading && products.length === 0 && (
@@ -14298,21 +14459,41 @@
 
               {/* Order draft tray */}
               <RofCatTray discount={discount} overage={overage} onOverageChange={onOverageChange}
-                lineList={lineList} accList={accList} customList={customList}
+                lineList={lineList} accList={accList} customList={customList} rugList={rugList}
                 itemCount={itemCount} retailSubtotal={retailSubtotal} discountedTotal={discountedTotal}
                 onRemoveItem={(skuId) => setAdded(a => { const n = { ...a }; delete n[skuId]; return n; })}
                 onRemoveAcc={(skuId) => setAccAdded(a => { const n = { ...a }; delete n[skuId]; return n; })}
                 onRemoveCustom={(cid) => setCustomList(l => l.filter(c => c._cid !== cid))}
+                onRemoveRug={(cid) => setRugList(l => l.filter(r => r._cid !== cid))}
                 onClose={onClose} onConfirm={confirm}
               />
             </div>
           </div>
+
+          {rugFor && (
+            <RugConfigModal
+              carpet={{
+                sku_id: rugFor.sku_id, product_id: rugFor.product_id || rugFor.id,
+                product_name: rugFor.display_name || rugFor.name || rugFor.product_name || '',
+                collection: rugFor.collection || '', color: '',
+                vendor_id: rugFor.vendor_id, vendor_name: rugFor.brand_name || rugFor.vendor_name,
+                vendor_sku: rugFor.vendor_sku || rugFor.internal_sku || '',
+                primary_image: rugFor.primary_image || null, category_name: rugFor.category_name || 'Carpet',
+                price_basis: rugFor.price_basis, sell_by: rugFor.sell_by,
+                cut_price: rugFor.cut_price != null ? rugFor.cut_price : null,
+                roll_width_ft: rugFor.roll_width_ft != null ? rugFor.roll_width_ft : null
+              }}
+              showCost={showCost}
+              onClose={() => setRugFor(null)}
+              onAdd={(line) => { setRugList(l => [...l, { ...line, _cid: 'rug' + (l.length + 1) + '-' + line.sku_id }]); setRugFor(null); }}
+            />
+          )}
         </div>
       );
     }
 
     // --- Product card inside the catalog popup ---
-    function RofCatCard({ p, showCost, discount, qty, onBump, onSet, expanded, onToggleExpand, accessories, accAdded, onToggleAcc }) {
+    function RofCatCard({ p, showCost, discount, qty, onBump, onSet, expanded, onToggleExpand, accessories, accAdded, onToggleAcc, onRug }) {
       const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
       const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
       const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -14406,6 +14587,19 @@
               font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase',
             }}>{active ? '✓ Added' : '+ Add'}</button>
           </div>
+
+          {/* Custom bound area rug — carpet only */}
+          {onRug && repIsCarpetRow(p) && (
+            <button onClick={() => onRug(p)} style={{
+              padding: '9px 13px', borderTop: '0.5px solid rgba(28,25,23,0.08)', background: 'transparent',
+              cursor: 'pointer', border: 'none', borderTopStyle: 'solid', borderTopWidth: '0.5px', borderTopColor: 'rgba(28,25,23,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+              font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: TH.accent,
+            }}>
+              <span>+ Custom Area Rug {'·'} bind to any size</span>
+              <span>{'⌗'}</span>
+            </button>
+          )}
 
           {/* Accessories toggle */}
           {hasAcc && (
@@ -14636,7 +14830,7 @@
     }
 
     // --- Order draft tray inside the catalog popup ---
-    function RofCatTray({ discount, overage, onOverageChange, lineList, accList, customList, itemCount, retailSubtotal, discountedTotal, onRemoveItem, onRemoveAcc, onRemoveCustom, onClose, onConfirm }) {
+    function RofCatTray({ discount, overage, onOverageChange, lineList, accList, customList, rugList = [], itemCount, retailSubtotal, discountedTotal, onRemoveItem, onRemoveAcc, onRemoveCustom, onRemoveRug, onClose, onConfirm }) {
       const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
       const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
       const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -14707,6 +14901,22 @@
                 <button onClick={() => onRemoveCustom(c._cid)} style={xBtn}>{'×'}</button>
               </div>
             ))}
+            {rugList.length > 0 && (
+              <div style={{ padding: '6px 20px 4px', ...mono(TH.muted), fontSize: 9, marginTop: 4 }}>Custom rugs</div>
+            )}
+            {rugList.map(r => (
+              <div key={r._cid} style={{ padding: '8px 20px', display: 'grid', gridTemplateColumns: '30px 1fr auto 18px', gap: 10, alignItems: 'center' }}>
+                {r.primary_image
+                  ? <img src={optimizeImg(r.primary_image, 80)} alt="" loading="lazy" style={{ width: 30, height: 30, objectFit: 'cover', border: '0.5px solid rgba(28,25,23,0.1)' }} />
+                  : <div style={{ width: 30, height: 30, border: '0.5px dashed rgba(28,25,23,0.27)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 13px/1 var(--roma-serif)', color: TH.muted }}>{'⌗'}</div>}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ font: '400 12.5px/1.2 var(--roma-sans)', color: TH.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{[r.collection, r.color].filter(Boolean).join(' ') || r.product_name} {'·'} Rug</div>
+                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>{repRugDims(r.custom_width_ft, r.custom_length_ft)}{r.num_boxes > 1 ? ' × ' + r.num_boxes : ''} {'×'} {fmtMoney(r.unit_price)}</div>
+                </div>
+                <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(r.subtotal)}</span>
+                <button onClick={() => onRemoveRug(r._cid)} style={xBtn}>{'×'}</button>
+              </div>
+            ))}
           </div>
 
           {/* Totals + actions */}
@@ -14753,6 +14963,9 @@
       const [showCustom, setShowCustom] = useState(false);
       const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
       const [customVendors, setCustomVendors] = useState([]);
+      // Custom bound area rug — opened from a carpet line's button; rugModalItem
+      // holds that carpet line while the shared RugConfigModal popup is open.
+      const [rugModalItem, setRugModalItem] = useState(null);
       const [editingKey, setEditingKey] = useState(null);
       const [editField, setEditField] = useState(null);
       const [editValue, setEditValue] = useState('');
@@ -14838,6 +15051,11 @@
           price_basis: r.price_basis || null,
           cost: needsSlab ? 0 : rawCost,
           vendor_cost: r.vendor_cost || null,
+          // Carpet-only: kept so the "Custom Area Rug" popup can price the cut
+          // (per-sqyd price/cost + roll width). Harmless on non-carpet lines.
+          cut_price: r.cut_price != null ? r.cut_price : null,
+          cut_cost: r.cut_cost != null ? r.cut_cost : null,
+          roll_width_ft: r.roll_width_ft != null ? r.roll_width_ft : null,
           category_name: r.category_name || '',
           primary_image: r.primary_image || null,
           // Slab-size entry: per-sqft cost/retail held here until the rep enters the
@@ -14895,6 +15113,12 @@
         setData(d => ({ ...d, items: [...(d.items || []), newItem] }));
         setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
         setShowCustom(false);
+      };
+
+      const openRugModal = (carpetLine) => setRugModalItem(carpetLine);
+      const addRugLine = (line) => {
+        setData(d => ({ ...d, items: [...(d.items || []), line], promoResult: null, promoCode: '' }));
+        setRugModalItem(null);
       };
 
       // Bulk add from the "Browse catalog" popup (Step 01b) — converts catalog
@@ -15229,6 +15453,12 @@
                   {item.is_custom
                     ? <div className="rof-item-meta">Custom</div>
                     : (formatLineItem(item).sku && <div className="rof-item-meta">{formatLineItem(item).sku}</div>)}
+                  {repIsCarpetRow(item) && !item.is_custom_rug && (
+                    <button onClick={() => openRugModal(item)}
+                      style={{ marginTop: 4, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 7px', border: '0.5px solid var(--gold, #c9a668)', color: '#8a6d3b', background: '#faf3e4', cursor: 'pointer' }}>
+                      + Custom Area Rug
+                    </button>
+                  )}
                   {item._perSqftRetail != null && (
                     editingKey === item._key && editField === 'slabsize' ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
@@ -15318,7 +15548,14 @@
               orderNumber={data.createdOrder ? (data.createdOrder.order_number || 'R-' + data.createdOrder.id) : null}
               onClose={() => setCatalogOpen(false)}
               onAdd={addFromCatalog}
+              onAddRug={addRugLine}
             />
+          )}
+
+          {/* Custom Area Rug popup — opened from a carpet line */}
+          {rugModalItem && (
+            <RugConfigModal carpet={rugModalItem} showCost={showCost}
+              onClose={() => setRugModalItem(null)} onAdd={addRugLine} />
           )}
         </div>
       );
@@ -20664,6 +20901,22 @@
       };
 
       const [catalogOpen, setCatalogOpen] = useState(false);
+      const [rugModalItem, setRugModalItem] = useState(null); // carpet line being turned into a custom rug
+
+      // Add a custom rug (from a carpet line's popup) to this existing order.
+      const addRugToOrder = async (line) => {
+        setRugModalItem(null);
+        try {
+          const res = await repFetch('/api/rep/orders/' + editId + '/add-item', {
+            method: 'POST',
+            body: JSON.stringify({ is_custom_rug: true, sku_id: line.sku_id, custom_width_ft: line.custom_width_ft, custom_length_ft: line.custom_length_ft, num_boxes: line.num_boxes })
+          });
+          if (res.order) setOrder(res.order);
+          if (res.items) setItems(res.items);
+          if (res.balance) setBalanceInfo(res.balance);
+          loadPOs();
+        } catch (err) { alert('Failed to add custom rug: ' + (err.message || 'Unknown error')); }
+      };
 
       const loadOrderActivity = useCallback(() => {
         repFetch('/api/rep/orders/' + editId + '/activity')
@@ -21746,6 +21999,14 @@
                               ))}
                             </div>
                           )}
+                          {order && !['delivered', 'cancelled', 'refunded'].includes(order.status) && repIsCarpetRow(item) && !item.is_custom_rug && !isLabor && !isCustom && (
+                            <div style={{ marginTop: 12 }}>
+                              <button onClick={() => setRugModalItem(item)}
+                                style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '4px 9px', border: '0.5px solid var(--gold, #c9a668)', color: '#8a6d3b', background: '#faf3e4', cursor: 'pointer' }}>
+                                + Custom Area Rug
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </React.Fragment>
@@ -22748,7 +23009,13 @@
               contextLabel={'Add to order · ' + order.order_number}
               onClose={() => setCatalogOpen(false)}
               onAdd={addFromCatalog}
+              onAddRug={addRugToOrder}
             />
+          )}
+
+          {rugModalItem && (
+            <RugConfigModal carpet={rugModalItem} showCost={showCost}
+              onClose={() => setRugModalItem(null)} onAdd={addRugToOrder} />
           )}
 
           {/* F. Modals (unchanged) — payment request is now merged into the
@@ -24751,6 +25018,7 @@
       const [showCustomForm, setShowCustomForm] = useState(false);
       const [quoteVendors, setQuoteVendors] = useState([]); // for the custom item vendor picker
       const [customItem, setCustomItem] = useState({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
+      const [rugModalItem, setRugModalItem] = useState(null); // carpet line being turned into a custom rug
 
       // Inline cell editing
       const [editingCell, setEditingCell] = useState(null); // { idx, field }
@@ -25005,7 +25273,15 @@
           sell_by: sellBy,
           _sqft_per_box: sqftPerBox,
           retail_price: retail,
-          retail_locked: !!sku.retail_locked
+          retail_locked: !!sku.retail_locked,
+          // Carpet-only: kept so the "Custom Area Rug" popup can price the cut.
+          cut_price: sku.cut_price != null ? sku.cut_price : null,
+          cut_cost: sku.cut_cost != null ? sku.cut_cost : null,
+          roll_width_ft: sku.roll_width_ft != null ? sku.roll_width_ft : null,
+          price_basis: sku.price_basis || null,
+          vendor_id: sku.vendor_id || null,
+          vendor_cost: sku.vendor_cost || null,
+          primary_image: sku.primary_image || null
         };
         setAddQty(1);
 
@@ -25105,6 +25381,28 @@
         setCustomItem({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
         setShowCustomForm(false);
         } catch (err) { alert('Failed to add item: ' + (err.message || 'Unknown error')); }
+      };
+
+      // Custom rug (from the carpet-line popup). On an existing quote it persists
+      // via /items (backend recomputes price+cost); on a new quote it's held in
+      // local state and priced by the create endpoint.
+      const addRugToQuote = async (line) => {
+        setRugModalItem(null);
+        try {
+          if (editId) {
+            const result = await repFetch('/api/rep/quotes/' + editId + '/items', {
+              method: 'POST',
+              body: JSON.stringify({ is_custom_rug: true, sku_id: line.sku_id, custom_width_ft: line.custom_width_ft, custom_length_ft: line.custom_length_ft, num_boxes: line.num_boxes })
+            });
+            if (result.item) {
+              setQuoteItems(prev => [...prev, result.item]);
+              const qData = await repFetch('/api/rep/quotes/' + editId);
+              setQuote(qData.quote);
+            }
+          } else {
+            setQuoteItems(prev => [...prev, { ...line, _temp_id: 'rug' + Date.now() }]);
+          }
+        } catch (err) { alert('Failed to add custom rug: ' + (err.message || 'Unknown error')); }
       };
 
       const updateItemLocal = (index, field, value) => {
@@ -25226,7 +25524,10 @@
               unit_price: i.unit_price,
               subtotal: i.subtotal,
               sell_by: i.sell_by,
-              is_sample: i.is_sample
+              is_sample: i.is_sample,
+              is_custom_rug: i.is_custom_rug || false,
+              custom_width_ft: i.custom_width_ft || null,
+              custom_length_ft: i.custom_length_ft || null
             }));
             const data = await repFetch('/api/rep/quotes', {
               method: 'POST',
@@ -25370,7 +25671,8 @@
             product_id: i.product_id, sku_id: i.sku_id, product_name: i.product_name,
             collection: i.collection, description: i.description, sqft_needed: i.sqft_needed,
             num_boxes: i.num_boxes, unit_price: i.unit_price, subtotal: i.subtotal,
-            sell_by: i.sell_by, is_sample: i.is_sample
+            sell_by: i.sell_by, is_sample: i.is_sample,
+            is_custom_rug: i.is_custom_rug || false, custom_width_ft: i.custom_width_ft || null, custom_length_ft: i.custom_length_ft || null
           }));
           const data = await repFetch('/api/rep/quotes', {
             method: 'POST',
@@ -26156,6 +26458,12 @@
                           <div className="rof-item-name">{fli.name}</div>
                         )}
                         {metaBits && <div className="rof-item-meta">{metaBits}</div>}
+                        {!isReadonly && repIsCarpetRow(item) && !item.is_custom_rug && (
+                          <button onClick={() => setRugModalItem(item)}
+                            style={{ marginTop: 4, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 7px', border: '0.5px solid var(--gold, #c9a668)', color: '#8a6d3b', background: '#faf3e4', cursor: 'pointer' }}>
+                            + Custom Area Rug
+                          </button>
+                        )}
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         {!isReadonly && isEditingQty ? (
@@ -26235,6 +26543,11 @@
                   <div className="rof-items-empty">No lines yet. Search the catalog or add a custom item above.</div>
                 )}
               </WizRepCard>
+
+              {rugModalItem && (
+                <RugConfigModal carpet={rugModalItem} showCost={showCost}
+                  onClose={() => setRugModalItem(null)} onAdd={addRugToQuote} />
+              )}
 
               {/* Notes + promo */}
               <WizRepCard title="Notes &amp; Promo">
@@ -26473,6 +26786,7 @@
               contextLabel={'Add to quote · ' + (quote ? quote.quote_number : 'New quote')}
               onClose={() => setCatalogOpen(false)}
               onAdd={addFromCatalog}
+              onAddRug={addRugToQuote}
             />
           )}
 
@@ -27025,6 +27339,7 @@
       const [catalogOpen, setCatalogOpen] = useState(false);
       // The area a quick-add / catalog add / labor add should land in (null = General)
       const [targetAreaId, setTargetAreaId] = useState(null);
+      const [rugModalItem, setRugModalItem] = useState(null); // carpet line being turned into a custom rug
       // Which inline add-surface is open, e.g. 'mat-<areaId|general>' or 'labor-<areaId|general>'
       const [activeAddArea, setActiveAddArea] = useState(null);
 
@@ -27409,6 +27724,25 @@
           }
         } catch (err) { setActionError(err.message || 'Failed to add item'); return; }
         if (!existed) navigate('estimate-edit', est.id);
+      };
+
+      // Custom rug (from a carpet line's popup) — persists via /items (backend
+      // recomputes price+cost); dropped into the same area as its carpet.
+      const addRugToEstimate = async (line) => {
+        const carpetLine = rugModalItem;
+        setRugModalItem(null);
+        let est;
+        try { est = await ensureEstimate(); } catch (err) { setActionError(err.message || 'Failed to start estimate'); return; }
+        try {
+          const result = await repFetch('/api/rep/estimates/' + est.id + '/items', {
+            method: 'POST',
+            body: JSON.stringify({ is_custom_rug: true, sku_id: line.sku_id, custom_width_ft: line.custom_width_ft, custom_length_ft: line.custom_length_ft, num_boxes: line.num_boxes, item_type: 'material', area_id: carpetLine ? carpetLine.area_id : null })
+          });
+          if (result.item) {
+            setItems(prev => [...prev, result.item]);
+            if (result.estimate) setEstimate(result.estimate);
+          }
+        } catch (err) { setActionError(err.message || 'Failed to add custom rug'); return; }
       };
 
       // Bulk add from the "Browse catalog" popup — materials only, with overage applied
@@ -28013,6 +28347,12 @@
                 {metaBits && <span>{metaBits}</span>}
                 {moveSelect(item)}
               </div>
+              {!isReadonly && repIsCarpetRow(item) && !item.is_custom_rug && (
+                <button onClick={() => setRugModalItem(item)}
+                  style={{ marginTop: 4, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 7px', border: '0.5px solid var(--gold, #c9a668)', color: '#8a6d3b', background: '#faf3e4', cursor: 'pointer' }}>
+                  + Custom Area Rug
+                </button>
+              )}
             </div>
             <div style={{ textAlign: 'right' }}>
               {isCarpet
@@ -29076,7 +29416,13 @@
               onOverageChange={setOverageEnabled}
               onClose={() => setCatalogOpen(false)}
               onAdd={addFromCatalog}
+              onAddRug={addRugToEstimate}
             />
+          )}
+
+          {rugModalItem && (
+            <RugConfigModal carpet={rugModalItem} showCost={showCost}
+              onClose={() => setRugModalItem(null)} onAdd={addRugToEstimate} />
           )}
 
           {/* Email Preview Modal */}

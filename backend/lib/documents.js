@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { laborUnitShort, laborDisplayName } from './estimateBundle.js';
+import { formatRugDims } from './rugPricing.js';
 
 let LOGO_DATA_URI = '';
 try {
@@ -104,6 +105,23 @@ export function composeItemName(it = {}) {
   const collection = g('collection') || g('current_collection');
   const color = g('color');
   const variant = g('variant_name');
+  const SEP = '  ·  ';
+  // Custom bound area rug: "Custom Area Rug  ·  <carpet>  ·  9' × 4'". Dimensions
+  // come from custom_width_ft/length_ft when selected, else from the stored
+  // description ("Custom Area Rug — 9' × 4'") — see [[custom-rug-calculator]].
+  if (g('is_custom_rug') || (g('description') || '').startsWith('Custom Area Rug')) {
+    const dims = (it.custom_width_ft && it.custom_length_ft)
+      ? formatRugDims(it.custom_width_ft, it.custom_length_ft)
+      : (g('description') || '').replace(/^Custom Area Rug\s*[—-]\s*/, '');
+    const carpet = [collection, color].filter(Boolean).join(' ') || product || null;
+    const descriptors = [carpet, dims].filter(Boolean);
+    const sku = g('vendor_sku') || g('internal_sku');
+    const vendor = g('vendor_name') || g('custom_vendor');
+    const meta = []; for (const m of [vendor, sku]) if (m && !meta.includes(m)) meta.push(m);
+    const nameLine = descriptors.length ? `Custom Area Rug${SEP}${descriptors.join(SEP)}` : 'Custom Area Rug';
+    const metaLine = meta.join(SEP);
+    return { title: 'Custom Area Rug', descriptors, sku, vendor, meta, nameLine, metaLine, oneLine: [nameLine, metaLine].filter(Boolean).join(SEP) };
+  }
   const isAcc = g('variant_type') === 'accessory';
   const accLabel = isAcc ? (g('accessory_label') || variant) : null;
   // Accessory bought for a specific floor: lead with that floor's collection +
@@ -196,7 +214,6 @@ export function composeItemName(it = {}) {
   // Separator SEP must stay identical to the frontend helpers (formatLineItem in
   // rep.html/admin.html, itemLineName/itemMetaLine in storefront.jsx) so a line
   // item renders identically on every surface \u2014 see [[line-item-display]].
-  const SEP = '  \u00B7  ';
   const nameLine = descriptors.length ? `${title}${SEP}${descriptors.join(SEP)}` : title;
   const metaLine = meta.join(SEP);
   const oneLine = [nameLine, metaLine].filter(Boolean).join(SEP);
@@ -1390,7 +1407,7 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
     return `Paid via ${method}${when ? ' on ' + when : ''}${rcpt}`;
   })() : null;
 
-  const statusLabel = hasBalance ? 'Balance Due' : 'Paid';
+  const stampText = hasBalance ? 'Balance Due' : 'Paid in full';
   const stampColor = hasBalance ? 'var(--accent)' : '#3f7a4f';
 
   const SWATCH_FALLBACKS = [
@@ -1400,7 +1417,7 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
     'linear-gradient(135deg,#a89074,#5e4a36)',
   ];
 
-  const rowsHtml = items.map((i, idx) => {
+  const renderRow = (i, idx, arr) => {
     // Labor lines (estimate conversions): no swatch/sqft/boxes — show the
     // service description and rate basis instead
     if ((i.item_type || 'material') === 'labor') {
@@ -1418,7 +1435,7 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
         : (laborQty > 1 ? money(i.unit_price) : 'Flat rate');
       const descLine = i.description
         ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${String(i.description).split('\n').join(' · ')}</div>` : '';
-      return `<div class="grid-row keep" style="padding:12px 0;${idx < items.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+      return `<div class="grid-row keep" style="padding:12px 0;${idx < arr.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
         <div class="swatch" style="background:var(--warm);display:flex;align-items:center;justify-content:center;font:500 7px/1 ui-monospace,monospace;letter-spacing:0.08em;color:var(--ink);">LBR</div>
         <div>
           <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${i.product_name || 'Labor'}</div>
@@ -1455,7 +1472,7 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
     const swatch = swatchSrc
       ? `<div class="swatch" style="background:${gradient};overflow:hidden;"><img src="${swatchSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
       : `<div class="swatch" style="background:${gradient};"></div>`;
-    return `<div class="grid-row keep" style="padding:12px 0;${idx < items.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+    return `<div class="grid-row keep" style="padding:12px 0;${idx < arr.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
       ${swatch}
       <div>
         ${brandLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-bottom:2px;">${brandLine}</div>` : ''}
@@ -1468,7 +1485,18 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
       <div class="num">${isFree ? 'Free' : money(i.unit_price) + priceUnitSuffix(i)}</div>
       <div class="line-total">${isFree ? 'Free' : money(i.subtotal)}</div>
     </div>`;
-  }).join('');
+  };
+
+  // Group the line items into Materials and Labor sections.
+  const materialItems = items.filter(i => (i.item_type || 'material') !== 'labor');
+  const laborItems = items.filter(i => (i.item_type || 'material') === 'labor');
+  const materialsHtml = materialItems.map((i, idx) => renderRow(i, idx, materialItems)).join('');
+  const laborHtml = laborItems.map((i, idx) => renderRow(i, idx, laborItems)).join('');
+  const showGroupLabels = materialItems.length > 0 && laborItems.length > 0;
+  const sectionLabel = (t) => `<div class="mono" style="margin:16px 0 6px;color:var(--accent);letter-spacing:0.16em;">${t}</div>`;
+  const rowsHtml =
+    (materialsHtml ? `${showGroupLabels ? sectionLabel('Materials') : ''}${materialsHtml}` : '') +
+    (laborHtml ? `${showGroupLabels ? sectionLabel('Labor &amp; services') : ''}${laborHtml}` : '');
 
   const shipAddress = [
     o.shipping_address_line1,
@@ -1536,6 +1564,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 </style>
 </head>
 <body>
+<div style="display:flex;flex-direction:column;min-height:9.9in;">
 
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
@@ -1552,7 +1581,9 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
 ${o.po_number ? `<span style="color:var(--muted);">PO ref</span><span style="text-align:right;">${o.po_number}</span>` : ''}
 ${o.job_name ? `<span style="color:var(--muted);">Job / Sidemark</span><span style="text-align:right;">${escDoc(o.job_name)}</span>` : ''}
-<span style="color:var(--muted);">Status</span><span class="mono" style="color:${stampColor};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
+</div>
+<div style="margin-top:16px;display:flex;justify-content:flex-end;">
+<span style="padding:7px 14px;border:1.5px solid ${stampColor};color:${stampColor};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.3em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</span>
 </div>
 </div>
 </div>
@@ -1573,6 +1604,8 @@ ${accountCard}
 </div>
 ${rowsHtml}
 </div>
+
+<div style="flex:1 1 auto;min-height:20px;"></div>
 
 <div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
 <div style="padding-top:4px;" class="small">
@@ -1623,6 +1656,8 @@ ${milestones.map(m => {
 <!-- ===== REVERSE SIDE — full Terms of Sale on its own page (prints on the back when
      the invoice is duplexed). Readable single column; condensed faithfully from the
      full Terms of Service at romaflooringdesigns.com/terms. ===== -->
+</div>
+
 <div style="break-before:page;page-break-before:always;">
 <div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid #1c191722;margin-bottom:18px;">
 <div style="font:300 24px/1 var(--serif);letter-spacing:-0.01em;">Terms of Sale</div>

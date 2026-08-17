@@ -233,7 +233,11 @@ CREATE TABLE order_items (
     rate_sqft DECIMAL(10,2),
     labor_sqft DECIMAL(10,2),
     quantity DECIMAL(10,2),
-    source_estimate_area TEXT
+    source_estimate_area TEXT,
+    -- Custom bound area rug (carried over from cart_items) — see [[custom-rug-calculator]]
+    is_custom_rug BOOLEAN DEFAULT false,
+    custom_width_ft DECIMAL(7,2),
+    custom_length_ft DECIMAL(7,2)
 );
 
 -- Progress-billing / draw schedule (e.g. 50% deposit, 30% at install start, 20%
@@ -272,6 +276,12 @@ CREATE TABLE cart_items (
     -- accessory was added alongside — see [[line-item-display]].
     parent_collection TEXT,
     parent_color TEXT,
+    -- Custom bound area rug: a made-to-order rug cut from this carpet SKU's roll.
+    -- unit_price/subtotal are computed server-side from these dimensions +
+    -- the SKU's cut_price (never trusted from the client) — see [[custom-rug-calculator]].
+    is_custom_rug BOOLEAN DEFAULT false,
+    custom_width_ft DECIMAL(7,2),
+    custom_length_ft DECIMAL(7,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -457,7 +467,11 @@ CREATE TABLE quote_items (
     -- Custom (off-catalog) lines only: known vendor or free-text one-off vendor
     vendor_id UUID REFERENCES vendors(id),
     custom_vendor TEXT,
-    cost DECIMAL(10,2)
+    cost DECIMAL(10,2),
+    -- Custom bound area rug — see [[custom-rug-calculator]]
+    is_custom_rug BOOLEAN DEFAULT false,
+    custom_width_ft DECIMAL(7,2),
+    custom_length_ft DECIMAL(7,2)
 );
 
 -- Quote lifecycle + engagement events (sent, viewed via email pixel, replies, status changes)
@@ -1813,6 +1827,10 @@ CREATE TABLE IF NOT EXISTS estimate_items (
     cost DECIMAL(10,2),
     sort_order INTEGER DEFAULT 0,
     area_id UUID REFERENCES estimate_areas(id) ON DELETE SET NULL,
+    -- Custom bound area rug — see [[custom-rug-calculator]]
+    is_custom_rug BOOLEAN DEFAULT false,
+    custom_width_ft DECIMAL(7,2),
+    custom_length_ft DECIMAL(7,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_estimate_items_estimate ON estimate_items(estimate_id);
