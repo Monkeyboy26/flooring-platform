@@ -15462,12 +15462,6 @@
                   {item.is_custom
                     ? <div className="rof-item-meta">Custom</div>
                     : (formatLineItem(item).sku && <div className="rof-item-meta">{formatLineItem(item).sku}</div>)}
-                  {repIsCarpetRow(item) && !item.is_custom_rug && (
-                    <button onClick={() => openRugModal(item)}
-                      style={{ marginTop: 4, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 7px', border: '0.5px solid var(--gold, #c9a668)', color: '#8a6d3b', background: '#faf3e4', cursor: 'pointer' }}>
-                      + Custom Area Rug
-                    </button>
-                  )}
                   {item._perSqftRetail != null && (
                     editingKey === item._key && editField === 'slabsize' ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
@@ -22008,14 +22002,6 @@
                               ))}
                             </div>
                           )}
-                          {order && !['delivered', 'cancelled', 'refunded'].includes(order.status) && repIsCarpetRow(item) && !item.is_custom_rug && !isLabor && !isCustom && (
-                            <div style={{ marginTop: 12 }}>
-                              <button onClick={() => setRugModalItem(item)}
-                                style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '4px 9px', border: '0.5px solid var(--gold, #c9a668)', color: '#8a6d3b', background: '#faf3e4', cursor: 'pointer' }}>
-                                + Custom Area Rug
-                              </button>
-                            </div>
-                          )}
                         </div>
                       )}
                     </React.Fragment>
@@ -26467,12 +26453,6 @@
                           <div className="rof-item-name">{fli.name}</div>
                         )}
                         {metaBits && <div className="rof-item-meta">{metaBits}</div>}
-                        {!isReadonly && repIsCarpetRow(item) && !item.is_custom_rug && (
-                          <button onClick={() => setRugModalItem(item)}
-                            style={{ marginTop: 4, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 7px', border: '0.5px solid var(--gold, #c9a668)', color: '#8a6d3b', background: '#faf3e4', cursor: 'pointer' }}>
-                            + Custom Area Rug
-                          </button>
-                        )}
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         {!isReadonly && isEditingQty ? (
@@ -28356,12 +28336,6 @@
                 {metaBits && <span>{metaBits}</span>}
                 {moveSelect(item)}
               </div>
-              {!isReadonly && repIsCarpetRow(item) && !item.is_custom_rug && (
-                <button onClick={() => setRugModalItem(item)}
-                  style={{ marginTop: 4, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 7px', border: '0.5px solid var(--gold, #c9a668)', color: '#8a6d3b', background: '#faf3e4', cursor: 'pointer' }}>
-                  + Custom Area Rug
-                </button>
-              )}
             </div>
             <div style={{ textAlign: 'right' }}>
               {isCarpet
