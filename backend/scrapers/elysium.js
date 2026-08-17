@@ -712,7 +712,7 @@ export async function run(pool, job, source) {
             cost: sheet.converted ? sheet.cost : detail.pricing.price,
             retail_price: sheet.converted ? sheet.retail_price : Math.round(detail.pricing.price * 2 * 100) / 100,
             price_basis: sheet.converted ? 'per_unit' : (detail.pricing.per === 'sqft' ? 'per_sqft' : 'per_unit'),
-          });
+          }, { coveringFloor: sheet.coveringFloor });
           stats.priced++;
         }
         if (detail.inventory.caSqft != null) {

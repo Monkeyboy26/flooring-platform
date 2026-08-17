@@ -958,7 +958,7 @@ export async function run(pool, job, source) {
         roll_cost: item.roll_cost || null,
         roll_min_sqft: item.roll_min_sqft || null,
         map_price: item.map_price || null,
-      });
+      }, { coveringFloor: sheet.coveringFloor });
       pricingUpserted++;
 
       // Packaging

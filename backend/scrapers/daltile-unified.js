@@ -989,7 +989,7 @@ async function processProduct(pool, ctx) {
         retail_price: sheet.retail_price,
         price_basis: sheet.priceBasis,
         map_price: ediItem?.map_price || null,
-      });
+      }, { coveringFloor: sheet.coveringFloor });
       stats.pricingSet++;
     }
 

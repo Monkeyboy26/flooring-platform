@@ -1055,7 +1055,7 @@ async function phase2_edi832(pool, vendorId, source, log) {
           retail_price: sheet.retail_price,
           price_basis: sheet.priceBasis,
           map_price: item.map_price || null,
-        });
+        }, { coveringFloor: sheet.coveringFloor });
         pricingUpserted++;
       }
 

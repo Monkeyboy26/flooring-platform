@@ -149,6 +149,11 @@ const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
  * per-sheet category, a trim piece, or already sold per unit) and
  * `{ ...unchanged, converted:false, ambiguous:true }` when the sheet coverage
  * can't be derived (so the caller leaves it as a box rather than mis-pricing).
+ *
+ * Also returns `coveringFloor` — true for mosaic/stacked-stone sheets sold per
+ * unit. Pass it into upsertPricing's opts so the $0.99-over-cost retail floor is
+ * enforced on these coverings (per_unit alone can't tell a mosaic sheet from an
+ * accessory/hardware/trim piece, which are excluded). See [[covering-margin-floor]].
  */
 export function applySheetSelling({
   categorySlug, sellBy, name,
@@ -156,7 +161,7 @@ export function applySheetSelling({
 }) {
   const passthrough = (extra = {}) => ({
     sellBy, priceBasis: sellBy === 'box' ? 'per_sqft' : 'per_unit',
-    cost, retail_price, sale_price, converted: false, ...extra,
+    cost, retail_price, sale_price, converted: false, coveringFloor: false, ...extra,
   });
 
   // A product is sold per sheet when it's in a per-sheet category (mosaic-tile /
@@ -170,8 +175,11 @@ export function applySheetSelling({
   if (!isSheetProduct) return passthrough();
   if (isTrimPiece(name)) return passthrough();
   // Already per-unit (or roll) — nothing to convert, just normalize the basis.
+  // coveringFloor:true so upsertPricing enforces the $0.99/sheet retail floor
+  // on this mosaic/stacked-stone sheet (per_unit alone is ambiguous — it also
+  // holds trim/hardware/accessories, which must NOT be floored). See [[covering-margin-floor]].
   if (sellBy && sellBy !== 'box') {
-    return { sellBy, priceBasis: 'per_unit', cost, retail_price, sale_price, converted: false };
+    return { sellBy, priceBasis: 'per_unit', cost, retail_price, sale_price, converted: false, coveringFloor: true };
   }
 
   const sheetSqft = deriveSheetSqft(sqft_per_box, pieces_per_box);
@@ -184,6 +192,7 @@ export function applySheetSelling({
     retail_price: retail_price != null ? round2(retail_price * sheetSqft) : retail_price,
     sale_price: sale_price != null ? round2(sale_price * sheetSqft) : sale_price,
     converted: true,
+    coveringFloor: true,
     sheetSqft,
   };
 }
@@ -602,7 +611,53 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
     }
     return r;
   };
-  const retailAdj = applyKeystone(cost, retail_price);
+  // Retail pricing rules, applied to retail_price after keystone (owner, 2026-08-16):
+  //   1. Covering margin floor — retail must clear at least $0.99 over cost on
+  //      covering products. Scope: sold BY AREA (price_basis per_sqft/sqft —
+  //      flooring, wall & field tile) always, plus per-sheet mosaics/stacked stone
+  //      (per_unit) which callers flag via opts.coveringFloor. per_unit alone is
+  //      ambiguous (also accessories/hardware/trim, NOT floored). Carpet (per_sqyd)
+  //      floored separately by carpetFloor below. See [[covering-margin-floor]].
+  //   2. Charm pricing — EVERY retail price ends in a 9: round to the NEAREST value
+  //      whose last cent is 9 (…X.09/X.19/…/X.99, 10¢ apart; exact midpoints round
+  //      down). Applies to retail_price only, not carpet cut/roll or cost.
+  //      See [[nine-ending-prices]].
+  // The floor wins over "nearest": if the nearest 9-ending sits under cost+$0.99 on
+  // a covering product, bump to the next 9-ending up. Only ever touches rows with a
+  // real retail (never invents a price on a $0/unpriced row). Hard rules — run
+  // regardless of skipKeystoneReprice.
+  const RETAIL_MIN_MARGIN = 0.99;
+  const isAreaCovering = price_basis === 'per_sqft' || price_basis === 'sqft';
+  const applyCoveringFloor = isAreaCovering || (price_basis === 'per_unit' && opts.coveringFloor === true);
+  // Nearest value ending in 9 (…X.09/X.19/…/X.99), exact midpoints (…X.x4) round
+  // down. Integer cents avoid float drift; 1e-9 nudge makes .5 tie round down.
+  const nearestNine = (v) => {
+    const cents = Math.round(Number(v) * 100);
+    const k = Math.round((cents - 9) / 10 - 1e-9);
+    return Math.max(9, k * 10 + 9) / 100;
+  };
+  const priceRetail = (price) => {
+    if (price == null) return price;
+    const rn = Number(price);
+    if (!(rn > 0)) return price; // never invent a price on $0/unpriced
+    const cn = applyCoveringFloor ? (Number(cost != null ? cost : 0) || 0) : 0;
+    const floorMin = cn > 0 ? cn + RETAIL_MIN_MARGIN : 0;
+    let nine = nearestNine(Math.max(rn, floorMin));
+    if (floorMin > 0 && nine < floorMin - 1e-9) nine = Math.round((nine + 0.10) * 100) / 100;
+    return nine;
+  };
+  const retailAdj = priceRetail(applyKeystone(cost, retail_price));
+
+  // The covering floor also guards retail_locked (Home-Depot-matched) prices:
+  // they're preserved as-is EXCEPT they may never sit under cost+$0.99 (owner,
+  // 2026-08-16). coveringFloorValue = smallest 9-ending ≥ cost+$0.99; the UPDATE
+  // GREATEST()s it against the locked price so a cost increase lifts the price to
+  // floor. Only ever RAISES — never lowers a locked price and never overwrites it
+  // with the vendor's retail. Null for non-covering / cost-less upserts (locked
+  // price then fully preserved). See [[covering-margin-floor]].
+  const coveringFloorValue = (applyCoveringFloor && cost != null && Number(cost) > 0)
+    ? priceRetail(Number(cost) + RETAIL_MIN_MARGIN)
+    : null;
 
   // Carpet margin floor: carpet retail (cut_price / roll_price, per sq yd) must
   // clear at least $1 profit per sq ft — i.e. cost/sqyd + $9 (9 sqft per sqyd).
@@ -633,8 +688,11 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
     ON CONFLICT (sku_id) DO UPDATE SET
       cost = COALESCE($2, pricing.cost),
       -- retail_locked rows (e.g. Home-Depot-matched prices) keep their retail no
-      -- matter what a scrape sends, so rescrapes can't overwrite a manual price.
-      retail_price = CASE WHEN pricing.retail_locked THEN pricing.retail_price ELSE COALESCE($3, pricing.retail_price) END,
+      -- matter what a scrape sends, so rescrapes can't overwrite a manual price —
+      -- EXCEPT they may never sit under the covering floor: GREATEST() lifts a
+      -- locked price to cost+$0.99 (as a 9-ending) when a cost increase would put
+      -- it under. $11 is null for non-covering/cost-less upserts (price preserved).
+      retail_price = CASE WHEN pricing.retail_locked THEN GREATEST(pricing.retail_price, COALESCE($11, 0::numeric)) ELSE COALESCE($3, pricing.retail_price) END,
       price_basis = COALESCE($4, pricing.price_basis),
       cut_price = COALESCE($5, pricing.cut_price),
       roll_price = COALESCE($6, pricing.roll_price),
@@ -642,7 +700,7 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
       roll_cost = COALESCE($8, pricing.roll_cost),
       roll_min_sqft = COALESCE($9, pricing.roll_min_sqft),
       map_price = COALESCE($10, pricing.map_price)
-  `, [sku_id, cost != null ? cost : null, retailAdj != null ? retailAdj : null, price_basis || 'per_sqft', cutAdj || null, rollAdj || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null]);
+  `, [sku_id, cost != null ? cost : null, retailAdj != null ? retailAdj : null, price_basis || 'per_sqft', cutAdj || null, rollAdj || null, cut_cost || null, roll_cost || null, roll_min_sqft || null, map_price || null, coveringFloorValue != null ? coveringFloorValue : null]);
 }
 
 /**

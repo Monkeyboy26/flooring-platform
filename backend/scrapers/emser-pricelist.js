@@ -240,7 +240,7 @@ async function createItemSku(pool, vendorId, series, block, item, categoryId, ca
     cost: sheet.cost,
     retail_price: sheet.retail_price,
     price_basis: sheet.priceBasis
-  });
+  }, { coveringFloor: sheet.coveringFloor });
   stats.pricingSet++;
 
   if (block.sqftPerBox > 0 || block.pcsPerBox > 0) {
