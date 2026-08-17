@@ -590,7 +590,11 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   // any incoming retail that sits at ~2x its cost to 1.6x cost (nickel-rounded).
   // Feeds priced at another ratio (MSRP, MAP, 2.5x, etc.) pass through untouched.
   // Mirrors database/migrations/2026-07-20-reprice-2x-to-1.6x.sql (band 1.95–2.05).
+  // Callers that already emit store-standard retail (e.g. EF, which applies its
+  // own 1.6×/floor markup) pass opts.skipKeystoneReprice so an intentional
+  // floored price at a ~2× ratio isn't second-guessed back down to 1.6×.
   const applyKeystone = (c, r) => {
+    if (opts.skipKeystoneReprice) return r;
     const cn = c != null ? Number(c) : null;
     const rn = r != null ? Number(r) : null;
     if (cn && rn && cn > 0 && rn / cn >= 1.95 && rn / cn <= 2.05) {
@@ -599,8 +603,26 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
     return r;
   };
   const retailAdj = applyKeystone(cost, retail_price);
-  const cutAdj = applyKeystone(cut_cost, cut_price);
-  const rollAdj = applyKeystone(roll_cost, roll_price);
+
+  // Carpet margin floor: carpet retail (cut_price / roll_price, per sq yd) must
+  // clear at least $1 profit per sq ft — i.e. cost/sqyd + $9 (9 sqft per sqyd).
+  // Applies to per-sqyd (carpet) pricing only; each price floored against its own
+  // cost (cut_cost/roll_cost, falling back to cost). Nickel-rounded UP so it never
+  // dips back under the floor. A hard business rule — runs regardless of keystone.
+  const isCarpetPricing = price_basis === 'per_sqyd' || cut_price != null || roll_price != null;
+  const CARPET_MIN_MARGIN_SQYD = 9; // $1/sqft × 9 sqft
+  const carpetFloor = (price, c) => {
+    if (!isCarpetPricing || price == null) return price;
+    const pn = Number(price);
+    const cn = Number(c != null ? c : (cost != null ? cost : 0)) || 0;
+    // Only floor a carpet that has both a real price and a real cost — never
+    // invent a price on a $0 (unpriced) or unknown-cost row.
+    if (pn <= 0 || cn <= 0) return price;
+    const min = cn + CARPET_MIN_MARGIN_SQYD;
+    return pn < min ? Math.round(Math.ceil(min / 0.05) * 0.05 * 100) / 100 : pn;
+  };
+  const cutAdj = carpetFloor(applyKeystone(cut_cost, cut_price), cut_cost);
+  const rollAdj = carpetFloor(applyKeystone(roll_cost, roll_price), roll_cost);
 
   // INSERT uses COALESCE($N, 0) for NOT NULL columns so partial upserts
   // (e.g. cost-only) don't violate constraints on new rows.
