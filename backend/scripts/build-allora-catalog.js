@@ -156,6 +156,11 @@ function buildUnfinished() {
     finish: 'Unfinished (No Finish)',
     category: 'engineered-hardwood',
     material: MATERIAL,
+    // Draft: no product photo on the site, and its no-finish / smooth specs
+    // differ from the finished colors — leaving it active pollutes the shared
+    // color group with spurious Finish / Installation pills. Publish once a
+    // photo exists. The importer now honors this status (was hardcoded active).
+    status: 'draft',
     specs: {
       construction: CONSTRUCTION,
       installation_method: 'Glue, Float',

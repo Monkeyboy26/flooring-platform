@@ -944,6 +944,7 @@
       "finish": "Unfinished (No Finish)",
       "category": "engineered-hardwood",
       "material": "Engineered Hardwood",
+      "status": "draft",
       "specs": {
         "construction": "Engineered (100% Birch Plywood), Micro-Beveled Edge",
         "installation_method": "Glue, Float",

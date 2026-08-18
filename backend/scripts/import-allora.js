@@ -240,7 +240,7 @@ async function main() {
   for (const p of catalog.products) {
     const { short, long } = buildDescriptions(p);
     const prod = await upsertProduct(vendor.id, brand.id, catHW, {
-      name: p.name, collection: p.collection, status: 'active',
+      name: p.name, collection: p.collection, status: p.status || 'active',
       description_short: short, description_long: long,
     });
     prod.is_new ? pNew++ : pUpd++;
