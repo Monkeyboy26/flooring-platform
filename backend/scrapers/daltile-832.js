@@ -394,17 +394,12 @@ const MAC_CATEGORY_MAP = {
 };
 
 /**
- * Cost-based sliding retail markup. Higher-cost items get a lower multiplier
- * since Daltile 832 only provides wholesale costs, not retail/MAP prices.
+ * Flat 1.6x keystone markup. Daltile 832 only provides wholesale cost (no
+ * retail/MAP), so retail = cost × 1.6, matching every other vendor's keystone.
  */
 function retailFromCost(cost) {
   if (!cost || cost <= 0) return 0;
-  const multiplier = cost < 5 ? 2.5
-    : cost < 15 ? 2.2
-    : cost < 30 ? 2.0
-    : cost < 50 ? 1.8
-    : 1.6;
-  return Math.round(cost * multiplier * 100) / 100;
+  return Math.round(cost * 1.6 * 100) / 100;
 }
 
 function cleanProductName(raw) {
@@ -607,13 +602,36 @@ const SHAPE_RE = new RegExp(
   '\\b(' + SHAPE_WORDS.map(w => w.replace(/\s+/g, '\\s+')).join('|') + ')\\b', 'i'
 );
 
+// Brands we source through OTHER distributors, not Daltile. Their cleaned/published
+// products live under a different vendor, so importing the Daltile feed's rows for
+// them would recreate junk-named duplicates under DAL.
+//   - Mapei    → Big D Supply (2026-07-27): collection 'Mapei Corporation'
+//   - Schluter → Big D Supply (2026-08-17): manufacturer (LIN MF) 'Schluter Systems
+//     LP'. Its PID-77 collection can instead be a product line (Kerdi-Line, Jolly,
+//     Dilex, Rondec, Schiene, …), so match manufacturer/collection/name.
+//   - Custom Building Products → Emser Tile (2026-08-17): manufacturer
+//     'CUSTOM BUILDING PRODUCTS, INC.' (RedGard, AcrylPro, CEG, 9240, …).
+// See isSourcedElsewhere().
+const SKIP_COLLECTIONS = new Set(['Mapei Corporation']);
+function isSourcedElsewhere(item) {
+  const mf = (item.identifiers && item.identifiers.mf) || '';
+  const coll = item.collection || '';
+  const name = item.product_name || '';
+  if (/schluter/i.test(mf) || /schluter/i.test(coll) || /schluter/i.test(name)) return true; // → Big D
+  if (/custom\s*building\s*products/i.test(mf) || /custom\s*building\s*products/i.test(coll)) return true; // → Emser
+  return false;
+}
+groupIntoProducts.skipped = 0;
+
 function groupIntoProducts(items) {
   const products = new Map();
+  groupIntoProducts.skipped = 0;
 
   for (const item of items) {
     if (!item.vendor_sku && !item.product_name) continue;
 
     const collection = item.collection || '';
+    if (SKIP_COLLECTIONS.has(collection) || isSourcedElsewhere(item)) { groupIntoProducts.skipped++; continue; }
     const category = item.category || '';
     const isAccessory = /accessory|sundries|trim|molding|bullnose|quarter\s*round|grout|caulk|setting\s*material|mortar|adhesive|sealant|membrane|pencil\s*liner|chair\s*rail|v-cap|mud\s*cap|jolly|schluter/i.test(category)
       || /accessory|sundries|trim|molding|bullnose|quarter\s*round|grout|caulk|setting\s*material|mortar|adhesive|sealant|membrane|pencil\s*liner|chair\s*rail|v-cap|mud\s*cap|jolly|schluter/i.test(item.product_name || '');
@@ -763,8 +781,21 @@ async function sendAcknowledgments(pool, job, source, vendorId, ediConfig, impor
           [vendorId, ack.filename, ack.icn, ack.content]
         );
         const txnId = txn.rows[0].id;
-        try {
-          await uploadFile(ftp, `${inboxDir}/${ack.filename}`, ack.content);
+        // Retry the STOR: the partner FTP occasionally returns a transient
+        // "550 Command STOR failed" on back-to-back uploads (rate-limit), which
+        // a short backoff clears — a single attempt used to stick as an error.
+        let uploaded = false, lastErr = null, tries = 0;
+        for (let attempt = 1; attempt <= 3 && !uploaded; attempt++) {
+          tries = attempt;
+          try {
+            await uploadFile(ftp, `${inboxDir}/${ack.filename}`, ack.content);
+            uploaded = true;
+          } catch (err) {
+            lastErr = err;
+            if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 1500));
+          }
+        }
+        if (uploaded) {
           await pool.query(
             `UPDATE edi_transactions SET status = 'sent', processed_at = CURRENT_TIMESTAMP WHERE id = $1`,
             [txnId]
@@ -773,13 +804,14 @@ async function sendAcknowledgments(pool, job, source, vendorId, ediConfig, impor
           const g = ack.ackGroup;
           await appendLog(pool, job.id,
             `  997 sent for ${file.remoteName} → ${inboxDir}/${ack.filename} `
-            + `(acks group ${g.groupCode || '?'} #${g.groupControlNumber || '?'}, ${g.transactionSets.length} txn set(s))`);
-        } catch (err) {
+            + `(acks group ${g.groupCode || '?'} #${g.groupControlNumber || '?'}, ${g.transactionSets.length} txn set(s))`
+            + (tries > 1 ? ` [after ${tries} attempts]` : ''));
+        } else {
           await pool.query(
             `UPDATE edi_transactions SET status = 'error', error_message = $2 WHERE id = $1`,
-            [txnId, err.message]
+            [txnId, lastErr.message]
           );
-          await appendLog(pool, job.id, `  997 upload FAILED for ${file.remoteName}: ${err.message}`);
+          await appendLog(pool, job.id, `  997 upload FAILED for ${file.remoteName} after ${tries} attempts: ${lastErr.message}`);
         }
       }
     }
@@ -795,6 +827,14 @@ async function sendAcknowledgments(pool, job, source, vendorId, ediConfig, impor
 export async function run(pool, job, source) {
   const ftpConfig = getFtpConfig(source);
   let processedFiles = (source.config || {}).processed_files || [];
+
+  // SKUs curated by the Big-D pipelines (renamed/re-parented) — never re-upsert
+  let curatedSkus = new Set();
+  let curatedSkipped = 0;
+  try {
+    curatedSkus = new Set(JSON.parse(fs.readFileSync('data/dal-curated-skus.json', 'utf8')).internal_skus || []);
+    if (curatedSkus.size) await appendLog(pool, job.id, `Curated-SKU protection list loaded: ${curatedSkus.size} SKUs`);
+  } catch { /* no protection list yet */ }
 
   await appendLog(pool, job.id, `Connecting to ${ftpConfig.host}:${ftpConfig.port} as ${ftpConfig.user}...`);
 
@@ -928,7 +968,8 @@ export async function run(pool, job, source) {
     }
 
     const productGroups = groupIntoProducts(catalog.items);
-    await appendLog(pool, job.id, `  Grouped into ${productGroups.length} products`);
+    await appendLog(pool, job.id, `  Grouped into ${productGroups.length} products` +
+      (groupIntoProducts.skipped ? ` (skipped ${groupIntoProducts.skipped} items sourced elsewhere: Mapei, Schluter, Custom Building Products)` : ''));
 
     let productsCreated = 0, productsUpdated = 0, skusCreated = 0, skusUpdated = 0;
     let pricingUpserted = 0, packagingUpserted = 0, attrsUpserted = 0;
@@ -949,6 +990,10 @@ export async function run(pool, job, source) {
 
       for (const item of group.items) {
         const internalSku = makeInternalSku(item.vendor_sku, item.product_name);
+        // Curated SKUs (see data/dal-curated-skus.json, written by the Big-D
+        // pipelines like schluter-unified.js) were renamed/re-parented by hand —
+        // an upsert here would yank them back onto EDI junk products.
+        if (curatedSkus.has(internalSku)) { curatedSkipped++; continue; }
         const vendorSku = item.vendor_sku || internalSku;
         const sellBy = item.sell_by || 'box';
         // Per-item accessory detection (Bn items) takes priority, then group-level.
@@ -1070,11 +1115,30 @@ export async function run(pool, job, source) {
         if (materialPid) { await upsertSkuAttribute(pool, skuId, 'material', materialPid.description); attrsUpserted++; }
 
         const thickMea = item.measurements.find(m => m.qualifier === 'TH');
-        if (thickMea) { await upsertSkuAttribute(pool, skuId, 'thickness', `${thickMea.value}${thickMea.unit_of_measure || ''}`); attrsUpserted++; }
+        if (thickMea) {
+          let thickVal = `${thickMea.value}${thickMea.unit_of_measure || ''}`;
+          // Slab feeds report every offered thickness in one measurement (e.g.
+          // "2cm; 3cm" for countertops, "12mm; 6mm" for porcelain slabs); the
+          // SKU's real thickness is the trailing number of the item #
+          // (…PL2 = 2cm, …PL3VT = 3cm, …GL6A = 6mm, …GL12 = 12mm). Match it back
+          // to one of the offered values so the storefront can render a proper
+          // thickness selector. Tile/plank fraction/mm ranges won't match and are
+          // left merged (thickness isn't a per-SKU choice there).
+          if (thickVal.includes(';')) {
+            const opts = thickVal.split(';').map(s => s.trim()).filter(Boolean);
+            const tm = String(item.vendor_sku || '').match(/(\d+)(?:[A-Z]{1,2})?$/);
+            const hit = tm && opts.find(o => o === tm[1] + 'cm' || o === tm[1] + 'mm');
+            if (hit) thickVal = hit;
+          }
+          await upsertSkuAttribute(pool, skuId, 'thickness', thickVal);
+          attrsUpserted++;
+        }
 
         const widthMea = item.measurements.find(m => m.qualifier === 'WD');
         const lengthMea = item.measurements.find(m => m.qualifier === 'LN');
-        if (widthMea && lengthMea) {
+        // Sundries/trim carry 0x0 placeholder dimensions — writing them creates
+        // junk "0x0EZ" size attributes that render as "0x0 Mosaic" on the shop
+        if (widthMea && lengthMea && parseFloat(widthMea.value) > 0 && parseFloat(lengthMea.value) > 0) {
           await upsertSkuAttribute(pool, skuId, 'size', `${widthMea.value}x${lengthMea.value}${lengthMea.unit_of_measure || ''}`);
           attrsUpserted++;
         }
@@ -1146,7 +1210,8 @@ export async function run(pool, job, source) {
     totalPackaging += packagingUpserted;
     totalAttrs += attrsUpserted;
 
-    await appendLog(pool, job.id, `  ${file.remoteName}: ${productsCreated} new / ${productsUpdated} updated products, ${skusCreated} new / ${skusUpdated} updated SKUs, ${pricingUpserted} pricing, ${packagingUpserted} packaging`);
+    await appendLog(pool, job.id, `  ${file.remoteName}: ${productsCreated} new / ${productsUpdated} updated products, ${skusCreated} new / ${skusUpdated} updated SKUs, ${pricingUpserted} pricing, ${packagingUpserted} packaging` +
+      (curatedSkipped ? `, ${curatedSkipped} curated SKUs protected` : ''));
 
     // Mark file as processed
     processedFiles = [...processedFiles, file.remoteName];

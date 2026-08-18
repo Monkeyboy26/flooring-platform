@@ -540,6 +540,26 @@ function finalizeItem(item) {
     else if (puom === 'EA' || puom === 'PC') item.sell_by = 'unit';
   }
 
+  // Carton-priced lines flagged SF: some feed lines carry $/carton dollars with
+  // an SF unit (Revify deco kits, cove-base strip cartons). No tile costs
+  // $40+/sqft at dealer, so treat the dollars as per-carton: tiny-coverage
+  // multi-piece kits become per-piece units; coverage-less cartons sell as one
+  // unit at the carton price. Named piece-packs are per-carton regardless.
+  if (item.sell_by === 'box' && item.cost > 40) {
+    const pieces = item.pieces_per_box || 0;
+    const sqftBox = item.sqft_per_box || 0;
+    if (!sqftBox) {
+      item.sell_by = 'unit';
+    } else if (pieces >= 4 && (item.cost / sqftBox > 40 || /^revify/i.test(item.product_name || ''))) {
+      item.cost = parseFloat((item.cost / pieces).toFixed(4));
+      if (item.retail_price) item.retail_price = parseFloat((item.retail_price / pieces).toFixed(4));
+      item.sell_by = 'unit';
+    }
+  }
+  if (/\b\d+\s*pack\b|strips\b.*\bpieces\b|\bpieces\s+\d+lf\b/i.test(item.product_name || '')) {
+    item.sell_by = 'unit';
+  }
+
   // Detect accessories by name/category keywords
   const nameAndCat = `${item.product_name || ''} ${item.category || ''}`.toLowerCase();
   if (/trim|bullnose|quarter\s*round|grout|caulk|setting\s*material|mortar|adhesive|sealant|membrane|pencil\s*liner|chair\s*rail|v-cap|mud\s*cap|jolly|schluter/i.test(nameAndCat)) {
@@ -667,6 +687,11 @@ function groupIntoProducts(items) {
     if (!item.vendor_sku && !item.product_name) continue;
     // Feed placeholder rows with no usable description ("ZITEMS" bucket)
     if (/^z-?items$/i.test((item.product_name || '').trim())) continue;
+    // Mapei is sourced through Big D Supply, not Emser (2026-08-17) — same policy as
+    // Daltile's Mapei skip. Emser's feed carries a few Mapei caulks/colorants (its
+    // COLORFAST / Aqua Mix lines) with "Mapei" in the name; skip them so they don't
+    // reappear under Emser after being folded into the BIGD vendor.
+    if (/\bmapei\b/i.test(item.product_name || '') || /\bmapei\b/i.test(item.collection || '')) continue;
 
     const collection = item.collection || '';
     const category = item.category || '';
