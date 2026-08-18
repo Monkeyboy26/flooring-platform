@@ -1,0 +1,977 @@
+{
+  "vendor": {
+    "name": "Old Master Products",
+    "code": "GAR",
+    "brand": "Allora",
+    "brand_code": "ALLORA",
+    "website": "https://allorafloors.com",
+    "notes": "Allora (Made in Italy, European Oak engineered) — Displaying Dealer Price List v7.2025. Dealer price = Roma COST; retail = cost x1.6 keystone (9-ending + covering floor). Same manufacturer/vendor as Garrison (Old Master Products). Colors: Altura, Aria, Doma, Luna, Sella, Strada, Ventasso, Volto (+ Unfinished). Formats: 7-1/2\" & 9-1/2\" wide plank (Select Character ABCD / Select AB) + Herringbone. 5 color-matched moulding types. Prefinished stair treads/risers, adhesives, LOBA/BONA care products are contact-for-pricing and NOT imported."
+  },
+  "products": [
+    {
+      "collection": "Allora",
+      "name": "Altura",
+      "color": "Altura",
+      "species": "European Oak",
+      "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+      "category": "engineered-hardwood",
+      "material": "Engineered Hardwood",
+      "specs": {
+        "construction": "Engineered (100% Birch Plywood), Micro-Beveled Edge",
+        "installation_method": "Glue, Float (Herringbone: Glue)",
+        "surface_texture": "Light Wire-Brushed"
+      },
+      "mould_note": "Color-matched Reducer, Square/Bullnose Stair Nosing, Baby Threshold & T-Moulding.",
+      "skus": [
+        {
+          "vendor_sku": "GFALO7501",
+          "internal_sku": "ALLORA-GFALO7501",
+          "variant_name": "7-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 6.99,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO7501S",
+          "internal_sku": "ALLORA-GFALO7501S",
+          "variant_name": "7-1/2″ · Select",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 9.79,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select (AB)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO9501",
+          "internal_sku": "ALLORA-GFALO9501",
+          "variant_name": "9-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 9-1/2\" (242 mm)",
+          "cost": 7.49,
+          "sqft_box": 24.49,
+          "lbs_box": 57,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "9-1/2\" (242 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        }
+      ],
+      "mouldings": [
+        {
+          "type": "Reducer",
+          "accessory_label": "Reducer — Altura",
+          "vendor_sku": "GCALRE7O01",
+          "internal_sku": "ALLORA-GCALRE7O01",
+          "cost": 99.99,
+          "size": "5/8\" x 2\" x 92-1/2\""
+        },
+        {
+          "type": "Square Stair Nosing",
+          "accessory_label": "Square Stair Nosing — Altura",
+          "vendor_sku": "GCALSNO7O01",
+          "internal_sku": "ALLORA-GCALSNO7O01",
+          "cost": 149.99,
+          "size": "1-1/2\" x 3-1/2\" x 92-1/2\""
+        },
+        {
+          "type": "Bullnose Stair Nosing",
+          "accessory_label": "Bullnose Stair Nosing — Altura",
+          "vendor_sku": "GCALNOO8O01",
+          "internal_sku": "ALLORA-GCALNOO8O01",
+          "cost": 99.99,
+          "size": "5/8\" x 3-1/2\" x 96\""
+        },
+        {
+          "type": "Baby Threshold",
+          "accessory_label": "Baby Threshold — Altura",
+          "vendor_sku": "GCALBTO8O01",
+          "internal_sku": "ALLORA-GCALBTO8O01",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        },
+        {
+          "type": "T-Moulding",
+          "accessory_label": "T-Moulding — Altura",
+          "vendor_sku": "GCALTMO8O01",
+          "internal_sku": "ALLORA-GCALTMO8O01",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        }
+      ]
+    },
+    {
+      "collection": "Allora",
+      "name": "Aria",
+      "color": "Aria",
+      "species": "European Oak",
+      "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+      "category": "engineered-hardwood",
+      "material": "Engineered Hardwood",
+      "specs": {
+        "construction": "Engineered (100% Birch Plywood), Micro-Beveled Edge",
+        "installation_method": "Glue, Float (Herringbone: Glue)",
+        "surface_texture": "Light Wire-Brushed"
+      },
+      "mould_note": "Color-matched Reducer, Square/Bullnose Stair Nosing, Baby Threshold & T-Moulding.",
+      "skus": [
+        {
+          "vendor_sku": "GFALO7502",
+          "internal_sku": "ALLORA-GFALO7502",
+          "variant_name": "7-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 6.99,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO9502",
+          "internal_sku": "ALLORA-GFALO9502",
+          "variant_name": "9-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 9-1/2\" (242 mm)",
+          "cost": 7.49,
+          "sqft_box": 24.49,
+          "lbs_box": 57,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "9-1/2\" (242 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        }
+      ],
+      "mouldings": [
+        {
+          "type": "Reducer",
+          "accessory_label": "Reducer — Aria",
+          "vendor_sku": "GCALRE7O02",
+          "internal_sku": "ALLORA-GCALRE7O02",
+          "cost": 99.99,
+          "size": "5/8\" x 2\" x 92-1/2\""
+        },
+        {
+          "type": "Square Stair Nosing",
+          "accessory_label": "Square Stair Nosing — Aria",
+          "vendor_sku": "GCALSNO7O02",
+          "internal_sku": "ALLORA-GCALSNO7O02",
+          "cost": 149.99,
+          "size": "1-1/2\" x 3-1/2\" x 92-1/2\""
+        },
+        {
+          "type": "Bullnose Stair Nosing",
+          "accessory_label": "Bullnose Stair Nosing — Aria",
+          "vendor_sku": "GCALNOO8O02",
+          "internal_sku": "ALLORA-GCALNOO8O02",
+          "cost": 99.99,
+          "size": "5/8\" x 3-1/2\" x 96\""
+        },
+        {
+          "type": "Baby Threshold",
+          "accessory_label": "Baby Threshold — Aria",
+          "vendor_sku": "GCALBTO8O02",
+          "internal_sku": "ALLORA-GCALBTO8O02",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        },
+        {
+          "type": "T-Moulding",
+          "accessory_label": "T-Moulding — Aria",
+          "vendor_sku": "GCALTMO8O02",
+          "internal_sku": "ALLORA-GCALTMO8O02",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        }
+      ]
+    },
+    {
+      "collection": "Allora",
+      "name": "Doma",
+      "color": "Doma",
+      "species": "European Oak",
+      "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+      "category": "engineered-hardwood",
+      "material": "Engineered Hardwood",
+      "specs": {
+        "construction": "Engineered (100% Birch Plywood), Micro-Beveled Edge",
+        "installation_method": "Glue, Float (Herringbone: Glue)",
+        "surface_texture": "Light Wire-Brushed"
+      },
+      "mould_note": "Color-matched Reducer, Square/Bullnose Stair Nosing, Baby Threshold & T-Moulding.",
+      "skus": [
+        {
+          "vendor_sku": "GFALO7503",
+          "internal_sku": "ALLORA-GFALO7503",
+          "variant_name": "7-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 6.99,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO7503S",
+          "internal_sku": "ALLORA-GFALO7503S",
+          "variant_name": "7-1/2″ · Select",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 9.79,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select (AB)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO9503",
+          "internal_sku": "ALLORA-GFALO9503",
+          "variant_name": "9-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 9-1/2\" (242 mm)",
+          "cost": 7.49,
+          "sqft_box": 24.49,
+          "lbs_box": 57,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "9-1/2\" (242 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO9503S",
+          "internal_sku": "ALLORA-GFALO9503S",
+          "variant_name": "9-1/2″ · Select",
+          "size": "5/8\" (15 mm) x 9-1/2\" (242 mm)",
+          "cost": 10.99,
+          "sqft_box": 24.49,
+          "lbs_box": 57,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "9-1/2\" (242 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select (AB)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALPH403",
+          "internal_sku": "ALLORA-GFALPH403",
+          "variant_name": "Herringbone · 4-3/4″",
+          "size": "5/8\" (15 mm) x 4-3/4\" (120 mm)",
+          "cost": 9.49,
+          "sqft_box": 7.75,
+          "lbs_box": 18,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "4-3/4\" (120 mm)",
+          "length": "23-5/8\" (600 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABC)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": "Herringbone"
+        }
+      ],
+      "mouldings": [
+        {
+          "type": "Reducer",
+          "accessory_label": "Reducer — Doma",
+          "vendor_sku": "GCALRE7O03",
+          "internal_sku": "ALLORA-GCALRE7O03",
+          "cost": 99.99,
+          "size": "5/8\" x 2\" x 92-1/2\""
+        },
+        {
+          "type": "Square Stair Nosing",
+          "accessory_label": "Square Stair Nosing — Doma",
+          "vendor_sku": "GCALSNO7O03",
+          "internal_sku": "ALLORA-GCALSNO7O03",
+          "cost": 149.99,
+          "size": "1-1/2\" x 3-1/2\" x 92-1/2\""
+        },
+        {
+          "type": "Bullnose Stair Nosing",
+          "accessory_label": "Bullnose Stair Nosing — Doma",
+          "vendor_sku": "GCALNOO8O03",
+          "internal_sku": "ALLORA-GCALNOO8O03",
+          "cost": 99.99,
+          "size": "5/8\" x 3-1/2\" x 96\""
+        },
+        {
+          "type": "Baby Threshold",
+          "accessory_label": "Baby Threshold — Doma",
+          "vendor_sku": "GCALBTO8O03",
+          "internal_sku": "ALLORA-GCALBTO8O03",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        },
+        {
+          "type": "T-Moulding",
+          "accessory_label": "T-Moulding — Doma",
+          "vendor_sku": "GCALTMO8O03",
+          "internal_sku": "ALLORA-GCALTMO8O03",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        }
+      ]
+    },
+    {
+      "collection": "Allora",
+      "name": "Luna",
+      "color": "Luna",
+      "species": "European Oak",
+      "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+      "category": "engineered-hardwood",
+      "material": "Engineered Hardwood",
+      "specs": {
+        "construction": "Engineered (100% Birch Plywood), Micro-Beveled Edge",
+        "installation_method": "Glue, Float (Herringbone: Glue)",
+        "surface_texture": "Light Wire-Brushed"
+      },
+      "mould_note": "Color-matched Reducer, Square/Bullnose Stair Nosing, Baby Threshold & T-Moulding.",
+      "skus": [
+        {
+          "vendor_sku": "GFALO7504",
+          "internal_sku": "ALLORA-GFALO7504",
+          "variant_name": "7-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 6.99,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO7504S",
+          "internal_sku": "ALLORA-GFALO7504S",
+          "variant_name": "7-1/2″ · Select",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 9.79,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select (AB)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO9504",
+          "internal_sku": "ALLORA-GFALO9504",
+          "variant_name": "9-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 9-1/2\" (242 mm)",
+          "cost": 7.49,
+          "sqft_box": 24.49,
+          "lbs_box": 57,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "9-1/2\" (242 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO9504S",
+          "internal_sku": "ALLORA-GFALO9504S",
+          "variant_name": "9-1/2″ · Select",
+          "size": "5/8\" (15 mm) x 9-1/2\" (242 mm)",
+          "cost": 10.99,
+          "sqft_box": 24.49,
+          "lbs_box": 57,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "9-1/2\" (242 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select (AB)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALPH404",
+          "internal_sku": "ALLORA-GFALPH404",
+          "variant_name": "Herringbone · 4-3/4″",
+          "size": "5/8\" (15 mm) x 4-3/4\" (120 mm)",
+          "cost": 9.49,
+          "sqft_box": 7.75,
+          "lbs_box": 18,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "4-3/4\" (120 mm)",
+          "length": "23-5/8\" (600 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABC)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": "Herringbone"
+        }
+      ],
+      "mouldings": [
+        {
+          "type": "Reducer",
+          "accessory_label": "Reducer — Luna",
+          "vendor_sku": "GCALRE7O04",
+          "internal_sku": "ALLORA-GCALRE7O04",
+          "cost": 99.99,
+          "size": "5/8\" x 2\" x 92-1/2\""
+        },
+        {
+          "type": "Square Stair Nosing",
+          "accessory_label": "Square Stair Nosing — Luna",
+          "vendor_sku": "GCALSNO7O04",
+          "internal_sku": "ALLORA-GCALSNO7O04",
+          "cost": 149.99,
+          "size": "1-1/2\" x 3-1/2\" x 92-1/2\""
+        },
+        {
+          "type": "Bullnose Stair Nosing",
+          "accessory_label": "Bullnose Stair Nosing — Luna",
+          "vendor_sku": "GCALNOO8O04",
+          "internal_sku": "ALLORA-GCALNOO8O04",
+          "cost": 99.99,
+          "size": "5/8\" x 3-1/2\" x 96\""
+        },
+        {
+          "type": "Baby Threshold",
+          "accessory_label": "Baby Threshold — Luna",
+          "vendor_sku": "GCALBTO8O04",
+          "internal_sku": "ALLORA-GCALBTO8O04",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        },
+        {
+          "type": "T-Moulding",
+          "accessory_label": "T-Moulding — Luna",
+          "vendor_sku": "GCALTMO8O04",
+          "internal_sku": "ALLORA-GCALTMO8O04",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        }
+      ]
+    },
+    {
+      "collection": "Allora",
+      "name": "Sella",
+      "color": "Sella",
+      "species": "European Oak",
+      "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+      "category": "engineered-hardwood",
+      "material": "Engineered Hardwood",
+      "specs": {
+        "construction": "Engineered (100% Birch Plywood), Micro-Beveled Edge",
+        "installation_method": "Glue, Float (Herringbone: Glue)",
+        "surface_texture": "Light Wire-Brushed"
+      },
+      "mould_note": "Color-matched Reducer, Square/Bullnose Stair Nosing, Baby Threshold & T-Moulding.",
+      "skus": [
+        {
+          "vendor_sku": "GFALO7505",
+          "internal_sku": "ALLORA-GFALO7505",
+          "variant_name": "7-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 6.99,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO7505S",
+          "internal_sku": "ALLORA-GFALO7505S",
+          "variant_name": "7-1/2″ · Select",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 9.79,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select (AB)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO9505",
+          "internal_sku": "ALLORA-GFALO9505",
+          "variant_name": "9-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 9-1/2\" (242 mm)",
+          "cost": 7.49,
+          "sqft_box": 24.49,
+          "lbs_box": 57,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "9-1/2\" (242 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO9505S",
+          "internal_sku": "ALLORA-GFALO9505S",
+          "variant_name": "9-1/2″ · Select",
+          "size": "5/8\" (15 mm) x 9-1/2\" (242 mm)",
+          "cost": 10.99,
+          "sqft_box": 24.49,
+          "lbs_box": 57,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "9-1/2\" (242 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select (AB)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALPH405",
+          "internal_sku": "ALLORA-GFALPH405",
+          "variant_name": "Herringbone · 4-3/4″",
+          "size": "5/8\" (15 mm) x 4-3/4\" (120 mm)",
+          "cost": 9.49,
+          "sqft_box": 7.75,
+          "lbs_box": 18,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "4-3/4\" (120 mm)",
+          "length": "23-5/8\" (600 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABC)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": "Herringbone"
+        }
+      ],
+      "mouldings": [
+        {
+          "type": "Reducer",
+          "accessory_label": "Reducer — Sella",
+          "vendor_sku": "GCALRE7O05",
+          "internal_sku": "ALLORA-GCALRE7O05",
+          "cost": 99.99,
+          "size": "5/8\" x 2\" x 92-1/2\""
+        },
+        {
+          "type": "Square Stair Nosing",
+          "accessory_label": "Square Stair Nosing — Sella",
+          "vendor_sku": "GCALSNO7O05",
+          "internal_sku": "ALLORA-GCALSNO7O05",
+          "cost": 149.99,
+          "size": "1-1/2\" x 3-1/2\" x 92-1/2\""
+        },
+        {
+          "type": "Bullnose Stair Nosing",
+          "accessory_label": "Bullnose Stair Nosing — Sella",
+          "vendor_sku": "GCALNOO8O05",
+          "internal_sku": "ALLORA-GCALNOO8O05",
+          "cost": 99.99,
+          "size": "5/8\" x 3-1/2\" x 96\""
+        },
+        {
+          "type": "Baby Threshold",
+          "accessory_label": "Baby Threshold — Sella",
+          "vendor_sku": "GCALBTO8O05",
+          "internal_sku": "ALLORA-GCALBTO8O05",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        },
+        {
+          "type": "T-Moulding",
+          "accessory_label": "T-Moulding — Sella",
+          "vendor_sku": "GCALTMO8O05",
+          "internal_sku": "ALLORA-GCALTMO8O05",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        }
+      ]
+    },
+    {
+      "collection": "Allora",
+      "name": "Strada",
+      "color": "Strada",
+      "species": "European Oak",
+      "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+      "category": "engineered-hardwood",
+      "material": "Engineered Hardwood",
+      "specs": {
+        "construction": "Engineered (100% Birch Plywood), Micro-Beveled Edge",
+        "installation_method": "Glue, Float (Herringbone: Glue)",
+        "surface_texture": "Light Wire-Brushed"
+      },
+      "mould_note": "Color-matched Reducer, Square/Bullnose Stair Nosing, Baby Threshold & T-Moulding.",
+      "skus": [
+        {
+          "vendor_sku": "GFALO7506",
+          "internal_sku": "ALLORA-GFALO7506",
+          "variant_name": "7-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 6.99,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        }
+      ],
+      "mouldings": [
+        {
+          "type": "Reducer",
+          "accessory_label": "Reducer — Strada",
+          "vendor_sku": "GCALRE7O06",
+          "internal_sku": "ALLORA-GCALRE7O06",
+          "cost": 99.99,
+          "size": "5/8\" x 2\" x 92-1/2\""
+        },
+        {
+          "type": "Square Stair Nosing",
+          "accessory_label": "Square Stair Nosing — Strada",
+          "vendor_sku": "GCALSNO7O06",
+          "internal_sku": "ALLORA-GCALSNO7O06",
+          "cost": 149.99,
+          "size": "1-1/2\" x 3-1/2\" x 92-1/2\""
+        },
+        {
+          "type": "Bullnose Stair Nosing",
+          "accessory_label": "Bullnose Stair Nosing — Strada",
+          "vendor_sku": "GCALNOO8O06",
+          "internal_sku": "ALLORA-GCALNOO8O06",
+          "cost": 99.99,
+          "size": "5/8\" x 3-1/2\" x 96\""
+        },
+        {
+          "type": "Baby Threshold",
+          "accessory_label": "Baby Threshold — Strada",
+          "vendor_sku": "GCALBTO8O06",
+          "internal_sku": "ALLORA-GCALBTO8O06",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        },
+        {
+          "type": "T-Moulding",
+          "accessory_label": "T-Moulding — Strada",
+          "vendor_sku": "GCALTMO8O06",
+          "internal_sku": "ALLORA-GCALTMO8O06",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        }
+      ]
+    },
+    {
+      "collection": "Allora",
+      "name": "Ventasso",
+      "color": "Ventasso",
+      "species": "European Oak",
+      "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+      "category": "engineered-hardwood",
+      "material": "Engineered Hardwood",
+      "specs": {
+        "construction": "Engineered (100% Birch Plywood), Micro-Beveled Edge",
+        "installation_method": "Glue, Float (Herringbone: Glue)",
+        "surface_texture": "Light Wire-Brushed"
+      },
+      "mould_note": "Color-matched Reducer, Square/Bullnose Stair Nosing, Baby Threshold & T-Moulding.",
+      "skus": [
+        {
+          "vendor_sku": "GFALO7507",
+          "internal_sku": "ALLORA-GFALO7507",
+          "variant_name": "7-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 6.99,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        }
+      ],
+      "mouldings": [
+        {
+          "type": "Reducer",
+          "accessory_label": "Reducer — Ventasso",
+          "vendor_sku": "GCALRE7O07",
+          "internal_sku": "ALLORA-GCALRE7O07",
+          "cost": 99.99,
+          "size": "5/8\" x 2\" x 92-1/2\""
+        },
+        {
+          "type": "Square Stair Nosing",
+          "accessory_label": "Square Stair Nosing — Ventasso",
+          "vendor_sku": "GCALSNO7O07",
+          "internal_sku": "ALLORA-GCALSNO7O07",
+          "cost": 149.99,
+          "size": "1-1/2\" x 3-1/2\" x 92-1/2\""
+        },
+        {
+          "type": "Bullnose Stair Nosing",
+          "accessory_label": "Bullnose Stair Nosing — Ventasso",
+          "vendor_sku": "GCALNOO8O07",
+          "internal_sku": "ALLORA-GCALNOO8O07",
+          "cost": 99.99,
+          "size": "5/8\" x 3-1/2\" x 96\""
+        },
+        {
+          "type": "Baby Threshold",
+          "accessory_label": "Baby Threshold — Ventasso",
+          "vendor_sku": "GCALBTO8O07",
+          "internal_sku": "ALLORA-GCALBTO8O07",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        },
+        {
+          "type": "T-Moulding",
+          "accessory_label": "T-Moulding — Ventasso",
+          "vendor_sku": "GCALTMO8O07",
+          "internal_sku": "ALLORA-GCALTMO8O07",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        }
+      ]
+    },
+    {
+      "collection": "Allora",
+      "name": "Volto",
+      "color": "Volto",
+      "species": "European Oak",
+      "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+      "category": "engineered-hardwood",
+      "material": "Engineered Hardwood",
+      "specs": {
+        "construction": "Engineered (100% Birch Plywood), Micro-Beveled Edge",
+        "installation_method": "Glue, Float (Herringbone: Glue)",
+        "surface_texture": "Light Wire-Brushed"
+      },
+      "mould_note": "Color-matched Reducer, Square/Bullnose Stair Nosing, Baby Threshold & T-Moulding.",
+      "skus": [
+        {
+          "vendor_sku": "GFALO7508",
+          "internal_sku": "ALLORA-GFALO7508",
+          "variant_name": "7-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 7-1/2\" (192 mm)",
+          "cost": 6.99,
+          "sqft_box": 19.42,
+          "lbs_box": 45,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "7-1/2\" (192 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        },
+        {
+          "vendor_sku": "GFALO9508",
+          "internal_sku": "ALLORA-GFALO9508",
+          "variant_name": "9-1/2″ · Select Character",
+          "size": "5/8\" (15 mm) x 9-1/2\" (242 mm)",
+          "cost": 7.49,
+          "sqft_box": 24.49,
+          "lbs_box": 57,
+          "status": "active",
+          "note": null,
+          "thickness": "5/8\" (15 mm)",
+          "width": "9-1/2\" (242 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select Character (ABCD)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Eight-Layer Water-Based UV Matte Lacquer",
+          "pattern": null
+        }
+      ],
+      "mouldings": [
+        {
+          "type": "Reducer",
+          "accessory_label": "Reducer — Volto",
+          "vendor_sku": "GCALRE7O08",
+          "internal_sku": "ALLORA-GCALRE7O08",
+          "cost": 99.99,
+          "size": "5/8\" x 2\" x 92-1/2\""
+        },
+        {
+          "type": "Square Stair Nosing",
+          "accessory_label": "Square Stair Nosing — Volto",
+          "vendor_sku": "GCALSNO7O08",
+          "internal_sku": "ALLORA-GCALSNO7O08",
+          "cost": 149.99,
+          "size": "1-1/2\" x 3-1/2\" x 92-1/2\""
+        },
+        {
+          "type": "Bullnose Stair Nosing",
+          "accessory_label": "Bullnose Stair Nosing — Volto",
+          "vendor_sku": "GCALNOO8O08",
+          "internal_sku": "ALLORA-GCALNOO8O08",
+          "cost": 99.99,
+          "size": "5/8\" x 3-1/2\" x 96\""
+        },
+        {
+          "type": "Baby Threshold",
+          "accessory_label": "Baby Threshold — Volto",
+          "vendor_sku": "GCALBTO8O08",
+          "internal_sku": "ALLORA-GCALBTO8O08",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        },
+        {
+          "type": "T-Moulding",
+          "accessory_label": "T-Moulding — Volto",
+          "vendor_sku": "GCALTMO8O08",
+          "internal_sku": "ALLORA-GCALTMO8O08",
+          "cost": 79.99,
+          "size": "5/8\" x 2\" x 96\""
+        }
+      ]
+    },
+    {
+      "collection": "Allora",
+      "name": "Unfinished",
+      "color": "Unfinished",
+      "species": "European Oak",
+      "finish": "Unfinished (No Finish)",
+      "category": "engineered-hardwood",
+      "material": "Engineered Hardwood",
+      "specs": {
+        "construction": "Engineered (100% Birch Plywood), Micro-Beveled Edge",
+        "installation_method": "Glue, Float",
+        "surface_texture": "Smooth"
+      },
+      "mould_note": null,
+      "skus": [
+        {
+          "vendor_sku": "GFALO9500S",
+          "internal_sku": "ALLORA-GFALO9500S",
+          "variant_name": "9-1/2″ · Unfinished Select",
+          "size": "5/8\" (15 mm) x 9-1/2\" (242 mm)",
+          "cost": 8.49,
+          "sqft_box": 24.49,
+          "lbs_box": 57,
+          "status": "active",
+          "note": "Unfinished, smooth — site-finished after install.",
+          "thickness": "5/8\" (15 mm)",
+          "width": "9-1/2\" (242 mm)",
+          "length": "Mostly 7'8-1/2\" (2350 mm)",
+          "wear_layer": "4.0 mm",
+          "grade": "Select (AB)",
+          "edge_type": "Micro-Beveled",
+          "finish": "Unfinished (No Finish)",
+          "pattern": null
+        }
+      ],
+      "mouldings": []
+    }
+  ]
+}
