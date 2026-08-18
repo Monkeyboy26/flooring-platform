@@ -38,15 +38,22 @@ const FINISH = 'Eight-Layer Water-Based UV Matte Lacquer';
 const SURFACE = 'Light Wire-Brushed';
 
 // ---- Format specs ----
+// `sizeLabel` is the clean value stored in the `size` attribute — it drives the
+// storefront's size/format pill (7-1/2" · 9-1/2" · Herringbone). The full metric
+// dimension lives in width/length/thickness for the spec block. See
+// [[variant-pill-independence]].
 const FMT = {
-  p75: { label: '7-1/2"', width: '7-1/2" (192 mm)', length: 'Mostly 7\'8-1/2" (2350 mm)', sqft_box: 19.42, lbs_box: 45, install: 'Glue, Float' },
-  p95: { label: '9-1/2"', width: '9-1/2" (242 mm)', length: 'Mostly 7\'8-1/2" (2350 mm)', sqft_box: 24.49, lbs_box: 57, install: 'Glue, Float' },
-  hb:  { label: 'Herringbone', width: '4-3/4" (120 mm)', length: '23-5/8" (600 mm)', sqft_box: 7.75, lbs_box: 18, install: 'Glue', pattern: 'Herringbone' },
+  p75: { sizeLabel: '7-1/2″', width: '7-1/2" (192 mm)', length: 'Mostly 7\'8-1/2" (2350 mm)', sqft_box: 19.42, lbs_box: 45, install: 'Glue, Float' },
+  p95: { sizeLabel: '9-1/2″', width: '9-1/2" (242 mm)', length: 'Mostly 7\'8-1/2" (2350 mm)', sqft_box: 24.49, lbs_box: 57, install: 'Glue, Float' },
+  hb:  { sizeLabel: 'Herringbone', width: '4-3/4" (120 mm)', length: '23-5/8" (600 mm)', sqft_box: 7.75, lbs_box: 18, install: 'Glue', pattern: 'Herringbone' },
 };
 
-const GRADE_CHAR = 'Select Character (ABCD)';
-const GRADE_SEL = 'Select (AB)';
-const GRADE_HB = 'Select Character (ABC)';
+// Grade is the second variant axis (a genuine upgrade choice). Kept to two clean
+// pill values; the vendor appearance codes (ABCD/AB/ABC) live in the description
+// instead of splitting herringbone's ABC into a confusing third pill.
+const GRADE_CHAR = 'Select Character';
+const GRADE_SEL = 'Select';
+const GRADE_HB = 'Select Character'; // herringbone is ABC, still "Select Character" for the pill axis
 
 // Colors in price-list order → index drives moulding SKU suffix (01..08).
 const COLOR_INDEX = { Altura: 1, Aria: 2, Doma: 3, Luna: 4, Sella: 5, Strada: 6, Ventasso: 7, Volto: 8 };
@@ -77,7 +84,7 @@ function plankSku(color, vendorSku, variantName, grade, fmt, cost) {
     vendor_sku: vendorSku,
     internal_sku: `ALLORA-${vendorSku}`,
     variant_name: variantName,
-    size: `${THICKNESS} x ${fmt.width}`,
+    size: fmt.sizeLabel,
     cost,
     sqft_box: fmt.sqft_box,
     lbs_box: fmt.lbs_box,
@@ -159,7 +166,7 @@ function buildUnfinished() {
       vendor_sku: vsku,
       internal_sku: `ALLORA-${vsku}`,
       variant_name: '9-1/2″ · Unfinished Select',
-      size: `${THICKNESS} x ${FMT.p95.width}`,
+      size: '9-1/2″',
       cost: 8.49,
       sqft_box: FMT.p95.sqft_box,
       lbs_box: FMT.p95.lbs_box,
