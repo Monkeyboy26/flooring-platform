@@ -5112,11 +5112,11 @@
                     <span>Services</span>
                     {chevronRight}
                   </button>
+                </div>
+                <div className="mobile-nav-footer">
                   {!tradeCustomer && (
                     <a className="mobile-nav-trade-cta" href="#" onClick={e => { e.preventDefault(); goTrade(); onClose(); }}>Trade Program</a>
                   )}
-                </div>
-                <div className="mobile-nav-footer">
                   {customer ? (
                     <div className="mobile-nav-account">
                       <div className="mobile-nav-account-label">Signed in as {customer.first_name || customer.email}</div>
