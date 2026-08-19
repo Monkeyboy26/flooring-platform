@@ -622,6 +622,14 @@
       }
       return price;
     }
+    // Product-card price: per-piece stone headlines the comparable per-SQFT rate
+    // (raw stored price) rather than the computed per-piece price, matching the PDP.
+    function cardPriceOf(sku, rawPrice) {
+      return isSoldPerPiece(sku) ? parseFloat(rawPrice || 0) : displayPrice(sku, rawPrice);
+    }
+    function cardPriceSuffix(sku) {
+      return isSoldPerPiece(sku) ? '/sqft' : priceSuffix(sku);
+    }
 
     // ==================== Image Aspect Ratio Detection ====================
     // Switches non-square product images from cover to contain so they aren't cropped
@@ -5511,7 +5519,7 @@
                           {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 600)} alt={sku.product_name} loading="lazy" decoding="async" />}
                         </div>
                         <div className="form-specimen-card-meta">No. {String(i + 1).padStart(2, '0')} &middot; {sku.category_name || 'Flooring'}</div>
-                        {price && <div className="form-specimen-card-price">${displayPrice(sku, price).toFixed(2)}{priceSuffix(sku)}</div>}
+                        {price && <div className="form-specimen-card-price">${cardPriceOf(sku, price).toFixed(2)}{cardPriceSuffix(sku)}</div>}
                         <div className="form-specimen-card-name">{fullProductName(sku)}</div>
                         <div className="form-specimen-card-desc">{[publicBrand(sku), sku.variant_name].filter(Boolean).join(' \u00B7 ')}</div>
                         <div className="form-specimen-card-cta">View in catalog &rarr;</div>
@@ -5676,7 +5684,7 @@
                         <div className="shop-featured-card-name">{fullProductName(sku)}</div>
                         <div className="shop-featured-card-meta">{[publicBrand(sku), sku.variant_name].filter(Boolean).join(' \u00B7 ')}</div>
                         <div className="shop-featured-card-bottom">
-                          <span className="shop-featured-card-price">{price ? '$' + displayPrice(sku, price).toFixed(2) + priceSuffix(sku) : 'Call for price'}</span>
+                          <span className="shop-featured-card-price">{price ? '$' + cardPriceOf(sku, price).toFixed(2) + cardPriceSuffix(sku) : 'Call for price'}</span>
                           <span className="shop-featured-card-cta">View &rarr;</span>
                         </div>
                       </div>
@@ -6641,18 +6649,18 @@
                   <>
                     {sku.trade_price && basePrice && (
                       <span className="sku-card-trade-strike">
-                        ${displayPrice(sku, basePrice).toFixed(2)}
+                        ${cardPriceOf(sku, basePrice).toFixed(2)}
                       </span>
                     )}
                     {onSale && (
                       <span className="sale-original-price">
-                        ${displayPrice(sku, basePrice).toFixed(2)}
+                        ${cardPriceOf(sku, basePrice).toFixed(2)}
                       </span>
                     )}
                     <span className={onSale ? 'sale-price-text' : ''}>
-                      ${displayPrice(sku, price).toFixed(2)}
+                      ${cardPriceOf(sku, price).toFixed(2)}
                     </span>
-                    <span className="price-suffix">{priceSuffix(sku)}</span>
+                    <span className="price-suffix">{cardPriceSuffix(sku)}</span>
                   </>
                 ) : 'Call for Price'}
               </div>
