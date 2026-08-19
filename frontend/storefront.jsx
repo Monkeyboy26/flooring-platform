@@ -6964,6 +6964,9 @@
       const retailPrice = sku ? displayPrice(sku, skuListPrice(sku)) : 0;
       const salePrice = sku && sku.sale_price ? displayPrice(sku, sku.sale_price) : null;
       const tradePrice = sku && sku.trade_price ? displayPrice(sku, sku.trade_price) : null;
+      // Per-piece stone: headline the per-SQFT rate, per-piece price underneath.
+      const perPiece = isSoldPerPiece(sku);
+      const perSqftOf = (amt) => (perPiece && sqftPerBox > 0 ? amt / sqftPerBox : amt);
       // Next-tier upsell (uses the same per-unit basis as tradePrice). Cap mirrors
       // the backend: retail_locked SKUs get at most 10% off regardless of tier.
       const nextTier = tierInfo && tierInfo.next_tier ? tierInfo.next_tier : null;
@@ -7579,40 +7582,40 @@
                 ) : tradePrice ? (
                   <>
                     <div className="pdp-price-main">
-                      <span className="pdp-price-amount">${tradePrice.toFixed(2)}</span>
-                      <span className="pdp-price-suffix">{priceSuffix(sku)}</span>
-                      <span className="pdp-price-strike">${retailPrice.toFixed(2)}</span>
+                      <span className="pdp-price-amount">${perSqftOf(tradePrice).toFixed(2)}</span>
+                      <span className="pdp-price-suffix">{perPiece ? '/sqft' : priceSuffix(sku)}</span>
+                      <span className="pdp-price-strike">${perSqftOf(retailPrice).toFixed(2)}</span>
                       <span className="pdp-price-badge trade">Trade</span>
                     </div>
                     {!isPerUnit && sqftPerBox > 0 && (
                       <div className="pdp-price-per-box">${(tradePrice * sqftPerBox).toFixed(2)} per {boxLabel} &middot; {sqftPerBox} sqft{sku.pieces_per_box ? ' \u00B7 ' + sku.pieces_per_box + ' pieces' : ''}</div>
                     )}
-                    {isSoldPerPiece(sku) && <div className="pdp-price-per-box">{sqftPerBox} sqft per piece</div>}
+                    {perPiece && <div className="pdp-price-per-box">${tradePrice.toFixed(2)} /pc &middot; {sqftPerBox} sqft per piece</div>}
                   </>
                 ) : salePrice ? (
                   <>
                     <div className="pdp-price-main">
-                      <span className="pdp-price-amount">${salePrice.toFixed(2)}</span>
-                      <span className="pdp-price-suffix">{priceSuffix(sku)}</span>
-                      <span className="pdp-price-strike">${retailPrice.toFixed(2)}</span>
+                      <span className="pdp-price-amount">${perSqftOf(salePrice).toFixed(2)}</span>
+                      <span className="pdp-price-suffix">{perPiece ? '/sqft' : priceSuffix(sku)}</span>
+                      <span className="pdp-price-strike">${perSqftOf(retailPrice).toFixed(2)}</span>
                       {retailPrice > 0 && <span className="pdp-price-badge sale">{Math.round((1 - salePrice / retailPrice) * 100)}% off</span>}
                     </div>
                     {!isPerUnit && sqftPerBox > 0 && (
                       <div className="pdp-price-per-box">${(salePrice * sqftPerBox).toFixed(2)} per {boxLabel} &middot; {sqftPerBox} sqft{sku.pieces_per_box ? ' \u00B7 ' + sku.pieces_per_box + ' pieces' : ''}</div>
                     )}
-                    {isSoldPerPiece(sku) && <div className="pdp-price-per-box">{sqftPerBox} sqft per piece</div>}
+                    {perPiece && <div className="pdp-price-per-box">${salePrice.toFixed(2)} /pc &middot; {sqftPerBox} sqft per piece</div>}
                   </>
                 ) : retailPrice > 0 ? (
                   <>
                     <div className="pdp-price-main">
-                      {msrpPrice && msrpPrice > retailPrice && <span className="pdp-price-strike">${msrpPrice.toFixed(2)}</span>}
-                      <span className="pdp-price-amount">${retailPrice.toFixed(2)}</span>
-                      <span className="pdp-price-suffix">{priceSuffix(sku)}</span>
+                      {msrpPrice && msrpPrice > retailPrice && <span className="pdp-price-strike">${perSqftOf(msrpPrice).toFixed(2)}</span>}
+                      <span className="pdp-price-amount">${perSqftOf(retailPrice).toFixed(2)}</span>
+                      <span className="pdp-price-suffix">{perPiece ? '/sqft' : priceSuffix(sku)}</span>
                     </div>
                     {!isPerUnit && sqftPerBox > 0 && (
                       <div className="pdp-price-per-box">${(retailPrice * sqftPerBox).toFixed(2)} per {boxLabel} &middot; {sqftPerBox} sqft{sku.pieces_per_box ? ' \u00B7 ' + sku.pieces_per_box + ' pieces' : ''}</div>
                     )}
-                    {isSoldPerPiece(sku) && <div className="pdp-price-per-box">{sqftPerBox} sqft per piece</div>}
+                    {perPiece && <div className="pdp-price-per-box">${retailPrice.toFixed(2)} /pc &middot; {sqftPerBox} sqft per piece</div>}
                   </>
                 ) : (
                   <div className="pdp-price-main">
