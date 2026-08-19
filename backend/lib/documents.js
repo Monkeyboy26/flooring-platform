@@ -113,7 +113,7 @@ export function composeItemName(it = {}) {
   // Margin-protection gate: a public-hidden brand/vendor shows no brand line on
   // customer docs (only a rep's one-off custom_vendor survives). Read the raw
   // boolean — g() would stringify false to a truthy "false". See [[hide-public-brand]].
-  const vendor = it.brand_hidden === true ? (g('vendor_code') || g('custom_vendor')) : (g('brand_name') || g('vendor_name') || g('custom_vendor'));
+  const vendor = it.brand_hidden === true ? (g('vendor_public_code') || g('custom_vendor')) : (g('brand_name') || g('vendor_name') || g('custom_vendor'));
   const meta = [];
   for (const m of [vendor, sku]) if (m && !meta.includes(m)) meta.push(m);
   const metaLine = meta.join(SEP);
@@ -434,6 +434,84 @@ export function getDocumentFooter(terms) {
   `;
 }
 
+// Printable Roma-branded payment receipt for a single card payment — the
+// merchant copy for an in-store Valor terminal charge (or a Stripe card/ACH
+// payment). `payment` is one order_payments row. For Valor it renders the
+// transaction # (valor_tran_no) + RRN; for Stripe, the Stripe receipt #.
+export function generateReceiptDoc(o, payment) {
+  const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const money = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const cap = (s) => s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s;
+  const orderNumber = o.order_number || 'RD-' + String(o.id).substring(0, 8).toUpperCase();
+  const p = payment || {};
+  const isValor = !!p.valor_tran_no;
+  const brand = p.card_brand ? cap(p.card_brand) : 'Card';
+  const last4 = p.card_last4 ? ' ····' + p.card_last4 : '';
+  const when = p.created_at
+    ? new Date(p.created_at).toLocaleString('en-US', { timeZone: 'America/Los_Angeles', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
+    : '';
+  const total = parseFloat(o.total || 0);
+  const amountPaid = parseFloat(o.amount_paid || 0);
+  const balanceDue = parseFloat((total - amountPaid).toFixed(2));
+
+  const detailRows = [['Status', isValor ? 'Approved' : 'Completed']];
+  if (isValor) {
+    if (p.valor_tran_no) detailRows.push(['Transaction #', String(p.valor_tran_no)]);
+    if (p.valor_rrn) detailRows.push(['Reference (RRN)', String(p.valor_rrn)]);
+    detailRows.push(['Processor', 'Valor Connect · in-store terminal']);
+  } else {
+    if (p.stripe_receipt_number) detailRows.push(['Receipt #', String(p.stripe_receipt_number)]);
+    detailRows.push(['Processor', 'Stripe']);
+  }
+  const detail = detailRows.map(([l, v]) => `<tr><td>${esc(l)}</td><td>${esc(v)}</td></tr>`).join('');
+  const cardLine = brand + (p.card_last4 ? ' ···· ' + p.card_last4 : '') + (isValor ? ' · tap / dip / swipe' : '');
+  const paidInFull = balanceDue <= 0.01;
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt ${esc(orderNumber)}</title><style>
+    ${getDocumentBaseCSS()}
+    .rcpt-hero { text-align:center; padding:1.75rem 0 1.5rem; margin-bottom:0.5rem; }
+    .rcpt-hero .lbl { font-size:0.5625rem; text-transform:uppercase; letter-spacing:0.16em; color:#a87935; font-weight:500; margin:0 0 0.45rem; }
+    .rcpt-hero .amt { font-family:'Cormorant Garamond',Georgia,serif; font-size:3rem; font-weight:400; color:#1c1917; line-height:1; margin:0; }
+    .rcpt-hero .card { font-size:0.8125rem; color:#57534e; font-family:ui-monospace,monospace; margin:0.6rem 0 0; }
+    .rcpt-detail { width:100%; border-collapse:collapse; margin:0.25rem 0 1.5rem; }
+    .rcpt-detail td { padding:0.55rem 0; border-bottom:1px solid #f0ede8; font-size:0.8125rem; }
+    .rcpt-detail tr:last-child td { border-bottom:none; }
+    .rcpt-detail td:first-child { color:#78716c; text-transform:uppercase; letter-spacing:0.08em; font-size:0.6rem; width:45%; }
+    .rcpt-detail td:last-child { text-align:right; color:#1c1917; font-family:ui-monospace,monospace; }
+    .rcpt-thanks { text-align:center; margin-top:2rem; font-family:'Cormorant Garamond',Georgia,serif; font-style:italic; font-size:1.2rem; color:#a87935; }
+  </style></head><body>
+    ${getDocumentHeader('Payment Receipt')}
+    <div class="doc-banner">
+      <div class="doc-banner-left">
+        <div class="meta-group"><p class="meta-label">Order</p><p class="meta-value">${esc(orderNumber)}</p></div>
+        <div class="meta-group"><p class="meta-label">Customer</p><p class="meta-value-sm">${esc(o.customer_name || '—')}</p></div>
+        ${when ? `<div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${esc(when)}</p></div>` : ''}
+      </div>
+      <span class="badge badge-paid">Approved &middot; Paid</span>
+    </div>
+
+    <div class="rcpt-hero">
+      <p class="lbl">Amount charged</p>
+      <p class="amt">${money(p.amount)}</p>
+      <p class="card">${esc(cardLine)}</p>
+    </div>
+
+    <p class="section-title">Transaction details</p>
+    <table class="rcpt-detail">${detail}</table>
+
+    <div class="totals-wrapper"><div class="totals-box">
+      <div class="totals-line"><span>Order total</span><span>${money(total)}</span></div>
+      <div class="totals-line subtotal"><span>Amount paid</span><span>${money(amountPaid)}</span></div>
+      ${paidInFull
+        ? `<div class="totals-line grand-total paid-full"><span>Balance</span><span>Paid in full</span></div>`
+        : `<div class="totals-line balance-due"><span>Balance due</span><span>${money(balanceDue)}</span></div>`}
+    </div></div>
+
+    <div class="rcpt-thanks">Thank you for your business</div>
+    ${getDocumentFooter('')}
+  </body></html>`;
+}
+
 // California General Resale Certificate (CDTFA-230), filled from the applicant's
 // input. Rendered to a PDF (generatePDFBuffer) and stored as a trade_document
 // with doc_type 'resale_certificate'. Standard CDTFA-230 certification text.
@@ -567,7 +645,7 @@ export function willCallStamp({ accent = '#a87935', top = '16px', left = '52%' }
 export async function generatePOHtml(pool, poId) {
   const po = await pool.query(`
     SELECT po.*,
-      v.name as vendor_name, v.code as vendor_code, v.email as vendor_email, v.address as vendor_address, v.edi_config,
+      v.name as vendor_name, v.code as vendor_code, v.public_code as vendor_public_code, v.email as vendor_email, v.address as vendor_address, v.edi_config,
       COALESCE(sa.first_name || ' ' || sa.last_name, sr_a.first_name || ' ' || sr_a.last_name) as approved_by_name,
       COALESCE(sa.email, sr_a.email) as approver_email,
       o.order_number, o.sales_rep_id, o.job_name, o.delivery_method,
@@ -1121,7 +1199,7 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
     const suffix = escDoc(_ci.descriptors.join(' · '));
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
-      i.brand_hidden ? (i.vendor_code || null) : (i.brand_name || i.vendor_name)
+      i.brand_hidden ? (i.vendor_public_code || null) : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     const perBoxSqft = parseFloat(i.sqft_per_box || 0);
     let sqft = parseFloat(i.sqft_needed || 0);
@@ -1698,7 +1776,7 @@ export function generateCreditMemoDoc(memo, items, opts = {}) {
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
-      i.brand_hidden ? (i.vendor_code || null) : (i.brand_name || i.vendor_name)
+      i.brand_hidden ? (i.vendor_public_code || null) : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     const reasonLine = [i.reason, i.condition ? i.condition.charAt(0).toUpperCase() + i.condition.slice(1) : null]
       .filter(Boolean).join(' · ');
@@ -1899,7 +1977,7 @@ export function generateReleaseFormDoc(release, items, opts = {}) {
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
-      i.brand_hidden ? (i.vendor_code || null) : (i.brand_name || i.vendor_name)
+      i.brand_hidden ? (i.vendor_public_code || null) : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
     const swatchSrc = i.primary_image
@@ -2053,7 +2131,7 @@ export function generateWorkOrderDoc(order, items, opts = {}) {
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
-      i.brand_hidden ? (i.vendor_code || null) : (i.brand_name || i.vendor_name)
+      i.brand_hidden ? (i.vendor_public_code || null) : (i.brand_name || i.vendor_name)
     ].filter(Boolean))].join(' · ');
     return `<div class="grid-row keep" style="padding:11px 0;${idx < materials.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
       <div>

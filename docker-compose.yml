@@ -69,6 +69,15 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Valor Connect (in-store VP800 terminal). App ID + App Key from Valor Portal
+      # → Settings → API Keys; EPI is the device id. Base URLs default to Valor's
+      # UAT hosts inside the app — set the PRODUCTION hosts (from Valor) here to
+      # charge the real terminal.
+      VALOR_APP_ID: ${VALOR_APP_ID:-}
+      VALOR_APP_KEY: ${VALOR_APP_KEY:-}
+      VALOR_EPI: ${VALOR_EPI:-2501459891}
+      VALOR_SECURELINK_URL: ${VALOR_SECURELINK_URL:-}
+      VALOR_STATUS_URL: ${VALOR_STATUS_URL:-}
       EASYPOST_API_KEY: ${EASYPOST_API_KEY:-}
       RLC_API_KEY: ${RLC_API_KEY:-}
       FEDEX_CLIENT_ID: ${FEDEX_CLIENT_ID:-}

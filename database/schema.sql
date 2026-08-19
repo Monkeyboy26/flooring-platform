@@ -5,7 +5,14 @@ CREATE EXTENSION IF NOT EXISTS unaccent;
 CREATE TABLE vendors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
-    code TEXT UNIQUE NOT NULL CHECK (code ~ '^[0-9]{3}$'),
+    -- Stable INTERNAL identifier: short letter mnemonic (DAL, MSI, EF…). Used by
+    -- scrapers, EDI, pipelines and scripts to resolve the vendor. Never shown to
+    -- customers. (Was briefly repurposed as a random 3-digit display code — that
+    -- role now lives in public_code; see [[three-digit-vendor-codes]].)
+    code TEXT UNIQUE NOT NULL CHECK (code ~ '^[A-Za-z0-9]{2,6}$'),
+    -- Random 3-digit number shown IN PLACE OF the vendor/brand name on customer
+    -- surfaces when hide_public_name is set (margin protection). Display-only.
+    public_code TEXT UNIQUE CHECK (public_code ~ '^[0-9]{3}$'),
     website TEXT,
     email TEXT,
     has_public_inventory BOOLEAN DEFAULT false,
@@ -26,6 +33,27 @@ CREATE TABLE vendors (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Safety net: every vendor gets a random unused 3-digit public_code even when
+-- created by a direct INSERT (importers/scrapers that don't set it). Without
+-- this, a later hide_public_name=true would leave a blank customer-facing label.
+CREATE OR REPLACE FUNCTION assign_vendor_public_code() RETURNS trigger AS $$
+DECLARE cand text; tries int := 0;
+BEGIN
+  IF NEW.public_code IS NULL THEN
+    LOOP
+      cand := (100 + floor(random()*900))::int::text;
+      EXIT WHEN NOT EXISTS (SELECT 1 FROM vendors WHERE public_code = cand OR code = cand);
+      tries := tries + 1;
+      IF tries > 3000 THEN RAISE EXCEPTION 'no free vendor public_code available'; END IF;
+    END LOOP;
+    NEW.public_code := cand;
+  END IF;
+  RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_vendor_public_code BEFORE INSERT ON vendors
+  FOR EACH ROW EXECUTE FUNCTION assign_vendor_public_code();
 
 -- Named contacts / reps for a vendor (CS, sales, AR, etc.). Separated from the
 -- vendor company record so a vendor can have multiple people.
@@ -967,6 +995,24 @@ CREATE INDEX IF NOT EXISTS idx_order_payments_refund_of ON order_payments(refund
 CREATE UNIQUE INDEX IF NOT EXISTS uq_order_payments_stripe_session
   ON order_payments(stripe_checkout_session_id)
   WHERE stripe_checkout_session_id IS NOT NULL;
+
+-- ==================== Valor PayTech (in-store terminal) ====================
+-- In-store card payments run through the Valor countertop terminal over the
+-- local network (browser → ws://<terminal>:5000). Card data never touches our
+-- servers; we record only the identifiers the terminal returns (TRAN_NO / RRN)
+-- plus the masked brand + last4. See order_payments.card_brand / card_last4.
+ALTER TABLE order_payments ADD COLUMN IF NOT EXISTS valor_tran_no VARCHAR(32);
+ALTER TABLE order_payments ADD COLUMN IF NOT EXISTS valor_rrn VARCHAR(32);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS valor_tran_no VARCHAR(32);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_brand VARCHAR(20);
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS card_last4 VARCHAR(4);
+
+-- Simple key/value store for store-wide config (e.g. the Valor terminal URL).
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE IF NOT EXISTS payment_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

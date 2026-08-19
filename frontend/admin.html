@@ -4640,10 +4640,10 @@
               </div>
               <div className="form-group">
                 <label>Code *</label>
-                <input value={form.code} maxLength={3}
-                  onChange={e => setForm(f => ({ ...f, code: e.target.value.replace(/[^0-9]/g, '').slice(0, 3) }))}
-                  placeholder="e.g. 145" />
-                <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>3 digits (0–9)</span>
+                <input value={form.code} maxLength={6}
+                  onChange={e => setForm(f => ({ ...f, code: e.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6) }))}
+                  placeholder="e.g. DAL" />
+                <span style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>Internal mnemonic — 2–6 letters/digits. Customers see an auto-assigned 3-digit code.</span>
               </div>
               <div className="form-group full">
                 <label>Website</label>
@@ -7807,6 +7807,21 @@
                     </span>
                   </span>
                   <button className="rb-doc-link" onClick={() => window.open(p.stripe_receipt_url, '_blank', 'noopener')}>Open {'↗'}</button>
+                </div>
+              ))}
+              {payments.filter(p => p.valor_tran_no && !p.stripe_receipt_url).map(p => (
+                <div className="rb-doc" key={'vrcpt-' + p.id}>
+                  <span style={{ minWidth: 0 }}>
+                    <span className="rb-doc-name" style={{ display: 'block' }}>Card receipt</span>
+                    <span className="rb-doc-sub" style={{ display: 'block' }}>
+                      {(p.card_brand ? p.card_brand.charAt(0).toUpperCase() + p.card_brand.slice(1) + (p.card_last4 ? ' ····' + p.card_last4 : '') : 'CARD')}
+                      {' · $' + parseFloat(p.amount || 0).toFixed(2)}
+                      {' · Valor terminal'}
+                    </span>
+                  </span>
+                  <button className="rb-doc-link" onClick={() => {
+                    setDocPreview({ path: '/api/staff/orders/' + editId + '/receipt?payment_id=' + p.id, title: 'Card receipt' });
+                  }}>PDF {'↓'}</button>
                 </div>
               ))}
               {purchaseOrders.filter(po => po.status !== 'cancelled').map(po => (

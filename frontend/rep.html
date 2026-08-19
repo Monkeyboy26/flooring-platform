@@ -13,7 +13,6 @@
   <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"></script>
   <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"></script>
   <script crossorigin="anonymous" src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.4/babel.min.js" integrity="sha384-x/ilTFv/u/eu6YSmkFDZl5V5Mm/pkxxcVv2cVJOrr1J0rvILhMvRBCy6yA75wYBj"></script>
-  <script src="https://js.stripe.com/terminal/v1/"></script>
   <script src="https://js.stripe.com/v3/"></script>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&family=Pinyon+Script&display=swap" rel="stylesheet">
   <style>
@@ -6682,6 +6681,10 @@
     // (e.g. bare "Reducer") always carry their parent product + distinguishing info.
     function formatLineItem(it) {
       it = it || {};
+      // Prefer the server-computed title — the backend composes it with the SAME
+      // logic as the storefront PDP (fullProductName), so an order/quote line reads
+      // identically everywhere. Client fallback below covers un-enriched surfaces.
+      if (it.display_name) return { brand: it.vendor_name || it.custom_vendor || '', name: it.display_name, sku: it.vendor_sku || it.internal_sku || '' };
       // Custom bound area rug → "Custom Area Rug  ·  <carpet>  ·  9' × 4'".
       if (it.is_custom_rug || (it.description || '').startsWith('Custom Area Rug')) {
         const fmtFt = (ft) => { const n = parseFloat(ft) || 0, w = Math.floor(n); let i = Math.round((n - w) * 12); if (i === 12) return (w + 1) + "'"; return i === 0 ? w + "'" : w + "'" + i + '"'; };
@@ -6822,6 +6825,22 @@
           return data;
         });
       });
+    }
+
+    // ========== Valor PayTech terminal (in-store card, Valor Connect cloud) =====
+    // The Valor VP800 is driven through Valor's cloud: the browser calls our
+    // backend, which publishes the sale to the terminal and BLOCKS while the
+    // customer taps their card (up to ~2 min), then returns the approved result.
+    // Card data never touches us — we only record the returned transaction.
+    // Resolves with the approved card_txn, or throws a friendly message
+    // (decline / offline / timeout — the backend supplies the text).
+    async function valorTerminalCharge({ amount, orderRef }) {
+      const data = await repFetch('/api/rep/valor/charge', {
+        method: 'POST',
+        body: JSON.stringify({ amount: parseFloat(amount), order_ref: orderRef || undefined })
+      });
+      if (!data || !data.card_txn) throw new Error((data && data.error) || 'Terminal charge failed');
+      return data.card_txn;
     }
 
     // Fetch PDF/HTML as blob URL (avoids leaking token in URL)
@@ -7017,98 +7036,47 @@
 
     // ========== App ==========
     // ========== Tap to Pay Modal ==========
-    function TapToPayModal({ amount, terminal, onSuccess, onCancel }) {
+    function TapToPayModal({ amount, onSuccess, onCancel }) {
       const [tapStatus, setTapStatus] = useState('initializing'); // initializing | ready | processing | success | error
       const [tapError, setTapError] = useState('');
-      const piRef = useRef(null);
       const cancelledRef = useRef(false);
+
+      const runCharge = async () => {
+        setTapError('');
+        try {
+          // Sends the sale to the Valor terminal via the backend; blocks while
+          // the customer taps/dips/swipes (up to ~2 min).
+          setTapStatus('ready');
+          const txn = await valorTerminalCharge({ amount });
+          if (cancelledRef.current) return;
+          setTapStatus('success');
+          setTimeout(() => {
+            if (!cancelledRef.current) onSuccess({ card_txn: txn });
+          }, 800);
+        } catch (err) {
+          if (!cancelledRef.current) { setTapStatus('error'); setTapError(err.message || 'Payment failed'); }
+        }
+      };
 
       useEffect(() => {
         cancelledRef.current = false;
-        let cancelled = false;
-        const run = async () => {
-          try {
-            // 1. Create payment intent
-            setTapStatus('initializing');
-            const piData = await repFetch('/api/rep/terminal/create-payment-intent', {
-              method: 'POST',
-              body: JSON.stringify({ amount, order_description: 'In-store tap-to-pay' })
-            });
-            if (cancelled) return;
-            if (!piData.client_secret) { setTapStatus('error'); setTapError(piData.error || 'Failed to create payment'); return; }
-            piRef.current = piData.payment_intent_id;
-
-            // 2. Collect payment method (NFC tap)
-            setTapStatus('ready');
-            const collectResult = await terminal.collectPaymentMethod(piData.client_secret);
-            if (cancelled || cancelledRef.current) return;
-            if (collectResult.error) { setTapStatus('error'); setTapError(collectResult.error.message); return; }
-
-            // 3. Process payment
-            setTapStatus('processing');
-            const processResult = await terminal.processPayment(collectResult.paymentIntent);
-            if (cancelled) return;
-            if (processResult.error) { setTapStatus('error'); setTapError(processResult.error.message); return; }
-
-            // 4. Success
-            setTapStatus('success');
-            setTimeout(() => {
-              if (!cancelled) onSuccess(piData.payment_intent_id);
-            }, 800);
-          } catch (err) {
-            if (!cancelled) { setTapStatus('error'); setTapError(err.message || 'Payment failed'); }
-          }
-        };
-        run();
-        return () => { cancelled = true; cancelledRef.current = true; };
+        runCharge();
+        return () => { cancelledRef.current = true; };
       }, []);
 
-      const handleCancel = async () => {
+      const handleCancel = () => {
         cancelledRef.current = true;
-        if (tapStatus === 'ready') {
-          try { await terminal.cancelCollectPaymentMethod(); } catch (e) {}
-        }
         onCancel();
       };
 
       const handleRetry = () => {
-        setTapStatus('initializing');
-        setTapError('');
         cancelledRef.current = false;
-        const run = async () => {
-          try {
-            const piData = await repFetch('/api/rep/terminal/create-payment-intent', {
-              method: 'POST',
-              body: JSON.stringify({ amount, order_description: 'In-store tap-to-pay' })
-            });
-            if (cancelledRef.current) return;
-            if (!piData.client_secret) { setTapStatus('error'); setTapError(piData.error || 'Failed to create payment'); return; }
-            piRef.current = piData.payment_intent_id;
-
-            setTapStatus('ready');
-            const collectResult = await terminal.collectPaymentMethod(piData.client_secret);
-            if (cancelledRef.current) return;
-            if (collectResult.error) { setTapStatus('error'); setTapError(collectResult.error.message); return; }
-
-            setTapStatus('processing');
-            const processResult = await terminal.processPayment(collectResult.paymentIntent);
-            if (cancelledRef.current) return;
-            if (processResult.error) { setTapStatus('error'); setTapError(processResult.error.message); return; }
-
-            setTapStatus('success');
-            setTimeout(() => {
-              if (!cancelledRef.current) onSuccess(piRef.current);
-            }, 800);
-          } catch (err) {
-            if (!cancelledRef.current) { setTapStatus('error'); setTapError(err.message || 'Payment failed'); }
-          }
-        };
-        run();
+        runCharge();
       };
 
       const statusMessages = {
-        initializing: 'Initializing...',
-        ready: 'Ready \u2014 tap card or phone',
+        initializing: 'Connecting to terminal...',
+        ready: 'Charge sent \u2014 tap/dip card on the terminal',
         processing: 'Processing...',
         success: 'Payment successful!',
         error: tapError || 'Payment failed'
@@ -7119,7 +7087,7 @@
       return (
         <div className="tap-modal-overlay">
           <div className="tap-modal">
-            <h3>Tap to Pay</h3>
+            <h3>Valor Terminal</h3>
             <div className="tap-modal-amount">${parseFloat(amount).toFixed(2)}</div>
             <div className={'tap-modal-icon ' + iconClass}>
               {tapStatus === 'success' ? (
@@ -7274,8 +7242,8 @@
                 </svg>
               </div>
               <div>
-                <div className="choice-label">Tap to Pay</div>
-                <div className="choice-desc">{terminalConnected ? 'Tap card or phone on device' : 'Terminal not connected'}</div>
+                <div className="choice-label">Valor Terminal</div>
+                <div className="choice-desc">{terminalConnected ? 'Tap, insert, or swipe on the terminal' : 'No terminal set up'}</div>
               </div>
             </button>
             <button className="card-choice-btn" onClick={onManual}>
@@ -9592,53 +9560,21 @@
       const [showSearch, setShowSearch] = useState(false);
       const [searchQuery, setSearchQuery] = useState('');
 
-      // Stripe Terminal state
+      // Valor terminal state. terminalStatus: 'connected' once a terminal URL is
+      // configured, else 'disconnected'. (terminalRef kept as a harmless unused
+      // ref so the existing prop plumbing to child components stays identical.)
       const terminalRef = useRef(null);
-      const [terminalReady, setTerminalReady] = useState(typeof StripeTerminal !== 'undefined');
-      const [terminalStatus, setTerminalStatus] = useState('disconnected'); // disconnected | connecting | connected
-      const [terminalReader, setTerminalReader] = useState(null);
+      const [terminalStatus, setTerminalStatus] = useState('disconnected'); // disconnected | connected
 
-      const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || /^192\.168\./.test(window.location.hostname) || /^10\./.test(window.location.hostname);
+      // Valor Connect is cloud-driven — there's no per-station terminal to pair,
+      // so the card→terminal path is always available. Whether the device is
+      // actually online is checked server-side when a charge is sent.
+      useEffect(() => { setTerminalStatus('connected'); }, []);
 
-      const connectReader = async () => {
-        if (typeof StripeTerminal === 'undefined') return;
-        setTerminalStatus('connecting');
-        try {
-          // Create a fresh Terminal instance each time to get a fresh connection token
-          const t = StripeTerminal.create({
-            onFetchConnectionToken: async () => {
-              const data = await repFetch('/api/rep/terminal/connection-token', { method: 'POST' });
-              return data.secret;
-            },
-            onUnexpectedReaderDisconnect: () => {
-              setTerminalStatus('disconnected');
-              setTerminalReader(null);
-              terminalRef.current = null;
-            }
-          });
-          terminalRef.current = t;
-
-          const discoverResult = await t.discoverReaders({ simulated: isLocalDev });
-          if (discoverResult.error) { alert('Discovery error: ' + discoverResult.error.message); setTerminalStatus('disconnected'); return; }
-          if (discoverResult.discoveredReaders.length === 0) { alert('No readers found. Make sure Tap to Pay is enabled on this device.'); setTerminalStatus('disconnected'); return; }
-          const reader = discoverResult.discoveredReaders[0];
-          const connectResult = await t.connectReader(reader);
-          if (connectResult.error) { alert('Connect error: ' + connectResult.error.message); setTerminalStatus('disconnected'); return; }
-          setTerminalReader(connectResult.reader);
-          setTerminalStatus('connected');
-        } catch (err) {
-          alert('Terminal error: ' + err.message);
-          setTerminalStatus('disconnected');
-        }
-      };
-
-      const disconnectReader = async () => {
-        if (!terminalRef.current) return;
-        try { await terminalRef.current.disconnectReader(); } catch (e) {}
-        terminalRef.current = null;
-        setTerminalStatus('disconnected');
-        setTerminalReader(null);
-      };
+      // Kept as no-ops so existing prop wiring (terminalStatus/connectReader)
+      // doesn't need to change across the ~10 components that receive them.
+      const connectReader = () => {};
+      const disconnectReader = () => {};
 
       useEffect(() => {
         const mq = window.matchMedia('(max-width: 768px)');
@@ -9908,19 +9844,7 @@
               </div>
               <div className="terminal-status">
                 <span className={'terminal-dot ' + terminalStatus} />
-                {terminalStatus === 'connected' ? (
-                  <span style={{ flex: 1 }}>Terminal ready</span>
-                ) : terminalStatus === 'connecting' ? (
-                  <span style={{ flex: 1 }}>Connecting...</span>
-                ) : (
-                  <span style={{ flex: 1 }}>Terminal offline</span>
-                )}
-                {terminalStatus === 'disconnected' && terminalReady && (
-                  <button className="terminal-connect-btn" onClick={connectReader}>Connect</button>
-                )}
-                {terminalStatus === 'connected' && (
-                  <button className="terminal-connect-btn" onClick={disconnectReader}>Disconnect</button>
-                )}
+                <span style={{ flex: 1 }}>Valor terminal · cloud</span>
               </div>
               <div className="sidebar-logout">
                 <div className="sidebar-item" onClick={onLogout} style={{ margin: 0, padding: '0.5rem 0' }}>
@@ -12570,6 +12494,8 @@
       const mountRef = useRef(null);
       // Which input tab initiated the charge (for retry + receipt)
       const lastInputTab = useRef('newcard');
+      // Holds the approved Valor terminal result (card_txn) for the current charge
+      const valorTxnRef = useRef(null);
       // Idempotency nonce for card-on-file charges — reused across ambiguous
       // network failures (a re-click replays the same charge at Stripe instead
       // of double-charging), regenerated once the server definitively responds
@@ -12636,7 +12562,13 @@
 
       const payMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-      const PROC_STEPS = [
+      // Terminal charges run on the Valor terminal (Valor Connect); card-on-file
+      // and keyed entry still settle via Stripe \u2014 the steps read accordingly.
+      const PROC_STEPS = lastInputTab.current === 'terminal' ? [
+        { l: 'Sending to terminal', m: 'Valor Connect \u00b7 secure' },
+        { l: 'Waiting for card', m: 'tap \u00b7 insert \u00b7 swipe' },
+        { l: 'Authorizing ' + payMoney(amount), m: 'card network' },
+      ] : [
         { l: 'Contacting Stripe', m: 'TLS \u00b7 tokenizing card' },
         { l: 'Authorizing ' + payMoney(amount), m: 'Card network \u00b7 AVS + CVC' },
         { l: 'Capturing funds', m: 'auth \u2192 capture' },
@@ -12729,33 +12661,23 @@
       };
 
       // Charge via Terminal (tap to pay)
+      // Charge on the Valor terminal (customer taps/dips at the counter).
       const chargeTerminal = async () => {
-        if (terminalStatus !== 'connected') {
-          connectReader();
-          return;
-        }
         lastInputTab.current = 'terminal';
+        setCardBrand('CARD');
+        setCardLast4('');
         setPhase('processing');
-        setProcStep(0);
+        setProcStep(1);
         setChargeError('');
+        valorTxnRef.current = null;
         try {
-          const r = await repFetch('/api/rep/terminal/create-payment-intent', {
-            method: 'POST',
-            body: JSON.stringify({ amount: parseFloat(amount) })
-          });
-          if (!r.client_secret) throw new Error(r.error || 'Failed to create terminal payment');
-          setProcStep(1);
-          const collectResult = await terminalRef.current.collectPaymentMethod(r.client_secret);
-          if (collectResult.error) throw new Error(collectResult.error.message);
+          // Blocks while the customer taps on the Valor terminal (up to ~2 min).
+          const txn = await valorTerminalCharge({ amount, orderRef: orderNumber || undefined });
           setProcStep(2);
-          const processResult = await terminalRef.current.processPayment(collectResult.paymentIntent);
-          if (processResult.error) throw new Error(processResult.error.message);
-          await repFetch('/api/rep/terminal/capture-payment-intent', {
-            method: 'POST',
-            body: JSON.stringify({ payment_intent_id: processResult.paymentIntent.id })
-          });
-          setPiId(processResult.paymentIntent.id);
-          setCardLast4(processResult.paymentIntent.charges?.data?.[0]?.payment_method_details?.card_present?.last4 || '****');
+          valorTxnRef.current = txn;
+          if (txn.brand) setCardBrand(txn.brand.toUpperCase());
+          setCardLast4((txn.masked_pan || '').replace(/\D/g, '').slice(-4) || '****');
+          setPiId(txn.tran_no ? 'Valor ' + txn.tran_no : '');
           setPhase('approved');
         } catch (err) {
           setDeclineReason(err.message || 'Terminal payment failed');
@@ -12770,7 +12692,8 @@
       };
 
       const handleDone = () => {
-        if (piId) onSuccess(piId);
+        if (valorTxnRef.current) onSuccess({ card_txn: valorTxnRef.current });
+        else if (piId) onSuccess({ payment_intent_id: piId });
         else onCancel();
       };
 
@@ -12825,7 +12748,7 @@
       // Approved screen
       if (phase === 'approved') {
         const rows = [
-          ['Method', lastInputTab.current === 'ready' ? 'Card on file' : lastInputTab.current === 'terminal' ? 'Terminal' : 'Keyed entry'],
+          ['Method', lastInputTab.current === 'ready' ? 'Card on file' : lastInputTab.current === 'terminal' ? 'Valor terminal' : 'Keyed entry'],
           ['Network', (cardBrand || 'CARD') + ' \u2022\u2022\u2022\u2022 ' + (cardLast4 || '****')],
           ['Status', 'Captured'],
           ['Transaction', piId ? piId.slice(0, 24) : '\u2014'],
@@ -12892,7 +12815,7 @@
       const tabs = [
         { id: 'ready', l: 'Card on file' },
         { id: 'newcard', l: 'New card' },
-        { id: 'terminal', l: 'Terminal' },
+        { id: 'terminal', l: 'Valor terminal' },
       ];
 
       return (
@@ -13033,12 +12956,12 @@
                     <div style={{ marginTop: 'auto', width: '70%', height: 5, borderRadius: 3, background: '#0d0c0b' }} />
                   </div>
                   <div>
-                    <div style={{ font: '400 16px/1.3 "Cormorant Garamond", serif', color: '#1c1917' }}>Waiting for card{'\u2026'}</div>
-                    <div style={{ font: '400 12px/1.5 Inter, sans-serif', color: '#8a7e68', marginTop: 4 }}>Ask the customer to tap, insert, or swipe on the reader.</div>
+                    <div style={{ font: '400 16px/1.3 "Cormorant Garamond", serif', color: '#1c1917' }}>Charge on the Valor terminal</div>
+                    <div style={{ font: '400 12px/1.5 Inter, sans-serif', color: '#8a7e68', marginTop: 4 }}>Press Charge, then have the customer tap, insert, or swipe on the terminal.</div>
                   </div>
                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 13px', background: '#d8cdb6', borderRadius: 20, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: terminalStatus === 'connected' ? '#3a7a4e' : '#8a7e68' }}>
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: terminalStatus === 'connected' ? '#3a7a4e' : '#8a7e68' }} />
-                    {terminalStatus === 'connected' ? 'Reader connected' : 'Reader not connected'}
+                    {terminalStatus === 'connected' ? 'Valor terminal ready' : 'Terminal connecting\u2026'}
                   </div>
                 </div>
               )}
@@ -13048,8 +12971,8 @@
             <div style={{ padding: '14px 24px', borderTop: '0.5px solid rgba(28,25,23,0.09)', display: 'flex', gap: 8, alignItems: 'center' }}>
               <button onClick={onCancel} style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', cursor: 'pointer', background: 'none', border: 'none', marginRight: 'auto' }}>Cancel</button>
               {phase === 'terminal' ? (
-                <button onClick={() => { if (terminalStatus !== 'connected') connectReader(); }} style={{ padding: '12px 18px', border: '0.5px solid rgba(28,25,23,0.2)', color: '#1c1917', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', background: 'transparent' }}>
-                  {terminalStatus === 'connected' ? 'Cancel read' : 'Connect reader'}
+                <button onClick={chargeTerminal} style={{ padding: '12px 22px', background: '#a87935', color: '#ece5d8', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', border: 'none' }}>
+                  Charge {payMoney(amount)} on terminal {'→'}
                 </button>
               ) : (() => {
                 const chargeDisabled = phase === 'ready'
@@ -13108,7 +13031,7 @@
       const tasks = useMemo(() => {
         const t = [];
         paymentMethods.forEach((pm, i) => {
-          if (pm.method === 'card') t.push({ key: 'card-' + i, l: 'Capture card payment', m: 'Stripe \u00b7 2.9% + 30\u00a2', amt: payMoney(pm.amount), pay: true });
+          if (pm.method === 'card') t.push({ key: 'card-' + i, l: 'Capture card payment', m: pm.card_txn ? 'Valor terminal' : 'Stripe \u00b7 2.9% + 30\u00a2', amt: payMoney(pm.amount), pay: true });
           else if (pm.method === 'ach') t.push({ key: 'ach-' + i, l: 'Process ACH transfer', m: 'Bank transfer \u00b7 4\u20135 days', amt: payMoney(pm.amount), pay: true });
           else if (pm.method === 'cash') t.push({ key: 'cash-' + i, l: 'Log cash payment', m: 'Cash drawer', amt: payMoney(pm.amount), pay: true });
           else if (pm.method === 'check') t.push({ key: 'check-' + i, l: 'Log check #' + (pm.checkNumber || ''), m: 'AP \u00b7 clears in 3 days', amt: payMoney(pm.amount), pay: true });
@@ -13163,6 +13086,7 @@
             items: orderItems,
             promo_code: data.promoResult ? data.promoResult.code : undefined,
             stripe_payment_intent_id: (primaryTender && primaryTender.stripePaymentIntentId) || data.stripePaymentIntentId || undefined,
+            card_txn: (primaryTender && primaryTender.card_txn) || undefined,
             document_ids: data.documentIds || undefined,
             check_number: (primaryTender && primaryTender.checkNumber) || undefined,
             notes: data.notes || undefined,
@@ -13221,8 +13145,9 @@
               await repFetch('/api/rep/orders/' + result.order.id + '/collect-payment', {
                 method: 'POST',
                 body: JSON.stringify({
-                  method: pm.method,
+                  payment_method: pm.method,
                   amount: pm.amount,
+                  card_txn: pm.card_txn || undefined,
                   stripe_payment_intent_id: pm.stripePaymentIntentId || undefined,
                   check_number: pm.checkNumber || undefined
                 })
@@ -16049,13 +15974,17 @@
 
       const handleCardPayment = () => { setPendingCardAmount(collectAmt); setShowPayCard(true); };
 
-      const handleCardSuccess = (piId) => {
+      const handleCardSuccess = (res) => {
         const amount = pendingCardAmount || (remaining > 0 ? remaining : total);
         setCollectNow('');
+        // res is { card_txn } (Valor terminal) or { payment_intent_id } (Stripe card-on-file / keyed)
+        const tender = { method: 'card', amount };
+        if (res && res.card_txn) tender.card_txn = res.card_txn;
+        else if (res && res.payment_intent_id) tender.stripePaymentIntentId = res.payment_intent_id;
         setData(d => ({
           ...d,
-          paymentMethods: [...(d.paymentMethods || []), { method: 'card', amount, stripePaymentIntentId: piId }],
-          stripePaymentIntentId: piId
+          paymentMethods: [...(d.paymentMethods || []), tender],
+          stripePaymentIntentId: (res && res.payment_intent_id) || d.stripePaymentIntentId || null
         }));
       };
 
@@ -16177,7 +16106,7 @@
           <WizRepCard title="How is the customer paying?">
             <div className="rof-pay-grid">
               {[
-                { key: 'card', icon: '\u25A3', label: 'Card \u00B7 Stripe', sub: 'Terminal or manual entry' },
+                { key: 'card', icon: '\u25A3', label: 'Card \u00B7 Terminal', sub: 'Valor terminal or keyed entry' },
                 { key: 'stripe', icon: '\u2197', label: 'Send payment link', sub: 'Emailed \u00B7 customer pays by card' },
                 { key: 'cash', icon: '$', label: 'Cash', sub: 'Drawer logs \u00B7 printed slip' },
                 { key: 'check', icon: '\u270E', label: 'Check', sub: 'Hold for 3 day clearing' }
@@ -16278,7 +16207,7 @@
             <WizRepCard title="Split tenders">
               {paymentMethods.map((pm, i) => {
                 const meta = {
-                  card:   { icon: '\u25A3', col: '#3a5a7a', label: 'Card \u00B7 Stripe',       status: '\u25CF Captured',            ref: pm.stripePaymentIntentId ? String(pm.stripePaymentIntentId).slice(0, 18) + '\u2026' : 'Stripe' },
+                  card:   { icon: '\u25A3', col: '#3a5a7a', label: pm.card_txn ? 'Card \u00B7 Valor terminal' : 'Card \u00B7 Stripe', status: '\u25CF Captured', ref: pm.card_txn ? ((pm.card_txn.brand || 'CARD') + ' ' + (String(pm.card_txn.masked_pan || '').replace(/\D/g, '').slice(-4) || 'terminal')) : (pm.stripePaymentIntentId ? String(pm.stripePaymentIntentId).slice(0, 18) + '\u2026' : 'Stripe') },
                   ach:    { icon: '\u296F', col: '#5c6e94', label: 'ACH transfer',        status: '\u25CB Pending clearance',   ref: 'Bank transfer \u00B7 3\u20135 days' },
                   cash:   { icon: '$', col: '#3a7a4e', label: 'Cash',                status: '\u25CF In drawer',           ref: 'Cash drawer' },
                   check:  { icon: '\u270E', col: '#a87935', label: 'Check',               status: '\u25CB Pending clearance',   ref: pm.checkNumber ? 'Check #' + pm.checkNumber : 'Check' },
@@ -16364,7 +16293,7 @@
               orderNumber={null}
               tenderIdx={paymentMethods.filter(p => p.method === 'card').length + 1}
               tenderCount={paymentMethods.length + 1}
-              onSuccess={(piId) => { setShowPayCard(false); handleCardSuccess(piId); }}
+              onSuccess={(res) => { setShowPayCard(false); handleCardSuccess(res); }}
               onCancel={() => setShowPayCard(false)}
               terminalRef={terminalRef}
               terminalStatus={terminalStatus}
@@ -18007,13 +17936,15 @@
       const [paymentActing, setPaymentActing] = useState(false);
       const [showPayModal, setShowPayModal] = useState(false);
 
-      const markPaymentCollected = async (collected, method, stripePaymentIntentId) => {
+      const markPaymentCollected = async (collected, method, res) => {
         setPaymentActing(true);
         try {
+          // res may be a Valor { card_txn } or Stripe { payment_intent_id }; the
+          // sample endpoint only tracks a Stripe intent, so Valor passes null.
           await repFetch('/api/rep/sample-requests/' + editId + '/payment-status', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ collected, method: method || null, stripe_payment_intent_id: stripePaymentIntentId || null })
+            body: JSON.stringify({ collected, method: method || null, stripe_payment_intent_id: (res && res.payment_intent_id) || null })
           });
           load();
         } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
@@ -18623,7 +18554,7 @@
               orderNumber={sr.request_number}
               tenderIdx={1}
               tenderCount={1}
-              onSuccess={(piId) => { setShowPayModal(false); markPaymentCollected(true, 'card', piId); }}
+              onSuccess={(res) => { setShowPayModal(false); markPaymentCollected(true, 'card', res); }}
               onCancel={() => setShowPayModal(false)}
               terminalRef={terminalRef}
               terminalStatus={terminalStatus}
@@ -21198,15 +21129,17 @@
         } catch (err) { alert(err.message || 'Failed to delete note'); }
       };
 
-      const collectPayment = async (method, piId) => {
+      const collectPayment = async (method, res) => {
         setCollectSaving(true);
         try {
+          // res (card only): Valor { card_txn } or Stripe { payment_intent_id }
           await repFetch('/api/rep/orders/' + editId + '/collect-payment', {
             method: 'POST',
             body: JSON.stringify({
               payment_method: method,
               amount: parseFloat(collectAmount),
-              stripe_payment_intent_id: piId || undefined,
+              card_txn: (res && res.card_txn) || undefined,
+              stripe_payment_intent_id: (res && res.payment_intent_id) || undefined,
               check_number: method === 'check' ? collectCheckNumber : undefined
             })
           });
@@ -22590,7 +22523,7 @@
                       </div>
                       {collectMethod === 'card' && (
                         <div className="rod-collect-note">
-                          {terminalStatus === 'connected' ? '✓ Tap to Pay terminal connected' : terminalStatus === 'connecting' ? 'Connecting to terminal...' : 'Terminal offline — manual card entry available'}
+                          {terminalStatus === 'connected' ? '✓ Valor terminal ready' : 'No terminal set — manual card entry available'}
                         </div>
                       )}
                       {collectMethod === 'cash' && collectCashDrawerOpen === false && (
@@ -22832,6 +22765,19 @@
                         </RovMicro>
                       </div>
                       <button className="rov-doc-link" onClick={() => window.open(p.stripe_receipt_url, '_blank', 'noopener')}>Open ↗</button>
+                    </div>
+                  ))}
+                  {payments.filter(p => p.valor_tran_no && !p.stripe_receipt_url).map(p => (
+                    <div className="rov-doc-row2" key={'vrcpt-' + p.id}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Card receipt</div>
+                        <RovMicro style={{ marginTop: 2 }}>
+                          {(p.card_brand ? p.card_brand.charAt(0).toUpperCase() + p.card_brand.slice(1) + (p.card_last4 ? ' ····' + p.card_last4 : '') : 'CARD')}
+                          {' · $' + parseFloat(p.amount || 0).toFixed(2)}
+                          {' · Valor terminal'}
+                        </RovMicro>
+                      </div>
+                      <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/receipt?payment_id=' + p.id + '&preview=true'); setDocPreview({ url, title: 'Card receipt', downloadPath: '/api/rep/orders/' + editId + '/receipt?payment_id=' + p.id }); } catch(e) { alert('Failed to load receipt'); } }}>PDF ↓</button>
                     </div>
                   ))}
                   {purchaseOrders.map(po => (
@@ -23114,7 +23060,7 @@
               orderNumber={order.order_number}
               tenderIdx={payments.filter(p => parseFloat(p.amount) > 0).length + 1}
               tenderCount={payments.filter(p => parseFloat(p.amount) > 0).length + 1}
-              onSuccess={(piId) => { setShowCollectCardModal(false); collectPayment('card', piId); }}
+              onSuccess={(res) => { setShowCollectCardModal(false); collectPayment('card', res); }}
               onCancel={() => setShowCollectCardModal(false)}
               terminalRef={terminalRef}
               terminalStatus={terminalStatus}
@@ -25584,12 +25530,14 @@
         setSaving(false);
       };
 
-      const convertQuoteWithPI = async (stripePaymentIntentId, documentIds) => {
+      const convertQuoteWithPI = async (res, documentIds) => {
         if (!editId) return;
         setSaving(true);
         try {
           const convertBody = { payment_method: convertMethod };
-          if (stripePaymentIntentId) convertBody.stripe_payment_intent_id = stripePaymentIntentId;
+          // res: Valor { card_txn } or Stripe { payment_intent_id }; null for cash/check
+          if (res && res.card_txn) convertBody.card_txn = res.card_txn;
+          else if (res && res.payment_intent_id) convertBody.stripe_payment_intent_id = res.payment_intent_id;
           if (convertMethod === 'check' && convertCheckNumber) convertBody.check_number = convertCheckNumber;
           const data = await repFetch('/api/rep/quotes/' + editId + '/convert', {
             method: 'POST',
@@ -26879,8 +26827,7 @@
           {showConvertTapModal && (
             <TapToPayModal
               amount={parseFloat(quote.total || 0)}
-              terminal={terminalRef.current}
-              onSuccess={(piId) => { setShowConvertTapModal(false); convertQuoteWithPI(piId); }}
+              onSuccess={(res) => { setShowConvertTapModal(false); convertQuoteWithPI(res); }}
               onCancel={() => setShowConvertTapModal(false)}
             />
           )}
@@ -26892,7 +26839,7 @@
               onTap={() => {
                 setShowConvertCardChoice(false);
                 if (terminalStatus !== 'connected') {
-                  const confirmed = window.confirm('Terminal not connected. Connect now?');
+                  const confirmed = window.confirm('No Valor terminal set up. Set it up now?');
                   if (confirmed) connectReader();
                   return;
                 }
@@ -26906,7 +26853,7 @@
           {showConvertManualCard && (
             <ManualCardEntryModal
               amount={parseFloat(quote.total || 0)}
-              onSuccess={(piId) => { setShowConvertManualCard(false); convertQuoteWithPI(piId); }}
+              onSuccess={(piId) => { setShowConvertManualCard(false); convertQuoteWithPI({ payment_intent_id: piId }); }}
               onCancel={() => setShowConvertManualCard(false)}
             />
           )}
@@ -26916,7 +26863,7 @@
               amount={parseFloat(quote.total || 0)}
               customerName={quote.customer_name}
               customerEmail={quote.customer_email}
-              onSuccess={(piId, docIds) => { setShowConvertAchModal(false); convertQuoteWithPI(piId, docIds); }}
+              onSuccess={(piId, docIds) => { setShowConvertAchModal(false); convertQuoteWithPI({ payment_intent_id: piId }, docIds); }}
               onCancel={() => setShowConvertAchModal(false)}
             />
           )}
