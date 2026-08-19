@@ -6666,14 +6666,32 @@
     function skuPriceSuffix(row) {
       row = row || {};
       const basis = row.price_basis;
-      const soldPerUnit = row.sell_by ? row.sell_by === 'unit' : basis === 'per_unit';
+      const soldPerUnit = row.sell_by ? (row.sell_by === 'unit' || row.sell_by === 'piece') : basis === 'per_unit';
       if (soldPerUnit) {
         // Once a slab has been sized (slab_sqft set), it's priced per slab → /ea.
         if ((basis === 'sqft' || basis === 'per_sqft') && !(parseFloat(row.sqft_per_box) > 0) && !(parseFloat(row.slab_sqft) > 0)) return '/sqft';
-        return '/ea';
+        // Per-piece stone (per-sqft rate + known piece area) reads "/pc"; accessories "/ea".
+        return isPerPieceRow(row) ? '/pc' : '/ea';
       }
       if ((row.sell_by ? row.sell_by === 'roll' : basis === 'per_sqyd')) return '/sqyd';
       return '/sqft';
+    }
+
+    // A "piece" line = sold as a whole unit but priced from a per-sqft rate with a
+    // known piece area (natural stone tile/slab). The stored retail rate is per
+    // SQFT, so the per-piece price is rate × piece area (sqft_per_box). Mirrors
+    // storefront.jsx isSoldPerPiece()/displayPrice().
+    function isPerPieceRow(row) {
+      if (!row) return false;
+      const basis = row.price_basis;
+      return (row.sell_by === 'unit' || row.sell_by === 'piece')
+        && (basis === 'sqft' || basis === 'per_sqft')
+        && parseFloat(row.sqft_per_box) > 0;
+    }
+    // Effective per-line retail: per-piece price for per-piece stone, else the raw rate.
+    function pieceRetail(row, rawPrice) {
+      const price = parseFloat(rawPrice != null ? rawPrice : (row && (row.retail_price != null ? row.retail_price : row.price))) || 0;
+      return isPerPieceRow(row) ? price * (parseFloat(row.sqft_per_box) || 0) : price;
     }
 
     // ========== Canonical line-item formatter ==========
@@ -11938,7 +11956,7 @@
               viewMode === 'grid' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
                   {products.map(p => {
-                    const price = p.price ? parseFloat(p.price) : 0;
+                    const price = p.price ? pieceRetail(p, p.price) : 0;
                     const cost = p.cost ? parseFloat(p.cost) : 0;
                     const mPct = p.margin_pct;
                     const mc = marginCol(mPct);
@@ -12016,7 +12034,7 @@
               viewMode === 'compact' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(330px, 1fr))', gap: 12 }}>
                   {products.map(p => {
-                    const price = p.price ? parseFloat(p.price) : 0;
+                    const price = p.price ? pieceRetail(p, p.price) : 0;
                     const cost = p.cost ? parseFloat(p.cost) : 0;
                     const mPct = p.margin_pct;
                     const mc = marginCol(mPct);
@@ -12084,7 +12102,7 @@
                     </div>
                     {/* Rows */}
                     {products.map((p, ri) => {
-                      const price = p.price ? parseFloat(p.price) : 0;
+                      const price = p.price ? pieceRetail(p, p.price) : 0;
                       const cost = p.cost ? parseFloat(p.cost) : 0;
                       const mPct = p.margin_pct;
                       const mc = marginCol(mPct);
@@ -14424,7 +14442,7 @@
       const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const marginColor = (pct) => pct >= 30 ? '#3a7a4e' : pct >= 15 ? '#a87935' : '#c54731';
 
-      const price = p.price ? parseFloat(p.price) : 0;
+      const price = p.price ? pieceRetail(p, p.price) : 0;
       const tradeUnit = rofTradeUnit(price, p.retail_locked, discount || 0);
       const discounted = price > 0 && tradeUnit < price;
       // Margin must reflect trade pricing: derive cost from the list margin, then
@@ -14441,7 +14459,7 @@
       // Carpet / broadloom is priced per square yard — the quantity is entered in
       // sq yd (rofCatExt returns price × qty for per_sqyd), not boxes.
       const isCarpet = p.price_basis === 'per_sqyd' || p.sell_by === 'roll';
-      const qtyUnit = isCarpet ? 'sq yd' : isUnit ? 'units' : 'boxes';
+      const qtyUnit = isCarpet ? 'sq yd' : isPerPieceRow(p) ? 'pcs' : isUnit ? 'units' : 'boxes';
       const priceUnit = skuPriceSuffix(p);
       const hasAcc = (p.accessory_count || 0) > 0;
       const accLoading = accessories === 'loading' || accessories === undefined;
@@ -14940,8 +14958,11 @@
 
       const addSkuItem = (r) => {
         const numBoxes = parseInt(addBoxes) || 1;
-        const retailPrice = parseFloat(r.retail_price || 0);
-        const rawCost = parseFloat(r.vendor_cost || r.cost || 0);
+        // Per-piece stone stores a per-sqft rate; convert both retail and cost to
+        // per-piece (× piece area) so line totals and margin read correctly.
+        const ppMult = isPerPieceRow(r) ? (parseFloat(r.sqft_per_box) || 0) : 1;
+        const retailPrice = parseFloat(r.retail_price || 0) * ppMult;
+        const rawCost = parseFloat(r.vendor_cost || r.cost || 0) * ppMult;
         const discount = data.customer && data.customer.type === 'trade' ? parseFloat(data.customer.discount_percent || 0) : 0;
         const unitPrice = rofTradeUnit(retailPrice, r.retail_locked, discount);
         const sqftPerBox = parseFloat(r.sqft_per_box || 0);
@@ -14982,7 +15003,7 @@
           sell_by: sellBy,
           price_basis: r.price_basis || null,
           cost: needsSlab ? 0 : rawCost,
-          vendor_cost: r.vendor_cost || null,
+          vendor_cost: (parseFloat(r.vendor_cost || 0) * ppMult) || null,
           // Carpet-only: kept so the "Custom Area Rug" popup can price the cut
           // (per-sqyd price/cost + roll width). Harmless on non-carpet lines.
           cut_price: r.cut_price != null ? r.cut_price : null,
@@ -15061,8 +15082,9 @@
           const newItems = [...(d.items || [])];
           let key = Date.now();
           for (const { item: p, qty } of lines) {
-            const retailPrice = parseFloat(p.price || 0);
-            const rawCost = parseFloat(p.cost || 0);
+            const ppMult = isPerPieceRow(p) ? (parseFloat(p.sqft_per_box) || 0) : 1;
+            const retailPrice = parseFloat(p.price || 0) * ppMult;
+            const rawCost = parseFloat(p.cost || 0) * ppMult;
             const unitPrice = rofTradeUnit(retailPrice, p.retail_locked, discount);
             const sqftPerBox = parseFloat(p.sqft_per_box || 0);
             const sellBy = p.sell_by || 'box';
@@ -15100,7 +15122,7 @@
               sell_by: sellBy,
               price_basis: p.price_basis || null,
               cost: needsSlab ? 0 : rawCost,
-              vendor_cost: p.cost || null,
+              vendor_cost: (parseFloat(p.cost || 0) * ppMult) || null,
               category_name: p.category_name || '',
               primary_image: p.primary_image || null,
               _needsSlabSize: needsSlab,
@@ -15286,7 +15308,7 @@
                           <div className="rof-search-item-name">{formatLineItem(r).name}</div>
                           <div className="rof-search-item-sub">
                             {formatLineItem(r).sku}
-                            {r.retail_price ? (formatLineItem(r).sku ? '  \u00b7  ' : '') + '$' + parseFloat(r.retail_price).toFixed(2) + skuPriceSuffix(r) : ''}
+                            {r.retail_price ? (formatLineItem(r).sku ? '  \u00b7  ' : '') + '$' + pieceRetail(r).toFixed(2) + skuPriceSuffix(r) : ''}
                           </div>
                         </div>
                       </div>
@@ -19506,7 +19528,7 @@
                             <div className="rof-search-item-name">{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
                             <div className="rof-search-item-sub">
                               {r.collection || ''}{r.vendor_name ? ' · ' + r.vendor_name : ''}{r.internal_sku ? ' · ' + r.internal_sku : ''}
-                              {r.retail_price ? ' · $' + parseFloat(r.retail_price).toFixed(2) + skuPriceSuffix(r) : ''}
+                              {r.retail_price ? ' · $' + pieceRetail(r).toFixed(2) + skuPriceSuffix(r) : ''}
                             </div>
                           </div>
                         </div>
@@ -22754,27 +22776,14 @@
                       <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/invoice?preview=true'); setDocPreview({ url, title: 'Invoice', downloadPath: '/api/rep/orders/' + editId + '/invoice' }); } catch(e) { alert('Failed to load invoice'); } }}>PDF ↓</button>
                     </div>
                   )}
-                  {payments.filter(p => p.stripe_receipt_url).map(p => (
+                  {payments.filter(p => p.valor_tran_no || p.stripe_receipt_url).map(p => (
                     <div className="rov-doc-row2" key={'rcpt-' + p.id}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Stripe receipt</div>
-                        <RovMicro style={{ marginTop: 2 }}>
-                          {(p.card_brand ? p.card_brand.charAt(0).toUpperCase() + p.card_brand.slice(1) + (p.card_last4 ? ' ····' + p.card_last4 : '') : (p.payment_method || 'card').toUpperCase())}
-                          {' · $' + parseFloat(p.amount || 0).toFixed(2)}
-                          {p.stripe_receipt_number ? ' · #' + p.stripe_receipt_number : ''}
-                        </RovMicro>
-                      </div>
-                      <button className="rov-doc-link" onClick={() => window.open(p.stripe_receipt_url, '_blank', 'noopener')}>Open ↗</button>
-                    </div>
-                  ))}
-                  {payments.filter(p => p.valor_tran_no && !p.stripe_receipt_url).map(p => (
-                    <div className="rov-doc-row2" key={'vrcpt-' + p.id}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Card receipt</div>
                         <RovMicro style={{ marginTop: 2 }}>
-                          {(p.card_brand ? p.card_brand.charAt(0).toUpperCase() + p.card_brand.slice(1) + (p.card_last4 ? ' ····' + p.card_last4 : '') : 'CARD')}
+                          {(p.card_brand ? p.card_brand.charAt(0).toUpperCase() + p.card_brand.slice(1) + (p.card_last4 ? ' ····' + p.card_last4 : '') : (p.payment_method || 'card').toUpperCase())}
                           {' · $' + parseFloat(p.amount || 0).toFixed(2)}
-                          {' · Valor terminal'}
+                          {p.valor_tran_no ? ' · Valor terminal' : ''}
                         </RovMicro>
                       </div>
                       <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/receipt?payment_id=' + p.id + '&preview=true'); setDocPreview({ url, title: 'Card receipt', downloadPath: '/api/rep/orders/' + editId + '/receipt?payment_id=' + p.id }); } catch(e) { alert('Failed to load receipt'); } }}>PDF ↓</button>
@@ -25184,9 +25193,11 @@
         setProductSearch('');
         try {
         const isCarpet = sku.price_basis === 'per_sqyd' || sku.sell_by === 'roll';
-        const retail = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
+        const retail = isCarpet ? parseFloat(sku.cut_price || sku.price || 0) : pieceRetail(sku, sku.price);
         const price = tradeUnit(retail, sku.retail_locked, tradeDiscountFor(selectedCustomer));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
+        // Per-piece stone stores cost per-sqft; convert to per-piece for line margin.
+        const ppCost = (isPerPieceRow(sku) && sku.vendor_cost != null ? parseFloat(sku.vendor_cost) * sqftPerBox : sku.vendor_cost) || null;
         const sellBy = isCarpet ? 'roll' : (sku.sell_by || 'box');
         // Qty from the quick-add box; carpet counts sqyd (9 sqft each)
         const qty = Math.max(1, parseInt(addQty) || 1);
@@ -25221,7 +25232,7 @@
           roll_width_ft: sku.roll_width_ft != null ? sku.roll_width_ft : null,
           price_basis: sku.price_basis || null,
           vendor_id: sku.vendor_id || null,
-          vendor_cost: sku.vendor_cost || null,
+          vendor_cost: ppCost,
           primary_image: sku.primary_image || null
         };
         setAddQty(1);
@@ -25234,7 +25245,7 @@
           });
           if (result.item) {
             result.item._sqft_per_box = sqftPerBox;
-            result.item.vendor_cost = sku.vendor_cost || null;
+            result.item.vendor_cost = ppCost;
             result.item.retail_price = retail;
             result.item.retail_locked = !!sku.retail_locked;
             setQuoteItems(prev => [...prev, result.item]);
@@ -25243,7 +25254,7 @@
             setQuote(qData.quote);
           }
         } else {
-          setQuoteItems(prev => [...prev, { ...newItem, _temp_id: 'q' + Date.now() + '-' + (sku.sku_id || prev.length), vendor_cost: sku.vendor_cost || null }]);
+          setQuoteItems(prev => [...prev, { ...newItem, _temp_id: 'q' + Date.now() + '-' + (sku.sku_id || prev.length), vendor_cost: ppCost }]);
         }
         } catch (err) { alert('Failed to add product: ' + (err.message || 'Unknown error')); }
       };
@@ -25642,7 +25653,7 @@
         const discount = tradeDiscountFor(selectedCustomer);
         for (const { item: p, qty } of lines) {
           const isCarpet = p.price_basis === 'per_sqyd';
-          const retail = parseFloat(isCarpet ? (p.cut_price || p.price || 0) : (p.price || 0));
+          const retail = isCarpet ? parseFloat(p.cut_price || p.price || 0) : pieceRetail(p, p.price);
           const price = tradeUnit(retail, p.retail_locked, discount);
           const sqftPerBox = parseFloat(p.sqft_per_box || 0);
           const sellBy = isCarpet ? 'roll' : (p.sell_by || 'box');
@@ -25660,7 +25671,7 @@
               is_sample: false, sell_by: sellBy
             },
             extra: {
-              _sqft_per_box: sqftPerBox, vendor_cost: p.cost || null, primary_image: p.primary_image || null,
+              _sqft_per_box: sqftPerBox, vendor_cost: (isPerPieceRow(p) && p.cost != null ? parseFloat(p.cost) * sqftPerBox : p.cost) || null, primary_image: p.primary_image || null,
               vendor_name: p.brand_name || p.vendor_name || null, vendor_sku: p.vendor_sku || p.internal_sku || null,
               color: p.color || null, variant_name: p.variant_name || null,
               variant_type: p.variant_type || null, accessory_label: p.accessory_label || null,
@@ -26260,7 +26271,7 @@
                         <div className="rof-search-results">
                           {searchResults.slice(0, 20).map((r, i) => {
                             const rSuffix = skuPriceSuffix(r);
-                            const rRetail = parseFloat(r.price || 0);
+                            const rRetail = pieceRetail(r, r.price);
                             const rTrade = rofTradeUnit(rRetail, r.retail_locked, tradeDiscountFor(selectedCustomer));
                             const rDisc = rRetail > 0 && rTrade < rRetail;
                             return (
@@ -27602,7 +27613,7 @@
         setShowResults(false);
         setProductSearch('');
         const isCarpet = sku.price_basis === 'per_sqyd' || sku.sell_by === 'roll';
-        const retail = parseFloat(isCarpet ? (sku.cut_price || sku.price || 0) : (sku.price || 0));
+        const retail = isCarpet ? parseFloat(sku.cut_price || sku.price || 0) : pieceRetail(sku, sku.price);
         const price = tradeUnit(retail, sku.retail_locked, tradeDiscountFor(selectedCustomer));
         const sqftPerBox = parseFloat(sku.sqft_per_box || 0);
         const sellBy = isCarpet ? 'roll' : (sku.sell_by || 'box');
@@ -27630,7 +27641,7 @@
           subtotal: sub.toFixed(2),
           sell_by: sellBy,
           area_id: targetAreaId,
-          vendor_cost: sku.vendor_cost || null,
+          vendor_cost: (isPerPieceRow(sku) && sku.vendor_cost != null ? parseFloat(sku.vendor_cost) * sqftPerBox : sku.vendor_cost) || null,
           _sqft_per_box: sqftPerBox
         };
 
@@ -27643,7 +27654,7 @@
           });
           if (result.item) {
             result.item._sqft_per_box = sqftPerBox;
-            result.item.vendor_cost = sku.vendor_cost || null;
+            result.item.vendor_cost = (isPerPieceRow(sku) && sku.vendor_cost != null ? parseFloat(sku.vendor_cost) * sqftPerBox : sku.vendor_cost) || null;
             result.item.retail_price = retail;
             result.item.retail_locked = !!sku.retail_locked;
             // Carry display fields so the line renders fully before any reload
@@ -27691,7 +27702,7 @@
         const toAdd = [];
         for (const { item: p, qty } of lines) {
           const isCarpet = p.price_basis === 'per_sqyd';
-          const retail = parseFloat(isCarpet ? (p.cut_price || p.price || 0) : (p.price || 0));
+          const retail = isCarpet ? parseFloat(p.cut_price || p.price || 0) : pieceRetail(p, p.price);
           const price = tradeUnit(retail, p.retail_locked, discount);
           const sqftPerBox = parseFloat(p.sqft_per_box || 0);
           const sellBy = isCarpet ? 'roll' : (p.sell_by || 'box');
@@ -27708,7 +27719,7 @@
               unit_price: price.toFixed(2), subtotal: parseFloat(sub.toFixed(2)).toFixed(2), sell_by: sellBy,
               area_id: targetAreaId
             },
-            extra: { _sqft_per_box: sqftPerBox, vendor_cost: p.cost || null, primary_image: p.primary_image || null,
+            extra: { _sqft_per_box: sqftPerBox, vendor_cost: (isPerPieceRow(p) && p.cost != null ? parseFloat(p.cost) * sqftPerBox : p.cost) || null, primary_image: p.primary_image || null,
               vendor_name: p.vendor_name || p.brand_name || null, vendor_sku: p.vendor_sku || p.internal_sku || null,
               color: p.color || null, variant_name: p.variant_name || null,
               variant_type: p.variant_type || null, accessory_label: p.accessory_label || null,
@@ -28378,7 +28389,7 @@
               <div className="rof-search-results">
                 {searchResults.slice(0, 20).map((r, i) => {
                   const rSuffix = skuPriceSuffix(r);
-                  const rRetail = parseFloat(r.price || 0);
+                  const rRetail = pieceRetail(r, r.price);
                   const rTrade = rofTradeUnit(rRetail, r.retail_locked, tradeDiscountFor(selectedCustomer));
                   const rDisc = rRetail > 0 && rTrade < rRetail;
                   return (

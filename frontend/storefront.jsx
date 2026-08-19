@@ -590,13 +590,21 @@
       }
       return val;
     }
+    // A "piece" = sold as a whole unit but priced from a per-sqft rate with a known
+    // piece area (natural stone tile/slab). Distinct from accessories (per_unit → /ea).
+    function isSoldPerPiece(sku) {
+      return !!(sku && (sku.sell_by === 'unit' || sku.sell_by === 'piece')
+        && (sku.price_basis === 'sqft' || sku.price_basis === 'per_sqft')
+        && parseFloat(sku.sqft_per_box) > 0);
+    }
     function priceSuffix(sku) {
       if (isSoldPerUnit(sku)) {
         // Slab with per-sqft rate but no known area — show /sqft since piece price can't be computed
         if (sku && (sku.price_basis === 'sqft' || sku.price_basis === 'per_sqft') && !(parseFloat(sku.sqft_per_box) > 0)) {
           return '/sqft';
         }
-        return '/ea';
+        // Per-piece stone (has a piece area) reads "/pc"; plain accessories read "/ea"
+        return isSoldPerPiece(sku) ? '/pc' : '/ea';
       }
       if (isSoldPerSqyd(sku)) return '/sqyd';
       return '/sqft';
@@ -1339,7 +1347,7 @@
           // Skip roll dimensions (e.g. "12x150FT"), plank dimensions with decimals (e.g. "4.96x48.04", "9.06 Wide"),
           // and simple width values (e.g. "5 in", "7 in") — the product name already carries the width
           const rawSizeVal = rawSizeAttr ? (rawSizeAttr.value || '').trim() : '';
-          const isAdexVendor = (sku.vendor_code || '') === '167'; // ADEX USA
+          const isAdexVendor = (sku.vendor_code || '') === 'ADEX'; // ADEX USA
           const sizeAttr = rawSizeAttr && !isAdexVendor && (
             /^\d+\s*[xX×]\s*\d+\s*ft$/i.test(rawSizeVal) ||
             /^\d+\.\d+\s*[xX×]\s*\d+\.\d+$/.test(rawSizeVal) ||
@@ -1454,7 +1462,7 @@
       const sku = item.vendor_sku || item.internal_sku || item.sku || null;
       // Suppress the vendor name when the brand/vendor is public-hidden (keep the
       // rep's one-off custom_vendor and the SKU). See itemBrand.
-      const metaBrand = item.brand_hidden ? (item.vendor_code || item.custom_vendor || null) : (item.vendor_name || item.custom_vendor);
+      const metaBrand = item.brand_hidden ? (item.vendor_public_code || item.custom_vendor || null) : (item.vendor_name || item.custom_vendor);
       const parts = [metaBrand, sku].filter(Boolean);
       // dedupe while preserving order
       const seen = new Set();
@@ -1620,9 +1628,9 @@
     // flagged hide_public_name, we suppress the visible label everywhere a human
     // browses (the real name is still kept in SEO JSON-LD/meta so we stay
     // discoverable). custom_vendor is a rep's one-off free-text name, never gated.
-    function itemBrand(it) { it = it || {}; if (it.brand_hidden) return (it.vendor_code != null ? String(it.vendor_code) : '') || it.custom_vendor || ''; return it.brand_name || it.vendor_name || it.custom_vendor || ''; }
-    // Public brand label for a SKU card/detail — the bare vendor code when hidden.
-    function publicBrand(sku) { sku = sku || {}; return sku.brand_hidden ? (sku.vendor_code != null ? String(sku.vendor_code) : '') : (sku.brand_name || sku.vendor_name || ''); }
+    function itemBrand(it) { it = it || {}; if (it.brand_hidden) return (it.vendor_public_code != null ? String(it.vendor_public_code) : '') || it.custom_vendor || ''; return it.brand_name || it.vendor_name || it.custom_vendor || ''; }
+    // Public brand label for a SKU card/detail — the bare public code when hidden.
+    function publicBrand(sku) { sku = sku || {}; return sku.brand_hidden ? (sku.vendor_public_code != null ? String(sku.vendor_public_code) : '') : (sku.brand_name || sku.vendor_name || ''); }
     function itemSku(it) { it = it || {}; return it.vendor_sku || it.internal_sku || it.sku || ''; }
 
     function cleanDescription(text, vendorName) {
@@ -4409,6 +4417,18 @@
       const megaTimerRef = useRef(null);
       const itemCount = cart.length;
 
+      // Home page: transparent header overlaying the full-viewport hero at the top,
+      // turning solid once the user scrolls past the hero threshold.
+      const isHome = view === 'home';
+      const [atTop, setAtTop] = useState(true);
+      useEffect(() => {
+        if (!isHome) { setAtTop(true); return; }
+        const onScroll = () => setAtTop(window.scrollY < 24);
+        onScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+      }, [isHome]);
+
       // Fetch popular searches once on mount
       useEffect(() => {
         fetch(API + '/api/storefront/search/popular').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => setPopularSearches(d.terms || [])).catch(() => {});
@@ -4581,7 +4601,7 @@
       ];
 
       return (<>
-        <header onMouseLeave={() => setMegaOpen(null)}>
+        <header className={(isHome ? 'header--home' : '') + (isHome && !atTop ? ' scrolled' : '')} onMouseLeave={() => setMegaOpen(null)}>
           {/* Row 1 — Warm Utility Strip */}
           <div className="utility-bar">
             <div className="utility-bar-inner">
@@ -5433,7 +5453,7 @@
           <section className="form-hero">
             <div className="form-hero-inner">
               <div className="form-eyebrow">Flooring &amp; Surfaces &middot; Anaheim, est. 1999</div>
-              <h1 className="form-hero-headline">Premium surfaces for the spaces that shape how you live</h1>
+              <h1 className="form-hero-headline">All remodels lead to<br />Roma Flooring Designs</h1>
               <button className="form-hero-cta" onClick={goBrowse}>Browse the catalog</button>
             </div>
           </section>
@@ -7326,7 +7346,7 @@
           mainSiblings.filter(s => s.variant_type !== 'accessory')
             .map(s => ({ sku_id: s.sku_id, name: s.variant_name, is_current: false }))
         );
-        const isPrefab = raw.some(it => /\b(set|piece)\b/i.test(it.name || ''));
+        const isPrefab = raw.some(it => /\b(set|piece|prefab)\b/i.test(it.name || ''));
         const DIM = /\d+(?:\.\d+)?\s*["″”]?\s*[xX×]\s*(\d+(?:\.\d+)?)/;
         const sizeLabel = (name) => {
           const n = name || '';
@@ -7567,6 +7587,7 @@
                     {!isPerUnit && sqftPerBox > 0 && (
                       <div className="pdp-price-per-box">${(tradePrice * sqftPerBox).toFixed(2)} per {boxLabel} &middot; {sqftPerBox} sqft{sku.pieces_per_box ? ' \u00B7 ' + sku.pieces_per_box + ' pieces' : ''}</div>
                     )}
+                    {isSoldPerPiece(sku) && <div className="pdp-price-per-box">{sqftPerBox} sqft per piece</div>}
                   </>
                 ) : salePrice ? (
                   <>
@@ -7579,6 +7600,7 @@
                     {!isPerUnit && sqftPerBox > 0 && (
                       <div className="pdp-price-per-box">${(salePrice * sqftPerBox).toFixed(2)} per {boxLabel} &middot; {sqftPerBox} sqft{sku.pieces_per_box ? ' \u00B7 ' + sku.pieces_per_box + ' pieces' : ''}</div>
                     )}
+                    {isSoldPerPiece(sku) && <div className="pdp-price-per-box">{sqftPerBox} sqft per piece</div>}
                   </>
                 ) : retailPrice > 0 ? (
                   <>
@@ -7590,6 +7612,7 @@
                     {!isPerUnit && sqftPerBox > 0 && (
                       <div className="pdp-price-per-box">${(retailPrice * sqftPerBox).toFixed(2)} per {boxLabel} &middot; {sqftPerBox} sqft{sku.pieces_per_box ? ' \u00B7 ' + sku.pieces_per_box + ' pieces' : ''}</div>
                     )}
+                    {isSoldPerPiece(sku) && <div className="pdp-price-per-box">{sqftPerBox} sqft per piece</div>}
                   </>
                 ) : (
                   <div className="pdp-price-main">
@@ -8020,7 +8043,7 @@
 
                 // Size pills from collection siblings (vanities where sizes are separate products)
                 // Computed BEFORE the merge so we can skip merging sizes into colorItems
-                const _isDecorativeHW = (sku.vendor_code || '') === '903'; // Hardware Resources
+                const _isDecorativeHW = (sku.vendor_code || '') === 'HR'; // Hardware Resources
                 let collectionSizeItems = [];
                 if (collectionSiblings.length > 0) {
                   const extractDims = (name) => {
@@ -8196,7 +8219,7 @@
                       sizeMap.set(nk, { label: formatSizeDim(sv), sku_id: s.sku_id, is_current: normalizeSize(sv) === normalizeSize(curSizeVal), sort: parseFractionalInches(dm[1]) });
                     });
                     if (sizeMap.size >= 2) {
-                      attrSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
+                      attrSizeItems = [...sizeMap.entries()].map(([nk, v]) => ({ ...v, nsize: nk })).sort((a, b) => a.sort - b.sort);
                     }
                   }
                 }
@@ -8255,11 +8278,33 @@
                       if (targetSkuId) sizeMap.set(nk, { label: formatSizeDim(sv), sku_id: targetSkuId, is_current: false, is_cross_product: true, sort: parseFractionalInches(dm[1]) });
                     });
                     if (sizeMap.size >= 2) {
-                      attrSizeItems = [...sizeMap.values()].sort((a, b) => a.sort - b.sort);
+                      attrSizeItems = [...sizeMap.entries()].map(([nk, v]) => ({ ...v, nsize: nk })).sort((a, b) => a.sort - b.sort);
                     }
                   }
                 }
                 const showAttrSizes = attrSizeItems.length > 0;
+
+                // Availability-aware Size pills: some collections entangle size and finish —
+                // a "finish" is really a format that lives only at its own size (Melange
+                // Sixty 60: Hex = 8x7, Minibrick = 2x6; Portland Stone: Cross Cut only 24x24).
+                // Grey out size pills that have no SKU at the currently-selected finish, so the
+                // dead cross-product combos read as unavailable instead of silently jumping
+                // both axes. Finish pills stay fully enabled (the primary "look" axis), so
+                // every format is still reachable — no navigation trap. Only engages when the
+                // finish varies AND some size is missing at the current finish (a real overlap);
+                // fully-independent size/finish collections are untouched.
+                const _curFinishAvail = currentAttrs['finish'] || '';
+                const _sizesForCurFinish = new Set();
+                if (_curFinishAvail) {
+                  [{ attributes: sku.attributes }, ...mainSiblings.filter(s => s.variant_type !== 'accessory')].forEach(s => {
+                    const fa = (s.attributes || []).find(a => a.slug === 'finish');
+                    const za = (s.attributes || []).find(a => a.slug === 'size');
+                    if (fa && za && fa.value === _curFinishAvail) _sizesForCurFinish.add(normalizeSize(za.value));
+                  });
+                }
+                const _applySizeAvail = !!_curFinishAvail && _sizesForCurFinish.size > 0 &&
+                  attrSizeItems.some(s => s.nsize && !_sizesForCurFinish.has(s.nsize));
+                const _sizeAvail = (s) => !_applySizeAvail || !s.nsize || _sizesForCurFinish.has(s.nsize);
 
                 // If same-product siblings have 0-1 colors, use collection siblings as color options.
                 // Skip when those collection siblings are already the Size options (e.g. JMV vanities
@@ -8564,7 +8609,10 @@
                 // Check if the currently selected size/finish is available for a color swatch
                 const isColorCompatible = (c) => {
                   if (c.is_current) return true;
-                  const curSize = currentAttrs['size'];
+                  // Slab/prefab collections: each color is stocked in its own set of slab
+                  // sizes, so a color is never "unavailable" at the current size — switching
+                  // color just lands on that color's own size. Don't grey them out by size.
+                  const curSize = (_isSlabVariant || slabSizeItems.length > 0) ? undefined : currentAttrs['size'];
                   // Quick exit: nothing selected to conflict with
                   if (!curSize && attrSlugs.every(s => !currentAttrs[s])) return true;
                   // Collection siblings have available_sizes/available_finishes from API
@@ -8638,7 +8686,7 @@
                     {showSizePills && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{collectionSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        {sku.vendor_code === '474' ? ( // James Martin Vanities
+                        {sku.vendor_code === 'JMV' ? ( // James Martin Vanities
                           <div className="color-swatches">
                             {collectionSizeItems.map(s => (
                               <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
@@ -8679,7 +8727,7 @@
                     {showSibSizes && !attrSlugs.includes('shape') && (
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{sibSizeItems.find(s => s.is_current)?.label || ''}</span></div>
-                        {sku.vendor_code === '474' ? ( // James Martin Vanities
+                        {sku.vendor_code === 'JMV' ? ( // James Martin Vanities
                           <div className="color-swatches">
                             {sibSizeItems.map(s => (
                               <div key={s.label} className="color-swatch-wrap" onClick={() => { if (!s.is_current) onSkuClick(s.sku_id); }}>
@@ -8709,11 +8757,14 @@
                       <div className="variant-selector-group">
                         <div className="variant-selector-label">Size<span>{attrSizeItems.find(s => s.is_current)?.label || ''}</span></div>
                         <div className="attr-pills">
-                          {attrSizeItems.map(s => (
-                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '') + (s.is_cross_product ? ' limited' : '')} title={s.is_cross_product ? 'Available in other colors' : ''} onClick={() => { if (!s.is_current && s.sku_id) onSkuClick(s.sku_id); }}>
+                          {attrSizeItems.map(s => {
+                            const _avail = _sizeAvail(s);
+                            return (
+                            <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '') + (s.is_cross_product ? ' limited' : '') + (!_avail && !s.is_current ? ' disabled' : '')} title={!_avail ? ('Not available in ' + _curFinishAvail) : (s.is_cross_product ? 'Available in other colors' : '')} onClick={() => { if (!s.is_current && s.sku_id) onSkuClick(s.sku_id); }}>
                               {s.label}
                             </button>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -9001,10 +9052,10 @@
               {!isCarpetSku && sqftPerBox > 0 && (
                 <div className="packaging-info">
                   <div className="pdp-pkg-cell">
-                    <span className="pdp-pkg-cell-label">{isSlabUnit ? 'Slab Size' : 'Coverage'}</span>
-                    <span className="pdp-pkg-cell-value">{sqftPerBox} sqft{isSlabUnit ? '' : '/' + boxLabel}</span>
+                    <span className="pdp-pkg-cell-label">{isSlabUnit ? 'Slab Size' : (isSoldPerPiece(sku) ? 'Piece Size' : 'Coverage')}</span>
+                    <span className="pdp-pkg-cell-value">{sqftPerBox} sqft{(isSlabUnit || isSoldPerPiece(sku)) ? '' : '/' + boxLabel}</span>
                   </div>
-                  {!isSlabUnit && sku.pieces_per_box && (
+                  {!isSlabUnit && parseInt(sku.pieces_per_box) > 1 && (
                     <div className="pdp-pkg-cell">
                       <span className="pdp-pkg-cell-label">Pieces</span>
                       <span className="pdp-pkg-cell-value">{sku.pieces_per_box}/{boxLabel}</span>

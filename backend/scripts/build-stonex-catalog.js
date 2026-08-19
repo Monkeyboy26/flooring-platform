@@ -38,6 +38,16 @@ const round05 = (n) => Math.round((n * 1.6) / 0.05) * 0.05;      // keystone x1.
 const money = (n) => Math.round(n * 100) / 100;
 const parseCost = (s) => parseFloat(String(s).replace(/[^0-9.]/g, '')) || 0;
 const num = (s) => { const n = parseFloat(String(s).replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? n : null; };
+// Area (sqft) of ONE piece from a "WxH" size in inches (e.g. 12x24 -> 2.0). Null
+// for non-rectangular sizes (mosaics/patterns/ranges) so they stay call-for-price.
+const areaFromSize = (sz) => {
+  if (!sz || typeof sz !== 'string') return null;
+  if (/mesh|pattern|random|free|split|chevron|herringbone|versailles/i.test(sz)) return null;
+  const m = sz.replace(/[×X]/g, 'x').match(/^\s*([\d.]+)"?\s*x\s*([\d.]+)"?/);
+  if (!m) return null;
+  const a = (parseFloat(m[1]) * parseFloat(m[2])) / 144;
+  return a >= 0.02 ? Math.round(a * 10000) / 10000 : null;
+};
 
 // Title-case + fix the handful of price-list typos so display names read clean.
 const TYPO = [
@@ -154,11 +164,23 @@ function skuEconomics(r) {
   } else if (bucket === 'slab') {
     sell_by = 'unit'; price_basis = 'per_unit';
     cost = money(price);                     // per SF, size TBD — priced per slab downstream
-  } else {
-    // tile, paver, pool_coping, ledger_panel, veneer  (all UOM=SF, area-priced)
+  } else if (sfBox > 0) {
+    // Genuinely boxed field tile — sold by the box, priced per sqft.
     sell_by = 'sqft'; price_basis = 'per_sqft';
     cost = money(price);
     sqft_per_box = sfBox; pieces_per_box = pcsBox;
+  } else {
+    // Loose natural stone (tile/paver/coping) with no box packaging is sold BY
+    // THE PIECE. Keep the per-SF rate but mark it as a unit with the piece area,
+    // so storefront/rep compute piece price = rate × area (no call-for-price).
+    const area = sfPiece || areaFromSize(r.size);
+    cost = money(price);
+    if (area > 0) {
+      sell_by = 'unit'; price_basis = 'per_sqft';
+      sqft_per_box = area; pieces_per_box = 1;
+    } else {
+      sell_by = 'sqft'; price_basis = 'per_sqft';   // no clean size — stays call-for-price
+    }
   }
   return { sell_by, price_basis, cost, retail: money(round05(cost)), sqft_per_box, pieces_per_box, variant_type };
 }
