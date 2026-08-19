@@ -3667,7 +3667,8 @@
           setShowTradeModal(true);
         },
         onCustomerLogout: handleCustomerLogout,
-        onTradeLogout: handleTradeLogout
+        onTradeLogout: handleTradeLogout,
+        onOpenSearch: () => setMobileSearchOpen(true)
       }
     ), /* @__PURE__ */ React.createElement(
       MobileSearchOverlay,
@@ -4088,7 +4089,7 @@
         }
       },
       item.label
-    ))), /* @__PURE__ */ React.createElement("div", { className: "header-main-right" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-search-btn", "aria-label": "Search products", onClick: () => setMobileSearchOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" }))), searchForm, /* @__PURE__ */ React.createElement("button", { className: "header-action-btn", onClick: onAccountClick, "aria-label": "Account", title: customer ? customer.first_name : "Account" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "7", r: "4" }))), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn wishlist-header-wrap", "aria-label": "Wishlist", onClick: goWishlist }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" })), wishlistCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "wishlist-badge" }, wishlistCount)), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn" + (cartFlash ? " cart-flash" : ""), "aria-label": "Shopping cart", onClick: () => setCartDrawerOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("path", { d: "M16 10a4 4 0 01-8 0" })), itemCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "cart-badge" }, itemCount)))), megaOpen && /* @__PURE__ */ React.createElement(
+    ))), /* @__PURE__ */ React.createElement("div", { className: "header-main-right" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-search-btn", "aria-label": "Search products", onClick: () => setMobileSearchOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" }))), searchForm, /* @__PURE__ */ React.createElement("button", { className: "header-action-btn header-action-btn--account", onClick: onAccountClick, "aria-label": "Account", title: customer ? customer.first_name : "Account" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "7", r: "4" }))), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn wishlist-header-wrap", "aria-label": "Wishlist", onClick: goWishlist }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" }, /* @__PURE__ */ React.createElement("path", { d: "M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" })), wishlistCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "wishlist-badge" }, wishlistCount)), /* @__PURE__ */ React.createElement("button", { className: "header-action-btn" + (cartFlash ? " cart-flash" : ""), "aria-label": "Shopping cart", onClick: () => setCartDrawerOpen(true) }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("path", { d: "M16 10a4 4 0 01-8 0" })), itemCount > 0 && /* @__PURE__ */ React.createElement("span", { className: "cart-badge" }, itemCount)))), megaOpen && /* @__PURE__ */ React.createElement(
       MegaPanel,
       {
         panelId: megaOpen,
@@ -4288,9 +4289,9 @@
       onClose();
     } }, "View full details \u2192"))))));
   }
-  function MobileNav({ open, onClose, categories, onCategorySelect, globalFacets, onAxisSelect, goHome, goBrowse, goCollections, goTrade, goAccount, customer, tradeCustomer, onTradeClick, onCustomerLogout, onTradeLogout, navigate }) {
-    const [expandedCat, setExpandedCat] = useState(null);
-    const [servicesOpen, setServicesOpen] = useState(false);
+  function MobileNav({ open, onClose, categories, onCategorySelect, globalFacets, onAxisSelect, goHome, goBrowse, goCollections, goTrade, goAccount, customer, tradeCustomer, onTradeClick, onCustomerLogout, onTradeLogout, navigate, onOpenSearch }) {
+    const [activeSub, setActiveSub] = useState(null);
+    const SERVICES = { id: "__services", name: "Services", isServices: true };
     const serviceLinks = [
       { name: "Cabinets", route: "/cabinets" },
       { name: "Installation", route: "/installation" },
@@ -4298,51 +4299,61 @@
       { name: "Custom Area Rugs", route: "/custom-area-rugs" }
     ];
     const parentCats = categories.filter((c) => !c.parent_id && c.product_count > 0);
+    const childrenOf = (cat) => (cat && cat.children || []).filter((ch) => ch.product_count > 0).sort((a, b) => b.product_count - a.product_count);
+    const subChildren = activeSub && !activeSub.isServices ? childrenOf(activeSub) : [];
     useEffect(() => {
       document.body.style.overflow = open ? "hidden" : "";
       return () => {
         document.body.style.overflow = "";
       };
     }, [open]);
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-overlay" + (open ? " open" : ""), onClick: onClose }), /* @__PURE__ */ React.createElement("nav", { className: "mobile-nav" + (open ? " open" : "") }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-head" }, /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--font-heading)", fontSize: "1.25rem", fontWeight: 600 } }, "Menu"), /* @__PURE__ */ React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", fontSize: "1.5rem", color: "var(--stone-500)", cursor: "pointer" } }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-links" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    useEffect(() => {
+      if (!open) return;
+      const onKey = (e) => {
+        if (e.key === "Escape") {
+          if (activeSub) setActiveSub(null);
+          else onClose();
+        }
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [open, activeSub, onClose]);
+    useEffect(() => {
+      if (open) return;
+      const t = setTimeout(() => setActiveSub(null), 350);
+      return () => clearTimeout(t);
+    }, [open]);
+    const chevronRight = /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "9 18 15 12 9 6" }));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-overlay" + (open ? " open" : ""), onClick: onClose }), /* @__PURE__ */ React.createElement("nav", { className: "mobile-nav" + (open ? " open" : ""), "aria-label": "Main menu" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-head" }, activeSub ? /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-back", onClick: () => setActiveSub(null), "aria-label": "Back" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("polyline", { points: "15 18 9 12 15 6" })), /* @__PURE__ */ React.createElement("span", null, activeSub.name)) : /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-title" }, "Menu"), /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-close", onClick: onClose, "aria-label": "Close menu" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" })))), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-track" + (activeSub ? " show-sub" : "") }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-panel", "aria-hidden": activeSub ? "true" : void 0 }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-scroll" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-search", onClick: () => {
+      onClose();
+      onOpenSearch && onOpenSearch();
+    } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })), /* @__PURE__ */ React.createElement("span", null, "Search products\u2026")), /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-row", href: "#", onClick: (e) => {
       e.preventDefault();
       goHome();
       onClose();
-    } }, "Home"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    } }, "Home"), /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-row", href: "#", onClick: (e) => {
       e.preventDefault();
       goBrowse();
       onClose();
-    } }, "Shop All"), parentCats.map((cat) => {
-      const children = categories.filter((c) => c.parent_id === cat.id);
+    } }, "Shop All"), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-section-label" }, "Shop by category"), parentCats.map((cat) => {
+      const children = childrenOf(cat);
       if (children.length === 0) {
-        return /* @__PURE__ */ React.createElement("a", { key: cat.id, href: "#", onClick: (e) => {
+        return /* @__PURE__ */ React.createElement("a", { key: cat.id, className: "mobile-nav-row mobile-nav-row--cat", href: "#", onClick: (e) => {
           e.preventDefault();
           onCategorySelect(cat.slug);
           onClose();
-        } }, cat.name);
+        } }, /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-row-label" }, cat.name));
       }
-      return /* @__PURE__ */ React.createElement("div", { key: cat.id, className: "mobile-nav-cat-item" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-cat-header", onClick: () => setExpandedCat(expandedCat === cat.id ? null : cat.id) }, /* @__PURE__ */ React.createElement("span", null, cat.name), /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16, transform: expandedCat === cat.id ? "rotate(180deg)" : "none", transition: "transform 0.2s" } }, /* @__PURE__ */ React.createElement("polyline", { points: "6 9 12 15 18 9" }))), expandedCat === cat.id && /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-cat-children" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
-        e.preventDefault();
-        onCategorySelect(cat.slug);
-        onClose();
-      } }, "All ", cat.name), children.map((child) => /* @__PURE__ */ React.createElement("a", { key: child.id, href: "#", onClick: (e) => {
-        e.preventDefault();
-        onCategorySelect(child.slug);
-        onClose();
-      } }, child.name))));
-    }), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+      return /* @__PURE__ */ React.createElement("button", { key: cat.id, className: "mobile-nav-row mobile-nav-row--cat mobile-nav-row--parent", onClick: () => setActiveSub(cat), "aria-label": cat.name + " subcategories" }, /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-row-label" }, cat.name), chevronRight);
+    }), /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-row", href: "#", onClick: (e) => {
       e.preventDefault();
       goCollections();
       onClose();
-    } }, "Collections"), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-cat-item" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-cat-header", onClick: () => setServicesOpen(!servicesOpen) }, /* @__PURE__ */ React.createElement("span", null, "Services"), /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16, transform: servicesOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" } }, /* @__PURE__ */ React.createElement("polyline", { points: "6 9 12 15 18 9" }))), servicesOpen && /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-cat-children" }, serviceLinks.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.route, href: "#", onClick: (e) => {
-      e.preventDefault();
-      navigate(s.route);
-      onClose();
-    } }, s.name))))), !tradeCustomer && /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-trade-cta", href: "#", onClick: (e) => {
+    } }, "Collections"), /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-row mobile-nav-row--parent", onClick: () => setActiveSub(SERVICES), "aria-label": "Services" }, /* @__PURE__ */ React.createElement("span", null, "Services"), chevronRight), !tradeCustomer && /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-trade-cta", href: "#", onClick: (e) => {
       e.preventDefault();
       onTradeClick();
       onClose();
-    } }, "Trade Program"), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-footer" }, customer ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--stone-500)", marginBottom: "0.5rem" } }, "Signed in as ", customer.first_name || customer.email), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    } }, "Trade Program")), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-footer" }, customer ? /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-account" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-account-label" }, "Signed in as ", customer.first_name || customer.email), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       goAccount();
       onClose();
@@ -4350,7 +4361,7 @@
       e.preventDefault();
       onCustomerLogout();
       onClose();
-    } }, "Sign Out")) : tradeCustomer ? /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--stone-500)", marginBottom: "0.5rem" } }, "Trade: ", tradeCustomer.company_name), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    } }, "Sign Out")) : tradeCustomer ? /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-account" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-account-label" }, "Trade: ", tradeCustomer.company_name), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       goTrade();
       onClose();
@@ -4358,11 +4369,23 @@
       e.preventDefault();
       onTradeLogout();
       onClose();
-    } }, "Sign Out")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    } }, "Sign Out")) : /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-account" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       goAccount();
       onClose();
-    } }, "Sign In")))));
+    } }, "Sign In")))), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-panel mobile-nav-subpanel", "aria-hidden": activeSub ? void 0 : "true" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-scroll" }, activeSub && activeSub.isServices && serviceLinks.map((s) => /* @__PURE__ */ React.createElement("a", { key: s.route, className: "mobile-nav-row", href: "#", onClick: (e) => {
+      e.preventDefault();
+      navigate(s.route);
+      onClose();
+    } }, s.name)), activeSub && !activeSub.isServices && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-row mobile-nav-row--all", href: "#", onClick: (e) => {
+      e.preventDefault();
+      onCategorySelect(activeSub.slug);
+      onClose();
+    } }, /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-row-label" }, "All ", activeSub.name), chevronRight), subChildren.map((child) => /* @__PURE__ */ React.createElement("a", { key: child.id, className: "mobile-nav-row mobile-nav-row--cat", href: "#", onClick: (e) => {
+      e.preventDefault();
+      onCategorySelect(child.slug);
+      onClose();
+    } }, /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-row-label" }, child.name), /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-row-count" }, child.product_count)))))))));
   }
   function MobileSearchOverlay({ open, onClose, onSearch, onSkuClick, onCategorySelect }) {
     const [query, setQuery] = useState("");

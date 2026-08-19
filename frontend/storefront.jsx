@@ -3969,6 +3969,7 @@
             customer={customer} tradeCustomer={tradeCustomer}
             onTradeClick={() => { setTradeModalMode('login'); setShowTradeModal(true); }}
             onCustomerLogout={handleCustomerLogout} onTradeLogout={handleTradeLogout}
+            onOpenSearch={() => setMobileSearchOpen(true)}
           />
 
           {/* Mobile Search Overlay */}
@@ -4629,7 +4630,7 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </button>
               {searchForm}
-              <button className="header-action-btn" onClick={onAccountClick} aria-label="Account" title={customer ? customer.first_name : 'Account'}>
+              <button className="header-action-btn header-action-btn--account" onClick={onAccountClick} aria-label="Account" title={customer ? customer.first_name : 'Account'}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </button>
               <button className="header-action-btn wishlist-header-wrap" aria-label="Wishlist" onClick={goWishlist}>
@@ -5023,9 +5024,10 @@
 
     // ==================== Mobile Nav Drawer ====================
 
-    function MobileNav({ open, onClose, categories, onCategorySelect, globalFacets, onAxisSelect, goHome, goBrowse, goCollections, goTrade, goAccount, customer, tradeCustomer, onTradeClick, onCustomerLogout, onTradeLogout, navigate }) {
-      const [expandedCat, setExpandedCat] = useState(null);
-      const [servicesOpen, setServicesOpen] = useState(false);
+    function MobileNav({ open, onClose, categories, onCategorySelect, globalFacets, onAxisSelect, goHome, goBrowse, goCollections, goTrade, goAccount, customer, tradeCustomer, onTradeClick, onCustomerLogout, onTradeLogout, navigate, onOpenSearch }) {
+      // Two-level push nav: activeSub is null (root), a parent category object, or the Services sentinel.
+      const [activeSub, setActiveSub] = useState(null);
+      const SERVICES = { id: '__services', name: 'Services', isServices: true };
       const serviceLinks = [
         { name: 'Cabinets', route: '/cabinets' },
         { name: 'Installation', route: '/installation' },
@@ -5033,81 +5035,130 @@
         { name: 'Custom Area Rugs', route: '/custom-area-rugs' },
       ];
       const parentCats = categories.filter(c => !c.parent_id && c.product_count > 0);
+      // Children are nested under cat.children in the API response (same source the desktop mega menu uses).
+      const childrenOf = (cat) => ((cat && cat.children) || []).filter(ch => ch.product_count > 0).sort((a, b) => b.product_count - a.product_count);
+      const subChildren = activeSub && !activeSub.isServices ? childrenOf(activeSub) : [];
 
+      // Lock body scroll while open.
       useEffect(() => {
         document.body.style.overflow = open ? 'hidden' : '';
         return () => { document.body.style.overflow = ''; };
       }, [open]);
 
+      // Escape steps back one level, then closes.
+      useEffect(() => {
+        if (!open) return;
+        const onKey = (e) => { if (e.key === 'Escape') { if (activeSub) setActiveSub(null); else onClose(); } };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+      }, [open, activeSub, onClose]);
+
+      // Reset to the root panel after the drawer finishes closing.
+      useEffect(() => {
+        if (open) return;
+        const t = setTimeout(() => setActiveSub(null), 350);
+        return () => clearTimeout(t);
+      }, [open]);
+
+      const chevronRight = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>;
+
       return (
         <>
           <div className={'mobile-nav-overlay' + (open ? ' open' : '')} onClick={onClose} />
-          <nav className={'mobile-nav' + (open ? ' open' : '')}>
+          <nav className={'mobile-nav' + (open ? ' open' : '')} aria-label="Main menu">
             <div className="mobile-nav-head">
-              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 600 }}>Menu</span>
-              <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: 'var(--stone-500)', cursor: 'pointer' }}>&times;</button>
-            </div>
-            <div className="mobile-nav-links">
-              <a href="#" onClick={e => { e.preventDefault(); goHome(); onClose(); }}>Home</a>
-              <a href="#" onClick={e => { e.preventDefault(); goBrowse(); onClose(); }}>Shop All</a>
-              {parentCats.map(cat => {
-                const children = categories.filter(c => c.parent_id === cat.id);
-                if (children.length === 0) {
-                  return <a key={cat.id} href="#" onClick={e => { e.preventDefault(); onCategorySelect(cat.slug); onClose(); }}>{cat.name}</a>;
-                }
-                return (
-                  <div key={cat.id} className="mobile-nav-cat-item">
-                    <div className="mobile-nav-cat-header" onClick={() => setExpandedCat(expandedCat === cat.id ? null : cat.id)}>
-                      <span>{cat.name}</span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: expandedCat === cat.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
-                    </div>
-                    {expandedCat === cat.id && (
-                      <div className="mobile-nav-cat-children">
-                        <a href="#" onClick={e => { e.preventDefault(); onCategorySelect(cat.slug); onClose(); }}>All {cat.name}</a>
-                        {children.map(child => (
-                          <a key={child.id} href="#" onClick={e => { e.preventDefault(); onCategorySelect(child.slug); onClose(); }}>{child.name}</a>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              <a href="#" onClick={e => { e.preventDefault(); goCollections(); onClose(); }}>Collections</a>
-              <div className="mobile-nav-cat-item">
-                <div className="mobile-nav-cat-header" onClick={() => setServicesOpen(!servicesOpen)}>
-                  <span>Services</span>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16, transform: servicesOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
-                {servicesOpen && (
-                  <div className="mobile-nav-cat-children">
-                    {serviceLinks.map(s => (
-                      <a key={s.route} href="#" onClick={e => { e.preventDefault(); navigate(s.route); onClose(); }}>{s.name}</a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-            {!tradeCustomer && (
-              <a className="mobile-nav-trade-cta" href="#" onClick={e => { e.preventDefault(); onTradeClick(); onClose(); }}>Trade Program</a>
-            )}
-            <div className="mobile-nav-footer">
-              {customer ? (
-                <div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Signed in as {customer.first_name || customer.email}</div>
-                  <a href="#" onClick={e => { e.preventDefault(); goAccount(); onClose(); }}>My Account</a>
-                  <a href="#" onClick={e => { e.preventDefault(); onCustomerLogout(); onClose(); }}>Sign Out</a>
-                </div>
-              ) : tradeCustomer ? (
-                <div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Trade: {tradeCustomer.company_name}</div>
-                  <a href="#" onClick={e => { e.preventDefault(); goTrade(); onClose(); }}>Trade Dashboard</a>
-                  <a href="#" onClick={e => { e.preventDefault(); onTradeLogout(); onClose(); }}>Sign Out</a>
-                </div>
+              {activeSub ? (
+                <button className="mobile-nav-back" onClick={() => setActiveSub(null)} aria-label="Back">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+                  <span>{activeSub.name}</span>
+                </button>
               ) : (
-                <div>
-                  <a href="#" onClick={e => { e.preventDefault(); goAccount(); onClose(); }}>Sign In</a>
-                </div>
+                <span className="mobile-nav-title">Menu</span>
               )}
+              <button className="mobile-nav-close" onClick={onClose} aria-label="Close menu">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div className={'mobile-nav-track' + (activeSub ? ' show-sub' : '')}>
+              {/* ── ROOT PANEL ── */}
+              <div className="mobile-nav-panel" aria-hidden={activeSub ? 'true' : undefined}>
+                <div className="mobile-nav-scroll">
+                  <button className="mobile-nav-search" onClick={() => { onClose(); onOpenSearch && onOpenSearch(); }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span>Search products…</span>
+                  </button>
+                  <a className="mobile-nav-row" href="#" onClick={e => { e.preventDefault(); goHome(); onClose(); }}>Home</a>
+                  <a className="mobile-nav-row" href="#" onClick={e => { e.preventDefault(); goBrowse(); onClose(); }}>Shop All</a>
+                  <div className="mobile-nav-section-label">Shop by category</div>
+                  {parentCats.map(cat => {
+                    const children = childrenOf(cat);
+                    if (children.length === 0) {
+                      return (
+                        <a key={cat.id} className="mobile-nav-row mobile-nav-row--cat" href="#" onClick={e => { e.preventDefault(); onCategorySelect(cat.slug); onClose(); }}>
+                          <span className="mobile-nav-row-label">{cat.name}</span>
+                        </a>
+                      );
+                    }
+                    return (
+                      <button key={cat.id} className="mobile-nav-row mobile-nav-row--cat mobile-nav-row--parent" onClick={() => setActiveSub(cat)} aria-label={cat.name + ' subcategories'}>
+                        <span className="mobile-nav-row-label">{cat.name}</span>
+                        {chevronRight}
+                      </button>
+                    );
+                  })}
+                  <a className="mobile-nav-row" href="#" onClick={e => { e.preventDefault(); goCollections(); onClose(); }}>Collections</a>
+                  <button className="mobile-nav-row mobile-nav-row--parent" onClick={() => setActiveSub(SERVICES)} aria-label="Services">
+                    <span>Services</span>
+                    {chevronRight}
+                  </button>
+                  {!tradeCustomer && (
+                    <a className="mobile-nav-trade-cta" href="#" onClick={e => { e.preventDefault(); onTradeClick(); onClose(); }}>Trade Program</a>
+                  )}
+                </div>
+                <div className="mobile-nav-footer">
+                  {customer ? (
+                    <div className="mobile-nav-account">
+                      <div className="mobile-nav-account-label">Signed in as {customer.first_name || customer.email}</div>
+                      <a href="#" onClick={e => { e.preventDefault(); goAccount(); onClose(); }}>My Account</a>
+                      <a href="#" onClick={e => { e.preventDefault(); onCustomerLogout(); onClose(); }}>Sign Out</a>
+                    </div>
+                  ) : tradeCustomer ? (
+                    <div className="mobile-nav-account">
+                      <div className="mobile-nav-account-label">Trade: {tradeCustomer.company_name}</div>
+                      <a href="#" onClick={e => { e.preventDefault(); goTrade(); onClose(); }}>Trade Dashboard</a>
+                      <a href="#" onClick={e => { e.preventDefault(); onTradeLogout(); onClose(); }}>Sign Out</a>
+                    </div>
+                  ) : (
+                    <div className="mobile-nav-account">
+                      <a href="#" onClick={e => { e.preventDefault(); goAccount(); onClose(); }}>Sign In</a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ── SUB PANEL ── */}
+              <div className="mobile-nav-panel mobile-nav-subpanel" aria-hidden={activeSub ? undefined : 'true'}>
+                <div className="mobile-nav-scroll">
+                  {activeSub && activeSub.isServices && serviceLinks.map(s => (
+                    <a key={s.route} className="mobile-nav-row" href="#" onClick={e => { e.preventDefault(); navigate(s.route); onClose(); }}>{s.name}</a>
+                  ))}
+                  {activeSub && !activeSub.isServices && (
+                    <>
+                      <a className="mobile-nav-row mobile-nav-row--all" href="#" onClick={e => { e.preventDefault(); onCategorySelect(activeSub.slug); onClose(); }}>
+                        <span className="mobile-nav-row-label">All {activeSub.name}</span>
+                        {chevronRight}
+                      </a>
+                      {subChildren.map(child => (
+                        <a key={child.id} className="mobile-nav-row mobile-nav-row--cat" href="#" onClick={e => { e.preventDefault(); onCategorySelect(child.slug); onClose(); }}>
+                          <span className="mobile-nav-row-label">{child.name}</span>
+                          <span className="mobile-nav-row-count">{child.product_count}</span>
+                        </a>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </nav>
         </>
