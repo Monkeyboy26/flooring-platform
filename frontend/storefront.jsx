@@ -5113,7 +5113,7 @@
                     {chevronRight}
                   </button>
                   {!tradeCustomer && (
-                    <a className="mobile-nav-trade-cta" href="#" onClick={e => { e.preventDefault(); onTradeClick(); onClose(); }}>Trade Program</a>
+                    <a className="mobile-nav-trade-cta" href="#" onClick={e => { e.preventDefault(); goTrade(); onClose(); }}>Trade Program</a>
                   )}
                 </div>
                 <div className="mobile-nav-footer">

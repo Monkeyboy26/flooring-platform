@@ -4351,7 +4351,7 @@
       onClose();
     } }, "Collections"), /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-row mobile-nav-row--parent", onClick: () => setActiveSub(SERVICES), "aria-label": "Services" }, /* @__PURE__ */ React.createElement("span", null, "Services"), chevronRight), !tradeCustomer && /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-trade-cta", href: "#", onClick: (e) => {
       e.preventDefault();
-      onTradeClick();
+      goTrade();
       onClose();
     } }, "Trade Program")), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-footer" }, customer ? /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-account" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-account-label" }, "Signed in as ", customer.first_name || customer.email), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
