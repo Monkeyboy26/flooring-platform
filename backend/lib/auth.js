@@ -114,7 +114,9 @@ export function createAuthMiddleware(pool) {
   async function optionalTradeAuth(req, res, next) {
     const token = req.headers['x-trade-token'];
     if (!token) {
-      req.tradeCustomer = null;
+      // No trade token — a unified retail login can still carry trade pricing if
+      // that customer has upgraded and been approved (customers.trade_customer_id).
+      req.tradeCustomer = await resolveLinkedTrade(req.headers['x-customer-token']);
       return next();
     }
 
@@ -138,13 +140,55 @@ export function createAuthMiddleware(pool) {
           discount_percent: parseFloat(result.rows[0].discount_percent) || 0
         };
       } else {
-        req.tradeCustomer = null;
+        // Fall back to a linked retail session (they may hold only a customer token).
+        req.tradeCustomer = await resolveLinkedTrade(req.headers['x-customer-token']);
       }
       next();
     } catch (err) {
       req.tradeCustomer = null;
       next();
     }
+  }
+
+  // Resolve trade pricing from a retail session: if the logged-in customer has a
+  // linked, APPROVED trade membership, return a tradeCustomer shaped exactly like
+  // the trade-session path so downstream pricing is identical. Null otherwise.
+  async function resolveLinkedTrade(customerToken) {
+    if (!customerToken) return null;
+    try {
+      const r = await pool.query(`
+        SELECT tc.id, tc.email, tc.company_name, tc.contact_name, tc.status,
+          mt.name as tier_name, mt.discount_percent
+        FROM customer_sessions cs
+        JOIN customers c ON c.id = cs.customer_id
+        JOIN trade_customers tc ON tc.id = c.trade_customer_id
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+        WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP
+          AND tc.status = 'approved'
+      `, [hashToken(customerToken)]);
+      if (!r.rows.length) return null;
+      return {
+        id: r.rows[0].id,
+        email: r.rows[0].email,
+        company_name: r.rows[0].company_name,
+        contact_name: r.rows[0].contact_name,
+        tier_name: r.rows[0].tier_name,
+        discount_percent: parseFloat(r.rows[0].discount_percent) || 0,
+        via: 'retail_link'
+      };
+    } catch (err) {
+      return null;
+    }
+  }
+
+  // Normalize the trade-link columns joined onto a customer row into a tidy shape
+  // the SPA can read: trade_discount_percent as a number, plus a boolean the UI
+  // uses to decide whether the login already carries trade pricing.
+  function shapeCustomerTrade(row) {
+    if (!row) return row;
+    row.trade_discount_percent = row.trade_discount_percent == null ? null : parseFloat(row.trade_discount_percent);
+    row.has_trade_pricing = row.trade_customer_id != null && row.trade_status === 'approved';
+    return row;
   }
 
   async function customerAuth(req, res, next) {
@@ -155,15 +199,19 @@ export function createAuthMiddleware(pool) {
       const result = await pool.query(`
         SELECT cs.id as session_id, c.id, c.email, c.first_name, c.last_name, c.phone,
           c.address_line1, c.address_line2, c.city, c.state, c.zip,
-          c.password_set, c.created_via
+          c.password_set, c.created_via, c.trade_customer_id,
+          tc.status AS trade_status, tc.company_name AS trade_company_name,
+          mt.name AS trade_tier_name, mt.discount_percent AS trade_discount_percent
         FROM customer_sessions cs
         JOIN customers c ON c.id = cs.customer_id
+        LEFT JOIN trade_customers tc ON tc.id = c.trade_customer_id
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
         WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP
       `, [hashToken(token)]);
 
       if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
 
-      req.customer = result.rows[0];
+      req.customer = shapeCustomerTrade(result.rows[0]);
       next();
     } catch (err) {
       console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -181,14 +229,18 @@ export function createAuthMiddleware(pool) {
       const result = await pool.query(`
         SELECT cs.id as session_id, c.id, c.email, c.first_name, c.last_name, c.phone,
           c.address_line1, c.address_line2, c.city, c.state, c.zip,
-          c.password_set, c.created_via
+          c.password_set, c.created_via, c.trade_customer_id,
+          tc.status AS trade_status, tc.company_name AS trade_company_name,
+          mt.name AS trade_tier_name, mt.discount_percent AS trade_discount_percent
         FROM customer_sessions cs
         JOIN customers c ON c.id = cs.customer_id
+        LEFT JOIN trade_customers tc ON tc.id = c.trade_customer_id
+        LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
         WHERE cs.token = $1 AND cs.expires_at > CURRENT_TIMESTAMP
       `, [hashToken(token)]);
 
       if (result.rows.length) {
-        req.customer = result.rows[0];
+        req.customer = shapeCustomerTrade(result.rows[0]);
       } else {
         req.customer = null;
       }

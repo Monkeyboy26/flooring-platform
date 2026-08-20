@@ -12168,10 +12168,17 @@ app.post('/api/trade/register', registrationLimiter, async (req, res) => {
     const pwError = validatePassword(password);
     if (pwError) return res.status(400).json({ error: pwError });
 
+    // Already a retail customer? Don't spawn a disconnected twin — send them to
+    // sign in and upgrade from their account (keeps one login + one password).
+    const retail = await pool.query('SELECT id FROM customers WHERE email = $1', [email.toLowerCase().trim()]);
+    if (retail.rows.length) {
+      return res.status(409).json({ error: 'You already have an account with this email. Sign in and upgrade to trade pricing from your account.', code: 'retail_exists' });
+    }
+
     const { hash, salt } = await hashPassword(password);
     await pool.query(
-      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, created_via)
+       VALUES ($1, $2, $3, $4, $5, $6, 'self')`,
       [email.toLowerCase().trim(), hash, salt, collapse(company_name), titleCaseName(contact_name), formatPhone(phone) || null]
     );
 
@@ -12399,12 +12406,19 @@ app.post('/api/trade/register/enhanced', registrationLimiter, async (req, res) =
       return res.status(400).json({ error: 'Address, city, state, and zip are required' });
     }
 
+    // Already a retail customer? Route them to the signed-in upgrade flow instead
+    // of creating a second, disconnected account under the same email.
+    const retail = await pool.query('SELECT id FROM customers WHERE email = $1', [email.toLowerCase().trim()]);
+    if (retail.rows.length) {
+      return res.status(409).json({ error: 'You already have an account with this email. Sign in and upgrade to trade pricing from your account.', code: 'retail_exists' });
+    }
+
     await client.query('BEGIN');
 
     const { hash, salt } = await hashPassword(password);
     const result = await client.query(
-      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license, ein)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+      `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license, ein, created_via)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'self') RETURNING id`,
       [email.toLowerCase().trim(), hash, salt, collapse(company_name), titleCaseName(contact_name), formatPhone(phone) || null, business_type || null, collapse(address_line1), collapse(city), normState(state), zip.trim(), contractor_license || null, ein || null]
     );
 
@@ -12423,6 +12437,93 @@ app.post('/api/trade/register/enhanced', registrationLimiter, async (req, res) =
   } catch (err) {
     await client.query('ROLLBACK');
     if (err.code === '23505') return res.status(409).json({ error: 'An account with this email already exists' });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// A logged-in RETAIL customer upgrades to trade pricing. Reuses their existing
+// identity (name / email / phone / password) — they supply only business info +
+// documents. Creates (or re-opens) a linked trade_customers row in 'pending' for
+// the normal rep/admin review; on approval their SAME retail login gains trade
+// pricing (see resolveLinkedTrade in lib/auth.js). One login, one password.
+app.post('/api/customer/trade-upgrade', customerAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { company_name, business_type, phone, address_line1, city, state, zip, contractor_license, ein, document_ids } = req.body || {};
+    if (!company_name || !company_name.trim()) return res.status(400).json({ error: 'Company name is required' });
+    if (!address_line1 || !city || !state || !zip) return res.status(400).json({ error: 'Address, city, state, and zip are required' });
+
+    // Pull the full retail row — we need the name to build contact_name and the
+    // credential hashes to seed the trade row's NOT NULL password columns.
+    const cRes = await client.query(
+      'SELECT id, email, first_name, last_name, phone, password_hash, password_salt, trade_customer_id FROM customers WHERE id = $1',
+      [req.customer.id]
+    );
+    if (!cRes.rows.length) return res.status(404).json({ error: 'Account not found' });
+    const cust = cRes.rows[0];
+    const contactName = `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || cust.email;
+    const usePhone = formatPhone(phone || cust.phone) || null;
+
+    await client.query('BEGIN');
+
+    // Find any trade row already tied to this person: the linked one, else a
+    // standalone account under the same email (self-registered before linking).
+    let existing = null;
+    if (cust.trade_customer_id) {
+      const r = await client.query('SELECT id, status FROM trade_customers WHERE id = $1', [cust.trade_customer_id]);
+      existing = r.rows[0] || null;
+    }
+    if (!existing) {
+      const r = await client.query('SELECT id, status FROM trade_customers WHERE email = $1', [cust.email]);
+      existing = r.rows[0] || null;
+    }
+
+    // Already in review or already approved → don't re-submit; just ensure the link.
+    if (existing && (existing.status === 'pending' || existing.status === 'approved')) {
+      await client.query('ROLLBACK');
+      await pool.query('UPDATE customers SET trade_customer_id = $1 WHERE id = $2', [existing.id, cust.id]);
+      return res.status(409).json({
+        error: existing.status === 'approved' ? 'Your account already has trade pricing.' : 'Your trade application is already pending review.',
+        status: existing.status
+      });
+    }
+
+    let tradeId;
+    if (existing) {
+      // Re-open a previously rejected application with the new details.
+      await client.query(
+        `UPDATE trade_customers SET status = 'pending', denial_reason = NULL, company_name = $1,
+           business_type = $2, contact_name = $3, phone = $4, address_line1 = $5, city = $6,
+           state = $7, zip = $8, contractor_license = $9, ein = $10, created_via = 'retail_upgrade',
+           updated_at = CURRENT_TIMESTAMP
+         WHERE id = $11`,
+        [collapse(company_name), business_type || null, titleCaseName(contactName), usePhone, collapse(address_line1), collapse(city), normState(state), zip.trim(), contractor_license || null, ein || null, existing.id]
+      );
+      tradeId = existing.id;
+    } else {
+      // Fresh trade row seeded from the retail identity. Credentials are copied so
+      // the legacy /api/trade/login keeps working with their existing password.
+      const ins = await client.query(
+        `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license, ein, created_via)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'retail_upgrade') RETURNING id`,
+        [cust.email, cust.password_hash, cust.password_salt, collapse(company_name), titleCaseName(contactName), usePhone, business_type || null, collapse(address_line1), collapse(city), normState(state), zip.trim(), contractor_license || null, ein || null]
+      );
+      tradeId = ins.rows[0].id;
+    }
+
+    if (Array.isArray(document_ids) && document_ids.length) {
+      await client.query('UPDATE trade_documents SET trade_customer_id = $1 WHERE id = ANY($2)', [tradeId, document_ids]);
+    }
+    await client.query('UPDATE customers SET trade_customer_id = $1 WHERE id = $2', [tradeId, cust.id]);
+
+    await client.query('COMMIT');
+    await logAudit(null, 'trade.upgrade_requested', 'trade_customers', tradeId, { customer_id: cust.id, email: cust.email }, req.ip);
+    res.json({ success: true, status: 'pending', message: 'Your trade application has been submitted for review.' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') return res.status(409).json({ error: 'A trade account with this email already exists.' });
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
@@ -14448,9 +14549,12 @@ app.get('/api/rep/me', repAuth, async (req, res) => {
 app.get('/api/rep/trade-customers', repAuth, requireRepManager, async (req, res) => {
   try {
     let query = `
-      SELECT tc.*, mt.name as tier_name, mt.discount_percent
+      SELECT tc.*, mt.name as tier_name, mt.discount_percent,
+        rc.id AS retail_customer_id, rc.created_at AS retail_customer_since,
+        (rc.id IS NOT NULL OR tc.created_via = 'retail_upgrade') AS from_retail_upgrade
       FROM trade_customers tc
       LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+      LEFT JOIN customers rc ON rc.trade_customer_id = tc.id
     `;
     const params = [];
     if (req.query.status) {
@@ -27930,10 +28034,13 @@ app.get('/api/admin/trade-customers', staffAuth, requireRole('admin', 'manager',
   try {
     let query = `
       SELECT tc.*, mt.name as tier_name, mt.discount_percent,
-        sa.first_name || ' ' || sa.last_name as rep_name
+        sa.first_name || ' ' || sa.last_name as rep_name,
+        rc.id AS retail_customer_id, rc.created_at AS retail_customer_since,
+        (rc.id IS NOT NULL OR tc.created_via = 'retail_upgrade') AS from_retail_upgrade
       FROM trade_customers tc
       LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
       LEFT JOIN staff_accounts sa ON sa.id = tc.assigned_rep_id
+      LEFT JOIN customers rc ON rc.trade_customer_id = tc.id
     `;
     const params = [];
     if (req.query.status) {
@@ -27942,7 +28049,9 @@ app.get('/api/admin/trade-customers', staffAuth, requireRole('admin', 'manager',
     }
     query += ' ORDER BY tc.created_at DESC';
     const result = await pool.query(query, params);
-    res.json({ customers: result.rows });
+    // Don't leak credential columns to the admin client.
+    const customers = result.rows.map(({ password_hash, password_salt, ...c }) => c);
+    res.json({ customers });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }

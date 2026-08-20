@@ -696,6 +696,10 @@ ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS total_spend DECIMAL(12,2) DEFAULT 0;
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS assigned_rep_id UUID REFERENCES staff_accounts(id);
 ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;
+-- How the application originated: 'retail_upgrade' when an existing retail
+-- customer upgraded from their account (see customers.trade_customer_id), else
+-- 'self' for a public trade signup. Lets the review UI flag upgraded applicants.
+ALTER TABLE trade_customers ADD COLUMN IF NOT EXISTS created_via VARCHAR(30);
 
 -- Removed the $99/year trade subscription — tiers are now purely spend-based.
 -- Drop the subscription columns from existing databases (stripe_customer_id is kept for order payments).
@@ -875,6 +879,11 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS assigned_rep_id UUID REFERENCES s
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS created_via VARCHAR(30);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE;
+-- Links a retail account to its trade membership (when the customer upgrades to
+-- trade pricing). The retail account stays the single login; trade pricing is
+-- applied to the retail session when the linked trade_customers row is approved.
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS trade_customer_id UUID REFERENCES trade_customers(id);
+CREATE INDEX IF NOT EXISTS idx_customers_trade_customer ON customers(trade_customer_id);
 
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
 ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);

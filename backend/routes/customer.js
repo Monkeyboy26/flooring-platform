@@ -114,7 +114,14 @@ export default function createCustomerRoutes(ctx) {
       email = String(email).trim().slice(0, 255);
 
       const result = await pool.query(
-        'SELECT id, email, password_hash, password_salt, first_name, last_name, phone, password_set, created_via, address_line1, address_line2, city, state, zip FROM customers WHERE email = $1',
+        `SELECT c.id, c.email, c.password_hash, c.password_salt, c.first_name, c.last_name, c.phone,
+           c.password_set, c.created_via, c.address_line1, c.address_line2, c.city, c.state, c.zip,
+           c.trade_customer_id, tc.status AS trade_status, tc.company_name AS trade_company_name,
+           mt.name AS trade_tier_name, mt.discount_percent AS trade_discount_percent
+         FROM customers c
+         LEFT JOIN trade_customers tc ON tc.id = c.trade_customer_id
+         LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
+         WHERE c.email = $1`,
         [email.toLowerCase()]
       );
       if (!result.rows.length) {
@@ -148,7 +155,11 @@ export default function createCustomerRoutes(ctx) {
 
       res.json({
         token,
-        customer: { id: cust.id, email: cust.email, first_name: cust.first_name, last_name: cust.last_name, phone: cust.phone, address_line1: cust.address_line1, address_line2: cust.address_line2, city: cust.city, state: cust.state, zip: cust.zip, password_set: cust.password_set, created_via: cust.created_via }
+        customer: { id: cust.id, email: cust.email, first_name: cust.first_name, last_name: cust.last_name, phone: cust.phone, address_line1: cust.address_line1, address_line2: cust.address_line2, city: cust.city, state: cust.state, zip: cust.zip, password_set: cust.password_set, created_via: cust.created_via,
+          trade_customer_id: cust.trade_customer_id, trade_status: cust.trade_status,
+          trade_company_name: cust.trade_company_name, trade_tier_name: cust.trade_tier_name,
+          trade_discount_percent: cust.trade_discount_percent == null ? null : parseFloat(cust.trade_discount_percent),
+          has_trade_pricing: cust.trade_customer_id != null && cust.trade_status === 'approved' }
       });
     } catch (err) {
       console.error('Customer login error:', err);

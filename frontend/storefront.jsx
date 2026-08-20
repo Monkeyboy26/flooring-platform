@@ -2553,8 +2553,14 @@
       useEffect(() => { track('page_view', { view }); }, [view]);
 
       const tradeHeaders = () => {
+        const h = {};
         const t = localStorage.getItem('trade_token');
-        return t ? { 'X-Trade-Token': t } : {};
+        if (t) h['X-Trade-Token'] = t;
+        // Send the retail token too: a unified (upgraded) retail login carries
+        // trade pricing server-side without a separate trade session.
+        const c = localStorage.getItem('customer_token') || sessionStorage.getItem('customer_token');
+        if (c) h['X-Customer-Token'] = c;
+        return h;
       };
 
       // ---- Stable refs for popstate handler ----
@@ -2770,6 +2776,17 @@
           history.pushState({ view: 'account' }, '', '/account');
           window.scrollTo(0, 0);
         }
+      };
+
+      // Re-pull the retail account (incl. trade link/status/tier) after an action
+      // that changes it — e.g. requesting a trade upgrade shows "pending" at once.
+      const refreshCustomer = () => {
+        const t = localStorage.getItem('customer_token') || sessionStorage.getItem('customer_token');
+        if (!t) return;
+        fetch(API + '/api/customer/me', { headers: { 'X-Customer-Token': t } })
+          .then(r => r.ok ? r.json() : null)
+          .then(data => { if (data && data.customer) setCustomer(data.customer); })
+          .catch(() => {});
       };
 
       const handleCustomerLogout = () => {
@@ -3871,8 +3888,28 @@
                 <p style={{ color: 'var(--stone-600)', marginBottom: '1.5rem' }}>Your account is active — head to your dashboard.</p>
                 <button className="btn" onClick={goTradeDashboard}>Go to Dashboard</button>
               </div>
+            ) : (customer && customer.has_trade_pricing) ? (
+              <div style={{ maxWidth: 620, margin: '4rem auto', textAlign: 'center', padding: '0 2rem' }}>
+                <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--roma-accent, #9a7b4f)', marginBottom: 14 }}>● Trade pricing active</div>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, marginBottom: '0.75rem' }}>You already have trade pricing.</h2>
+                <p style={{ color: 'var(--stone-600)', marginBottom: '1.5rem' }}>
+                  Your <strong>{customer.trade_tier_name || 'Trade'}</strong> tier{customer.trade_discount_percent ? ` (${customer.trade_discount_percent}% off list)` : ''} is applied automatically whenever you're signed in — shop as usual and trade prices show throughout.
+                </p>
+                <button className="btn" onClick={goBrowse}>Shop with trade pricing</button>
+              </div>
+            ) : (customer && customer.trade_status === 'pending') ? (
+              <div style={{ maxWidth: 620, margin: '4rem auto', textAlign: 'center', padding: '0 2rem' }}>
+                <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--roma-accent, #9a7b4f)', marginBottom: 14 }}>● Application received</div>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, marginBottom: '0.75rem' }}>Your trade application is under review.</h2>
+                <p style={{ color: 'var(--stone-600)', marginBottom: '1.5rem' }}>
+                  A Roma rep is verifying your details — usually within two business days. Once approved, trade pricing turns on automatically for this same login. We'll email you at <strong>{customer.email}</strong>.
+                </p>
+                <button className="btn" onClick={goBrowse}>Keep browsing</button>
+              </div>
             ) : (
-              <TradeApplyPage goHome={goHome} goTrade={goTrade} onLogin={() => { setTradeModalMode('login'); setShowTradeModal(true); }} />
+              <TradeApplyPage goHome={goHome} goTrade={goTrade} onLogin={() => { setTradeModalMode('login'); setShowTradeModal(true); }}
+                customer={customer} customerToken={customerToken} refreshCustomer={refreshCustomer}
+                onCustomerSignIn={() => navigate('/signin')} />
             )
           )}
 
@@ -3993,7 +4030,7 @@
             onSearch={handleSearch} onSkuClick={goSkuDetail} onCategorySelect={handleCategorySelect}
           />
 
-          {showTradeModal && <TradeModal onClose={() => setShowTradeModal(false)} onLogin={handleTradeLogin} initialMode={tradeModalMode} />}
+          {showTradeModal && <TradeModal onClose={() => setShowTradeModal(false)} onLogin={handleTradeLogin} initialMode={tradeModalMode} onCustomerSignIn={() => { setShowTradeModal(false); navigate('/signin'); }} />}
           {customer && !customer.phone && <CompleteProfileModal customer={customer} customerToken={customerToken} setCustomer={setCustomer} />}
           {showInstallModal && <InstallationModal onClose={() => setShowInstallModal(false)} product={installModalProduct} />}
           {showFloorQuiz && <FloorQuizModal onClose={() => setShowFloorQuiz(false)} onSkuClick={goSkuDetail} onViewAll={(qs) => { navigate('/shop?' + qs); }} />}
@@ -4813,8 +4850,13 @@
       };
 
       const getTradeHeaders = () => {
+        const h = {};
         const t = localStorage.getItem('trade_token');
-        return t ? { 'X-Trade-Token': t } : {};
+        if (t) h['X-Trade-Token'] = t;
+        // Unified retail login carries trade pricing server-side.
+        const c = localStorage.getItem('customer_token') || sessionStorage.getItem('customer_token');
+        if (c) h['X-Customer-Token'] = c;
+        return h;
       };
 
       // Fetch full SKU detail with siblings + media
@@ -6857,6 +6899,9 @@
         const headers = {};
         const t = localStorage.getItem('trade_token');
         if (t) headers['X-Trade-Token'] = t;
+        // Unified retail login carries trade pricing server-side.
+        const ct = localStorage.getItem('customer_token') || sessionStorage.getItem('customer_token');
+        if (ct) headers['X-Customer-Token'] = ct;
         fetch(API + '/api/storefront/skus/' + skuId, { headers })
           .then(r => {
             if (!r.ok) throw new Error(r.status === 404 ? 'not_found' : 'server_error');
@@ -12372,6 +12417,33 @@
               })()}
 
               <section>
+                {sectionHead('Trade', <>Trade <em>pricing</em>.</>, null)}
+                {customer.has_trade_pricing ? (
+                  <div className="acct-profile-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 999, background: 'rgba(122,143,90,0.14)', color: '#4f6b39', fontFamily: 'var(--font-body)', fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                        ● {customer.trade_tier_name || 'Trade'}{customer.trade_discount_percent ? ' · ' + customer.trade_discount_percent + '% off' : ''}
+                      </div>
+                      <p style={{ color: 'var(--warm-muted)', fontSize: '0.875rem', margin: '0.75rem 0 0' }}>Trade pricing is applied automatically whenever you're signed in.</p>
+                    </div>
+                    <button className="acct-btn" onClick={goBrowse}>Shop with trade pricing</button>
+                  </div>
+                ) : customer.trade_status === 'pending' ? (
+                  <div className="acct-profile-section">
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 12px', borderRadius: 999, background: 'rgba(154,123,79,0.14)', color: '#8a6d3b', fontFamily: 'var(--font-body)', fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>● Pending review</div>
+                    <p style={{ color: 'var(--warm-muted)', fontSize: '0.875rem', margin: '0.75rem 0 0' }}>Your trade application is being verified by a rep — usually within two business days. Trade pricing turns on automatically once approved.</p>
+                  </div>
+                ) : (
+                  <div className="acct-profile-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    <p style={{ color: 'var(--warm-muted)', fontSize: '0.875rem', margin: 0, maxWidth: 460 }}>
+                      Buy for a business? {customer.trade_status === 'rejected' ? 'You can re-submit your trade application' : 'Apply for trade pricing'} — contracted discounts, a dedicated rep, and tax-free buying on materials you resell. Same login, no new password.
+                    </p>
+                    <button className="acct-btn" onClick={() => navigate('/trade/apply')}>{customer.trade_status === 'rejected' ? 'Re-apply for trade' : 'Apply for trade pricing'}</button>
+                  </div>
+                )}
+              </section>
+
+              <section>
                 {sectionHead('Order history', <>Recent <em>orders</em>.</>,
                   orders.length > 0 ? 'See all ' + orders.length + ' →' : null, () => setSection('orders'))}
                 {loadingOrders ? (
@@ -14542,8 +14614,11 @@
 
     // ==================== Trade Modal ====================
 
-    function TradeModal({ onClose, onLogin, initialMode }) {
+    function TradeModal({ onClose, onLogin, initialMode, onCustomerSignIn }) {
       const [mode, setMode] = useState(initialMode || 'login');
+      // Set when the applicant's email already belongs to a retail account — we
+      // offer a "Sign in" action instead of creating a disconnected twin.
+      const [retailExists, setRetailExists] = useState(false);
       const [email, setEmail] = useState('');
       const [password, setPassword] = useState('');
       const [companyName, setCompanyName] = useState('');
@@ -14642,7 +14717,10 @@
             })
           });
           const data = await resp.json();
-          if (!resp.ok) { setError(data.error); setLoading(false); return; }
+          if (!resp.ok) {
+            if (data.code === 'retail_exists') { setRetailExists(true); }
+            setError(data.error); setLoading(false); return;
+          }
           setStep(3);
           setSuccess(data.message || 'Application submitted! We will review your application and email you once approved.');
         } catch (err) {
@@ -14663,6 +14741,9 @@
             </h2>
 
             {error && <div className="trade-msg trade-msg-error">{error}</div>}
+            {retailExists && onCustomerSignIn && (
+              <button type="button" className="btn" style={{ width: '100%', marginBottom: '1rem' }} onClick={onCustomerSignIn}>Sign in to your account →</button>
+            )}
             {success && <div className="trade-msg trade-msg-success">{success}</div>}
 
             {mode === 'login' ? (
@@ -16395,14 +16476,20 @@
       );
     }
 
-    function TradeApplyPage({ goHome, goTrade, onLogin }) {
+    function TradeApplyPage({ goHome, goTrade, onLogin, customer, customerToken, refreshCustomer, onCustomerSignIn }) {
       const theme = TV2;
       const { ink, paper, accent, muted, warm } = theme;
-      const [firstName, setFirstName] = useState('');
-      const [lastName, setLastName] = useState('');
+      // A signed-in retail customer upgrades in place: we reuse their identity
+      // (name / email / password) and collect only business info + documents,
+      // posting to /api/customer/trade-upgrade instead of the public register.
+      const isUpgrade = !!customer;
+      const [firstName, setFirstName] = useState(customer?.first_name || '');
+      const [lastName, setLastName] = useState(customer?.last_name || '');
       const [middleInitial, setMiddleInitial] = useState('');
-      const [email, setEmail] = useState('');
-      const [phone, setPhone] = useState('');
+      const [email, setEmail] = useState(customer?.email || '');
+      const [phone, setPhone] = useState(customer?.phone || '');
+      // Public-apply only: email already belongs to a retail account.
+      const [retailExists, setRetailExists] = useState(false);
       const [password, setPassword] = useState('');
       const [confirmPassword, setConfirmPassword] = useState('');
       const [companyName, setCompanyName] = useState('');
@@ -16501,6 +16588,39 @@
 
       const handleSubmit = async () => {
         setError('');
+
+        // ---- Upgrade path: a logged-in retail customer, business info only ----
+        if (isUpgrade) {
+          setTouched({ companyName: true, businessType: true, ein: true, phone: true, addressLine1: true, city: true, state: true, zip: true });
+          if (!companyName.trim() || !businessType || !ein.trim() || !phone || !addressLine1.trim() || !city.trim() || !addrState.trim() || !zip.trim()) {
+            setError('Please fill in all the required fields highlighted below.'); return;
+          }
+          if (!phoneValid) { setError('Please enter a valid 10-digit phone number.'); return; }
+          if (!einValid) { setError('Please enter a valid 9-digit EIN (XX-XXXXXXX).'); return; }
+          if (!stateValid) { setError('Please enter a 2-letter state code.'); return; }
+          if (!zipValid) { setError('Please enter a valid ZIP code.'); return; }
+          if (!docUploads.business_card) { setError('A photo of your business card is required.'); return; }
+          setLoading(true);
+          try {
+            const docIds = Object.values(docUploads).map(d => d.id);
+            const resp = await fetch(API + '/api/customer/trade-upgrade', {
+              method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Customer-Token': customerToken },
+              body: JSON.stringify({
+                company_name: companyName, business_type: businessType, phone,
+                address_line1: addressLine1, city, state: addrState, zip,
+                ein: ein.trim() || null, contractor_license: contractorLicense.trim() || null, document_ids: docIds
+              })
+            });
+            const data = await resp.json();
+            if (!resp.ok) { setError(data.error || 'Something went wrong. Please try again.'); setLoading(false); return; }
+            if (refreshCustomer) refreshCustomer();
+            setSubmitted(true);
+          } catch (err) { setError('Network error. Please try again.'); }
+          setLoading(false);
+          return;
+        }
+
+        // ---- Public path: brand-new applicant (name + password required) ----
         // Reveal every field's inline validation so the user can see exactly what's off
         setTouched({ firstName: true, lastName: true, email: true, phone: true, password: true, confirmPassword: true, companyName: true, businessType: true, ein: true, addressLine1: true, city: true, state: true, zip: true });
         if (!firstName.trim() || !lastName.trim() || !email || !phone || !password || !confirmPassword || !companyName.trim() || !businessType || !ein.trim() || !addressLine1.trim() || !city.trim() || !addrState.trim() || !zip.trim()) {
@@ -16526,7 +16646,10 @@
             })
           });
           const data = await resp.json();
-          if (!resp.ok) { setError(data.error || 'Something went wrong. Please try again.'); setLoading(false); return; }
+          if (!resp.ok) {
+            if (data.code === 'retail_exists') setRetailExists(true);
+            setError(data.error || 'Something went wrong. Please try again.'); setLoading(false); return;
+          }
           setSubmitted(true);
         } catch (err) { setError('Network error. Please try again.'); }
         setLoading(false);
@@ -16550,18 +16673,19 @@
                 <span style={{ width: 14, height: 1, background: `${ink}33` }} />
                 <span style={{ color: ink }}>Apply</span>
               </div>
-              <a onClick={onLogin} style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: ink, cursor: 'pointer', textDecoration: 'none' }}>Already a Roma pro? Sign in →</a>
+              {!isUpgrade && <a onClick={onLogin} style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: ink, cursor: 'pointer', textDecoration: 'none' }}>Already a Roma pro? Sign in →</a>}
             </div>
             <div data-tv2-2col style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 80, alignItems: 'end' }}>
               <div>
-                <TapMicro theme={theme} color={accent} style={{ marginBottom: 18, letterSpacing: '0.2em', fontSize: 11 }}>● Trade application · a few minutes</TapMicro>
+                <TapMicro theme={theme} color={accent} style={{ marginBottom: 18, letterSpacing: '0.2em', fontSize: 11 }}>● {isUpgrade ? 'Upgrade to trade · business details only' : 'Trade application · a few minutes'}</TapMicro>
                 <h1 style={{ font: '300 clamp(44px, 6vw, 84px)/0.95 var(--roma-serif)', letterSpacing: '-0.022em', margin: 0, color: ink }}>
-                  A short form between you and <em style={{ color: accent }}>trade pricing</em>.
+                  {isUpgrade ? <>Add <em style={{ color: accent }}>trade pricing</em> to your account.</> : <>A short form between you and <em style={{ color: accent }}>trade pricing</em>.</>}
                 </h1>
               </div>
               <p style={{ font: '400 16px/1.6 var(--roma-sans)', color: `${ink}b3`, margin: '0 0 8px', maxWidth: 420 }}>
-                Every application is read by a Roma rep, not a robot. Two business days in most cases —
-                four hours if you carry a CSLB number.
+                {isUpgrade
+                  ? <>You're already signed in — we just need your business details to verify. Once approved, trade pricing turns on for this same login.</>
+                  : <>Every application is read by a Roma rep, not a robot. Two business days in most cases — four hours if you carry a CSLB number.</>}
               </p>
             </div>
           </section>
@@ -16600,35 +16724,52 @@
                 <TapMicro theme={theme} color={accent}>● Application received</TapMicro>
                 <h2 style={{ font: '300 44px/1.05 var(--roma-serif)', letterSpacing: '-0.016em', margin: 0, color: ink }}>Thanks — it’s with a rep now.</h2>
                 <p style={{ font: '400 15px/1.6 var(--roma-sans)', color: `${ink}b3`, margin: 0, maxWidth: 520 }}>
-                  Your trade application is under review. We’ll email <strong style={{ color: ink }}>{email}</strong> once it’s approved —
-                  usually within two business days, and often sooner with a CSLB number.
+                  {isUpgrade
+                    ? <>Your trade application is under review. We’ll email <strong style={{ color: ink }}>{email}</strong> once it’s approved — usually within two business days. Trade pricing then turns on automatically for this same login.</>
+                    : <>Your trade application is under review. We’ll email <strong style={{ color: ink }}>{email}</strong> once it’s approved — usually within two business days, and often sooner with a CSLB number.</>}
                 </p>
                 <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
                   <a onClick={goHome} style={{ padding: '14px 26px', background: ink, color: paper, textDecoration: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 12px/1 var(--roma-sans)' }}>Back to home →</a>
-                  <a onClick={onLogin} style={{ padding: '14px 0 6px', color: ink, cursor: 'pointer', textDecoration: 'none', borderBottom: `1px solid ${ink}`, textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 12px/1 var(--roma-sans)' }}>Trade sign in →</a>
+                  {!isUpgrade && <a onClick={onLogin} style={{ padding: '14px 0 6px', color: ink, cursor: 'pointer', textDecoration: 'none', borderBottom: `1px solid ${ink}`, textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 12px/1 var(--roma-sans)' }}>Trade sign in →</a>}
                 </div>
               </div>
             ) : (
               <div style={{ background: '#fff', border: `0.5px solid ${ink}22`, padding: '40px 44px' }}>
                 {error && <div style={{ marginBottom: 24, padding: '12px 16px', background: '#c0392b12', border: '0.5px solid #c0392b55', font: '400 13px/1.5 var(--roma-sans)', color: '#8a2a1e' }}>{error}</div>}
+                {retailExists && onCustomerSignIn && (
+                  <div style={{ marginBottom: 24 }}>
+                    <button type="button" onClick={onCustomerSignIn} style={{ padding: '12px 24px', background: ink, color: paper, border: 'none', font: '500 12px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer' }}>Sign in to upgrade →</button>
+                  </div>
+                )}
 
-                <TapSection theme={theme} num="01" title="About you">
-                  <TapRow>
-                    <TapInput theme={theme} label="First name" required value={firstName} onChange={e => setFirstName(e.target.value)} onBlur={() => touch('firstName')} error={reqErr('firstName', firstName)} autoComplete="given-name" />
-                    <TapInput theme={theme} label="M.I. (optional)" value={middleInitial} onChange={e => setMiddleInitial(e.target.value.slice(0, 4))} autoComplete="additional-name" />
-                    <TapInput theme={theme} label="Last name" required value={lastName} onChange={e => setLastName(e.target.value)} onBlur={() => touch('lastName')} error={reqErr('lastName', lastName)} autoComplete="family-name" />
-                  </TapRow>
-                  <TapRow>
-                    <TapInput theme={theme} label="Business email" required mono value={email} onChange={e => setEmail(e.target.value)} onBlur={() => touch('email')} valid={emailValid} error={touched.email && !!email && !emailValid ? 'Enter a valid email address' : reqErr('email', email)} autoComplete="email" placeholder="you@studio.com" />
-                    <TapInput theme={theme} label="Phone" required mono value={phone} onChange={e => setPhone(formatPhone(e.target.value))} onBlur={() => touch('phone')} valid={phoneValid} error={touched.phone && !!phone && !phoneValid ? 'Enter a 10-digit phone number' : reqErr('phone', phone)} autoComplete="tel" placeholder="(949) 555-0148" />
-                  </TapRow>
-                  <TapRow>
-                    <TapInput theme={theme} label="Password" required type="password" mono value={password} onChange={e => setPassword(e.target.value)} onBlur={() => touch('password')} valid={passwordValid} error={touched.password && !!password && !passwordValid ? 'At least 8 characters, one capital, one number' : reqErr('password', password)} hint={!password ? '8+ characters, one capital, one number' : ''} autoComplete="new-password" placeholder="••••••••" />
-                    <TapInput theme={theme} label="Confirm password" required type="password" mono value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} onBlur={() => touch('confirmPassword')} valid={!!confirmPassword && confirmPassword === password} error={touched.confirmPassword && !!confirmPassword && confirmPassword !== password ? 'Passwords don’t match' : reqErr('confirmPassword', confirmPassword)} autoComplete="new-password" placeholder="••••••••" />
-                  </TapRow>
-                </TapSection>
+                {isUpgrade ? (
+                  <div style={{ marginBottom: 32, padding: '16px 20px', background: warm, border: `0.5px solid ${ink}18`, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 16, flexWrap: 'wrap' }}>
+                    <div>
+                      <TapMicro theme={theme} color={accent} style={{ marginBottom: 6 }}>Applying as</TapMicro>
+                      <div style={{ font: '400 16px/1.3 var(--roma-serif)', color: ink }}>{`${firstName} ${lastName}`.trim() || email}</div>
+                      <div style={{ font: '400 13px/1.4 ui-monospace, monospace', color: muted, marginTop: 3 }}>{email}</div>
+                    </div>
+                    <div style={{ font: '400 12px/1.5 var(--roma-sans)', color: muted, maxWidth: 280 }}>Trade pricing will attach to this account — no new login or password.</div>
+                  </div>
+                ) : (
+                  <TapSection theme={theme} num="01" title="About you">
+                    <TapRow>
+                      <TapInput theme={theme} label="First name" required value={firstName} onChange={e => setFirstName(e.target.value)} onBlur={() => touch('firstName')} error={reqErr('firstName', firstName)} autoComplete="given-name" />
+                      <TapInput theme={theme} label="M.I. (optional)" value={middleInitial} onChange={e => setMiddleInitial(e.target.value.slice(0, 4))} autoComplete="additional-name" />
+                      <TapInput theme={theme} label="Last name" required value={lastName} onChange={e => setLastName(e.target.value)} onBlur={() => touch('lastName')} error={reqErr('lastName', lastName)} autoComplete="family-name" />
+                    </TapRow>
+                    <TapRow>
+                      <TapInput theme={theme} label="Business email" required mono value={email} onChange={e => setEmail(e.target.value)} onBlur={() => touch('email')} valid={emailValid} error={touched.email && !!email && !emailValid ? 'Enter a valid email address' : reqErr('email', email)} autoComplete="email" placeholder="you@studio.com" />
+                      <TapInput theme={theme} label="Phone" required mono value={phone} onChange={e => setPhone(formatPhone(e.target.value))} onBlur={() => touch('phone')} valid={phoneValid} error={touched.phone && !!phone && !phoneValid ? 'Enter a 10-digit phone number' : reqErr('phone', phone)} autoComplete="tel" placeholder="(949) 555-0148" />
+                    </TapRow>
+                    <TapRow>
+                      <TapInput theme={theme} label="Password" required type="password" mono value={password} onChange={e => setPassword(e.target.value)} onBlur={() => touch('password')} valid={passwordValid} error={touched.password && !!password && !passwordValid ? 'At least 8 characters, one capital, one number' : reqErr('password', password)} hint={!password ? '8+ characters, one capital, one number' : ''} autoComplete="new-password" placeholder="••••••••" />
+                      <TapInput theme={theme} label="Confirm password" required type="password" mono value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} onBlur={() => touch('confirmPassword')} valid={!!confirmPassword && confirmPassword === password} error={touched.confirmPassword && !!confirmPassword && confirmPassword !== password ? 'Passwords don’t match' : reqErr('confirmPassword', confirmPassword)} autoComplete="new-password" placeholder="••••••••" />
+                    </TapRow>
+                  </TapSection>
+                )}
 
-                <TapSection theme={theme} num="02" title="Your business" sub="This is what your rep verifies — the closer it matches your paperwork, the faster the approval.">
+                <TapSection theme={theme} num={isUpgrade ? '01' : '02'} title="Your business" sub="This is what your rep verifies — the closer it matches your paperwork, the faster the approval.">
                   <TapRow cols="1.5fr 1fr">
                     <TapInput theme={theme} label="Firm name" required value={companyName} onChange={e => setCompanyName(e.target.value)} onBlur={() => touch('companyName')} error={reqErr('companyName', companyName)} autoComplete="organization" />
                     <TapSelect theme={theme} label="Trade type" required value={businessType} onChange={e => setBusinessType(e.target.value)} onBlur={() => touch('businessType')} error={reqErr('businessType', businessType)}>
@@ -16641,6 +16782,9 @@
                       <option value="other">Other</option>
                     </TapSelect>
                   </TapRow>
+                  {isUpgrade && (
+                    <TapInput theme={theme} label="Business phone" required mono value={phone} onChange={e => setPhone(formatPhone(e.target.value))} onBlur={() => touch('phone')} valid={phoneValid} error={touched.phone && !!phone && !phoneValid ? 'Enter a 10-digit phone number' : reqErr('phone', phone)} autoComplete="tel" placeholder="(949) 555-0148" />
+                  )}
                   <TapRow>
                     <TapInput theme={theme} label="EIN (federal tax ID)" required mono value={ein} onChange={e => setEin(formatEin(e.target.value))} onBlur={() => touch('ein')} valid={einValid} error={touched.ein && !!ein && !einValid ? 'An EIN is 9 digits (XX-XXXXXXX)' : reqErr('ein', ein)} placeholder="12-3456789" />
                     <TapInput theme={theme} label="Contractor license # (optional)" mono value={contractorLicense} onChange={e => setContractorLicense(e.target.value)} placeholder="CSLB # — clears fastest" />
@@ -16653,7 +16797,7 @@
                   </TapRow>
                 </TapSection>
 
-                <TapSection theme={theme} num="03" title="Verification" sub="A photo of your business card is required; the rest are optional and just speed up review. Upload a PDF or a clear photo.">
+                <TapSection theme={theme} num={isUpgrade ? '02' : '03'} title="Verification" sub="A photo of your business card is required; the rest are optional and just speed up review. Upload a PDF or a clear photo.">
                   <TapDropzone theme={theme} label="Business card · photo · required" docType="business_card" upload={docUploads.business_card} uploading={uploading} onFile={handleDocUpload} onRemove={removeDoc} />
                   <TapDropzone theme={theme} label="Resale certificate (CDTFA) · optional" docType="resale_cert" upload={docUploads.resale_cert} uploading={uploading} onFile={handleDocUpload} onRemove={removeDoc} />
                   {!docUploads.resale_cert && (
@@ -16688,7 +16832,7 @@
                 </TapSection>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 24 }}>
-                  <button onClick={handleSubmit} disabled={loading} style={{ padding: '16px 32px', background: ink, color: paper, border: 'none', font: '500 12px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.6 : 1 }}>{loading ? 'Submitting…' : 'Submit application →'}</button>
+                  <button onClick={handleSubmit} disabled={loading} style={{ padding: '16px 32px', background: ink, color: paper, border: 'none', font: '500 12px/1 var(--roma-sans)', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.6 : 1 }}>{loading ? 'Submitting…' : (isUpgrade ? 'Submit for trade pricing →' : 'Submit application →')}</button>
                 </div>
                 <TapMicro theme={theme} style={{ marginTop: 14, textAlign: 'right' }}>Reviewed by a human · no credit pull · nothing is charged</TapMicro>
               </div>

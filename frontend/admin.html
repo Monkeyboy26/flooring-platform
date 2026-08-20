@@ -9233,7 +9233,12 @@
               ) : customers.map(c => (
                 <React.Fragment key={c.id}>
                   <tr style={{ cursor: 'pointer' }} onClick={() => toggleExpand(c.id)}>
-                    <td><strong>{c.company_name}</strong></td>
+                    <td>
+                      <strong>{c.company_name}</strong>
+                      {c.from_retail_upgrade && (
+                        <span title="Upgraded from an existing retail account" style={{ marginLeft: '0.4rem', padding: '0.1rem 0.35rem', borderRadius: '3px', background: 'var(--stone-100)', border: '1px solid var(--stone-300)', fontSize: '0.625rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--stone-600)', whiteSpace: 'nowrap' }}>Existing customer</span>
+                      )}
+                    </td>
                     <td>{c.contact_name}</td>
                     <td>{c.email}</td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', textTransform: 'capitalize' }}>{(c.business_type || '').replace('_', ' ') || '\u2014'}</td>
@@ -9296,6 +9301,11 @@
                           {c.total_spend !== undefined && (
                             <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
                               <strong>Spend (last 12 mo):</strong> ${parseFloat(c.total_spend || 0).toLocaleString()}
+                            </div>
+                          )}
+                          {c.from_retail_upgrade && (
+                            <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
+                              <strong>Origin:</strong> Upgraded from an existing retail account{c.retail_customer_since ? ' (customer since ' + new Date(c.retail_customer_since).toLocaleDateString() + ')' : ''}
                             </div>
                           )}
                           <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
