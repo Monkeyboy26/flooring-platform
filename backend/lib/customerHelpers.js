@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { titleCaseName, formatPhone, normMiddleInitial, collapse } from './customerNormalize.js';
 
 // Normalize a phone to its last 10 digits (drops +1 / formatting). Returns '' when
 // there aren't 10 digits — so partial/empty phones never match anything.
@@ -99,15 +100,15 @@ export function createCustomerHelpers(hashPassword, sendWelcomeSetPassword) {
       return { customer: cust, created: false };
     }
 
-    // Every customer must have a real first AND last name.
-    const fn = (firstName || '').trim();
-    const ln = (lastName || '').trim();
+    // Every customer must have a real first AND last name (normalized to Title Case).
+    const fn = titleCaseName(firstName);
+    const ln = titleCaseName(lastName);
     if (!fn || !ln) {
       const err = new Error('Customer first and last name are required');
       err.status = 400;
       throw err;
     }
-    const mi = (middleInitial || '').trim().slice(0, 4) || null;
+    const mi = normMiddleInitial(middleInitial);
 
     // 2. Create new customer with random placeholder password
     const placeholder = crypto.randomBytes(32).toString('hex');
@@ -117,7 +118,7 @@ export function createCustomerHelpers(hashPassword, sendWelcomeSetPassword) {
       `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, middle_initial, phone, company_name, password_set, assigned_rep_id, assigned_at, created_via)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false, $9, NOW(), $10)
        RETURNING *`,
-      [normalEmail, hash, salt, fn, ln, mi, phone || null, companyName || null, repId || null, createdVia || 'rep']
+      [normalEmail, hash, salt, fn, ln, mi, formatPhone(phone) || null, collapse(companyName), repId || null, createdVia || 'rep']
     );
 
     const newCustomer = result.rows[0];

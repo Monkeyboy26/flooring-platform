@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { generateQuoteHtml } from '../lib/documents.js';
 import { findExactDuplicate, claimGuestRecords } from '../lib/customerHelpers.js';
+import { titleCaseName, formatPhone, collapse, normState, normMiddleInitial } from '../lib/customerNormalize.js';
 import { enrichItemsForNaming } from '../lib/enrichItems.js';
 
 export default function createCustomerRoutes(ctx) {
@@ -18,13 +19,13 @@ export default function createCustomerRoutes(ctx) {
   router.post('/api/customer/register', async (req, res) => {
     try {
       let { email, password, first_name, last_name, middle_initial, phone, company_name, newsletter } = req.body;
-      const middleInitial = String(middle_initial || '').trim().slice(0, 4) || null;
+      const middleInitial = normMiddleInitial(middle_initial);
       if (!email || !password || !first_name || !last_name || !phone) {
         return res.status(400).json({ error: 'Email, password, first name, last name, and phone number are required' });
       }
       email = String(email).trim().slice(0, 255);
-      first_name = String(first_name).trim().slice(0, 100);
-      last_name = String(last_name).trim().slice(0, 100);
+      first_name = titleCaseName(first_name).slice(0, 100);
+      last_name = titleCaseName(last_name).slice(0, 100);
       phone = String(phone).trim().slice(0, 30);
       if (!first_name || !last_name) {
         return res.status(400).json({ error: 'First and last name are required' });
@@ -77,7 +78,7 @@ export default function createCustomerRoutes(ctx) {
       const result = await pool.query(
         `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, middle_initial, phone, company_name, password_set)
          VALUES ($1, $2, $3, $4, $5, $8, $6, $7, true) RETURNING id, email, first_name, last_name, middle_initial, phone, company_name, address_line1, address_line2, city, state, zip, password_set, created_via`,
-        [email.toLowerCase(), hash, salt, first_name, last_name, phone || null, (company_name || '').trim() || null, middleInitial]
+        [email.toLowerCase(), hash, salt, first_name, last_name, formatPhone(phone) || null, collapse(company_name), middleInitial]
       );
       const customer = result.rows[0];
 
@@ -199,7 +200,9 @@ export default function createCustomerRoutes(ctx) {
           updated_at = CURRENT_TIMESTAMP
          WHERE id = $9
          RETURNING id, email, first_name, last_name, phone, company_name, address_line1, address_line2, city, state, zip, password_set, created_via`,
-        [first_name, last_name, phone, address_line1, address_line2, city, state, zip, req.customer.id, (company_name || '').trim() || null]
+        [first_name ? titleCaseName(first_name) : null, last_name ? titleCaseName(last_name) : null,
+         phone ? formatPhone(phone) : null, collapse(address_line1), collapse(address_line2), collapse(city),
+         state ? normState(state) : null, zip, req.customer.id, collapse(company_name)]
       );
       res.json({ customer: result.rows[0] });
     } catch (err) {

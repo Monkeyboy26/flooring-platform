@@ -26,6 +26,7 @@ import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCom
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, computeSchedule, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
 import { createCustomerHelpers, findExactDuplicate } from './lib/customerHelpers.js';
+import { titleCaseName, formatPhone, normMiddleInitial, normState, collapse } from './lib/customerNormalize.js';
 import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateReceiptDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateWorkOrderDoc, generateLabelSheetHtml, generateLabelRollHtml, renderLabelPngs, generateLabelImageRollHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
 import { formatRugDims, computeRugCost, computeRugQuote } from './lib/rugPricing.js';
 import * as valorConnect from './lib/valorConnect.js';
@@ -5398,12 +5399,12 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
           address_line1, address_line2, city, state, zip, company_name)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          ON CONFLICT (email) DO NOTHING RETURNING *`,
-        [customer_email, hash, salt, firstName, lastName, phone || null,
+        [customer_email, hash, salt, titleCaseName(firstName), titleCaseName(lastName), formatPhone(phone) || null,
          isPickup ? null : (shipping ? shipping.line1 : null),
          isPickup ? null : (shipping ? shipping.line2 || null : null),
-         isPickup ? null : (shipping ? shipping.city : null),
-         isPickup ? null : (shipping ? shipping.state : null),
-         isPickup ? null : (shipping ? shipping.zip : null), company_name]
+         isPickup ? null : collapse(shipping ? shipping.city : null),
+         isPickup ? null : normState(shipping ? shipping.state : null),
+         isPickup ? null : (shipping ? shipping.zip : null), collapse(company_name)]
       );
       const newCust = custResult.rows[0];
       if (newCust) {
@@ -12171,7 +12172,7 @@ app.post('/api/trade/register', registrationLimiter, async (req, res) => {
     await pool.query(
       `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [email.toLowerCase().trim(), hash, salt, company_name.trim(), contact_name.trim(), phone || null]
+      [email.toLowerCase().trim(), hash, salt, collapse(company_name), titleCaseName(contact_name), formatPhone(phone) || null]
     );
 
     res.json({ success: true, message: 'Registration submitted. Your account is pending approval.' });
@@ -12404,7 +12405,7 @@ app.post('/api/trade/register/enhanced', registrationLimiter, async (req, res) =
     const result = await client.query(
       `INSERT INTO trade_customers (email, password_hash, password_salt, company_name, contact_name, phone, business_type, address_line1, city, state, zip, contractor_license, ein)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-      [email.toLowerCase().trim(), hash, salt, company_name.trim(), contact_name.trim(), phone || null, business_type || null, address_line1.trim(), city.trim(), state.trim().toUpperCase(), zip.trim(), contractor_license || null, ein || null]
+      [email.toLowerCase().trim(), hash, salt, collapse(company_name), titleCaseName(contact_name), formatPhone(phone) || null, business_type || null, collapse(address_line1), collapse(city), normState(state), zip.trim(), contractor_license || null, ein || null]
     );
 
     const customerId = result.rows[0].id;
@@ -25571,10 +25572,10 @@ app.post('/api/rep/customers', repAuth, async (req, res) => {
       `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, middle_initial, phone,
         address_line1, address_line2, city, state, zip, company_name, created_via, assigned_rep_id, assigned_at, password_set)
        VALUES ($1,$2,$3,$4,$5,$14,$6,$7,$8,$9,$10,$11,$13,'rep',$12, CURRENT_TIMESTAMP, false) RETURNING id`,
-      [emailNorm, hash, salt, first_name.trim(), last_name.trim(), (phone || '').trim() || null,
-       (address_line1 || '').trim() || null, (address_line2 || '').trim() || null,
-       (city || '').trim() || null, (state || '').trim() || null, (zip || '').trim() || null, req.rep.id,
-       (company_name || '').trim() || null, (middle_initial || '').trim().slice(0, 4) || null]);
+      [emailNorm, hash, salt, titleCaseName(first_name), titleCaseName(last_name), formatPhone(phone) || null,
+       collapse(address_line1), collapse(address_line2),
+       collapse(city), normState(state), (zip || '').trim() || null, req.rep.id,
+       collapse(company_name), normMiddleInitial(middle_initial)]);
 
     res.status(201).json({ id: result.rows[0].id });
   } catch (err) {
