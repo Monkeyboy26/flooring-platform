@@ -12043,6 +12043,25 @@ app.post('/api/admin/staff/:id/send-reset', staffAuth, requireRole('admin', 'man
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// Revoke a pending invite — kills the set-password link and deactivates the
+// never-used account (the "REVOKE" on the onboarding tracker). Only for accounts
+// that still have an unconsumed invite token.
+app.post('/api/admin/staff/:id/revoke-invite', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (await managerBlockedFromAdmin(req.staff.role, id)) return res.status(403).json({ error: 'Managers cannot modify admin accounts' });
+    const t = await pool.query('SELECT id, email, password_reset_token FROM staff_accounts WHERE id = $1', [id]);
+    if (!t.rows.length) return res.status(404).json({ error: 'Staff member not found' });
+    if (!t.rows[0].password_reset_token) return res.status(400).json({ error: 'No pending invite to revoke' });
+    await pool.query(
+      'UPDATE staff_accounts SET password_reset_token = NULL, password_reset_expires = NULL, is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [id]);
+    await pool.query('DELETE FROM staff_sessions WHERE staff_id = $1', [id]);
+    await logAudit(req.staff.id, 'staff.invite_revoked', 'staff_accounts', id, { email: t.rows[0].email }, req.ip);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 // Public: consume an emailed token and set the password (invite + reset flow).
 app.post('/api/staff/set-password', authLimiter, async (req, res) => {
   try {

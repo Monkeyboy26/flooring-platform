@@ -2444,7 +2444,7 @@
             {view === 'vendor-create' && <VendorFormView navigate={navigate} />}
             {view === 'vendor-edit' && <VendorFormView navigate={navigate} editId={editId} />}
             {view === 'trade' && <TradeManagementView navigate={navigate} />}
-            {view === 'staff-create' && <StaffFormView navigate={navigate} />}
+            {view === 'staff-create' && <InviteStaff navigate={navigate} staffRole={staffRole} />}
             {view === 'profile' && <ProfileView navigate={navigate} staffData={staffData} onStaffUpdate={onStaffUpdate} />}
             {view === 'promos' && <PromoCodesListView navigate={navigate} />}
             {view === 'promo-create' && <PromoCodeFormView navigate={navigate} />}
@@ -9433,6 +9433,10 @@
               <button className="ordl-chip" onClick={() => navigate('audit')} title="Full audit log">AUDIT LOG</button>
               <input className="ordl-search" value={q} onChange={e => setQ(e.target.value)} placeholder="filter staff…" />
             </div>
+            <PendingInvites
+              invites={staff.filter(s => s.is_active && s.invite_pending)}
+              onResend={id => act('/api/admin/staff/' + id + '/send-reset', 'Invite re-sent')}
+              onRevoke={id => act('/api/admin/staff/' + id + '/revoke-invite', 'Invite revoked')} />
             <div className="ordl-scroll">
               <div style={{ minWidth: 620 }}>
                 <div className="ordl-head" style={{ gridTemplateColumns: STAFF_COLS }}>
@@ -9890,144 +9894,150 @@
       );
     }
 
-    // ========== StaffFormView ==========
-    function StaffFormView({ navigate, editId }) {
-      const [form, setForm] = useState({ email: '', first_name: '', last_name: '', phone: '', role: 'sales_rep', password: '', invite: true });
-      const [loading, setLoading] = useState(!!editId);
-      const [saving, setSaving] = useState(false);
-      const [error, setError] = useState('');
-      const [assignedCustomers, setAssignedCustomers] = useState([]);
-
-      useEffect(() => {
-        if (editId) {
-          adminFetch('/api/admin/staff')
-            .then(data => {
-              const s = (data.staff || []).find(x => x.id === editId);
-              if (s) setForm({ email: s.email, first_name: s.first_name, last_name: s.last_name, phone: s.phone || '', role: s.role, password: '' });
-              setLoading(false);
-            })
-            .catch(() => setLoading(false));
-          // Load assigned customers for reps/managers
-          adminFetch('/api/admin/trade-customers')
-            .then(data => setAssignedCustomers((data.customers || []).filter(c => c.assigned_rep_id === editId)))
-            .catch(() => {});
-        }
-      }, [editId]);
-
-      const handleSave = async (e) => {
-        e.preventDefault();
-        setSaving(true);
-        setError('');
-        try {
-          if (editId) {
-            const payload = { email: form.email, first_name: form.first_name, last_name: form.last_name, phone: form.phone || null, role: form.role };
-            await adminFetch('/api/admin/staff/' + editId, { method: 'PUT', body: JSON.stringify(payload) });
-            if (form.password) {
-              await adminFetch('/api/admin/staff/' + editId + '/password', { method: 'PUT', body: JSON.stringify({ password: form.password }) });
-            }
-          } else if (form.invite) {
-            const { password, invite, ...rest } = form;
-            await adminFetch('/api/admin/staff', { method: 'POST', body: JSON.stringify({ ...rest, invite: true }) });
-          } else {
-            if (!form.password) { setError('Password is required'); setSaving(false); return; }
-            const { invite, ...rest } = form;
-            await adminFetch('/api/admin/staff', { method: 'POST', body: JSON.stringify(rest) });
-          }
-          navigate('staff');
-        } catch (err) {
-          setError(err.message || 'Failed to save');
-          setSaving(false);
-        }
-      };
-
-      if (loading) return <div className="loading">Loading...</div>;
-
+    // ========== PendingInvites (onboarding tracker) — real invite_pending accounts ==========
+    function PendingInvites({ invites, onResend, onRevoke }) {
+      const [busy, setBusy] = useState(null);
+      if (!invites || invites.length === 0) return null;
+      const run = (fn, id) => { setBusy(id); Promise.resolve(fn(id)).finally(() => setBusy(null)); };
+      const chip = { padding: '5px 9px', background: 'transparent', border: '1px solid var(--line)', font: '400 10px/1 var(--mono)', cursor: 'pointer', flexShrink: 0 };
       return (
-        <div>
-          <div className="content-header">
-            <h1>{editId ? 'Edit Staff Member' : 'Add Staff Member'}</h1>
-            <button className="btn btn-secondary" onClick={() => navigate('staff')}>Back</button>
-          </div>
-          <div className="form-card" style={{ background: 'var(--panel)', border: '1px solid var(--stone-200)', padding: '2rem', maxWidth: '600px' }}>
-            {error && <div className="auth-error">{error}</div>}
-            <form onSubmit={handleSave}>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>First Name *</label>
-                <input style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} required />
-              </div>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Last Name *</label>
-                <input style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} required />
-              </div>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Email *</label>
-                <input type="email" style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-              </div>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Phone</label>
-                <input style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.phone} onChange={e => setForm({ ...form, phone: formatPhone(e.target.value) })} />
-              </div>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>Role *</label>
-                <select style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
-                  <option value="admin">Admin</option>
-                  <option value="manager">Manager</option>
-                  <option value="sales_rep">Sales Rep</option>
-                  <option value="warehouse">Warehouse</option>
-                </select>
-              </div>
-              {!editId && (
-                <div className="form-group" style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', fontWeight: 500, cursor: 'pointer' }}>
-                    <input type="checkbox" checked={form.invite} onChange={e => setForm({ ...form, invite: e.target.checked })} />
-                    Invite by email (they set their own password)
-                  </label>
-                  {form.invite && <p style={{ fontSize: '0.75rem', color: 'var(--stone-500)', margin: '0.375rem 0 0' }}>A set-password link will be emailed to them. No password is stored until they choose one.</p>}
+        <div style={{ borderBottom: '1px solid var(--line)', flexShrink: 0, maxHeight: 220, overflowY: 'auto' }}>
+          <div className="opsq-block-label" style={{ padding: '11px 14px 3px', margin: 0 }}>ONBOARDING · {invites.length}</div>
+          {invites.map(v => {
+            const rr = ST_ROLES[v.role] || ST_ROLES.warehouse;
+            return (
+              <div key={v.id} style={{ padding: '9px 14px 11px', borderTop: '1px solid var(--line)' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                  <span style={{ font: '400 13px/1.2 var(--sans)' }}>{v.first_name} {v.last_name}</span>
+                  <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.06em', color: rr.c }}>{rr.t}</span>
+                  <span style={{ marginLeft: 'auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', font: '400 10px/1 var(--mono)', color: 'var(--faint)' }}>{v.email}</span>
                 </div>
-              )}
-              {(editId || !form.invite) && (
-                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>{editId ? 'New Password (leave blank to keep)' : 'Password *'}</label>
-                  <input type="password" style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} {...(!editId && !form.invite ? { required: true } : {})} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  <span style={{ font: '400 11px/1.3 var(--mono)', color: 'var(--gold)' }}>Invite sent — awaiting setup</span>
+                  <button style={{ ...chip, marginLeft: 'auto', color: 'var(--dim)' }} disabled={busy === v.id} onClick={() => run(onResend, v.id)}>RESEND LINK</button>
+                  <button style={{ ...chip, color: 'var(--faint)' }} disabled={busy === v.id} onClick={() => run(onRevoke, v.id)}>REVOKE</button>
                 </div>
-              )}
-              <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : (editId ? 'Update' : (form.invite ? 'Send Invite' : 'Create'))}</button>
-            </form>
-          </div>
-          {editId && assignedCustomers.length > 0 && (
-            <div style={{ marginTop: '2rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Assigned Trade Customers ({assignedCustomers.length})</h3>
-              <div className="table-scroll-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Company</th>
-                    <th>Contact</th>
-                    <th>Status</th>
-                    <th>Tier</th>
-                    <th>Total Spend</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {assignedCustomers.map(c => (
-                    <tr key={c.id}>
-                      <td><strong>{c.company_name}</strong></td>
-                      <td>{c.contact_name}</td>
-                      <td><span className={'badge badge-' + (c.status === 'approved' ? 'active' : c.status === 'pending' ? 'pending' : 'inactive')}>{c.status}</span></td>
-                      <td>{c.tier_name || '\u2014'}</td>
-                      <td>${parseFloat(c.total_spend || 0).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
               </div>
-            </div>
-          )}
+            );
+          })}
         </div>
       );
     }
 
-    // ========== StaffDetailView (sectioned drawer) ==========
+    // ========== InviteStaff (invite flow) — admin-staff-invite.jsx ==========
+    const NS_ROLE_DESCS = [
+      { id: 'sales_rep', blurb: 'Writes quotes and orders for their own book. Sees own commissions, never cost columns.' },
+      { id: 'warehouse', blurb: 'Receives POs, flags damage, prints labels. No pricing or customer money visible.' },
+      { id: 'manager', blurb: 'Everything a rep sees plus approvals: discounts past floor, credit memos, catalog edits.' },
+      { id: 'admin', blurb: 'Full access including staff accounts, payouts, and refunds. Use sparingly.' },
+    ];
+    function InviteStaff({ navigate, staffRole }) {
+      const [first, setFirst] = useState(''); const [last, setLast] = useState('');
+      const [email, setEmail] = useState(''); const [role, setRole] = useState('sales_rep');
+      const [sent, setSent] = useState(false); const [sending, setSending] = useState(false); const [err, setErr] = useState('');
+      const descs = NS_ROLE_DESCS.filter(d => !(staffRole === 'manager' && d.id === 'admin'));
+      const r = ST_ROLES[role] || ST_ROLES.sales_rep;
+      const perms = ST_PERMS[role] || [];
+      const valid = first.trim().length > 0 && last.trim().length > 0 && /\S+@\S+\.\S+/.test(email);
+      const nsInput = { width: '100%', boxSizing: 'border-box', padding: '10px 11px', background: 'var(--bg)', border: '1px solid var(--line2)', color: 'var(--ink)', font: '400 13px/1 var(--sans)', outline: 'none' };
+      const field = (label, node) => <label style={{ display: 'block' }}><span className="opsq-block-label" style={{ display: 'block', margin: '0 0 8px' }}>{label}</span>{node}</label>;
+      const send = async () => {
+        setSending(true); setErr('');
+        try { await adminFetch('/api/admin/staff', { method: 'POST', body: JSON.stringify({ invite: true, first_name: first.trim(), last_name: last.trim(), email: email.trim(), role }) }); setSent(true); }
+        catch (e) { setErr(e.message || 'Failed to send invite'); }
+        setSending(false);
+      };
+
+      if (sent) return (
+        <div className="recd-page" style={{ display: 'grid', placeItems: 'center' }}>
+          <div style={{ width: 'min(460px, 90vw)', background: 'var(--panel)', border: '1px solid var(--line)', padding: '30px 32px 32px' }}>
+            <div style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.16em', color: 'var(--cool)' }}>INVITE SENT</div>
+            <h2 style={{ margin: '14px 0 0', font: '400 20px/1.3 var(--sans)' }}>{first} {last} can now set up their account</h2>
+            <p style={{ margin: '12px 0 0', font: '400 13px/1.6 var(--sans)', color: 'var(--dim)' }}>A setup link went to {email}. It expires in 7 days. They'll set a password and land in the console as {r.t.toLowerCase()}.</p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 22 }}>
+              <button className="recd-exc-primary" onClick={() => navigate('staff')}>Back to staff</button>
+              <button className="opsq-alt" onClick={() => { setSent(false); setFirst(''); setLast(''); setEmail(''); }}>Invite another</button>
+            </div>
+          </div>
+        </div>
+      );
+
+      return (
+        <div className="recd-page">
+          <div className="recd-head">
+            <div style={{ padding: '14px 22px 16px' }}>
+              <div className="opsq-meta">
+                <button className="recd-crumb" onClick={() => navigate('staff')}>← STAFF</button>
+                <span style={{ color: 'var(--faint)' }}>/</span>
+                <span style={{ color: 'var(--ink)' }}>NEW ACCOUNT</span>
+              </div>
+              <h1 className="recd-title">Invite staff</h1>
+            </div>
+          </div>
+          <div className="recd-scroll">
+            {err && <div style={{ padding: '10px 22px 0' }}><div style={{ padding: '8px 11px', background: 'var(--red-light)', color: 'var(--hot)', font: '400 11px/1.4 var(--mono)' }}>{err}</div></div>}
+            <div className="rec-body">
+              <div className="rec-left">
+                <div className="form-card">
+                  <div className="rb-head"><h3>1 · Who</h3></div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, maxWidth: 640 }}>
+                    {field('FIRST NAME', <input value={first} onChange={e => setFirst(e.target.value)} placeholder="e.g. Lena" style={nsInput} />)}
+                    {field('LAST NAME', <input value={last} onChange={e => setLast(e.target.value)} placeholder="e.g. Park" style={nsInput} />)}
+                    {field('WORK EMAIL', <input value={email} onChange={e => setEmail(e.target.value)} placeholder="name@romaflooringdesigns.com" style={nsInput} />)}
+                  </div>
+                </div>
+                <div className="form-card">
+                  <div className="rb-head"><h3>2 · Role</h3></div>
+                  <div style={{ display: 'grid', gap: 8, maxWidth: 640 }}>
+                    {descs.map(d => {
+                      const rr = ST_ROLES[d.id]; const on = role === d.id;
+                      return (
+                        <button key={d.id} onClick={() => setRole(d.id)} style={{ textAlign: 'left', cursor: 'pointer', padding: '13px 15px', background: on ? 'var(--panel2)' : 'transparent', border: '1px solid ' + (on ? 'var(--line2)' : 'var(--line)'), borderLeft: '2px solid ' + (on ? rr.c : 'var(--line)') }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                            <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.08em', color: rr.c }}>{rr.t}</span>
+                            {on && <span style={{ marginLeft: 'auto', font: '400 10px/1 var(--mono)', color: 'var(--gold)' }}>SELECTED</span>}
+                          </div>
+                          <div style={{ marginTop: 7, font: '400 12px/1.5 var(--sans)', color: on ? 'var(--ink)' : 'var(--dim)' }}>{d.blurb}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="form-card">
+                  <div className="rb-head"><h3>3 · Security</h3></div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 11, maxWidth: 560 }}>
+                    <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.08em', color: 'var(--cool)', flexShrink: 0 }}>2FA ENFORCED</span>
+                    <span style={{ font: '400 13px/1.5 var(--sans)', color: 'var(--ink)' }}>Two-factor is required at first login — enforced on every new device. The staffer enrolls when they first sign in.</span>
+                  </div>
+                </div>
+              </div>
+              <div style={{ minWidth: 0, background: 'var(--panel)' }}>
+                <div className="form-card">
+                  <div className="rb-head"><h3>They will get</h3></div>
+                  {role === 'admin' ? (
+                    <div style={{ font: '400 12px/1.6 var(--sans)', color: 'var(--dim)' }}>{ST_PERMS.admin[0]}</div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: 7 }}>
+                      {perms.map(([p, ok]) => (
+                        <div key={p} style={{ display: 'flex', gap: 9, alignItems: 'baseline', font: '400 12px/1.4 var(--sans)', color: ok ? 'var(--ink)' : 'var(--faint)' }}>
+                          <span style={{ font: '400 10px/1 var(--mono)', color: ok ? 'var(--cool)' : 'var(--faint)', width: 10, flexShrink: 0 }}>{ok ? '✓' : '—'}</span>{p}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="form-card">
+                  <div className="rb-head"><h3>Send</h3></div>
+                  <button disabled={!valid || sending} onClick={send} style={{ width: '100%', padding: '12px', background: (valid && !sending) ? 'var(--gold)' : 'var(--panel2)', border: 'none', color: (valid && !sending) ? 'var(--brass-ink)' : 'var(--faint)', font: '500 13px/1 var(--sans)', cursor: (valid && !sending) ? 'pointer' : 'default' }}>{sending ? 'Sending…' : 'Send setup link'}</button>
+                  <div style={{ marginTop: 9, font: '400 10px/1.5 var(--mono)', color: 'var(--faint)' }}>Link expires in 7 days. No access until they finish setup.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ========== ProfileView (self-service) ==========
     function ProfileView({ navigate, staffData, onStaffUpdate }) {
       const [form, setForm] = useState({ first_name: staffData.first_name || '', last_name: staffData.last_name || '', phone: staffData.phone || '' });
