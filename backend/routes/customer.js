@@ -321,6 +321,11 @@ export default function createCustomerRoutes(ctx) {
         [customerId]
       );
 
+      // Setting a password activates the account (a guest claiming their email via
+      // the welcome link, or a rep-/checkout-auto-created account). Attach any prior
+      // guest orders/quotes/estimates/samples placed under this email so they appear.
+      await claimGuestRecords(pool, customerId, custResult.rows[0].email).catch(e => console.error('[claim] set-password:', e.message));
+
       res.json({ success: true, token: sessionToken, customer: custResult.rows[0] });
     } catch (err) {
       console.error('Reset password error:', err);

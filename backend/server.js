@@ -25,7 +25,7 @@ import { calculateSalesTax, isTradeTaxExempt, isPickupOnly, getNextBusinessDay, 
 import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, computeSchedule, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
-import { createCustomerHelpers, findExactDuplicate } from './lib/customerHelpers.js';
+import { createCustomerHelpers, findExactDuplicate, claimGuestRecords } from './lib/customerHelpers.js';
 import { titleCaseName, formatPhone, normMiddleInitial, normState, collapse } from './lib/customerNormalize.js';
 import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateReceiptDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateWorkOrderDoc, generateLabelSheetHtml, generateLabelRollHtml, renderLabelPngs, generateLabelImageRollHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
 import { formatRugDims, computeRugCost, computeRugQuote } from './lib/rugPricing.js';
@@ -5409,6 +5409,9 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       const newCust = custResult.rows[0];
       if (newCust) {
         await client.query('UPDATE orders SET customer_id = $1 WHERE id = $2', [newCust.id, order.id]);
+        // Also attach any EARLIER guest orders/quotes/samples under this email
+        // (they may have checked out as a guest before creating this account).
+        await claimGuestRecords(client, newCust.id, newCust.email).catch(e => console.error('[claim] checkout-signup:', e.message));
 
         newCustomerToken = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
