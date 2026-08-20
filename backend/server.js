@@ -8,7 +8,7 @@ import XLSX from 'xlsx';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -12037,7 +12037,7 @@ app.post('/api/admin/staff/:id/send-reset', staffAuth, requireRole('admin', 'man
     await pool.query('UPDATE staff_accounts SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3', [tokenHash, expires, id]);
     const base = process.env.FRONTEND_URL || 'https://romaflooringdesigns.com';
     const setUrl = `${base}/admin?action=staff-set-password&token=${token}`;
-    setImmediate(() => sendWelcomeSetPassword(t.rows[0].email, t.rows[0].first_name, setUrl).catch(err => console.error('[staff reset] email error:', err.message)));
+    setImmediate(() => sendStaffPasswordReset(t.rows[0].email, t.rows[0].first_name, setUrl).catch(err => console.error('[staff reset] email error:', err.message)));
     await logAudit(req.staff.id, 'staff.reset_link_sent', 'staff_accounts', id, { email: t.rows[0].email }, req.ip);
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }

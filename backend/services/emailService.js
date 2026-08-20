@@ -9,6 +9,7 @@ import { generateTierPromotionHTML } from '../templates/tierPromotion.js';
 import { generateInstallationInquiryStaffHTML } from '../templates/installationInquiryStaff.js';
 import { generateInstallationInquiryConfirmationHTML } from '../templates/installationInquiryConfirmation.js';
 import { generatePasswordResetHTML } from '../templates/passwordReset.js';
+import { generateStaffPasswordResetHTML } from '../templates/staffPasswordReset.js';
 import { generateVisitRecapHTML } from '../templates/visitRecap.js';
 import { generateSampleRequestConfirmationHTML } from '../templates/sampleRequestConfirmation.js';
 import { generateSampleRequestShippedHTML } from '../templates/sampleRequestShipped.js';
@@ -561,6 +562,28 @@ export async function sendPasswordReset(email, resetUrl) {
     console.log(`[Email] Password reset sent to ${email}`);
   } catch (err) {
     console.error(`[Email] Failed to send password reset to ${email}:`, err.message);
+  }
+}
+
+// Staff / admin password reset — operations-console flavored, 7-day link.
+export async function sendStaffPasswordReset(email, firstName, resetUrl) {
+  if (!transporter) {
+    console.log(`[Email] Skipping staff password reset for ${email} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateStaffPasswordResetHTML(firstName, resetUrl, { expiresLabel: '7 days' });
+    await deliver({
+      from: NOREPLY_FROM,
+      to: email,
+      subject: 'Reset your Roma staff password',
+      html
+    });
+    console.log(`[Email] Staff password reset sent to ${email}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send staff password reset to ${email}:`, err.message);
+    return { sent: false };
   }
 }
 

@@ -1681,17 +1681,30 @@
     }
 
     // ========== StaffSetPassword (public — consumes an emailed token) ==========
+    // Console-styled set/reset page: OPERATIONS lockup, live requirement checklist
+    // (mirrors validatePassword on the API), show/hide, and a match indicator.
     function StaffSetPassword({ token }) {
       const [password, setPassword] = useState('');
       const [confirm, setConfirm] = useState('');
+      const [show, setShow] = useState(false);
       const [error, setError] = useState('');
       const [loading, setLoading] = useState(false);
       const [done, setDone] = useState(false);
 
+      const reqs = [
+        { label: 'At least 8 characters', ok: password.length >= 8 },
+        { label: 'One uppercase letter', ok: /[A-Z]/.test(password) },
+        { label: 'One number', ok: /[0-9]/.test(password) },
+      ];
+      const allMet = reqs.every(r => r.ok);
+      const match = confirm.length > 0 && password === confirm;
+      const canSubmit = allMet && match && !loading;
+
       const submit = (e) => {
         e.preventDefault();
         setError('');
-        if (password !== confirm) { setError('Passwords do not match'); return; }
+        if (!allMet) { setError('Password doesn’t meet the requirements yet.'); return; }
+        if (password !== confirm) { setError('Passwords do not match.'); return; }
         setLoading(true);
         fetch(API + '/api/staff/set-password', {
           method: 'POST',
@@ -1701,43 +1714,100 @@
           .then(r => r.json().then(data => ({ ok: r.ok, data })))
           .then(({ ok, data }) => {
             if (ok) { setDone(true); }
-            else { setError(data.error || 'This link is invalid or has expired'); }
+            else { setError(data.error || 'This link is invalid or has expired.'); }
             setLoading(false);
           })
-          .catch(() => { setError('Cannot reach API'); setLoading(false); });
+          .catch(() => { setError('Cannot reach the server. Try again.'); setLoading(false); });
       };
 
       const goToLogin = () => {
-        // Drop the query params and reload into the normal login screen.
         window.location.href = window.location.pathname + '#/';
         window.location.reload();
       };
 
-      if (done) {
-        return (
-          <div className="auth-gate">
-            <div className="auth-box">
-              <h1>Password set</h1>
-              <p>Your password has been set. You can now sign in.</p>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={goToLogin}>Go to sign in</button>
+      const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', background: 'var(--bg)', border: '1px solid var(--line2)', color: 'var(--ink)', font: '400 13px/1 var(--sans)', outline: 'none' };
+      const labelStyle = { display: 'block', font: '400 9px/1 var(--mono)', letterSpacing: '0.16em', color: 'var(--faint)', margin: '0 0 8px' };
+
+      // Split layout inspired by the customer auth pages (AuthPageShell): an
+      // editorial stone panel beside the form, collapsing to one column on narrow
+      // screens. renderShell is a plain function (not a <Component>) so the inputs
+      // don't remount — and lose focus — on every keystroke.
+      const renderShell = (children) => (
+        <div className="spw-page" style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--sans)', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)' }}>
+          <style>{'@media (max-width:880px){.spw-page{grid-template-columns:1fr!important}.spw-panel{display:none!important}}'}</style>
+          <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', boxSizing: 'border-box', padding: '30px 36px', overflow: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <span style={{ font: '500 16px/1 var(--sans)', letterSpacing: '0.14em', color: 'var(--ink)' }}>ROMA</span>
+              <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.2em', color: 'var(--brass)' }}>OPERATIONS</span>
             </div>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '32px 0' }}>
+              <div style={{ width: 'min(400px, 100%)', margin: '0 auto' }}>{children}</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', font: '400 10px/1.5 var(--mono)', letterSpacing: '0.06em', color: 'var(--faint)' }}>
+              <span>© {new Date().getFullYear()} Roma Flooring Designs</span>
+              <span>Anaheim, CA · License #830966</span>
+            </div>
+          </div>
+          <div className="spw-panel" style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', borderLeft: '1px solid var(--line)', background: '#0e0f10' }}>
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: "url('https://images.unsplash.com/photo-1659362549741-c32157cc71f4?q=80&w=1471&auto=format&fit=crop')", backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.5 }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(19,20,22,0.55) 0%, rgba(19,20,22,0.30) 42%, rgba(19,20,22,0.94) 100%)' }} />
+            <div style={{ position: 'relative', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '52px 50px' }}>
+              <div style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--brass)' }}>Roma Operations · Staff access</div>
+              <h2 style={{ margin: '18px 0 0', font: '300 40px/1.05 var(--sans)', letterSpacing: '-0.02em', color: 'var(--ink)' }}>Let’s get you <em style={{ fontStyle: 'italic', fontWeight: 400 }}>back in</em>.</h2>
+              <p style={{ margin: '18px 0 0', maxWidth: 380, font: '400 14px/1.65 var(--sans)', color: 'var(--dim)' }}>Set a password, then sign in to the console — orders, purchase orders, releases, vendors, and the catalog, all in one place.</p>
+            </div>
+          </div>
+        </div>
+      );
+
+      if (done) {
+        return renderShell(
+          <div>
+            <div style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.2em', color: 'var(--cool)' }}>PASSWORD SET</div>
+            <h1 style={{ margin: '13px 0 0', font: '400 24px/1.2 var(--sans)', letterSpacing: '-0.015em', color: 'var(--ink)' }}>You’re all set.</h1>
+            <p style={{ margin: '11px 0 0', font: '400 14px/1.6 var(--sans)', color: 'var(--dim)' }}>Your password is saved. Sign in to the operations console to get started.</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0 0', padding: '12px 14px', background: 'rgba(96,160,120,0.12)', borderLeft: '2px solid var(--green)' }}>
+              <span style={{ color: 'var(--green)', font: '400 13px/1 var(--mono)' }}>✓</span>
+              <span style={{ font: '400 12px/1.45 var(--sans)', color: 'var(--ink)' }}>For security, any earlier sessions were signed out.</span>
+            </div>
+            <button onClick={goToLogin} style={{ marginTop: 22, width: '100%', padding: '13px', background: 'var(--brass)', border: 'none', color: '#17140f', font: '500 13px/1 var(--sans)', cursor: 'pointer' }}>Continue to sign in →</button>
           </div>
         );
       }
 
-      return (
-        <div className="auth-gate">
-          <form className="auth-box" onSubmit={submit}>
-            <h1>Set your password</h1>
-            <p>Choose a password for your Roma staff account.</p>
-            {error && <div className="auth-error">{error}</div>}
-            <input type="password" placeholder="New password" value={password} onChange={e => setPassword(e.target.value)} autoFocus />
-            <input type="password" placeholder="Confirm password" value={confirm} onChange={e => setConfirm(e.target.value)} />
-            <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading || !password}>
-              {loading ? 'Saving…' : 'Set password'}
-            </button>
-          </form>
-        </div>
+      return renderShell(
+        <form onSubmit={submit}>
+          <div style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.2em', color: 'var(--brass)' }}>SET PASSWORD</div>
+          <h1 style={{ margin: '13px 0 0', font: '400 24px/1.2 var(--sans)', letterSpacing: '-0.015em', color: 'var(--ink)' }}>Choose a new password</h1>
+          <p style={{ margin: '11px 0 22px', font: '400 14px/1.6 var(--sans)', color: 'var(--dim)' }}>For your Roma staff account. Pick something you don’t use elsewhere.</p>
+
+          {error && (
+            <div style={{ margin: '0 0 16px', padding: '10px 12px', background: 'rgba(197,71,49,0.10)', borderLeft: '2px solid var(--hot)', font: '400 12px/1.5 var(--sans)', color: 'var(--ink)' }}>{error}</div>
+          )}
+
+          <label style={labelStyle}>NEW PASSWORD</label>
+          <div style={{ position: 'relative', marginBottom: 12 }}>
+            <input type={show ? 'text' : 'password'} value={password} autoFocus onChange={e => setPassword(e.target.value)} style={{ ...inputStyle, paddingRight: 58 }} />
+            <button type="button" onClick={() => setShow(s => !s)} style={{ position: 'absolute', top: 0, right: 0, height: '100%', padding: '0 12px', background: 'transparent', border: 'none', color: 'var(--faint)', font: '400 10px/1 var(--mono)', letterSpacing: '0.08em', cursor: 'pointer' }}>{show ? 'HIDE' : 'SHOW'}</button>
+          </div>
+
+          <div style={{ display: 'grid', gap: 6, margin: '0 0 16px' }}>
+            {reqs.map(r => (
+              <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 9, font: '400 12px/1.3 var(--sans)', color: r.ok ? 'var(--ink)' : 'var(--faint)' }}>
+                <span style={{ width: 12, textAlign: 'center', font: '400 11px/1 var(--mono)', color: r.ok ? 'var(--green)' : 'var(--faint)' }}>{r.ok ? '✓' : '○'}</span>
+                {r.label}
+              </div>
+            ))}
+          </div>
+
+          <label style={labelStyle}>CONFIRM PASSWORD</label>
+          <input type={show ? 'text' : 'password'} value={confirm} onChange={e => setConfirm(e.target.value)} style={inputStyle} />
+          {confirm.length > 0 && (
+            <div style={{ marginTop: 8, font: '400 11px/1.3 var(--mono)', letterSpacing: '0.04em', color: match ? 'var(--green)' : 'var(--faint)' }}>{match ? '✓ Passwords match' : 'Passwords don’t match yet'}</div>
+          )}
+
+          <button type="submit" disabled={!canSubmit} style={{ marginTop: 24, width: '100%', padding: '13px', background: canSubmit ? 'var(--brass)' : 'var(--panel2)', border: 'none', color: canSubmit ? '#17140f' : 'var(--faint)', font: '500 13px/1 var(--sans)', cursor: canSubmit ? 'pointer' : 'default' }}>{loading ? 'Saving…' : 'Set password →'}</button>
+        </form>
       );
     }
 
