@@ -3898,13 +3898,42 @@
                 <button className="btn" onClick={goBrowse}>Shop with trade pricing</button>
               </div>
             ) : (customer && customer.trade_status === 'pending') ? (
-              <div style={{ maxWidth: 620, margin: '4rem auto', textAlign: 'center', padding: '0 2rem' }}>
-                <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--roma-accent, #9a7b4f)', marginBottom: 14 }}>● Application received</div>
-                <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, marginBottom: '0.75rem' }}>Your trade application is under review.</h2>
-                <p style={{ color: 'var(--stone-600)', marginBottom: '1.5rem' }}>
-                  A Roma rep is verifying your details — usually within two business days. Once approved, trade pricing turns on automatically for this same login. We'll email you at <strong>{customer.email}</strong>.
-                </p>
-                <button className="btn" onClick={goBrowse}>Keep browsing</button>
+              <div style={{ maxWidth: 1080, margin: '4.5rem auto 6rem', padding: '0 1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'clamp(2.5rem, 6vw, 5.5rem)', alignItems: 'start' }}>
+                  {/* Left — statement */}
+                  <div>
+                    <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--roma-accent, #9a7b4f)', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--roma-accent, #9a7b4f)' }} />Trade application
+                    </div>
+                    <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: 'clamp(2.6rem, 6.5vw, 4.5rem)', lineHeight: 0.98, letterSpacing: '-0.025em', margin: 0 }}>Application<br />received.</h2>
+                    <div style={{ width: 56, height: 2, background: 'var(--roma-accent, #9a7b4f)', margin: '1.85rem 0' }} />
+                    <p style={{ color: 'var(--stone-600)', fontSize: '1.0625rem', lineHeight: 1.68, margin: '0 0 2.1rem', maxWidth: 440 }}>
+                      We'll email <strong style={{ color: 'var(--stone-800)' }}>{customer.email}</strong> once you're approved — usually within two business days. Trade pricing then turns on automatically for this same login. Nothing else to do.
+                    </p>
+                    <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button className="btn" onClick={goBrowse}>Keep browsing</button>
+                      <button onClick={goAccount} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--stone-700)', font: '500 12px/1 var(--roma-sans, inherit)', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '1px solid var(--stone-400)', padding: '4px 0 5px' }}>View your account</button>
+                    </div>
+                  </div>
+
+                  {/* Right — what happens next */}
+                  <div style={{ paddingTop: 4 }}>
+                    {[
+                      ['Now', 'Your application is logged, and a confirmation is on its way to your inbox.'],
+                      ['Within 2 business days', 'A Roma rep verifies your details and sets your starting tier.'],
+                      ['On approval', 'Trade pricing turns on for this login — your tier, dashboard, and dedicated rep all unlock in one email.'],
+                    ].map(([t, b], i) => (
+                      <div key={t} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 22, padding: i === 0 ? '0 0 24px' : '24px 0', borderTop: i === 0 ? 'none' : '0.5px solid var(--stone-200)' }}>
+                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '1.6rem', lineHeight: 1, color: 'var(--roma-accent, #9a7b4f)', fontVariantNumeric: 'tabular-nums' }}>{'0' + (i + 1)}</div>
+                        <div>
+                          <div style={{ font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: 8 }}>{t}</div>
+                          <div style={{ color: 'var(--stone-700)', fontSize: '0.9375rem', lineHeight: 1.55 }}>{b}</div>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ marginTop: 28, paddingTop: 20, borderTop: '0.5px solid var(--stone-200)', font: '500 10px/1.5 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--stone-400)' }}>Reviewed by a human · No credit pull · Nothing is charged</div>
+                  </div>
+                </div>
               </div>
             ) : (
               <TradeApplyPage goHome={goHome} goTrade={goTrade} onLogin={() => { setTradeModalMode('login'); setShowTradeModal(true); }}
@@ -14758,11 +14787,30 @@
                 </div>
               </form>
             ) : step === 3 ? (
-              <div style={{ textAlign: 'center', padding: '1rem 0' }}>
-                <p style={{ color: 'var(--stone-600)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
-                  Your application is under review. You'll receive an email once approved.
+              <div style={{ padding: '0.25rem 0' }}>
+                <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--roma-accent, #9a7b4f)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--roma-accent, #9a7b4f)' }} />Trade application
+                </div>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '2.1rem', lineHeight: 1, letterSpacing: '-0.02em', margin: '0 0 1rem' }}>Application received.</h3>
+                <p style={{ color: 'var(--stone-600)', lineHeight: 1.65, margin: '0 0 1.6rem' }}>
+                  We'll email you once you're approved — usually within two business days. Trade pricing then turns on automatically for this same login.
                 </p>
-                <button className="btn" onClick={onClose} style={{ width: '100%' }}>Close</button>
+                <div style={{ borderTop: '0.5px solid var(--stone-200)', marginBottom: '1.6rem' }}>
+                  {[
+                    ['Now', 'A confirmation is on its way to your inbox.'],
+                    ['Within 2 business days', 'A rep verifies your details.'],
+                    ['On approval', 'Trade pricing switches on for your account.'],
+                  ].map(([t, b], i) => (
+                    <div key={t} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 14, padding: '13px 0', borderBottom: '0.5px solid var(--stone-200)' }}>
+                      <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '1.15rem', lineHeight: 1.1, color: 'var(--roma-accent, #9a7b4f)' }}>{'0' + (i + 1)}</div>
+                      <div>
+                        <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: 3 }}>{t}</div>
+                        <div style={{ color: 'var(--stone-700)', fontSize: '0.85rem', lineHeight: 1.5 }}>{b}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="btn" onClick={onClose} style={{ width: '100%' }}>Keep browsing</button>
               </div>
             ) : (
               <>
@@ -16661,6 +16709,59 @@
         { t: 'On approval', b: 'Your tier, your dedicated rep’s direct line, and your trade dashboard all unlock in one email.' },
       ];
 
+      // Post-submit confirmation — a full-width "Application received" page that
+      // mirrors the signed-in upgrade confirmation in StorefrontApp's trade-apply
+      // view. Early-returned so the two-column form + get-ready checklist don't
+      // linger beside the success state.
+      if (submitted) {
+        const steps = [
+          ['Right now', 'Your application is logged and a confirmation is on its way to your inbox.'],
+          ['Within 2 business days', 'A Roma rep verifies your details' + (isUpgrade ? ' and sets your starting tier.' : ' — often sooner with a CSLB number.')],
+          ['On approval', isUpgrade
+            ? 'Trade pricing turns on for this login — your tier, dashboard, and dedicated rep all unlock in one email.'
+            : 'Your tier, dedicated rep, and trade dashboard unlock — sign in to start.'],
+        ];
+        return (
+          <div className="tv2-page" style={{ background: paper, color: ink, fontFamily: 'var(--roma-sans)' }}>
+            <section style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(56px, 9vw, 104px) 24px 104px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'clamp(2.5rem, 6vw, 5.5rem)', alignItems: 'start' }}>
+                {/* Left — statement */}
+                <div>
+                  <TapMicro theme={theme} color={accent} style={{ marginBottom: 24, letterSpacing: '0.22em' }}>● Trade application</TapMicro>
+                  <h1 style={{ font: '300 clamp(2.6rem, 6.5vw, 4.6rem)/0.98 var(--roma-serif)', letterSpacing: '-0.025em', margin: 0, color: ink }}>Application<br />received.</h1>
+                  <div style={{ width: 56, height: 2, background: accent, margin: '1.85rem 0' }} />
+                  <p style={{ font: '400 17px/1.68 var(--roma-sans)', color: `${ink}b3`, margin: '0 0 2.1rem', maxWidth: 440 }}>
+                    {isUpgrade
+                      ? <>We'll email <strong style={{ color: ink }}>{email}</strong> once you're approved — usually within two business days. Trade pricing then turns on automatically for this same login. Nothing else to do.</>
+                      : <>We'll email <strong style={{ color: ink }}>{email}</strong> once you're approved — usually within two business days, and often sooner with a CSLB number.</>}
+                  </p>
+                  <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <a onClick={goHome} style={{ padding: '15px 28px', background: ink, color: paper, textDecoration: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 12px/1 var(--roma-sans)' }}>Back to home</a>
+                    {!isUpgrade && <a onClick={onLogin} style={{ color: ink, cursor: 'pointer', textDecoration: 'none', borderBottom: `1px solid ${ink}`, padding: '5px 0', textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 12px/1 var(--roma-sans)' }}>Trade sign in →</a>}
+                  </div>
+                </div>
+
+                {/* Right — what happens next */}
+                <div style={{ paddingTop: 4 }}>
+                  {steps.map(([t, b], i) => (
+                    <div key={t} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 22, padding: i === 0 ? '0 0 24px' : '24px 0', borderTop: i === 0 ? 'none' : `0.5px solid ${ink}1f` }}>
+                      <div style={{ font: '300 1.6rem/1 var(--roma-serif)', color: accent, fontVariantNumeric: 'tabular-nums' }}>{'0' + (i + 1)}</div>
+                      <div>
+                        <TapMicro theme={theme} color={muted} style={{ marginBottom: 8 }}>{t}</TapMicro>
+                        <div style={{ color: `${ink}c4`, font: '400 15px/1.55 var(--roma-sans)' }}>{b}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ marginTop: 28, paddingTop: 20, borderTop: `0.5px solid ${ink}1f` }}>
+                    <TapMicro theme={theme} color={muted}>Reviewed by a human · No credit pull · Nothing is charged</TapMicro>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        );
+      }
+
       return (
         <div className="tv2-page" style={{ background: paper, color: ink, fontFamily: 'var(--roma-sans)' }}>
           {/* Hero */}
@@ -16718,22 +16819,8 @@
               <TapMicro theme={theme}>Questions? Call (714) 999-0009</TapMicro>
             </div>
 
-            {/* Form / success */}
-            {submitted ? (
-              <div style={{ background: '#fff', border: `0.5px solid ${ink}22`, padding: '48px 44px', display: 'grid', gap: 18 }}>
-                <TapMicro theme={theme} color={accent}>● Application received</TapMicro>
-                <h2 style={{ font: '300 44px/1.05 var(--roma-serif)', letterSpacing: '-0.016em', margin: 0, color: ink }}>Thanks — it’s with a rep now.</h2>
-                <p style={{ font: '400 15px/1.6 var(--roma-sans)', color: `${ink}b3`, margin: 0, maxWidth: 520 }}>
-                  {isUpgrade
-                    ? <>Your trade application is under review. We’ll email <strong style={{ color: ink }}>{email}</strong> once it’s approved — usually within two business days. Trade pricing then turns on automatically for this same login.</>
-                    : <>Your trade application is under review. We’ll email <strong style={{ color: ink }}>{email}</strong> once it’s approved — usually within two business days, and often sooner with a CSLB number.</>}
-                </p>
-                <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
-                  <a onClick={goHome} style={{ padding: '14px 26px', background: ink, color: paper, textDecoration: 'none', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 12px/1 var(--roma-sans)' }}>Back to home →</a>
-                  {!isUpgrade && <a onClick={onLogin} style={{ padding: '14px 0 6px', color: ink, cursor: 'pointer', textDecoration: 'none', borderBottom: `1px solid ${ink}`, textTransform: 'uppercase', letterSpacing: '0.1em', font: '500 12px/1 var(--roma-sans)' }}>Trade sign in →</a>}
-                </div>
-              </div>
-            ) : (
+            {/* Form (the submitted confirmation is a full-width early return above) */}
+            {submitted ? null : (
               <div style={{ background: '#fff', border: `0.5px solid ${ink}22`, padding: '40px 44px' }}>
                 {error && <div style={{ marginBottom: 24, padding: '12px 16px', background: '#c0392b12', border: '0.5px solid #c0392b55', font: '400 13px/1.5 var(--roma-sans)', color: '#8a2a1e' }}>{error}</div>}
                 {retailExists && onCustomerSignIn && (
