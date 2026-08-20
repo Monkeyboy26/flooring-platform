@@ -11989,6 +11989,18 @@ app.get('/api/admin/staff/:id/sessions', staffAuth, requireRole('admin', 'manage
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// Revoke a single session (device) — the per-row "REVOKE" on the staff record.
+app.delete('/api/admin/staff/:id/sessions/:sessionId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id, sessionId } = req.params;
+    if (await managerBlockedFromAdmin(req.staff.role, id)) return res.status(403).json({ error: 'Managers cannot modify admin accounts' });
+    const del = await pool.query('DELETE FROM staff_sessions WHERE id = $1 AND staff_id = $2 RETURNING id', [sessionId, id]);
+    if (!del.rows.length) return res.status(404).json({ error: 'Session not found' });
+    await logAudit(req.staff.id, 'staff.session_revoked', 'staff_accounts', id, { session_id: sessionId }, req.ip);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 // Force sign-out everywhere — deletes all of the staffer's sessions.
 app.post('/api/admin/staff/:id/force-logout', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {

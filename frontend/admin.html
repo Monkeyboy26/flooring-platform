@@ -2428,7 +2428,9 @@
               <VisitsListView navigate={navigate} />
             ) : view === 'visit-detail' ? (
               <VisitDetailView navigate={navigate} editId={editId} staffRole={staffRole} />
-            ) : (view === 'staff' || view === 'staff-detail' || view === 'staff-edit') ? (
+            ) : view === 'staff-detail' ? (
+              <StaffDetail editId={editId} navigate={navigate} staffRole={staffRole} staffData={staffData} />
+            ) : (view === 'staff' || view === 'staff-edit') ? (
               <StaffLedger navigate={navigate} staffRole={staffRole} staffData={staffData} initialSel={editId} />
             ) : (
           <div className="admin-content">
@@ -9479,6 +9481,7 @@
                   </div>
                   <div style={{ marginTop: 6, font: '400 11px/1.5 var(--mono)', color: 'var(--dim)' }}>{active.email}<br />since {stSince(active.created_at)} · {active.trusted_devices || 0} trusted device{active.trusted_devices === 1 ? '' : 's'}</div>
                   {active.assigned_customers > 0 && <div style={{ marginTop: 10, font: '400 12px/1.5 var(--sans)', color: 'var(--dim)' }}>{active.assigned_customers} trade customer{active.assigned_customers === 1 ? '' : 's'} assigned.</div>}
+                  <button className="rb-action" style={{ marginTop: 10 }} onClick={() => navigate('staff-detail', activeId)}>Open full record →</button>
                 </div>
                 <div className="opsq-pane-body" style={{ padding: '0 20px 24px' }}>
                   {msg && <div style={{ marginTop: 14, padding: '8px 11px', background: 'var(--green-light)', color: 'var(--green)', font: '400 11px/1.4 var(--mono)' }}>{msg}</div>}
@@ -9599,6 +9602,290 @@
               </React.Fragment>
             )}
           </aside>
+        </div>
+      );
+    }
+
+    // ========== StaffDetail — full-page staff record (admin-staff-detail.jsx) ==========
+    function StaffDetail({ editId, navigate, staffRole, staffData }) {
+      const [s, setS] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [sessions, setSessions] = useState([]);
+      const [activity, setActivity] = useState([]);
+      const [tab, setTab] = useState('record');
+      const [editing, setEditing] = useState(false);
+      const [role, setRole] = useState(''); const [roleReason, setRoleReason] = useState('');
+      const [ident, setIdent] = useState({ first_name: '', last_name: '', phone: '' });
+      const [saving, setSaving] = useState(false);
+      const [pwOpen, setPwOpen] = useState(false); const [newPw, setNewPw] = useState('');
+      const [menu, setMenu] = useState(false);
+      const [danger, setDanger] = useState(null); const [reason, setReason] = useState('');
+      const [msg, setMsg] = useState(''); const [err, setErr] = useState('');
+
+      const flash = m => { setMsg(m); setErr(''); setTimeout(() => setMsg(''), 3500); };
+      const fail = e => { setErr(e); setTimeout(() => setErr(''), 6000); };
+
+      const loadRow = () => adminFetch('/api/admin/staff').then(d => {
+        const row = (d.staff || []).find(x => x.id === editId) || null;
+        setS(row); setLoading(false);
+        if (row) { setRole(row.role); setIdent({ first_name: row.first_name, last_name: row.last_name, phone: row.phone || '' }); }
+      }).catch(() => setLoading(false));
+      const loadAux = () => {
+        adminFetch('/api/admin/staff/' + editId + '/sessions').then(d => setSessions(d.sessions || [])).catch(() => setSessions([]));
+        adminFetch('/api/admin/audit-log?entity_id=' + editId + '&limit=40').then(d => setActivity(d.entries || [])).catch(() => setActivity([]));
+      };
+      useEffect(() => { setLoading(true); loadRow(); loadAux(); }, [editId]);
+      const reloadAll = () => { loadRow(); loadAux(); };
+
+      const sdInp = { width: '100%', boxSizing: 'border-box', padding: '7px 9px', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', font: '400 12px/1.3 var(--sans)', outline: 'none', marginBottom: 8 };
+      const menuItem = { display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--line)', color: 'var(--ink)', font: '400 12px/1 var(--sans)', cursor: 'pointer' };
+
+      if (loading) return <div className="recd-page"><div style={{ padding: 40, font: '400 12px/1 var(--mono)', color: 'var(--faint)' }}>loading…</div></div>;
+      if (!s) return <div className="recd-page"><div style={{ padding: 40, font: '400 13px/1.4 var(--sans)', color: 'var(--dim)' }}>Staff member not found. <button className="rb-action" onClick={() => navigate('staff')}>← Staff</button></div></div>;
+
+      const r = ST_ROLES[s.role] || ST_ROLES.warehouse;
+      const perms = ST_PERMS[s.role] || [];
+      const isSelf = staffData && staffData.id === s.id;
+      const blocked = staffRole === 'manager' && s.role === 'admin';
+      const activeSessions = sessions.filter(x => x.active).length;
+      const trail = activity;
+
+      const act = async (path, okMsg, method) => { setErr(''); setMenu(false); try { await adminFetch(path, { method: method || 'POST' }); flash(okMsg); reloadAll(); } catch (e) { fail(e.message || 'Action failed'); } };
+      const startEdit = () => { setEditing(true); setTab('access'); setMenu(false); setRole(s.role); setIdent({ first_name: s.first_name, last_name: s.last_name, phone: s.phone || '' }); setRoleReason(''); };
+      const saveChanges = async () => {
+        if (role === 'admin' && s.role !== 'admin' && !roleReason.trim()) { fail('A reason is required to grant admin access'); return; }
+        setSaving(true); setErr('');
+        try { await adminFetch('/api/admin/staff/' + s.id, { method: 'PUT', body: JSON.stringify({ ...ident, role, reason: roleReason.trim() || null }) }); flash('Changes saved'); setEditing(false); reloadAll(); }
+        catch (e) { fail(e.message || 'Save failed'); }
+        setSaving(false);
+      };
+      const setPasswordDirect = async () => {
+        if (!newPw) { fail('Enter a password'); return; }
+        try { await adminFetch('/api/admin/staff/' + s.id + '/password', { method: 'PUT', body: JSON.stringify({ password: newPw }) }); setNewPw(''); setPwOpen(false); flash('Password set — sessions signed out'); reloadAll(); }
+        catch (e) { fail(e.message || 'Failed'); }
+      };
+      const revokeSession = async (sid) => { try { await adminFetch('/api/admin/staff/' + s.id + '/sessions/' + sid, { method: 'DELETE' }); flash('Session revoked'); loadAux(); loadRow(); } catch (e) { fail(e.message || 'Failed'); } };
+      const confirmDanger = async () => {
+        try {
+          if (danger === 'deactivate') { await adminFetch('/api/admin/staff/' + s.id + '/toggle', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) }); flash('Account deactivated'); }
+          else if (danger === 'terminate') { const d = await adminFetch('/api/admin/staff/' + s.id + '/terminate', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) }); let m = 'Terminated.'; if (d.freed_customers && d.freed_customers.length) { m += ' ' + d.freed_customers.length + ' customer(s) unassigned.'; if (d.recommended_rep) m += ' Suggest: ' + d.recommended_rep.name; } flash(m); }
+          setDanger(null); setReason(''); reloadAll();
+        } catch (e) { fail(e.message || 'Action failed'); }
+      };
+
+      const metrics = [['LAST ACTIVE', staffRelTime(s.last_login)], ['TRUSTED', String(s.trusted_devices || 0)], ['SESSIONS', String(activeSessions)]];
+
+      const PermsBlock = (
+        <div className="form-card">
+          <div className="rb-head"><h3>Permissions · {r.t.toLowerCase()}</h3>{!blocked && !editing && <button className="rb-action" style={{ marginLeft: 'auto' }} onClick={startEdit}>Change role</button>}</div>
+          {s.role === 'admin' ? (
+            <div style={{ font: '400 13px/1.6 var(--sans)', color: 'var(--dim)', maxWidth: '62ch' }}>{ST_PERMS.admin[0]}</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 1, background: 'var(--line)' }}>
+              {perms.map(([p, ok]) => (
+                <div key={p} style={{ background: 'var(--bg)', padding: '11px 0', display: 'grid', gridTemplateColumns: '28px 1fr 90px', gap: 10, alignItems: 'baseline' }}>
+                  <span style={{ font: '400 11px/1 var(--mono)', color: ok ? 'var(--cool)' : 'var(--faint)', textAlign: 'center' }}>{ok ? '✓' : '—'}</span>
+                  <span style={{ font: '400 13px/1.4 var(--sans)', color: ok ? 'var(--ink)' : 'var(--faint)' }}>{p}</span>
+                  <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.08em', color: ok ? 'var(--cool)' : 'var(--faint)', textAlign: 'right' }}>{ok ? 'ALLOWED' : 'DENIED'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+
+      const SessionsBlock = (
+        <div className="form-card">
+          <div className="rb-head"><h3>Sessions &amp; devices · {sessions.length}</h3>{sessions.length > 0 && !blocked && <button className="rb-action" style={{ marginLeft: 'auto' }} onClick={() => act('/api/admin/staff/' + s.id + '/force-logout', 'Signed out everywhere')}>Sign out everywhere</button>}</div>
+          {sessions.length === 0 ? (
+            <div style={{ font: '400 12px/1.6 var(--mono)', color: 'var(--faint)' }}>no active sessions — access revoked</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 1, background: 'var(--line)' }}>
+              {sessions.map(ss => (
+                <div key={ss.id} style={{ background: 'var(--bg)', padding: '11px 0', display: 'grid', gridTemplateColumns: 'minmax(120px,1fr) minmax(90px,150px) 70px', gap: 12, alignItems: 'baseline' }}>
+                  <span style={{ font: '400 13px/1.3 var(--sans)', color: ss.active ? 'var(--ink)' : 'var(--faint)' }}>{ss.device_id || 'device'}{ss.is_trusted ? ' · trusted' : ''}</span>
+                  <span style={{ font: '400 11px/1.3 var(--mono)', color: 'var(--dim)' }}>{staffRelTime(ss.created_at)}</span>
+                  {!blocked ? <button className="rb-action" style={{ textAlign: 'right', color: 'var(--faint)' }} onClick={() => revokeSession(ss.id)}>REVOKE</button> : <span />}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+
+      return (
+        <div className="recd-page">
+          <div className="recd-head">
+            <div className="recd-top">
+              <div style={{ minWidth: 0 }}>
+                <div className="opsq-meta">
+                  <button className="recd-crumb" onClick={() => navigate('staff')}>← STAFF</button>
+                  <span style={{ color: 'var(--faint)' }}>/</span>
+                  <span style={{ color: r.c }}>{r.t}</span>
+                  {!s.is_active && <span style={{ color: 'var(--hot)' }}>DEACTIVATED</span>}
+                </div>
+                <h1 className="recd-title" style={{ color: s.is_active ? 'var(--ink)' : 'var(--dim)' }}>{s.first_name} {s.last_name}</h1>
+                <div className="recd-meta"><span>{s.email}</span><span>since {stSince(s.created_at)}</span><span>{s.trusted_devices || 0} trusted device{s.trusted_devices === 1 ? '' : 's'}</span>{s.assigned_customers > 0 && <span>{s.assigned_customers} trade customer{s.assigned_customers === 1 ? '' : 's'}</span>}</div>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 26, flexShrink: 0 }}>
+                {metrics.map(m => (
+                  <div key={m[0]} style={{ textAlign: 'right' }}>
+                    <div className="opsq-block-label" style={{ marginBottom: 0 }}>{m[0]}</div>
+                    <div style={{ marginTop: 7, font: '400 20px/1 var(--mono)', color: 'var(--ink)', whiteSpace: 'nowrap' }}>{m[1]}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignSelf: 'center', flexShrink: 0, position: 'relative' }}>
+                {s.is_active ? (
+                  <React.Fragment>
+                    {!blocked && <button className="recd-exc-primary" onClick={startEdit}>Edit role + access</button>}
+                    {!blocked && <button className="opsq-alt" onClick={() => act('/api/admin/staff/' + s.id + '/send-reset', 'Reset link emailed')}>Reset password</button>}
+                    {!blocked && <button className="opsq-alt" onClick={() => setMenu(m => !m)}>⋯</button>}
+                    {menu && !blocked && (
+                      <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--panel2)', border: '1px solid var(--line2)', zIndex: 20, minWidth: 200 }}>
+                        <button style={menuItem} onClick={() => { setMenu(false); setPwOpen(true); setTab('security'); }}>Set password…</button>
+                        {s.trusted_devices > 0 && <button style={menuItem} onClick={() => act('/api/admin/staff/' + s.id + '/revoke-trusted', 'Trusted devices revoked')}>Revoke trusted devices</button>}
+                        {!isSelf && ['sales_rep', 'manager'].includes(s.role) && <button style={{ ...menuItem, color: 'var(--hot)', borderBottom: 'none' }} onClick={() => { setMenu(false); setDanger('terminate'); setReason(''); }}>Terminate &amp; reassign</button>}
+                      </div>
+                    )}
+                  </React.Fragment>
+                ) : (
+                  !blocked && <button className="opsq-alt" onClick={() => act('/api/admin/staff/' + s.id + '/toggle', 'Account reactivated', 'PATCH')}>Reactivate account</button>
+                )}
+              </div>
+            </div>
+            <div className="recd-tabs">
+              {['record', 'access', 'security', 'activity'].map(t => (
+                <button key={t} className={'recd-tab' + (tab === t ? ' active' : '')} onClick={() => setTab(t)} style={{ textTransform: 'capitalize' }}>{t}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="recd-scroll">
+            {(msg || err || blocked) && <div style={{ padding: '10px 22px 0' }}>
+              {msg && <div style={{ padding: '8px 11px', background: 'var(--green-light)', color: 'var(--green)', font: '400 11px/1.4 var(--mono)' }}>{msg}</div>}
+              {err && <div style={{ padding: '8px 11px', background: 'var(--red-light)', color: 'var(--hot)', font: '400 11px/1.4 var(--mono)' }}>{err}</div>}
+              {blocked && <div style={{ padding: '8px 11px', background: 'var(--panel2)', color: 'var(--dim)', font: '400 11px/1.4 var(--mono)' }}>Managers cannot modify admin accounts.</div>}
+            </div>}
+            <div className="rec-body">
+              <div className="rec-left">
+                {tab === 'record' && (
+                  <div className="form-card">
+                    <div style={{ background: 'var(--panel2)', borderLeft: '2px solid ' + (s.is_active ? r.c : 'var(--hot)'), padding: '14px 16px 15px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, font: '400 10px/1 var(--mono)', letterSpacing: '0.12em' }}>
+                        <span style={{ color: s.is_active ? r.c : 'var(--hot)' }}>ACCESS READ</span>
+                        <span style={{ marginLeft: 'auto', color: 'var(--faint)' }}>LAST ACTIVE {staffRelTime(s.last_login).toUpperCase()}</span>
+                      </div>
+                      <p style={{ margin: '11px 0 0', maxWidth: '62ch', font: '400 14px/1.55 var(--sans)' }}>{s.assigned_customers > 0 ? s.assigned_customers + ' trade customer' + (s.assigned_customers === 1 ? '' : 's') + ' assigned. ' : ''}{s.invite_pending ? 'Invite pending — no password set yet.' : (s.is_active ? 'Access is active.' : 'Access revoked — all sessions signed out.')}</p>
+                    </div>
+                  </div>
+                )}
+                {(tab === 'record' || tab === 'access') && PermsBlock}
+                {tab === 'access' && editing && (
+                  <div className="form-card">
+                    <div className="rb-head"><h3>Change role + identity</h3></div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input style={sdInp} placeholder="First name" value={ident.first_name} onChange={e => setIdent({ ...ident, first_name: e.target.value })} />
+                      <input style={sdInp} placeholder="Last name" value={ident.last_name} onChange={e => setIdent({ ...ident, last_name: e.target.value })} />
+                    </div>
+                    <input style={sdInp} placeholder="Phone" value={ident.phone} onChange={e => setIdent({ ...ident, phone: formatPhone(e.target.value) })} />
+                    <select style={{ ...sdInp, appearance: 'auto' }} value={role} onChange={e => setRole(e.target.value)} disabled={staffRole === 'manager'}>
+                      <option value="admin">Admin</option><option value="manager">Manager</option><option value="sales_rep">Sales Rep</option><option value="warehouse">Warehouse</option>
+                    </select>
+                    {role === 'admin' && s.role !== 'admin' && <input style={sdInp} placeholder="Reason for granting admin access (required)" value={roleReason} onChange={e => setRoleReason(e.target.value)} />}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button className="recd-exc-primary" disabled={saving} onClick={saveChanges}>{saving ? 'Saving…' : 'Save changes'}</button>
+                      <button className="opsq-alt" onClick={() => { setEditing(false); setRole(s.role); }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+                {(tab === 'record' || tab === 'security') && SessionsBlock}
+                {tab === 'security' && (
+                  <div className="form-card">
+                    <div className="rb-head"><h3>Security posture</h3></div>
+                    <div className="rb-facts" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                      <div className="rb-fact"><span className="rb-fact-k">Two-factor</span><span className="rb-fact-v">Enforced · untrusted devices</span></div>
+                      <div className="rb-fact"><span className="rb-fact-k">Trusted devices</span><span className="rb-fact-v">{s.trusted_devices || 0}</span></div>
+                      <div className="rb-fact"><span className="rb-fact-k">Active sessions</span><span className="rb-fact-v">{activeSessions}</span></div>
+                      <div className="rb-fact"><span className="rb-fact-k">Last login</span><span className="rb-fact-v">{staffRelTime(s.last_login)}</span></div>
+                      <div className="rb-fact"><span className="rb-fact-k">Invite pending</span><span className="rb-fact-v">{s.invite_pending ? 'Yes' : 'No'}</span></div>
+                    </div>
+                    {s.trusted_devices > 0 && !blocked && <button className="recd-exc-primary" style={{ marginTop: 12 }} onClick={() => act('/api/admin/staff/' + s.id + '/revoke-trusted', '2FA required at next sign-in')}>Require 2FA at next sign-in</button>}
+                    {pwOpen && !blocked && <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input type="password" style={{ ...sdInp, marginBottom: 0, maxWidth: 220 }} placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
+                      <button className="recd-exc-primary" onClick={setPasswordDirect}>Set password</button>
+                    </div>}
+                  </div>
+                )}
+                {tab === 'activity' && (
+                  <div className="form-card">
+                    <div className="rb-head"><h3>Full trail</h3></div>
+                    {trail.length === 0 ? <div style={{ font: '400 12px/1.6 var(--mono)', color: 'var(--faint)' }}>no recorded activity</div> : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+                        {trail.map((a, n) => (
+                          <div key={a.id || n} style={{ display: 'grid', gridTemplateColumns: '64px 1fr', gap: 12 }}>
+                            <span style={{ font: '400 10px/1.5 var(--mono)', color: 'var(--faint)' }}>{staffRelTime(a.created_at)}</span>
+                            <span>
+                              <span style={{ display: 'block', font: '400 10px/1 var(--mono)', color: 'var(--dim)' }}><span style={{ color: 'var(--ink)' }}>{a.action}</span>{a.staff_name ? ' · ' + a.staff_name : ''}</span>
+                              {a.details && stSummarize(a.details) && <span style={{ display: 'block', marginTop: 4, font: '400 12px/1.55 var(--sans)', color: 'var(--dim)' }}>{stSummarize(a.details)}</span>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ minWidth: 0, background: 'var(--panel)' }}>
+                <div className="form-card">
+                  <div className="rb-head"><h3>Account</h3></div>
+                  <div className="rb-facts" style={{ gridTemplateColumns: '1fr' }}>
+                    <div className="rb-fact"><span className="rb-fact-k">Role</span><span className="rb-fact-v">{r.t}</span></div>
+                    <div className="rb-fact"><span className="rb-fact-k">Status</span><span className="rb-fact-v" style={{ color: s.is_active ? 'var(--cool)' : 'var(--hot)' }}>{s.is_active ? 'Active' : 'Deactivated'}</span></div>
+                    <div className="rb-fact"><span className="rb-fact-k">Staff since</span><span className="rb-fact-v">{stSince(s.created_at)}</span></div>
+                    <div className="rb-fact"><span className="rb-fact-k">Trusted devices</span><span className="rb-fact-v">{s.trusted_devices || 0}</span></div>
+                    <div className="rb-fact"><span className="rb-fact-k">Active sessions</span><span className="rb-fact-v">{activeSessions}</span></div>
+                  </div>
+                </div>
+                {tab !== 'activity' && (
+                  <div className="form-card">
+                    <div className="rb-head"><h3>Recent activity</h3>{trail.length > 4 && <button className="rb-action" style={{ marginLeft: 'auto' }} onClick={() => setTab('activity')}>Full trail</button>}</div>
+                    {trail.length === 0 ? <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no recorded activity</div> : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+                        {trail.slice(0, 4).map((a, n) => (
+                          <div key={a.id || n} style={{ display: 'grid', gridTemplateColumns: '58px 1fr', gap: 10 }}>
+                            <span style={{ font: '400 10px/1.5 var(--mono)', color: 'var(--faint)' }}>{staffRelTime(a.created_at)}</span>
+                            <span style={{ font: '400 12px/1.5 var(--sans)', color: 'var(--dim)' }}><span style={{ color: 'var(--ink)' }}>{a.action}</span></span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {s.is_active && !blocked && !isSelf && (
+                  <div className="form-card">
+                    <div className="rb-head"><h3>Danger zone</h3></div>
+                    {danger ? (
+                      <div>
+                        <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--dim)', marginBottom: 8 }}>{danger === 'terminate' ? 'Terminate and unassign all trade customers?' : 'Deactivate — they will be signed out.'}</div>
+                        <input style={sdInp} placeholder={danger === 'terminate' ? 'Reason (recommended)' : 'Reason (optional)'} value={reason} onChange={e => setReason(e.target.value)} autoFocus />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="recd-exc-primary" style={{ background: 'var(--hot)', color: '#fff' }} onClick={confirmDanger}>Confirm {danger}</button>
+                          <button className="opsq-alt" onClick={() => { setDanger(null); setReason(''); }}>Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <React.Fragment>
+                        <button style={{ width: '100%', padding: '11px', background: 'transparent', border: '1px solid rgba(224,122,99,0.42)', color: 'var(--hot)', font: '400 12px/1 var(--sans)', cursor: 'pointer' }} onClick={() => { setDanger('deactivate'); setReason(''); }}>Deactivate account</button>
+                        <div style={{ marginTop: 9, font: '400 10px/1.5 var(--mono)', color: 'var(--faint)' }}>Revokes all sessions immediately. History is kept.</div>
+                      </React.Fragment>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       );
     }
