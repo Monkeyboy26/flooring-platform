@@ -25545,7 +25545,7 @@ app.get('/api/rep/customers/check-duplicate', repAuth, async (req, res) => {
 // POST /api/rep/customers — create a retail customer, assigned to the current rep
 app.post('/api/rep/customers', repAuth, async (req, res) => {
   try {
-    const { first_name, last_name, email, phone, company_name, address_line1, address_line2, city, state, zip } = req.body || {};
+    const { first_name, last_name, middle_initial, email, phone, company_name, address_line1, address_line2, city, state, zip } = req.body || {};
     if (!first_name || !first_name.trim()) return res.status(400).json({ error: 'First name is required' });
     if (!last_name || !last_name.trim()) return res.status(400).json({ error: 'Last name is required' });
     if (!email || !email.trim()) return res.status(400).json({ error: 'Email is required' });
@@ -25568,13 +25568,13 @@ app.post('/api/rep/customers', repAuth, async (req, res) => {
     // Rep-created customers have no password yet (password_set = false); generate a random hash
     const { hash, salt } = await hashPassword(crypto.randomBytes(24).toString('hex'));
     const result = await pool.query(
-      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone,
+      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, middle_initial, phone,
         address_line1, address_line2, city, state, zip, company_name, created_via, assigned_rep_id, assigned_at, password_set)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$13,'rep',$12, CURRENT_TIMESTAMP, false) RETURNING id`,
+       VALUES ($1,$2,$3,$4,$5,$14,$6,$7,$8,$9,$10,$11,$13,'rep',$12, CURRENT_TIMESTAMP, false) RETURNING id`,
       [emailNorm, hash, salt, first_name.trim(), last_name.trim(), (phone || '').trim() || null,
        (address_line1 || '').trim() || null, (address_line2 || '').trim() || null,
        (city || '').trim() || null, (state || '').trim() || null, (zip || '').trim() || null, req.rep.id,
-       (company_name || '').trim() || null]);
+       (company_name || '').trim() || null, (middle_initial || '').trim().slice(0, 4) || null]);
 
     res.status(201).json({ id: result.rows[0].id });
   } catch (err) {
@@ -25597,7 +25597,8 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
 
     if (type === 'retail') {
       const cResult = await pool.query(`
-        SELECT c.id, c.first_name, c.last_name, c.first_name || ' ' || c.last_name as name, c.email, c.phone,
+        SELECT c.id, c.first_name, c.last_name, c.middle_initial,
+          c.first_name || COALESCE(' ' || c.middle_initial, '') || ' ' || c.last_name as name, c.email, c.phone,
           c.address_line1, c.address_line2, c.city, c.state, c.zip, c.created_at, c.created_via,
           c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as rep_name
         FROM customers c
@@ -28243,7 +28244,8 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
 
     if (type === 'retail') {
       const cResult = await pool.query(`
-        SELECT c.id, c.first_name, c.last_name, c.first_name || ' ' || c.last_name as name, c.email, c.phone,
+        SELECT c.id, c.first_name, c.last_name, c.middle_initial,
+          c.first_name || COALESCE(' ' || c.middle_initial, '') || ' ' || c.last_name as name, c.email, c.phone,
           c.address_line1, c.address_line2, c.city, c.state, c.zip, c.created_at, c.created_via,
           c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as rep_name
         FROM customers c
@@ -30610,8 +30612,8 @@ app.post('/api/installation-inquiries', async (req, res) => {
   try {
     const { customer_name, customer_email, phone, company_name, zip_code, estimated_sqft, message, product_id } = req.body;
 
-    if (!customer_name || !customer_name.trim() || !customer_email) {
-      return res.status(400).json({ error: 'Name and email are required' });
+    if (!customer_name || customer_name.trim().split(/\s+/).length < 2 || !customer_email) {
+      return res.status(400).json({ error: 'A first and last name, and email, are required' });
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer_email)) {
       return res.status(400).json({ error: 'Invalid email address' });

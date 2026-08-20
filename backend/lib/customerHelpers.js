@@ -52,7 +52,7 @@ export async function claimGuestRecords(db, customerId, email) {
 }
 
 export function createCustomerHelpers(hashPassword, sendWelcomeSetPassword) {
-  async function findOrCreateCustomer(client, { email, firstName, lastName, phone, companyName, repId, createdVia }) {
+  async function findOrCreateCustomer(client, { email, firstName, lastName, middleInitial, phone, companyName, repId, createdVia }) {
     const normalEmail = email.toLowerCase().trim();
 
     // 1. Check if customer exists by email, then fall back to a phone match so we
@@ -99,15 +99,25 @@ export function createCustomerHelpers(hashPassword, sendWelcomeSetPassword) {
       return { customer: cust, created: false };
     }
 
+    // Every customer must have a real first AND last name.
+    const fn = (firstName || '').trim();
+    const ln = (lastName || '').trim();
+    if (!fn || !ln) {
+      const err = new Error('Customer first and last name are required');
+      err.status = 400;
+      throw err;
+    }
+    const mi = (middleInitial || '').trim().slice(0, 4) || null;
+
     // 2. Create new customer with random placeholder password
     const placeholder = crypto.randomBytes(32).toString('hex');
     const { hash, salt } = await hashPassword(placeholder);
 
     const result = await client.query(
-      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, company_name, password_set, assigned_rep_id, assigned_at, created_via)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, NOW(), $9)
+      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, middle_initial, phone, company_name, password_set, assigned_rep_id, assigned_at, created_via)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, false, $9, NOW(), $10)
        RETURNING *`,
-      [normalEmail, hash, salt, firstName || '', lastName || '', phone || null, companyName || null, repId || null, createdVia || 'rep']
+      [normalEmail, hash, salt, fn, ln, mi, phone || null, companyName || null, repId || null, createdVia || 'rep']
     );
 
     const newCustomer = result.rows[0];

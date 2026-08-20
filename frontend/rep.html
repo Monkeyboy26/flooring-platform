@@ -8741,7 +8741,7 @@
 
     // ========== RepCustomerCreateView ==========
     function RepCustomerCreateView({ navigate }) {
-      const [form, setForm] = useState({ first_name: '', last_name: '', email: '', phone: '', company_name: '', address_line1: '', address_line2: '', city: '', state: '', zip: '' });
+      const [form, setForm] = useState({ first_name: '', middle_initial: '', last_name: '', email: '', phone: '', company_name: '', address_line1: '', address_line2: '', city: '', state: '', zip: '' });
       const [saving, setSaving] = useState(false);
       const [error, setError] = useState('');
       const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -8805,6 +8805,7 @@
             <div className="cdv-card-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               {fieldWrap('First name', <input style={inputStyle} value={form.first_name} onChange={set('first_name')} onKeyDown={onKey} autoFocus />, true)}
               {fieldWrap('Last name', <input style={inputStyle} value={form.last_name} onChange={set('last_name')} onKeyDown={onKey} />, true)}
+              {fieldWrap('Middle initial (optional)', <input style={inputStyle} maxLength={4} value={form.middle_initial} onChange={set('middle_initial')} onKeyDown={onKey} />)}
               {fieldWrap('Email', <input type="email" style={inputStyle} value={form.email} onChange={set('email')} onKeyDown={onKey} />, true, true)}
               {fieldWrap('Phone', <input style={inputStyle} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))} onKeyDown={onKey} />, true)}
               {fieldWrap('Company (optional)', <input style={inputStyle} value={form.company_name} onChange={set('company_name')} onKeyDown={onKey} />)}

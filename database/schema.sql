@@ -840,6 +840,7 @@ CREATE TABLE customers (
     password_salt TEXT NOT NULL,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
+    middle_initial VARCHAR(4),
     company_name TEXT,
     phone TEXT,
     address_line1 TEXT,
