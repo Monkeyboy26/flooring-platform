@@ -9291,16 +9291,8 @@
       );
     }
 
-    // ========== StaffListView ==========
     // Shared helpers for the staff-management surface.
     const STAFF_ROLE_LABELS = { admin: 'Admin', manager: 'Manager', sales_rep: 'Sales Rep', warehouse: 'Warehouse' };
-    // Static legend \u2014 reflects the role gating enforced by requireRole() on the API.
-    const STAFF_ROLE_CAPS = {
-      admin: 'Full access \u2014 staff management, pricing, refunds, everything.',
-      manager: 'Most admin functions, but cannot create/edit/promote admins or reset admin passwords.',
-      sales_rep: 'Orders, quotes, customers. No staff management or pricing.',
-      warehouse: 'Fulfillment, receiving, releases, order notes. No pricing or staff management.'
-    };
     function staffRelTime(ts) {
       if (!ts) return 'never';
       const d = new Date(ts).getTime();
