@@ -9504,7 +9504,7 @@
               <input className="ordl-search" value={q} onChange={e => setQ(e.target.value)} placeholder="filter staff…" />
             </div>
             <PendingInvites
-              invites={staff.filter(s => s.is_active && s.invite_pending)}
+              invites={staff.filter(s => s.is_active && s.invite_pending && !(staffData && s.id === staffData.id))}
               onResend={id => act('/api/admin/staff/' + id + '/send-reset', 'Invite re-sent')}
               onRevoke={id => act('/api/admin/staff/' + id + '/revoke-invite', 'Invite revoked')} />
             <div className="ordl-scroll">

@@ -12057,6 +12057,9 @@ app.post('/api/admin/staff/:id/send-reset', staffAuth, requireRole('admin', 'man
 app.post('/api/admin/staff/:id/revoke-invite', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
+    // Revoking your own "invite" deactivates your own account — block it. (An
+    // active user with an outstanding reset link can surface here too.)
+    if (id === req.staff.id) return res.status(400).json({ error: 'You can’t revoke your own invite' });
     if (await managerBlockedFromAdmin(req.staff.role, id)) return res.status(403).json({ error: 'Managers cannot modify admin accounts' });
     const t = await pool.query('SELECT id, email, password_reset_token FROM staff_accounts WHERE id = $1', [id]);
     if (!t.rows.length) return res.status(404).json({ error: 'Staff member not found' });
