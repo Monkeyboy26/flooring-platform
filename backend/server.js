@@ -13159,69 +13159,10 @@ app.get('/api/staff/my-customers', staffAuth, async (req, res) => {
   }
 });
 
-// PATCH /api/admin/staff/:id/terminate — deactivate staff and free assigned customers
-app.patch('/api/admin/staff/:id/terminate', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
-  try {
-    if (req.staff && !['admin', 'manager'].includes(req.staff.role)) {
-      return res.status(403).json({ error: 'Admin or manager role required' });
-    }
-    const { id } = req.params;
-    const staffId = req.staff ? req.staff.id : null;
-    const termReason = ((req.body && req.body.reason) || '').trim() || null;
-
-    // Can't terminate yourself
-    if (staffId === id) return res.status(400).json({ error: 'Cannot terminate your own account' });
-
-    const target = await pool.query('SELECT id, first_name, last_name, email, role, is_active FROM staff_accounts WHERE id = $1', [id]);
-    if (!target.rows.length) return res.status(404).json({ error: 'Staff member not found' });
-
-    // Deactivate the staff account
-    await pool.query('UPDATE staff_accounts SET is_active = false, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [id]);
-
-    // Invalidate all sessions
-    await pool.query('DELETE FROM staff_sessions WHERE staff_id = $1', [id]);
-
-    // Get assigned customers
-    const customers = await pool.query(
-      'SELECT id, company_name FROM trade_customers WHERE assigned_rep_id = $1',
-      [id]
-    );
-
-    // Find recommended replacement rep via round-robin
-    const recommendedRep = await getNextAvailableRep();
-
-    // Unassign all customers (admin can then reassign them)
-    if (customers.rows.length > 0) {
-      await pool.query(
-        'UPDATE trade_customers SET assigned_rep_id = NULL, assigned_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE assigned_rep_id = $1',
-        [id]
-      );
-
-      // Log history for each customer
-      for (const c of customers.rows) {
-        await pool.query(
-          "INSERT INTO customer_rep_history (trade_customer_id, from_rep_id, to_rep_id, reason, changed_by) VALUES ($1, $2, NULL, $4, $3)",
-          [c.id, id, staffId, termReason ? ('Staff terminated — ' + termReason) : 'Staff terminated']
-        );
-      }
-    }
-
-    await logAudit(staffId, 'staff.terminate', 'staff_accounts', id, {
-      terminated: target.rows[0].email,
-      freed_customers: customers.rows.length,
-      reason: termReason
-    }, req.ip);
-
-    res.json({
-      success: true,
-      terminated: { id, name: target.rows[0].first_name + ' ' + target.rows[0].last_name },
-      freed_customers: customers.rows.map(c => ({ id: c.id, company_name: c.company_name })),
-      recommended_rep: recommendedRep ? { id: recommendedRep.id, name: recommendedRep.first_name + ' ' + recommendedRep.last_name } : null
-    });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
-  }
-});
+// Staff termination removed: deactivation now leaves assigned customers in place
+// as "free agents" (they stay assigned to the deactivated rep and can be
+// reassigned by an admin). Reactivating the account restores whatever still
+// points at them. See PATCH /api/admin/staff/:id/toggle.
 
 // ==================== Trade Dashboard (Phase 5) ====================
 

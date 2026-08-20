@@ -9464,12 +9464,8 @@
       };
       const confirmDanger = async () => {
         try {
-          if (danger === 'deactivate') { await adminFetch('/api/admin/staff/' + activeId + '/toggle', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) }); flash('Account deactivated'); }
-          else if (danger === 'terminate') {
-            const d = await adminFetch('/api/admin/staff/' + activeId + '/terminate', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) });
-            let m = 'Terminated.'; if (d.freed_customers && d.freed_customers.length) { m += ' ' + d.freed_customers.length + ' customer(s) unassigned.'; if (d.recommended_rep) m += ' Suggest: ' + d.recommended_rep.name; }
-            flash(m);
-          }
+          await adminFetch('/api/admin/staff/' + activeId + '/toggle', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) });
+          flash('Account deactivated');
           setDanger(null); setReason(''); reloadAll();
         } catch (e) { fail(e.message || 'Action failed'); }
       };
@@ -9654,8 +9650,8 @@
                     {active.is_active ? (
                       danger ? (
                         <div style={{ width: '100%' }}>
-                          <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--dim)', marginBottom: 8 }}>{danger === 'terminate' ? 'Terminate and unassign all trade customers?' : 'Deactivate — they will be signed out.'}</div>
-                          <input style={editInp} placeholder={danger === 'terminate' ? 'Reason (recommended)' : 'Reason (optional)'} value={reason} onChange={e => setReason(e.target.value)} autoFocus />
+                          <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--dim)', marginBottom: 8 }}>Deactivate — they’ll be signed out. Their customers stay assigned as free agents and come back if you reactivate.</div>
+                          <input style={editInp} placeholder="Reason (optional)" value={reason} onChange={e => setReason(e.target.value)} autoFocus />
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button style={{ ...btnBrass, background: 'var(--hot)', color: '#fff' }} onClick={confirmDanger}>Confirm {danger}</button>
                             <button style={btnGhost} onClick={() => { setDanger(null); setReason(''); }}>Cancel</button>
@@ -9665,7 +9661,6 @@
                         <React.Fragment>
                           <button style={btnBrass} disabled={blocked} onClick={() => setEditing(true)}>Edit role + access</button>
                           {!blocked && !isSelf && <button style={btnDanger} onClick={() => { setDanger('deactivate'); setReason(''); }}>Deactivate</button>}
-                          {!blocked && !isSelf && ['sales_rep', 'manager'].includes(active.role) && <button style={{ ...btnGhost, color: 'var(--hot)', borderColor: 'rgba(224,122,99,0.42)' }} onClick={() => { setDanger('terminate'); setReason(''); }}>Terminate & reassign</button>}
                         </React.Fragment>
                       )
                     ) : (
@@ -9741,8 +9736,8 @@
       const revokeSession = async (sid) => { try { await adminFetch('/api/admin/staff/' + s.id + '/sessions/' + sid, { method: 'DELETE' }); flash('Session revoked'); loadAux(); loadRow(); } catch (e) { fail(e.message || 'Failed'); } };
       const confirmDanger = async () => {
         try {
-          if (danger === 'deactivate') { await adminFetch('/api/admin/staff/' + s.id + '/toggle', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) }); flash('Account deactivated'); }
-          else if (danger === 'terminate') { const d = await adminFetch('/api/admin/staff/' + s.id + '/terminate', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) }); let m = 'Terminated.'; if (d.freed_customers && d.freed_customers.length) { m += ' ' + d.freed_customers.length + ' customer(s) unassigned.'; if (d.recommended_rep) m += ' Suggest: ' + d.recommended_rep.name; } flash(m); }
+          await adminFetch('/api/admin/staff/' + s.id + '/toggle', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) });
+          flash('Account deactivated');
           setDanger(null); setReason(''); reloadAll();
         } catch (e) { fail(e.message || 'Action failed'); }
       };
@@ -9820,7 +9815,6 @@
                       <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--panel2)', border: '1px solid var(--line2)', zIndex: 20, minWidth: 200 }}>
                         <button style={menuItem} onClick={() => { setMenu(false); setPwOpen(true); setTab('security'); }}>Set password…</button>
                         {s.trusted_devices > 0 && !isSelf && <button style={menuItem} onClick={() => act('/api/admin/staff/' + s.id + '/revoke-trusted', 'Trusted devices revoked')}>Revoke trusted devices</button>}
-                        {!isSelf && ['sales_rep', 'manager'].includes(s.role) && <button style={{ ...menuItem, color: 'var(--hot)', borderBottom: 'none' }} onClick={() => { setMenu(false); setDanger('terminate'); setReason(''); }}>Terminate &amp; reassign</button>}
                       </div>
                     )}
                   </React.Fragment>
@@ -9943,8 +9937,8 @@
                     <div className="rb-head"><h3>Danger zone</h3></div>
                     {danger ? (
                       <div>
-                        <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--dim)', marginBottom: 8 }}>{danger === 'terminate' ? 'Terminate and unassign all trade customers?' : 'Deactivate — they will be signed out.'}</div>
-                        <input style={sdInp} placeholder={danger === 'terminate' ? 'Reason (recommended)' : 'Reason (optional)'} value={reason} onChange={e => setReason(e.target.value)} autoFocus />
+                        <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--dim)', marginBottom: 8 }}>Deactivate — they’ll be signed out. Their customers stay assigned as free agents and come back if you reactivate.</div>
+                        <input style={sdInp} placeholder="Reason (optional)" value={reason} onChange={e => setReason(e.target.value)} autoFocus />
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button className="recd-exc-primary" style={{ background: 'var(--hot)', color: '#fff' }} onClick={confirmDanger}>Confirm {danger}</button>
                           <button className="opsq-alt" onClick={() => { setDanger(null); setReason(''); }}>Cancel</button>
@@ -9953,7 +9947,7 @@
                     ) : (
                       <React.Fragment>
                         <button style={{ width: '100%', padding: '11px', background: 'transparent', border: '1px solid rgba(224,122,99,0.42)', color: 'var(--hot)', font: '400 12px/1 var(--sans)', cursor: 'pointer' }} onClick={() => { setDanger('deactivate'); setReason(''); }}>Deactivate account</button>
-                        <div style={{ marginTop: 9, font: '400 10px/1.5 var(--mono)', color: 'var(--faint)' }}>Revokes all sessions immediately. History is kept.</div>
+                        <div style={{ marginTop: 9, font: '400 10px/1.5 var(--mono)', color: 'var(--faint)' }}>Signs them out immediately. Their customers stay assigned as free agents and return on reactivation. History is kept.</div>
                       </React.Fragment>
                     )}
                   </div>
