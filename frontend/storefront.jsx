@@ -9876,8 +9876,13 @@
       // Product freight is never charged at checkout — it's quoted by a rep after
       // the order. Only samples ($12) and pickup ($0) affect the cart total. [[freight-quote-later]]
       const productShipping = 0;
+      // Small-order transfer fee: $49 on any product order whose merchandise
+      // subtotal is $350 or less ($125 if any line is Tri-West — their transfers
+      // cost more). Sample-only carts are exempt. Pre-discount test, matching server.
+      const hasTriWest = productItems.some(i => i.vendor_code === 'TW');
+      const transferFee = productItems.length > 0 && productSubtotal <= 350 ? (hasTriWest ? 125 : 49) : 0;
       const promoDiscount = promoResult ? promoResult.discount_amount : 0;
-      const cartTotal = Math.max(0, productSubtotal + productShipping + sampleShipping - promoDiscount);
+      const cartTotal = Math.max(0, productSubtotal + productShipping + sampleShipping + transferFee - promoDiscount);
 
       useEffect(() => {
         if (promoResult && promoSubtotalRef.current !== null && promoSubtotalRef.current !== productSubtotal) {
@@ -10171,6 +10176,9 @@
                       <div className="ct-summary-line"><span>Sample shipping</span><span>$12.00</span></div>
                     </>
                   )}
+                  {transferFee > 0 && (
+                    <div className="ct-summary-line"><span>Transfer fee</span><span>${transferFee.toFixed(2)}</span></div>
+                  )}
                   {promoResult && (
                     <div className="ct-summary-line ct-summary-line-accent">
                       <span>Promo · {promoResult.code}</span>
@@ -10319,7 +10327,12 @@
       const promoDiscount = promoInfo ? parseFloat(promoInfo.discount_amount || 0) : 0;
       const taxableBase = Math.max(0, productSubtotal - promoDiscount);
       const estTax = Math.round(taxEstimate.rate * taxableBase * 100) / 100;
-      const cartTotal = taxableBase + sampleShipping + estTax;
+      // Small-order transfer fee: $49 on any product order with a merchandise
+      // subtotal of $350 or less ($125 if any line is Tri-West). Pre-discount test,
+      // matching the server. Sample-only orders are exempt. Added after tax.
+      const hasTriWest = productItems.some(i => i.vendor_code === 'TW');
+      const transferFee = productItems.length > 0 && productSubtotal <= 350 ? (hasTriWest ? 125 : 49) : 0;
+      const cartTotal = taxableBase + sampleShipping + transferFee + estTax;
 
       const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'];
 
@@ -10911,7 +10924,7 @@
         }
       };
 
-      const contactSaved = customerName.trim().length > 2 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customerEmail) && phone.replace(/\D/g, '').length >= 10;
+      const contactSaved = customerName.trim().split(/\s+/).length >= 2 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(customerEmail) && phone.replace(/\D/g, '').length >= 10;
       const addressSaved = isPickup || (line1.trim() && city.trim() && state && /^\d{5}(-\d{4})?$/.test(zip.trim()));
       const initials = customerName.trim().split(/\s+/).map(n => n[0] || '').join('').toUpperCase().slice(0, 2);
 
@@ -11002,6 +11015,7 @@
                         <div className="co-field">
                           <div className="co-field-label">Full name</div>
                           <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="John Smith" />
+                          {customerName.trim() && customerName.trim().split(/\s+/).length < 2 && <div style={{ marginTop: 4, font: '400 11px/1.4 Inter, sans-serif', color: '#c0392b' }}>Enter a first and last name.</div>}
                         </div>
                         <div className="co-field">
                           <div className="co-field-label">Email</div>
@@ -11377,6 +11391,12 @@
                       <div className="co-summary-row">
                         <span className="label">Sample shipping</span>
                         <span className="value">$12.00</span>
+                      </div>
+                    )}
+                    {transferFee > 0 && (
+                      <div className="co-summary-row">
+                        <span className="label">Transfer fee</span>
+                        <span className="value">${transferFee.toFixed(2)}</span>
                       </div>
                     )}
                     {taxEstimate.rate > 0 ? (
@@ -11926,6 +11946,7 @@
       };
 
       const saveProfile = async () => {
+        if (!firstName.trim() || !lastName.trim()) { setProfileError('First and last name are required.'); return; }
         setSaving(true); setProfileMsg(''); setProfileError('');
         try {
           const resp = await fetch(API + '/api/customer/profile', {
@@ -13014,7 +13035,7 @@
                   <input style={inputStyle} value={zip} onChange={e => setZip(e.target.value)} />
                 </div>
               </div>
-              <button className="acct-btn" onClick={saveProfile} disabled={saving}>
+              <button className="acct-btn" onClick={saveProfile} disabled={saving || !firstName.trim() || !lastName.trim()}>
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
               </div>
@@ -14955,6 +14976,7 @@
       const [path, setPath] = useState("homeowner");
       const [firstName, setFirstName] = useState("");
       const [lastName, setLastName] = useState("");
+      const [middleInitial, setMiddleInitial] = useState("");
       const [email, setEmail] = useState("");
       const [phone, setPhone] = useState("");
       const [companyName, setCompanyName] = useState("");
@@ -14973,6 +14995,7 @@
       const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
+        if (!firstName.trim() || !lastName.trim()) { setError("First and last name are required."); return; }
         if (phone.replace(/\D/g, "").length < 10) { setError("Enter a valid 10-digit phone number."); return; }
         if (password.length < 8 || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) { setError("Password must be at least 8 characters with 1 uppercase letter and 1 number."); return; }
         setLoading(true);
@@ -14980,7 +15003,7 @@
           const res = await fetch(API + "/api/customer/register", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, phone, company_name: companyName, newsletter })
+            body: JSON.stringify({ email, password, first_name: firstName, last_name: lastName, middle_initial: middleInitial, phone, company_name: companyName, newsletter })
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok || data.error) { setError(data.error || "Registration failed."); setLoading(false); return; }
@@ -15040,6 +15063,10 @@
                 /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Last name"),
                 /* @__PURE__ */ React.createElement("input", { type: "text", value: lastName, onChange: (e) => setLastName(e.target.value), placeholder: "Last", required: true, autoComplete: "family-name" })
               )
+            ),
+            /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
+              /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Middle initial ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-400)", fontWeight: 400 } }, "(optional)")),
+              /* @__PURE__ */ React.createElement("input", { type: "text", value: middleInitial, onChange: (e) => setMiddleInitial(e.target.value), placeholder: "M", maxLength: 4, autoComplete: "additional-name" })
             ),
             /* @__PURE__ */ React.createElement("div", { className: "auth-field" },
               /* @__PURE__ */ React.createElement("div", { className: "auth-field-label" }, "Email"),
@@ -15279,6 +15306,7 @@
       const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        if (name.trim().split(/\s+/).length < 2) { setError('Please enter a first and last name.'); return; }
         try {
           const body = { customer_name: name, customer_email: email, phone, company_name: companyName, zip_code: zipCode, estimated_sqft: sqft || null, message };
           if (product) { body.product_id = product.product_id; body.sku_id = product.sku_id; body.product_name = product.product_name; body.collection = product.collection; }
@@ -15346,7 +15374,9 @@
 
       const handleSubmit = async (e) => {
         e.preventDefault();
-        setError(''); setSaving(true);
+        setError('');
+        if (name.trim().split(/\s+/).length < 2) { setError('Please enter a first and last name.'); return; }
+        setSaving(true);
         try {
           const body = { customer_name: name, customer_email: email, phone, company_name: companyName, zip_code: zipCode, estimated_sqft: sqft || null, message };
           const res = await fetch(API + '/api/installation-inquiries', {
@@ -16370,6 +16400,7 @@
       const { ink, paper, accent, muted, warm } = theme;
       const [firstName, setFirstName] = useState('');
       const [lastName, setLastName] = useState('');
+      const [middleInitial, setMiddleInitial] = useState('');
       const [email, setEmail] = useState('');
       const [phone, setPhone] = useState('');
       const [password, setPassword] = useState('');
@@ -16489,7 +16520,7 @@
           const resp = await fetch(API + '/api/trade/register/enhanced', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              email, password, company_name: companyName, contact_name: `${firstName.trim()} ${lastName.trim()}`,
+              email, password, company_name: companyName, contact_name: `${firstName.trim()}${middleInitial.trim() ? ' ' + middleInitial.trim().replace(/\.+$/, '') + '.' : ''} ${lastName.trim()}`,
               phone, business_type: businessType, address_line1: addressLine1, city, state: addrState, zip,
               ein: ein.trim() || null, contractor_license: contractorLicense.trim() || null, document_ids: docIds
             })
@@ -16584,6 +16615,7 @@
                 <TapSection theme={theme} num="01" title="About you">
                   <TapRow>
                     <TapInput theme={theme} label="First name" required value={firstName} onChange={e => setFirstName(e.target.value)} onBlur={() => touch('firstName')} error={reqErr('firstName', firstName)} autoComplete="given-name" />
+                    <TapInput theme={theme} label="M.I. (optional)" value={middleInitial} onChange={e => setMiddleInitial(e.target.value.slice(0, 4))} autoComplete="additional-name" />
                     <TapInput theme={theme} label="Last name" required value={lastName} onChange={e => setLastName(e.target.value)} onBlur={() => touch('lastName')} error={reqErr('lastName', lastName)} autoComplete="family-name" />
                   </TapRow>
                   <TapRow>

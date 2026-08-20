@@ -17,7 +17,8 @@ export default function createCustomerRoutes(ctx) {
 
   router.post('/api/customer/register', async (req, res) => {
     try {
-      let { email, password, first_name, last_name, phone, company_name, newsletter } = req.body;
+      let { email, password, first_name, last_name, middle_initial, phone, company_name, newsletter } = req.body;
+      const middleInitial = String(middle_initial || '').trim().slice(0, 4) || null;
       if (!email || !password || !first_name || !last_name || !phone) {
         return res.status(400).json({ error: 'Email, password, first name, last name, and phone number are required' });
       }
@@ -74,9 +75,9 @@ export default function createCustomerRoutes(ctx) {
 
       const { hash, salt } = await hashPassword(password);
       const result = await pool.query(
-        `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, company_name, password_set)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, true) RETURNING id, email, first_name, last_name, phone, company_name, address_line1, address_line2, city, state, zip, password_set, created_via`,
-        [email.toLowerCase(), hash, salt, first_name, last_name, phone || null, (company_name || '').trim() || null]
+        `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, middle_initial, phone, company_name, password_set)
+         VALUES ($1, $2, $3, $4, $5, $8, $6, $7, true) RETURNING id, email, first_name, last_name, middle_initial, phone, company_name, address_line1, address_line2, city, state, zip, password_set, created_via`,
+        [email.toLowerCase(), hash, salt, first_name, last_name, phone || null, (company_name || '').trim() || null, middleInitial]
       );
       const customer = result.rows[0];
 
