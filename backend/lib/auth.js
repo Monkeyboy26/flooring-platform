@@ -54,14 +54,17 @@ export function createAuthMiddleware(pool) {
     if (!token) return res.status(401).json({ error: 'Authentication required' });
 
     try {
+      // Reps are now unified into staff_accounts (role='sales_rep'); the rep
+      // portal keeps its own rep_sessions + x-rep-token, backed by staff_accounts.
       const result = await pool.query(`
-        SELECT rs.id as session_id, sr.id, sr.email, sr.first_name, sr.last_name, sr.is_active, sr.is_manager
+        SELECT rs.id as session_id, sa.id, sa.email, sa.first_name, sa.last_name, sa.is_active, sa.is_manager, sa.role
         FROM rep_sessions rs
-        JOIN sales_reps sr ON sr.id = rs.rep_id
+        JOIN staff_accounts sa ON sa.id = rs.rep_id
         WHERE rs.token = $1 AND rs.expires_at > CURRENT_TIMESTAMP
       `, [hashToken(token)]);
 
       if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
+      if (result.rows[0].role !== 'sales_rep') return res.status(403).json({ error: 'Not a rep account' });
       if (!result.rows[0].is_active) return res.status(403).json({ error: 'Account deactivated' });
 
       req.rep = {
@@ -210,6 +213,8 @@ export function createAuthMiddleware(pool) {
 
       if (!result.rows.length) return res.status(401).json({ error: 'Invalid or expired session' });
       if (!result.rows[0].is_active) return res.status(403).json({ error: 'Account deactivated' });
+      // Sales reps live in staff_accounts but belong to the rep portal, not admin.
+      if (result.rows[0].role === 'sales_rep') return res.status(403).json({ error: 'Rep accounts use the rep portal' });
 
       req.staff = {
         id: result.rows[0].id,

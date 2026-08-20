@@ -72,7 +72,7 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
   const where = id ? 'e.id = $1' : 'e.public_token = $1';
   const estimateRes = await pool.query(`
     SELECT e.*, sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
-    FROM estimates e LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+    FROM estimates e LEFT JOIN staff_accounts sr ON sr.id = e.sales_rep_id
     WHERE ${where}
   `, [id || token]);
   if (!estimateRes.rows.length) return null;
@@ -81,7 +81,7 @@ export async function getEstimateBundle(pool, { id = null, token = null, include
   estimate.deposit_amount = depositAmount(estimate);
 
   const itemsRes = await pool.query(`
-    SELECT ei.*, v.name as vendor_name, v.code as vendor_code, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name,
+    SELECT ei.*, v.name as vendor_name, v.code as vendor_code, v.public_code as vendor_public_code, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.internal_sku, s.variant_name,
       s.accessory_label, s.variant_type, sa_c.value as color, sa_sz.value as size,
       p.collection as current_collection, COALESCE(ei.cost, pr.cost) as vendor_cost,
       (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'

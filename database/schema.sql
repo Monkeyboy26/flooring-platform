@@ -432,9 +432,12 @@ CREATE TABLE inventory_snapshots (
 );
 CREATE INDEX idx_inventory_snapshots_sku ON inventory_snapshots(sku_id);
 
--- ==================== Sales Rep Portal ====================
+-- ==================== Staff Accounts (unified identity) ====================
+-- Sales reps were merged into staff_accounts (role='sales_rep'); the rep portal
+-- authenticates against this table via rep_sessions. Defined here (early) so the
+-- rep-portal tables below can reference it.
 
-CREATE TABLE sales_reps (
+CREATE TABLE staff_accounts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
@@ -442,17 +445,27 @@ CREATE TABLE sales_reps (
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     phone TEXT,
+    role VARCHAR(20) NOT NULL DEFAULT 'sales_rep',
     is_active BOOLEAN DEFAULT true,
-    -- Reps flagged as managers get the Trade applications review section in the
-    -- rep portal (view/approve/reject trade memberships). Regular reps do not.
+    -- Rep-portal manager flag (Trade applications review). Independent of the admin
+    -- 'manager' role: sales reps keep role='sales_rep' and use is_manager for rep gating.
     is_manager BOOLEAN DEFAULT false,
+    -- Set-password / invite flow: token (sha256 hex) emailed to the staffer.
+    password_reset_token TEXT,
+    password_reset_expires TIMESTAMP,
+    -- Set on each successful sign-in. NULL = never signed in (distinguishes a true
+    -- pending invite from an active user with an outstanding reset link).
+    last_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT staff_role_check CHECK (role IN ('admin', 'manager', 'sales_rep', 'warehouse'))
 );
+
+-- ==================== Sales Rep Portal ====================
 
 CREATE TABLE rep_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    rep_id UUID NOT NULL REFERENCES sales_reps(id) ON DELETE CASCADE,
+    rep_id UUID NOT NULL REFERENCES staff_accounts(id) ON DELETE CASCADE,
     token TEXT UNIQUE NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -461,7 +474,7 @@ CREATE TABLE rep_sessions (
 CREATE TABLE quotes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     quote_number TEXT UNIQUE NOT NULL,
-    sales_rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    sales_rep_id UUID NOT NULL REFERENCES staff_accounts(id),
     customer_name TEXT NOT NULL,
     customer_email TEXT NOT NULL,
     company_name TEXT,
@@ -527,7 +540,7 @@ CREATE INDEX idx_quote_events_quote_id ON quote_events(quote_id);
 CREATE TABLE order_price_adjustments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_item_id UUID NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
-    rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    rep_id UUID NOT NULL REFERENCES staff_accounts(id),
     previous_unit_price DECIMAL(10,2),
     new_unit_price DECIMAL(10,2) NOT NULL,
     previous_subtotal DECIMAL(10,2),
@@ -536,7 +549,7 @@ CREATE TABLE order_price_adjustments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE orders ADD COLUMN sales_rep_id UUID REFERENCES sales_reps(id);
+ALTER TABLE orders ADD COLUMN sales_rep_id UUID REFERENCES staff_accounts(id);
 ALTER TABLE orders ADD COLUMN payment_method VARCHAR(20) DEFAULT 'stripe';
 ALTER TABLE orders ADD COLUMN quote_id UUID REFERENCES quotes(id);
 
@@ -627,28 +640,8 @@ CREATE INDEX idx_trade_customers_status ON trade_customers(status);
 CREATE INDEX idx_trade_customers_tier ON trade_customers(margin_tier_id);
 
 -- ==================== Staff Accounts ====================
-
-CREATE TABLE staff_accounts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    password_salt TEXT NOT NULL,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    phone TEXT,
-    role VARCHAR(20) NOT NULL DEFAULT 'sales_rep',
-    is_active BOOLEAN DEFAULT true,
-    -- Set-password / invite flow: token (sha256 hex) emailed to the staffer so they
-    -- set their own initial or reset password without an admin ever seeing it.
-    password_reset_token TEXT,
-    password_reset_expires TIMESTAMP,
-    -- Set on each successful sign-in. NULL = never signed in, which distinguishes a
-    -- true pending invite from an active user who merely has an outstanding reset link.
-    last_login_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT staff_role_check CHECK (role IN ('admin', 'manager', 'sales_rep', 'warehouse'))
-);
+-- staff_accounts is defined near the top of this file (unified identity) so the
+-- rep-portal tables can reference it. Sales reps live here with role='sales_rep'.
 
 CREATE TABLE staff_sessions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -877,7 +870,7 @@ CREATE INDEX idx_orders_customer ON orders(customer_id);
 
 -- Auto-created customer accounts (rep-initiated)
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_set BOOLEAN DEFAULT true;
-ALTER TABLE customers ADD COLUMN IF NOT EXISTS assigned_rep_id UUID REFERENCES sales_reps(id);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS assigned_rep_id UUID REFERENCES staff_accounts(id);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS created_via VARCHAR(30);
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE;
@@ -1060,7 +1053,7 @@ CREATE INDEX IF NOT EXISTS idx_customer_notes_order ON customer_notes(order_id);
 
 CREATE TABLE IF NOT EXISTS rep_notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    rep_id UUID NOT NULL REFERENCES sales_reps(id) ON DELETE CASCADE,
+    rep_id UUID NOT NULL REFERENCES staff_accounts(id) ON DELETE CASCADE,
     type VARCHAR(50) NOT NULL,
     title TEXT NOT NULL,
     message TEXT,
@@ -1090,7 +1083,7 @@ INSERT INTO commission_config (rate, default_cost_ratio)
 CREATE TABLE IF NOT EXISTS rep_commissions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-    rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    rep_id UUID NOT NULL REFERENCES staff_accounts(id),
     order_total DECIMAL(10,2) NOT NULL,
     vendor_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
     margin DECIMAL(10,2) NOT NULL DEFAULT 0,           -- materials gross profit (labor excluded)
@@ -1114,7 +1107,7 @@ CREATE INDEX IF NOT EXISTS idx_rep_commissions_status ON rep_commissions(status)
 CREATE TABLE IF NOT EXISTS showroom_visits (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   token VARCHAR(64) UNIQUE NOT NULL,
-  rep_id UUID NOT NULL REFERENCES sales_reps(id),
+  rep_id UUID NOT NULL REFERENCES staff_accounts(id),
   customer_name TEXT NOT NULL,
   customer_email TEXT,
   customer_phone TEXT,
@@ -1151,7 +1144,7 @@ CREATE INDEX IF NOT EXISTS idx_showroom_visit_items_visit ON showroom_visit_item
 CREATE TABLE IF NOT EXISTS sample_requests (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   request_number VARCHAR(40) UNIQUE NOT NULL,
-  rep_id UUID REFERENCES sales_reps(id),
+  rep_id UUID REFERENCES staff_accounts(id),
   customer_name TEXT NOT NULL,
   customer_email TEXT,
   customer_phone TEXT,
@@ -1696,7 +1689,7 @@ ALTER TABLE order_payments ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20);
 
 CREATE TABLE IF NOT EXISTS cash_drawers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    rep_id UUID NOT NULL REFERENCES staff_accounts(id),
     rep_name TEXT NOT NULL,
     opening_balance DECIMAL(10,2) NOT NULL DEFAULT 0,
     expected_balance DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -1804,7 +1797,7 @@ CREATE INDEX IF NOT EXISTS idx_analytics_daily_stats_date ON analytics_daily_sta
 CREATE TABLE IF NOT EXISTS estimates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     estimate_number TEXT UNIQUE NOT NULL,
-    sales_rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    sales_rep_id UUID NOT NULL REFERENCES staff_accounts(id),
     customer_id UUID REFERENCES customers(id),
     -- Nullable: a draft estimate can be built before a customer is attached;
     -- the customer is required only to send (see /api/rep/estimates/:id/send).
@@ -1922,7 +1915,7 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
 
 CREATE TABLE IF NOT EXISTS deals (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    rep_id UUID NOT NULL REFERENCES staff_accounts(id),
     title TEXT NOT NULL,
     estimated_value DECIMAL(10,2) DEFAULT 0,
     stage VARCHAR(20) NOT NULL DEFAULT 'lead' CHECK (stage IN ('lead','quoted','negotiating','won','lost')),
@@ -1946,7 +1939,7 @@ CREATE INDEX IF NOT EXISTS idx_deals_customer ON deals(customer_type, customer_r
 
 CREATE TABLE IF NOT EXISTS rep_tasks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    rep_id UUID NOT NULL REFERENCES sales_reps(id),
+    rep_id UUID NOT NULL REFERENCES staff_accounts(id),
     title TEXT NOT NULL,
     description TEXT,
     due_date DATE,
@@ -2585,8 +2578,8 @@ CREATE INDEX IF NOT EXISTS idx_email_failures_unresolved
 -- adjustments, refunds). Exists in the live DB but had drifted out of this
 -- file; re-declared here so schema.sql stays the source of truth.
 -- Written via logOrderActivity() in backend/lib/orderHelpers.js. performed_by
--- is a plain UUID (no FK) because both staff_accounts and sales_reps write here
--- and reps are not in staff_accounts.
+-- is a plain UUID (no FK); actors are staff_accounts (reps are now unified in,
+-- role='sales_rep'), but it stays unconstrained to tolerate system/legacy writes.
 
 CREATE TABLE IF NOT EXISTS order_activity_log (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

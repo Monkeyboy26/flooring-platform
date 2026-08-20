@@ -2,6 +2,8 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { generateQuoteHtml } from '../lib/documents.js';
+import { findExactDuplicate, claimGuestRecords } from '../lib/customerHelpers.js';
+import { enrichItemsForNaming } from '../lib/enrichItems.js';
 
 export default function createCustomerRoutes(ctx) {
   const router = Router();
@@ -15,7 +17,7 @@ export default function createCustomerRoutes(ctx) {
 
   router.post('/api/customer/register', async (req, res) => {
     try {
-      let { email, password, first_name, last_name, phone, newsletter } = req.body;
+      let { email, password, first_name, last_name, phone, company_name, newsletter } = req.body;
       if (!email || !password || !first_name || !last_name || !phone) {
         return res.status(400).json({ error: 'Email, password, first name, last name, and phone number are required' });
       }
@@ -61,11 +63,20 @@ export default function createCustomerRoutes(ctx) {
         return res.status(400).json({ error: 'An account with this email already exists' });
       }
 
+      // New email, but the phone already belongs to an account → block. Don't
+      // reveal the other email (enumeration); point them at sign-in / recovery.
+      if (phone) {
+        const phoneMatch = await findExactDuplicate(pool, { email: '', phone });
+        if (phoneMatch) {
+          return res.status(409).json({ error: 'An account already exists with this phone number. Please sign in, or use "Forgot password" if you don\'t have your login.' });
+        }
+      }
+
       const { hash, salt } = await hashPassword(password);
       const result = await pool.query(
-        `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, password_set)
-         VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via`,
-        [email.toLowerCase(), hash, salt, first_name, last_name, phone || null]
+        `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, company_name, password_set)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, true) RETURNING id, email, first_name, last_name, phone, company_name, address_line1, address_line2, city, state, zip, password_set, created_via`,
+        [email.toLowerCase(), hash, salt, first_name, last_name, phone || null, (company_name || '').trim() || null]
       );
       const customer = result.rows[0];
 
@@ -74,12 +85,19 @@ export default function createCustomerRoutes(ctx) {
       await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
         [customer.id, hashToken(token), expiresAt]);
 
+      // Attach any prior guest orders/quotes/samples that used this email.
+      await claimGuestRecords(pool, customer.id, customer.email).catch(e => console.error('[claim] register:', e.message));
+
       if (newsletter) {
         await pool.query('INSERT INTO newsletter_subscribers (email) VALUES ($1) ON CONFLICT (email) DO NOTHING', [email.toLowerCase()]);
       }
 
       res.json({ token, customer });
     } catch (err) {
+      // Lost a race to a concurrent signup with the same email → clean 409, not a 500.
+      if (err.code === '23505') {
+        return res.status(409).json({ error: 'An account with this email already exists' });
+      }
       console.error('Customer register error:', err);
       res.status(500).json({ error: 'Registration failed' });
     }
@@ -119,6 +137,9 @@ export default function createCustomerRoutes(ctx) {
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
         [cust.id, hashToken(token), expiresAt]);
+
+      // Attach any prior guest orders/quotes/samples that used this email.
+      await claimGuestRecords(pool, cust.id, cust.email).catch(e => console.error('[claim] login:', e.message));
 
       // Non-staff actor: log under entity_type/entity_id, staff_id stays null.
       await logAudit(null, 'customer.login', 'customers', cust.id, { email: cust.email }, req.ip);
@@ -168,15 +189,16 @@ export default function createCustomerRoutes(ctx) {
 
   router.put('/api/customer/profile', customerAuth, async (req, res) => {
     try {
-      const { first_name, last_name, phone, address_line1, address_line2, city, state, zip } = req.body;
+      const { first_name, last_name, phone, company_name, address_line1, address_line2, city, state, zip } = req.body;
       const result = await pool.query(
         `UPDATE customers SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name),
           phone = COALESCE($3, phone), address_line1 = COALESCE($4, address_line1),
           address_line2 = COALESCE($5, address_line2), city = COALESCE($6, city),
-          state = COALESCE($7, state), zip = COALESCE($8, zip), updated_at = CURRENT_TIMESTAMP
+          state = COALESCE($7, state), zip = COALESCE($8, zip), company_name = COALESCE($10, company_name),
+          updated_at = CURRENT_TIMESTAMP
          WHERE id = $9
-         RETURNING id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via`,
-        [first_name, last_name, phone, address_line1, address_line2, city, state, zip, req.customer.id]
+         RETURNING id, email, first_name, last_name, phone, company_name, address_line1, address_line2, city, state, zip, password_set, created_via`,
+        [first_name, last_name, phone, address_line1, address_line2, city, state, zip, req.customer.id, (company_name || '').trim() || null]
       );
       res.json({ customer: result.rows[0] });
     } catch (err) {
@@ -380,6 +402,9 @@ export default function createCustomerRoutes(ctx) {
       await pool.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
         [customer.id, hashToken(token), expiresAt]);
 
+      // Attach any prior guest orders/quotes/samples that used this email.
+      await claimGuestRecords(pool, customer.id, customer.email).catch(e => console.error('[claim] google:', e.message));
+
       // Non-staff actor: log under entity_type/entity_id, staff_id stays null.
       await logAudit(null, 'customer.login', 'customers', customer.id, { email: customer.email, via: 'google' }, req.ip);
 
@@ -554,7 +579,7 @@ export default function createCustomerRoutes(ctx) {
             SELECT oi.product_name, s.variant_name, s.accessory_label, s.variant_type,
               s.vendor_sku, s.internal_sku, sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
               COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
-              COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+              COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
               (SELECT url FROM media_assets ma WHERE ma.product_id = oi.product_id AND ma.asset_type = 'primary' ORDER BY ma.sort_order LIMIT 1) as primary_image
             FROM order_items oi
             LEFT JOIN skus s ON s.id = oi.sku_id
@@ -585,7 +610,7 @@ export default function createCustomerRoutes(ctx) {
       const orderResult = await pool.query(
         `SELECT id, order_number, customer_email, customer_name, phone,
           shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
-          delivery_method, subtotal, shipping, shipping_method, sample_shipping, total, amount_paid,
+          delivery_method, subtotal, shipping, shipping_method, sample_shipping, transfer_fee, total, amount_paid,
           status, tracking_number, shipping_carrier, shipped_at, delivered_at, created_at,
           promo_code, discount_amount
         FROM orders WHERE id = $1 AND customer_id = $2`,
@@ -599,7 +624,7 @@ export default function createCustomerRoutes(ctx) {
           s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
           sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
           COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name,
-          COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden,
+          COALESCE(br.name, v.name, cv.name, oi.custom_vendor) AS brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
           poi.status as fulfillment_status
         FROM order_items oi
         LEFT JOIN skus s ON s.id = oi.sku_id
@@ -626,6 +651,7 @@ export default function createCustomerRoutes(ctx) {
         WHERE oi.order_id = $1
       `, [req.params.id]);
       const items = itemsResult.rows;
+      await enrichItemsForNaming(items);
       const balanceInfo = await recalculateBalance(req.params.id);
       const totalItems = items.filter(i => !i.is_sample).length;
       const receivedItems = items.filter(i => !i.is_sample && i.fulfillment_status === 'received').length;
@@ -746,6 +772,7 @@ export default function createCustomerRoutes(ctx) {
       }
 
       await client.query('COMMIT');
+      await enrichItemsForNaming(addedItems);
       res.json({ items: addedItems });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -789,7 +816,7 @@ export default function createCustomerRoutes(ctx) {
       const quote = await pool.query('SELECT * FROM quotes WHERE id = $1 AND customer_id = $2 AND status != \'draft\'', [req.params.id, req.customer.id]);
       if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
       const items = await pool.query(`
-        SELECT qi.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, s.vendor_sku, s.variant_name, sa_c.value as color, sa_sz.value as size, p.collection as current_collection
+        SELECT qi.*, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, s.vendor_sku, s.variant_name, sa_c.value as color, sa_sz.value as size, p.collection as current_collection
         FROM quote_items qi
         LEFT JOIN skus s ON s.id = qi.sku_id
         LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
@@ -801,6 +828,7 @@ export default function createCustomerRoutes(ctx) {
           AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
         WHERE qi.quote_id = $1 ORDER BY qi.id
       `, [req.params.id]);
+      await enrichItemsForNaming(items.rows);
       res.json({ quote: quote.rows[0], items: items.rows });
     } catch (err) {
       console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -812,13 +840,13 @@ export default function createCustomerRoutes(ctx) {
     try {
       const quote = await pool.query(`
         SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
-        FROM quotes q LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+        FROM quotes q LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
         WHERE q.id = $1 AND q.customer_id = $2 AND q.status != 'draft'
       `, [req.params.id, req.customer.id]);
       if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
       const q = quote.rows[0];
       const items = await pool.query(`
-        SELECT qi.*, sk.variant_name, sa_c.value as color, sa_sz.value as size, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, sk.vendor_sku,
+        SELECT qi.*, sk.variant_name, sa_c.value as color, sa_sz.value as size, v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, sk.vendor_sku,
           (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
            ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
         FROM quote_items qi
@@ -832,6 +860,7 @@ export default function createCustomerRoutes(ctx) {
           AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
         WHERE qi.quote_id = $1 ORDER BY qi.id
       `, [req.params.id]);
+      await enrichItemsForNaming(items.rows);
       const html = generateQuoteHtml(q, items.rows);
       await generatePDF(html, `quote-${q.quote_number || q.id.substring(0, 8)}.pdf`, req, res);
     } catch (err) {
@@ -877,7 +906,7 @@ export default function createCustomerRoutes(ctx) {
           (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count,
           sr.first_name || ' ' || sr.last_name as rep_name
         FROM estimates e
-        LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+        LEFT JOIN staff_accounts sr ON sr.id = e.sales_rep_id
         WHERE e.customer_id = $1 AND e.status != 'draft'
         ORDER BY e.created_at DESC
       `, [req.customer.id]);
@@ -896,7 +925,7 @@ export default function createCustomerRoutes(ctx) {
           e.notes, e.status, e.expires_at, e.sent_at, e.created_at,
           sr.first_name || ' ' || sr.last_name as rep_name
         FROM estimates e
-        LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+        LEFT JOIN staff_accounts sr ON sr.id = e.sales_rep_id
         WHERE e.id = $1 AND e.customer_id = $2 AND e.status != 'draft'
       `, [req.params.id, req.customer.id]);
       if (!est.rows.length) return res.status(404).json({ error: 'Estimate not found' });
@@ -904,6 +933,7 @@ export default function createCustomerRoutes(ctx) {
         'SELECT * FROM estimate_items WHERE estimate_id = $1 ORDER BY sort_order, created_at',
         [req.params.id]
       );
+      await enrichItemsForNaming(items.rows);
       res.json({ estimate: est.rows[0], items: items.rows });
     } catch (err) {
       console.error(err); res.status(500).json({ error: 'Internal server error' });

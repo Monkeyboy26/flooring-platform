@@ -47,7 +47,7 @@ const { findOrCreateCustomer } = createCustomerHelpers(hashPassword, sendWelcome
 async function attachRep(obj) {
   if (!obj || obj.rep_email || !obj.sales_rep_id) return obj;
   try {
-    const r = await pool.query('SELECT email, first_name, last_name FROM sales_reps WHERE id = $1', [obj.sales_rep_id]);
+    const r = await pool.query('SELECT email, first_name, last_name FROM staff_accounts WHERE id = $1', [obj.sales_rep_id]);
     if (r.rows.length) {
       obj.rep_email = r.rows[0].email;
       obj.rep_first_name = r.rows[0].first_name;
@@ -5721,7 +5721,7 @@ app.get('/api/admin/worklist', staffAuth, requireRole('admin', 'manager', 'sales
           o.order_number, sr.first_name || ' ' || sr.last_name as rep_name
         FROM rep_commissions rc
         JOIN orders o ON o.id = rc.order_id
-        JOIN sales_reps sr ON sr.id = rc.rep_id
+        JOIN staff_accounts sr ON sr.id = rc.rep_id
         WHERE rc.status = 'earned'
         ORDER BY rc.updated_at ASC LIMIT $1`, [KIND_LIMIT]);
       queries.pickupOrders = pool.query(`
@@ -8548,7 +8548,7 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
       SELECT o.*, COALESCE(sr.first_name || ' ' || sr.last_name, rp.first_name || ' ' || rp.last_name) as rep_name
       FROM orders o
       LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
-      LEFT JOIN sales_reps rp ON rp.id = o.sales_rep_id
+      LEFT JOIN staff_accounts rp ON rp.id = o.sales_rep_id
       WHERE o.id = $1
     `, [id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
@@ -8582,7 +8582,7 @@ app.get('/api/admin/orders/:id', staffAuth, async (req, res) => {
     const commission = await pool.query(`
       SELECT rc.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM rep_commissions rc
-      LEFT JOIN sales_reps sr ON sr.id = rc.rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = rc.rep_id
       WHERE rc.order_id = $1
     `, [id]);
     const invoices = await pool.query(`
@@ -8968,7 +8968,7 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
         try {
           let repId = assignRepId;
           if (!repId) {
-            const fallback = await pool.query('SELECT id FROM sales_reps WHERE is_active = true ORDER BY created_at LIMIT 1');
+            const fallback = await pool.query("SELECT id FROM staff_accounts WHERE is_active = true AND role = 'sales_rep' ORDER BY created_at LIMIT 1");
             repId = fallback.rows.length ? fallback.rows[0].id : null;
           }
           if (repId) {
@@ -11640,6 +11640,10 @@ app.post('/api/staff/login', async (req, res) => {
       recordLoginFailure(attemptKey);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
+    // Sales reps are unified into staff_accounts but belong to the rep portal, not /admin.
+    if (staff.role === 'sales_rep') {
+      return res.status(403).json({ error: 'This is a rep account — please sign in at the rep portal.' });
+    }
 
     // Check if device is trusted
     const fpHash = device_fingerprint ? crypto.createHash('sha256').update(device_fingerprint).digest('hex') : null;
@@ -13920,7 +13924,7 @@ app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
   try {
     const quote = await pool.query(`
       SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
-      FROM quotes q LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      FROM quotes q LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
       WHERE q.id = $1 AND q.trade_customer_id = $2
     `, [req.params.id, req.tradeCustomer.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
@@ -13964,7 +13968,7 @@ async function generateOrderInvoiceHtml(orderId) {
   const order = await pool.query(`
     SELECT o.*, sr.first_name || ' ' || sr.last_name AS rep_name, sr.email AS rep_email
     FROM orders o
-    LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+    LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
     WHERE o.id = $1
   `, [orderId]);
   if (!order.rows.length) return null;
@@ -14100,7 +14104,7 @@ async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
       tc.company_name
     FROM returns r
     JOIN orders o ON o.id = r.order_id
-    LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+    LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
     LEFT JOIN trade_customers tc ON tc.id = o.trade_customer_id
     WHERE r.id = $1${repId ? ' AND o.sales_rep_id = $2' : ''}
   `, repId ? [returnId, repId] : [returnId]);
@@ -14175,7 +14179,7 @@ async function generateReleaseFormHtml(releaseId, opts = {}) {
       dv.name AS vendor_name, dv.address AS vendor_address, dv.phone AS vendor_phone
     FROM material_releases mr
     JOIN orders o ON o.id = mr.order_id
-    LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+    LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
     LEFT JOIN vendors dv ON dv.id = mr.vendor_id
     WHERE mr.id = $1 ${opts.repId ? 'AND o.sales_rep_id = $2' : ''}`,
     opts.repId ? [releaseId, opts.repId] : [releaseId]);
@@ -14381,7 +14385,7 @@ app.post('/api/rep/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
 
-    const result = await pool.query('SELECT * FROM sales_reps WHERE email = $1', [email.toLowerCase().trim()]);
+    const result = await pool.query("SELECT * FROM staff_accounts WHERE email = $1 AND role = 'sales_rep'", [email.toLowerCase().trim()]);
     if (!result.rows.length) return res.status(401).json({ error: 'Invalid email or password' });
 
     const rep = result.rows[0];
@@ -14402,7 +14406,7 @@ app.post('/api/rep/login', async (req, res) => {
     );
 
     // Non-staff actor: log under entity_type/entity_id, staff_id stays null.
-    await logAudit(null, 'rep.login', 'sales_reps', rep.id, { email: rep.email }, req.ip);
+    await logAudit(null, 'rep.login', 'staff_accounts', rep.id, { email: rep.email }, req.ip);
 
     res.json({
       token,
@@ -14417,7 +14421,7 @@ app.post('/api/rep/logout', repAuth, async (req, res) => {
   try {
     const token = req.headers['x-rep-token'];
     await pool.query('DELETE FROM rep_sessions WHERE token = $1', [hashToken(token)]);
-    await logAudit(null, 'rep.logout', 'sales_reps', req.rep.id, {}, req.ip);
+    await logAudit(null, 'rep.logout', 'staff_accounts', req.rep.id, {}, req.ip);
     res.json({ success: true });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -14589,7 +14593,7 @@ app.post('/api/rep/trade-customers/:id/deny', repAuth, requireRepManager, async 
 });
 
 // ==================== Manager: rep reassignment ====================
-// Managers (sales_reps.is_manager) can reassign a retail customer or an
+// Managers (staff_accounts.is_manager) can reassign a retail customer or an
 // individual order to another rep. Reassigning a customer cascades ONLY to
 // their open orders (closed orders keep their original rep). Reassigning an
 // order is standalone and never changes the customer's assignment.
@@ -14601,7 +14605,7 @@ app.get('/api/rep/reps', repAuth, requireRepManager, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, first_name, last_name, first_name || ' ' || last_name AS name, email, is_manager
-       FROM sales_reps WHERE is_active = true ORDER BY first_name, last_name`
+       FROM staff_accounts WHERE is_active = true AND role = 'sales_rep' ORDER BY first_name, last_name`
     );
     res.json({ reps: result.rows });
   } catch (err) {
@@ -14618,7 +14622,7 @@ app.put('/api/rep/customers/:id/assign-rep', repAuth, requireRepManager, async (
     const { rep_id } = req.body;
     if (!rep_id) return res.status(400).json({ error: 'rep_id required' });
 
-    const repRow = await client.query('SELECT id, first_name, last_name FROM sales_reps WHERE id = $1 AND is_active = true', [rep_id]);
+    const repRow = await client.query("SELECT id, first_name, last_name FROM staff_accounts WHERE id = $1 AND is_active = true AND role = 'sales_rep'", [rep_id]);
     if (!repRow.rows.length) return res.status(400).json({ error: 'Rep not found or inactive' });
     const newRep = repRow.rows[0];
     const newRepName = `${newRep.first_name} ${newRep.last_name}`.trim();
@@ -14684,7 +14688,7 @@ app.put('/api/rep/orders/:id/assign-rep', repAuth, requireRepManager, async (req
     const { rep_id } = req.body;
     if (!rep_id) return res.status(400).json({ error: 'rep_id required' });
 
-    const repRow = await pool.query('SELECT id, first_name, last_name FROM sales_reps WHERE id = $1 AND is_active = true', [rep_id]);
+    const repRow = await pool.query("SELECT id, first_name, last_name FROM staff_accounts WHERE id = $1 AND is_active = true AND role = 'sales_rep'", [rep_id]);
     if (!repRow.rows.length) return res.status(400).json({ error: 'Rep not found or inactive' });
     const newRep = repRow.rows[0];
     const newRepName = `${newRep.first_name} ${newRep.last_name}`.trim();
@@ -14775,7 +14779,7 @@ app.get('/api/rep/dashboard', repAuth, async (req, res) => {
         sr.first_name || ' ' || sr.last_name as rep_name,
         (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count
       FROM orders o
-      LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
       ORDER BY o.created_at DESC LIMIT 10
     `);
 
@@ -14819,7 +14823,7 @@ app.get('/api/rep/action-items', repAuth, async (req, res) => {
         o.total, o.amount_paid, o.created_at, o.confirmed_at, o.shipped_at,
         sr.first_name || ' ' || sr.last_name as rep_name
       FROM orders o
-      LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
       WHERE o.status NOT IN ('delivered', 'cancelled', 'refunded') ${orderFilter}
       ORDER BY o.created_at DESC
     `, orderParams);
@@ -14883,7 +14887,7 @@ app.get('/api/rep/action-items', repAuth, async (req, res) => {
       SELECT sr.*,
         rep.first_name || ' ' || rep.last_name as rep_name
       FROM sample_requests sr
-      LEFT JOIN sales_reps rep ON rep.id = sr.rep_id
+      LEFT JOIN staff_accounts rep ON rep.id = sr.rep_id
       WHERE sr.status NOT IN ('delivered', 'cancelled') ${sampleFilter}
       ORDER BY sr.created_at DESC
     `, sampleParams);
@@ -15281,7 +15285,7 @@ app.post('/api/rep/visits/:id/send', repAuth, async (req, res) => {
 
     const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [visit.id]);
 
-    const repRes = await pool.query('SELECT first_name, last_name, email, phone FROM sales_reps WHERE id = $1', [req.rep.id]);
+    const repRes = await pool.query('SELECT first_name, last_name, email, phone FROM staff_accounts WHERE id = $1', [req.rep.id]);
     const rep = repRes.rows[0];
 
     const storefrontUrl = process.env.STOREFRONT_URL || `http://localhost:3000`;
@@ -15323,7 +15327,7 @@ app.get('/api/admin/visits', staffAuth, requireRole('admin', 'manager', 'sales_r
         COALESCE(it.n, 0) as item_count,
         COALESCE(it.names, '{}') as item_names
       FROM showroom_visits v
-      LEFT JOIN sales_reps sr ON sr.id = v.rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = v.rep_id
       LEFT JOIN LATERAL (
         SELECT COUNT(*)::int as n, array_agg(i.product_name ORDER BY i.sort_order) as names
         FROM showroom_visit_items i WHERE i.visit_id = v.id
@@ -15342,7 +15346,7 @@ app.get('/api/admin/visits/:id', staffAuth, requireRole('admin', 'manager', 'sal
     const visitRes = await pool.query(`
       SELECT v.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM showroom_visits v
-      LEFT JOIN sales_reps sr ON sr.id = v.rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = v.rep_id
       WHERE v.id = $1
     `, [req.params.id]);
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
@@ -15385,7 +15389,7 @@ app.post('/api/admin/visits/:id/send', staffAuth, requireRole('admin', 'manager'
     if (!visit.customer_email) return res.status(400).json({ error: 'Customer email is required to send' });
 
     const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [visit.id]);
-    const repRes = await pool.query('SELECT first_name, last_name, email, phone FROM sales_reps WHERE id = $1', [visit.rep_id]);
+    const repRes = await pool.query('SELECT first_name, last_name, email, phone FROM staff_accounts WHERE id = $1', [visit.rep_id]);
     const rep = repRes.rows[0] || { first_name: 'Roma', last_name: 'Flooring', email: null, phone: null };
 
     const storefrontUrl = process.env.STOREFRONT_URL || `http://localhost:3000`;
@@ -15419,7 +15423,7 @@ app.get('/api/visit-recap/:token', async (req, res) => {
     const visitRes = await pool.query(`
       SELECT sv.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM showroom_visits sv
-      JOIN sales_reps sr ON sr.id = sv.rep_id
+      JOIN staff_accounts sr ON sr.id = sv.rep_id
       WHERE sv.token = $1
     `, [req.params.token]);
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit recap not found' });
@@ -15967,7 +15971,7 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
     if (!vendor.email) return res.status(400).json({ error: 'Vendor has no email configured' });
 
     // Get rep name
-    const repRes = await pool.query('SELECT first_name, last_name FROM sales_reps WHERE id = $1', [req.rep.id]);
+    const repRes = await pool.query('SELECT first_name, last_name FROM staff_accounts WHERE id = $1', [req.rep.id]);
     const repName = repRes.rows.length ? `${repRes.rows[0].first_name} ${repRes.rows[0].last_name}` : '';
 
     // Get items for this vendor only
@@ -16693,7 +16697,7 @@ app.get('/api/rep/orders', repAuth, async (req, res) => {
         sr.first_name || ' ' || sr.last_name as rep_name,
         (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count
       FROM orders o
-      LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
       WHERE 1=1
     `;
     const params = [];
@@ -17190,7 +17194,7 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
     const order = await pool.query(`
       SELECT o.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM orders o
-      LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
       WHERE o.id = $1 AND (o.sales_rep_id = $2 OR o.sales_rep_id IS NULL OR $3::boolean = true)
     `, [id, req.rep.id, !!req.rep.is_manager]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
@@ -17249,7 +17253,7 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
     const adjustments = await pool.query(`
       SELECT opa.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM order_price_adjustments opa
-      JOIN sales_reps sr ON sr.id = opa.rep_id
+      JOIN staff_accounts sr ON sr.id = opa.rep_id
       WHERE opa.order_item_id = ANY(SELECT id FROM order_items WHERE order_id = $1)
       ORDER BY opa.created_at DESC
     `, [id]);
@@ -17261,7 +17265,7 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
     const commission = await pool.query(`
       SELECT rc.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM rep_commissions rc
-      LEFT JOIN sales_reps sr ON sr.id = rc.rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = rc.rep_id
       WHERE rc.order_id = $1
     `, [id]);
 
@@ -17361,7 +17365,7 @@ app.get('/api/rep/orders/:id/notes', repAuth, async (req, res) => {
     const notes = await pool.query(`
       SELECT cn.*, COALESCE(
         (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
-        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = cn.staff_id),
+        (SELECT sr.first_name || ' ' || sr.last_name FROM staff_accounts sr WHERE sr.id = cn.staff_id),
         'Staff') AS staff_name
       FROM customer_notes cn WHERE cn.order_id = $1 ORDER BY cn.created_at DESC`, [req.params.id]);
     res.json({ notes: notes.rows });
@@ -17398,7 +17402,7 @@ app.put('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
     const upd = result.rows[0];
     upd.staff_name = (await pool.query(`SELECT COALESCE(
         (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = $1),
-        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = $1), 'Staff') AS n`,
+        (SELECT sr.first_name || ' ' || sr.last_name FROM staff_accounts sr WHERE sr.id = $1), 'Staff') AS n`,
       [upd.staff_id])).rows[0].n;
     res.json({ note: upd });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
@@ -18011,7 +18015,7 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
     const adjustments = await pool.query(`
       SELECT opa.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM order_price_adjustments opa
-      JOIN sales_reps sr ON sr.id = opa.rep_id
+      JOIN staff_accounts sr ON sr.id = opa.rep_id
       WHERE opa.order_item_id = ANY(SELECT oi2.id FROM order_items oi2 WHERE oi2.order_id = $1)
       ORDER BY opa.created_at DESC
     `, [id]);
@@ -18900,7 +18904,7 @@ app.post('/api/rep/orders/:id/payments/:paymentId/refund', repAuth, async (req, 
     const payments = await pool.query('SELECT * FROM order_payments WHERE order_id = $1 ORDER BY created_at', [id]);
     const updatedOrder = await pool.query(`
       SELECT o.*, sr.first_name || ' ' || sr.last_name as rep_name
-      FROM orders o LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+      FROM orders o LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
       WHERE o.id = $1
     `, [id]);
     res.json({ success: true, order: updatedOrder.rows[0], payments: payments.rows, balance: balanceInfo });
@@ -18924,7 +18928,7 @@ app.get('/api/rep/orders/:id/return-context', repAuth, async (req, res) => {
     const { id } = req.params;
     const oRes = await pool.query(
       `SELECT o.*, sr.first_name || ' ' || sr.last_name AS rep_name
-       FROM orders o LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+       FROM orders o LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
        WHERE o.id = $1 AND o.sales_rep_id = $2`, [id, req.rep.id]);
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
@@ -21010,7 +21014,7 @@ app.get('/api/staff/orders/:id/notes', staffAuth, async (req, res) => {
     const notes = await pool.query(`
       SELECT cn.*, COALESCE(
         (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
-        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = cn.staff_id),
+        (SELECT sr.first_name || ' ' || sr.last_name FROM staff_accounts sr WHERE sr.id = cn.staff_id),
         'Staff') AS staff_name
       FROM customer_notes cn WHERE cn.order_id = $1 ORDER BY cn.created_at DESC`, [req.params.id]);
     res.json({ notes: notes.rows });
@@ -21048,7 +21052,7 @@ app.put('/api/staff/orders/:id/notes/:noteId', staffAuth, requireRole('admin', '
     const upd = result.rows[0];
     upd.staff_name = (await pool.query(`SELECT COALESCE(
         (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = $1),
-        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = $1), 'Staff') AS n`,
+        (SELECT sr.first_name || ' ' || sr.last_name FROM staff_accounts sr WHERE sr.id = $1), 'Staff') AS n`,
       [upd.staff_id])).rows[0].n;
     res.json({ note: upd });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
@@ -21489,7 +21493,7 @@ app.get('/api/rep/purchase-orders', repAuth, async (req, res) => {
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
       LEFT JOIN orders o ON o.id = po.order_id
-      LEFT JOIN sales_reps sr ON sr.id = po.approved_by
+      LEFT JOIN staff_accounts sr ON sr.id = po.approved_by
       ${where}
       ORDER BY ${orderCol} ${orderDir}
       LIMIT ${limit} OFFSET ${offset}
@@ -21547,7 +21551,7 @@ app.get('/api/rep/purchase-orders/:poId/detail', repAuth, async (req, res) => {
         o.order_number, o.customer_name, o.customer_email, o.notes as order_notes
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
-      LEFT JOIN sales_reps sr ON sr.id = po.approved_by
+      LEFT JOIN staff_accounts sr ON sr.id = po.approved_by
       LEFT JOIN orders o ON o.id = po.order_id
       WHERE po.id = $1
     `, [poId]);
@@ -21757,7 +21761,7 @@ app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
         sr.first_name || ' ' || sr.last_name as approved_by_name
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
-      LEFT JOIN sales_reps sr ON sr.id = po.approved_by
+      LEFT JOIN staff_accounts sr ON sr.id = po.approved_by
       WHERE po.order_id = $1
       ORDER BY po.created_at
     `, [id]);
@@ -22308,7 +22312,7 @@ app.get('/api/rep/quotes', repAuth, async (req, res) => {
         sr.first_name || ' ' || sr.last_name as rep_name,
         (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
       FROM quotes q
-      LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
       WHERE q.sales_rep_id = $1
     `;
     const params = [req.rep.id];
@@ -22536,7 +22540,7 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
     const { id } = req.params;
     const quote = await pool.query(`
       SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name
-      FROM quotes q LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      FROM quotes q LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
       WHERE q.id = $1
     `, [id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
@@ -23368,7 +23372,7 @@ app.get('/api/rep/quotes/:id/pdf', repAuth, async (req, res) => {
   try {
     const quote = await pool.query(`
       SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
-      FROM quotes q LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      FROM quotes q LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
       WHERE q.id = $1
     `, [req.params.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
@@ -23416,7 +23420,7 @@ app.get('/api/admin/quotes/ledger', staffAuth, async (req, res) => {
         COALESCE(ev.replies, 0) as replies,
         ev.last_viewed_at, ev.sent_at
       FROM quotes q
-      LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
       LEFT JOIN orders o ON o.id = q.converted_order_id
       LEFT JOIN trade_customers tc ON tc.id = q.trade_customer_id
       LEFT JOIN LATERAL (
@@ -23494,7 +23498,7 @@ app.get('/api/admin/quotes/:id', staffAuth, async (req, res) => {
       SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name,
         o.order_number as converted_order_number
       FROM quotes q
-      LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
       LEFT JOIN orders o ON o.id = q.converted_order_id
       WHERE q.id = $1
     `, [id]);
@@ -23653,7 +23657,7 @@ app.get('/api/staff/quotes/:id/pdf', staffDocAuth, async (req, res) => {
   try {
     const quote = await pool.query(`
       SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
-      FROM quotes q LEFT JOIN sales_reps sr ON sr.id = q.sales_rep_id
+      FROM quotes q LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
       WHERE q.id = $1
     `, [req.params.id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
@@ -23745,7 +23749,7 @@ app.get('/api/rep/estimates', repAuth, async (req, res) => {
         (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id AND ei.item_type = 'material') as material_count,
         (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id AND ei.item_type = 'labor') as labor_count
       FROM estimates e
-      LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = e.sales_rep_id
       LEFT JOIN orders o ON o.id = e.converted_order_id
       WHERE e.sales_rep_id = $1
     `;
@@ -24972,7 +24976,7 @@ app.post('/api/estimate-view/:token/accept', async (req, res) => {
 
     const estRes = await pool.query(`
       SELECT e.*, sr.first_name AS rep_first_name, sr.last_name AS rep_last_name, sr.email AS rep_email
-      FROM estimates e LEFT JOIN sales_reps sr ON sr.id = e.sales_rep_id
+      FROM estimates e LEFT JOIN staff_accounts sr ON sr.id = e.sales_rep_id
       WHERE e.public_token = $1
     `, [req.params.token]);
     if (!estRes.rows.length || estRes.rows[0].status === 'draft') {
@@ -25360,7 +25364,7 @@ app.get('/api/rep/customers', repAuth, async (req, res) => {
           (SELECT COUNT(*)::int FROM quotes q WHERE LOWER(q.customer_email) = LOWER(c.email) AND q.status IN ('draft','sent')) as open_quotes,
           (SELECT COALESCE(SUM(q.total), 0) FROM quotes q WHERE LOWER(q.customer_email) = LOWER(c.email) AND q.status IN ('draft','sent')) as open_quote_value
         FROM customers c
-        LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
+        LEFT JOIN staff_accounts sr ON sr.id = c.assigned_rep_id
         LEFT JOIN orders o ON o.customer_id = c.id
         -- Hide the retail identity of anyone who also has a trade account — they
         -- are listed once, as trade (which drives their pricing). [[duplicate-customer-detection]]
@@ -25592,7 +25596,7 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
           c.address_line1, c.address_line2, c.city, c.state, c.zip, c.created_at, c.created_via,
           c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as rep_name
         FROM customers c
-        LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
+        LEFT JOIN staff_accounts sr ON sr.id = c.assigned_rep_id
         WHERE c.id = $1
       `, [refId]);
       if (!cResult.rows.length) return res.status(404).json({ error: 'Customer not found' });
@@ -25658,11 +25662,11 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
       noteRef = email;
     }
 
-    // Notes — join on sales_reps instead of staff_accounts for rep portal
+    // Notes — join on staff_accounts instead of staff_accounts for rep portal
     const notesResult = await pool.query(`
       SELECT cn.*, COALESCE(
         (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
-        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = cn.staff_id),
+        (SELECT sr.first_name || ' ' || sr.last_name FROM staff_accounts sr WHERE sr.id = cn.staff_id),
         'Staff'
       ) as staff_name
       FROM customer_notes cn
@@ -26056,7 +26060,7 @@ app.get('/api/rep/customers/:id/timeline', repAuth, async (req, res) => {
       SELECT cn.id, cn.note, cn.created_at,
         COALESCE(
           (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
-          (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = cn.staff_id),
+          (SELECT sr.first_name || ' ' || sr.last_name FROM staff_accounts sr WHERE sr.id = cn.staff_id),
           'Staff'
         ) as staff_name
       FROM customer_notes cn
@@ -27163,7 +27167,7 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
       FROM purchase_orders po
       JOIN vendors v ON v.id = po.vendor_id
       LEFT JOIN orders o ON o.id = po.order_id
-      LEFT JOIN sales_reps sr ON sr.id = o.sales_rep_id
+      LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
       WHERE po.id = $1
     `, [poId]);
     if (!poResult.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
@@ -27960,7 +27964,7 @@ app.get('/api/admin/customers', staffAuth, requireRole('admin', 'manager', 'sale
           COALESCE(SUM(o.total), 0) as total_spent,
           MAX(o.created_at) as last_order_date
         FROM customers c
-        LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
+        LEFT JOIN staff_accounts sr ON sr.id = c.assigned_rep_id
         LEFT JOIN orders o ON o.customer_id = c.id
         -- Hide the retail identity of anyone who also has a trade account — they
         -- are listed once, as trade (which drives their pricing). [[duplicate-customer-detection]]
@@ -28089,7 +28093,7 @@ app.get('/api/admin/customers/ledger', staffAuth, requireRole('admin', 'manager'
           NULL as company_name, NULL as tier_name, NULL as trade_status,
           ${aggs}
         FROM customers c
-        LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
+        LEFT JOIN staff_accounts sr ON sr.id = c.assigned_rep_id
         LEFT JOIN orders o ON o.customer_id = c.id
         GROUP BY c.id, sr.first_name, sr.last_name
       `),
@@ -28238,7 +28242,7 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
           c.address_line1, c.address_line2, c.city, c.state, c.zip, c.created_at, c.created_via,
           c.assigned_rep_id, sr.first_name || ' ' || sr.last_name as rep_name
         FROM customers c
-        LEFT JOIN sales_reps sr ON sr.id = c.assigned_rep_id
+        LEFT JOIN staff_accounts sr ON sr.id = c.assigned_rep_id
         WHERE c.id = $1
       `, [refId]);
       if (!cResult.rows.length) return res.status(404).json({ error: 'Customer not found' });
@@ -28304,11 +28308,11 @@ app.get('/api/admin/customers/:id', staffAuth, requireRole('admin', 'manager', '
       noteRef = email;
     }
 
-    // Notes — COALESCE to resolve names from both staff_accounts and sales_reps
+    // Notes — COALESCE to resolve names from both staff_accounts and staff_accounts
     const notesResult = await pool.query(`
       SELECT cn.*, COALESCE(
         (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
-        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = cn.staff_id),
+        (SELECT sr.first_name || ' ' || sr.last_name FROM staff_accounts sr WHERE sr.id = cn.staff_id),
         'Staff'
       ) as staff_name
       FROM customer_notes cn
@@ -29375,7 +29379,7 @@ app.get('/api/admin/accounting/commissions', staffAuth, requireRole('admin', 'ma
              sr.first_name || ' ' || sr.last_name as rep_name
       FROM rep_commissions rc
       JOIN orders o ON o.id = rc.order_id
-      JOIN sales_reps sr ON sr.id = rc.rep_id
+      JOIN staff_accounts sr ON sr.id = rc.rep_id
       WHERE 1=1
     `;
     const params = [];
@@ -29442,7 +29446,7 @@ app.get('/api/admin/accounting/commissions/:id', staffAuth, requireRole('admin',
              sr.first_name || ' ' || sr.last_name as rep_name, sr.email as rep_email
       FROM rep_commissions rc
       JOIN orders o ON o.id = rc.order_id
-      JOIN sales_reps sr ON sr.id = rc.rep_id
+      JOIN staff_accounts sr ON sr.id = rc.rep_id
       WHERE rc.id = $1
     `, [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Commission not found' });
@@ -30102,7 +30106,7 @@ cron.schedule('0 7 * * *', async () => {
       SELECT e.id, e.estimate_number, e.customer_email,
         sr.first_name AS rep_first_name, sr.last_name AS rep_last_name, sr.email AS rep_email
       FROM estimates e
-      JOIN sales_reps sr ON sr.id = e.sales_rep_id
+      JOIN staff_accounts sr ON sr.id = e.sales_rep_id
       WHERE e.status = 'sent'
         AND e.reminder_sent_at IS NULL
         AND e.expires_at IS NOT NULL
@@ -30825,7 +30829,7 @@ app.get('/api/sitemap.xml', async (req, res) => {
   }
 });
 
-// Startup migration: consolidate sales_reps FK to allow staff_accounts IDs
+// Startup migration: consolidate staff_accounts FK to allow staff_accounts IDs
 async function runMigrations() {
   try {
     // Drop old FK constraints on orders.sales_rep_id and quotes.sales_rep_id
@@ -30833,7 +30837,9 @@ async function runMigrations() {
     await pool.query(`
       DO $$ BEGIN
         ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_sales_rep_id_fkey;
+        ALTER TABLE orders ADD CONSTRAINT orders_sales_rep_id_fkey FOREIGN KEY (sales_rep_id) REFERENCES staff_accounts(id);
         ALTER TABLE quotes DROP CONSTRAINT IF EXISTS quotes_sales_rep_id_fkey;
+        ALTER TABLE quotes ADD CONSTRAINT quotes_sales_rep_id_fkey FOREIGN KEY (sales_rep_id) REFERENCES staff_accounts(id);
       EXCEPTION WHEN OTHERS THEN NULL;
       END $$;
     `);
@@ -30974,7 +30980,7 @@ async function runMigrations() {
     console.error('Migration warning:', err.message);
   }
 
-  // Drop staff_accounts FK on customer_notes so sales_reps can also add notes
+  // Drop staff_accounts FK on customer_notes so staff_accounts can also add notes
   try {
     await pool.query(`
       ALTER TABLE customer_notes DROP CONSTRAINT IF EXISTS customer_notes_staff_id_fkey;
@@ -30989,7 +30995,7 @@ async function runMigrations() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS rep_notifications (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        rep_id UUID NOT NULL REFERENCES sales_reps(id) ON DELETE CASCADE,
+        rep_id UUID NOT NULL REFERENCES staff_accounts(id) ON DELETE CASCADE,
         type VARCHAR(50) NOT NULL,
         title TEXT NOT NULL,
         message TEXT,
@@ -31023,7 +31029,7 @@ async function runMigrations() {
       CREATE TABLE IF NOT EXISTS rep_commissions (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-        rep_id UUID NOT NULL REFERENCES sales_reps(id),
+        rep_id UUID NOT NULL REFERENCES staff_accounts(id),
         order_total DECIMAL(10,2) NOT NULL,
         vendor_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
         margin DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -31051,7 +31057,7 @@ async function runMigrations() {
       CREATE TABLE IF NOT EXISTS showroom_visits (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         token VARCHAR(64) UNIQUE NOT NULL,
-        rep_id UUID NOT NULL REFERENCES sales_reps(id),
+        rep_id UUID NOT NULL REFERENCES staff_accounts(id),
         customer_name TEXT NOT NULL,
         customer_email TEXT,
         customer_phone TEXT,
@@ -31095,7 +31101,7 @@ async function runMigrations() {
       CREATE TABLE IF NOT EXISTS sample_requests (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         request_number VARCHAR(40) UNIQUE NOT NULL,
-        rep_id UUID NOT NULL REFERENCES sales_reps(id),
+        rep_id UUID NOT NULL REFERENCES staff_accounts(id),
         customer_name TEXT NOT NULL,
         customer_email TEXT,
         customer_phone TEXT,

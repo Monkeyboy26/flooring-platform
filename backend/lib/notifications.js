@@ -12,7 +12,7 @@ export async function createRepNotification(queryable, repId, type, title, messa
 
 export async function notifyAllActiveReps(queryable, type, title, message, entityType, entityId) {
   try {
-    const reps = await queryable.query('SELECT id FROM sales_reps WHERE is_active = true');
+    const reps = await queryable.query("SELECT id FROM staff_accounts WHERE is_active = true AND role = 'sales_rep'");
     for (const rep of reps.rows) {
       await createRepNotification(queryable, rep.id, type, title, message, entityType, entityId);
     }

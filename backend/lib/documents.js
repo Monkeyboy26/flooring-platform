@@ -464,7 +464,10 @@ export function generateReceiptDoc(o, payment) {
     detailRows.push(['Processor', 'Stripe']);
   }
   const detail = detailRows.map(([l, v]) => `<tr><td>${esc(l)}</td><td>${esc(v)}</td></tr>`).join('');
-  const cardLine = brand + (p.card_last4 ? ' ···· ' + p.card_last4 : '') + (isValor ? ' · tap / dip / swipe' : '');
+  const isAch = p.payment_method === 'ach';
+  const cardLine = isAch
+    ? 'Bank account · ACH transfer'
+    : brand + (p.card_last4 ? ' ···· ' + p.card_last4 : '') + (isValor ? ' · tap / dip / swipe' : '');
   const paidInFull = balanceDue <= 0.01;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt ${esc(orderNumber)}</title><style>
@@ -654,9 +657,9 @@ export async function generatePOHtml(pool, poId) {
     FROM purchase_orders po
     JOIN vendors v ON v.id = po.vendor_id
     LEFT JOIN staff_accounts sa ON sa.id = po.approved_by
-    LEFT JOIN sales_reps sr_a ON sr_a.id = po.approved_by
+    LEFT JOIN staff_accounts sr_a ON sr_a.id = po.approved_by
     LEFT JOIN orders o ON o.id = po.order_id
-    LEFT JOIN sales_reps sr_b ON sr_b.id = o.sales_rep_id
+    LEFT JOIN staff_accounts sr_b ON sr_b.id = o.sales_rep_id
     WHERE po.id = $1
   `, [poId]);
   if (!po.rows.length) return null;
@@ -1567,6 +1570,8 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
       ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Shipping${o.shipping_method ? ' · ' + (o.shipping_method === 'ltl_freight' ? 'LTL Freight' : 'Parcel') : ''}</span><span>${money(o.shipping)}</span></div>` : '',
     parseFloat(o.sample_shipping || 0) > 0
       ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Sample shipping</span><span>${money(o.sample_shipping)}</span></div>` : '',
+    parseFloat(o.transfer_fee || 0) > 0
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Transfer fee</span><span>${money(o.transfer_fee)}</span></div>` : '',
     parseFloat(o.tax_amount || 0) > 0
       ? `<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Sales tax</span><span>${money(o.tax_amount)}</span></div>` : '',
   ].filter(Boolean).join('');
