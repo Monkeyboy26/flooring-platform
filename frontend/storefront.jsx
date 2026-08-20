@@ -3903,9 +3903,9 @@
                   {/* Left — statement */}
                   <div>
                     <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--roma-accent, #9a7b4f)', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 9 }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--roma-accent, #9a7b4f)' }} />Trade application
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--roma-accent, #9a7b4f)' }} />Application received
                     </div>
-                    <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: 'clamp(2.6rem, 6.5vw, 4.5rem)', lineHeight: 0.98, letterSpacing: '-0.025em', margin: 0 }}>Application<br />received.</h2>
+                    <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: 'clamp(2.6rem, 6.5vw, 4.5rem)', lineHeight: 0.98, letterSpacing: '-0.025em', margin: 0 }}>Trade<br />application.</h2>
                     <div style={{ width: 56, height: 2, background: 'var(--roma-accent, #9a7b4f)', margin: '1.85rem 0' }} />
                     <p style={{ color: 'var(--stone-600)', fontSize: '1.0625rem', lineHeight: 1.68, margin: '0 0 2.1rem', maxWidth: 440 }}>
                       We'll email <strong style={{ color: 'var(--stone-800)' }}>{customer.email}</strong> once you're approved — usually within two business days. Trade pricing then turns on automatically for this same login. Nothing else to do.
@@ -14789,9 +14789,9 @@
             ) : step === 3 ? (
               <div style={{ padding: '0.25rem 0' }}>
                 <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--roma-accent, #9a7b4f)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--roma-accent, #9a7b4f)' }} />Trade application
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--roma-accent, #9a7b4f)' }} />Application received
                 </div>
-                <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '2.1rem', lineHeight: 1, letterSpacing: '-0.02em', margin: '0 0 1rem' }}>Application received.</h3>
+                <h3 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, fontSize: '2.1rem', lineHeight: 1, letterSpacing: '-0.02em', margin: '0 0 1rem' }}>Trade application.</h3>
                 <p style={{ color: 'var(--stone-600)', lineHeight: 1.65, margin: '0 0 1.6rem' }}>
                   We'll email you once you're approved — usually within two business days. Trade pricing then turns on automatically for this same login.
                 </p>
@@ -16727,8 +16727,8 @@
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'clamp(2.5rem, 6vw, 5.5rem)', alignItems: 'start' }}>
                 {/* Left — statement */}
                 <div>
-                  <TapMicro theme={theme} color={accent} style={{ marginBottom: 24, letterSpacing: '0.22em' }}>● Trade application</TapMicro>
-                  <h1 style={{ font: '300 clamp(2.6rem, 6.5vw, 4.6rem)/0.98 var(--roma-serif)', letterSpacing: '-0.025em', margin: 0, color: ink }}>Application<br />received.</h1>
+                  <TapMicro theme={theme} color={accent} style={{ marginBottom: 24, letterSpacing: '0.22em' }}>● Application received</TapMicro>
+                  <h1 style={{ font: '300 clamp(2.6rem, 6.5vw, 4.6rem)/0.98 var(--roma-serif)', letterSpacing: '-0.025em', margin: 0, color: ink }}>Trade<br />application.</h1>
                   <div style={{ width: 56, height: 2, background: accent, margin: '1.85rem 0' }} />
                   <p style={{ font: '400 17px/1.68 var(--roma-sans)', color: `${ink}b3`, margin: '0 0 2.1rem', maxWidth: 440 }}>
                     {isUpgrade
