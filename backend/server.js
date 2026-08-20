@@ -25585,6 +25585,44 @@ app.post('/api/rep/customers', repAuth, async (req, res) => {
   }
 });
 
+// PUT /api/rep/customers/:id — edit a retail customer's contact + address details.
+// Same validation + normalization + duplicate guard as create.
+app.put('/api/rep/customers/:id', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { first_name, last_name, middle_initial, email, phone, company_name, address_line1, address_line2, city, state, zip } = req.body || {};
+    if (!first_name || !first_name.trim()) return res.status(400).json({ error: 'First name is required' });
+    if (!last_name || !last_name.trim()) return res.status(400).json({ error: 'Last name is required' });
+    if (!email || !email.trim()) return res.status(400).json({ error: 'Email is required' });
+    const emailNorm = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailNorm)) return res.status(400).json({ error: 'Enter a valid email address' });
+    if (!phone || phone.replace(/\D/g, '').length < 10) return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
+
+    const existing = await pool.query('SELECT id FROM customers WHERE id = $1', [id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Customer not found' });
+
+    // Block collisions with a DIFFERENT account by email or phone (excludes self).
+    const match = await findExactDuplicate(pool, { email: emailNorm, phone, excludeId: id });
+    if (match) {
+      const byWhat = match.email === emailNorm ? 'email' : 'phone number';
+      return res.status(409).json({ error: `Another customer with that ${byWhat} already exists (${match.name || match.email}).`, match });
+    }
+
+    await pool.query(
+      `UPDATE customers SET first_name = $1, last_name = $2, middle_initial = $3, email = $4, phone = $5,
+        company_name = $6, address_line1 = $7, address_line2 = $8, city = $9, state = $10, zip = $11,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $12`,
+      [titleCaseName(first_name), titleCaseName(last_name), normMiddleInitial(middle_initial), emailNorm, formatPhone(phone) || null,
+       collapse(company_name), collapse(address_line1), collapse(address_line2), collapse(city), normState(state), (zip || '').trim() || null, id]);
+
+    res.json({ id, success: true });
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Another customer with that email already exists' });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/rep/customers/:id — detail view (mirrors admin endpoint)
 app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
   try {
