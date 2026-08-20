@@ -8118,7 +8118,7 @@
                 <div key={v.id} className="cv-row" style={{ gridTemplateColumns: ROW_COLS }} onClick={() => navigate('vendor-detail', v.id)}>
                   <div className="cl-avatar">{initials(v.name)}</div>
                   <div>
-                    <div className="cv-row-name">{v.name}</div>
+                    <div className="cv-row-name">{v.name}{v.public_code ? <span style={{ color: 'var(--brass-muted)', fontWeight: 400 }}>{' · '}{v.public_code}</span> : null}</div>
                     <div className="cv-row-sub">{v.code}</div>
                   </div>
                   <div className="cv-row-line">{v.primary_contact_name || v.email || v.phone || (v.website || '').replace(/^https?:\/\//, '') || 'No contact on file'}</div>
@@ -8283,7 +8283,7 @@
               <span className="cdv-crumb-sep" />
               <a onClick={() => navigate('vendors')}>Vendors</a>
               <span className="cdv-crumb-sep" />
-              <span className="cdv-crumb-cur">{v.name}</span>
+              <span className="cdv-crumb-cur">{v.name}{v.public_code ? ' · ' + v.public_code : ''}</span>
             </div>
             <span className="cdv-crumb-status" style={{ color: v.is_active ? '#3a7a4e' : 'var(--brass-muted)' }}>
               {'●'} {v.is_active ? 'Active supplier' : 'Inactive'}
@@ -8295,8 +8295,8 @@
             <div className="cdv-head-id">
               <div className="cdv-avatar">{initials(v.name)}</div>
               <div>
-                <div className="cdv-badge">{'●'} {v.code}{v.is_one_off ? ' · One-off' : ''}</div>
-                <h1 className="cdv-name">{nameHead ? <>{nameHead} <em>{nameTail}</em></> : <em>{nameTail}</em>}</h1>
+                <div className="cdv-badge">{'●'} {v.code}{v.public_code ? ' · ' + v.public_code : ''}{v.is_one_off ? ' · One-off' : ''}</div>
+                <h1 className="cdv-name">{nameHead ? <>{nameHead} <em>{nameTail}</em></> : <em>{nameTail}</em>}{v.public_code ? <span style={{ fontSize: '0.5em', color: 'var(--brass-muted)', fontWeight: 400, letterSpacing: 0, marginLeft: '0.4em', verticalAlign: 'middle' }}>{v.public_code}</span> : null}</h1>
                 <div className="cdv-contact">
                   {primaryContact && <>{primaryContact.name} {'·'} </>}
                   {v.email && <a href={'mailto:' + v.email}>{v.email}</a>}
@@ -8789,7 +8789,12 @@
               <span className="cdv-crumb-cur">New customer</span>
             </div>
           </div>
-          <h1 className="cdv-name" style={{ marginBottom: 24 }}>New <em>customer</em></h1>
+          <h1 className="cdv-name" style={{ marginBottom: 16 }}>New <em>customer</em></h1>
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 14px', marginBottom: 24, background: 'rgba(184,134,74,0.08)', border: '0.5px solid rgba(184,134,74,0.45)', font: '400 13px/1.5 Inter, sans-serif', color: 'var(--stone-800)' }}>
+            <span style={{ color: 'var(--brass-muted)', fontSize: 15, lineHeight: '19px' }}>★</span>
+            <span>Added to <strong>your book</strong> as a dedicated customer. Their orders, invoices, and commission are yours — and it stays that way unless a manager reassigns them.</span>
+          </div>
 
           {error && (
             <div style={{ padding: '10px 14px', marginBottom: 16, background: 'rgba(197,71,49,0.08)', border: '0.5px solid rgba(197,71,49,0.4)', color: '#c54731', font: '400 13px/1.4 Inter, sans-serif' }}>{error}</div>
@@ -8822,7 +8827,7 @@
             <button className="cdv-btn" onClick={() => navigate('customers')} disabled={saving}>Cancel</button>
           </div>
           <div style={{ marginTop: 16, font: '400 12px/1.5 Inter, sans-serif', color: 'var(--brass-muted)' }}>
-            Creates a retail account assigned to you. For trade accounts, use the trade application flow.
+            Creates a retail account. For trade accounts, use the trade application flow.
           </div>
         </div>
       );
@@ -10912,7 +10917,7 @@
                       <h4 style={sectionTitle}>Sourcing &amp; availability</h4>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         {[
-                          ['Vendor', product.brand_name || product.vendor_name || '\u2014'],
+                          ['Vendor', (product.brand_name || product.vendor_name || '\u2014') + (product.vendor_public_code ? ' \u00b7 ' + product.vendor_public_code : '')],
                           ['Collection', product.collection || '\u2014'],
                           ['On hand', (() => {
                             const noData = !product.vendor_has_inventory && (activeSku.stock_status === 'unknown' || activeSku.stock_status === 'out_of_stock' || !activeSku.stock_status);
@@ -11685,7 +11690,7 @@
       // Build active filter chips
       const chips = [];
       if (category) { const cat = (categories || []).flatMap(c => [c, ...(c.children || [])]).find(c => c.slug === category); chips.push({ key: 'cat', label: cat ? cat.name : category, clear: () => { setCategory(''); setPage(1); } }); }
-      if (vendor) { const v = vendors.find(x => String(x.id) === String(vendor)); chips.push({ key: 'vendor', label: v ? v.name : 'Vendor', clear: () => { setVendor(''); setPage(1); } }); }
+      if (vendor) { const v = vendors.find(x => String(x.id) === String(vendor)); chips.push({ key: 'vendor', label: v ? (v.name + (v.public_code ? ' · ' + v.public_code : '')) : 'Vendor', clear: () => { setVendor(''); setPage(1); } }); }
       if (collection) { const col = collections.find(c => c.slug === collection); chips.push({ key: 'coll', label: col ? col.name : collection, clear: () => { setCollection(''); setPage(1); } }); }
       if (stockStatus) { const labels = { in_stock: 'In Stock', low_stock: 'Low Stock', out_of_stock: 'Out of Stock' }; chips.push({ key: 'stock', label: labels[stockStatus] || stockStatus, clear: () => { setStockStatus(''); setPage(1); } }); }
       if (minPrice) chips.push({ key: 'minP', label: 'Min $' + minPrice, clear: () => { setMinPrice(''); setPage(1); } });
@@ -11861,7 +11866,7 @@
               {/* Vendor */}
               <RailSection id="vendor" title="Vendor" count={vendor ? 1 : 0}>
                 <div style={{ display: 'grid', gap: 7, maxHeight: 240, overflowY: 'auto' }}>
-                  {vendors.map(v => <CheckRow key={v.id} label={v.name} on={String(vendor) === String(v.id)} onToggle={() => { setVendor(String(vendor) === String(v.id) ? '' : String(v.id)); setPage(1); }} />)}
+                  {vendors.map(v => <CheckRow key={v.id} label={v.name + (v.public_code ? ' · ' + v.public_code : '')} on={String(vendor) === String(v.id)} onToggle={() => { setVendor(String(vendor) === String(v.id) ? '' : String(v.id)); setPage(1); }} />)}
                   {vendors.length === 0 && <span style={{ font: '400 11px/1.4 var(--roma-sans)', color: TH.muted }}>Loading...</span>}
                 </div>
               </RailSection>
@@ -11981,7 +11986,7 @@
                         {/* Body */}
                         <div style={{ padding: '12px 14px 8px', display: 'grid', gap: 4, flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, ...mono(TH.muted), fontSize: 9, minWidth: 0 }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{p.category_name || ''} {'\u00B7'} {p.brand_name || p.vendor_name || ''}</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{p.category_name || ''} {'\u00B7'} {p.brand_name || p.vendor_name || ''}{p.vendor_public_code ? ' \u00B7 ' + p.vendor_public_code : ''}</span>
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0, maxWidth: '55%' }}>{p.vendor_sku || p.internal_sku || ''}</span>
                           </div>
                           <div style={{ font: '400 16px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em', minWidth: 0, overflowWrap: 'anywhere' }}>{p.name}{variantText ? ' \u00B7 ' + variantText : ''}</div>
@@ -12056,7 +12061,7 @@
                         </div>
                         <div style={{ padding: '11px 13px', display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                            <span style={mono(TH.muted)}>{p.brand_name || p.vendor_name}</span>
+                            <span style={mono(TH.muted)}>{p.brand_name || p.vendor_name}{p.vendor_public_code ? ' \u00B7 ' + p.vendor_public_code : ''}</span>
                             <span style={{ ...mono(sk.c), color: sk.c, flexShrink: 0 }}>{'\u25CF'} {sk.l}{sk.q ? ' \u00B7 ' + sk.q : ''}</span>
                           </div>
                           <div style={{ font: '400 16px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.name}{variantText ? ' \u00B7 ' + variantText : ''}</div>
@@ -12126,7 +12131,7 @@
                               {p.variant_type === 'accessory' ? ' · Accessory' : p.accessory_count > 0 ? ' · ' + p.accessory_count + ' accessor' + (p.accessory_count !== 1 ? 'ies' : 'y') : ''}
                             </div>
                           </div>
-                          <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + 'cc' }}>{p.brand_name || p.vendor_name}</div>
+                          <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + 'cc' }}>{p.brand_name || p.vendor_name}{p.vendor_public_code ? ' \u00b7 ' + p.vendor_public_code : ''}</div>
                           <div style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + 'cc' }}>{p.collection || '\u2014'}</div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
                             <span style={{ ...mono(sk.c), color: sk.c, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{'\u25CF'} {sk.l}</span>
@@ -12285,7 +12290,7 @@
             </div>
             <div>
               <div className="pd-meta-tag">
-                {'\u25CF'} {product.category_name || 'Product'} {'\u00b7'} {product.vendor_name}
+                {'\u25CF'} {product.category_name || 'Product'} {'\u00b7'} {product.vendor_name}{product.vendor_public_code ? ' \u00b7 ' + product.vendor_public_code : ''}
               </div>
               <h1 className="pd-title">
                 {product.collection ? <>{product.collection} <em>{product.name.replace(product.collection, '').trim() || ''}</em></> : product.name}
@@ -12396,7 +12401,7 @@
                 </div>
                 <div>
                   <div className="pd-spec-label">Vendor</div>
-                  <div className="pd-spec-value">{product.vendor_name}</div>
+                  <div className="pd-spec-value">{product.vendor_name}{product.vendor_public_code ? ' · ' + product.vendor_public_code : ''}</div>
                 </div>
                 <div>
                   <div className="pd-spec-label">Category</div>
@@ -14354,7 +14359,7 @@
                         background: on ? TH.ink : 'transparent', color: on ? TH.paper : TH.ink,
                         border: on ? '0.5px solid ' + TH.ink : '0.5px solid rgba(28,25,23,0.16)',
                         font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.02em',
-                      }}>{v.name}</button>
+                      }}>{v.name}{v.public_code ? ' · ' + v.public_code : ''}</button>
                     );
                   })}
                 </div>
@@ -14635,7 +14640,7 @@
               else { setOneOff(false); onChange(val, '', ''); }
             }}>
             <option value="">Select vendor…</option>
-            {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            {vendors.map(v => <option key={v.id} value={v.id}>{v.name}{v.public_code ? ' · ' + v.public_code : ''}</option>)}
             <option value="__oneoff">{'✎'} One-off vendor (not in system)…</option>
           </select>
           {oneOff && !vendorId && (
@@ -14843,7 +14848,7 @@
                 <div style={{ width: 30, height: 30, border: '0.5px dashed rgba(28,25,23,0.27)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 13px/1 var(--roma-serif)', color: TH.muted }}>{'✎'}</div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ font: '400 12.5px/1.2 var(--roma-sans)', color: TH.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.product_name}</div>
-                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>{c.vendor_name ? c.vendor_name + ' · ' : ''}{c.num_boxes} {c.sell_by === 'roll' ? 'sqft' : c.sell_by} {'×'} {fmtMoney(c.unit_price)}</div>
+                  <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>{c.vendor_name ? c.vendor_name + (c.vendor_public_code ? ' · ' + c.vendor_public_code : '') + ' · ' : ''}{c.num_boxes} {c.sell_by === 'roll' ? 'sqft' : c.sell_by} {'×'} {fmtMoney(c.unit_price)}</div>
                 </div>
                 <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(c.subtotal)}</span>
                 <button onClick={() => onRemoveCustom(c._cid)} style={xBtn}>{'×'}</button>
@@ -15051,6 +15056,7 @@
           color: '',
           variant_name: '',
           vendor_name: matchedVendor ? matchedVendor.name : oneOffName,
+          vendor_public_code: matchedVendor ? (matchedVendor.public_code || null) : null,
           vendor_sku: '',
           vendor_id: customItem.vendor_id || null,
           custom_vendor: oneOffName || null,
@@ -15403,7 +15409,7 @@
                 </div>
                 <div className="rof-item-info">
                   {item.is_custom
-                    ? ((item.vendor_name || item.custom_vendor) && <div className="rof-item-meta">{item.vendor_name || item.custom_vendor}</div>)
+                    ? ((item.vendor_name || item.custom_vendor) && <div className="rof-item-meta">{item.vendor_name || item.custom_vendor}{item.vendor_public_code ? ' · ' + item.vendor_public_code : ''}</div>)
                     : (formatLineItem(item).brand && <div className="rof-item-meta">{formatLineItem(item).brand}</div>)}
                   <div className="rof-item-name">{formatLineItem(item).name}</div>
                   {item.is_custom
@@ -16332,7 +16338,7 @@
       const vendorGroups = {};
       items.forEach(item => {
         const vKey = item.vendor_id || '_unknown';
-        if (!vendorGroups[vKey]) vendorGroups[vKey] = { vendor_name: item.vendor_name || 'Unknown Vendor', items: [] };
+        if (!vendorGroups[vKey]) vendorGroups[vKey] = { vendor_name: item.vendor_name || 'Unknown Vendor', vendor_public_code: item.vendor_public_code || null, items: [] };
         vendorGroups[vKey].items.push(item);
       });
 
@@ -16576,7 +16582,7 @@
                             <span style={{ padding: '2px 6px', background: INK, color: PAPER, letterSpacing: '0.12em' }}>EDI 850</span>
                           )}
                         </div>
-                        <div style={{ font: '400 18px/1.2 var(--roma-serif)', color: INK, letterSpacing: '-0.012em' }}>{group.vendor_name}</div>
+                        <div style={{ font: '400 18px/1.2 var(--roma-serif)', color: INK, letterSpacing: '-0.012em' }}>{group.vendor_name}{group.vendor_public_code ? <span style={{ color: MUTED, fontSize: 14 }}>{' · '}{group.vendor_public_code}</span> : null}</div>
                         <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase', marginTop: 2 }}>
                           {group.items.length} line{group.items.length !== 1 ? 's' : ''} {'\u00b7'} drafted at vendor cost
                         </div>
@@ -18138,7 +18144,7 @@
       items.forEach(item => {
         const vid = item.vendor_id || 'unknown';
         if (!vendorMap[vid]) {
-          vendorMap[vid] = { vendor_id: item.vendor_id, vendor_name: item.vendor_name || 'Unknown Vendor', vendor_email: item.vendor_email || null, items: [] };
+          vendorMap[vid] = { vendor_id: item.vendor_id, vendor_name: item.vendor_name || 'Unknown Vendor', vendor_public_code: item.vendor_public_code || null, vendor_email: item.vendor_email || null, items: [] };
         }
         vendorMap[vid].items.push(item);
       });
@@ -18278,7 +18284,7 @@
                                 }
                                 <div className="sku-info">
                                   <div className="sku-name">{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
-                                  <div className="product-meta">{r.vendor_name}{r.collection ? ' · ' + r.collection : ''}</div>
+                                  <div className="product-meta">{r.vendor_name}{r.vendor_public_code ? ' · ' + r.vendor_public_code : ''}{r.collection ? ' · ' + r.collection : ''}</div>
                                 </div>
                                 <button className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', flexShrink: 0 }} disabled={addingItem}>
                                   {addingItem ? '…' : 'Add'}
@@ -18316,7 +18322,7 @@
                   <div key={vid} className="rod-card">
                     <div className="rod-card-header">
                       <span className="rod-card-title">
-                        {group.vendor_name} · {group.items.length} sample{group.items.length !== 1 ? 's' : ''}
+                        {group.vendor_name}{group.vendor_public_code ? ' · ' + group.vendor_public_code : ''} · {group.items.length} sample{group.items.length !== 1 ? 's' : ''}
                       </span>
                       <div className="rod-card-actions" style={{ alignItems: 'center' }}>
                         {sendResult && sendResult.sent && <span style={sdBadge('rgba(58,122,78,0.12)', 'var(--rod-green)')}>✓ Sent</span>}
@@ -21067,7 +21073,7 @@
             }))
           : [{ key: 'inv', label: 'Invoice', sub: 'Customer-facing PDF', path: '/api/rep/orders/' + editId + '/invoice?preview=true' }]),
         ...purchaseOrders.map(po => ({
-          key: 'po-' + po.id, label: po.po_number, sub: po.vendor_name,
+          key: 'po-' + po.id, label: po.po_number, sub: po.vendor_name + (po.vendor_public_code ? ' · ' + po.vendor_public_code : ''),
           path: '/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'
         })),
         ...releases.filter(rel => rel.status !== 'void').map(rel => ({
@@ -21898,7 +21904,7 @@
                             )}
                             <div>
                               <div className="rod-li-cell-label">Vendor</div>
-                              <div className="rod-li-cell-value">{isLabor ? 'Roma' : (item.vendor_name || (isCustom ? 'Custom' : 'Roma'))}</div>
+                              <div className="rod-li-cell-value">{isLabor ? 'Roma' : (item.vendor_name || (isCustom ? 'Custom' : 'Roma'))}{!isLabor && item.vendor_public_code ? ' · ' + item.vendor_public_code : ''}</div>
                             </div>
                             <div>
                               <div className="rod-li-cell-label">PO</div>
@@ -21980,7 +21986,7 @@
                             <div style={{ font: '400 14px/1.2 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
                               <a style={{ cursor: 'pointer', textDecoration: 'underline rgba(28,25,23,0.2)', color: 'var(--rod-ink)' }}
                                 onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number, type: 'po', po: po }); } catch(e) { alert('Failed to load PO'); } }}>{po.po_number}</a>
-                              {' · ' + po.vendor_name}
+                              {' · ' + po.vendor_name + (po.vendor_public_code ? ' · ' + po.vendor_public_code : '')}
                             </div>
                             <RovMicro style={{ marginTop: 3 }}>
                               {poChannel(po)}
@@ -22793,7 +22799,7 @@
                     <div className="rov-doc-row2" key={po.id}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>{po.po_number}</div>
-                        <RovMicro style={{ marginTop: 2 }}>{po.vendor_name} · ${parseFloat(po.subtotal || 0).toFixed(2)}</RovMicro>
+                        <RovMicro style={{ marginTop: 2 }}>{po.vendor_name}{po.vendor_public_code ? ' · ' + po.vendor_public_code : ''} · ${parseFloat(po.subtotal || 0).toFixed(2)}</RovMicro>
                       </div>
                       <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number, type: 'po', po: po }); } catch(e) { alert('Failed to load PO'); } }}>PDF ↓</button>
                     </div>
@@ -24133,7 +24139,7 @@
                               <option value="">Select distributor…</option>
                               {distributors.map(d => (
                                 <option key={d.vendor_id} value={d.vendor_id}>
-                                  {d.vendor_name} · {d.po_number}{d.po_sent ? '' : ' (PO not sent)'}
+                                  {d.vendor_name}{d.vendor_public_code ? ' · ' + d.vendor_public_code : ''} · {d.po_number}{d.po_sent ? '' : ' (PO not sent)'}
                                 </option>
                               ))}
                             </select>
@@ -24145,7 +24151,7 @@
                           )}
                           {selectedDist && selectedDist.po_sent && (
                             <div style={{ font: '400 0.7rem/1.4 Inter, sans-serif', color: 'var(--rod-muted)', marginTop: 4 }}>
-                              Releases against PO {selectedDist.po_number}. Customer picks up at {selectedDist.vendor_name}.
+                              Releases against PO {selectedDist.po_number}. Customer picks up at {selectedDist.vendor_name}{selectedDist.vendor_public_code ? ' · ' + selectedDist.vendor_public_code : ''}.
                             </div>
                           )}
                         </div>
@@ -24526,7 +24532,7 @@
                             <div>
                               <div style={{ font: "400 14px/1.3 'Cormorant Garamond', serif", color: 'var(--rod-ink)', textDecoration: rd ? 'line-through' : 'none' }}>{itemName(it)}</div>
                               <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-muted)', textTransform: 'uppercase', marginTop: 3 }}>
-                                {it.vendor_name || (!it.product_id ? 'Custom' : 'Roma')} · {itemQty(it)} {it.sell_by === 'unit' ? 'unit' : it.sell_by === 'piece' ? 'pc' : 'box'} · ${parseFloat(it.unit_price).toFixed(2)} ea · ${parseFloat(it.subtotal || 0).toFixed(2)}
+                                {it.vendor_name || (!it.product_id ? 'Custom' : 'Roma')}{it.vendor_public_code ? ' · ' + it.vendor_public_code : ''} · {itemQty(it)} {it.sell_by === 'unit' ? 'unit' : it.sell_by === 'piece' ? 'pc' : 'box'} · ${parseFloat(it.unit_price).toFixed(2)} ea · ${parseFloat(it.subtotal || 0).toFixed(2)}
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -25313,6 +25319,7 @@
           custom_vendor: oneOffName || null,
           custom_vendor_email: oneOffName ? (customItem.custom_vendor_email || '').trim() : null,
           vendor_name: matchedVendor ? matchedVendor.name : (oneOffName || null),
+          vendor_public_code: matchedVendor ? (matchedVendor.public_code || null) : null,
           _is_custom: true
         };
 
@@ -28405,7 +28412,7 @@
                         {r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
                       </div>
                       <div className="rof-search-item-sub">
-                        {r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
+                        {r.vendor_name}{r.vendor_public_code ? ' · ' + r.vendor_public_code : ''}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
                         {rRetail > 0 && ' · '}
                         {rRetail > 0 && rDisc && <span style={{ textDecoration: 'line-through', color: '#8a7e68' }}>${rRetail.toFixed(2)}</span>}
                         {rRetail > 0 && <span style={{ color: rDisc ? '#a87935' : undefined }}>{rDisc ? ' ' : ''}${rTrade.toFixed(2)}{rSuffix}</span>}
@@ -30435,7 +30442,7 @@
                   onClick={() => openPO(po)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPO(po); } }}>
                   <span className="pl-po-id">{po.po_number}</span>
-                  <span className="pl-vendor-name">{po.vendor_name}</span>
+                  <span className="pl-vendor-name">{po.vendor_name}{po.vendor_public_code ? <span style={{ color: 'var(--brass-muted)', fontWeight: 400 }}>{' · '}{po.vendor_public_code}</span> : null}</span>
                   {tab === 'order' && <span className="pl-order-ref">{po.order_number}</span>}
                   <span className="pl-items">{po.item_count} item{po.item_count !== 1 ? 's' : ''}</span>
                   <span className="pl-total">${parseFloat(po.subtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
@@ -30474,7 +30481,7 @@
                     <select value={newVendorId} onChange={e => setNewVendorId(e.target.value)}
                       style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--stone-300)', borderRadius: '6px' }}>
                       <option value="">Select vendor...</option>
-                      {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                      {vendors.map(v => <option key={v.id} value={v.id}>{v.name}{v.public_code ? ' · ' + v.public_code : ''}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
@@ -30795,7 +30802,7 @@
                 Purchase order <em style={{ color: ACCENT, fontStyle: 'italic' }}>{po.po_number}</em>
               </h1>
               <div style={{ font: '400 14px/1.5 Inter, sans-serif', color: INK + 'b3', marginTop: 8 }}>
-                {po.vendor_name}
+                {po.vendor_name}{po.vendor_public_code ? ' · ' + po.vendor_public_code : ''}
                 {(po.recipient_email || po.vendor_email) ? <React.Fragment> · <em>{po.recipient_email || po.vendor_email}</em></React.Fragment> : null}
                 {' · '}{po.edi_config ? 'via EDI' : 'via email'}
                 {po.order_number ? ' · for order ' + po.order_number : ''}
@@ -30914,7 +30921,7 @@
                                 }
                                 <div className="sku-info">
                                   <div className="sku-name">{r.product_name}{r.color ? ' — ' + r.color : ''}{r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}</div>
-                                  <div className="product-meta">{r.vendor_name}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}{r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + skuPriceSuffix(r) : ''}</div>
+                                  <div className="product-meta">{r.vendor_name}{r.vendor_public_code ? ' · ' + r.vendor_public_code : ''}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}{r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + skuPriceSuffix(r) : ''}</div>
                                 </div>
                               </div>
                             ))}
@@ -31100,7 +31107,7 @@
                       {(po.vendor_name || '??').substring(0, 3).toUpperCase()}
                     </div>
                     <div>
-                      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, lineHeight: 1.1, color: INK, letterSpacing: '-0.012em' }}>{po.vendor_name}</div>
+                      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 18, lineHeight: 1.1, color: INK, letterSpacing: '-0.012em' }}>{po.vendor_name}{po.vendor_public_code ? <span style={{ color: MUTED, fontSize: 14 }}>{' · '}{po.vendor_public_code}</span> : null}</div>
                       <div style={{ ...monoLabel, fontSize: 9, marginTop: 4 }}>
                         {po.vendor_code || '—'}{po.edi_config ? ' · EDI enabled' : ' · Email PO'}
                       </div>
