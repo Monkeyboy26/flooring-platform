@@ -9770,7 +9770,7 @@
 
       const SessionsBlock = (
         <div className="form-card">
-          <div className="rb-head"><h3>Sessions &amp; devices · {sessions.length}</h3>{sessions.length > 0 && !blocked && <button className="rb-action" style={{ marginLeft: 'auto' }} onClick={() => act('/api/admin/staff/' + s.id + '/force-logout', 'Signed out everywhere')}>Sign out everywhere</button>}</div>
+          <div className="rb-head"><h3>Sessions &amp; devices · {sessions.length}</h3>{sessions.length > 0 && !blocked && !isSelf && <button className="rb-action" style={{ marginLeft: 'auto' }} onClick={() => act('/api/admin/staff/' + s.id + '/force-logout', 'Signed out everywhere')}>Sign out everywhere</button>}</div>
           {sessions.length === 0 ? (
             <div style={{ font: '400 12px/1.6 var(--mono)', color: 'var(--faint)' }}>no active sessions — access revoked</div>
           ) : (
@@ -9779,7 +9779,7 @@
                 <div key={ss.id} style={{ background: 'var(--bg)', padding: '11px 0', display: 'grid', gridTemplateColumns: 'minmax(120px,1fr) minmax(90px,150px) 70px', gap: 12, alignItems: 'baseline' }}>
                   <span style={{ font: '400 13px/1.3 var(--sans)', color: ss.active ? 'var(--ink)' : 'var(--faint)' }}>{ss.device_id || 'device'}{ss.is_trusted ? ' · trusted' : ''}</span>
                   <span style={{ font: '400 11px/1.3 var(--mono)', color: 'var(--dim)' }}>{staffRelTime(ss.created_at)}</span>
-                  {!blocked ? <button className="rb-action" style={{ textAlign: 'right', color: 'var(--faint)' }} onClick={() => revokeSession(ss.id)}>REVOKE</button> : <span />}
+                  {!blocked && !isSelf ? <button className="rb-action" style={{ textAlign: 'right', color: 'var(--faint)' }} onClick={() => revokeSession(ss.id)}>REVOKE</button> : <span />}
                 </div>
               ))}
             </div>
@@ -9812,13 +9812,14 @@
               <div style={{ display: 'flex', gap: 8, alignSelf: 'center', flexShrink: 0, position: 'relative' }}>
                 {s.is_active ? (
                   <React.Fragment>
-                    {!blocked && <button className="recd-exc-primary" onClick={startEdit}>Edit role + access</button>}
+                    {isSelf && <span style={{ alignSelf: 'center', marginRight: 2, font: '400 10px/1 var(--mono)', letterSpacing: '0.1em', color: 'var(--faint)' }}>YOUR ACCOUNT</span>}
+                    {!blocked && !isSelf && <button className="recd-exc-primary" onClick={startEdit}>Edit role + access</button>}
                     {!blocked && <button className="opsq-alt" onClick={() => act('/api/admin/staff/' + s.id + '/send-reset', 'Reset link emailed')}>Reset password</button>}
                     {!blocked && <button className="opsq-alt" onClick={() => setMenu(m => !m)}>⋯</button>}
                     {menu && !blocked && (
                       <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--panel2)', border: '1px solid var(--line2)', zIndex: 20, minWidth: 200 }}>
                         <button style={menuItem} onClick={() => { setMenu(false); setPwOpen(true); setTab('security'); }}>Set password…</button>
-                        {s.trusted_devices > 0 && <button style={menuItem} onClick={() => act('/api/admin/staff/' + s.id + '/revoke-trusted', 'Trusted devices revoked')}>Revoke trusted devices</button>}
+                        {s.trusted_devices > 0 && !isSelf && <button style={menuItem} onClick={() => act('/api/admin/staff/' + s.id + '/revoke-trusted', 'Trusted devices revoked')}>Revoke trusted devices</button>}
                         {!isSelf && ['sales_rep', 'manager'].includes(s.role) && <button style={{ ...menuItem, color: 'var(--hot)', borderBottom: 'none' }} onClick={() => { setMenu(false); setDanger('terminate'); setReason(''); }}>Terminate &amp; reassign</button>}
                       </div>
                     )}
@@ -9884,7 +9885,7 @@
                       <div className="rb-fact"><span className="rb-fact-k">Last login</span><span className="rb-fact-v">{staffRelTime(s.last_login)}</span></div>
                       <div className="rb-fact"><span className="rb-fact-k">Invite pending</span><span className="rb-fact-v">{s.invite_pending ? 'Yes' : 'No'}</span></div>
                     </div>
-                    {s.trusted_devices > 0 && !blocked && <button className="recd-exc-primary" style={{ marginTop: 12 }} onClick={() => act('/api/admin/staff/' + s.id + '/revoke-trusted', '2FA required at next sign-in')}>Require 2FA at next sign-in</button>}
+                    {s.trusted_devices > 0 && !blocked && !isSelf && <button className="recd-exc-primary" style={{ marginTop: 12 }} onClick={() => act('/api/admin/staff/' + s.id + '/revoke-trusted', '2FA required at next sign-in')}>Require 2FA at next sign-in</button>}
                     {pwOpen && !blocked && <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                       <input type="password" style={{ ...sdInp, marginBottom: 0, maxWidth: 220 }} placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
                       <button className="recd-exc-primary" onClick={setPasswordDirect}>Set password</button>

@@ -11858,6 +11858,12 @@ app.put('/api/admin/staff/:id', staffAuth, requireRole('admin', 'manager'), asyn
     const currentRole = target.rows[0].role;
     const roleChanged = role && role !== currentRole;
 
+    // You can't change your own role — prevents accidentally revoking your own
+    // admin access and locking yourself out. (Deactivate/terminate self-guard too.)
+    if (roleChanged && id === req.staff.id) {
+      return res.status(400).json({ error: 'You can’t change your own role' });
+    }
+
     // Managers cannot edit admin accounts or promote to admin
     if (req.staff.role === 'manager') {
       if (currentRole === 'admin') {
