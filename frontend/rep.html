@@ -7767,13 +7767,17 @@
 
       // Derived, honest verification checklist from real data.
       const hasResale = docs.some(d => /resale|resell|seller/i.test((d.doc_type || '') + ' ' + (d.file_name || '')));
+      // Trailing-12-mo spend that will roll into the tier on approval — for an
+      // upgraded applicant this includes their existing retail order history
+      // (prior_spend), so a pending row shows real spend instead of $0.
+      const effSpend = a ? (parseFloat(a.prior_spend != null ? a.prior_spend : a.total_spend) || 0) : 0;
       const checks = a ? [
         ['EIN / Tax ID', a.ein ? 'pass' : 'none', a.ein || 'Not provided'],
         ['Contractor license', a.contractor_license ? 'pass' : 'none', a.contractor_license || 'Not provided'],
         ['Resale certificate', hasResale ? 'pass' : (docs.length ? 'wait' : 'none'), hasResale ? 'Document uploaded' : (docs.length ? 'Not clearly labeled' : 'No document')],
         ['Business documents', docs.length ? 'pass' : 'none', docs.length ? docs.length + ' uploaded' : 'None uploaded'],
         ['Business address', (a.address_line1 || a.city) ? 'pass' : 'none', [a.city, a.state].filter(Boolean).join(', ') || 'Not provided'],
-        ['Prior spend with Roma', parseFloat(a.total_spend) > 0 ? 'pass' : 'none', parseFloat(a.total_spend) > 0 ? taMoney(a.total_spend) + ' trailing 12 mo' : 'No order history'],
+        ['Prior spend with Roma', effSpend > 0 ? 'pass' : 'none', effSpend > 0 ? taMoney(effSpend) + ' trailing 12 mo' + (a.from_retail_upgrade ? ' (rolls over)' : '') : 'No order history'],
       ] : [];
       const passCount = checks.filter(c => c[1] === 'pass').length;
       const submitted = a ? [
@@ -7785,7 +7789,7 @@
         ['State', a.state || '—'],
         ['Applied', taDate(a.created_at)],
         ['Account', a.from_retail_upgrade ? 'Upgraded from retail' + (a.retail_customer_since ? ' · customer since ' + taDate(a.retail_customer_since) : '') : 'New applicant'],
-        ['Trailing spend', taMoney(a.total_spend)],
+        ['Trailing spend', taMoney(effSpend) + (a.from_retail_upgrade && effSpend > 0 ? ' · rolls into tier' : '')],
       ] : [];
 
       const strip = { display: 'flex', alignItems: 'center', gap: 16, padding: '0 26px', height: 46, background: TA.card, borderBottom: `0.5px solid ${tInk(0.14)}`, flexShrink: 0 };
@@ -7860,7 +7864,7 @@
                       <span style={{ display: 'block', marginTop: 3, font: `400 12px/1.4 ${TA.sans}`, color: tInk(0.55), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.contact_name || '—'}{loc ? ' · ' + loc : ''}</span>
                     </span>
                     <span className="ta-hide" style={{ font: `500 9px/1.5 ${TA.mono}`, letterSpacing: '0.1em', textTransform: 'uppercase', color: tInk(0.55), overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(a.business_type || 'Trade').replace(/_/g, ' ')}</span>
-                    <span className="ta-hide" style={{ textAlign: 'right', font: `400 15px/1.3 ${TA.serif}`, color: parseFloat(a.total_spend) > 0 ? TA.ink : tInk(0.4) }}>{parseFloat(a.total_spend) > 0 ? taMoney(a.total_spend) : 'New'}</span>
+                    <span className="ta-hide" style={{ textAlign: 'right', font: `400 15px/1.3 ${TA.serif}`, color: (parseFloat(a.prior_spend != null ? a.prior_spend : a.total_spend) || 0) > 0 ? TA.ink : tInk(0.4) }}>{(parseFloat(a.prior_spend != null ? a.prior_spend : a.total_spend) || 0) > 0 ? taMoney(parseFloat(a.prior_spend != null ? a.prior_spend : a.total_spend)) : 'New'}</span>
                     <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 11 }}>
                       <span style={{ font: `500 9px/1.3 ${TA.mono}`, letterSpacing: '0.08em', textTransform: 'uppercase', color: tInk(0.4), whiteSpace: 'nowrap' }}>{taAge(a.created_at)}</span>
                       <span style={{ color: tInk(0.35), font: `400 17px/1 ${TA.sans}` }}>{'›'}</span>
@@ -7877,7 +7881,7 @@
     function TaReview(props) {
       const { a, rec, tiers, chosen, chosenTier, recTierId, setTierChoice, checks, passCount, submitted, docs, docsLoading, note, setNote, taxExempt, setTaxExempt, hasResale, busy, decide } = props;
       const isDecline = chosen === 'none';
-      const stats = [['Applied', taDate(a.created_at)], ['Trailing spend', taMoney(a.total_spend)], ['Documents', String(docs.length)]];
+      const stats = [['Applied', taDate(a.created_at)], ['Trailing spend', taMoney(parseFloat(a.prior_spend != null ? a.prior_spend : a.total_spend) || 0)], ['Documents', String(docs.length)]];
       const readText = rec.key === 'info'
         ? 'No EIN or contractor license is on file yet. Request the missing documents before granting trade pricing — the account approves cleanly once identity is verified.'
         : `Identity is on file and ${passCount} of ${checks.length} checks are satisfied. New trade accounts start at ${(tiers[0] || {}).name || 'the base tier'} (${taPct((tiers[0] || {}).discount_percent || 0)} off); the tier rises automatically with trailing 12-month spend.`;

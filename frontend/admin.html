@@ -9300,7 +9300,10 @@
                           )}
                           {c.total_spend !== undefined && (
                             <div style={{ marginTop: '1rem', fontSize: '0.8125rem' }}>
-                              <strong>Spend (last 12 mo):</strong> ${parseFloat(c.total_spend || 0).toLocaleString()}
+                              <strong>Spend (last 12 mo):</strong> ${parseFloat((c.prior_spend != null ? c.prior_spend : c.total_spend) || 0).toLocaleString()}
+                              {c.from_retail_upgrade && c.status === 'pending' && parseFloat(c.prior_spend || 0) > 0 && (
+                                <span style={{ color: 'var(--stone-500)' }}> · rolls into starting tier on approval</span>
+                              )}
                             </div>
                           )}
                           {c.from_retail_upgrade && (

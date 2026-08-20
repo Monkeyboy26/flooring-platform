@@ -12563,11 +12563,18 @@ app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin
 
     await client.query('BEGIN');
 
-    // If no tier specified, start at Silver (lowest tier)
+    // Roll over any purchase history (incl. a linked retail account): start the
+    // member at the tier their trailing-365-day spend earns, falling back to
+    // Silver. An explicit tier chosen by the reviewer always wins.
+    const rolledSpend = await tradeRollingSpend(id, client);
     let tierId = margin_tier_id;
     if (!tierId) {
-      const silver = await client.query("SELECT id FROM margin_tiers WHERE tier_level = 0 ORDER BY tier_level LIMIT 1");
-      if (silver.rows.length) tierId = silver.rows[0].id;
+      const earned = await qualifyingTier(rolledSpend, client);
+      tierId = earned ? earned.id : null;
+      if (!tierId) {
+        const silver = await client.query("SELECT id FROM margin_tiers WHERE tier_level = 0 ORDER BY tier_level LIMIT 1");
+        if (silver.rows.length) tierId = silver.rows[0].id;
+      }
     }
 
     const staffId = req.staff ? req.staff.id : null;
@@ -12581,10 +12588,11 @@ app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin
         margin_tier_id = COALESCE($1, margin_tier_id),
         tax_exempt = $2,
         approved_by = $3,
+        total_spend = $4,
         approved_at = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $4
-    `, [tierId, taxExempt, staffId, id]);
+      WHERE id = $5
+    `, [tierId, taxExempt, staffId, rolledSpend, id]);
 
     await client.query('COMMIT');
 
@@ -12652,6 +12660,33 @@ app.post('/api/admin/trade-customers/:id/deny', staffAuth, requireRole('admin', 
 // Tiers move BOTH directions: members promote as they spend and demote as old
 // orders age past the rolling window. Spend = order subtotal on non-cancelled
 // orders in the last 365 days. `total_spend` is a cache of that rolling figure.
+// Trailing 365-day product spend that counts toward a trade customer's tier.
+// Includes orders billed to the trade account AND orders placed under a LINKED
+// retail account (customers.trade_customer_id) — so when a retail customer
+// upgrades, their existing purchase history rolls over into the tier, and their
+// future orders placed via the unified retail login keep counting. One row per
+// order, so the OR never double-counts. Subtotal excludes shipping/tax/samples.
+async function tradeRollingSpend(tradeCustomerId, db = pool) {
+  const r = await db.query(
+    `SELECT COALESCE(SUM(subtotal), 0) AS spend FROM orders
+     WHERE (trade_customer_id = $1
+            OR customer_id IN (SELECT id FROM customers WHERE trade_customer_id = $1))
+       AND status NOT IN ('cancelled', 'refunded', 'failed')
+       AND created_at >= NOW() - INTERVAL '365 days'`,
+    [tradeCustomerId]
+  );
+  return parseFloat(r.rows[0].spend) || 0;
+}
+
+// Highest active tier a given rolling spend qualifies for (null if none).
+async function qualifyingTier(spend, db = pool) {
+  const t = await db.query(
+    'SELECT id, name, tier_level, spend_threshold FROM margin_tiers WHERE is_active = true AND spend_threshold <= $1 ORDER BY tier_level DESC LIMIT 1',
+    [spend]
+  );
+  return t.rows[0] || null;
+}
+
 async function recomputeTradeTier(tradeCustomerId, client) {
   const db = client || pool;
   const cust = await db.query('SELECT id, margin_tier_id FROM trade_customers WHERE id = $1', [tradeCustomerId]);
@@ -12659,15 +12694,8 @@ async function recomputeTradeTier(tradeCustomerId, client) {
 
   const currentTierId = cust.rows[0].margin_tier_id;
 
-  // Trailing 365-day product spend (subtotal excludes shipping/tax/samples)
-  const spendRes = await db.query(
-    `SELECT COALESCE(SUM(subtotal), 0) AS spend FROM orders
-     WHERE trade_customer_id = $1
-       AND status NOT IN ('cancelled', 'refunded', 'failed')
-       AND created_at >= NOW() - INTERVAL '365 days'`,
-    [tradeCustomerId]
-  );
-  const spend = parseFloat(spendRes.rows[0].spend) || 0;
+  // Trailing 365-day product spend (rolls in any linked retail order history)
+  const spend = await tradeRollingSpend(tradeCustomerId, db);
 
   // Cache the rolling spend for dashboards/admin
   await db.query(
@@ -12683,11 +12711,7 @@ async function recomputeTradeTier(tradeCustomerId, client) {
   }
 
   // Highest tier the customer now qualifies for (handles promotion AND demotion)
-  const tiers = await db.query(
-    'SELECT id, name, tier_level, spend_threshold FROM margin_tiers WHERE is_active = true AND spend_threshold <= $1 ORDER BY tier_level DESC LIMIT 1',
-    [spend]
-  );
-  const targetTier = tiers.rows[0] || null;
+  const targetTier = await qualifyingTier(spend, db);
   if (!targetTier || targetTier.id === currentTierId) return null; // no change
 
   await db.query(
@@ -14551,7 +14575,11 @@ app.get('/api/rep/trade-customers', repAuth, requireRepManager, async (req, res)
     let query = `
       SELECT tc.*, mt.name as tier_name, mt.discount_percent,
         rc.id AS retail_customer_id, rc.created_at AS retail_customer_since,
-        (rc.id IS NOT NULL OR tc.created_via = 'retail_upgrade') AS from_retail_upgrade
+        (rc.id IS NOT NULL OR tc.created_via = 'retail_upgrade') AS from_retail_upgrade,
+        (SELECT COALESCE(SUM(o.subtotal), 0) FROM orders o
+           WHERE (o.trade_customer_id = tc.id OR o.customer_id = rc.id)
+             AND o.status NOT IN ('cancelled','refunded','failed')
+             AND o.created_at >= NOW() - INTERVAL '365 days') AS prior_spend
       FROM trade_customers tc
       LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
       LEFT JOIN customers rc ON rc.trade_customer_id = tc.id
@@ -14615,11 +14643,18 @@ app.post('/api/rep/trade-customers/:id/approve', repAuth, requireRepManager, asy
 
     await client.query('BEGIN');
 
-    // If no tier specified, start at Silver (lowest tier)
+    // Roll over any purchase history (incl. a linked retail account): start the
+    // member at the tier their trailing-365-day spend earns, else Silver. An
+    // explicit tier chosen by the manager always wins.
+    const rolledSpend = await tradeRollingSpend(id, client);
     let tierId = margin_tier_id;
     if (!tierId) {
-      const silver = await client.query("SELECT id FROM margin_tiers WHERE tier_level = 0 ORDER BY tier_level LIMIT 1");
-      if (silver.rows.length) tierId = silver.rows[0].id;
+      const earned = await qualifyingTier(rolledSpend, client);
+      tierId = earned ? earned.id : null;
+      if (!tierId) {
+        const silver = await client.query("SELECT id FROM margin_tiers WHERE tier_level = 0 ORDER BY tier_level LIMIT 1");
+        if (silver.rows.length) tierId = silver.rows[0].id;
+      }
     }
 
     // Resale tax exemption is set here only when the manager explicitly checks it
@@ -14633,10 +14668,11 @@ app.post('/api/rep/trade-customers/:id/approve', repAuth, requireRepManager, asy
         margin_tier_id = COALESCE($1, margin_tier_id),
         tax_exempt = $2,
         approved_by = NULL,
+        total_spend = $3,
         approved_at = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $3
-    `, [tierId, taxExempt, id]);
+      WHERE id = $4
+    `, [tierId, taxExempt, rolledSpend, id]);
 
     await client.query('COMMIT');
 
@@ -28036,7 +28072,11 @@ app.get('/api/admin/trade-customers', staffAuth, requireRole('admin', 'manager',
       SELECT tc.*, mt.name as tier_name, mt.discount_percent,
         sa.first_name || ' ' || sa.last_name as rep_name,
         rc.id AS retail_customer_id, rc.created_at AS retail_customer_since,
-        (rc.id IS NOT NULL OR tc.created_via = 'retail_upgrade') AS from_retail_upgrade
+        (rc.id IS NOT NULL OR tc.created_via = 'retail_upgrade') AS from_retail_upgrade,
+        (SELECT COALESCE(SUM(o.subtotal), 0) FROM orders o
+           WHERE (o.trade_customer_id = tc.id OR o.customer_id = rc.id)
+             AND o.status NOT IN ('cancelled','refunded','failed')
+             AND o.created_at >= NOW() - INTERVAL '365 days') AS prior_spend
       FROM trade_customers tc
       LEFT JOIN margin_tiers mt ON mt.id = tc.margin_tier_id
       LEFT JOIN staff_accounts sa ON sa.id = tc.assigned_rep_id
