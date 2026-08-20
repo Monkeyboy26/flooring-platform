@@ -8930,6 +8930,82 @@
       );
     }
 
+    // ========== RepCustomerEditModal ==========
+    // Edit a retail customer's contact + address. Mirrors the create form's
+    // validation; saves via PUT /api/rep/customers/:id (server normalizes +
+    // guards duplicates). Parent reloads the detail on success.
+    function RepCustomerEditModal({ customer, onClose, onSaved }) {
+      const [form, setForm] = useState({
+        first_name: customer.first_name || '', middle_initial: customer.middle_initial || '',
+        last_name: customer.last_name || '', email: customer.email || '', phone: customer.phone || '',
+        company_name: customer.company_name || '', address_line1: customer.address_line1 || '',
+        address_line2: customer.address_line2 || '', city: customer.city || '',
+        state: customer.state || '', zip: customer.zip || ''
+      });
+      const [saving, setSaving] = useState(false);
+      const [error, setError] = useState('');
+      const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+      const canSave = !!form.first_name.trim() && !!form.last_name.trim() && !!form.email.trim() && isValidEmail(form.email.trim()) && !!form.phone.trim() && isValidPhone(form.phone);
+
+      const submit = () => {
+        setError('');
+        if (!form.first_name.trim() || !form.last_name.trim() || !form.email.trim()) {
+          setError('First name, last name, and email are required.'); return;
+        }
+        if (!isValidEmail(form.email.trim())) { setError('Enter a valid email.'); return; }
+        if (!form.phone.trim() || !isValidPhone(form.phone)) { setError('A valid 10-digit phone is required.'); return; }
+        setSaving(true);
+        repFetch('/api/rep/customers/' + encodeURIComponent(customer.id), { method: 'PUT', body: JSON.stringify(form) })
+          .then(() => { onSaved(); })
+          .catch(err => { setError((err && err.message) || 'Could not save changes.'); setSaving(false); });
+      };
+
+      const inputStyle = { width: '100%', padding: '9px 12px', border: '0.5px solid var(--stone-300)', background: '#fff', font: '400 14px/1.4 Inter, sans-serif', color: 'var(--stone-900)', boxSizing: 'border-box' };
+      const fieldWrap = (label, node, required, wide) => (
+        <div style={wide ? { gridColumn: '1 / -1' } : undefined}>
+          <label className="cdv-field-k" style={{ display: 'block', marginBottom: 6 }}>{label}{required && <span style={{ color: '#c54731' }}> *</span>}</label>
+          {node}
+        </div>
+      );
+      const onKey = (e) => { if (e.key === 'Enter') submit(); };
+
+      return (
+        <div className="modal-overlay" onClick={() => !saving && onClose()}>
+          <div className="modal-box" style={{ maxWidth: 640, width: '92%' }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '20px 22px 0' }}>
+              <div className="rrm-eyebrow">Edit customer</div>
+              <h3 className="rrm-title" style={{ marginBottom: 4 }}>Edit <em>{[customer.first_name, customer.last_name].filter(Boolean).join(' ') || 'customer'}</em></h3>
+            </div>
+            <div style={{ padding: '14px 22px 0', maxHeight: '70vh', overflowY: 'auto' }}>
+              {error && (
+                <div style={{ padding: '10px 14px', marginBottom: 16, background: 'rgba(197,71,49,0.08)', border: '0.5px solid rgba(197,71,49,0.4)', color: '#c54731', font: '400 13px/1.4 Inter, sans-serif' }}>{error}</div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 18 }}>
+                {fieldWrap('First name', <input style={inputStyle} value={form.first_name} onChange={set('first_name')} onKeyDown={onKey} autoFocus />, true)}
+                {fieldWrap('Last name', <input style={inputStyle} value={form.last_name} onChange={set('last_name')} onKeyDown={onKey} />, true)}
+                {fieldWrap('Middle initial (optional)', <input style={inputStyle} maxLength={4} value={form.middle_initial} onChange={set('middle_initial')} onKeyDown={onKey} />)}
+                {fieldWrap('Email', <input type="email" style={inputStyle} value={form.email} onChange={set('email')} onKeyDown={onKey} />, true, true)}
+                {fieldWrap('Phone', <input style={inputStyle} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))} onKeyDown={onKey} />, true)}
+                {fieldWrap('Company (optional)', <input style={inputStyle} value={form.company_name} onChange={set('company_name')} onKeyDown={onKey} />)}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                {fieldWrap('Street address', <input style={inputStyle} value={form.address_line1} onChange={set('address_line1')} onKeyDown={onKey} />, false, true)}
+                {fieldWrap('Apt / suite', <input style={inputStyle} value={form.address_line2} onChange={set('address_line2')} onKeyDown={onKey} />, false, true)}
+                {fieldWrap('City', <input style={inputStyle} value={form.city} onChange={set('city')} onKeyDown={onKey} />)}
+                {fieldWrap('State', <input style={inputStyle} value={form.state} onChange={set('state')} onKeyDown={onKey} />)}
+                {fieldWrap('ZIP', <input style={inputStyle} value={form.zip} onChange={set('zip')} onKeyDown={onKey} />)}
+              </div>
+            </div>
+            <div className="rrm-foot" style={{ padding: '18px 22px' }}>
+              <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancel</button>
+              <button className="btn btn-primary" onClick={submit} disabled={saving || !canSave}>{saving ? 'Saving…' : 'Save changes'}</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     // ========== RepCustomerDetailView ==========
     function RepCustomerDetailView({ navigate, editId }) {
       const [customer, setCustomer] = useState(null);
@@ -8957,6 +9033,7 @@
       const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');
       const [showReassign, setShowReassign] = useState(false);
       const [reassignSaving, setReassignSaving] = useState(false);
+      const [showEdit, setShowEdit] = useState(false);
       const [reloadKey, setReloadKey] = useState(0);
 
       // Parse the composite ID: retail_UUID, trade_UUID, guest_email
@@ -9502,6 +9579,9 @@
             </div>
             <div className="cdv-head-actions">
               <button className="cdv-btn" onClick={() => navigate('customers')}>{'←'} Back</button>
+              {type === 'retail' && customer.id && (
+                <button className="cdv-btn" onClick={() => setShowEdit(true)}>Edit</button>
+              )}
               {customer.email && <a className="cdv-btn" href={'mailto:' + customer.email}>Email</a>}
               <button className="cdv-btn" onClick={() => navigate('estimate-create')}>+ Estimate</button>
               {repInfo.is_manager && type === 'retail' && (
@@ -9522,6 +9602,14 @@
               saving={reassignSaving}
               onClose={() => setShowReassign(false)}
               onConfirm={submitReassign}
+            />
+          )}
+
+          {showEdit && (
+            <RepCustomerEditModal
+              customer={customer}
+              onClose={() => setShowEdit(false)}
+              onSaved={() => { setShowEdit(false); setReloadKey(k => k + 1); }}
             />
           )}
 
