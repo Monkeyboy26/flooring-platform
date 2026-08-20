@@ -5506,18 +5506,24 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         console.log(`[Trade] Customer ${tradeCustomerId} ${tierChange.promoted ? 'promoted' : 'demoted'} to ${tierChange.name}`);
       }
 
-      // Auto-assign rep if unassigned
-      const custCheck = await client.query('SELECT assigned_rep_id FROM trade_customers WHERE id = $1', [tradeCustomerId]);
-      if (!custCheck.rows[0].assigned_rep_id) {
+      // Assign a rep on order activity if the customer is unassigned OR owned by a
+      // deactivated rep (a "free agent" — re-claimed by the next available active rep).
+      const custCheck = await client.query(`
+        SELECT tc.assigned_rep_id, sa.is_active AS rep_active
+        FROM trade_customers tc LEFT JOIN staff_accounts sa ON sa.id = tc.assigned_rep_id
+        WHERE tc.id = $1`, [tradeCustomerId]);
+      const curOwner = custCheck.rows[0];
+      if (!curOwner.assigned_rep_id || curOwner.rep_active === false) {
         const rep = await getNextAvailableRep();
-        if (rep) {
+        if (rep && rep.id !== curOwner.assigned_rep_id) {
           await client.query(
             'UPDATE trade_customers SET assigned_rep_id = $1, assigned_at = CURRENT_TIMESTAMP WHERE id = $2',
             [rep.id, tradeCustomerId]
           );
           await client.query(
-            "INSERT INTO customer_rep_history (trade_customer_id, to_rep_id, reason) VALUES ($1, $2, 'Auto-assigned on first order')",
-            [tradeCustomerId, rep.id]
+            "INSERT INTO customer_rep_history (trade_customer_id, from_rep_id, to_rep_id, reason) VALUES ($1, $2, $3, $4)",
+            [tradeCustomerId, curOwner.assigned_rep_id || null, rep.id,
+             curOwner.assigned_rep_id ? 'Re-claimed from deactivated rep on order' : 'Auto-assigned on first order']
           );
         }
       }

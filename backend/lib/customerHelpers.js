@@ -1,11 +1,72 @@
 import crypto from 'crypto';
 
+// Normalize a phone to its last 10 digits (drops +1 / formatting). Returns '' when
+// there aren't 10 digits — so partial/empty phones never match anything.
+export function phoneKey(phone) {
+  const d = String(phone || '').replace(/\D/g, '');
+  return d.length >= 10 ? d.slice(-10) : '';
+}
+
+// Find an existing account (retail OR trade) that EXACTLY matches by lowercased
+// email or by normalized 10-digit phone. Returns the match (email matches ranked
+// first) or null. `db` is a pool or client. `excludeId` skips a customer row
+// (used when editing an existing record). Phone comparison is format-agnostic.
+export async function findExactDuplicate(db, { email, phone, excludeId = null } = {}) {
+  const emailNorm = (email || '').toLowerCase().trim();
+  const pk = phoneKey(phone);
+  if (!emailNorm && !pk) return null;
+  const { rows } = await db.query(`
+    SELECT id, (first_name || ' ' || last_name) AS name, email, phone, company_name,
+           'retail' AS type, password_set, (email = $1) AS email_match
+    FROM customers
+    WHERE (($1 <> '' AND email = $1)
+        OR ($2 <> '' AND right(regexp_replace(coalesce(phone,''),'[^0-9]','','g'), 10) = $2))
+      AND ($3::uuid IS NULL OR id <> $3)
+    UNION ALL
+    SELECT id, contact_name AS name, email, phone, company_name,
+           'trade' AS type, true AS password_set, (email = $1) AS email_match
+    FROM trade_customers
+    WHERE (($1 <> '' AND email = $1)
+        OR ($2 <> '' AND right(regexp_replace(coalesce(phone,''),'[^0-9]','','g'), 10) = $2))
+    ORDER BY email_match DESC
+    LIMIT 1
+  `, [emailNorm, pk, excludeId]);
+  return rows[0] || null;
+}
+
+// When a customer registers or logs in, attach any prior GUEST records that used
+// their email but were never owned (customer_id IS NULL), so their guest orders/
+// quotes/estimates/samples show up in "My account". Returns counts moved.
+export async function claimGuestRecords(db, customerId, email) {
+  const e = (email || '').toLowerCase().trim();
+  if (!customerId || !e) return {};
+  const moved = {};
+  for (const t of ['orders', 'quotes', 'estimates', 'sample_requests']) {
+    const r = await db.query(
+      `UPDATE ${t} SET customer_id = $1 WHERE customer_id IS NULL AND lower(customer_email) = $2`,
+      [customerId, e]
+    );
+    moved[t] = r.rowCount;
+  }
+  return moved;
+}
+
 export function createCustomerHelpers(hashPassword, sendWelcomeSetPassword) {
-  async function findOrCreateCustomer(client, { email, firstName, lastName, phone, repId, createdVia }) {
+  async function findOrCreateCustomer(client, { email, firstName, lastName, phone, companyName, repId, createdVia }) {
     const normalEmail = email.toLowerCase().trim();
 
-    // 1. Check if customer exists by email
-    const existing = await client.query('SELECT * FROM customers WHERE email = $1', [normalEmail]);
+    // 1. Check if customer exists by email, then fall back to a phone match so we
+    //    don't spawn a duplicate account for the same person using a new email.
+    let existing = await client.query('SELECT * FROM customers WHERE email = $1', [normalEmail]);
+    if (existing.rows.length === 0) {
+      const pk = phoneKey(phone);
+      if (pk) {
+        existing = await client.query(
+          `SELECT * FROM customers WHERE right(regexp_replace(coalesce(phone,''),'[^0-9]','','g'), 10) = $1 LIMIT 1`,
+          [pk]
+        );
+      }
+    }
 
     if (existing.rows.length > 0) {
       const cust = existing.rows[0];
@@ -16,9 +77,20 @@ export function createCustomerHelpers(hashPassword, sendWelcomeSetPassword) {
       if (!cust.phone && phone) { updates.push(`phone = $${idx++}`); vals.push(phone); }
       if (!cust.first_name && firstName) { updates.push(`first_name = $${idx++}`); vals.push(firstName); }
       if (!cust.last_name && lastName) { updates.push(`last_name = $${idx++}`); vals.push(lastName); }
-      if (!cust.assigned_rep_id && repId) {
-        updates.push(`assigned_rep_id = $${idx++}`); vals.push(repId);
-        updates.push(`assigned_at = NOW()`);
+      if (!cust.company_name && companyName) { updates.push(`company_name = $${idx++}`); vals.push(companyName); }
+      // Free-agent auto-claim: the acting rep takes ownership if the customer is
+      // unassigned OR its current rep is deactivated (a "free agent"). We never
+      // take a customer away from another ACTIVE rep.
+      if (repId && cust.assigned_rep_id !== repId) {
+        let claim = !cust.assigned_rep_id;
+        if (!claim) {
+          const owner = await client.query('SELECT is_active FROM staff_accounts WHERE id = $1', [cust.assigned_rep_id]);
+          claim = !owner.rows.length || owner.rows[0].is_active === false;
+        }
+        if (claim) {
+          updates.push(`assigned_rep_id = $${idx++}`); vals.push(repId);
+          updates.push(`assigned_at = NOW()`);
+        }
       }
       if (updates.length > 0) {
         vals.push(cust.id);
@@ -32,10 +104,10 @@ export function createCustomerHelpers(hashPassword, sendWelcomeSetPassword) {
     const { hash, salt } = await hashPassword(placeholder);
 
     const result = await client.query(
-      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, password_set, assigned_rep_id, assigned_at, created_via)
-       VALUES ($1, $2, $3, $4, $5, $6, false, $7, NOW(), $8)
+      `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, company_name, password_set, assigned_rep_id, assigned_at, created_via)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, false, $8, NOW(), $9)
        RETURNING *`,
-      [normalEmail, hash, salt, firstName || '', lastName || '', phone || null, repId || null, createdVia || 'rep']
+      [normalEmail, hash, salt, firstName || '', lastName || '', phone || null, companyName || null, repId || null, createdVia || 'rep']
     );
 
     const newCustomer = result.rows[0];
