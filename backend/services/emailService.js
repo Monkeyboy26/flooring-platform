@@ -10,6 +10,7 @@ import { generateInstallationInquiryStaffHTML } from '../templates/installationI
 import { generateInstallationInquiryConfirmationHTML } from '../templates/installationInquiryConfirmation.js';
 import { generatePasswordResetHTML } from '../templates/passwordReset.js';
 import { generateStaffPasswordResetHTML } from '../templates/staffPasswordReset.js';
+import { generateStaffInviteHTML } from '../templates/staffInvite.js';
 import { generateVisitRecapHTML } from '../templates/visitRecap.js';
 import { generateSampleRequestConfirmationHTML } from '../templates/sampleRequestConfirmation.js';
 import { generateSampleRequestShippedHTML } from '../templates/sampleRequestShipped.js';
@@ -583,6 +584,28 @@ export async function sendStaffPasswordReset(email, firstName, resetUrl) {
     return { sent: true };
   } catch (err) {
     console.error(`[Email] Failed to send staff password reset to ${email}:`, err.message);
+    return { sent: false };
+  }
+}
+
+// Staff invite / onboarding — first-time console invitation with a 7-day link.
+export async function sendStaffInvite(email, firstName, resetUrl, opts = {}) {
+  if (!transporter) {
+    console.log(`[Email] Skipping staff invite for ${email} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateStaffInviteHTML(firstName, resetUrl, { expiresLabel: '7 days', ...opts });
+    await deliver({
+      from: NOREPLY_FROM,
+      to: email,
+      subject: 'You’re invited to the Roma operations console',
+      html
+    });
+    console.log(`[Email] Staff invite sent to ${email}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send staff invite to ${email}:`, err.message);
     return { sent: false };
   }
 }

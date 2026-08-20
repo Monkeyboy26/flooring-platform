@@ -8,7 +8,7 @@ import XLSX from 'xlsx';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -11832,7 +11832,9 @@ app.post('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (
     if (useInvite) {
       const base = process.env.FRONTEND_URL || 'https://romaflooringdesigns.com';
       const setUrl = `${base}/admin?action=staff-set-password&token=${token}`;
-      setImmediate(() => sendWelcomeSetPassword(result.rows[0].email, result.rows[0].first_name, setUrl)
+      const inviterName = req.staff ? `${req.staff.first_name} ${req.staff.last_name}`.trim() : '';
+      setImmediate(() => sendStaffInvite(result.rows[0].email, result.rows[0].first_name, setUrl,
+        { role: result.rows[0].role, inviterName })
         .catch(err => console.error('[staff invite] email error:', err.message)));
     }
 
