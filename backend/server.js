@@ -13087,14 +13087,13 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 
 // ==================== Customer-Rep Assignment (Phase 4) ====================
 
+// Picks a RANDOM active rep for auto-assignment (not load-balanced by book size).
 async function getNextAvailableRep() {
   const result = await pool.query(`
-    SELECT sa.id, sa.first_name, sa.last_name, COUNT(tc.id)::int as customer_count
+    SELECT sa.id, sa.first_name, sa.last_name
     FROM staff_accounts sa
-    LEFT JOIN trade_customers tc ON tc.assigned_rep_id = sa.id
     WHERE sa.role IN ('sales_rep', 'manager') AND sa.is_active = true
-    GROUP BY sa.id, sa.first_name, sa.last_name
-    ORDER BY customer_count ASC, sa.created_at ASC
+    ORDER BY random()
     LIMIT 1
   `);
   return result.rows[0] || null;
