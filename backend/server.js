@@ -11576,6 +11576,7 @@ app.post('/api/staff/setup', async (req, res) => {
     );
 
     await logAudit(staff.id, 'staff.setup', 'staff_accounts', staff.id, { email: staff.email }, req.ip);
+    await pool.query('UPDATE staff_accounts SET last_login_at = NOW() WHERE id = $1', [staff.id]);
 
     res.json({ token, staff });
   } catch (err) {
@@ -11684,6 +11685,7 @@ app.post('/api/staff/login', async (req, res) => {
     );
 
     await logAudit(staff.id, 'staff.login', 'staff_accounts', staff.id, { trusted_device: isTrusted }, req.ip);
+    await pool.query('UPDATE staff_accounts SET last_login_at = NOW() WHERE id = $1', [staff.id]);
 
     res.json({
       token,
@@ -11731,6 +11733,7 @@ app.post('/api/staff/verify-2fa', authLimiter, async (req, res) => {
     );
 
     await logAudit(staff.id, 'staff.login.2fa', 'staff_accounts', staff.id, { trusted: trust_device || false }, req.ip);
+    await pool.query('UPDATE staff_accounts SET last_login_at = NOW() WHERE id = $1', [staff.id]);
 
     res.json({
       token,
@@ -11771,9 +11774,12 @@ app.get('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (r
         (SELECT COUNT(*)::int FROM staff_sessions ss WHERE ss.staff_id = sa.id AND ss.expires_at > NOW()) as active_sessions,
         (SELECT COUNT(*)::int FROM staff_sessions ss WHERE ss.staff_id = sa.id AND ss.is_trusted = true
            AND (ss.trusted_until IS NULL OR ss.trusted_until > NOW())) as trusted_devices,
-        (SELECT MAX(al.created_at) FROM audit_log al WHERE al.staff_id = sa.id
-           AND al.action IN ('staff.login', 'staff.login.2fa')) as last_login,
-        (sa.password_reset_token IS NOT NULL AND sa.password_reset_expires > NOW()) as invite_pending
+        sa.last_login_at as last_login,
+        (sa.last_login_at IS NOT NULL) as has_logged_in,
+        -- A true pending invite = has an unconsumed token AND has never signed in.
+        -- An active user with an outstanding reset link is NOT a pending invite.
+        (sa.password_reset_token IS NOT NULL AND sa.password_reset_expires > NOW()
+           AND sa.last_login_at IS NULL) as invite_pending
       FROM staff_accounts sa
       ORDER BY sa.created_at DESC
     `);

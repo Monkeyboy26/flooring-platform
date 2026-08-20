@@ -642,6 +642,9 @@ CREATE TABLE staff_accounts (
     -- set their own initial or reset password without an admin ever seeing it.
     password_reset_token TEXT,
     password_reset_expires TIMESTAMP,
+    -- Set on each successful sign-in. NULL = never signed in, which distinguishes a
+    -- true pending invite from an active user who merely has an outstanding reset link.
+    last_login_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT staff_role_check CHECK (role IN ('admin', 'manager', 'sales_rep', 'warehouse'))
