@@ -94,6 +94,21 @@ const CATEGORY_WEIGHT_LBS = {
 };
 const SHIP_FROM = { zip: '92806', city: 'Anaheim', state: 'CA', country: 'US' };
 
+// Small-order transfer fee: storefront product orders whose merchandise subtotal
+// is at/under the threshold pay a flat fee (sample-only orders exempt). The fee
+// is vendor-dependent — Tri-West (vendor code 'TW') transfers cost more, so any
+// cart containing a Tri-West line uses the higher rate. Test is on the pre-tax
+// subtotal; the fee is added after tax, like sample shipping. [[small-order-transfer-fee]]
+const SMALL_ORDER_TRANSFER_THRESHOLD = 350;
+const TRANSFER_FEE_DEFAULT = 49;
+const TRANSFER_FEE_TRIWEST = 125;
+const TRANSFER_FEE_TRIWEST_VENDOR_CODE = 'TW';
+function computeTransferFee(productItems, productSubtotal) {
+  if (!(productItems.length > 0 && productSubtotal <= SMALL_ORDER_TRANSFER_THRESHOLD)) return 0;
+  const hasTriWest = productItems.some(i => i.vendor_code === TRANSFER_FEE_TRIWEST_VENDOR_CODE);
+  return hasTriWest ? TRANSFER_FEE_TRIWEST : TRANSFER_FEE_DEFAULT;
+}
+
 // Sales tax, helpers, documents, auth — extracted to lib/ modules
 
 
@@ -746,9 +761,9 @@ app.get('/api/storefront/featured', async (req, res) => {
 
     // Curated homepage picks (shown first in "Selected specimens")
     const CURATED_IDS = [
-      'de38be41-c73b-40ef-8c0b-8faffdb0662a', // Zellige White - Roca USA
-      '837127eb-01c2-4efb-b57f-9381d77d2d49', // Bianco Carrara 24x48 Polished - Arizona Tile
-      'ca206f85-9376-4e1a-ad43-07ac5fc5f5d3', // European Oak Alabaster - Johnson Hardwood
+      '958d6e91-90b8-40ab-a46c-f04d6c2b48c4', // Allora Doma 9-1/2" Select - Old Master Products (warm greige European oak)
+      '837127eb-01c2-4efb-b57f-9381d77d2d49', // Bianco Carrara 24x48 Polished - Arizona Tile (marble large format)
+      '4df82a34-19ce-467e-b159-384914617a8f', // Calacatta Gold Herringbone - Arizona Tile (gold-veined marble mosaic)
     ];
 
     // Best-sellers: SKUs ordered most often in confirmed/shipped/delivered orders
@@ -4278,11 +4293,12 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
 
     const result = await pool.query(`
       SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
-        s.variant_type, s.vendor_sku, c.slug as category_slug, pk.sqft_per_box
+        s.variant_type, s.vendor_sku, c.slug as category_slug, pk.sqft_per_box, v.code as vendor_code
       FROM cart_items ci
       LEFT JOIN skus s ON s.id = ci.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, ci.product_id)
       LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       WHERE ci.session_id = $1
       ORDER BY ci.created_at
@@ -4370,7 +4386,11 @@ app.post('/api/checkout/create-payment-intent', optionalCustomerAuth, async (req
     const taxableSubtotal = Math.max(0, productSubtotal - discountAmount);
     const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, false);
 
-    const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
+    // Small-order transfer fee ($49, or $125 if the cart has any Tri-West line);
+    // sample-only orders are exempt. See computeTransferFee. [[small-order-transfer-fee]]
+    const transferFee = computeTransferFee(productItems, productSubtotal);
+
+    const total = productSubtotal + shippingCost + sampleShipping + transferFee + taxAmount - discountAmount;
 
     // Store credit is OPT-IN and available only to authenticated customers.
     // When apply_store_credit is absent, storeCreditApplied stays 0 and the
@@ -4498,11 +4518,12 @@ app.post('/api/checkout/create-bank-transfer-intent', async (req, res) => {
 
     const result = await pool.query(`
       SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
-        s.variant_type, s.vendor_sku, c.slug as category_slug, pk.sqft_per_box
+        s.variant_type, s.vendor_sku, c.slug as category_slug, pk.sqft_per_box, v.code as vendor_code
       FROM cart_items ci
       LEFT JOIN skus s ON s.id = ci.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, ci.product_id)
       LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       WHERE ci.session_id = $1
       ORDER BY ci.created_at
@@ -4558,7 +4579,12 @@ app.post('/api/checkout/create-bank-transfer-intent', async (req, res) => {
     const taxableSubtotal = Math.max(0, productSubtotal - discountAmount);
     const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, false);
 
-    const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
+    // Same small-order transfer fee as the card path (kept identical so a switch
+    // of payment method never changes the total). Bank transfer requires a $500+
+    // subtotal, so this is effectively always 0 here — included for parity.
+    const transferFee = computeTransferFee(productItems, productSubtotal);
+
+    const total = productSubtotal + shippingCost + sampleShipping + transferFee + taxAmount - discountAmount;
 
     if (total <= 0) {
       return res.status(400).json({ error: 'Order total must be greater than zero' });
@@ -5108,10 +5134,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // its true material+binding+fabrication cost for commission — see below)
     const cartResult = await client.query(`
       SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id,
-        COALESCE(pr.cut_cost, pr.cost) as material_cost_per_sqyd, pk.roll_width_ft
+        COALESCE(pr.cut_cost, pr.cost) as material_cost_per_sqyd, pk.roll_width_ft, v.code as vendor_code
       FROM cart_items ci
       LEFT JOIN skus s ON s.id = ci.sku_id
       LEFT JOIN products p ON p.id = COALESCE(s.product_id, ci.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN pricing pr ON pr.sku_id = ci.sku_id
       LEFT JOIN packaging pk ON pk.sku_id = ci.sku_id
       WHERE ci.session_id = $1
@@ -5211,7 +5238,11 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     const taxExempt = await isTradeTaxExempt(client, { id: req.tradeCustomer ? req.tradeCustomer.id : null });
     const { rate: taxRate, amount: taxAmount } = calculateSalesTax(taxableSubtotal, destZip, taxExempt);
 
-    const total = productSubtotal + shippingCost + sampleShipping + taxAmount - discountAmount;
+    // Small-order transfer fee ($49, or $125 with any Tri-West line). Must match
+    // create-payment-intent exactly or the PI amount-guard below rejects the order.
+    const transferFee = computeTransferFee(productItems, productSubtotal);
+
+    const total = productSubtotal + shippingCost + sampleShipping + transferFee + taxAmount - discountAmount;
 
     // Authoritative store-credit applied amount. Stripe path reads it from the
     // PI metadata (set at intent creation); fully-covered redeems the full total.
@@ -5261,8 +5292,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         customer_id, promo_code_id, promo_code, discount_amount, amount_paid,
         tax_rate, tax_amount, payment_method, bank_transfer_instructions, bank_transfer_expires_at,
         notes, measure_requested, preferred_measure_date, preferred_measure_time, card_brand, card_last4,
-        terms_accepted_at, company_name)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45)
+        terms_accepted_at, company_name, transfer_fee)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46)
       RETURNING *
     `, [orderNumber, session_id, customer_email, customer_name, phone || null,
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
@@ -5274,7 +5305,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), amountPaid,
         taxRate, taxAmount.toFixed(2), reqPaymentMethod || 'stripe', bankInstructions ? JSON.stringify(bankInstructions) : null, bankExpiresAt,
         orderNotes || null, measure_requested || false, preferred_measure_date || null, preferred_measure_time || null,
-        cardBrand, cardLast4, terms_accepted ? new Date() : null, company_name]);
+        cardBrand, cardLast4, terms_accepted ? new Date() : null, company_name, transferFee.toFixed(2)]);
 
     const order = orderResult.rows[0];
 
@@ -8973,16 +9004,35 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
       return res.status(400).json({ error: 'Can only change delivery method on pending or confirmed orders' });
     }
 
-    if (!['pickup', 'shipping'].includes(delivery_method)) {
-      return res.status(400).json({ error: 'delivery_method must be "pickup" or "shipping"' });
+    if (!['pickup', 'shipping', 'will_call'].includes(delivery_method)) {
+      return res.status(400).json({ error: 'delivery_method must be "pickup", "shipping", or "will_call"' });
     }
 
     const oldDeliveryMethod = order.delivery_method;
     const staffName = req.staff.first_name + ' ' + req.staff.last_name;
 
+    // Switch to will-call at distributor — no freight, no Roma address (like pickup,
+    // but the customer collects at the distributor). [[will-call-distributor]]
+    if (delivery_method === 'will_call') {
+      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.transfer_fee || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const updated = await pool.query(`
+        UPDATE orders SET delivery_method = 'will_call', shipping = 0, shipping_method = 'will_call',
+          shipping_carrier = NULL, shipping_transit_days = NULL, shipping_residential = false,
+          shipping_liftgate = false, shipping_is_fallback = false,
+          shipping_address_line1 = NULL, shipping_address_line2 = NULL,
+          shipping_city = NULL, shipping_state = NULL, shipping_zip = NULL,
+          total = $2
+        WHERE id = $1 RETURNING *
+      `, [id, newTotal]);
+      await logOrderActivity(pool, id, 'delivery_method_changed', req.staff.id, staffName,
+        { from: oldDeliveryMethod, to: 'will_call' });
+      const balanceInfo = await recalculateBalance(pool, id);
+      return res.json({ order: updated.rows[0], balance: balanceInfo });
+    }
+
     // Switch to pickup
     if (delivery_method === 'pickup') {
-      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.transfer_fee || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
       const updated = await pool.query(`
         UPDATE orders SET delivery_method = 'pickup', shipping = 0, shipping_method = 'pickup',
           shipping_carrier = NULL, shipping_transit_days = NULL, shipping_residential = false,
@@ -8994,6 +9044,41 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
       `, [id, newTotal]);
       await logOrderActivity(pool, id, 'delivery_method_changed', req.staff.id, staffName,
         { from: oldDeliveryMethod, to: 'pickup' });
+      const balanceInfo = await recalculateBalance(pool, id);
+      return res.json({ order: updated.rows[0], balance: balanceInfo });
+    }
+
+    // Manual freight: staff types in the carrier-quoted amount directly, bypassing
+    // the auto-estimator (not trusted for LTL/slab freight). Uses the address
+    // already on the order; optionally accepts an updated one + delivery window.
+    const { manual_shipping_amount, shipping_carrier, delivery_window } = req.body;
+    if (manual_shipping_amount !== undefined && manual_shipping_amount !== null && manual_shipping_amount !== '') {
+      const amt = parseFloat(manual_shipping_amount);
+      if (!(amt >= 0)) return res.status(400).json({ error: 'manual_shipping_amount must be a non-negative number' });
+      const addr = shipping_address || {};
+      let newNotes;
+      if (delivery_window !== undefined) {
+        const stripped = String(order.notes || '').replace(/\s*·?\s*Window: [^\n·]*/g, '').trim();
+        const win = String(delivery_window || '').trim();
+        newNotes = win ? (stripped ? stripped + ' · Window: ' + win : 'Window: ' + win) : (stripped || null);
+      }
+      const newTotal = (parseFloat(order.subtotal) + amt + parseFloat(order.sample_shipping || 0) + parseFloat(order.transfer_fee || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const updated = await pool.query(`
+        UPDATE orders SET delivery_method = 'shipping', shipping = $2, shipping_method = 'ltl_freight',
+          shipping_carrier = COALESCE($3, shipping_carrier), shipping_is_fallback = false,
+          shipping_address_line1 = COALESCE($4, shipping_address_line1),
+          shipping_address_line2 = COALESCE($5, shipping_address_line2),
+          shipping_city = COALESCE($6, shipping_city),
+          shipping_state = COALESCE($7, shipping_state),
+          shipping_zip = COALESCE($8, shipping_zip),
+          notes = CASE WHEN $10 THEN $11 ELSE notes END,
+          total = $9
+        WHERE id = $1 RETURNING *
+      `, [id, amt.toFixed(2), shipping_carrier || null,
+          addr.line1 || null, addr.line2 || null, addr.city || null, addr.state || null, addr.zip || null,
+          newTotal, delivery_window !== undefined, newNotes !== undefined ? newNotes : null]);
+      await logOrderActivity(pool, id, 'delivery_method_changed', req.staff.id, staffName,
+        { from: oldDeliveryMethod, to: 'shipping', shipping_cost: amt.toFixed(2), manual: true });
       const balanceInfo = await recalculateBalance(pool, id);
       return res.json({ order: updated.rows[0], balance: balanceInfo });
     }
@@ -9021,7 +9106,7 @@ app.put('/api/admin/orders/:id/delivery-method', staffAuth, requireRole('admin',
 
     const selected = rates.options[optionIdx];
     const shippingCost = parseFloat(selected.amount || 0);
-    const newTotal = (parseFloat(order.subtotal) + shippingCost + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+    const newTotal = (parseFloat(order.subtotal) + shippingCost + parseFloat(order.sample_shipping || 0) + parseFloat(order.transfer_fee || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
 
     const updated = await pool.query(`
       UPDATE orders SET delivery_method = 'shipping', shipping = $2, shipping_method = $3,
@@ -11682,7 +11767,13 @@ app.get('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (r
   try {
     const result = await pool.query(`
       SELECT sa.id, sa.email, sa.first_name, sa.last_name, sa.phone, sa.role, sa.is_active, sa.created_at,
-        (SELECT COUNT(*)::int FROM trade_customers tc WHERE tc.assigned_rep_id = sa.id) as assigned_customers
+        (SELECT COUNT(*)::int FROM trade_customers tc WHERE tc.assigned_rep_id = sa.id) as assigned_customers,
+        (SELECT COUNT(*)::int FROM staff_sessions ss WHERE ss.staff_id = sa.id AND ss.expires_at > NOW()) as active_sessions,
+        (SELECT COUNT(*)::int FROM staff_sessions ss WHERE ss.staff_id = sa.id AND ss.is_trusted = true
+           AND (ss.trusted_until IS NULL OR ss.trusted_until > NOW())) as trusted_devices,
+        (SELECT MAX(al.created_at) FROM audit_log al WHERE al.staff_id = sa.id
+           AND al.action IN ('staff.login', 'staff.login.2fa')) as last_login,
+        (sa.password_reset_token IS NOT NULL AND sa.password_reset_expires > NOW()) as invite_pending
       FROM staff_accounts sa
       ORDER BY sa.created_at DESC
     `);
@@ -11694,12 +11785,17 @@ app.get('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (r
 
 app.post('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { email, password, first_name, last_name, phone, role } = req.body;
-    if (!email || !password || !first_name || !last_name) {
-      return res.status(400).json({ error: 'Email, password, first name, and last name are required' });
+    const { email, password, first_name, last_name, phone, role, invite } = req.body;
+    if (!email || !first_name || !last_name) {
+      return res.status(400).json({ error: 'Email, first name, and last name are required' });
     }
-    const pwError = validatePassword(password);
-    if (pwError) return res.status(400).json({ error: pwError });
+    // Two onboarding modes: admin sets a password now, OR (invite) the staffer
+    // gets an emailed set-password link and picks their own — no admin ever sees it.
+    const useInvite = invite === true || !password;
+    if (!useInvite) {
+      const pwError = validatePassword(password);
+      if (pwError) return res.status(400).json({ error: pwError });
+    }
     const validRoles = ['admin', 'manager', 'sales_rep', 'warehouse'];
     if (role && !validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role. Must be one of: ' + validRoles.join(', ') });
@@ -11709,15 +11805,38 @@ app.post('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (
       return res.status(403).json({ error: 'Managers cannot create admin accounts' });
     }
 
-    const { hash, salt } = await hashPassword(password);
-    const result = await pool.query(`
-      INSERT INTO staff_accounts (email, password_hash, password_salt, first_name, last_name, phone, role)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id, email, first_name, last_name, phone, role, is_active, created_at
-    `, [email.toLowerCase().trim(), hash, salt, first_name.trim(), last_name.trim(), phone || null, role || 'sales_rep']);
+    // Invite mode still needs a non-null password_hash (NOT NULL column) — seed it
+    // with an unguessable random value that no one holds, then gate access behind
+    // the emailed token until the staffer sets their real password.
+    const seed = useInvite ? crypto.randomBytes(32).toString('hex') : password;
+    const { hash, salt } = await hashPassword(seed);
 
-    await logAudit(req.staff.id, 'staff.create', 'staff_accounts', result.rows[0].id, { email: email, role: role || 'sales_rep' }, req.ip);
-    res.json({ staff_member: result.rows[0] });
+    let token = null, tokenHash = null, tokenExpires = null;
+    if (useInvite) {
+      token = crypto.randomBytes(32).toString('hex');
+      tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      tokenExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    }
+
+    const result = await pool.query(`
+      INSERT INTO staff_accounts (email, password_hash, password_salt, first_name, last_name, phone, role,
+        password_reset_token, password_reset_expires)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING id, email, first_name, last_name, phone, role, is_active, created_at
+    `, [email.toLowerCase().trim(), hash, salt, first_name.trim(), last_name.trim(), phone || null,
+        role || 'sales_rep', tokenHash, tokenExpires]);
+
+    await logAudit(req.staff.id, 'staff.create', 'staff_accounts', result.rows[0].id,
+      { email, role: role || 'sales_rep', invited: useInvite }, req.ip);
+
+    if (useInvite) {
+      const base = process.env.FRONTEND_URL || 'https://romaflooringdesigns.com';
+      const setUrl = `${base}/admin?action=staff-set-password&token=${token}`;
+      setImmediate(() => sendWelcomeSetPassword(result.rows[0].email, result.rows[0].first_name, setUrl)
+        .catch(err => console.error('[staff invite] email error:', err.message)));
+    }
+
+    res.json({ staff_member: result.rows[0], invited: useInvite });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'An account with this email already exists' });
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -11727,20 +11846,29 @@ app.post('/api/admin/staff', staffAuth, requireRole('admin', 'manager'), async (
 app.put('/api/admin/staff/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { email, first_name, last_name, phone, role } = req.body;
+    const { email, first_name, last_name, phone, role, reason } = req.body;
     const validRoles = ['admin', 'manager', 'sales_rep', 'warehouse'];
     if (role && !validRoles.includes(role)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
+    const target = await pool.query('SELECT role FROM staff_accounts WHERE id = $1', [id]);
+    if (!target.rows.length) return res.status(404).json({ error: 'Staff member not found' });
+    const currentRole = target.rows[0].role;
+    const roleChanged = role && role !== currentRole;
+
     // Managers cannot edit admin accounts or promote to admin
     if (req.staff.role === 'manager') {
-      const target = await pool.query('SELECT role FROM staff_accounts WHERE id = $1', [id]);
-      if (target.rows.length && target.rows[0].role === 'admin') {
+      if (currentRole === 'admin') {
         return res.status(403).json({ error: 'Managers cannot edit admin accounts' });
       }
       if (role === 'admin') {
         return res.status(403).json({ error: 'Managers cannot promote accounts to admin' });
       }
+    }
+
+    // Promoting to admin is high-consequence — require a written reason for the trail.
+    if (roleChanged && role === 'admin' && !(reason && reason.trim())) {
+      return res.status(400).json({ error: 'A reason is required to grant admin access' });
     }
 
     const result = await pool.query(`
@@ -11756,6 +11884,11 @@ app.put('/api/admin/staff/:id', staffAuth, requireRole('admin', 'manager'), asyn
     `, [email ? email.toLowerCase().trim() : null, first_name, last_name, phone, role, id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Staff member not found' });
+    // Role changes get their own indexed audit action (distinct from field edits).
+    if (roleChanged) {
+      await logAudit(req.staff.id, 'staff.role_changed', 'staff_accounts', id,
+        { from: currentRole, to: role, reason: (reason || '').trim() || null }, req.ip);
+    }
     await logAudit(req.staff.id, 'staff.update', 'staff_accounts', id, { changes: req.body }, req.ip);
     res.json({ staff_member: result.rows[0] });
   } catch (err) {
@@ -11792,7 +11925,8 @@ app.patch('/api/admin/staff/:id/toggle', staffAuth, requireRole('admin', 'manage
       await pool.query('DELETE FROM staff_sessions WHERE staff_id = $1', [id]);
     }
 
-    await logAudit(req.staff.id, result.rows[0].is_active ? 'staff.activate' : 'staff.deactivate', 'staff_accounts', id, {}, req.ip);
+    const toggleReason = ((req.body && req.body.reason) || '').trim() || null;
+    await logAudit(req.staff.id, result.rows[0].is_active ? 'staff.activate' : 'staff.deactivate', 'staff_accounts', id, { reason: toggleReason }, req.ip);
     res.json({ staff_member: result.rows[0] });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -11830,6 +11964,132 @@ app.put('/api/admin/staff/:id/password', staffAuth, requireRole('admin', 'manage
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// Staff security / sessions, email onboarding, and self-service profile.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Helper: managers may not act on admin accounts (mirrors password-reset rule).
+async function managerBlockedFromAdmin(actorRole, targetId) {
+  if (actorRole !== 'manager') return false;
+  const t = await pool.query('SELECT role FROM staff_accounts WHERE id = $1', [targetId]);
+  return t.rows.length && t.rows[0].role === 'admin';
+}
+
+// List a staff member's sessions + trusted devices (for the Security panel).
+app.get('/api/admin/staff/:id/sessions', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const sessions = await pool.query(`
+      SELECT id, LEFT(COALESCE(device_fingerprint, ''), 12) AS device_id,
+        is_trusted, trusted_until, remember_me, expires_at, created_at,
+        (expires_at > NOW()) AS active
+      FROM staff_sessions WHERE staff_id = $1 ORDER BY created_at DESC`, [req.params.id]);
+    res.json({ sessions: sessions.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Force sign-out everywhere — deletes all of the staffer's sessions.
+app.post('/api/admin/staff/:id/force-logout', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (await managerBlockedFromAdmin(req.staff.role, id)) return res.status(403).json({ error: 'Managers cannot modify admin accounts' });
+    const del = await pool.query('DELETE FROM staff_sessions WHERE staff_id = $1 RETURNING id', [id]);
+    await logAudit(req.staff.id, 'staff.force_logout', 'staff_accounts', id, { sessions_killed: del.rows.length }, req.ip);
+    res.json({ success: true, sessions_killed: del.rows.length });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Revoke trusted devices — next login from any device will require 2FA again.
+app.post('/api/admin/staff/:id/revoke-trusted', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (await managerBlockedFromAdmin(req.staff.role, id)) return res.status(403).json({ error: 'Managers cannot modify admin accounts' });
+    const upd = await pool.query(
+      'UPDATE staff_sessions SET is_trusted = false, trusted_until = NULL WHERE staff_id = $1 AND is_trusted = true RETURNING id', [id]);
+    await logAudit(req.staff.id, 'staff.revoke_trusted_devices', 'staff_accounts', id, { devices_revoked: upd.rows.length }, req.ip);
+    res.json({ success: true, devices_revoked: upd.rows.length });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Email the staffer a set-password link (self-serve reset — admin never sees the pw).
+app.post('/api/admin/staff/:id/send-reset', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const t = await pool.query('SELECT id, email, first_name, role FROM staff_accounts WHERE id = $1', [id]);
+    if (!t.rows.length) return res.status(404).json({ error: 'Staff member not found' });
+    if (req.staff.role === 'manager' && t.rows[0].role === 'admin') return res.status(403).json({ error: 'Managers cannot reset admin passwords' });
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await pool.query('UPDATE staff_accounts SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3', [tokenHash, expires, id]);
+    const base = process.env.FRONTEND_URL || 'https://romaflooringdesigns.com';
+    const setUrl = `${base}/admin?action=staff-set-password&token=${token}`;
+    setImmediate(() => sendWelcomeSetPassword(t.rows[0].email, t.rows[0].first_name, setUrl).catch(err => console.error('[staff reset] email error:', err.message)));
+    await logAudit(req.staff.id, 'staff.reset_link_sent', 'staff_accounts', id, { email: t.rows[0].email }, req.ip);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Public: consume an emailed token and set the password (invite + reset flow).
+app.post('/api/staff/set-password', authLimiter, async (req, res) => {
+  try {
+    const { token, password } = req.body || {};
+    if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
+    const pwError = validatePassword(password);
+    if (pwError) return res.status(400).json({ error: pwError });
+    const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
+    const row = await pool.query(
+      'SELECT id FROM staff_accounts WHERE password_reset_token = $1 AND password_reset_expires > NOW() AND is_active = true', [tokenHash]);
+    if (!row.rows.length) return res.status(400).json({ error: 'This link is invalid or has expired' });
+    const staffId = row.rows[0].id;
+    const { hash, salt } = await hashPassword(password);
+    await pool.query(
+      'UPDATE staff_accounts SET password_hash = $1, password_salt = $2, password_reset_token = NULL, password_reset_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+      [hash, salt, staffId]);
+    await pool.query('DELETE FROM staff_sessions WHERE staff_id = $1', [staffId]);
+    await logAudit(staffId, 'staff.password_set', 'staff_accounts', staffId, {}, req.ip);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Self-service: update own profile (name / phone).
+app.put('/api/staff/me', staffAuth, async (req, res) => {
+  try {
+    const { first_name, last_name, phone } = req.body || {};
+    const result = await pool.query(`
+      UPDATE staff_accounts SET
+        first_name = COALESCE($1, first_name),
+        last_name = COALESCE($2, last_name),
+        phone = COALESCE($3, phone),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $4
+      RETURNING id, email, first_name, last_name, phone, role, is_active, created_at`,
+      [first_name || null, last_name || null, phone !== undefined ? phone : null, req.staff.id]);
+    await logAudit(req.staff.id, 'staff.profile_update', 'staff_accounts', req.staff.id, { changes: req.body }, req.ip);
+    res.json({ staff: result.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Self-service: change own password (requires current password).
+app.put('/api/staff/me/password', staffAuth, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body || {};
+    if (!current_password || !new_password) return res.status(400).json({ error: 'Current and new password are required' });
+    const pwError = validatePassword(new_password);
+    if (pwError) return res.status(400).json({ error: pwError });
+    const row = await pool.query('SELECT password_hash, password_salt FROM staff_accounts WHERE id = $1', [req.staff.id]);
+    if (!row.rows.length) return res.status(404).json({ error: 'Account not found' });
+    const ok = await verifyPassword(current_password, row.rows[0].password_hash, row.rows[0].password_salt);
+    if (!ok) return res.status(403).json({ error: 'Current password is incorrect' });
+    const { hash, salt } = await hashPassword(new_password);
+    await pool.query('UPDATE staff_accounts SET password_hash = $1, password_salt = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3', [hash, salt, req.staff.id]);
+    // Keep this session; drop the staffer's other sessions.
+    const curTokenHash = hashToken(req.headers['x-staff-token'] || '');
+    await pool.query('DELETE FROM staff_sessions WHERE staff_id = $1 AND token <> $2', [req.staff.id, curTokenHash]);
+    await logAudit(req.staff.id, 'staff.password_change', 'staff_accounts', req.staff.id, {}, req.ip);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // ==================== Trade Auth Endpoints ====================
@@ -12859,6 +13119,7 @@ app.patch('/api/admin/staff/:id/terminate', staffAuth, requireRole('admin', 'man
     }
     const { id } = req.params;
     const staffId = req.staff ? req.staff.id : null;
+    const termReason = ((req.body && req.body.reason) || '').trim() || null;
 
     // Can't terminate yourself
     if (staffId === id) return res.status(400).json({ error: 'Cannot terminate your own account' });
@@ -12891,15 +13152,16 @@ app.patch('/api/admin/staff/:id/terminate', staffAuth, requireRole('admin', 'man
       // Log history for each customer
       for (const c of customers.rows) {
         await pool.query(
-          "INSERT INTO customer_rep_history (trade_customer_id, from_rep_id, to_rep_id, reason, changed_by) VALUES ($1, $2, NULL, 'Staff terminated', $3)",
-          [c.id, id, staffId]
+          "INSERT INTO customer_rep_history (trade_customer_id, from_rep_id, to_rep_id, reason, changed_by) VALUES ($1, $2, NULL, $4, $3)",
+          [c.id, id, staffId, termReason ? ('Staff terminated — ' + termReason) : 'Staff terminated']
         );
       }
     }
 
     await logAudit(staffId, 'staff.terminate', 'staff_accounts', id, {
       terminated: target.rows[0].email,
-      freed_customers: customers.rows.length
+      freed_customers: customers.rows.length,
+      reason: termReason
     }, req.ip);
 
     res.json({
@@ -14098,7 +14360,7 @@ app.get('/api/admin/audit/primary-images', async (req, res) => {
 // Audit log (admin/manager)
 app.get('/api/admin/audit-log', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
-    const { limit, offset, action, entity_type } = req.query;
+    const { limit, offset, action, entity_type, staff_id, entity_id } = req.query;
     let query = `
       SELECT al.*, sa.email as staff_email, sa.first_name || ' ' || sa.last_name as staff_name
       FROM audit_log al
@@ -14109,6 +14371,10 @@ app.get('/api/admin/audit-log', staffAuth, requireRole('admin', 'manager'), asyn
     let idx = 1;
     if (action) { query += ` AND al.action = $${idx}`; params.push(action); idx++; }
     if (entity_type) { query += ` AND al.entity_type = $${idx}`; params.push(entity_type); idx++; }
+    // staff_id filters by ACTOR; entity_id shows everything done TO a given record
+    // (e.g. one staff member's profile). Combine them for "this person's activity".
+    if (staff_id) { query += ` AND al.staff_id = $${idx}`; params.push(staff_id); idx++; }
+    if (entity_id) { query += ` AND al.entity_id = $${idx}`; params.push(entity_id); idx++; }
     query += ` ORDER BY al.created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`;
     params.push(parseInt(limit) || 50, parseInt(offset) || 0);
 
@@ -15442,7 +15708,7 @@ app.get('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
 
     const itemsRes = await pool.query(`
-      SELECT sri.*, p.vendor_id, v.name as vendor_name, v.email as vendor_email, s.vendor_sku
+      SELECT sri.*, p.vendor_id, v.name as vendor_name, v.public_code as vendor_public_code, v.email as vendor_email, s.vendor_sku
       FROM sample_request_items sri
       LEFT JOIN products p ON p.id = sri.product_id
       LEFT JOIN vendors v ON v.id = p.vendor_id
@@ -17508,7 +17774,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
     // Switch to will-call at distributor — no freight, no Roma address (like pickup,
     // but the customer collects at the distributor). [[material-releases]]
     if (delivery_method === 'will_call') {
-      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.transfer_fee || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
       const updated = await pool.query(`
         UPDATE orders SET delivery_method = 'will_call', shipping = 0, shipping_method = 'will_call',
           shipping_carrier = NULL, shipping_transit_days = NULL, shipping_residential = false,
@@ -17530,7 +17796,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
 
     // Switch to pickup
     if (delivery_method === 'pickup') {
-      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.transfer_fee || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
       const updated = await pool.query(`
         UPDATE orders SET delivery_method = 'pickup', shipping = 0, shipping_method = 'pickup',
           shipping_carrier = NULL, shipping_transit_days = NULL, shipping_residential = false,
@@ -17567,7 +17833,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
         const win = String(delivery_window || '').trim();
         newNotes = win ? (stripped ? stripped + ' · Window: ' + win : 'Window: ' + win) : (stripped || null);
       }
-      const newTotal = (parseFloat(order.subtotal) + amt + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+      const newTotal = (parseFloat(order.subtotal) + amt + parseFloat(order.sample_shipping || 0) + parseFloat(order.transfer_fee || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
       const updated = await pool.query(`
         UPDATE orders SET delivery_method = 'shipping', shipping = $2, shipping_method = 'ltl_freight',
           shipping_carrier = COALESCE($3, shipping_carrier), shipping_is_fallback = false,
@@ -17615,7 +17881,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
 
     const selected = rates.options[optionIdx];
     const shippingCost = parseFloat(selected.amount || 0);
-    const newTotal = (parseFloat(order.subtotal) + shippingCost + parseFloat(order.sample_shipping || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
+    const newTotal = (parseFloat(order.subtotal) + shippingCost + parseFloat(order.sample_shipping || 0) + parseFloat(order.transfer_fee || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
 
     const updated = await pool.query(`
       UPDATE orders SET delivery_method = 'shipping', shipping = $2, shipping_method = $3,
@@ -19216,7 +19482,7 @@ app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
     // Distributors on this order — for the will-call flow. Each carries its Roma PO
     // and whether that PO has been sent (the distributor releases against a sent PO).
     const distRes = await pool.query(`
-      SELECT po.vendor_id, v.name AS vendor_name, po.po_number, po.status AS po_status,
+      SELECT po.vendor_id, v.name AS vendor_name, v.public_code AS vendor_public_code, po.po_number, po.status AS po_status,
         (po.status IN ('sent','acknowledged','fulfilled')) AS po_sent,
         v.address AS vendor_address, v.phone AS vendor_phone
       FROM purchase_orders po
@@ -19471,7 +19737,7 @@ app.get('/api/admin/orders/:id/release-context', staffAuth, async (req, res) => 
     // Distributors on this order — for the will-call flow. Each carries its Roma PO
     // and whether that PO has been sent (the distributor releases against a sent PO).
     const distRes = await pool.query(`
-      SELECT po.vendor_id, v.name AS vendor_name, po.po_number, po.status AS po_status,
+      SELECT po.vendor_id, v.name AS vendor_name, v.public_code AS vendor_public_code, po.po_number, po.status AS po_status,
         (po.status IN ('sent','acknowledged','fulfilled')) AS po_sent,
         v.address AS vendor_address, v.phone AS vendor_phone
       FROM purchase_orders po
@@ -19573,7 +19839,7 @@ app.post('/api/admin/releases/:releaseId/void', staffAuth, requireRole('admin', 
 app.get('/api/rep/vendors', repAuth, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT v.id, v.name, v.code
+      SELECT v.id, v.name, v.code, v.public_code
       FROM vendors v
       WHERE v.is_active = true
         AND EXISTS (SELECT 1 FROM products p WHERE p.vendor_id = v.id AND p.status = 'active')
@@ -19589,7 +19855,7 @@ app.get('/api/rep/vendors', repAuth, async (req, res) => {
 app.get('/api/rep/vendor-directory', repAuth, async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT v.id, v.name, v.code, v.email, v.phone, v.website, v.is_active,
+      SELECT v.id, v.name, v.code, v.public_code, v.email, v.phone, v.website, v.is_active,
         (SELECT vc.name FROM vendor_contacts vc WHERE vc.vendor_id = v.id ORDER BY vc.is_primary DESC, vc.name LIMIT 1) AS primary_contact_name,
         (SELECT COUNT(*) FROM products p WHERE p.vendor_id = v.id AND p.status = 'active')::int AS active_product_count
       FROM vendors v
@@ -19607,7 +19873,7 @@ app.get('/api/rep/vendors/:id', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const vendorRes = await pool.query(`
-      SELECT id, name, code, website, email, phone, address,
+      SELECT id, name, code, public_code, website, email, phone, address,
              account_number, notes, is_active, is_one_off
       FROM vendors WHERE id = $1
     `, [id]);
@@ -20121,7 +20387,7 @@ app.get('/api/rep/products/:id', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const product = await pool.query(`
-      SELECT p.*, v.name as vendor_name, COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
+      SELECT p.*, v.name as vendor_name, v.code as vendor_code, v.public_code as vendor_public_code, COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug
       FROM products p
       LEFT JOIN vendors v ON v.id = p.vendor_id
@@ -20738,6 +21004,286 @@ app.get('/api/rep/orders/:id/work-order', repAuth, async (req, res) => {
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// Staff/admin twins of rep order-detail endpoints. Same logic as the rep
+// handlers above, minus rep-ownership scoping (staff can act on any order) and
+// using the staff identity (req.staff) for activity attribution. Wired into the
+// admin OrderDetailView so admin has parity with the rep order screen.
+// ══════════════════════════════════════════════════════════════════════════
+
+// Internal notes (staff) — mirror of /api/rep/orders/:id/notes
+app.get('/api/staff/orders/:id/notes', staffAuth, async (req, res) => {
+  try {
+    const order = await pool.query('SELECT id FROM orders WHERE id = $1', [req.params.id]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const notes = await pool.query(`
+      SELECT cn.*, COALESCE(
+        (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
+        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = cn.staff_id),
+        'Staff') AS staff_name
+      FROM customer_notes cn WHERE cn.order_id = $1 ORDER BY cn.created_at DESC`, [req.params.id]);
+    res.json({ notes: notes.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/staff/orders/:id/notes', staffAuth, requireRole('admin', 'manager', 'warehouse'), async (req, res) => {
+  try {
+    const order = (await pool.query(
+      'SELECT id, trade_customer_id, customer_id, customer_email FROM orders WHERE id = $1', [req.params.id])).rows[0];
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
+    if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const ct = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
+    const cref = String(order.trade_customer_id || order.customer_id || order.customer_email || req.params.id);
+    const result = await pool.query(`
+      INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
+      VALUES ($1, $2, $3, $4, $5) RETURNING *`, [ct, cref, req.params.id, req.staff.id, note.slice(0, 4000)]);
+    const newNote = result.rows[0];
+    newNote.staff_name = req.staff.first_name + ' ' + req.staff.last_name;
+    res.json({ note: newNote });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.put('/api/staff/orders/:id/notes/:noteId', staffAuth, requireRole('admin', 'manager', 'warehouse'), async (req, res) => {
+  try {
+    const order = await pool.query('SELECT id FROM orders WHERE id = $1', [req.params.id]);
+    if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
+    if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const result = await pool.query(
+      'UPDATE customer_notes SET note = $1 WHERE id = $2 AND order_id = $3 RETURNING *',
+      [note.slice(0, 4000), req.params.noteId, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    const upd = result.rows[0];
+    upd.staff_name = (await pool.query(`SELECT COALESCE(
+        (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = $1),
+        (SELECT sr.first_name || ' ' || sr.last_name FROM sales_reps sr WHERE sr.id = $1), 'Staff') AS n`,
+      [upd.staff_id])).rows[0].n;
+    res.json({ note: upd });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.delete('/api/staff/orders/:id/notes/:noteId', staffAuth, requireRole('admin', 'manager', 'warehouse'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM customer_notes WHERE id = $1 AND order_id = $2 RETURNING id',
+      [req.params.noteId, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Job name / sidemark (staff) — mirror of /api/rep/orders/:id/job-name
+app.put('/api/staff/orders/:id/job-name', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const jobName = (req.body.job_name || '').trim().slice(0, 200) || null;
+    const own = await pool.query('SELECT id, job_name FROM orders WHERE id = $1', [id]);
+    if (!own.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const updated = await pool.query('UPDATE orders SET job_name = $1 WHERE id = $2 RETURNING *', [jobName, id]);
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await logOrderActivity(pool, id, 'job_name_updated', req.staff.id, staffName,
+      { previous: own.rows[0].job_name || null, job_name: jobName });
+    res.json({ order: updated.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Install schedule (staff) — mirror of /api/rep/orders/:id/install-schedule
+app.put('/api/staff/orders/:id/install-schedule', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { install_scheduled_at, install_window, install_crew, install_notes, notify = true } = req.body || {};
+    if (install_scheduled_at && isNaN(new Date(install_scheduled_at).getTime())) {
+      return res.status(400).json({ error: 'Invalid install date' });
+    }
+    const result = await pool.query(`
+      UPDATE orders SET
+        install_scheduled_at = $1::timestamp,
+        install_window = $2,
+        install_crew = $3,
+        install_notes = $4
+      WHERE id = $5
+      RETURNING *`,
+      [install_scheduled_at || null, install_window || null, install_crew || null, install_notes || null, id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = result.rows[0];
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await logOrderActivity(pool, id, 'install_scheduled', req.staff.id, staffName,
+      { install_scheduled_at: order.install_scheduled_at, install_window: order.install_window, install_crew: order.install_crew });
+    res.json({ order });
+    if (notify && order.install_scheduled_at) {
+      setImmediate(async () => { await attachRep(order); sendInstallScheduled(order); });
+    }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Installation work-order PDF (staff) — mirror of /api/rep/orders/:id/work-order (no rep scoping)
+app.get('/api/staff/orders/:id/work-order', staffAuth, async (req, res) => {
+  try {
+    const result = await generateWorkOrderHtml(req.params.id);
+    if (!result) return res.status(404).json({ error: 'Order not found' });
+    await generatePDF(result.html, result.filename, req, res);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Record vendor cost on a line (staff) — mirror of /api/rep/orders/:id/items/:itemId/cost
+app.put('/api/staff/orders/:id/items/:itemId/cost', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id, itemId } = req.params;
+    const raw = req.body.cost;
+    const cost = (raw === '' || raw == null) ? null : parseFloat(raw);
+    if (cost != null && (isNaN(cost) || cost < 0)) return res.status(400).json({ error: 'Invalid cost' });
+    await client.query('BEGIN');
+    const own = await client.query('SELECT id FROM orders WHERE id = $1', [id]);
+    if (!own.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const it = await client.query('SELECT product_name, cost FROM order_items WHERE id = $1 AND order_id = $2 FOR UPDATE', [itemId, id]);
+    if (!it.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order item not found' }); }
+    await client.query('UPDATE order_items SET cost = $1 WHERE id = $2', [cost != null ? cost.toFixed(2) : null, itemId]);
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await logOrderActivity(client, id, 'cost_updated', req.staff.id, staffName,
+      { product_name: it.rows[0].product_name, previous_cost: it.rows[0].cost, new_cost: cost != null ? cost.toFixed(2) : null });
+    await client.query('COMMIT');
+    setImmediate(() => recalculateCommission(pool, id));
+    const updatedItems = await pool.query(`
+      SELECT oi.*, COALESCE(p.display_name, p.name) as current_product_name, p.collection as current_collection,
+        COALESCE(v.name, cv.name, oi.custom_vendor) as vendor_name, COALESCE(br.name, v.name, cv.name, oi.custom_vendor) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label,
+        sa_c.value as color, sa_sz.value as size, COALESCE(pr.cost, oi.cost) as vendor_cost, s.variant_type,
+        cat.name as category_name,
+        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN brands br ON br.id = p.brand_id
+      LEFT JOIN pricing pr ON pr.sku_id = oi.sku_id
+      LEFT JOIN categories cat ON cat.id = p.category_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
+        AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
+      WHERE oi.order_id = $1 ORDER BY oi.id
+    `, [id]);
+    await enrichItemsForNaming(updatedItems.rows);
+    res.json({ items: updatedItems.rows });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
+// Undo a completed release (staff) — mirror of /api/rep/releases/:releaseId/uncomplete
+app.post('/api/admin/releases/:releaseId/uncomplete', staffAuth, requireRole('admin', 'manager', 'warehouse'), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { releaseId } = req.params;
+    await client.query('BEGIN');
+    const rRes = await client.query(
+      'SELECT mr.*, o.order_number FROM material_releases mr JOIN orders o ON o.id = mr.order_id WHERE mr.id = $1 FOR UPDATE OF mr', [releaseId]);
+    if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Release not found' }); }
+    const rel = rRes.rows[0];
+    if (rel.status !== 'completed') { await client.query('ROLLBACK'); return res.status(400).json({ error: `Only a completed release can be undone (this one is ${rel.status})` }); }
+    const upd = await client.query(
+      "UPDATE material_releases SET status = 'released', completed_at = NULL WHERE id = $1 RETURNING *", [releaseId]);
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await logOrderActivity(client, rel.order_id, 'release_uncompleted', req.staff.id, staffName,
+      { release: rel.release_number, method: rel.release_method });
+    const reopened = await reopenOrderIfReleaseUndone(client, rel.order_id, req.staff.id, staffName);
+    await client.query('COMMIT');
+    res.json({ success: true, release: upd.rows[0], order_reopened: !!reopened });
+    if (reopened) setImmediate(() => recalculateCommission(pool, rel.order_id));
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally { client.release(); }
+});
+
+// Order documents list (staff) — mirror of /api/rep/orders/:id/documents
+app.get('/api/staff/orders/:id/documents', staffAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT od.*, po.po_number
+       FROM order_documents od
+       LEFT JOIN purchase_orders po ON po.id = od.purchase_order_id
+       WHERE od.order_id = $1 ORDER BY od.uploaded_at`, [id]);
+    const docs = [];
+    for (const doc of result.rows) {
+      let url = null;
+      try { url = await getPresignedUrl(doc.file_key); } catch (e) {}
+      docs.push({ ...doc, url });
+    }
+    res.json({ documents: docs });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Attach a vendor confirmation against a PO (staff) — mirror of /api/rep/purchase-orders/:poId/documents
+app.post('/api/staff/purchase-orders/:poId/documents', staffAuth, requireRole('admin', 'manager'), docUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const { poId } = req.params;
+    const poRes = await pool.query(
+      'SELECT po.id, po.po_number, po.order_id, po.status FROM purchase_orders po WHERE po.id = $1', [poId]);
+    if (!poRes.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+    const po = poRes.rows[0];
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const hex = crypto.randomBytes(8).toString('hex');
+    const fileKey = `order-docs/${Date.now()}-${hex}${ext}`;
+    await uploadToS3(fileKey, req.file.buffer, req.file.mimetype);
+    const ins = await pool.query(
+      `INSERT INTO order_documents (order_id, purchase_order_id, doc_type, file_name, file_key, file_size, mime_type)
+       VALUES ($1, $2, 'vendor_confirmation', $3, $4, $5, $6) RETURNING id`,
+      [po.order_id || null, poId, req.file.originalname, fileKey, req.file.size, req.file.mimetype]);
+    const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+    await pool.query(
+      `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, details)
+       VALUES ($1, 'confirmation_attached', $2, $3)`,
+      [poId, staffName, JSON.stringify({ file_name: req.file.originalname })]);
+    let newStatus = null;
+    if (po.status === 'sent') {
+      await pool.query(`UPDATE purchase_orders SET status = 'acknowledged', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [poId]);
+      await pool.query(
+        `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, details)
+         VALUES ($1, 'acknowledged', $2, $3)`,
+        [poId, staffName, JSON.stringify({ via: 'confirmation_attached' })]);
+      newStatus = 'acknowledged';
+    }
+    res.json({ success: true, document_id: ins.rows[0].id, po_number: po.po_number, po_status: newStatus });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Delete an uploaded order document (staff) — mirror of /api/rep/orders/documents/:docId
+app.delete('/api/staff/orders/documents/:docId', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { docId } = req.params;
+    const del = await pool.query(
+      `DELETE FROM order_documents WHERE id = $1 RETURNING id, doc_type, purchase_order_id`, [docId]);
+    if (!del.rows.length) return res.status(404).json({ error: 'Document not found' });
+    const gone = del.rows[0];
+    let poReverted = false;
+    if (gone.doc_type === 'vendor_confirmation' && gone.purchase_order_id) {
+      const remaining = await pool.query(
+        `SELECT 1 FROM order_documents WHERE purchase_order_id = $1 AND doc_type = 'vendor_confirmation' LIMIT 1`,
+        [gone.purchase_order_id]);
+      if (!remaining.rows.length) {
+        const upd = await pool.query(
+          `UPDATE purchase_orders SET status = 'sent', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND status = 'acknowledged' RETURNING id`,
+          [gone.purchase_order_id]);
+        if (upd.rows.length) {
+          const staffName = req.staff.first_name + ' ' + req.staff.last_name;
+          await pool.query(
+            `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, details)
+             VALUES ($1, 'reverted', $2, $3)`,
+            [gone.purchase_order_id, staffName, JSON.stringify({ from: 'acknowledged', to: 'sent', via: 'confirmation_deleted' })]);
+          poReverted = true;
+        }
+      }
+    }
+    res.json({ success: true, po_reverted: poReverted });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // Send invoice email (with optional payment request if balance due)

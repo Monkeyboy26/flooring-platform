@@ -205,6 +205,7 @@ CREATE TABLE orders (
     shipping DECIMAL(10,2) DEFAULT 0,
     shipping_method VARCHAR(50),
     sample_shipping DECIMAL(10,2) DEFAULT 0,
+    transfer_fee DECIMAL(10,2) DEFAULT 0,       -- flat fee on small storefront orders (subtotal <= $350, non-sample)
     total DECIMAL(10,2) NOT NULL,
     stripe_payment_intent_id TEXT,
     card_brand VARCHAR(20),
@@ -637,6 +638,10 @@ CREATE TABLE staff_accounts (
     phone TEXT,
     role VARCHAR(20) NOT NULL DEFAULT 'sales_rep',
     is_active BOOLEAN DEFAULT true,
+    -- Set-password / invite flow: token (sha256 hex) emailed to the staffer so they
+    -- set their own initial or reset password without an admin ever seeing it.
+    password_reset_token TEXT,
+    password_reset_expires TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT staff_role_check CHECK (role IN ('admin', 'manager', 'sales_rep', 'warehouse'))

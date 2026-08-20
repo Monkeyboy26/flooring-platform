@@ -1664,9 +1664,81 @@
         setAuthed(true);
       };
 
+      const handleStaffUpdate = (s) => {
+        setStaffData(s);
+        sessionStorage.setItem('staff_data', JSON.stringify(s));
+      };
+
+      // Public set-password page (invite / reset link) — shown regardless of auth.
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get('action') === 'staff-set-password' && sp.get('token')) {
+        return React.createElement(StaffSetPassword, { token: sp.get('token') });
+      }
+
       if (checking) return React.createElement('div', { className: 'loading' }, 'Loading...');
       if (!authed) return React.createElement(AuthGate, { onAuth: handleAuth });
-      return React.createElement(AdminLayout, { onLogout: handleLogout, staffData });
+      return React.createElement(AdminLayout, { onLogout: handleLogout, staffData, onStaffUpdate: handleStaffUpdate });
+    }
+
+    // ========== StaffSetPassword (public — consumes an emailed token) ==========
+    function StaffSetPassword({ token }) {
+      const [password, setPassword] = useState('');
+      const [confirm, setConfirm] = useState('');
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [done, setDone] = useState(false);
+
+      const submit = (e) => {
+        e.preventDefault();
+        setError('');
+        if (password !== confirm) { setError('Passwords do not match'); return; }
+        setLoading(true);
+        fetch(API + '/api/staff/set-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, password })
+        })
+          .then(r => r.json().then(data => ({ ok: r.ok, data })))
+          .then(({ ok, data }) => {
+            if (ok) { setDone(true); }
+            else { setError(data.error || 'This link is invalid or has expired'); }
+            setLoading(false);
+          })
+          .catch(() => { setError('Cannot reach API'); setLoading(false); });
+      };
+
+      const goToLogin = () => {
+        // Drop the query params and reload into the normal login screen.
+        window.location.href = window.location.pathname + '#/';
+        window.location.reload();
+      };
+
+      if (done) {
+        return (
+          <div className="auth-gate">
+            <div className="auth-box">
+              <h1>Password set</h1>
+              <p>Your password has been set. You can now sign in.</p>
+              <button className="btn btn-primary" style={{ width: '100%' }} onClick={goToLogin}>Go to sign in</button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="auth-gate">
+          <form className="auth-box" onSubmit={submit}>
+            <h1>Set your password</h1>
+            <p>Choose a password for your Roma staff account.</p>
+            {error && <div className="auth-error">{error}</div>}
+            <input type="password" placeholder="New password" value={password} onChange={e => setPassword(e.target.value)} autoFocus />
+            <input type="password" placeholder="Confirm password" value={confirm} onChange={e => setConfirm(e.target.value)} />
+            <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading || !password}>
+              {loading ? 'Saving…' : 'Set password'}
+            </button>
+          </form>
+        </div>
+      );
     }
 
     // ========== AuthGate ==========
@@ -1862,7 +1934,7 @@
       ok: { color: 'var(--cool)', label: 'IN WINDOW' },
     };
 
-    function OpsBar({ staffData, breaches, onPalette, onLogout, onHamburger }) {
+    function OpsBar({ staffData, breaches, onPalette, onLogout, onHamburger, onProfile }) {
       const [clock, setClock] = useState(new Date());
       useEffect(() => { const t = setInterval(() => setClock(new Date()), 30000); return () => clearInterval(t); }, []);
       const initials = staffData
@@ -1891,7 +1963,7 @@
             <span className="ops-clock" style={{ color: 'var(--faint)' }}>
               ANAHEIM · {clock.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })}
             </span>
-            <span className="ops-staff">
+            <span className="ops-staff" onClick={onProfile} style={{ cursor: onProfile ? 'pointer' : 'default' }} title="My profile">
               <span className="ops-avatar">{initials}</span>
               {staffData ? `${(staffData.first_name || '').toUpperCase()} ${(staffData.last_name || ' ')[0] || ''}.` : 'STAFF'} · {roleLabel}
             </span>
@@ -2177,7 +2249,7 @@
     }
 
     // ========== AdminLayout ==========
-    function AdminLayout({ onLogout, staffData }) {
+    function AdminLayout({ onLogout, staffData, onStaffUpdate }) {
       const initialRoute = parseHash();
       const [view, setView] = useState(initialRoute.view);
       const [editId, setEditId] = useState(initialRoute.id);
@@ -2328,7 +2400,8 @@
       return (
         <div className="ops-shell">
           <OpsBar staffData={staffData} breaches={breaches} onLogout={onLogout}
-            onPalette={() => setPalette(true)} onHamburger={() => setSidebarOpen(true)} />
+            onPalette={() => setPalette(true)} onHamburger={() => setSidebarOpen(true)}
+            onProfile={() => navigate('profile')} />
           <div className="ops-main">
             <div className={'sidebar-backdrop' + (sidebarOpen ? ' visible' : '')} onClick={() => setSidebarOpen(false)}></div>
             <OpsRail open={sidebarOpen} onClose={() => setSidebarOpen(false)}
@@ -2369,7 +2442,8 @@
             {view === 'trade' && <TradeManagementView navigate={navigate} />}
             {view === 'staff' && <StaffListView navigate={navigate} />}
             {view === 'staff-create' && <StaffFormView navigate={navigate} />}
-            {view === 'staff-edit' && <StaffFormView navigate={navigate} editId={editId} />}
+            {(view === 'staff-edit' || view === 'staff-detail') && <StaffDetailView navigate={navigate} editId={editId} staffRole={staffRole} staffData={staffData} />}
+            {view === 'profile' && <ProfileView navigate={navigate} staffData={staffData} onStaffUpdate={onStaffUpdate} />}
             {view === 'promos' && <PromoCodesListView navigate={navigate} />}
             {view === 'promo-create' && <PromoCodeFormView navigate={navigate} />}
             {view === 'promo-edit' && <PromoCodeFormView navigate={navigate} editId={editId} />}
@@ -6111,6 +6185,29 @@
       const [showReleaseModal, setShowReleaseModal] = useState(false);
       const [relConfirm, setRelConfirm] = useState(null); // { rel, action: 'complete'|'void' }
       const [relBusy, setRelBusy] = useState(false);
+      // Internal notes (staff twin of the rep notes card)
+      const [notes, setNotes] = useState([]);
+      const [newNote, setNewNote] = useState('');
+      const [editingNoteId, setEditingNoteId] = useState(null);
+      const [editingNoteText, setEditingNoteText] = useState('');
+      const [noteBusy, setNoteBusy] = useState(false);
+      // Job name / sidemark inline edit
+      const [jobNameEdit, setJobNameEdit] = useState(null); // null = not editing
+      const [jobNameBusy, setJobNameBusy] = useState(false);
+      // Installation scheduling
+      const [installForm, setInstallForm] = useState(null); // null until opened
+      const [installBusy, setInstallBusy] = useState(false);
+      // Manual freight / will-call delivery
+      const [showManualFreight, setShowManualFreight] = useState(false);
+      const [manualFreight, setManualFreight] = useState({ amount: '', carrier: '', window: '' });
+      // Per-line vendor cost edits: { [itemId]: value }
+      const [costEdits, setCostEdits] = useState({});
+      const [costBusy, setCostBusy] = useState(null);
+      // Uploaded order documents (vendor confirmations)
+      const [orderDocs, setOrderDocs] = useState([]);
+      const [uploadPOId, setUploadPOId] = useState('');
+      const [uploadBusy, setUploadBusy] = useState(false);
+      const uploadInputRef = useRef(null);
 
       const loadReturns = async () => {
         if (!editId) return;
@@ -6137,6 +6234,167 @@
 
       const openCreditMemo = (returnId) => {
         setDocPreview({ path: '/api/staff/returns/' + returnId + '/credit-memo', title: 'Credit Memo' });
+      };
+
+      // ── Internal notes ────────────────────────────────────────────────
+      const loadNotes = async () => {
+        if (!editId) return;
+        try { const data = await adminFetch('/api/staff/orders/' + editId + '/notes'); setNotes(data.notes || []); }
+        catch (e) { /* notes optional */ }
+      };
+      const addNote = async () => {
+        const text = newNote.trim();
+        if (!text) return;
+        setNoteBusy(true);
+        try {
+          const data = await adminFetch('/api/staff/orders/' + editId + '/notes', { method: 'POST', body: JSON.stringify({ note: text }) });
+          if (data.note) setNotes(prev => [data.note, ...prev]);
+          setNewNote('');
+        } catch (err) { alert(err.message || 'Failed to add note'); }
+        setNoteBusy(false);
+      };
+      const saveNoteEdit = async (noteId) => {
+        const text = editingNoteText.trim();
+        if (!text) return;
+        setNoteBusy(true);
+        try {
+          const data = await adminFetch('/api/staff/orders/' + editId + '/notes/' + noteId, { method: 'PUT', body: JSON.stringify({ note: text }) });
+          if (data.note) setNotes(prev => prev.map(n => n.id === noteId ? data.note : n));
+          setEditingNoteId(null); setEditingNoteText('');
+        } catch (err) { alert(err.message || 'Failed to update note'); }
+        setNoteBusy(false);
+      };
+      const deleteNote = async (noteId) => {
+        if (!confirm('Delete this note?')) return;
+        try {
+          await adminFetch('/api/staff/orders/' + editId + '/notes/' + noteId, { method: 'DELETE' });
+          setNotes(prev => prev.filter(n => n.id !== noteId));
+        } catch (err) { alert(err.message || 'Failed to delete note'); }
+      };
+
+      // ── Job name / sidemark ───────────────────────────────────────────
+      const saveJobName = async () => {
+        setJobNameBusy(true);
+        try {
+          const data = await adminFetch('/api/staff/orders/' + editId + '/job-name', { method: 'PUT', body: JSON.stringify({ job_name: jobNameEdit }) });
+          if (data.order) setOrder(data.order);
+          setJobNameEdit(null);
+        } catch (err) { alert(err.message || 'Failed to save job name'); }
+        setJobNameBusy(false);
+      };
+
+      // ── Installation schedule ─────────────────────────────────────────
+      const saveInstallSchedule = async () => {
+        setInstallBusy(true);
+        try {
+          const data = await adminFetch('/api/staff/orders/' + editId + '/install-schedule', {
+            method: 'PUT',
+            body: JSON.stringify({
+              install_scheduled_at: installForm.install_scheduled_at || null,
+              install_window: installForm.install_window || null,
+              install_crew: installForm.install_crew || null,
+              install_notes: installForm.install_notes || null,
+              notify: !!installForm.notify
+            })
+          });
+          if (data.order) setOrder(data.order);
+          setInstallForm(null);
+        } catch (err) { alert(err.message || 'Failed to save install schedule'); }
+        setInstallBusy(false);
+      };
+
+      // ── Record vendor cost on a line ──────────────────────────────────
+      const saveItemCost = async (item) => {
+        const raw = costEdits[item.id];
+        setCostBusy(item.id);
+        try {
+          const data = await adminFetch('/api/staff/orders/' + editId + '/items/' + item.id + '/cost', {
+            method: 'PUT', body: JSON.stringify({ cost: raw })
+          });
+          if (data.items) setItems(data.items);
+          setCostEdits(prev => { const n = { ...prev }; delete n[item.id]; return n; });
+        } catch (err) { alert(err.message || 'Failed to save cost'); }
+        setCostBusy(null);
+      };
+
+      // ── Uploaded order documents ──────────────────────────────────────
+      const loadOrderDocs = async () => {
+        if (!editId) return;
+        try { const data = await adminFetch('/api/staff/orders/' + editId + '/documents'); setOrderDocs(data.documents || []); }
+        catch (e) { /* optional */ }
+      };
+      const uploadOrderDoc = async (file) => {
+        if (!file) return;
+        if (!uploadPOId) { alert('Pick a purchase order to attach this confirmation to.'); return; }
+        setUploadBusy(true);
+        try {
+          const fd = new FormData();
+          fd.append('file', file);
+          const r = await fetch(API + '/api/staff/purchase-orders/' + uploadPOId + '/documents', {
+            method: 'POST', headers: getAuthHeaders(), body: fd
+          });
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || 'Upload failed');
+          await loadOrderDocs();
+          loadPOs();
+          setUploadPOId('');
+        } catch (err) { alert(err.message || 'Failed to upload document'); }
+        setUploadBusy(false);
+        if (uploadInputRef.current) uploadInputRef.current.value = '';
+      };
+      const deleteOrderDoc = async (docId) => {
+        if (!confirm('Delete this uploaded document?')) return;
+        try {
+          await adminFetch('/api/staff/orders/documents/' + docId, { method: 'DELETE' });
+          setOrderDocs(prev => prev.filter(d => d.id !== docId));
+          loadPOs();
+        } catch (err) { alert(err.message || 'Failed to delete document'); }
+      };
+
+      // ── Delivery: will-call + manual freight ──────────────────────────
+      const switchToWillCall = async () => {
+        if (!confirm('Switch this order to will-call at the distributor? Shipping will be set to $0 and any Roma address cleared.')) return;
+        setDeliveryUpdating(true);
+        try {
+          const data = await adminFetch('/api/admin/orders/' + editId + '/delivery-method', {
+            method: 'PUT', body: JSON.stringify({ delivery_method: 'will_call' })
+          });
+          if (data.order) setOrder(data.order);
+          if (data.balance) setBalanceInfo(data.balance);
+        } catch (err) { alert(err.message || 'Failed to switch to will-call'); }
+        setDeliveryUpdating(false);
+      };
+      const saveManualFreight = async () => {
+        const amt = parseFloat(manualFreight.amount);
+        if (!(amt >= 0)) { alert('Enter a valid freight amount.'); return; }
+        setDeliveryUpdating(true);
+        try {
+          const data = await adminFetch('/api/admin/orders/' + editId + '/delivery-method', {
+            method: 'PUT',
+            body: JSON.stringify({
+              delivery_method: 'shipping',
+              manual_shipping_amount: amt,
+              shipping_carrier: manualFreight.carrier || undefined,
+              delivery_window: manualFreight.window
+            })
+          });
+          if (data.order) setOrder(data.order);
+          if (data.balance) setBalanceInfo(data.balance);
+          setShowManualFreight(false);
+          setManualFreight({ amount: '', carrier: '', window: '' });
+        } catch (err) { alert(err.message || 'Failed to set freight'); }
+        setDeliveryUpdating(false);
+      };
+
+      // ── Release: undo a completed release ─────────────────────────────
+      const uncompleteRelease = async (rel) => {
+        if (!confirm('Undo the completion of release ' + rel.release_number + '? It returns to Released.')) return;
+        setRelBusy(true);
+        try {
+          await adminFetch('/api/admin/releases/' + rel.id + '/uncomplete', { method: 'POST' });
+          await reloadOrderDetail();
+        } catch (err) { alert(err.message || 'Failed to undo release'); }
+        setRelBusy(false);
       };
 
       const loadTracking = async () => {
@@ -6239,6 +6497,8 @@
         loadTracking();
         loadReturns();
         loadOrderActivity();
+        loadNotes();
+        loadOrderDocs();
       }, [editId]);
 
       const updatePOStatus = async (poId, newStatus) => {
@@ -6395,6 +6655,7 @@
         : { pending: 'Pending', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered' };
 
       const isLaborItem = (i) => (i.item_type || 'material') === 'labor';
+      const isInstall = items.some(isLaborItem);
       const productItems = items.filter(i => !i.is_sample && !isLaborItem(i));
       const sampleItems = items.filter(i => i.is_sample);
 
@@ -6485,6 +6746,24 @@
                   {order.rep_name && <span>{order.rep_name}</span>}
                   <span>{items.length} lines</span>
                   <span>{purchaseOrders.length} POs</span>
+                  {jobNameEdit === null ? (
+                    <span>
+                      {'Job: '}
+                      <span style={{ color: order.job_name ? 'var(--ink)' : 'var(--faint)' }}>{order.job_name || '—'}</span>
+                      {['admin', 'manager'].includes(staffRole) && (
+                        <button className="rb-doc-link" style={{ marginLeft: 6 }} onClick={() => setJobNameEdit(order.job_name || '')}>edit</button>
+                      )}
+                    </span>
+                  ) : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <input value={jobNameEdit} placeholder="Job / sidemark" autoFocus
+                        onChange={e => setJobNameEdit(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveJobName(); if (e.key === 'Escape') setJobNameEdit(null); }}
+                        style={{ font: '400 12px/1.4 var(--sans)', padding: '2px 6px', width: 160 }} />
+                      <button className="rb-doc-link" disabled={jobNameBusy} onClick={saveJobName}>save</button>
+                      <button className="rb-doc-link" onClick={() => setJobNameEdit(null)}>cancel</button>
+                    </span>
+                  )}
                 </div>
               </div>
               <div style={{ marginLeft: 'auto', textAlign: 'right', flexShrink: 0 }}>
@@ -6507,6 +6786,10 @@
                 {canCancel && (
                   <button className="opsq-alt" style={{ color: 'var(--hot)' }} disabled={updating}
                     onClick={() => { if (confirm('Cancel this order?')) updateStatus('cancelled'); }}>Cancel order</button>
+                )}
+                {order.status === 'cancelled' && !order.stripe_refund_id && (
+                  <button className="opsq-alt" disabled={updating}
+                    onClick={() => { if (confirm('Reopen this cancelled order?')) updateStatus('pending'); }}>Reopen order</button>
                 )}
               </div>
             </div>
@@ -6736,6 +7019,22 @@
                         {formatLineItem(item).sku}
                         {item.is_sample && <span className="badge badge-draft" style={{ fontSize: '0.6rem', marginLeft: formatLineItem(item).sku ? '0.5rem' : '0' }}>Sample</span>}
                       </div>
+                      {['admin', 'manager'].includes(staffRole) && !item.is_sample && (
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--stone-500)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span>Cost $</span>
+                          <input
+                            value={costEdits[item.id] !== undefined ? costEdits[item.id] : (item.cost != null ? parseFloat(item.cost).toFixed(2) : '')}
+                            placeholder="—"
+                            onChange={e => setCostEdits(prev => ({ ...prev, [item.id]: e.target.value }))}
+                            style={{ width: 64, font: '400 11px/1.4 var(--mono)', padding: '1px 4px' }} />
+                          {costEdits[item.id] !== undefined && (
+                            <React.Fragment>
+                              <button className="rb-doc-link" disabled={costBusy === item.id} onClick={() => saveItemCost(item)}>save</button>
+                              <button className="rb-doc-link" onClick={() => setCostEdits(prev => { const n = { ...prev }; delete n[item.id]; return n; })}>cancel</button>
+                            </React.Fragment>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td data-label="Vendor · PO">
                       {(() => {
@@ -7306,6 +7605,9 @@
                     {rel.status === 'released' && (
                       <button className="rb-doc-link" onClick={() => setRelConfirm({ rel, action: 'complete' })}>COMPLETE</button>
                     )}
+                    {rel.status === 'completed' && ['admin', 'manager', 'warehouse'].includes(staffRole) && (
+                      <button className="rb-doc-link" disabled={relBusy} onClick={() => uncompleteRelease(rel)}>UNDO</button>
+                    )}
                     {rel.status !== 'void' && (
                       <button className="rb-doc-link" style={{ color: 'var(--hot)' }} onClick={() => setRelConfirm({ rel, action: 'void' })}>VOID</button>
                     )}
@@ -7583,11 +7885,14 @@
                 <div className="rb-head">
                   <h3>Store pickup</h3>
                   {['pending', 'confirmed'].includes(order.status) && (
-                    <button className="rb-action" disabled={deliveryUpdating} onClick={() => {
-                      setDeliveryAddress({ line1: order.shipping_address_line1 || '', line2: order.shipping_address_line2 || '', city: order.shipping_city || '', state: order.shipping_state || '', zip: order.shipping_zip || '' });
-                      setShippingOptions(null);
-                      setShowDeliveryForm(true);
-                    }}>Switch to shipping</button>
+                    <span style={{ display: 'inline-flex', gap: 8 }}>
+                      <button className="rb-action" disabled={deliveryUpdating} onClick={() => {
+                        setDeliveryAddress({ line1: order.shipping_address_line1 || '', line2: order.shipping_address_line2 || '', city: order.shipping_city || '', state: order.shipping_state || '', zip: order.shipping_zip || '' });
+                        setShippingOptions(null);
+                        setShowDeliveryForm(true);
+                      }}>Switch to shipping</button>
+                      <button className="rb-action" disabled={deliveryUpdating} onClick={switchToWillCall}>Will-call</button>
+                    </span>
                   )}
                 </div>
                 <div className="rb-addr">
@@ -7676,24 +7981,55 @@
             ) : (
               <>
                 <div className="rb-head">
-                  <h3>Ship to</h3>
+                  <h3>{order.delivery_method === 'will_call' ? 'Will-call at distributor' : 'Ship to'}</h3>
                   {['pending', 'confirmed'].includes(order.status) && (
-                    <button className="rb-action" disabled={deliveryUpdating} onClick={async () => {
-                      if (!confirm('Switch this order to store pickup? Shipping will be set to $0.')) return;
-                      setDeliveryUpdating(true);
-                      try {
-                        const data = await adminFetch('/api/admin/orders/' + editId + '/delivery-method', {
-                          method: 'PUT',
-                          body: JSON.stringify({ delivery_method: 'pickup' })
-                        });
-                        if (data.order) setOrder(data.order);
-                        if (data.balance) setBalanceInfo(data.balance);
-                      } catch (err) { alert(err.message || 'Failed to switch to pickup'); }
-                      setDeliveryUpdating(false);
-                    }}>{deliveryUpdating ? 'Updating…' : 'Switch to pickup'}</button>
+                    <span style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button className="rb-action" disabled={deliveryUpdating} onClick={async () => {
+                        if (!confirm('Switch this order to store pickup? Shipping will be set to $0.')) return;
+                        setDeliveryUpdating(true);
+                        try {
+                          const data = await adminFetch('/api/admin/orders/' + editId + '/delivery-method', {
+                            method: 'PUT',
+                            body: JSON.stringify({ delivery_method: 'pickup' })
+                          });
+                          if (data.order) setOrder(data.order);
+                          if (data.balance) setBalanceInfo(data.balance);
+                        } catch (err) { alert(err.message || 'Failed to switch to pickup'); }
+                        setDeliveryUpdating(false);
+                      }}>{deliveryUpdating ? 'Updating…' : 'Switch to pickup'}</button>
+                      {order.delivery_method !== 'will_call' && (
+                        <button className="rb-action" disabled={deliveryUpdating} onClick={switchToWillCall}>Will-call</button>
+                      )}
+                      <button className="rb-action" disabled={deliveryUpdating} onClick={() => { setManualFreight({ amount: order.shipping ? parseFloat(order.shipping).toFixed(2) : '', carrier: order.shipping_carrier || '', window: '' }); setShowManualFreight(!showManualFreight); }}>Manual freight</button>
+                    </span>
                   )}
                 </div>
-                {order.shipping_address_line1 || order.shipping_city ? (
+                {showManualFreight && ['pending', 'confirmed'].includes(order.status) && (
+                  <div style={{ margin: '0.75rem 0', padding: '1rem', background: 'var(--stone-50)', border: '1px solid var(--stone-200)', borderRadius: 6 }}>
+                    <h4 style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: 'var(--stone-700)' }}>Enter carrier-quoted freight</h4>
+                    <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Freight amount ($) *</label>
+                        <input className="form-control" value={manualFreight.amount} onChange={e => setManualFreight({ ...manualFreight, amount: e.target.value })} placeholder="0.00" style={{ fontSize: '0.8125rem' }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Carrier</label>
+                        <input className="form-control" value={manualFreight.carrier} onChange={e => setManualFreight({ ...manualFreight, carrier: e.target.value })} placeholder="e.g. XPO" style={{ fontSize: '0.8125rem' }} />
+                      </div>
+                      <div style={{ gridColumn: '1 / -1' }}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Delivery window</label>
+                        <input className="form-control" value={manualFreight.window} onChange={e => setManualFreight({ ...manualFreight, window: e.target.value })} placeholder="e.g. Tue 8am–12pm" style={{ fontSize: '0.8125rem' }} />
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                      <button className="btn btn-primary btn-sm" disabled={deliveryUpdating} onClick={saveManualFreight}>{deliveryUpdating ? 'Saving…' : 'Set freight'}</button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setShowManualFreight(false)}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+                {order.delivery_method === 'will_call' ? (
+                  <div className="rb-addr">Customer collects at the distributor (will-call). No Roma shipping address or freight.</div>
+                ) : order.shipping_address_line1 || order.shipping_city ? (
                   <div className="rb-addr">
                     {order.shipping_address_line1}
                     {order.shipping_address_line2 && <><br />{order.shipping_address_line2}</>}
@@ -7769,6 +8105,101 @@
               </div>
             )}
           </div>}
+          {recTab === 'record' && (isInstall || order.install_scheduled_at) && <div className="form-card">
+            <div className="rb-head">
+              <h3>Installation</h3>
+              <span style={{ display: 'inline-flex', gap: 8 }}>
+                <button className="rb-action" onClick={() => setDocPreview({ path: '/api/staff/orders/' + editId + '/work-order', title: 'Work Order' })}>Work order PDF</button>
+                {['admin', 'manager'].includes(staffRole) && installForm === null && (
+                  <button className="rb-action" onClick={() => setInstallForm({
+                    install_scheduled_at: order.install_scheduled_at ? new Date(order.install_scheduled_at).toISOString().slice(0, 16) : '',
+                    install_window: order.install_window || '',
+                    install_crew: order.install_crew || '',
+                    install_notes: order.install_notes || '',
+                    notify: true
+                  })}>{order.install_scheduled_at ? 'Edit schedule' : 'Schedule install'}</button>
+                )}
+              </span>
+            </div>
+            {installForm === null ? (
+              <div className="rb-facts">
+                <div className="rb-fact"><span className="rb-fact-k">Scheduled</span><span className="rb-fact-v">{order.install_scheduled_at ? new Date(order.install_scheduled_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—'}</span></div>
+                <div className="rb-fact"><span className="rb-fact-k">Window</span><span className="rb-fact-v">{order.install_window || '—'}</span></div>
+                <div className="rb-fact"><span className="rb-fact-k">Crew</span><span className="rb-fact-v">{order.install_crew || '—'}</span></div>
+                <div className="rb-fact"><span className="rb-fact-k">Notes</span><span className="rb-fact-v" style={{ whiteSpace: 'pre-wrap' }}>{order.install_notes || '—'}</span></div>
+              </div>
+            ) : (
+              <div style={{ padding: '0.5rem 0' }}>
+                <div className="resp-grid-2" style={{ gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Date & time</label>
+                    <input type="datetime-local" className="form-control" value={installForm.install_scheduled_at} onChange={e => setInstallForm({ ...installForm, install_scheduled_at: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Arrival window</label>
+                    <input className="form-control" value={installForm.install_window} onChange={e => setInstallForm({ ...installForm, install_window: e.target.value })} placeholder="e.g. 8am–12pm" style={{ fontSize: '0.8125rem' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Crew</label>
+                    <input className="form-control" value={installForm.install_crew} onChange={e => setInstallForm({ ...installForm, install_crew: e.target.value })} style={{ fontSize: '0.8125rem' }} />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '0.25rem' }}>Notes</label>
+                    <textarea className="form-control" value={installForm.install_notes} onChange={e => setInstallForm({ ...installForm, install_notes: e.target.value })} rows={2} style={{ fontSize: '0.8125rem' }} />
+                  </div>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--stone-600)' }}>
+                  <input type="checkbox" checked={installForm.notify} onChange={e => setInstallForm({ ...installForm, notify: e.target.checked })} />
+                  Notify customer of the scheduled date
+                </label>
+                <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-primary btn-sm" disabled={installBusy} onClick={saveInstallSchedule}>{installBusy ? 'Saving…' : 'Save schedule'}</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setInstallForm(null)}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </div>}
+          {recTab === 'record' && <div className="form-card">
+            <h3>Internal notes</h3>
+            {['admin', 'manager', 'warehouse'].includes(staffRole) && (
+              <div style={{ display: 'flex', gap: 8, margin: '0.5rem 0 0.75rem' }}>
+                <textarea className="form-control" value={newNote} onChange={e => setNewNote(e.target.value)} rows={2} placeholder="Add an internal note (staff only)…" style={{ fontSize: '0.8125rem', flex: 1 }} />
+                <button className="btn btn-primary btn-sm" disabled={noteBusy || !newNote.trim()} onClick={addNote} style={{ alignSelf: 'flex-start' }}>Add</button>
+              </div>
+            )}
+            {notes.length === 0 ? (
+              <p style={{ font: '400 11px/1.8 var(--mono)', color: 'var(--faint)', margin: 0 }}>no notes yet</p>
+            ) : (
+              <div>
+                {notes.map(n => (
+                  <div key={n.id} style={{ padding: '0.5rem 0', borderTop: '1px solid var(--stone-100)' }}>
+                    {editingNoteId === n.id ? (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <textarea className="form-control" value={editingNoteText} onChange={e => setEditingNoteText(e.target.value)} rows={2} style={{ fontSize: '0.8125rem', flex: 1 }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <button className="rb-doc-link" disabled={noteBusy} onClick={() => saveNoteEdit(n.id)}>save</button>
+                          <button className="rb-doc-link" onClick={() => { setEditingNoteId(null); setEditingNoteText(''); }}>cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <React.Fragment>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--ink)', whiteSpace: 'pre-wrap' }}>{n.note}</div>
+                        <div style={{ fontSize: '0.6875rem', color: 'var(--stone-400)', marginTop: 2, display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <span>{n.staff_name || 'Staff'} · {new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                          {['admin', 'manager', 'warehouse'].includes(staffRole) && (
+                            <React.Fragment>
+                              <button className="rb-doc-link" onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.note); }}>edit</button>
+                              <button className="rb-doc-link" style={{ color: 'var(--hot)' }} onClick={() => deleteNote(n.id)}>delete</button>
+                            </React.Fragment>
+                          )}
+                        </div>
+                      </React.Fragment>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>}
           {recTab === 'record' && <div className="form-card">
             <h3>Documents</h3>
             <div>
@@ -7796,27 +8227,14 @@
                   }}>PDF {'↓'}</button>
                 </div>
               )}
-              {payments.filter(p => p.stripe_receipt_url).map(p => (
+              {payments.filter(p => p.valor_tran_no || p.stripe_receipt_url).map(p => (
                 <div className="rb-doc" key={'rcpt-' + p.id}>
-                  <span style={{ minWidth: 0 }}>
-                    <span className="rb-doc-name" style={{ display: 'block' }}>Stripe receipt</span>
-                    <span className="rb-doc-sub" style={{ display: 'block' }}>
-                      {(p.card_brand ? p.card_brand.charAt(0).toUpperCase() + p.card_brand.slice(1) + (p.card_last4 ? ' ····' + p.card_last4 : '') : (p.payment_method || 'card').toUpperCase())}
-                      {' · $' + parseFloat(p.amount || 0).toFixed(2)}
-                      {p.stripe_receipt_number ? ' · #' + p.stripe_receipt_number : ''}
-                    </span>
-                  </span>
-                  <button className="rb-doc-link" onClick={() => window.open(p.stripe_receipt_url, '_blank', 'noopener')}>Open {'↗'}</button>
-                </div>
-              ))}
-              {payments.filter(p => p.valor_tran_no && !p.stripe_receipt_url).map(p => (
-                <div className="rb-doc" key={'vrcpt-' + p.id}>
                   <span style={{ minWidth: 0 }}>
                     <span className="rb-doc-name" style={{ display: 'block' }}>Card receipt</span>
                     <span className="rb-doc-sub" style={{ display: 'block' }}>
-                      {(p.card_brand ? p.card_brand.charAt(0).toUpperCase() + p.card_brand.slice(1) + (p.card_last4 ? ' ····' + p.card_last4 : '') : 'CARD')}
+                      {(p.card_brand ? p.card_brand.charAt(0).toUpperCase() + p.card_brand.slice(1) + (p.card_last4 ? ' ····' + p.card_last4 : '') : (p.payment_method || 'card').toUpperCase())}
                       {' · $' + parseFloat(p.amount || 0).toFixed(2)}
-                      {' · Valor terminal'}
+                      {p.valor_tran_no ? ' · Valor terminal' : ''}
                     </span>
                   </span>
                   <button className="rb-doc-link" onClick={() => {
@@ -7844,7 +8262,39 @@
                   <button className="rb-doc-link" onClick={() => openCreditMemo(rt.id)}>PDF {'↓'}</button>
                 </div>
               ))}
+              {orderDocs.map(doc => (
+                <div className="rb-doc" key={'upl-' + doc.id}>
+                  <span style={{ minWidth: 0 }}>
+                    <span className="rb-doc-name" style={{ display: 'block' }}>{doc.file_name}</span>
+                    <span className="rb-doc-sub" style={{ display: 'block' }}>
+                      {(doc.doc_type === 'vendor_confirmation' ? 'Vendor confirmation' : doc.doc_type) + (doc.po_number ? ' · ' + doc.po_number : '')}
+                      {doc.uploaded_at ? ' · ' + new Date(doc.uploaded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
+                    </span>
+                  </span>
+                  <span style={{ marginLeft: 'auto', display: 'flex', gap: 12, flexShrink: 0 }}>
+                    {doc.url && <a className="rb-doc-link" href={doc.url} target="_blank" rel="noreferrer">Open {'↗'}</a>}
+                    {['admin', 'manager'].includes(staffRole) && (
+                      <button className="rb-doc-link" style={{ color: 'var(--hot)' }} onClick={() => deleteOrderDoc(doc.id)}>Delete</button>
+                    )}
+                  </span>
+                </div>
+              ))}
             </div>
+            {['admin', 'manager'].includes(staffRole) && purchaseOrders.length > 0 && (
+              <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--stone-200)', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--stone-500)' }}>Attach vendor confirmation:</span>
+                <select value={uploadPOId} onChange={e => setUploadPOId(e.target.value)} style={{ font: '400 12px/1.4 var(--sans)', padding: '4px 6px' }}>
+                  <option value="">Select PO…</option>
+                  {purchaseOrders.filter(po => po.status !== 'cancelled').map(po => (
+                    <option key={po.id} value={po.id}>{po.po_number} · {po.vendor_name}</option>
+                  ))}
+                </select>
+                <input ref={uploadInputRef} type="file" disabled={uploadBusy || !uploadPOId}
+                  onChange={e => uploadOrderDoc(e.target.files && e.target.files[0])}
+                  style={{ fontSize: '0.75rem' }} />
+                {uploadBusy && <span style={{ fontSize: '0.6875rem', color: 'var(--stone-500)' }}>uploading…</span>}
+              </div>
+            )}
           </div>}
 
           {recTab !== 'activity' && <div className="form-card">
@@ -8842,9 +9292,35 @@
     }
 
     // ========== StaffListView ==========
+    // Shared helpers for the staff-management surface.
+    const STAFF_ROLE_LABELS = { admin: 'Admin', manager: 'Manager', sales_rep: 'Sales Rep', warehouse: 'Warehouse' };
+    // Static legend \u2014 reflects the role gating enforced by requireRole() on the API.
+    const STAFF_ROLE_CAPS = {
+      admin: 'Full access \u2014 staff management, pricing, refunds, everything.',
+      manager: 'Most admin functions, but cannot create/edit/promote admins or reset admin passwords.',
+      sales_rep: 'Orders, quotes, customers. No staff management or pricing.',
+      warehouse: 'Fulfillment, receiving, releases, order notes. No pricing or staff management.'
+    };
+    function staffRelTime(ts) {
+      if (!ts) return 'never';
+      const d = new Date(ts).getTime();
+      if (isNaN(d)) return '\u2014';
+      const s = Math.floor((Date.now() - d) / 1000);
+      if (s < 60) return 'just now';
+      const m = Math.floor(s / 60); if (m < 60) return m + 'm ago';
+      const h = Math.floor(m / 60); if (h < 24) return h + 'h ago';
+      const dd = Math.floor(h / 24); if (dd < 30) return dd + 'd ago';
+      const mo = Math.floor(dd / 30); if (mo < 12) return mo + 'mo ago';
+      return Math.floor(mo / 12) + 'y ago';
+    }
+    function staffLoginStale(ts) { return ts && (Date.now() - new Date(ts).getTime()) > 30 * 86400000; }
+
     function StaffListView({ navigate }) {
       const [staff, setStaff] = useState([]);
       const [loading, setLoading] = useState(true);
+      const [search, setSearch] = useState('');
+      const [roleFilter, setRoleFilter] = useState('');
+      const [statusFilter, setStatusFilter] = useState('');
 
       const fetchStaff = () => {
         adminFetch('/api/admin/staff')
@@ -8854,35 +9330,44 @@
 
       useEffect(fetchStaff, []);
 
-      const toggleActive = (id) => {
-        adminFetch('/api/admin/staff/' + id + '/toggle', { method: 'PATCH' })
-          .then(() => fetchStaff())
-          .catch(err => alert(err.message));
-      };
-
-      const terminateStaff = async (s) => {
-        if (!confirm(`Terminate "${s.first_name} ${s.last_name}"? This will deactivate their account and unassign all their trade customers.`)) return;
-        try {
-          const data = await adminFetch('/api/admin/staff/' + s.id + '/terminate', { method: 'PATCH' });
-          let msg = `${data.terminated.name} has been terminated.`;
-          if (data.freed_customers.length > 0) {
-            msg += ` ${data.freed_customers.length} customer(s) unassigned.`;
-            if (data.recommended_rep) msg += ` Recommended reassignment: ${data.recommended_rep.name}`;
-          }
-          alert(msg);
-          fetchStaff();
-        } catch (err) {
-          alert(err.message || 'Error terminating staff');
+      const q = search.trim().toLowerCase();
+      const filtered = staff.filter(s => {
+        if (roleFilter && s.role !== roleFilter) return false;
+        if (statusFilter === 'active' && !s.is_active) return false;
+        if (statusFilter === 'inactive' && s.is_active) return false;
+        if (q) {
+          const hay = (s.first_name + ' ' + s.last_name + ' ' + s.email).toLowerCase();
+          if (!hay.includes(q)) return false;
         }
-      };
+        return true;
+      });
 
-      const roleLabels = { admin: 'Admin', manager: 'Manager', sales_rep: 'Sales Rep', warehouse: 'Warehouse' };
+      const inputStyle = { padding: '0.45rem 0.6rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem', fontFamily: 'Inter, sans-serif' };
 
       return (
         <div>
           <div className="content-header">
-            <h1>Staff Accounts</h1>
-            <button className="btn btn-primary" onClick={() => navigate('staff-create')}>Add Staff</button>
+            <h1>Staff & Access</h1>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-secondary" onClick={() => navigate('audit')}>Audit Log</button>
+              <button className="btn btn-primary" onClick={() => navigate('staff-create')}>Add Staff</button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input style={{ ...inputStyle, minWidth: '220px' }} placeholder="Search name or email\u2026" value={search} onChange={e => setSearch(e.target.value)} />
+            <select style={inputStyle} value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
+              <option value="">All roles</option>
+              <option value="admin">Admin</option>
+              <option value="manager">Manager</option>
+              <option value="sales_rep">Sales Rep</option>
+              <option value="warehouse">Warehouse</option>
+            </select>
+            <select style={inputStyle} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>{filtered.length} of {staff.length}</span>
           </div>
           <div className="table-scroll-wrapper">
           <table className="data-table">
@@ -8890,33 +9375,34 @@
               <tr>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Phone</th>
                 <th>Role</th>
+                <th>Last login</th>
+                <th>Sessions</th>
+                <th>2FA</th>
                 <th>Customers</th>
                 <th>Status</th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>Loading...</td></tr>
-              ) : staff.length === 0 ? (
-                <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-500)' }}>No staff accounts</td></tr>
-              ) : staff.map(s => (
-                <tr key={s.id}>
-                  <td><strong>{s.first_name} {s.last_name}</strong></td>
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Loading...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-500)' }}>No staff accounts</td></tr>
+              ) : filtered.map(s => (
+                <tr key={s.id} style={{ cursor: 'pointer' }} onClick={() => navigate('staff-detail', s.id)}>
+                  <td>
+                    <strong>{s.first_name} {s.last_name}</strong>
+                    {s.invite_pending && <span className="status-badge status-pending" style={{ marginLeft: '0.4rem' }}>Invite pending</span>}
+                  </td>
                   <td>{s.email}</td>
-                  <td style={{ fontSize: '0.8125rem' }}>{s.phone || '\u2014'}</td>
-                  <td><span className={'status-badge status-' + (s.role === 'admin' ? 'active' : s.role === 'manager' ? 'confirmed' : 'draft')}>{roleLabels[s.role] || s.role}</span></td>
+                  <td><span className={'status-badge status-' + (s.role === 'admin' ? 'active' : s.role === 'manager' ? 'confirmed' : 'draft')}>{STAFF_ROLE_LABELS[s.role] || s.role}</span></td>
+                  <td style={{ fontSize: '0.8125rem', color: staffLoginStale(s.last_login) ? 'var(--hot, #c0392b)' : 'var(--stone-500)', whiteSpace: 'nowrap' }}>
+                    {staffLoginStale(s.last_login) && '\u26a0 '}{staffRelTime(s.last_login)}
+                  </td>
+                  <td style={{ fontSize: '0.8125rem' }}>{s.active_sessions || 0}</td>
+                  <td style={{ fontSize: '0.8125rem' }}>{s.trusted_devices > 0 ? ('\u2713 ' + s.trusted_devices) : '\u2014'}</td>
                   <td>{s.assigned_customers || 0}</td>
                   <td><span className={'status-badge status-' + (s.is_active ? 'active' : 'draft')}>{s.is_active ? 'Active' : 'Inactive'}</span></td>
-                  <td>
-                    <button className="btn-link" onClick={() => navigate('staff-edit', s.id)}>Edit</button>
-                    <button className="btn-link" onClick={() => toggleActive(s.id)} style={{ marginLeft: '0.5rem' }}>{s.is_active ? 'Deactivate' : 'Activate'}</button>
-                    {s.is_active && ['sales_rep', 'manager'].includes(s.role) && (
-                      <button className="btn-link btn-link-danger" onClick={() => terminateStaff(s)} style={{ marginLeft: '0.5rem' }}>Terminate</button>
-                    )}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -8928,7 +9414,7 @@
 
     // ========== StaffFormView ==========
     function StaffFormView({ navigate, editId }) {
-      const [form, setForm] = useState({ email: '', first_name: '', last_name: '', phone: '', role: 'sales_rep', password: '' });
+      const [form, setForm] = useState({ email: '', first_name: '', last_name: '', phone: '', role: 'sales_rep', password: '', invite: true });
       const [loading, setLoading] = useState(!!editId);
       const [saving, setSaving] = useState(false);
       const [error, setError] = useState('');
@@ -8961,9 +9447,13 @@
             if (form.password) {
               await adminFetch('/api/admin/staff/' + editId + '/password', { method: 'PUT', body: JSON.stringify({ password: form.password }) });
             }
+          } else if (form.invite) {
+            const { password, invite, ...rest } = form;
+            await adminFetch('/api/admin/staff', { method: 'POST', body: JSON.stringify({ ...rest, invite: true }) });
           } else {
             if (!form.password) { setError('Password is required'); setSaving(false); return; }
-            await adminFetch('/api/admin/staff', { method: 'POST', body: JSON.stringify(form) });
+            const { invite, ...rest } = form;
+            await adminFetch('/api/admin/staff', { method: 'POST', body: JSON.stringify(rest) });
           }
           navigate('staff');
         } catch (err) {
@@ -9008,11 +9498,22 @@
                   <option value="warehouse">Warehouse</option>
                 </select>
               </div>
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>{editId ? 'New Password (leave blank to keep)' : 'Password *'}</label>
-                <input type="password" style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} {...(!editId ? { required: true } : {})} />
-              </div>
-              <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : (editId ? 'Update' : 'Create')}</button>
+              {!editId && (
+                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', fontWeight: 500, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={form.invite} onChange={e => setForm({ ...form, invite: e.target.checked })} />
+                    Invite by email (they set their own password)
+                  </label>
+                  {form.invite && <p style={{ fontSize: '0.75rem', color: 'var(--stone-500)', margin: '0.375rem 0 0' }}>A set-password link will be emailed to them. No password is stored until they choose one.</p>}
+                </div>
+              )}
+              {(editId || !form.invite) && (
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem' }}>{editId ? 'New Password (leave blank to keep)' : 'Password *'}</label>
+                  <input type="password" style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif' }} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} {...(!editId && !form.invite ? { required: true } : {})} />
+                </div>
+              )}
+              <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Saving...' : (editId ? 'Update' : (form.invite ? 'Send Invite' : 'Create'))}</button>
             </form>
           </div>
           {editId && assignedCustomers.length > 0 && (
@@ -9044,6 +9545,325 @@
               </div>
             </div>
           )}
+        </div>
+      );
+    }
+
+    // ========== StaffDetailView (sectioned drawer) ==========
+    function StaffDetailView({ navigate, editId, staffRole, staffData }) {
+      const [s, setS] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [msg, setMsg] = useState('');
+      const [err, setErr] = useState('');
+      const [ident, setIdent] = useState({ first_name: '', last_name: '', email: '', phone: '' });
+      const [savingIdent, setSavingIdent] = useState(false);
+      const [role, setRole] = useState('');
+      const [roleReason, setRoleReason] = useState('');
+      const [savingRole, setSavingRole] = useState(false);
+      const [sessions, setSessions] = useState([]);
+      const [pwOpen, setPwOpen] = useState(false);
+      const [newPw, setNewPw] = useState('');
+      const [activity, setActivity] = useState([]);
+      const [customers, setCustomers] = useState([]);
+      const [danger, setDanger] = useState(null); // 'deactivate' | 'terminate'
+      const [reason, setReason] = useState('');
+
+      const isSelf = staffData && staffData.id === editId;
+      const blocked = staffRole === 'manager' && s && s.role === 'admin'; // managers can't touch admins
+
+      const load = () => {
+        adminFetch('/api/admin/staff').then(data => {
+          const found = (data.staff || []).find(x => x.id === editId);
+          setS(found || null);
+          if (found) { setIdent({ first_name: found.first_name, last_name: found.last_name, email: found.email, phone: found.phone || '' }); setRole(found.role); }
+          setLoading(false);
+        }).catch(() => setLoading(false));
+        adminFetch('/api/admin/staff/' + editId + '/sessions').then(d => setSessions(d.sessions || [])).catch(() => {});
+        adminFetch('/api/admin/audit-log?entity_id=' + editId + '&limit=25').then(d => setActivity(d.entries || [])).catch(() => {});
+        adminFetch('/api/admin/trade-customers').then(d => setCustomers((d.customers || []).filter(c => c.assigned_rep_id === editId))).catch(() => {});
+      };
+      useEffect(load, [editId]);
+
+      const flash = (m) => { setMsg(m); setErr(''); setTimeout(() => setMsg(''), 4000); };
+      const fail = (e) => { setErr(e); setTimeout(() => setErr(''), 6000); };
+
+      const saveIdent = async () => {
+        setSavingIdent(true); setErr('');
+        try {
+          await adminFetch('/api/admin/staff/' + editId, { method: 'PUT', body: JSON.stringify(ident) });
+          flash('Profile saved'); load();
+        } catch (e) { fail(e.message || 'Save failed'); }
+        setSavingIdent(false);
+      };
+      const saveRole = async () => {
+        if (role === 'admin' && s.role !== 'admin' && !roleReason.trim()) { fail('A reason is required to grant admin access'); return; }
+        setSavingRole(true); setErr('');
+        try {
+          await adminFetch('/api/admin/staff/' + editId, { method: 'PUT', body: JSON.stringify({ role, reason: roleReason.trim() || null }) });
+          setRoleReason(''); flash('Role updated'); load();
+        } catch (e) { fail(e.message || 'Save failed'); }
+        setSavingRole(false);
+      };
+      const act = async (path, okMsg, method) => {
+        setErr('');
+        try { const d = await adminFetch(path, { method: method || 'POST' }); flash(okMsg); load(); return d; }
+        catch (e) { fail(e.message || 'Action failed'); }
+      };
+      const setPasswordDirect = async () => {
+        if (!newPw) { fail('Enter a password'); return; }
+        try {
+          await adminFetch('/api/admin/staff/' + editId + '/password', { method: 'PUT', body: JSON.stringify({ password: newPw }) });
+          setNewPw(''); setPwOpen(false); flash('Password set — all sessions signed out'); load();
+        } catch (e) { fail(e.message || 'Failed'); }
+      };
+      const confirmDanger = async () => {
+        try {
+          if (danger === 'deactivate') {
+            await adminFetch('/api/admin/staff/' + editId + '/toggle', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) });
+            flash('Account deactivated');
+          } else if (danger === 'terminate') {
+            const d = await adminFetch('/api/admin/staff/' + editId + '/terminate', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) });
+            let m = 'Terminated.';
+            if (d.freed_customers && d.freed_customers.length) { m += ' ' + d.freed_customers.length + ' customer(s) unassigned.'; if (d.recommended_rep) m += ' Suggest: ' + d.recommended_rep.name; }
+            flash(m);
+          }
+          setDanger(null); setReason(''); load();
+        } catch (e) { fail(e.message || 'Action failed'); }
+      };
+
+      if (loading) return <div className="loading">Loading...</div>;
+      if (!s) return <div style={{ padding: '2rem' }}>Staff member not found. <button className="btn-link" onClick={() => navigate('staff')}>Back</button></div>;
+
+      const card = { background: 'var(--panel)', border: '1px solid var(--stone-200)', padding: '1.5rem', marginBottom: '1.25rem', maxWidth: '720px' };
+      const sectionLabel = { fontSize: '0.7rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--stone-400)', marginBottom: '0.75rem' };
+      const inp = { width: '100%', padding: '0.55rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif', marginBottom: '0.75rem' };
+      const summarizeDetails = (d) => { if (!d) return ''; try { const o = typeof d === 'string' ? JSON.parse(d) : d; return Object.entries(o).map(([k, v]) => k + '=' + (v == null ? '—' : (typeof v === 'object' ? JSON.stringify(v) : v))).join(' · ').slice(0, 120); } catch { return String(d).slice(0, 120); } };
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>{s.first_name} {s.last_name}</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('staff')}>← Staff</button>
+          </div>
+          {msg && <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: '0.6rem 0.9rem', marginBottom: '1rem', fontSize: '0.85rem', maxWidth: '720px' }}>{msg}</div>}
+          {err && <div className="auth-error" style={{ maxWidth: '720px' }}>{err}</div>}
+          {blocked && <div style={{ background: '#fdf3e7', color: '#8a5a00', padding: '0.6rem 0.9rem', marginBottom: '1rem', fontSize: '0.8125rem', maxWidth: '720px' }}>Managers cannot modify admin accounts.</div>}
+          {s.invite_pending && <div style={{ background: '#eef2fb', color: '#2b4a9b', padding: '0.6rem 0.9rem', marginBottom: '1rem', fontSize: '0.8125rem', maxWidth: '720px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Invite pending — they haven't set a password yet.</span>
+            <button className="btn-link" disabled={blocked} onClick={() => act('/api/admin/staff/' + editId + '/send-reset', 'Invite re-sent')}>Resend invite</button>
+          </div>}
+
+          {/* IDENTITY */}
+          <div style={card}>
+            <div style={sectionLabel}>Identity</div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <input style={inp} placeholder="First name" value={ident.first_name} disabled={blocked} onChange={e => setIdent({ ...ident, first_name: e.target.value })} />
+              <input style={inp} placeholder="Last name" value={ident.last_name} disabled={blocked} onChange={e => setIdent({ ...ident, last_name: e.target.value })} />
+            </div>
+            <input style={inp} placeholder="Email" value={ident.email} disabled={blocked} onChange={e => setIdent({ ...ident, email: e.target.value })} />
+            <input style={inp} placeholder="Phone" value={ident.phone} disabled={blocked} onChange={e => setIdent({ ...ident, phone: formatPhone(e.target.value) })} />
+            <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginBottom: '0.75rem' }}>Created {staffRelTime(s.created_at)} · Last login {staffRelTime(s.last_login)}</div>
+            <button className="btn btn-primary" disabled={blocked || savingIdent} onClick={saveIdent}>{savingIdent ? 'Saving…' : 'Save'}</button>
+          </div>
+
+          {/* ROLE & ACCESS */}
+          <div style={card}>
+            <div style={sectionLabel}>Role & Access</div>
+            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <select style={{ ...inp, marginBottom: 0, maxWidth: '220px' }} value={role} disabled={blocked} onChange={e => setRole(e.target.value)}>
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="sales_rep">Sales Rep</option>
+                <option value="warehouse">Warehouse</option>
+              </select>
+              {role !== s.role && <button className="btn btn-primary" disabled={blocked || savingRole} onClick={saveRole}>{savingRole ? 'Saving…' : 'Apply role'}</button>}
+            </div>
+            {role === 'admin' && s.role !== 'admin' && (
+              <input style={inp} placeholder="Reason for granting admin access (required)" value={roleReason} onChange={e => setRoleReason(e.target.value)} />
+            )}
+            <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', background: 'var(--stone-50, #faf8f5)', padding: '0.6rem 0.75rem', border: '1px solid var(--stone-200)' }}>
+              <strong>{STAFF_ROLE_LABELS[role] || role}:</strong> {STAFF_ROLE_CAPS[role]}
+              <div style={{ marginTop: '0.35rem', color: 'var(--stone-400)' }}>Reflects current access rules.</div>
+            </div>
+          </div>
+
+          {/* SECURITY */}
+          <div style={card}>
+            <div style={sectionLabel}>Security</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.85rem' }}>2FA trusted devices: <strong>{s.trusted_devices || 0}</strong></span>
+              <button className="btn btn-secondary btn-sm" disabled={blocked || !s.trusted_devices} onClick={() => act('/api/admin/staff/' + editId + '/revoke-trusted', 'Trusted devices revoked')}>Revoke trusted devices</button>
+            </div>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                <span style={{ fontSize: '0.85rem' }}>Active sessions: <strong>{sessions.filter(x => x.active).length}</strong></span>
+                <button className="btn btn-secondary btn-sm" disabled={blocked || !sessions.length} onClick={() => act('/api/admin/staff/' + editId + '/force-logout', 'Signed out everywhere')}>Force sign-out everywhere</button>
+              </div>
+              {sessions.length > 0 && (
+                <table className="data-table" style={{ fontSize: '0.75rem' }}>
+                  <thead><tr><th>Device</th><th>Trusted</th><th>Remember</th><th>Created</th><th>Expires</th></tr></thead>
+                  <tbody>
+                    {sessions.map(ss => (
+                      <tr key={ss.id}>
+                        <td>{ss.device_id || '—'}</td>
+                        <td>{ss.is_trusted ? '✓' : '—'}</td>
+                        <td>{ss.remember_me ? '✓' : '—'}</td>
+                        <td>{staffRelTime(ss.created_at)}</td>
+                        <td>{ss.active ? staffRelTime(ss.expires_at).replace(' ago', '') : 'expired'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button className="btn btn-secondary btn-sm" disabled={blocked} onClick={() => act('/api/admin/staff/' + editId + '/send-reset', 'Password-reset link emailed')}>Send password-reset link</button>
+              <button className="btn btn-secondary btn-sm" disabled={blocked} onClick={() => setPwOpen(o => !o)}>Set password directly</button>
+            </div>
+            {pwOpen && (
+              <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <input type="password" style={{ ...inp, marginBottom: 0, maxWidth: '260px' }} placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
+                <button className="btn btn-primary btn-sm" onClick={setPasswordDirect}>Save password</button>
+              </div>
+            )}
+          </div>
+
+          {/* ACTIVITY */}
+          <div style={card}>
+            <div style={{ ...sectionLabel, display: 'flex', justifyContent: 'space-between' }}>
+              <span>Activity</span>
+              <button className="btn-link" style={{ fontSize: '0.7rem' }} onClick={() => navigate('audit')}>Full log →</button>
+            </div>
+            {activity.length === 0 ? <div style={{ fontSize: '0.8125rem', color: 'var(--stone-400)' }}>No recorded activity.</div> : (
+              <div>
+                {activity.map(a => (
+                  <div key={a.id} style={{ padding: '0.4rem 0', borderBottom: '1px solid var(--stone-100, #f0ece6)', fontSize: '0.8rem' }}>
+                    <span style={{ fontWeight: 500 }}>{a.action}</span>
+                    <span style={{ color: 'var(--stone-400)' }}> · {a.staff_name || 'system'} · {staffRelTime(a.created_at)}</span>
+                    {a.details && <div style={{ color: 'var(--stone-400)', fontSize: '0.72rem', marginTop: '0.15rem' }}>{summarizeDetails(a.details)}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ASSIGNMENTS */}
+          {customers.length > 0 && (
+            <div style={card}>
+              <div style={sectionLabel}>Assigned Trade Customers ({customers.length})</div>
+              <table className="data-table">
+                <thead><tr><th>Company</th><th>Contact</th><th>Status</th><th>Tier</th><th>Total Spend</th></tr></thead>
+                <tbody>
+                  {customers.map(c => (
+                    <tr key={c.id}>
+                      <td><strong>{c.company_name}</strong></td>
+                      <td>{c.contact_name}</td>
+                      <td><span className={'badge badge-' + (c.status === 'approved' ? 'active' : c.status === 'pending' ? 'pending' : 'inactive')}>{c.status}</span></td>
+                      <td>{c.tier_name || '—'}</td>
+                      <td>${parseFloat(c.total_spend || 0).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* DANGER ZONE */}
+          {!isSelf && !blocked && (
+            <div style={{ ...card, borderColor: '#e0b4b4' }}>
+              <div style={{ ...sectionLabel, color: '#c0392b' }}>Danger Zone</div>
+              {!danger && (
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {s.is_active ? (
+                    <>
+                      <button className="btn btn-secondary btn-sm" onClick={() => { setDanger('deactivate'); setReason(''); }}>Deactivate</button>
+                      {['sales_rep', 'manager'].includes(s.role) && <button className="btn-link btn-link-danger" onClick={() => { setDanger('terminate'); setReason(''); }}>Terminate & reassign</button>}
+                    </>
+                  ) : (
+                    <button className="btn btn-secondary btn-sm" onClick={() => act('/api/admin/staff/' + editId + '/toggle', 'Account reactivated', 'PATCH')}>Reactivate</button>
+                  )}
+                </div>
+              )}
+              {danger && (
+                <div>
+                  <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+                    {danger === 'terminate' ? 'Terminate this account and unassign all their trade customers?' : 'Deactivate this account? They will be signed out.'}
+                  </div>
+                  <input style={inp} placeholder={danger === 'terminate' ? 'Reason (recommended)' : 'Reason (optional)'} value={reason} onChange={e => setReason(e.target.value)} autoFocus />
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-primary btn-sm" onClick={confirmDanger}>Confirm {danger === 'terminate' ? 'terminate' : 'deactivate'}</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { setDanger(null); setReason(''); }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========== ProfileView (self-service) ==========
+    function ProfileView({ navigate, staffData, onStaffUpdate }) {
+      const [form, setForm] = useState({ first_name: staffData.first_name || '', last_name: staffData.last_name || '', phone: staffData.phone || '' });
+      const [savingProfile, setSavingProfile] = useState(false);
+      const [pw, setPw] = useState({ current_password: '', new_password: '', confirm: '' });
+      const [savingPw, setSavingPw] = useState(false);
+      const [msg, setMsg] = useState('');
+      const [err, setErr] = useState('');
+
+      const flash = (m) => { setMsg(m); setErr(''); setTimeout(() => setMsg(''), 4000); };
+      const fail = (e) => { setErr(e); setMsg(''); setTimeout(() => setErr(''), 6000); };
+
+      const saveProfile = async () => {
+        setSavingProfile(true); setErr('');
+        try {
+          const d = await adminFetch('/api/staff/me', { method: 'PUT', body: JSON.stringify(form) });
+          if (d.staff && onStaffUpdate) onStaffUpdate(d.staff);
+          flash('Profile updated');
+        } catch (e) { fail(e.message || 'Save failed'); }
+        setSavingProfile(false);
+      };
+      const savePassword = async () => {
+        if (!pw.current_password || !pw.new_password) { fail('Enter current and new password'); return; }
+        if (pw.new_password !== pw.confirm) { fail('New passwords do not match'); return; }
+        setSavingPw(true); setErr('');
+        try {
+          await adminFetch('/api/staff/me/password', { method: 'PUT', body: JSON.stringify({ current_password: pw.current_password, new_password: pw.new_password }) });
+          setPw({ current_password: '', new_password: '', confirm: '' });
+          flash('Password changed — other sessions signed out');
+        } catch (e) { fail(e.message || 'Change failed'); }
+        setSavingPw(false);
+      };
+
+      const card = { background: 'var(--panel)', border: '1px solid var(--stone-200)', padding: '1.5rem', marginBottom: '1.25rem', maxWidth: '560px' };
+      const sectionLabel = { fontSize: '0.7rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--stone-400)', marginBottom: '0.75rem' };
+      const inp = { width: '100%', padding: '0.55rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif', marginBottom: '0.75rem' };
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>My Profile</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('dashboard')}>← Back</button>
+          </div>
+          {msg && <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: '0.6rem 0.9rem', marginBottom: '1rem', fontSize: '0.85rem', maxWidth: '560px' }}>{msg}</div>}
+          {err && <div className="auth-error" style={{ maxWidth: '560px' }}>{err}</div>}
+          <div style={card}>
+            <div style={sectionLabel}>Identity</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>{staffData.email} · {STAFF_ROLE_LABELS[staffData.role] || staffData.role}</div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <input style={inp} placeholder="First name" value={form.first_name} onChange={e => setForm({ ...form, first_name: e.target.value })} />
+              <input style={inp} placeholder="Last name" value={form.last_name} onChange={e => setForm({ ...form, last_name: e.target.value })} />
+            </div>
+            <input style={inp} placeholder="Phone" value={form.phone} onChange={e => setForm({ ...form, phone: formatPhone(e.target.value) })} />
+            <button className="btn btn-primary" disabled={savingProfile} onClick={saveProfile}>{savingProfile ? 'Saving…' : 'Save profile'}</button>
+          </div>
+          <div style={card}>
+            <div style={sectionLabel}>Change Password</div>
+            <input type="password" style={inp} placeholder="Current password" value={pw.current_password} onChange={e => setPw({ ...pw, current_password: e.target.value })} />
+            <input type="password" style={inp} placeholder="New password" value={pw.new_password} onChange={e => setPw({ ...pw, new_password: e.target.value })} />
+            <input type="password" style={inp} placeholder="Confirm new password" value={pw.confirm} onChange={e => setPw({ ...pw, confirm: e.target.value })} />
+            <button className="btn btn-primary" disabled={savingPw} onClick={savePassword}>{savingPw ? 'Saving…' : 'Change password'}</button>
+          </div>
         </div>
       );
     }
@@ -10787,44 +11607,45 @@
     function AuditLogView({ navigate }) {
       const [logs, setLogs] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [page, setPage] = useState(1);
-      const [totalPages, setTotalPages] = useState(1);
+      const [page, setPage] = useState(0); // 0-based offset paging
       const [actionFilter, setActionFilter] = useState('');
+      const [entityFilter, setEntityFilter] = useState('');
+      const LIMIT = 50;
 
       const load = () => {
         setLoading(true);
-        let url = '/api/admin/audit-log?page=' + page + '&limit=50';
+        let url = '/api/admin/audit-log?limit=' + LIMIT + '&offset=' + (page * LIMIT);
         if (actionFilter) url += '&action=' + encodeURIComponent(actionFilter);
+        if (entityFilter) url += '&entity_type=' + encodeURIComponent(entityFilter);
         adminFetch(url)
-          .then(data => {
-            setLogs(data.logs || []);
-            setTotalPages(data.total_pages || 1);
-            setLoading(false);
-          })
+          .then(data => { setLogs(data.entries || []); setLoading(false); })
           .catch(() => setLoading(false));
       };
 
-      useEffect(load, [page, actionFilter]);
+      useEffect(load, [page, actionFilter, entityFilter]);
+
+      const inputStyle = { padding: '0.4rem 0.6rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' };
 
       return (
         <div>
           <div className="content-header">
             <h1>Audit Log</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('staff')}>\u2190 Staff</button>
           </div>
-          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center' }}>
-            <label style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>Filter action:</label>
-            <input type="text" value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(1); }}
-              placeholder="e.g. staff.login, trade.approve"
-              style={{ padding: '0.4rem 0.6rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', maxWidth: '250px', width: '100%' }} />
-            <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>Page {page} of {totalPages}</span>
+          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input type="text" value={actionFilter} onChange={e => { setActionFilter(e.target.value); setPage(0); }}
+              placeholder="action \u2014 e.g. staff.login" style={{ ...inputStyle, minWidth: '200px' }} />
+            <input type="text" value={entityFilter} onChange={e => { setEntityFilter(e.target.value); setPage(0); }}
+              placeholder="entity type \u2014 e.g. staff_accounts" style={{ ...inputStyle, minWidth: '200px' }} />
+            <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>Page {page + 1}</span>
           </div>
           {loading ? <div className="loading">Loading...</div> : (
             <div className="table-scroll-wrapper">
-            <table className="admin-table">
+            <table className="data-table">
               <thead>
                 <tr>
                   <th>When</th>
-                  <th>Staff</th>
+                  <th>Actor</th>
                   <th>Action</th>
                   <th>Entity</th>
                   <th>Details</th>
@@ -10835,11 +11656,11 @@
                 {logs.map(log => (
                   <tr key={log.id}>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', whiteSpace: 'nowrap' }}>{new Date(log.created_at).toLocaleString()}</td>
-                    <td style={{ fontSize: '0.8125rem' }}>{log.staff_name || log.staff_id || '\u2014'}</td>
+                    <td style={{ fontSize: '0.8125rem' }}>{log.staff_name || log.staff_email || '\u2014'}</td>
                     <td style={{ fontWeight: 500, fontSize: '0.8125rem' }}>{log.action}</td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{log.entity_type ? log.entity_type + (log.entity_id ? ' #' + log.entity_id.slice(0, 8) : '') : '\u2014'}</td>
+                    <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>{log.entity_type ? log.entity_type + (log.entity_id ? ' #' + String(log.entity_id).slice(0, 8) : '') : '\u2014'}</td>
                     <td style={{ fontSize: '0.75rem', color: 'var(--stone-400)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {log.details ? JSON.stringify(log.details) : '\u2014'}
+                      {log.details ? (typeof log.details === 'string' ? log.details : JSON.stringify(log.details)) : '\u2014'}
                     </td>
                     <td style={{ fontSize: '0.75rem', color: 'var(--stone-400)' }}>{log.ip_address || '\u2014'}</td>
                   </tr>
@@ -10852,8 +11673,8 @@
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
-            <button className="btn btn-secondary btn-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</button>
-            <button className="btn btn-secondary btn-sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Next</button>
+            <button className="btn btn-secondary btn-sm" disabled={page <= 0} onClick={() => setPage(p => p - 1)}>Previous</button>
+            <button className="btn btn-secondary btn-sm" disabled={logs.length < LIMIT} onClick={() => setPage(p => p + 1)}>Next</button>
           </div>
         </div>
       );
