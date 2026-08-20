@@ -2428,6 +2428,8 @@
               <VisitsListView navigate={navigate} />
             ) : view === 'visit-detail' ? (
               <VisitDetailView navigate={navigate} editId={editId} staffRole={staffRole} />
+            ) : (view === 'staff' || view === 'staff-detail' || view === 'staff-edit') ? (
+              <StaffLedger navigate={navigate} staffRole={staffRole} staffData={staffData} initialSel={editId} />
             ) : (
           <div className="admin-content">
             {view === 'overview' && <DashboardView navigate={navigate} />}
@@ -2440,9 +2442,7 @@
             {view === 'vendor-create' && <VendorFormView navigate={navigate} />}
             {view === 'vendor-edit' && <VendorFormView navigate={navigate} editId={editId} />}
             {view === 'trade' && <TradeManagementView navigate={navigate} />}
-            {view === 'staff' && <StaffListView navigate={navigate} />}
             {view === 'staff-create' && <StaffFormView navigate={navigate} />}
-            {(view === 'staff-edit' || view === 'staff-detail') && <StaffDetailView navigate={navigate} editId={editId} staffRole={staffRole} staffData={staffData} />}
             {view === 'profile' && <ProfileView navigate={navigate} staffData={staffData} onStaffUpdate={onStaffUpdate} />}
             {view === 'promos' && <PromoCodesListView navigate={navigate} />}
             {view === 'promo-create' && <PromoCodeFormView navigate={navigate} />}
@@ -9315,99 +9315,298 @@
     }
     function staffLoginStale(ts) { return ts && (Date.now() - new Date(ts).getTime()) > 30 * 86400000; }
 
-    function StaffListView({ navigate }) {
+    // ===== StaffLedger — two-pane OPERATIONS staff console (Admin Staff.html) =====
+    const ST_VIEWS = [
+      { id: 'all', label: 'All staff', hint: 'active accounts' },
+      { id: 'admin', label: 'Admins', hint: 'full access' },
+      { id: 'manager', label: 'Managers', hint: 'approvals · pricing' },
+      { id: 'sales_rep', label: 'Sales reps', hint: 'orders · customers' },
+      { id: 'warehouse', label: 'Warehouse', hint: 'receiving · yard' },
+      { id: 'inactive', label: 'Deactivated', hint: 'access removed' },
+    ];
+    const ST_ROLES = {
+      admin: { t: 'ADMIN', c: 'var(--hot)' },
+      manager: { t: 'MANAGER', c: 'var(--gold)' },
+      sales_rep: { t: 'SALES REP', c: 'var(--cool)' },
+      warehouse: { t: 'WAREHOUSE', c: 'var(--dim)' },
+    };
+    // Capability matrix — reflects the real requireRole gating in server.js.
+    const ST_PERMS = {
+      admin: ['Everything, including staff accounts, refunds, and vendor payouts'],
+      manager: [['Review + approve trade applications', true], ['Edit catalog + pricing', true], ['Refunds, credit memos, releases', true], ['Create / edit admin accounts', false], ['Reset an admin password', false]],
+      sales_rep: [['Create quotes, orders + estimates', true], ['Collect payment · request payment', true], ['Own customers, visits + commission', true], ['Manage staff accounts', false], ['Approve trade applications', false]],
+      warehouse: [['Receive POs · flag damage', true], ['Material releases + pickups', true], ['Add internal order notes', true], ['Edit orders or pricing', false], ['See customer money', false]],
+    };
+    const STAFF_COLS = '22px minmax(140px,1.4fr) minmax(78px,100px) minmax(44px,60px) minmax(84px,118px) minmax(74px,96px)';
+    const stInitials = s => ((s.first_name || ' ')[0] + (s.last_name || ' ')[0]).trim().toUpperCase() || '—';
+    const stSince = ts => ts ? new Date(ts).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '';
+    const stSummarize = d => { if (!d) return ''; try { const o = typeof d === 'string' ? JSON.parse(d) : d; return Object.entries(o).map(([k, v]) => k + '=' + (v == null ? '—' : (typeof v === 'object' ? JSON.stringify(v) : v))).join(' · ').slice(0, 110); } catch { return String(d).slice(0, 110); } };
+
+    function StaffLedger({ navigate, staffRole, staffData, initialSel }) {
       const [staff, setStaff] = useState([]);
       const [loading, setLoading] = useState(true);
-      const [search, setSearch] = useState('');
-      const [roleFilter, setRoleFilter] = useState('');
-      const [statusFilter, setStatusFilter] = useState('');
+      const [view, setView] = useState('all');
+      const [q, setQ] = useState('');
+      const [sel, setSel] = useState(initialSel || null);
+      const [sessions, setSessions] = useState([]);
+      const [activity, setActivity] = useState([]);
+      const [msg, setMsg] = useState(''); const [err, setErr] = useState('');
+      const [editing, setEditing] = useState(false);
+      const [role, setRole] = useState(''); const [roleReason, setRoleReason] = useState('');
+      const [ident, setIdent] = useState({ first_name: '', last_name: '', phone: '' });
+      const [saving, setSaving] = useState(false);
+      const [pwOpen, setPwOpen] = useState(false); const [newPw, setNewPw] = useState('');
+      const [danger, setDanger] = useState(null); const [reason, setReason] = useState('');
 
-      const fetchStaff = () => {
-        adminFetch('/api/admin/staff')
-          .then(data => { setStaff(data.staff || []); setLoading(false); })
-          .catch(() => setLoading(false));
+      const loadList = () => adminFetch('/api/admin/staff').then(d => { setStaff(d.staff || []); setLoading(false); }).catch(() => setLoading(false));
+      useEffect(loadList, []);
+
+      const inView = (s, v) => v === 'all' ? s.is_active : v === 'inactive' ? !s.is_active : s.is_active && s.role === v;
+      const rows = staff.filter(s => inView(s, view) && (!q || (s.first_name + ' ' + s.last_name + ' ' + s.email).toLowerCase().includes(q.toLowerCase())));
+      const activeId = rows.some(r => r.id === sel) ? sel : (rows[0] ? rows[0].id : null);
+      const active = staff.find(s => s.id === activeId) || null;
+      const pendingInvites = staff.filter(s => s.is_active && s.invite_pending).length;
+
+      const loadPane = (id) => {
+        if (!id) { setSessions([]); setActivity([]); return; }
+        adminFetch('/api/admin/staff/' + id + '/sessions').then(d => setSessions(d.sessions || [])).catch(() => setSessions([]));
+        adminFetch('/api/admin/audit-log?entity_id=' + id + '&limit=12').then(d => setActivity(d.entries || [])).catch(() => setActivity([]));
+      };
+      useEffect(() => {
+        setEditing(false); setPwOpen(false); setDanger(null); setReason(''); setErr(''); setMsg('');
+        if (active) { setRole(active.role); setIdent({ first_name: active.first_name, last_name: active.last_name, phone: active.phone || '' }); setRoleReason(''); }
+        loadPane(activeId);
+      }, [activeId]);
+
+      const isSelf = staffData && staffData.id === activeId;
+      const blocked = staffRole === 'manager' && active && active.role === 'admin';
+      const flash = m => { setMsg(m); setErr(''); setTimeout(() => setMsg(''), 3500); };
+      const fail = e => { setErr(e); setTimeout(() => setErr(''), 6000); };
+      const reloadAll = () => { loadList(); loadPane(activeId); };
+      const act = async (path, okMsg, method) => { setErr(''); try { await adminFetch(path, { method: method || 'POST' }); flash(okMsg); reloadAll(); } catch (e) { fail(e.message || 'Action failed'); } };
+      const saveChanges = async () => {
+        if (role === 'admin' && active.role !== 'admin' && !roleReason.trim()) { fail('A reason is required to grant admin access'); return; }
+        setSaving(true); setErr('');
+        try {
+          await adminFetch('/api/admin/staff/' + activeId, { method: 'PUT', body: JSON.stringify({ ...ident, role, reason: roleReason.trim() || null }) });
+          flash('Changes saved'); setEditing(false); reloadAll();
+        } catch (e) { fail(e.message || 'Save failed'); }
+        setSaving(false);
+      };
+      const setPasswordDirect = async () => {
+        if (!newPw) { fail('Enter a password'); return; }
+        try { await adminFetch('/api/admin/staff/' + activeId + '/password', { method: 'PUT', body: JSON.stringify({ password: newPw }) }); setNewPw(''); setPwOpen(false); flash('Password set — sessions signed out'); reloadAll(); }
+        catch (e) { fail(e.message || 'Failed'); }
+      };
+      const confirmDanger = async () => {
+        try {
+          if (danger === 'deactivate') { await adminFetch('/api/admin/staff/' + activeId + '/toggle', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) }); flash('Account deactivated'); }
+          else if (danger === 'terminate') {
+            const d = await adminFetch('/api/admin/staff/' + activeId + '/terminate', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) });
+            let m = 'Terminated.'; if (d.freed_customers && d.freed_customers.length) { m += ' ' + d.freed_customers.length + ' customer(s) unassigned.'; if (d.recommended_rep) m += ' Suggest: ' + d.recommended_rep.name; }
+            flash(m);
+          }
+          setDanger(null); setReason(''); reloadAll();
+        } catch (e) { fail(e.message || 'Action failed'); }
       };
 
-      useEffect(fetchStaff, []);
+      const btnBrass = { padding: '8px 14px', background: 'var(--gold)', border: 'none', color: 'var(--brass-ink)', font: '500 12px/1 var(--sans)', cursor: 'pointer' };
+      const btnGhost = { padding: '8px 12px', background: 'transparent', border: '1px solid var(--line2)', color: 'var(--ink)', font: '400 12px/1 var(--sans)', cursor: 'pointer' };
+      const btnDanger = { padding: '8px 12px', background: 'transparent', border: '1px solid rgba(224,122,99,0.42)', color: 'var(--hot)', font: '400 12px/1 var(--sans)', cursor: 'pointer' };
+      const H = t => <div className="opsq-block-label" style={{ margin: '20px 0 9px' }}>{t}</div>;
+      const editInp = { width: '100%', boxSizing: 'border-box', padding: '7px 9px', background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--ink)', font: '400 12px/1.3 var(--sans)', outline: 'none', marginBottom: 8 };
 
-      const q = search.trim().toLowerCase();
-      const filtered = staff.filter(s => {
-        if (roleFilter && s.role !== roleFilter) return false;
-        if (statusFilter === 'active' && !s.is_active) return false;
-        if (statusFilter === 'inactive' && s.is_active) return false;
-        if (q) {
-          const hay = (s.first_name + ' ' + s.last_name + ' ' + s.email).toLowerCase();
-          if (!hay.includes(q)) return false;
-        }
-        return true;
-      });
-
-      const inputStyle = { padding: '0.45rem 0.6rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem', fontFamily: 'Inter, sans-serif' };
+      const r = active && (ST_ROLES[active.role] || ST_ROLES.warehouse);
 
       return (
-        <div>
-          <div className="content-header">
-            <h1>Staff & Access</h1>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn btn-secondary" onClick={() => navigate('audit')}>Audit Log</button>
-              <button className="btn btn-primary" onClick={() => navigate('staff-create')}>Add Staff</button>
+        <div className="ordl">
+          <section className="ordl-main">
+            <div className="ordl-tabs">
+              {ST_VIEWS.map(v => {
+                const on = v.id === view;
+                const n = staff.filter(s => inView(s, v.id)).length;
+                return (
+                  <button key={v.id} className={'ordl-tab' + (on ? ' active' : '')} onClick={() => setView(v.id)}>
+                    <span className="ordl-tab-row"><span className="ordl-tab-label">{v.label}</span><span className="ordl-tab-n">{n}</span></span>
+                    <span className="ordl-tab-hint">{v.hint.toUpperCase()}</span>
+                  </button>
+                );
+              })}
             </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <input style={{ ...inputStyle, minWidth: '220px' }} placeholder="Search name or email\u2026" value={search} onChange={e => setSearch(e.target.value)} />
-            <select style={inputStyle} value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>
-              <option value="">All roles</option>
-              <option value="admin">Admin</option>
-              <option value="manager">Manager</option>
-              <option value="sales_rep">Sales Rep</option>
-              <option value="warehouse">Warehouse</option>
-            </select>
-            <select style={inputStyle} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>{filtered.length} of {staff.length}</span>
-          </div>
-          <div className="table-scroll-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Last login</th>
-                <th>Sessions</th>
-                <th>2FA</th>
-                <th>Customers</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Loading...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--stone-500)' }}>No staff accounts</td></tr>
-              ) : filtered.map(s => (
-                <tr key={s.id} style={{ cursor: 'pointer' }} onClick={() => navigate('staff-detail', s.id)}>
-                  <td>
-                    <strong>{s.first_name} {s.last_name}</strong>
-                    {s.invite_pending && <span className="status-badge status-pending" style={{ marginLeft: '0.4rem' }}>Invite pending</span>}
-                  </td>
-                  <td>{s.email}</td>
-                  <td><span className={'status-badge status-' + (s.role === 'admin' ? 'active' : s.role === 'manager' ? 'confirmed' : 'draft')}>{STAFF_ROLE_LABELS[s.role] || s.role}</span></td>
-                  <td style={{ fontSize: '0.8125rem', color: staffLoginStale(s.last_login) ? 'var(--hot, #c0392b)' : 'var(--stone-500)', whiteSpace: 'nowrap' }}>
-                    {staffLoginStale(s.last_login) && '\u26a0 '}{staffRelTime(s.last_login)}
-                  </td>
-                  <td style={{ fontSize: '0.8125rem' }}>{s.active_sessions || 0}</td>
-                  <td style={{ fontSize: '0.8125rem' }}>{s.trusted_devices > 0 ? ('\u2713 ' + s.trusted_devices) : '\u2014'}</td>
-                  <td>{s.assigned_customers || 0}</td>
-                  <td><span className={'status-badge status-' + (s.is_active ? 'active' : 'draft')}>{s.is_active ? 'Active' : 'Inactive'}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
+            <div className="ordl-filters">
+              <button style={{ ...btnBrass, padding: '6px 11px', font: '500 11px/1 var(--sans)', flexShrink: 0 }} onClick={() => navigate('staff-create')}>+ Invite staff</button>
+              {pendingInvites > 0 && <span style={{ font: '400 10px/1 var(--mono)', color: 'var(--gold)', whiteSpace: 'nowrap' }}>{pendingInvites} invite{pendingInvites === 1 ? '' : 's'} pending</span>}
+              <button className="ordl-chip" onClick={() => navigate('audit')} title="Full audit log">AUDIT LOG</button>
+              <input className="ordl-search" value={q} onChange={e => setQ(e.target.value)} placeholder="filter staff…" />
+            </div>
+            <div className="ordl-scroll">
+              <div style={{ minWidth: 620 }}>
+                <div className="ordl-head" style={{ gridTemplateColumns: STAFF_COLS }}>
+                  <span /><span>PERSON</span><span>ROLE</span><span>2FA</span><span>LAST ACTIVE</span><span>STATUS</span>
+                </div>
+                {loading && <div className="opsq-empty">loading staff…</div>}
+                {!loading && rows.length === 0 && <div className="opsq-empty">no staff in this view</div>}
+                {rows.map(s => {
+                  const on = s.id === activeId; const rr = ST_ROLES[s.role] || ST_ROLES.warehouse; const stale = staffLoginStale(s.last_login);
+                  return (
+                    <div key={s.id} className={'ordl-row' + (on ? ' active' : '')} onClick={() => { if (window.innerWidth < 1100) navigate('staff-detail', s.id); else setSel(s.id); }}>
+                      <div className="ordl-grid" style={{ gridTemplateColumns: STAFF_COLS }}>
+                        <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--panel2)', border: '1px solid var(--line2)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 9px/1 var(--mono)', color: 'var(--dim)' }}>{stInitials(s)}</span>
+                        <span style={{ minWidth: 0 }}>
+                          <span className="ordl-cust" style={{ color: s.is_active ? 'var(--ink)' : 'var(--faint)' }}>{s.first_name} {s.last_name}{s.invite_pending && <span style={{ marginLeft: 6, font: '400 9px/1 var(--mono)', letterSpacing: '0.06em', color: 'var(--gold)' }}>INVITE</span>}</span>
+                          <span className="ordl-co">{s.email}</span>
+                        </span>
+                        <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.06em', color: s.is_active ? rr.c : 'var(--faint)' }}>{rr.t}</span>
+                        <span style={{ font: '400 10px/1 var(--mono)', color: s.trusted_devices > 0 ? 'var(--cool)' : 'var(--faint)' }}>{s.trusted_devices > 0 ? s.trusted_devices + ' dev' : '—'}</span>
+                        <span style={{ font: '400 10px/1.3 var(--mono)', color: stale ? 'var(--hot)' : 'var(--dim)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{stale && '⚠ '}{s.last_login ? staffRelTime(s.last_login) : 'never'}</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 7, font: '400 10px/1 var(--mono)', letterSpacing: '0.06em', color: s.is_active ? 'var(--cool)' : 'var(--hot)' }}>
+                          <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.is_active ? 'var(--cool)' : 'var(--hot)', flexShrink: 0 }} />{s.is_active ? 'ACTIVE' : 'REVOKED'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="ordl-foot">
+              <span style={{ letterSpacing: '0.08em' }}>{rows.length} STAFF</span>
+              <span style={{ color: 'var(--dim)' }}>{staff.filter(s => s.is_active).length} active · {staff.filter(s => !s.is_active).length} deactivated</span>
+            </div>
+          </section>
+
+          <aside className="ordl-pane">
+            {!active ? (
+              <div style={{ flex: 1, display: 'grid', placeItems: 'center', font: '400 12px/1 var(--mono)', color: 'var(--faint)' }}>NO STAFF SELECTED</div>
+            ) : (
+              <React.Fragment>
+                <div className="ordl-pane-head">
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                    <span style={{ font: '500 16px/1.2 var(--sans)' }}>{active.first_name} {active.last_name}</span>
+                    <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.08em', color: r.c }}>{r.t}</span>
+                    {!active.is_active && <span style={{ font: '400 10px/1 var(--mono)', color: 'var(--hot)' }}>DEACTIVATED</span>}
+                  </div>
+                  <div style={{ marginTop: 6, font: '400 11px/1.5 var(--mono)', color: 'var(--dim)' }}>{active.email}<br />since {stSince(active.created_at)} · {active.trusted_devices || 0} trusted device{active.trusted_devices === 1 ? '' : 's'}</div>
+                  {active.assigned_customers > 0 && <div style={{ marginTop: 10, font: '400 12px/1.5 var(--sans)', color: 'var(--dim)' }}>{active.assigned_customers} trade customer{active.assigned_customers === 1 ? '' : 's'} assigned.</div>}
+                </div>
+                <div className="opsq-pane-body" style={{ padding: '0 20px 24px' }}>
+                  {msg && <div style={{ marginTop: 14, padding: '8px 11px', background: 'var(--green-light)', color: 'var(--green)', font: '400 11px/1.4 var(--mono)' }}>{msg}</div>}
+                  {err && <div style={{ marginTop: 14, padding: '8px 11px', background: 'var(--red-light)', color: 'var(--hot)', font: '400 11px/1.4 var(--mono)' }}>{err}</div>}
+                  {blocked && <div style={{ marginTop: 14, padding: '8px 11px', background: 'var(--panel2)', color: 'var(--dim)', font: '400 11px/1.4 var(--mono)' }}>Managers cannot modify admin accounts.</div>}
+                  {active.invite_pending && <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '8px 11px', background: 'var(--panel2)', font: '400 11px/1.4 var(--mono)', color: 'var(--dim)' }}>
+                    <span>Invite pending — no password set yet.</span>
+                    <button style={{ ...btnGhost, padding: '5px 9px', font: '400 10px/1 var(--mono)' }} disabled={blocked} onClick={() => act('/api/admin/staff/' + activeId + '/send-reset', 'Invite re-sent')}>Resend</button>
+                  </div>}
+
+                  {editing ? (
+                    <React.Fragment>
+                      {H('EDIT ROLE + ACCESS')}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input style={editInp} placeholder="First name" value={ident.first_name} onChange={e => setIdent({ ...ident, first_name: e.target.value })} />
+                        <input style={editInp} placeholder="Last name" value={ident.last_name} onChange={e => setIdent({ ...ident, last_name: e.target.value })} />
+                      </div>
+                      <input style={editInp} placeholder="Phone" value={ident.phone} onChange={e => setIdent({ ...ident, phone: formatPhone(e.target.value) })} />
+                      <select style={{ ...editInp, appearance: 'auto' }} value={role} onChange={e => setRole(e.target.value)} disabled={staffRole === 'manager'}>
+                        <option value="admin">Admin</option><option value="manager">Manager</option><option value="sales_rep">Sales Rep</option><option value="warehouse">Warehouse</option>
+                      </select>
+                      {role === 'admin' && active.role !== 'admin' && <input style={editInp} placeholder="Reason for granting admin access (required)" value={roleReason} onChange={e => setRoleReason(e.target.value)} />}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <button style={btnBrass} disabled={saving} onClick={saveChanges}>{saving ? 'Saving…' : 'Save changes'}</button>
+                        <button style={btnGhost} onClick={() => { setEditing(false); setRole(active.role); setIdent({ first_name: active.first_name, last_name: active.last_name, phone: active.phone || '' }); }}>Cancel</button>
+                      </div>
+                    </React.Fragment>
+                  ) : (
+                    <React.Fragment>
+                      {H('SECURITY')}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px 12px', font: '400 11px/1.4 var(--mono)', alignItems: 'center' }}>
+                        <span style={{ color: 'var(--dim)' }}>Trusted devices</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ color: active.trusted_devices > 0 ? 'var(--cool)' : 'var(--faint)' }}>{active.trusted_devices || 0}</span>
+                          {active.trusted_devices > 0 && !blocked && <button style={{ ...btnGhost, padding: '4px 8px', font: '400 10px/1 var(--mono)' }} onClick={() => act('/api/admin/staff/' + activeId + '/revoke-trusted', 'Trusted devices revoked')}>Revoke</button>}
+                        </span>
+                        <span style={{ color: 'var(--dim)' }}>Active sessions</span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ color: 'var(--ink)' }}>{sessions.filter(x => x.active).length}</span>
+                          {sessions.length > 0 && !blocked && <button style={{ ...btnGhost, padding: '4px 8px', font: '400 10px/1 var(--mono)' }} onClick={() => act('/api/admin/staff/' + activeId + '/force-logout', 'Signed out everywhere')}>Sign out all</button>}
+                        </span>
+                      </div>
+
+                      {sessions.length > 0 && <>{H('SESSIONS')}
+                        <div style={{ display: 'grid', gap: 8 }}>
+                          {sessions.map(ss => (
+                            <div key={ss.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, font: '400 11px/1.4 var(--mono)' }}>
+                              <span style={{ color: ss.active ? 'var(--ink)' : 'var(--faint)' }}>{ss.device_id || 'device'}{ss.is_trusted ? ' · trusted' : ''}</span>
+                              <span style={{ color: 'var(--faint)', textAlign: 'right' }}>{staffRelTime(ss.created_at)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </>}
+
+                      {H(active.role === 'admin' ? 'ACCESS' : 'CAN / CANNOT')}
+                      {active.role === 'admin' ? (
+                        <div style={{ font: '400 12px/1.5 var(--sans)', color: 'var(--dim)' }}>{ST_PERMS.admin[0]}</div>
+                      ) : (
+                        <div style={{ display: 'grid', gap: 7 }}>
+                          {(ST_PERMS[active.role] || []).map(([p, ok]) => (
+                            <div key={p} style={{ display: 'flex', gap: 9, alignItems: 'baseline', font: '400 12px/1.4 var(--sans)', color: ok ? 'var(--ink)' : 'var(--faint)' }}>
+                              <span style={{ font: '400 10px/1 var(--mono)', color: ok ? 'var(--cool)' : 'var(--faint)', width: 10, flexShrink: 0 }}>{ok ? '✓' : '—'}</span>{p}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {H('RECENT ACTIVITY')}
+                      {activity.length === 0 ? <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--faint)' }}>no recorded activity</div> : (
+                        <div style={{ display: 'grid', gap: 10 }}>
+                          {activity.map((a, i) => (
+                            <div key={a.id || i} style={{ display: 'grid', gridTemplateColumns: '78px 1fr', gap: 10, font: '400 11px/1.45 var(--mono)' }}>
+                              <span style={{ color: 'var(--faint)' }}>{staffRelTime(a.created_at)}</span>
+                              <span style={{ color: 'var(--dim)' }}><span style={{ color: 'var(--ink)' }}>{a.action}</span>{a.staff_name ? ' · ' + a.staff_name : ''}{a.details && stSummarize(a.details) ? <span style={{ display: 'block', color: 'var(--faint)', marginTop: 3 }}>{stSummarize(a.details)}</span> : null}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {!blocked && <>{H('PASSWORD')}
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <button style={btnGhost} onClick={() => act('/api/admin/staff/' + activeId + '/send-reset', 'Reset link emailed')}>Send reset link</button>
+                          <button style={btnGhost} onClick={() => setPwOpen(o => !o)}>Set password…</button>
+                        </div>
+                        {pwOpen && <div style={{ display: 'flex', gap: 8, marginTop: 9, alignItems: 'center' }}>
+                          <input type="password" style={{ ...editInp, marginBottom: 0, maxWidth: 220 }} placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
+                          <button style={btnBrass} onClick={setPasswordDirect}>Save</button>
+                        </div>}
+                      </>}
+                    </React.Fragment>
+                  )}
+                </div>
+
+                {!editing && (
+                  <div className="ordl-pane-foot" style={{ flexWrap: 'wrap' }}>
+                    {active.is_active ? (
+                      danger ? (
+                        <div style={{ width: '100%' }}>
+                          <div style={{ font: '400 11px/1.5 var(--mono)', color: 'var(--dim)', marginBottom: 8 }}>{danger === 'terminate' ? 'Terminate and unassign all trade customers?' : 'Deactivate — they will be signed out.'}</div>
+                          <input style={editInp} placeholder={danger === 'terminate' ? 'Reason (recommended)' : 'Reason (optional)'} value={reason} onChange={e => setReason(e.target.value)} autoFocus />
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button style={{ ...btnBrass, background: 'var(--hot)', color: '#fff' }} onClick={confirmDanger}>Confirm {danger}</button>
+                            <button style={btnGhost} onClick={() => { setDanger(null); setReason(''); }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <React.Fragment>
+                          <button style={btnBrass} disabled={blocked} onClick={() => setEditing(true)}>Edit role + access</button>
+                          {!blocked && !isSelf && <button style={btnDanger} onClick={() => { setDanger('deactivate'); setReason(''); }}>Deactivate</button>}
+                          {!blocked && !isSelf && ['sales_rep', 'manager'].includes(active.role) && <button style={{ ...btnGhost, color: 'var(--hot)', borderColor: 'rgba(224,122,99,0.42)' }} onClick={() => { setDanger('terminate'); setReason(''); }}>Terminate & reassign</button>}
+                        </React.Fragment>
+                      )
+                    ) : (
+                      <button style={btnGhost} disabled={blocked} onClick={() => act('/api/admin/staff/' + activeId + '/toggle', 'Account reactivated', 'PATCH')}>Reactivate account</button>
+                    )}
+                  </div>
+                )}
+              </React.Fragment>
+            )}
+          </aside>
         </div>
       );
     }
@@ -9550,258 +9749,6 @@
     }
 
     // ========== StaffDetailView (sectioned drawer) ==========
-    function StaffDetailView({ navigate, editId, staffRole, staffData }) {
-      const [s, setS] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [msg, setMsg] = useState('');
-      const [err, setErr] = useState('');
-      const [ident, setIdent] = useState({ first_name: '', last_name: '', email: '', phone: '' });
-      const [savingIdent, setSavingIdent] = useState(false);
-      const [role, setRole] = useState('');
-      const [roleReason, setRoleReason] = useState('');
-      const [savingRole, setSavingRole] = useState(false);
-      const [sessions, setSessions] = useState([]);
-      const [pwOpen, setPwOpen] = useState(false);
-      const [newPw, setNewPw] = useState('');
-      const [activity, setActivity] = useState([]);
-      const [customers, setCustomers] = useState([]);
-      const [danger, setDanger] = useState(null); // 'deactivate' | 'terminate'
-      const [reason, setReason] = useState('');
-
-      const isSelf = staffData && staffData.id === editId;
-      const blocked = staffRole === 'manager' && s && s.role === 'admin'; // managers can't touch admins
-
-      const load = () => {
-        adminFetch('/api/admin/staff').then(data => {
-          const found = (data.staff || []).find(x => x.id === editId);
-          setS(found || null);
-          if (found) { setIdent({ first_name: found.first_name, last_name: found.last_name, email: found.email, phone: found.phone || '' }); setRole(found.role); }
-          setLoading(false);
-        }).catch(() => setLoading(false));
-        adminFetch('/api/admin/staff/' + editId + '/sessions').then(d => setSessions(d.sessions || [])).catch(() => {});
-        adminFetch('/api/admin/audit-log?entity_id=' + editId + '&limit=25').then(d => setActivity(d.entries || [])).catch(() => {});
-        adminFetch('/api/admin/trade-customers').then(d => setCustomers((d.customers || []).filter(c => c.assigned_rep_id === editId))).catch(() => {});
-      };
-      useEffect(load, [editId]);
-
-      const flash = (m) => { setMsg(m); setErr(''); setTimeout(() => setMsg(''), 4000); };
-      const fail = (e) => { setErr(e); setTimeout(() => setErr(''), 6000); };
-
-      const saveIdent = async () => {
-        setSavingIdent(true); setErr('');
-        try {
-          await adminFetch('/api/admin/staff/' + editId, { method: 'PUT', body: JSON.stringify(ident) });
-          flash('Profile saved'); load();
-        } catch (e) { fail(e.message || 'Save failed'); }
-        setSavingIdent(false);
-      };
-      const saveRole = async () => {
-        if (role === 'admin' && s.role !== 'admin' && !roleReason.trim()) { fail('A reason is required to grant admin access'); return; }
-        setSavingRole(true); setErr('');
-        try {
-          await adminFetch('/api/admin/staff/' + editId, { method: 'PUT', body: JSON.stringify({ role, reason: roleReason.trim() || null }) });
-          setRoleReason(''); flash('Role updated'); load();
-        } catch (e) { fail(e.message || 'Save failed'); }
-        setSavingRole(false);
-      };
-      const act = async (path, okMsg, method) => {
-        setErr('');
-        try { const d = await adminFetch(path, { method: method || 'POST' }); flash(okMsg); load(); return d; }
-        catch (e) { fail(e.message || 'Action failed'); }
-      };
-      const setPasswordDirect = async () => {
-        if (!newPw) { fail('Enter a password'); return; }
-        try {
-          await adminFetch('/api/admin/staff/' + editId + '/password', { method: 'PUT', body: JSON.stringify({ password: newPw }) });
-          setNewPw(''); setPwOpen(false); flash('Password set — all sessions signed out'); load();
-        } catch (e) { fail(e.message || 'Failed'); }
-      };
-      const confirmDanger = async () => {
-        try {
-          if (danger === 'deactivate') {
-            await adminFetch('/api/admin/staff/' + editId + '/toggle', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) });
-            flash('Account deactivated');
-          } else if (danger === 'terminate') {
-            const d = await adminFetch('/api/admin/staff/' + editId + '/terminate', { method: 'PATCH', body: JSON.stringify({ reason: reason.trim() || null }) });
-            let m = 'Terminated.';
-            if (d.freed_customers && d.freed_customers.length) { m += ' ' + d.freed_customers.length + ' customer(s) unassigned.'; if (d.recommended_rep) m += ' Suggest: ' + d.recommended_rep.name; }
-            flash(m);
-          }
-          setDanger(null); setReason(''); load();
-        } catch (e) { fail(e.message || 'Action failed'); }
-      };
-
-      if (loading) return <div className="loading">Loading...</div>;
-      if (!s) return <div style={{ padding: '2rem' }}>Staff member not found. <button className="btn-link" onClick={() => navigate('staff')}>Back</button></div>;
-
-      const card = { background: 'var(--panel)', border: '1px solid var(--stone-200)', padding: '1.5rem', marginBottom: '1.25rem', maxWidth: '720px' };
-      const sectionLabel = { fontSize: '0.7rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--stone-400)', marginBottom: '0.75rem' };
-      const inp = { width: '100%', padding: '0.55rem', border: '1px solid var(--stone-300)', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif', marginBottom: '0.75rem' };
-      const summarizeDetails = (d) => { if (!d) return ''; try { const o = typeof d === 'string' ? JSON.parse(d) : d; return Object.entries(o).map(([k, v]) => k + '=' + (v == null ? '—' : (typeof v === 'object' ? JSON.stringify(v) : v))).join(' · ').slice(0, 120); } catch { return String(d).slice(0, 120); } };
-
-      return (
-        <div>
-          <div className="content-header">
-            <h1>{s.first_name} {s.last_name}</h1>
-            <button className="btn btn-secondary" onClick={() => navigate('staff')}>← Staff</button>
-          </div>
-          {msg && <div style={{ background: '#e6f4ea', color: '#1e7e34', padding: '0.6rem 0.9rem', marginBottom: '1rem', fontSize: '0.85rem', maxWidth: '720px' }}>{msg}</div>}
-          {err && <div className="auth-error" style={{ maxWidth: '720px' }}>{err}</div>}
-          {blocked && <div style={{ background: '#fdf3e7', color: '#8a5a00', padding: '0.6rem 0.9rem', marginBottom: '1rem', fontSize: '0.8125rem', maxWidth: '720px' }}>Managers cannot modify admin accounts.</div>}
-          {s.invite_pending && <div style={{ background: '#eef2fb', color: '#2b4a9b', padding: '0.6rem 0.9rem', marginBottom: '1rem', fontSize: '0.8125rem', maxWidth: '720px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Invite pending — they haven't set a password yet.</span>
-            <button className="btn-link" disabled={blocked} onClick={() => act('/api/admin/staff/' + editId + '/send-reset', 'Invite re-sent')}>Resend invite</button>
-          </div>}
-
-          {/* IDENTITY */}
-          <div style={card}>
-            <div style={sectionLabel}>Identity</div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <input style={inp} placeholder="First name" value={ident.first_name} disabled={blocked} onChange={e => setIdent({ ...ident, first_name: e.target.value })} />
-              <input style={inp} placeholder="Last name" value={ident.last_name} disabled={blocked} onChange={e => setIdent({ ...ident, last_name: e.target.value })} />
-            </div>
-            <input style={inp} placeholder="Email" value={ident.email} disabled={blocked} onChange={e => setIdent({ ...ident, email: e.target.value })} />
-            <input style={inp} placeholder="Phone" value={ident.phone} disabled={blocked} onChange={e => setIdent({ ...ident, phone: formatPhone(e.target.value) })} />
-            <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginBottom: '0.75rem' }}>Created {staffRelTime(s.created_at)} · Last login {staffRelTime(s.last_login)}</div>
-            <button className="btn btn-primary" disabled={blocked || savingIdent} onClick={saveIdent}>{savingIdent ? 'Saving…' : 'Save'}</button>
-          </div>
-
-          {/* ROLE & ACCESS */}
-          <div style={card}>
-            <div style={sectionLabel}>Role & Access</div>
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <select style={{ ...inp, marginBottom: 0, maxWidth: '220px' }} value={role} disabled={blocked} onChange={e => setRole(e.target.value)}>
-                <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
-                <option value="sales_rep">Sales Rep</option>
-                <option value="warehouse">Warehouse</option>
-              </select>
-              {role !== s.role && <button className="btn btn-primary" disabled={blocked || savingRole} onClick={saveRole}>{savingRole ? 'Saving…' : 'Apply role'}</button>}
-            </div>
-            {role === 'admin' && s.role !== 'admin' && (
-              <input style={inp} placeholder="Reason for granting admin access (required)" value={roleReason} onChange={e => setRoleReason(e.target.value)} />
-            )}
-            <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', background: 'var(--stone-50, #faf8f5)', padding: '0.6rem 0.75rem', border: '1px solid var(--stone-200)' }}>
-              <strong>{STAFF_ROLE_LABELS[role] || role}:</strong> {STAFF_ROLE_CAPS[role]}
-              <div style={{ marginTop: '0.35rem', color: 'var(--stone-400)' }}>Reflects current access rules.</div>
-            </div>
-          </div>
-
-          {/* SECURITY */}
-          <div style={card}>
-            <div style={sectionLabel}>Security</div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.85rem' }}>2FA trusted devices: <strong>{s.trusted_devices || 0}</strong></span>
-              <button className="btn btn-secondary btn-sm" disabled={blocked || !s.trusted_devices} onClick={() => act('/api/admin/staff/' + editId + '/revoke-trusted', 'Trusted devices revoked')}>Revoke trusted devices</button>
-            </div>
-            <div style={{ marginBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                <span style={{ fontSize: '0.85rem' }}>Active sessions: <strong>{sessions.filter(x => x.active).length}</strong></span>
-                <button className="btn btn-secondary btn-sm" disabled={blocked || !sessions.length} onClick={() => act('/api/admin/staff/' + editId + '/force-logout', 'Signed out everywhere')}>Force sign-out everywhere</button>
-              </div>
-              {sessions.length > 0 && (
-                <table className="data-table" style={{ fontSize: '0.75rem' }}>
-                  <thead><tr><th>Device</th><th>Trusted</th><th>Remember</th><th>Created</th><th>Expires</th></tr></thead>
-                  <tbody>
-                    {sessions.map(ss => (
-                      <tr key={ss.id}>
-                        <td>{ss.device_id || '—'}</td>
-                        <td>{ss.is_trusted ? '✓' : '—'}</td>
-                        <td>{ss.remember_me ? '✓' : '—'}</td>
-                        <td>{staffRelTime(ss.created_at)}</td>
-                        <td>{ss.active ? staffRelTime(ss.expires_at).replace(' ago', '') : 'expired'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button className="btn btn-secondary btn-sm" disabled={blocked} onClick={() => act('/api/admin/staff/' + editId + '/send-reset', 'Password-reset link emailed')}>Send password-reset link</button>
-              <button className="btn btn-secondary btn-sm" disabled={blocked} onClick={() => setPwOpen(o => !o)}>Set password directly</button>
-            </div>
-            {pwOpen && (
-              <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <input type="password" style={{ ...inp, marginBottom: 0, maxWidth: '260px' }} placeholder="New password" value={newPw} onChange={e => setNewPw(e.target.value)} />
-                <button className="btn btn-primary btn-sm" onClick={setPasswordDirect}>Save password</button>
-              </div>
-            )}
-          </div>
-
-          {/* ACTIVITY */}
-          <div style={card}>
-            <div style={{ ...sectionLabel, display: 'flex', justifyContent: 'space-between' }}>
-              <span>Activity</span>
-              <button className="btn-link" style={{ fontSize: '0.7rem' }} onClick={() => navigate('audit')}>Full log →</button>
-            </div>
-            {activity.length === 0 ? <div style={{ fontSize: '0.8125rem', color: 'var(--stone-400)' }}>No recorded activity.</div> : (
-              <div>
-                {activity.map(a => (
-                  <div key={a.id} style={{ padding: '0.4rem 0', borderBottom: '1px solid var(--stone-100, #f0ece6)', fontSize: '0.8rem' }}>
-                    <span style={{ fontWeight: 500 }}>{a.action}</span>
-                    <span style={{ color: 'var(--stone-400)' }}> · {a.staff_name || 'system'} · {staffRelTime(a.created_at)}</span>
-                    {a.details && <div style={{ color: 'var(--stone-400)', fontSize: '0.72rem', marginTop: '0.15rem' }}>{summarizeDetails(a.details)}</div>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ASSIGNMENTS */}
-          {customers.length > 0 && (
-            <div style={card}>
-              <div style={sectionLabel}>Assigned Trade Customers ({customers.length})</div>
-              <table className="data-table">
-                <thead><tr><th>Company</th><th>Contact</th><th>Status</th><th>Tier</th><th>Total Spend</th></tr></thead>
-                <tbody>
-                  {customers.map(c => (
-                    <tr key={c.id}>
-                      <td><strong>{c.company_name}</strong></td>
-                      <td>{c.contact_name}</td>
-                      <td><span className={'badge badge-' + (c.status === 'approved' ? 'active' : c.status === 'pending' ? 'pending' : 'inactive')}>{c.status}</span></td>
-                      <td>{c.tier_name || '—'}</td>
-                      <td>${parseFloat(c.total_spend || 0).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* DANGER ZONE */}
-          {!isSelf && !blocked && (
-            <div style={{ ...card, borderColor: '#e0b4b4' }}>
-              <div style={{ ...sectionLabel, color: '#c0392b' }}>Danger Zone</div>
-              {!danger && (
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  {s.is_active ? (
-                    <>
-                      <button className="btn btn-secondary btn-sm" onClick={() => { setDanger('deactivate'); setReason(''); }}>Deactivate</button>
-                      {['sales_rep', 'manager'].includes(s.role) && <button className="btn-link btn-link-danger" onClick={() => { setDanger('terminate'); setReason(''); }}>Terminate & reassign</button>}
-                    </>
-                  ) : (
-                    <button className="btn btn-secondary btn-sm" onClick={() => act('/api/admin/staff/' + editId + '/toggle', 'Account reactivated', 'PATCH')}>Reactivate</button>
-                  )}
-                </div>
-              )}
-              {danger && (
-                <div>
-                  <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-                    {danger === 'terminate' ? 'Terminate this account and unassign all their trade customers?' : 'Deactivate this account? They will be signed out.'}
-                  </div>
-                  <input style={inp} placeholder={danger === 'terminate' ? 'Reason (recommended)' : 'Reason (optional)'} value={reason} onChange={e => setReason(e.target.value)} autoFocus />
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button className="btn btn-primary btn-sm" onClick={confirmDanger}>Confirm {danger === 'terminate' ? 'terminate' : 'deactivate'}</button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => { setDanger(null); setReason(''); }}>Cancel</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      );
-    }
-
     // ========== ProfileView (self-service) ==========
     function ProfileView({ navigate, staffData, onStaffUpdate }) {
       const [form, setForm] = useState({ first_name: staffData.first_name || '', last_name: staffData.last_name || '', phone: staffData.phone || '' });
