@@ -17750,6 +17750,77 @@ app.delete('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// ── Quote internal notes ─────────────────────────────────────────────────────
+// Multi-entry, author + timestamp, edit/delete — mirrors the order notes above,
+// stored in customer_notes keyed by quote_id. Ownership matches repOwnsOrder
+// (own quote or unassigned).
+async function repOwnsQuote(quoteId, repId) {
+  const r = await pool.query(
+    'SELECT id, trade_customer_id, customer_id, customer_email FROM quotes WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)',
+    [quoteId, repId]);
+  return r.rows[0] || null;
+}
+
+app.get('/api/rep/quotes/:id/notes', repAuth, async (req, res) => {
+  try {
+    const quote = await repOwnsQuote(req.params.id, req.rep.id);
+    if (!quote) return res.status(404).json({ error: 'Quote not found' });
+    const notes = await pool.query(`
+      SELECT cn.*, COALESCE(
+        (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
+        'Staff') AS staff_name
+      FROM customer_notes cn WHERE cn.quote_id = $1 ORDER BY cn.created_at DESC`, [req.params.id]);
+    res.json({ notes: notes.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/rep/quotes/:id/notes', repAuth, async (req, res) => {
+  try {
+    const quote = await repOwnsQuote(req.params.id, req.rep.id);
+    if (!quote) return res.status(404).json({ error: 'Quote not found' });
+    const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
+    if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const ct = quote.trade_customer_id ? 'trade' : quote.customer_id ? 'retail' : 'guest';
+    const cref = String(quote.trade_customer_id || quote.customer_id || quote.customer_email || req.params.id);
+    const result = await pool.query(`
+      INSERT INTO customer_notes (customer_type, customer_ref, quote_id, staff_id, note)
+      VALUES ($1, $2, $3, $4, $5) RETURNING *`, [ct, cref, req.params.id, req.rep.id, note.slice(0, 4000)]);
+    const newNote = result.rows[0];
+    newNote.staff_name = req.rep.first_name + ' ' + req.rep.last_name;
+    res.json({ note: newNote });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.put('/api/rep/quotes/:id/notes/:noteId', repAuth, async (req, res) => {
+  try {
+    const quote = await repOwnsQuote(req.params.id, req.rep.id);
+    if (!quote) return res.status(404).json({ error: 'Quote not found' });
+    const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
+    if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const result = await pool.query(
+      'UPDATE customer_notes SET note = $1 WHERE id = $2 AND quote_id = $3 RETURNING *',
+      [note.slice(0, 4000), req.params.noteId, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    const upd = result.rows[0];
+    upd.staff_name = (await pool.query(
+      `SELECT COALESCE((SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = $1), 'Staff') AS n`,
+      [upd.staff_id])).rows[0].n;
+    res.json({ note: upd });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.delete('/api/rep/quotes/:id/notes/:noteId', repAuth, async (req, res) => {
+  try {
+    const quote = await repOwnsQuote(req.params.id, req.rep.id);
+    if (!quote) return res.status(404).json({ error: 'Quote not found' });
+    const result = await pool.query(
+      'DELETE FROM customer_notes WHERE id = $1 AND quote_id = $2 RETURNING id',
+      [req.params.noteId, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 // Rep: toggle a line item's pickup readiness (ownership-scoped). Same auto-flip
 // to ready_for_pickup + customer email as the admin endpoint.
 app.put('/api/rep/orders/:id/items/:itemId/ready', repAuth, async (req, res) => {

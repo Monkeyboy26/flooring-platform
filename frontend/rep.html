@@ -21025,9 +21025,9 @@
     }
 
     // ─── RodCard — lightweight card wrapper for order detail redesign ───
-    function RodCard({ title, action, action2, onAction, onAction2, children }) {
+    function RodCard({ title, action, action2, onAction, onAction2, children, bg }) {
       return (
-        <section className="rod-card">
+        <section className="rod-card" style={bg ? { background: bg } : undefined}>
           <div className="rod-card-header">
             <span className="rod-card-title">{title}</span>
             <div className="rod-card-actions">
@@ -21039,6 +21039,117 @@
             {children}
           </div>
         </section>
+      );
+    }
+
+    // Multi-entry internal notes card: add / edit / delete, with author + timestamp.
+    // Shared by the order detail and the quote workspace so both look and behave
+    // identically. `basePath` is the resource path, e.g. '/api/rep/orders/<id>'
+    // or '/api/rep/quotes/<id>'; notes load from `basePath + '/notes'`.
+    function InternalNotesCard({ basePath, readOnly, bg }) {
+      const [notes, setNotes] = useState([]);
+      const [showAdd, setShowAdd] = useState(false);
+      const [text, setText] = useState('');
+      const [saving, setSaving] = useState(false);
+      const [editingId, setEditingId] = useState(null);
+      const [editText, setEditText] = useState('');
+
+      const load = useCallback(() => {
+        if (!basePath) return;
+        repFetch(basePath + '/notes').then(d => setNotes(d.notes || [])).catch(() => {});
+      }, [basePath]);
+      useEffect(load, [load]);
+
+      const add = async () => {
+        const t = text.trim();
+        if (!t) return;
+        setSaving(true);
+        try {
+          const data = await repFetch(basePath + '/notes', { method: 'POST', body: JSON.stringify({ note: t }) });
+          if (data.note) setNotes(prev => [data.note, ...prev]);
+          setShowAdd(false); setText('');
+        } catch (err) {}
+        setSaving(false);
+      };
+      const saveEdit = async (n) => {
+        const t = editText.trim();
+        if (!t) return;
+        try {
+          const data = await repFetch(basePath + '/notes/' + n.id, { method: 'PUT', body: JSON.stringify({ note: t }) });
+          if (data.note) setNotes(prev => prev.map(x => x.id === n.id ? data.note : x));
+          setEditingId(null); setEditText('');
+        } catch (err) { alert(err.message || 'Failed to save note'); }
+      };
+      const del = async (n) => {
+        if (!confirm('Delete this note? This cannot be undone.')) return;
+        try {
+          await repFetch(basePath + '/notes/' + n.id, { method: 'DELETE' });
+          setNotes(prev => prev.filter(x => x.id !== n.id));
+        } catch (err) { alert(err.message || 'Failed to delete note'); }
+      };
+
+      return (
+        <RodCard title={'Internal notes' + (notes.length ? ' · ' + notes.length : '')}
+          action={readOnly ? undefined : '+ Add'} onAction={() => setShowAdd(true)} bg={bg}>
+          <div style={{ padding: '8px 0' }}>
+            {notes.length === 0 && !showAdd && (
+              <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>No notes yet</div>
+            )}
+            {notes.map((n, i) => (
+              <div className="rod-note-entry" key={n.id || i} style={i === notes.length - 1 && !showAdd ? { borderBottom: 'none' } : {}}>
+                <div className="rod-note-avatar">
+                  {(n.staff_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {editingId === n.id ? (
+                    <div>
+                      <textarea value={editText} onChange={e => setEditText(e.target.value)} autoFocus
+                        style={{ width: '100%', minHeight: 46, padding: 8, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
+                      <div style={{ display: 'flex', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
+                        <button onClick={() => { setEditingId(null); setEditText(''); }}
+                          style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                        <button disabled={!editText.trim()} onClick={() => saveEdit(n)}
+                          style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: 'pointer' }}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <React.Fragment>
+                      <div className="rod-note-text">{n.note}</div>
+                      <div className="rod-note-ts">
+                        {n.created_at ? new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + new Date(n.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}
+                        {n.staff_name ? ' · ' + n.staff_name : ''}
+                        {n.id && !readOnly && (
+                          <span style={{ marginLeft: 8 }}>
+                            <a onClick={() => { setEditingId(n.id); setEditText(n.note); }}
+                              style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--rod-muted)' }}>Edit</a>
+                            <span style={{ margin: '0 5px', color: 'var(--rod-muted)' }}>·</span>
+                            <a onClick={() => del(n)}
+                              style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--rod-red)' }}>Delete</a>
+                          </span>
+                        )}
+                      </div>
+                    </React.Fragment>
+                  )}
+                </div>
+              </div>
+            ))}
+            {showAdd && (
+              <div style={{ padding: '14px 18px', borderTop: notes.length ? '0.5px solid rgba(28,25,23,0.12)' : 'none' }}>
+                <textarea value={text} onChange={e => setText(e.target.value)}
+                  placeholder="Add a note — visible only to Roma staff…" autoFocus
+                  style={{ width: '100%', minHeight: 50, padding: 10, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
+                <div style={{ display: 'flex', gap: '6px', marginTop: '6px', justifyContent: 'flex-end' }}>
+                  <button onClick={() => { setShowAdd(false); setText(''); }}
+                    style={{ padding: '5px 10px', fontSize: '10px', fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                  <button disabled={!text.trim() || saving} onClick={add}
+                    style={{ padding: '5px 10px', fontSize: '10px', fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: 'pointer' }}>
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </RodCard>
       );
     }
 
@@ -26917,13 +27028,15 @@
                 </div>
               )}
 
-              {/* Internal notes — sidebar, like the order detail */}
-              <div className="qw-rail-card">
-                <h3>Internal notes</h3>
-                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  disabled={isReadonly} placeholder="Visible only to Roma staff…" rows="4"
-                  style={{ width: '100%', padding: 10, marginTop: 4, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: '#1c1917' }} />
-              </div>
+              {/* Internal notes — same multi-entry widget as the order detail */}
+              {editId ? (
+                <InternalNotesCard basePath={'/api/rep/quotes/' + editId} readOnly={isReadonly} bg="#f5f0e8" />
+              ) : (
+                <div className="qw-rail-card">
+                  <h3>Internal notes</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: '#8a7e68' }}>Save the quote to start adding internal notes.</p>
+                </div>
+              )}
 
               <div className="qw-rail-card">
                 <h3>Totals</h3>
