@@ -10056,6 +10056,10 @@
           { key: 'dashboard', name: 'Dashboard', glyph: '\u25E7' },
           { key: 'tasks', name: 'Tasks', glyph: '\u25C7' },
         ]},
+        { label: 'Catalog', items: [
+          { key: 'catalog', name: 'SKU lookup', glyph: '\u229E' },
+          { key: 'vendors', name: 'Vendors', glyph: '\u25C6' },
+        ]},
         { label: 'Customers', items: [
           { key: 'customers', name: 'Customers', glyph: '\u25C9' },
           { key: 'visits', name: 'Visits', glyph: '\u25CE' },
@@ -10066,10 +10070,6 @@
           { key: 'orders', name: 'Orders', glyph: '\u259A' },
           { key: 'purchase-orders', name: 'Purchase orders', glyph: '\u2318' },
           { key: 'samples', name: 'Sample requests', glyph: '\u2317' },
-        ]},
-        { label: 'Catalog', items: [
-          { key: 'catalog', name: 'SKU lookup', glyph: '\u229E' },
-          { key: 'vendors', name: 'Vendors', glyph: '\u25C6' },
         ]},
         // Managers only: review and approve/reject trade membership applications.
         ...(repInfo.is_manager ? [{ label: 'Trade', items: [
@@ -25156,6 +25156,71 @@
         else setSelected(new Set(pageQuotes.map(q => q.id)));
       };
 
+      const [bulkBusy, setBulkBusy] = useState(null);
+      const selectedQuotes = useMemo(() => quotes.filter(q => selected.has(q.id)), [quotes, selected]);
+
+      // Bulk: download the selected quotes (or the whole filtered view if none
+      // are checked) as a CSV. Pure client-side — no round-trip.
+      const bulkExportCsv = () => {
+        const rows = selectedQuotes.length ? selectedQuotes : filteredQuotes;
+        if (!rows.length) { repToast('Nothing to export'); return; }
+        const cols = ['Quote', 'Customer', 'Type', 'Items', 'Total', 'Stage', 'Opens', 'Expires', 'Age', 'Created'];
+        const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+        const lines = [cols.join(',')];
+        rows.forEach(q => {
+          lines.push([
+            q.quote_number, q.customer_name, q.customer_type === 'trade' ? 'Trade' : 'Retail',
+            q.item_count, parseFloat(q.total || 0).toFixed(2), getStage(q).label.split(' · ')[0],
+            q.view_count || 0, getExpires(q).label, getAge(q.created_at),
+            q.created_at ? new Date(q.created_at).toLocaleDateString() : ''
+          ].map(esc).join(','));
+        });
+        const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'roma-quotes-' + new Date().toISOString().slice(0, 10) + '.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        repToast('Exported ' + rows.length + ' quote' + (rows.length !== 1 ? 's' : ''));
+      };
+
+      // Bulk: refresh the 10-day validity window on the selected quotes (reuses
+      // the per-quote reinstate endpoint). Converted quotes are skipped.
+      const bulkReinstate = async () => {
+        const eligible = selectedQuotes.filter(q => q.status !== 'converted');
+        if (!eligible.length) { repToast('No eligible quotes (converted can’t be reinstated)'); return; }
+        setBulkBusy('reinstate');
+        let ok = 0, fail = 0;
+        for (const q of eligible) {
+          try { await repFetch('/api/rep/quotes/' + q.id + '/reinstate', { method: 'POST' }); ok++; }
+          catch (e) { fail++; }
+        }
+        setBulkBusy(null); setSelected(new Set()); load();
+        repToast('Extended ' + ok + ' quote' + (ok !== 1 ? 's' : '') + (fail ? ', ' + fail + ' failed' : ''));
+      };
+
+      // Bulk: email the selected quotes to their customers (reuses the per-quote
+      // send endpoint). Only draft/sent quotes with an email are sendable; the
+      // rest are skipped, and we confirm first since this sends real mail.
+      const bulkResend = async () => {
+        const eligible = selectedQuotes.filter(q => ['draft', 'sent'].includes(q.status) && q.customer_email);
+        const skipped = selectedQuotes.length - eligible.length;
+        if (!eligible.length) { repToast('No sendable quotes (need draft/sent + email)'); return; }
+        const ok0 = window.confirm('Email ' + eligible.length + ' quote' + (eligible.length !== 1 ? 's' : '') +
+          ' to ' + (eligible.length === 1 ? 'its customer' : 'their customers') + '?' +
+          (skipped ? '\n\n' + skipped + ' selected quote' + (skipped !== 1 ? 's' : '') + ' will be skipped (no email or not sendable).' : ''));
+        if (!ok0) return;
+        setBulkBusy('resend');
+        let ok = 0, fail = 0;
+        for (const q of eligible) {
+          try { await repFetch('/api/rep/quotes/' + q.id + '/send', { method: 'POST', body: JSON.stringify({}) }); ok++; }
+          catch (e) { fail++; }
+        }
+        setBulkBusy(null); setSelected(new Set()); load();
+        repToast('Sent ' + ok + ' quote' + (ok !== 1 ? 's' : '') + (fail ? ', ' + fail + ' failed' : ''));
+      };
+
       const getAge = (d) => {
         if (!d) return '\u2014';
         const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
@@ -25257,7 +25322,14 @@
             <div className="ol-bulk-bar">
               <div className="ol-bulk-label">{'\u25CF'} {selected.size} quote{selected.size !== 1 ? 's' : ''} selected</div>
               <div className="ol-bulk-actions">
-                <button className="ol-bulk-btn" onClick={() => setSelected(new Set())}>{'\u2715'} Clear</button>
+                <button className="ol-bulk-btn" onClick={bulkResend} disabled={!!bulkBusy}>
+                  {bulkBusy === 'resend' ? 'Sending\u2026' : '\u2709 Resend'}
+                </button>
+                <button className="ol-bulk-btn" onClick={bulkReinstate} disabled={!!bulkBusy}>
+                  {bulkBusy === 'reinstate' ? 'Extending\u2026' : '\u21BB Extend expiry'}
+                </button>
+                <button className="ol-bulk-btn" onClick={bulkExportCsv} disabled={!!bulkBusy}>{'\u2913'} Export CSV</button>
+                <button className="ol-bulk-btn" onClick={() => setSelected(new Set())} disabled={!!bulkBusy}>{'\u2715'} Clear</button>
               </div>
             </div>
           )}
