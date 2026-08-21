@@ -952,25 +952,10 @@ export function generateQuoteHtml(q, items) {
   const isPickup = q.delivery_method === 'pickup';
   const quoteNumber = q.quote_number || 'Q-' + String(q.id).substring(0, 8).toUpperCase();
 
-  const statusLabel = isExpired ? 'Expired'
-    : q.status === 'converted' ? 'Converted · Order'
-    : q.status === 'accepted' ? 'Accepted'
-    : q.status === 'sent' ? 'Open · Sent'
-    : 'Draft';
-
   const validityDays = q.expires_at
     ? Math.max(1, Math.round((new Date(q.expires_at) - new Date(q.created_at)) / 86400000))
     : 10;
   const stampText = isExpired ? 'Expired' : `Valid ${validityDays} days`;
-
-  const customerFirst = (q.customer_name || '').trim().split(/\s+/)[0] || 'Hello';
-  const repFirst = (q.rep_name || '').trim().split(/\s+/)[0];
-  const greeting = `${customerFirst} — here's the quote ${repFirst ? repFirst + ' prepared' : 'we prepared'} for you on ${issued}. ` +
-    (isExpired
-      ? `This pricing expired on <span style="color:var(--ink);font-weight:500;">${validUntil}</span> — call the showroom and we'll refresh it.`
-      : validUntil
-        ? `Pricing is locked in through <span style="color:var(--ink);font-weight:500;">${validUntil}</span>.`
-        : 'Pricing is locked in for 10 days from the date of issue.');
 
   const SWATCH_FALLBACKS = [
     'linear-gradient(135deg,#caa97f,#7a5635)',
@@ -1109,9 +1094,7 @@ ${deliveryCard}
 ${accountCard}
 </div>
 
-<div style="padding:14px 0 4px;font:400 10px/1.55 var(--sans);color:#1c1917cc;">${greeting}</div>
-
-<div style="padding-top:14px;">
+<div style="padding-top:18px;">
 <div class="grid-row" style="padding-bottom:10px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
 <span></span><span>Description</span><span style="text-align:right;">Coverage</span><span style="text-align:right;">Qty</span><span style="text-align:right;">Unit</span><span style="text-align:right;">Line total</span>
 </div>
