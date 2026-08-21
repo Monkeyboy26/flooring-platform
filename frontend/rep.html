@@ -25362,7 +25362,7 @@
         customer_name: '', customer_first: '', customer_middle: '', customer_last: '', customer_email: '', phone: '', company_name: '',
         shipping_address_line1: '', shipping_address_line2: '',
         shipping_city: '', shipping_state: '', shipping_zip: '', notes: '',
-        delivery_method: 'pickup', shipping: ''
+        delivery_method: 'pickup', shipping: '', sidemark: ''
       });
 
       // "✓ Saved" stays visible after a save until the rep adjusts the form again.
@@ -25482,7 +25482,8 @@
               shipping_zip: data.quote.shipping_zip || '',
               notes: data.quote.notes || '',
               delivery_method: data.quote.delivery_method || 'pickup',
-              shipping: data.quote.shipping != null && parseFloat(data.quote.shipping) > 0 ? String(parseFloat(data.quote.shipping)) : ''
+              shipping: data.quote.shipping != null && parseFloat(data.quote.shipping) > 0 ? String(parseFloat(data.quote.shipping)) : '',
+              sidemark: data.quote.sidemark || ''
             });
             if (data.quote.promo_code) {
               setPromoCode(data.quote.promo_code);
@@ -26568,6 +26569,20 @@
                   </div>
                 )}
               </WizRepCard>
+
+              {/* Sidemark — job reference, carried onto the order at conversion */}
+              <WizRepCard title="Sidemark">
+                <div className="rof-field" style={{ marginBottom: 0 }}>
+                  <label>Sidemark / job reference</label>
+                  <input type="text" maxLength={200} value={form.sidemark} disabled={isReadonly}
+                    onChange={e => setForm(f => ({ ...f, sidemark: e.target.value }))}
+                    placeholder="e.g. Smith Residence — Master Bath" />
+                  <div style={{ font: '400 0.6875rem/1.4 Inter, sans-serif', color: '#8a7e68', marginTop: '0.4rem' }}>
+                    Prints on the order, vendor POs, and documents. Carried over when the quote converts to an order.
+                  </div>
+                </div>
+              </WizRepCard>
+
               {/* Delivery — same mode cards as the order flow */}
               <WizRepCard title="How is the customer receiving these items?">
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.625rem', marginBottom: '0.875rem' }}>

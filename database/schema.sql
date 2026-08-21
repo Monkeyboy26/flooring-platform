@@ -931,6 +931,8 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAUL
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS promo_code_id UUID REFERENCES promo_codes(id);
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS promo_code TEXT;
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0;
+-- Sidemark / job reference; carried onto the order's job_name at conversion.
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS sidemark VARCHAR(200);
 
 -- ==================== PO Enhancements ====================
 

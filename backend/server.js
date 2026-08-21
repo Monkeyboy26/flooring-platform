@@ -13937,6 +13937,9 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
         q.subtotal, q.shipping || 0, q.total, q.sales_rep_id, q.id, q.delivery_method || 'shipping',
         q.promo_code_id || null, q.promo_code || null, q.discount_amount || 0, req.tradeCustomer.id]);
     const order = orderResult.rows[0];
+    if (q.sidemark && String(q.sidemark).trim()) {
+      await client.query('UPDATE orders SET job_name = $1 WHERE id = $2', [String(q.sidemark).trim().slice(0, 200), order.id]);
+    }
     if (req.body && req.body.terms_accepted) {
       await client.query('UPDATE orders SET terms_accepted_at = NOW() WHERE id = $1', [order.id]);
     }
@@ -14098,6 +14101,9 @@ app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) =
         q.subtotal, q.shipping || 0, q.total, q.sales_rep_id, q.id, q.delivery_method || 'shipping',
         q.promo_code_id || null, q.promo_code || null, q.discount_amount || 0, req.customer.id]);
     const order = orderResult.rows[0];
+    if (q.sidemark && String(q.sidemark).trim()) {
+      await client.query('UPDATE orders SET job_name = $1 WHERE id = $2', [String(q.sidemark).trim().slice(0, 200), order.id]);
+    }
     // Record the customer's in-app Terms-of-Sale agreement (checkbox on the quote)
     // right away, alongside Stripe's own consent capture on the hosted checkout.
     if (req.body && req.body.terms_accepted) {
@@ -22829,7 +22835,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { customer_name, customer_email, phone, company_name, shipping_address_line1, shipping_address_line2,
-            shipping_city, shipping_state, shipping_zip, notes, items, delivery_method, promo_code, shipping } = req.body;
+            shipping_city, shipping_state, shipping_zip, notes, items, delivery_method, promo_code, shipping, sidemark } = req.body;
     const companyName = (company_name || '').trim() || null;
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Customer name and email are required' });
@@ -22859,13 +22865,13 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
 
     const quoteResult = await client.query(`
       INSERT INTO quotes (quote_number, sales_rep_id, customer_name, customer_email, phone,
-        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, notes, delivery_method, customer_id, company_name)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, notes, delivery_method, customer_id, company_name, sidemark)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [quoteNumber, req.rep.id, customer_name, customer_email.toLowerCase().trim(), phone || null,
         shipping_address_line1 || null, shipping_address_line2 || null,
         shipping_city || null, shipping_state || null, shipping_zip || null, notes || null,
-        delivery_method || 'shipping', cust.id, companyName]);
+        delivery_method || 'shipping', cust.id, companyName, (sidemark || '').trim().slice(0, 200) || null]);
 
     const quote = quoteResult.rows[0];
 
@@ -23059,7 +23065,7 @@ app.put('/api/rep/quotes/:id', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { customer_name, customer_email, phone, shipping_address_line1, shipping_address_line2,
-            shipping_city, shipping_state, shipping_zip, notes, shipping, delivery_method, promo_code } = req.body;
+            shipping_city, shipping_state, shipping_zip, notes, shipping, delivery_method, promo_code, sidemark } = req.body;
 
     if (customer_name !== undefined && (!customer_name || customer_name.trim().split(/\s+/).length < 2)) {
       return res.status(400).json({ error: 'Customer first and last name are required' });
@@ -23084,11 +23090,12 @@ app.put('/api/rep/quotes/:id', repAuth, async (req, res) => {
         notes = COALESCE($9, notes),
         shipping = COALESCE($10, shipping),
         delivery_method = COALESCE($12, delivery_method),
+        sidemark = COALESCE($13, sidemark),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $11
       RETURNING *
     `, [customer_name, customer_email, phone, shipping_address_line1, shipping_address_line2,
-        shipping_city, shipping_state, shipping_zip, notes, shipping, id, delivery_method]);
+        shipping_city, shipping_state, shipping_zip, notes, shipping, id, delivery_method, sidemark]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Quote not found' });
 
@@ -23604,6 +23611,11 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
         paidInStore ? totalNum.toFixed(2) : '0.00', cust.id]);
 
     const order = orderResult.rows[0];
+
+    // Carry the quote's sidemark onto the order's job name.
+    if (q.sidemark && String(q.sidemark).trim()) {
+      await client.query('UPDATE orders SET job_name = $1 WHERE id = $2', [String(q.sidemark).trim().slice(0, 200), order.id]);
+    }
 
     if (valorTxn) {
       await client.query(
