@@ -179,6 +179,8 @@ app.use(globalLimiter);
 app.use('/api/staff/login', authLimiter);
 app.use('/api/trade/login', authLimiter);
 app.use('/api/rep/login', authLimiter);
+app.use('/api/rep/forgot-password', authLimiter);
+app.use('/api/rep/reset-password', authLimiter);
 app.use('/api/customer/login', authLimiter);
 app.use('/api/customer/register', registrationLimiter);
 app.use('/api/customer/reset-password', authLimiter);
@@ -2027,6 +2029,15 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     // one representative per product — e.g. Moonlit should show 24x48 Natural, 2x2 Mosaico, 48x48
     // and Grid Decor for each colorway, not just the 24x48 Natural.
     const deduplicateByProduct = !req.query.sku_ids && !collection;
+    // HR vanity cabinets have each finish as a SEPARATE product; collapse them so the
+    // grid shows one card per model+size (finishes are selectable on the PDP) instead
+    // of one card per finish. All other products keep one-card-per-product.
+    const browseGroupKey = `CASE
+      WHEN c.slug = 'vanity' AND v.code = 'HR'
+        THEN p.collection || '|' || COALESCE(substring(upper(s.vendor_sku) from '^VN2[A-Z]+-([0-9]+)'), s.id::text)
+      WHEN c.slug = 'bath-mirrors' AND v.code = 'HR' AND upper(s.vendor_sku) ~ '^(MIR2|VMIR)'
+        THEN p.collection || '|' || COALESCE(substring(upper(s.vendor_sku) from '^MIR2[A-Z]+-([0-9]+)'), substring(upper(s.vendor_sku) from 'VMIR-MET[CR]-([0-9]+)'), s.id::text)
+      ELSE p.id::text END`;
     let outerOrderBy;
     if (deduplicateByProduct) {
       const oImg = 'CASE WHEN primary_image IS NOT NULL THEN 0 ELSE 1 END';
@@ -2050,7 +2061,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
 
     // Count query
     const countSQL = `
-      SELECT COUNT(DISTINCT ${deduplicateByProduct ? 'p.id' : 's.id'}) as total
+      SELECT COUNT(DISTINCT ${deduplicateByProduct ? `(${browseGroupKey})` : 's.id'}) as total
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
@@ -2151,12 +2162,12 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     if (deduplicateByProduct) {
       mainSQL = `${browseCtes}
         SELECT * FROM (
-          SELECT DISTINCT ON (p.id) ${browseSelectCols},
+          SELECT DISTINCT ON (${browseGroupKey}) ${browseSelectCols},
             p.sort_priority,
             CASE WHEN pr.sale_price IS NOT NULL AND pr.retail_price > 0 THEN (pr.retail_price - pr.sale_price) / pr.retail_price ELSE 0 END as discount_pct
           ${browseFrom}
           WHERE ${whereSQL}
-          ORDER BY p.id,
+          ORDER BY ${browseGroupKey},
             CASE WHEN COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END,
             s.created_at
         ) browse_deduped
@@ -2958,7 +2969,12 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         )
       ORDER BY COALESCE(NULLIF(s.accessory_label, ''), p_acc.name, ''), s.variant_name, sa.sort_order
     `, [skuId]);
-    const skuAccessories = skuAccessoriesResult.rows;
+    // Order accessory cards by their intended type order (sku_accessories.sort_order),
+    // then alphabetically by label — so e.g. vanity tops lead, then mirrors, etc.
+    // (The query above sorts by label for DISTINCT ON; re-sort for display here.)
+    const skuAccessories = skuAccessoriesResult.rows.sort((a, b) =>
+      ((a.sort_order ?? 0) - (b.sort_order ?? 0)) ||
+      String(a.accessory_label || '').localeCompare(String(b.accessory_label || '')));
 
     // Cross-product accessory suggestions (for vendors like Shaw where accessories
     // live in separate type-based products: "T Molding", "Round Stair Tread", etc.)
@@ -13828,35 +13844,100 @@ app.get('/api/trade/quotes/:id', tradeAuth, async (req, res) => {
   }
 });
 
-// Accept a quote (convert to order)
+// Trade customer accepts a quote and pays via Stripe Checkout (mirrors the
+// customer accept-pay flow). Converts the quote to a pending order and opens a
+// payment-request checkout session; the existing webhook records payment,
+// ledger, invoice, and rep notification on completion.
 app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
   const client = await pool.connect();
   try {
-    const quote = await client.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
-    if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });
-    const q = quote.rows[0];
+    const quoteRes = await client.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
+    if (!quoteRes.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    const q = quoteRes.rows[0];
 
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const tradeActorName = req.tradeCustomer.contact_name || req.tradeCustomer.company_name || q.customer_name;
+
+    const createPaySession = async (order, amount) => {
+      // Insert the request row first so its id can ride in the session's
+      // create-time metadata (this SDK version has no sessions.update).
+      const prResult = await pool.query(`
+        INSERT INTO payment_requests (order_id, amount, sent_to_email, sent_by_name, expires_at)
+        VALUES ($1, $2, $3, 'Trade checkout', $4) RETURNING *
+      `, [order.id, amount.toFixed(2), order.customer_email, new Date(Date.now() + 24 * 3600 * 1000)]);
+      let session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          customer_email: order.customer_email,
+          line_items: [{
+            price_data: {
+              currency: 'usd',
+              product_data: { name: `Order ${order.order_number} — Quote ${q.quote_number}` },
+              unit_amount: Math.round(amount * 100)
+            },
+            quantity: 1
+          }],
+          metadata: { order_id: order.id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+          consent_collection: { terms_of_service: 'required' },
+          success_url: `${frontendUrl}/trade/dashboard?payment=success`,
+          cancel_url: `${frontendUrl}/trade/dashboard?payment=cancelled`,
+          expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+        });
+      } catch (stripeErr) {
+        await pool.query('DELETE FROM payment_requests WHERE id = $1', [prResult.rows[0].id]);
+        throw stripeErr;
+      }
+      await pool.query('UPDATE payment_requests SET stripe_checkout_session_id = $1, stripe_checkout_url = $2 WHERE id = $3',
+        [session.id, session.url, prResult.rows[0].id]);
+      return session.url;
+    };
+
+    // Re-entry: quote already became an order — resume payment on its balance
+    if (q.status === 'converted' && q.converted_order_id) {
+      const orderRes = await pool.query('SELECT * FROM orders WHERE id = $1', [q.converted_order_id]);
+      if (!orderRes.rows.length) return res.status(400).json({ error: 'Quote already converted' });
+      const order = orderRes.rows[0];
+      if (req.body && req.body.terms_accepted) {
+        await pool.query('UPDATE orders SET terms_accepted_at = COALESCE(terms_accepted_at, NOW()) WHERE id = $1', [order.id]);
+      }
+      const pending = await pool.query(
+        "SELECT * FROM payment_requests WHERE order_id = $1 AND status = 'pending' AND stripe_checkout_url IS NOT NULL AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at DESC LIMIT 1",
+        [order.id]);
+      if (pending.rows.length) return res.json({ checkout_url: pending.rows[0].stripe_checkout_url, order_id: order.id });
+      const balanceInfo = await recalculateBalance(pool, order.id);
+      if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') {
+        return res.status(400).json({ error: 'This quote has already been paid' });
+      }
+      const url = await createPaySession(order, balanceInfo.balance);
+      return res.json({ checkout_url: url, order_id: order.id });
+    }
+
+    if (q.status === 'converted') return res.status(400).json({ error: 'Quote already converted' });
     if (q.expires_at && new Date(q.expires_at) < new Date()) {
       return res.status(400).json({ error: 'Quote has expired' });
     }
-    if (q.status === 'converted') return res.status(400).json({ error: 'Quote already converted' });
 
-    const qItems = await client.query('SELECT * FROM quote_items WHERE quote_id = $1', [q.id]);
+    const qItems = await client.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [q.id]);
     if (!qItems.rows.length) return res.status(400).json({ error: 'Quote has no items' });
 
     await client.query('BEGIN');
-
     const orderNumber = await getNextOrderNumber();
     const orderResult = await client.query(`
       INSERT INTO orders (order_number, customer_email, customer_name, phone,
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
-        subtotal, shipping, total, status, trade_customer_id, delivery_method)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', $13, $14) RETURNING *
+        subtotal, shipping, total, status, sales_rep_id, payment_method, quote_id, delivery_method,
+        promo_code_id, promo_code, discount_amount, amount_paid, trade_customer_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', $13, 'stripe', $14, $15, $16, $17, $18, 0, $19) RETURNING *
     `, [orderNumber, q.customer_email, q.customer_name, q.phone,
         q.shipping_address_line1, q.shipping_address_line2, q.shipping_city, q.shipping_state, q.shipping_zip,
-        q.subtotal, q.shipping, q.total, req.tradeCustomer.id, q.delivery_method || 'shipping']);
-
+        q.subtotal, q.shipping || 0, q.total, q.sales_rep_id, q.id, q.delivery_method || 'shipping',
+        q.promo_code_id || null, q.promo_code || null, q.discount_amount || 0, req.tradeCustomer.id]);
     const order = orderResult.rows[0];
+    if (req.body && req.body.terms_accepted) {
+      await client.query('UPDATE orders SET terms_accepted_at = NOW() WHERE id = $1', [order.id]);
+    }
+
     for (const item of qItems.rows) {
       await client.query(`
         INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, cost, is_custom_rug, custom_width_ft, custom_length_ft)
@@ -13866,9 +13947,19 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
           item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
+    // Carry the quote's internal notes into the order's internal-notes thread
+    // (no staff actor here — staff_id stays null, shows as "Staff" in the sidebar).
+    if (q.notes && q.notes.trim()) {
+      const noteCt = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
+      const noteRef = String(order.trade_customer_id || order.customer_id || order.customer_email || order.id);
+      await client.query(`
+        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
+        VALUES ($1, $2, $3, NULL, $4)
+      `, [noteCt, noteRef, order.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
+    }
+
     await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
 
-    const tradeActorName = req.tradeCustomer.contact_name || req.tradeCustomer.company_name || q.customer_name;
     await logQuoteEvent(client, q.id, 'accepted', {
       body: 'Accepted in trade portal',
       meta: { source: 'trade_portal' },
@@ -13883,9 +13974,17 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
     });
     await client.query('COMMIT');
 
-    res.json({ order });
+    if (q.sales_rep_id) {
+      setImmediate(() => createRepNotification(pool, q.sales_rep_id, 'quote_accepted',
+        `Quote ${q.quote_number} accepted online`,
+        `${tradeActorName} accepted ${q.quote_number} ($${parseFloat(q.total || 0).toFixed(2)}) and headed to payment`,
+        'quote', q.id));
+    }
+
+    const url = await createPaySession(order, parseFloat(q.total || 0));
+    res.json({ checkout_url: url, order_id: order.id, order_number: orderNumber });
   } catch (err) {
-    await client.query('ROLLBACK');
+    try { await client.query('ROLLBACK'); } catch (e) { /* no open transaction */ }
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
@@ -13996,6 +14095,17 @@ app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) =
       `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.parent_collection || null, item.parent_color || null, item.description,
           item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
           item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
+    }
+
+    // Carry the quote's internal notes into the order's internal-notes thread
+    // (no staff actor here — staff_id stays null, shows as "Staff" in the sidebar).
+    if (q.notes && q.notes.trim()) {
+      const noteCt = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
+      const noteRef = String(order.trade_customer_id || order.customer_id || order.customer_email || order.id);
+      await client.query(`
+        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
+        VALUES ($1, $2, $3, NULL, $4)
+      `, [noteCt, noteRef, order.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
     }
 
     await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
@@ -14564,6 +14674,62 @@ app.post('/api/rep/logout', repAuth, async (req, res) => {
 
 app.get('/api/rep/me', repAuth, async (req, res) => {
   res.json({ rep: req.rep });
+});
+
+// Self-service: a rep requests a password-reset link. Always returns success so
+// the endpoint can't be used to enumerate which emails belong to rep accounts.
+// Reuses the staff_accounts reset-token columns; link points at the rep portal.
+app.post('/api/rep/forgot-password', async (req, res) => {
+  try {
+    let { email } = req.body || {};
+    if (!email) return res.json({ success: true });
+    email = String(email).toLowerCase().trim().slice(0, 255);
+
+    const result = await pool.query(
+      "SELECT id, email, first_name FROM staff_accounts WHERE email = $1 AND role = 'sales_rep' AND is_active = true", [email]);
+    if (result.rows.length) {
+      const rep = result.rows[0];
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await pool.query(
+        'UPDATE staff_accounts SET password_reset_token = $1, password_reset_expires = $2 WHERE id = $3',
+        [tokenHash, expires, rep.id]);
+      const base = process.env.FRONTEND_URL || 'https://romaflooringdesigns.com';
+      const resetUrl = `${base}/rep?reset_token=${token}`;
+      setImmediate(() => sendStaffPasswordReset(rep.email, rep.first_name, resetUrl, { expiresLabel: '1 hour', loginPath: '/rep' })
+        .catch(err => console.error('[rep reset] email error:', err.message)));
+      await logAudit(null, 'rep.reset_link_requested', 'staff_accounts', rep.id, { email: rep.email }, req.ip);
+    }
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.json({ success: true }); }
+});
+
+// Public: consume an emailed token and set a new rep password. Mirrors the staff
+// set-password flow but rotates rep_sessions (reps authenticate via x-rep-token).
+app.post('/api/rep/reset-password', async (req, res) => {
+  try {
+    const { token, new_password } = req.body || {};
+    if (!token || !new_password) return res.status(400).json({ error: 'Token and new password are required' });
+    const pwError = validatePassword(new_password);
+    if (pwError) return res.status(400).json({ error: pwError });
+
+    const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
+    const row = await pool.query(
+      "SELECT id FROM staff_accounts WHERE password_reset_token = $1 AND password_reset_expires > NOW() AND role = 'sales_rep' AND is_active = true",
+      [tokenHash]);
+    if (!row.rows.length) return res.status(400).json({ error: 'This link is invalid or has expired' });
+
+    const repId = row.rows[0].id;
+    const { hash, salt } = await hashPassword(new_password);
+    await pool.query(
+      'UPDATE staff_accounts SET password_hash = $1, password_salt = $2, password_reset_token = NULL, password_reset_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $3',
+      [hash, salt, repId]);
+    // Sign out any open rep sessions — the password just changed.
+    await pool.query('DELETE FROM rep_sessions WHERE rep_id = $1', [repId]);
+    await logAudit(null, 'rep.password_reset', 'staff_accounts', repId, {}, req.ip);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // ==================== Rep: Trade Application Review (managers only) ====================
@@ -15269,15 +15435,22 @@ app.post('/api/rep/visits', repAuth, async (req, res) => {
 
 app.get('/api/rep/visits', repAuth, async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, scope } = req.query;
     let query = `
       SELECT sv.*,
         (SELECT COUNT(*)::int FROM showroom_visit_items WHERE visit_id = sv.id) as item_count
       FROM showroom_visits sv
-      WHERE sv.rep_id = $1
+      WHERE 1=1
     `;
-    const params = [req.rep.id];
-    let idx = 2;
+    const params = [];
+    let idx = 1;
+
+    // Default to the rep's own visits; scope=team shows every rep's visits.
+    if (scope !== 'team') {
+      query += ` AND sv.rep_id = $${idx}`;
+      params.push(req.rep.id);
+      idx++;
+    }
 
     if (status) {
       query += ` AND sv.status = $${idx}`;
@@ -15815,15 +15988,23 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
 
 app.get('/api/rep/sample-requests', repAuth, async (req, res) => {
   try {
-    const { status, search } = req.query;
+    const { status, search, scope } = req.query;
     let query = `
       SELECT sr.*,
         (SELECT COUNT(*)::int FROM sample_request_items WHERE sample_request_id = sr.id) as item_count
       FROM sample_requests sr
-      WHERE sr.rep_id = $1
+      WHERE 1=1
     `;
-    const params = [req.rep.id];
-    let idx = 2;
+    const params = [];
+    let idx = 1;
+
+    // Default to the rep's own sample requests; scope=team shows every rep's
+    // (and includes unassigned requests that otherwise no rep can see).
+    if (scope !== 'team') {
+      query += ` AND sr.rep_id = $${idx}`;
+      params.push(req.rep.id);
+      idx++;
+    }
 
     if (status) {
       query += ` AND sr.status = $${idx}`;
@@ -22455,17 +22636,25 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
 
 app.get('/api/rep/quotes', repAuth, async (req, res) => {
   try {
-    const { status, search } = req.query;
+    const { status, search, scope } = req.query;
     let query = `
       SELECT q.*,
         sr.first_name || ' ' || sr.last_name as rep_name,
         (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
       FROM quotes q
       LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
-      WHERE q.sales_rep_id = $1
+      WHERE 1=1
     `;
-    const params = [req.rep.id];
-    let idx = 2;
+    const params = [];
+    let idx = 1;
+
+    // Default to the rep's own quotes; scope=team shows every rep's quotes
+    // (mirrors the Team view on /api/rep/orders). Includes unassigned quotes.
+    if (scope !== 'team') {
+      query += ` AND q.sales_rep_id = $${idx}`;
+      params.push(req.rep.id);
+      idx++;
+    }
 
     if (status) {
       query += ` AND q.status = $${idx}`;
@@ -23281,6 +23470,17 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
           item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
+    // Carry the quote's internal notes into the order's internal-notes thread
+    // (mirrors POST /api/rep/orders/:id/notes so it shows in the order sidebar).
+    if (q.notes && q.notes.trim()) {
+      const noteCt = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
+      const noteRef = String(order.trade_customer_id || order.customer_id || order.customer_email || order.id);
+      await client.query(`
+        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [noteCt, noteRef, order.id, req.rep.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
+    }
+
     // Link uploaded documents to the order
     if (document_ids && document_ids.length > 0) {
       await client.query(
@@ -23882,7 +24082,7 @@ async function getEditableEstimate(db, id) {
 // GET /api/rep/estimates — List estimates
 app.get('/api/rep/estimates', repAuth, async (req, res) => {
   try {
-    const { status, search } = req.query;
+    const { status, search, scope } = req.query;
     let query = `
       SELECT e.*,
         CASE WHEN e.status = 'sent' AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
@@ -23900,10 +24100,17 @@ app.get('/api/rep/estimates', repAuth, async (req, res) => {
       FROM estimates e
       LEFT JOIN staff_accounts sr ON sr.id = e.sales_rep_id
       LEFT JOIN orders o ON o.id = e.converted_order_id
-      WHERE e.sales_rep_id = $1
+      WHERE 1=1
     `;
-    const params = [req.rep.id];
-    let idx = 2;
+    const params = [];
+    let idx = 1;
+
+    // Default to the rep's own estimates; scope=team shows every rep's estimates.
+    if (scope !== 'team') {
+      query += ` AND e.sales_rep_id = $${idx}`;
+      params.push(req.rep.id);
+      idx++;
+    }
 
     if (status) {
       query += ` AND e.status = $${idx}`;

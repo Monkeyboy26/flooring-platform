@@ -650,6 +650,16 @@
       font: 500 10px/1 ui-monospace, monospace;
     }
     .ol-view-tab.active .ol-tab-count { background: rgba(28,25,23,0.07); color: var(--stone-900); }
+    .rep-scope-toggle {
+      display: inline-flex; margin-left: auto; align-self: center; flex: none;
+      border: 0.5px solid rgba(28,25,23,0.18); border-radius: 999px; overflow: hidden;
+    }
+    .rep-scope-toggle button {
+      padding: 5px 14px; background: none; border: none; cursor: pointer;
+      font: 500 10px/1 'Inter', sans-serif; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--brass-muted); transition: background .12s, color .12s;
+    }
+    .rep-scope-toggle button.active { background: var(--stone-900, #1c1917); color: #fff; }
     .ol-filter-bar {
       display: flex; justify-content: space-between; align-items: center;
       padding: 8px 0 16px; margin-bottom: 4px; flex-wrap: wrap; gap: 8px;
@@ -4468,6 +4478,11 @@
       grid-template-columns: 1fr 1fr 1fr;
       gap: 0.875rem;
     }
+    .rof-field-row-name {
+      display: grid;
+      grid-template-columns: 1fr 88px 1fr;
+      gap: 0.875rem;
+    }
     .rof-field.full { grid-column: 1 / -1; }
 
     /* Search */
@@ -5319,6 +5334,7 @@
       .rof-pay-grid { grid-template-columns: 1fr 1fr; }
       .rof-field-row { grid-template-columns: 1fr; }
       .rof-field-row-3 { grid-template-columns: 1fr; }
+      .rof-field-row-name { grid-template-columns: 1fr; }
       .rof-next-grid { grid-template-columns: 1fr; }
       .rof-item-row,
       .rof-items-header { grid-template-columns: 36px 1fr 60px 60px 84px 76px; gap: 0.5rem; }
@@ -6699,19 +6715,27 @@
     // (e.g. bare "Reducer") always carry their parent product + distinguishing info.
     function formatLineItem(it) {
       it = it || {};
+      // Brand/SKU resolved with the SAME logic as the storefront (itemBrand/itemSku):
+      // respect the hide_public_name gate (show the bare public code, never the real
+      // name, on customer-facing lines) and prefer the sub-brand (brand_name) over the
+      // parent vendor. custom_vendor is a rep's free-text name, never gated.
+      const brand = it.brand_hidden
+        ? ((it.vendor_public_code != null ? String(it.vendor_public_code) : '') || it.custom_vendor || '')
+        : (it.brand_name || it.vendor_name || it.custom_vendor || '');
+      const sku = it.vendor_sku || it.internal_sku || it.sku || '';
       // Prefer the server-computed title — the backend composes it with the SAME
       // logic as the storefront PDP (fullProductName), so an order/quote line reads
       // identically everywhere. Client fallback below covers un-enriched surfaces.
-      if (it.display_name) return { brand: it.vendor_name || it.custom_vendor || '', name: it.display_name, sku: it.vendor_sku || it.internal_sku || '' };
+      if (it.display_name) return { brand, name: it.display_name, sku };
       // Custom bound area rug → "Custom Area Rug  ·  <carpet>  ·  9' × 4'".
       if (it.is_custom_rug || (it.description || '').startsWith('Custom Area Rug')) {
         const fmtFt = (ft) => { const n = parseFloat(ft) || 0, w = Math.floor(n); let i = Math.round((n - w) * 12); if (i === 12) return (w + 1) + "'"; return i === 0 ? w + "'" : w + "'" + i + '"'; };
         const dims = (it.custom_width_ft && it.custom_length_ft) ? (fmtFt(it.custom_width_ft) + ' × ' + fmtFt(it.custom_length_ft)) : (it.description || '').replace(/^Custom Area Rug\s*[—-]\s*/, '');
         const carpet = [it.collection, it.color].filter(Boolean).join(' ') || it.product_name || '';
         return {
-          brand: it.vendor_name || it.custom_vendor || '',
+          brand,
           name: ['Custom Area Rug', carpet, dims].filter(Boolean).join('  ·  '),
-          sku: it.vendor_sku || it.internal_sku || '',
+          sku,
         };
       }
       const isAcc = (it.variant_type || '').toLowerCase() === 'accessory';
@@ -6805,9 +6829,9 @@
         _segsNS.add(_noSpace(kept));
       }
       return {
-        brand: it.vendor_name || it.custom_vendor || '',
+        brand,
         name: title + (descriptors.length ? '  ·  ' + descriptors.join('  ·  ') : ''),
-        sku: it.vendor_sku || it.internal_sku || '',
+        sku,
       };
     }
 
@@ -7509,11 +7533,30 @@
     }
 
     // ========== LoginView ==========
+    // Three modes on one screen: 'login' (default), 'forgot' (request a reset
+    // link by email), and 'reset' (set a new password from an emailed token —
+    // the rep lands here via /rep?reset_token=…).
     function LoginView({ onLogin }) {
+      const resetTokenFromUrl = React.useMemo(
+        () => new URLSearchParams(window.location.search).get('reset_token'), []);
+
+      const [mode, setMode] = useState(resetTokenFromUrl ? 'reset' : 'login');
       const [email, setEmail] = useState('');
       const [password, setPassword] = useState('');
+      const [newPassword, setNewPassword] = useState('');
+      const [confirmPassword, setConfirmPassword] = useState('');
       const [error, setError] = useState('');
+      const [notice, setNotice] = useState('');
       const [loading, setLoading] = useState(false);
+
+      const switchMode = (next) => {
+        setMode(next); setError(''); setNotice('');
+        setPassword(''); setNewPassword(''); setConfirmPassword('');
+      };
+
+      const clearResetTokenFromUrl = () => {
+        window.history.replaceState({}, '', window.location.pathname);
+      };
 
       const handleSubmit = async (e) => {
         e.preventDefault();
@@ -7534,10 +7577,59 @@
         }
       };
 
+      const handleForgot = async (e) => {
+        e.preventDefault();
+        setError(''); setNotice('');
+        setLoading(true);
+        try {
+          const resp = await fetch(API + '/api/rep/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          if (!resp.ok) throw new Error('Something went wrong. Try again.');
+          setNotice('If that email belongs to a rep account, a reset link is on its way. Check your inbox — the link expires in 1 hour.');
+        } catch (err) {
+          setError(err.message);
+        }
+        setLoading(false);
+      };
+
+      const handleReset = async (e) => {
+        e.preventDefault();
+        setError('');
+        if (newPassword.length < 8 || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+          setError('Password must be at least 8 characters with 1 uppercase letter and 1 number.');
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          setError('Passwords don’t match.');
+          return;
+        }
+        setLoading(true);
+        try {
+          const resp = await fetch(API + '/api/rep/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: resetTokenFromUrl, new_password: newPassword })
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || 'Reset failed');
+          clearResetTokenFromUrl();
+          switchMode('login');
+          setNotice('Password updated. Sign in with your new password.');
+        } catch (err) {
+          setError(err.message);
+        }
+        setLoading(false);
+      };
+
+      const formHandler = mode === 'forgot' ? handleForgot : mode === 'reset' ? handleReset : handleSubmit;
+
       return (
         <div className="rep-auth">
           {/* Dark form column */}
-          <form className="rep-auth-form" onSubmit={handleSubmit}>
+          <form className="rep-auth-form" onSubmit={formHandler}>
             {/* Header */}
             <div className="rep-auth-header">
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
@@ -7552,57 +7644,145 @@
               <div className="rep-auth-body-inner">
                 <div>
                   <div className="rep-auth-eyebrow">Sales rep access</div>
-                  <h1 className="rep-auth-title">Rep sign in</h1>
+                  <h1 className="rep-auth-title">
+                    {mode === 'forgot' ? 'Reset your password' : mode === 'reset' ? 'Set a new password' : 'Rep sign in'}
+                  </h1>
                 </div>
 
                 {error && <div className="rep-auth-error">{error}</div>}
+                {notice && <div className="rep-auth-error" style={{ color: '#7dd3a8', borderColor: 'rgba(125,211,168,0.4)' }}>{notice}</div>}
 
-                {/* Fields */}
-                <div className="rep-auth-fields">
-                  <div className="rep-auth-field">
-                    <div className="rep-auth-field-label">Email address</div>
-                    <div className="rep-auth-field-row">
-                      <input
-                        type="email"
-                        placeholder="you@romaflooringdesigns.com"
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        required
-                        autoComplete="email"
-                      />
+                {mode === 'login' && (
+                  <React.Fragment>
+                    {/* Fields */}
+                    <div className="rep-auth-fields">
+                      <div className="rep-auth-field">
+                        <div className="rep-auth-field-label">Email address</div>
+                        <div className="rep-auth-field-row">
+                          <input
+                            type="email"
+                            placeholder="you@romaflooringdesigns.com"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            required
+                            autoComplete="email"
+                          />
+                        </div>
+                      </div>
+                      <div className="rep-auth-field">
+                        <div className="rep-auth-field-label">Password</div>
+                        <div className="rep-auth-field-row">
+                          <input
+                            type="password"
+                            placeholder="Enter password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            required
+                            autoComplete="current-password"
+                          />
+                          <span
+                            className="rep-auth-field-hint"
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => switchMode('forgot')}
+                          >Forgot password?</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="rep-auth-field">
-                    <div className="rep-auth-field-label">Password</div>
-                    <div className="rep-auth-field-row">
-                      <input
-                        type="password"
-                        placeholder="Enter password"
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        required
-                        autoComplete="current-password"
-                      />
-                      <span className="rep-auth-field-hint">Contact admin to reset →</span>
+
+                    {/* CTA */}
+                    <div className="rep-auth-actions">
+                      <button className="rep-auth-cta" type="submit" disabled={loading}>
+                        {loading ? 'Signing in...' : 'Sign in to dashboard →'}
+                      </button>
                     </div>
-                  </div>
-                </div>
 
-                {/* CTA */}
-                <div className="rep-auth-actions">
-                  <button className="rep-auth-cta" type="submit" disabled={loading}>
-                    {loading ? 'Signing in...' : 'Sign in to dashboard →'}
-                  </button>
-                </div>
+                    {/* Security note */}
+                    <div className="rep-auth-security">
+                      <span className="rep-auth-security-icon">!</span>
+                      <span>
+                        Roma monitors staff sign-ins. Don't share credentials. Locked out?
+                        Use <span style={{ color: '#ece5d8', cursor: 'pointer' }} onClick={() => switchMode('forgot')}>Forgot password</span> or contact your admin.
+                      </span>
+                    </div>
+                  </React.Fragment>
+                )}
 
-                {/* Security note */}
-                <div className="rep-auth-security">
-                  <span className="rep-auth-security-icon">!</span>
-                  <span>
-                    Roma monitors staff sign-ins. Don't share credentials. Locked out?
-                    Contact <span style={{ color: '#ece5d8' }}>your admin</span> to reset your password.
-                  </span>
-                </div>
+                {mode === 'forgot' && (
+                  <React.Fragment>
+                    <div className="rep-auth-fields">
+                      <div className="rep-auth-field">
+                        <div className="rep-auth-field-label">Email address</div>
+                        <div className="rep-auth-field-row">
+                          <input
+                            type="email"
+                            placeholder="you@romaflooringdesigns.com"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            required
+                            autoComplete="email"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rep-auth-actions">
+                      <button className="rep-auth-cta" type="submit" disabled={loading}>
+                        {loading ? 'Sending...' : 'Email me a reset link →'}
+                      </button>
+                    </div>
+                    <div className="rep-auth-security">
+                      <span className="rep-auth-security-icon">?</span>
+                      <span>
+                        We’ll email a one-hour link to reset your password.{' '}
+                        <span style={{ color: '#ece5d8', cursor: 'pointer' }} onClick={() => switchMode('login')}>← Back to sign in</span>
+                      </span>
+                    </div>
+                  </React.Fragment>
+                )}
+
+                {mode === 'reset' && (
+                  <React.Fragment>
+                    <div className="rep-auth-fields">
+                      <div className="rep-auth-field">
+                        <div className="rep-auth-field-label">New password</div>
+                        <div className="rep-auth-field-row">
+                          <input
+                            type="password"
+                            placeholder="At least 8 characters"
+                            value={newPassword}
+                            onChange={e => setNewPassword(e.target.value)}
+                            required
+                            autoComplete="new-password"
+                          />
+                        </div>
+                      </div>
+                      <div className="rep-auth-field">
+                        <div className="rep-auth-field-label">Confirm new password</div>
+                        <div className="rep-auth-field-row">
+                          <input
+                            type="password"
+                            placeholder="Re-enter new password"
+                            value={confirmPassword}
+                            onChange={e => setConfirmPassword(e.target.value)}
+                            required
+                            autoComplete="new-password"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rep-auth-actions">
+                      <button className="rep-auth-cta" type="submit" disabled={loading}>
+                        {loading ? 'Saving...' : 'Set new password →'}
+                      </button>
+                    </div>
+                    <div className="rep-auth-security">
+                      <span className="rep-auth-security-icon">!</span>
+                      <span>
+                        Use 8+ characters with an uppercase letter and a number.{' '}
+                        <span style={{ color: '#ece5d8', cursor: 'pointer' }} onClick={() => { clearResetTokenFromUrl(); switchMode('login'); }}>← Back to sign in</span>
+                      </span>
+                    </div>
+                  </React.Fragment>
+                )}
               </div>
             </div>
 
@@ -11885,8 +12065,7 @@
               </p>
             </div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center', font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              <a onClick={() => navigate('quotes')} style={{ padding: '10px 14px', border: '0.5px solid ' + TH.ink + '66', color: TH.ink, cursor: 'pointer', textDecoration: 'none' }}>Open quote builder &rarr;</a>
-              <a onClick={() => navigate('quote-create')} style={{ padding: '10px 14px', background: TH.ink, color: TH.paper, cursor: 'pointer', textDecoration: 'none' }}>+ Add to quote</a>
+              <a onClick={() => navigate('quote-create')} style={{ padding: '10px 14px', border: '0.5px solid ' + TH.ink + '66', color: TH.ink, cursor: 'pointer', textDecoration: 'none' }}>Open quote builder &rarr;</a>
             </div>
           </div>
 
@@ -13689,6 +13868,9 @@
           customer: c,
           items: repriceItems(d.items, discount),
           newCustomerName: '',
+          newCustomerFirst: '',
+          newCustomerMiddle: '',
+          newCustomerLast: '',
           newCustomerEmail: '',
           newCustomerPhone: '',
           newCustomerCompany: '',
@@ -13858,13 +14040,12 @@
           {/* New customer form */}
           {customerMode === 'new' && !data.customer && (
             <div>
+              <CustomerNameFields
+                first={data.newCustomerFirst} middle={data.newCustomerMiddle} last={data.newCustomerLast}
+                onFirst={v => setData(d => ({ ...d, newCustomerFirst: v, newCustomerName: composeCustomerName(v, d.newCustomerMiddle, d.newCustomerLast) }))}
+                onMiddle={v => setData(d => ({ ...d, newCustomerMiddle: v, newCustomerName: composeCustomerName(d.newCustomerFirst, v, d.newCustomerLast) }))}
+                onLast={v => setData(d => ({ ...d, newCustomerLast: v, newCustomerName: composeCustomerName(d.newCustomerFirst, d.newCustomerMiddle, v) }))} />
               <div className="rof-field-row">
-                <div className="rof-field">
-                  <label>Full Name *</label>
-                  <input type="text" value={data.newCustomerName || ''}
-                    onChange={e => setData(d => ({ ...d, newCustomerName: e.target.value }))}
-                    placeholder="John Smith" />
-                </div>
                 <div className="rof-field">
                   <label>Email *</label>
                   <input type="email" value={data.newCustomerEmail || ''}
@@ -13878,19 +14059,19 @@
                     style={emailError ? { borderColor: 'var(--red)' } : {}} />
                   {emailError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{emailError}</div>}
                 </div>
-              </div>
-              <div className="rof-field">
-                <label>Phone *</label>
-                <input type="text" value={data.newCustomerPhone || ''}
-                  onChange={e => { const v = formatPhone(e.target.value); setData(d => ({ ...d, newCustomerPhone: v, dupMatch: null })); setCustomerMatch(null); if (phoneError) setPhoneError(''); }}
-                  onBlur={() => {
-                    if (data.newCustomerPhone && !isValidPhone(data.newCustomerPhone)) setPhoneError('Enter a valid 10-digit phone');
-                    else setPhoneError('');
-                    checkMatch('phone');
-                  }}
-                  placeholder="(555) 123-4567"
-                  style={phoneError ? { borderColor: 'var(--red)' } : {}} />
-                {phoneError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{phoneError}</div>}
+                <div className="rof-field">
+                  <label>Phone *</label>
+                  <input type="text" value={data.newCustomerPhone || ''}
+                    onChange={e => { const v = formatPhone(e.target.value); setData(d => ({ ...d, newCustomerPhone: v, dupMatch: null })); setCustomerMatch(null); if (phoneError) setPhoneError(''); }}
+                    onBlur={() => {
+                      if (data.newCustomerPhone && !isValidPhone(data.newCustomerPhone)) setPhoneError('Enter a valid 10-digit phone');
+                      else setPhoneError('');
+                      checkMatch('phone');
+                    }}
+                    placeholder="(555) 123-4567"
+                    style={phoneError ? { borderColor: 'var(--red)' } : {}} />
+                  {phoneError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{phoneError}</div>}
+                </div>
               </div>
               <div className="rof-field">
                 <label>Company (optional)</label>
@@ -13901,6 +14082,32 @@
             </div>
           )}
         </WizRepCard>
+      );
+    }
+
+    // --- CustomerNameFields — split First / Last / Middle-initial entry ---
+    // Mirrors the field set of the canonical New customer form
+    // (RepCustomerCreateView). Every flow still stores a single name string, so
+    // callers compose first/middle/last back into it via composeCustomerName.
+    function composeCustomerName(first, middle, last) {
+      return [first, middle, last].map(s => (s || '').trim()).filter(Boolean).join(' ');
+    }
+    function CustomerNameFields({ first, middle, last, onFirst, onMiddle, onLast }) {
+      return (
+        <div className="rof-field-row-name">
+          <div className="rof-field">
+            <label>First name *</label>
+            <input type="text" value={first || ''} onChange={e => onFirst(e.target.value)} placeholder="John" />
+          </div>
+          <div className="rof-field">
+            <label>MI</label>
+            <input type="text" maxLength={4} value={middle || ''} onChange={e => onMiddle(e.target.value)} placeholder="A" />
+          </div>
+          <div className="rof-field">
+            <label>Last name *</label>
+            <input type="text" value={last || ''} onChange={e => onLast(e.target.value)} placeholder="Smith" />
+          </div>
+        </div>
       );
     }
 
@@ -13917,7 +14124,20 @@
       const [emailError, setEmailError] = useState('');
       const [phoneError, setPhoneError] = useState('');
       const [match, setMatch] = useState(null);
+      // Split name parts compose into the single `name` string the parent owns.
+      const [firstName, setFirstName] = useState('');
+      const [middleName, setMiddleName] = useState('');
+      const [lastName, setLastName] = useState('');
       const timer = useRef(null);
+
+      const setNamePart = (part, val) => {
+        const parts = { first: firstName, middle: middleName, last: lastName, [part]: val };
+        if (part === 'first') setFirstName(val);
+        else if (part === 'middle') setMiddleName(val);
+        else setLastName(val);
+        onName(composeCustomerName(parts.first, parts.middle, parts.last));
+      };
+      const resetName = () => { setFirstName(''); setMiddleName(''); setLastName(''); };
 
       const doSearch = (q) => {
         setSearch(q);
@@ -13935,7 +14155,7 @@
 
       const pick = (c) => {
         onSelect(c);
-        setSearch(''); setResults([]); setMatch(null); setEmailError(''); setPhoneError('');
+        setSearch(''); setResults([]); setMatch(null); setEmailError(''); setPhoneError(''); resetName();
       };
 
       const checkMatch = async (val) => {
@@ -13965,7 +14185,7 @@
               <span className={'rof-search-tag ' + (c.type === 'trade' ? 'trade' : c.type === 'order' ? 'order' : 'new')}>
                 {c.type === 'order' ? 'prev order' : (c.type || 'customer')}
               </span>
-              <button className="rof-card-action" onClick={() => { onClear(); setMode('search'); }}>Change</button>
+              <button className="rof-card-action" onClick={() => { onClear(); setMode('search'); resetName(); }}>Change</button>
             </div>
             {(missingEmail || missingPhone) && (
               <div className="rof-field-row" style={{ marginTop: '0.75rem' }}>
@@ -14002,7 +14222,7 @@
           {/* Mode toggle */}
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
             <button className={'rof-btn-light' + (mode === 'search' ? ' primary' : '')}
-              onClick={() => { setMode('search'); setMatch(null); }}
+              onClick={() => { setMode('search'); setMatch(null); resetName(); }}
               style={{ padding: '0.35rem 0.75rem', fontSize: '0.5625rem' }}>
               Search Existing
             </button>
@@ -14061,13 +14281,12 @@
           {/* New customer form */}
           {mode === 'new' && (
             <div>
+              <CustomerNameFields
+                first={firstName} middle={middleName} last={lastName}
+                onFirst={v => setNamePart('first', v)}
+                onMiddle={v => setNamePart('middle', v)}
+                onLast={v => setNamePart('last', v)} />
               <div className="rof-field-row">
-                <div className="rof-field">
-                  <label>Full Name *</label>
-                  <input type="text" value={name || ''}
-                    onChange={e => onName(e.target.value)}
-                    placeholder="First and last name" />
-                </div>
                 <div className="rof-field">
                   <label>Email *</label>
                   <input type="email" value={email || ''}
@@ -14080,18 +14299,18 @@
                     style={emailError ? { borderColor: 'var(--red)' } : {}} />
                   {emailError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{emailError}</div>}
                 </div>
-              </div>
-              <div className="rof-field">
-                <label>{requirePhone ? 'Phone *' : 'Phone'}</label>
-                <input type="text" value={phone || ''}
-                  onChange={e => { onPhone(formatPhone(e.target.value)); if (phoneError) setPhoneError(''); }}
-                  onBlur={() => {
-                    setPhoneError(phone && !isValidPhone(phone) ? 'Enter a valid 10-digit phone' : '');
-                    checkMatch(phone);
-                  }}
-                  placeholder="(555) 123-4567"
-                  style={phoneError ? { borderColor: 'var(--red)' } : {}} />
-                {phoneError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{phoneError}</div>}
+                <div className="rof-field">
+                  <label>{requirePhone ? 'Phone *' : 'Phone'}</label>
+                  <input type="text" value={phone || ''}
+                    onChange={e => { onPhone(formatPhone(e.target.value)); if (phoneError) setPhoneError(''); }}
+                    onBlur={() => {
+                      setPhoneError(phone && !isValidPhone(phone) ? 'Enter a valid 10-digit phone' : '');
+                      checkMatch(phone);
+                    }}
+                    placeholder="(555) 123-4567"
+                    style={phoneError ? { borderColor: 'var(--red)' } : {}} />
+                  {phoneError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{phoneError}</div>}
+                </div>
               </div>
             </div>
           )}
@@ -17261,12 +17480,27 @@
     }
 
     // ========== RepSampleRequestsListView ==========
+    // Mine vs Team ownership scope toggle — shared across all rep list sections
+    function ScopeToggle({ scope, setScope, onChange }) {
+      return (
+        <div className="rep-scope-toggle" role="group" aria-label="Ownership scope">
+          {[['mine', 'Mine'], ['team', 'Team']].map(([k, label]) => (
+            <button key={k} type="button" className={scope === k ? 'active' : ''}
+              onClick={() => { if (scope !== k) { setScope(k); onChange && onChange(); } }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      );
+    }
+
     function RepSampleRequestsListView({ navigate }) {
       const [requests, setRequests] = useState([]);
       const [loading, setLoading] = useState(true);
       const [statusFilter, setStatusFilter] = useState('');
       const [search, setSearch] = useState('');
       const [activeView, setActiveView] = useState('open');
+      const [scope, setScope] = useState('mine');
       const [selected, setSelected] = useState(new Set());
       const [page, setPage] = useState(1);
       const perPage = 50;
@@ -17276,11 +17510,12 @@
         const params = new URLSearchParams();
         if (statusFilter) params.set('status', statusFilter);
         if (search.trim()) params.set('search', search.trim());
+        if (scope === 'team') params.set('scope', 'team');
         const qs = params.toString() ? '?' + params.toString() : '';
         repFetch('/api/rep/sample-requests' + qs)
           .then(d => { setRequests(d.sample_requests || []); setLoading(false); })
           .catch(() => setLoading(false));
-      }, [statusFilter, search]);
+      }, [statusFilter, search, scope]);
 
       useEffect(load, [load]);
 
@@ -17357,7 +17592,7 @@
         { key: 'transit', label: 'In transit' },
         { key: 'delivered', label: 'Delivered' },
         { key: 'cancelled', label: 'Cancelled' },
-        { key: 'all', label: 'All mine' },
+        { key: 'all', label: 'All' },
       ];
 
       const STATUSES = [
@@ -17396,6 +17631,7 @@
                 </span>
               </button>
             ))}
+            <ScopeToggle scope={scope} setScope={setScope} onChange={() => { setPage(1); setSelected(new Set()); }} />
           </div>
 
           {/* Filter bar */}
@@ -17539,7 +17775,7 @@
       const [addrCity, setAddrCity] = useState('');
       const [addrState, setAddrState] = useState('');
       const [addrZip, setAddrZip] = useState('');
-      const [deliveryMethod, setDeliveryMethod] = useState('shipping');
+      const [deliveryMethod, setDeliveryMethod] = useState('pickup');
       const [notes, setNotes] = useState('');
       const [items, setItems] = useState([]);
       const [skuSearch, setSkuSearch] = useState('');
@@ -19131,16 +19367,18 @@
       const [search, setSearch] = useState('');
       const [statusFilter, setStatusFilter] = useState('');
       const [activeView, setActiveView] = useState('all');
+      const [scope, setScope] = useState('mine');
       const [selected, setSelected] = useState(new Set());
       const [page, setPage] = useState(1);
       const perPage = 50;
 
       const load = useCallback(() => {
         setLoading(true);
-        repFetch('/api/rep/visits')
+        const qs = scope === 'team' ? '?scope=team' : '';
+        repFetch('/api/rep/visits' + qs)
           .then(d => { setVisits(d.visits || []); setLoading(false); })
           .catch(() => setLoading(false));
-      }, []);
+      }, [scope]);
 
       useEffect(load, [load]);
 
@@ -19198,7 +19436,7 @@
         { key: 'engaged', label: 'Engaged', tone: 'var(--gold, #c9a668)' },
         { key: 'awaiting', label: 'Awaiting open' },
         { key: 'drafts', label: 'Drafts' },
-        { key: 'all', label: 'All mine' },
+        { key: 'all', label: 'All' },
       ];
 
       return (
@@ -19227,6 +19465,7 @@
                 </span>
               </button>
             ))}
+            <ScopeToggle scope={scope} setScope={setScope} onChange={() => { setPage(1); setSelected(new Set()); }} />
           </div>
 
           {/* Filter bar */}
@@ -20329,7 +20568,8 @@
       const [loading, setLoading] = useState(true);
       const [search, setSearch] = useState('');
       const [statusFilter, setStatusFilter] = useState('');
-      const [activeView, setActiveView] = useState('needs-me');
+      const [activeView, setActiveView] = useState('all');
+      const [scope, setScope] = useState('mine');
       const [selected, setSelected] = useState(new Set());
       const [page, setPage] = useState(1);
       const perPage = 50;
@@ -20341,11 +20581,11 @@
         const params = new URLSearchParams();
         if (search) params.set('search', search);
         if (statusFilter) params.set('status', statusFilter);
-        if (activeView !== 'team') params.set('mine', 'true');
+        if (scope === 'mine') params.set('mine', 'true');
         repFetch('/api/rep/orders?' + params.toString())
           .then(data => { setOrders(data.orders || []); setLoading(false); })
           .catch(() => setLoading(false));
-      }, [search, statusFilter, activeView]);
+      }, [search, statusFilter, scope]);
 
       useEffect(load, [load]);
 
@@ -20355,8 +20595,7 @@
         'fulfillment': o => ['confirmed', 'ready_for_pickup', 'shipped'].includes(o.status),
         'awaiting-pay': o => o.status !== 'cancelled' && o.status !== 'delivered' && (!o.amount_paid || parseFloat(o.amount_paid) < parseFloat(o.total)),
         'delivered': o => o.status === 'delivered',
-        'mine': () => true,
-        'team': () => true,
+        'all': () => true,
       };
 
       const filteredOrders = useMemo(() => {
@@ -20370,8 +20609,7 @@
         'fulfillment': orders.filter(viewFilters['fulfillment']).length,
         'awaiting-pay': orders.filter(viewFilters['awaiting-pay']).length,
         'delivered': orders.filter(viewFilters['delivered']).length,
-        'mine': orders.length,
-        'team': orders.length,
+        'all': orders.length,
       }), [orders]);
 
       const totalPages = Math.ceil(filteredOrders.length / perPage);
@@ -20417,8 +20655,7 @@
         { key: 'fulfillment', label: 'In fulfillment' },
         { key: 'awaiting-pay', label: 'Awaiting payment' },
         { key: 'delivered', label: 'Delivered' },
-        { key: 'mine', label: 'All mine' },
-        { key: 'team', label: 'Team' },
+        { key: 'all', label: 'All' },
       ];
 
       const STATUSES = [
@@ -20457,6 +20694,7 @@
                 </span>
               </button>
             ))}
+            <ScopeToggle scope={scope} setScope={setScope} onChange={() => { setPage(1); setSelected(new Set()); }} />
           </div>
 
           {/* Filter bar */}
@@ -24777,6 +25015,7 @@
       const [search, setSearch] = useState('');
       const [statusFilter, setStatusFilter] = useState('');
       const [activeView, setActiveView] = useState('all');
+      const [scope, setScope] = useState('mine');
       const [selected, setSelected] = useState(new Set());
       const [page, setPage] = useState(1);
       const perPage = 50;
@@ -24786,10 +25025,11 @@
         const params = new URLSearchParams();
         if (search) params.set('search', search);
         if (statusFilter) params.set('status', statusFilter);
+        if (scope === 'team') params.set('scope', 'team');
         repFetch('/api/rep/quotes?' + params.toString())
           .then(data => { setQuotes(data.quotes || []); setLoading(false); })
           .catch(() => setLoading(false));
-      }, [search, statusFilter]);
+      }, [search, statusFilter, scope]);
 
       useEffect(load, [load]);
 
@@ -24868,7 +25108,7 @@
         { key: 'drafts', label: 'Drafts' },
         { key: 'converted', label: 'Converted' },
         { key: 'declined', label: 'Declined', tone: 'var(--brass-muted)' },
-        { key: 'all', label: 'All mine' },
+        { key: 'all', label: 'All' },
       ];
 
       return (
@@ -24898,6 +25138,7 @@
                 </span>
               </button>
             ))}
+            <ScopeToggle scope={scope} setScope={setScope} onChange={() => { setPage(1); setSelected(new Set()); }} />
           </div>
 
           {/* Filter bar */}
@@ -25036,10 +25277,10 @@
       const [loading, setLoading] = useState(!!editId);
       const [saving, setSaving] = useState(false);
       const [form, setForm] = useState({
-        customer_name: '', customer_email: '', phone: '', company_name: '',
+        customer_name: '', customer_first: '', customer_middle: '', customer_last: '', customer_email: '', phone: '', company_name: '',
         shipping_address_line1: '', shipping_address_line2: '',
         shipping_city: '', shipping_state: '', shipping_zip: '', notes: '',
-        delivery_method: 'shipping'
+        delivery_method: 'pickup'
       });
 
       // Draft system — create mode only (an existing quote persists server-side).
@@ -25150,7 +25391,7 @@
               shipping_state: data.quote.shipping_state || '',
               shipping_zip: data.quote.shipping_zip || '',
               notes: data.quote.notes || '',
-              delivery_method: data.quote.delivery_method || 'shipping'
+              delivery_method: data.quote.delivery_method || 'pickup'
             });
             if (data.quote.promo_code) {
               setPromoCode(data.quote.promo_code);
@@ -25244,7 +25485,7 @@
       const clearCustomer = () => {
         setSelectedCustomer(null);
         applyQuoteReprice(0);
-        setForm(f => ({ ...f, customer_name: '', customer_email: '', phone: '', company_name: '' }));
+        setForm(f => ({ ...f, customer_name: '', customer_first: '', customer_middle: '', customer_last: '', customer_email: '', phone: '', company_name: '' }));
         setCustomerMatch(null);
         setEmailError('');
         setPhoneError('');
@@ -25936,11 +26177,11 @@
 
       // Draft checklist — guides quote creation in the rail
       const customerDone = !!form.customer_name && form.customer_name.trim().split(/\s+/).length >= 2 && isValidEmail(form.customer_email) && isValidPhone(form.phone) && !customerMatch;
-      const deliveryDone = form.delivery_method === 'pickup' || !!(form.shipping_address_line1 && form.shipping_city && form.shipping_zip);
+      const deliveryDone = form.delivery_method === 'pickup' || form.delivery_method === 'will_call' || !!(form.shipping_address_line1 && form.shipping_city && form.shipping_zip);
       const linesDone = quoteItems.length > 0;
       const checklist = [
         { label: 'Customer', done: customerDone, meta: customerDone ? form.customer_name : 'name · email · phone' },
-        { label: 'Delivery', done: deliveryDone, meta: form.delivery_method === 'pickup' ? 'Store pickup' : deliveryDone ? [form.shipping_city, form.shipping_state].filter(Boolean).join(', ') : 'address optional' },
+        { label: 'Delivery', done: deliveryDone, meta: form.delivery_method === 'pickup' ? 'Store pickup' : form.delivery_method === 'will_call' ? 'Will-call at distributor' : deliveryDone ? [form.shipping_city, form.shipping_state].filter(Boolean).join(', ') : 'address optional' },
         { label: 'Lines', done: linesDone, meta: linesDone ? quoteItems.length + (quoteItems.length === 1 ? ' line · $' : ' lines · $') + calcSubtotal.toFixed(2) : 'add from catalog' },
       ];
       const firstTodo = checklist.findIndex(c => !c.done);
@@ -26004,9 +26245,9 @@
               {quote && quote.status === 'sent' && (
                 <button className="ol-header-btn" onClick={openPreview} disabled={saving}>Send revision</button>
               )}
-              {!isReadonly && (
+              {!isReadonly && editId && (
                 <button className="ol-header-btn primary" onClick={saveQuote} disabled={saveDisabled}>
-                  {saving ? 'Saving…' : (editId ? 'Save changes' : 'Create quote')}
+                  {saving ? 'Saving…' : 'Save changes'}
                 </button>
               )}
             </div>
@@ -26170,15 +26411,38 @@
                 )}
 
                 {/* Customer detail fields (new customer, or editing an existing quote) */}
-                {!selectedCustomer && (isReadonly || customerMode === 'new') && (
+                {!selectedCustomer && isReadonly && (
                   <div>
                     <div className="rof-field-row">
                       <div className="rof-field">
                         <label>Full Name *</label>
-                        <input type="text" value={form.customer_name}
-                          onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))}
-                          placeholder="John Smith" disabled={isReadonly} />
+                        <input type="text" value={form.customer_name} disabled placeholder="John Smith" />
                       </div>
+                      <div className="rof-field">
+                        <label>Email *</label>
+                        <input type="email" value={form.customer_email} disabled placeholder="email@example.com" />
+                      </div>
+                    </div>
+                    <div className="rof-field-row">
+                      <div className="rof-field" style={{ marginBottom: 0 }}>
+                        <label>Phone *</label>
+                        <input type="text" value={form.phone} disabled placeholder="(555) 123-4567" />
+                      </div>
+                      <div className="rof-field" style={{ marginBottom: 0 }}>
+                        <label>Company (optional)</label>
+                        <input type="text" value={form.company_name} disabled placeholder="Company name" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {!selectedCustomer && !isReadonly && customerMode === 'new' && (
+                  <div>
+                    <CustomerNameFields
+                      first={form.customer_first} middle={form.customer_middle} last={form.customer_last}
+                      onFirst={v => setForm(f => ({ ...f, customer_first: v, customer_name: composeCustomerName(v, f.customer_middle, f.customer_last) }))}
+                      onMiddle={v => setForm(f => ({ ...f, customer_middle: v, customer_name: composeCustomerName(f.customer_first, v, f.customer_last) }))}
+                      onLast={v => setForm(f => ({ ...f, customer_last: v, customer_name: composeCustomerName(f.customer_first, f.customer_middle, v) }))} />
+                    <div className="rof-field-row">
                       <div className="rof-field">
                         <label>Email *</label>
                         <input type="email" value={form.customer_email}
@@ -26189,15 +26453,13 @@
                           onBlur={() => {
                             if (form.customer_email && !isValidEmail(form.customer_email)) setEmailError('Enter a valid email');
                             else setEmailError('');
-                            if (customerMode === 'new') checkCustomerMatch('email');
+                            checkCustomerMatch('email');
                           }}
-                          placeholder="email@example.com" disabled={isReadonly}
+                          placeholder="email@example.com"
                           style={emailError ? { borderColor: 'var(--red, #dc2626)' } : {}} />
                         {emailError && <div style={{ color: 'var(--red, #dc2626)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{emailError}</div>}
                       </div>
-                    </div>
-                    <div className="rof-field-row">
-                      <div className="rof-field" style={{ marginBottom: 0 }}>
+                      <div className="rof-field">
                         <label>Phone *</label>
                         <input type="text" value={form.phone}
                           onChange={e => {
@@ -26208,63 +26470,68 @@
                           onBlur={() => {
                             if (!form.phone || !isValidPhone(form.phone)) setPhoneError('Enter a valid 10-digit phone');
                             else setPhoneError('');
-                            if (customerMode === 'new') checkCustomerMatch('phone');
+                            checkCustomerMatch('phone');
                           }}
-                          placeholder="(555) 123-4567" disabled={isReadonly}
+                          placeholder="(555) 123-4567"
                           style={phoneError ? { borderColor: 'var(--red, #dc2626)' } : {}} />
                         {phoneError && <div style={{ color: 'var(--red, #dc2626)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{phoneError}</div>}
                       </div>
-                      <div className="rof-field" style={{ marginBottom: 0 }}>
-                        <label>Company (optional)</label>
-                        <input type="text" value={form.company_name}
-                          onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))}
-                          placeholder="Company name" disabled={isReadonly} />
-                      </div>
+                    </div>
+                    <div className="rof-field" style={{ marginBottom: 0 }}>
+                      <label>Company (optional)</label>
+                      <input type="text" value={form.company_name}
+                        onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))}
+                        placeholder="Company name" />
                     </div>
                   </div>
                 )}
               </WizRepCard>
               {/* Delivery — same mode cards as the order flow */}
               <WizRepCard title="How is the customer receiving these items?">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem', marginBottom: '0.875rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.625rem', marginBottom: '0.875rem' }}>
                   {[
                     { id: 'pickup', icon: '◫', label: 'In-store pickup',
-                      sub: 'Customer collects at the Anaheim showroom · no freight cost · will-call ID on receipt',
-                      cost: 'No freight' },
+                      sub: 'Collect at the Anaheim showroom.', cost: 'No freight' },
+                    { id: 'will_call', icon: '⊡', label: 'Will-call at distributor',
+                      sub: 'Customer picks up at the distributor.', cost: 'No freight' },
                     { id: 'shipping', icon: '⤳', label: 'Freight / delivery',
-                      sub: 'Roma local box-truck for ≤ 30 mi · LTL otherwise · quoted when the order is placed',
-                      cost: 'Quoted at order' },
+                      sub: 'Roma truck (local) or LTL freight.', cost: 'Quoted at order' },
                   ].map(opt => {
                     const on = form.delivery_method === opt.id;
                     return (
                       <button key={opt.id} disabled={isReadonly}
                         onClick={() => setForm(f => ({ ...f, delivery_method: opt.id }))} style={{
-                        padding: '1rem', cursor: isReadonly ? 'default' : 'pointer', textAlign: 'left',
+                        padding: '0.875rem', cursor: isReadonly ? 'default' : 'pointer', textAlign: 'left',
                         background: on ? '#d8cdb6' : 'transparent',
                         border: '0.5px solid ' + (on ? '#1c1917' : 'rgba(28,25,23,0.2)'),
-                        display: 'grid', gridTemplateColumns: '44px 1fr 18px', gap: '0.875rem', alignItems: 'flex-start',
+                        display: 'flex', flexDirection: 'column', gap: '0.5rem', minHeight: 138,
+                        transition: 'background 120ms, border-color 120ms',
                         opacity: isReadonly && !on ? 0.5 : 1,
                       }}>
-                        <span style={{
-                          width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          font: '400 20px/1 "Cormorant Garamond", serif', color: '#1c1917', border: '0.5px solid rgba(28,25,23,0.2)',
-                        }}>{opt.icon}</span>
-                        <span>
-                          <span style={{ display: 'block', font: '400 17px/1.2 "Cormorant Garamond", serif', color: '#1c1917', letterSpacing: '-0.012em' }}>{opt.label}</span>
-                          <span style={{ display: 'block', font: '400 11.5px/1.5 Inter, sans-serif', color: 'rgba(28,25,23,0.8)', marginTop: 4 }}>{opt.sub}</span>
+                        {/* Icon + radio share the top row so they align across all three cards */}
+                        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span style={{
-                            display: 'block', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em',
-                            textTransform: 'uppercase', color: on ? '#a87935' : '#8a7e68', marginTop: 8,
-                          }}>{'●'} {opt.cost}</span>
+                            width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            font: '400 19px/1 var(--roma-serif)', color: '#1c1917',
+                            border: '0.5px solid ' + (on ? 'rgba(28,25,23,0.4)' : 'rgba(28,25,23,0.2)'),
+                          }}>{opt.icon}</span>
+                          <span style={{
+                            width: 15, height: 15, borderRadius: '50%', flexShrink: 0,
+                            border: '1px solid ' + (on ? '#1c1917' : 'rgba(28,25,23,0.33)'),
+                            background: on ? '#1c1917' : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            {on && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ece5d8' }} />}
+                          </span>
                         </span>
+                        <span style={{ display: 'block', font: '400 16px/1.2 var(--roma-serif)', color: '#1c1917', letterSpacing: '-0.012em' }}>{opt.label}</span>
+                        <span style={{ display: 'block', font: '400 11.5px/1.5 var(--roma-sans)', color: 'rgba(28,25,23,0.7)' }}>{opt.sub}</span>
+                        {/* Cost pins to the bottom so the mono line is level across cards */}
                         <span style={{
-                          width: 15, height: 15, borderRadius: '50%', marginTop: 4, flexShrink: 0,
-                          border: '1px solid ' + (on ? '#1c1917' : 'rgba(28,25,23,0.33)'),
-                          background: on ? '#1c1917' : 'transparent',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          {on && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ece5d8' }} />}
-                        </span>
+                          marginTop: 'auto', paddingTop: '0.25rem',
+                          font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em',
+                          textTransform: 'uppercase', color: on ? '#a87935' : '#8a7e68',
+                        }}>{'●'} {opt.cost}</span>
                       </button>
                     );
                   })}
@@ -26272,9 +26539,19 @@
 
                 {form.delivery_method === 'pickup' && (
                   <div style={{ padding: '0.75rem 1rem', border: '0.5px solid rgba(28,25,23,0.08)', background: 'rgba(28,25,23,0.02)' }}>
+                    <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: '0.45rem' }}>Pickup location</div>
                     <div style={{ font: '500 0.8125rem/1.3 Inter, sans-serif', color: '#1c1917' }}>Roma Flooring Designs</div>
                     <div style={{ font: '400 0.8125rem/1.5 Inter, sans-serif', color: '#8a7e68', marginTop: '0.2rem' }}>
                       1440 S. State College Blvd., Suite 6M<br />Anaheim, CA 92806
+                    </div>
+                  </div>
+                )}
+
+                {form.delivery_method === 'will_call' && (
+                  <div style={{ padding: '0.75rem 1rem', border: '0.5px solid rgba(28,25,23,0.08)', background: 'rgba(28,25,23,0.02)' }}>
+                    <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: '0.45rem' }}>How will-call works</div>
+                    <div style={{ font: '400 0.8125rem/1.5 Inter, sans-serif', color: '#8a7e68' }}>
+                      No freight is charged. Once the order is paid and the distributor PO is sent, open the order and use <b style={{ color: '#1c1917' }}>Release materials</b> to print the customer’s will-call form — it carries the PO number the distributor releases against.
                     </div>
                   </div>
                 )}
@@ -26609,47 +26886,6 @@
                   onClose={() => setRugModalItem(null)} onAdd={addRugToQuote} />
               )}
 
-              {/* Notes + promo */}
-              <WizRepCard title="Notes &amp; Promo">
-                <div className="rof-field">
-                  <label>Internal Notes</label>
-                  <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                    disabled={isReadonly} placeholder="Internal notes about this quote..." rows="3" />
-                </div>
-                {isReadonly ? (
-                  promoResult ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ font: '600 0.75rem/1 ui-monospace, monospace', color: 'var(--green, #16a34a)', letterSpacing: '0.04em' }}>{promoResult.code}</span>
-                      <span style={{ font: '300 1rem/1 "Cormorant Garamond", serif', color: 'var(--green, #16a34a)' }}>-${promoResult.discount_amount.toFixed(2)}</span>
-                    </div>
-                  ) : (
-                    <span style={{ color: '#8a7e68', fontSize: '0.8125rem' }}>No promo code applied</span>
-                  )
-                ) : promoResult ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ font: '600 0.75rem/1 ui-monospace, monospace', color: 'var(--green, #16a34a)', letterSpacing: '0.04em' }}>{promoResult.code}</span>
-                    <span style={{ font: '300 1rem/1 "Cormorant Garamond", serif', color: 'var(--green, #16a34a)' }}>-${promoResult.discount_amount.toFixed(2)}</span>
-                    <button className="rof-btn-light danger" onClick={removeRepPromo} style={{ padding: '0.2rem 0.5rem', fontSize: '0.5rem' }}>Remove</button>
-                  </div>
-                ) : (
-                  <div>
-                    <div style={{ display: 'flex', gap: '0.5rem', maxWidth: '360px' }}>
-                      <div className="rof-field" style={{ flex: 1, marginBottom: 0 }}>
-                        <input type="text" maxLength={50} value={promoCode}
-                          onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
-                          onKeyDown={e => e.key === 'Enter' && applyRepPromo()}
-                          placeholder="Enter promo code" />
-                      </div>
-                      <button className="rof-btn-light primary" onClick={applyRepPromo}
-                        disabled={promoLoading || !promoCode.trim()}
-                        style={{ padding: '0.4rem 0.75rem', alignSelf: 'flex-start' }}>
-                        {promoLoading ? '...' : 'Apply'}
-                      </button>
-                    </div>
-                    {promoError && <div style={{ color: 'var(--red, #dc2626)', fontSize: '0.75rem', marginTop: '0.375rem' }}>{promoError}</div>}
-                  </div>
-                )}
-              </WizRepCard>
             </div>
 
             {/* ── Decision rail ── */}
@@ -26681,6 +26917,14 @@
                 </div>
               )}
 
+              {/* Internal notes — sidebar, like the order detail */}
+              <div className="qw-rail-card">
+                <h3>Internal notes</h3>
+                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  disabled={isReadonly} placeholder="Visible only to Roma staff…" rows="4"
+                  style={{ width: '100%', padding: 10, marginTop: 4, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: '#1c1917' }} />
+              </div>
+
               <div className="qw-rail-card">
                 <h3>Totals</h3>
                 <div style={{ display: 'grid', gap: 8 }}>
@@ -26692,6 +26936,46 @@
                     <div className="qw-total-row"><span className="k">Shipping</span><span>${displayShipping.toFixed(2)}</span></div>
                   )}
                 </div>
+
+                {/* Promo code — lives with the totals it affects */}
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '0.5px solid rgba(28,25,23,0.1)' }}>
+                  {isReadonly ? (
+                    promoResult ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                        <span style={{ font: '600 0.75rem/1 ui-monospace, monospace', color: 'var(--green, #16a34a)', letterSpacing: '0.04em' }}>{promoResult.code}</span>
+                        <span style={{ font: '300 1rem/1 "Cormorant Garamond", serif', color: 'var(--green, #16a34a)' }}>-${promoResult.discount_amount.toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#8a7e68', fontSize: '0.8125rem' }}>No promo code applied</span>
+                    )
+                  ) : promoResult ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                      <span style={{ font: '600 0.75rem/1 ui-monospace, monospace', color: 'var(--green, #16a34a)', letterSpacing: '0.04em' }}>{promoResult.code}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ font: '300 1rem/1 "Cormorant Garamond", serif', color: 'var(--green, #16a34a)' }}>-${promoResult.discount_amount.toFixed(2)}</span>
+                        <button className="rof-btn-light danger" onClick={removeRepPromo} style={{ padding: '0.2rem 0.5rem', fontSize: '0.5rem' }}>Remove</button>
+                      </span>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div className="rof-field" style={{ flex: 1, marginBottom: 0 }}>
+                          <input type="text" maxLength={50} value={promoCode}
+                            onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
+                            onKeyDown={e => e.key === 'Enter' && applyRepPromo()}
+                            placeholder="Promo code" />
+                        </div>
+                        <button className="rof-btn-light primary" onClick={applyRepPromo}
+                          disabled={promoLoading || !promoCode.trim()}
+                          style={{ padding: '0.4rem 0.75rem', alignSelf: 'flex-start' }}>
+                          {promoLoading ? '...' : 'Apply'}
+                        </button>
+                      </div>
+                      {promoError && <div style={{ color: 'var(--red, #dc2626)', fontSize: '0.75rem', marginTop: '0.375rem' }}>{promoError}</div>}
+                    </div>
+                  )}
+                </div>
+
                 <div className="qw-total-big">
                   <span className="k">Total</span>
                   <span className="v">${displayTotal.toFixed(2)}</span>
@@ -26798,7 +27082,7 @@
                   {[
                     form.customer_name,
                     quoteItems.length > 0 ? quoteItems.length + ' line' + (quoteItems.length !== 1 ? 's' : '') : null,
-                    form.delivery_method === 'pickup' ? 'Pickup' : 'Shipping',
+                    form.delivery_method === 'pickup' ? 'Pickup' : form.delivery_method === 'will_call' ? 'Will-call' : 'Shipping',
                   ].filter(Boolean).join(' · ')}
                 </span>
               )}
@@ -27001,6 +27285,7 @@
       const [search, setSearch] = useState('');
       const [statusFilter, setStatusFilter] = useState('');
       const [activeView, setActiveView] = useState('open');
+      const [scope, setScope] = useState('mine');
       const [selected, setSelected] = useState(new Set());
       const [page, setPage] = useState(1);
       const perPage = 50;
@@ -27013,10 +27298,11 @@
         const params = new URLSearchParams();
         if (search) params.set('search', search);
         if (statusFilter) params.set('status', statusFilter);
+        if (scope === 'team') params.set('scope', 'team');
         repFetch('/api/rep/estimates?' + params.toString())
           .then(data => { setEstimates(data.estimates || []); setLoading(false); })
           .catch(() => setLoading(false));
-      }, [search, statusFilter]);
+      }, [search, statusFilter, scope]);
 
       useEffect(load, [load]);
 
@@ -27158,6 +27444,7 @@
                 </span>
               </button>
             ))}
+            <ScopeToggle scope={scope} setScope={setScope} onChange={() => { setPage(1); setSelected(new Set()); }} />
           </div>
 
           {/* Filter bar */}
@@ -27358,7 +27645,7 @@
       const [copied, setCopied] = useState(false);
       const [actionError, setActionError] = useState(null);
       const [form, setForm] = useState({
-        customer_name: '', customer_email: '', phone: '',
+        customer_name: '', customer_first: '', customer_middle: '', customer_last: '', customer_email: '', phone: '',
         project_name: '',
         project_address_line1: '', project_address_line2: '',
         project_city: '', project_state: '', project_zip: '',
@@ -27617,7 +27904,7 @@
       const clearCustomer = () => {
         setSelectedCustomer(null);
         applyEstimateReprice(0);
-        setForm(f => ({ ...f, customer_name: '', customer_email: '', phone: '' }));
+        setForm(f => ({ ...f, customer_name: '', customer_first: '', customer_middle: '', customer_last: '', customer_email: '', phone: '' }));
         setCustomerMatch(null);
         persistCustomer({ customer_name: '', customer_email: '', phone: '' });
       };
@@ -28974,32 +29261,49 @@
                   </div>
                 )}
 
-                {!selectedCustomer && (isReadonly || customerMode === 'new') && (
+                {!selectedCustomer && isReadonly && (
                   <div>
                     <div className="rof-field-row">
                       <div className="rof-field">
                         <label>Full Name *</label>
-                        <input type="text" value={form.customer_name} disabled={isReadonly}
-                          onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))}
-                          placeholder="John Smith" />
+                        <input type="text" value={form.customer_name} disabled placeholder="John Smith" />
                       </div>
                       <div className="rof-field">
                         <label>Email *</label>
-                        <input type="email" value={form.customer_email} disabled={isReadonly}
-                          onChange={e => setForm(f => ({ ...f, customer_email: e.target.value }))}
-                          onBlur={() => checkCustomerMatch('email')}
-                          placeholder="email@example.com" />
+                        <input type="email" value={form.customer_email} disabled placeholder="email@example.com" />
                       </div>
                     </div>
                     <div className="rof-field-row">
                       <div className="rof-field" style={{ marginBottom: 0 }}>
                         <label>Phone *</label>
-                        <input type="tel" value={form.phone} disabled={isReadonly}
+                        <input type="tel" value={form.phone} disabled placeholder="(555) 123-4567" />
+                      </div>
+                      <div />
+                    </div>
+                  </div>
+                )}
+                {!selectedCustomer && !isReadonly && customerMode === 'new' && (
+                  <div>
+                    <CustomerNameFields
+                      first={form.customer_first} middle={form.customer_middle} last={form.customer_last}
+                      onFirst={v => setForm(f => ({ ...f, customer_first: v, customer_name: composeCustomerName(v, f.customer_middle, f.customer_last) }))}
+                      onMiddle={v => setForm(f => ({ ...f, customer_middle: v, customer_name: composeCustomerName(f.customer_first, v, f.customer_last) }))}
+                      onLast={v => setForm(f => ({ ...f, customer_last: v, customer_name: composeCustomerName(f.customer_first, f.customer_middle, v) }))} />
+                    <div className="rof-field-row">
+                      <div className="rof-field" style={{ marginBottom: 0 }}>
+                        <label>Email *</label>
+                        <input type="email" value={form.customer_email}
+                          onChange={e => setForm(f => ({ ...f, customer_email: e.target.value }))}
+                          onBlur={() => checkCustomerMatch('email')}
+                          placeholder="email@example.com" />
+                      </div>
+                      <div className="rof-field" style={{ marginBottom: 0 }}>
+                        <label>Phone *</label>
+                        <input type="tel" value={form.phone}
                           onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))}
                           onBlur={() => checkCustomerMatch('phone')}
                           placeholder="(555) 123-4567" />
                       </div>
-                      <div />
                     </div>
                   </div>
                 )}
