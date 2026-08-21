@@ -14375,7 +14375,7 @@ app.get('/api/staff/orders/:id/receipt', staffDocAuth, async (req, res) => {
 // repId (optional) restricts to returns whose order belongs to that sales rep.
 async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
   const ret = await pool.query(`
-    SELECT r.*, o.order_number, o.trade_customer_id, o.sales_rep_id,
+    SELECT r.*, o.order_number, o.job_name, o.trade_customer_id, o.sales_rep_id,
       sr.first_name || ' ' || sr.last_name AS rep_name, sr.email AS rep_email,
       tc.company_name
     FROM returns r
@@ -14413,6 +14413,7 @@ async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
     ...memo,
     rma_number: r.rma_number,
     order_number: r.order_number,
+    job_name: r.job_name,
     company_name: r.company_name,
     rep_name: r.rep_name,
     rep_email: r.rep_email,
@@ -14449,7 +14450,7 @@ app.get('/api/staff/returns/:id/credit-memo', staffDocAuth, async (req, res) => 
 // Build the material-release form HTML + filename. opts.repId scopes to a rep's own orders.
 async function generateReleaseFormHtml(releaseId, opts = {}) {
   const rel = await pool.query(`
-    SELECT mr.*, o.order_number, o.customer_name, o.customer_email, o.phone,
+    SELECT mr.*, o.order_number, o.job_name, o.customer_name, o.customer_email, o.phone,
       o.shipping_address_line1, o.shipping_address_line2, o.shipping_city, o.shipping_state, o.shipping_zip,
       sr.first_name || ' ' || sr.last_name AS rep_name, sr.email AS rep_email,
       dv.name AS vendor_name, dv.address AS vendor_address, dv.phone AS vendor_phone

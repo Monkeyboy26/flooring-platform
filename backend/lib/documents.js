@@ -488,6 +488,7 @@ export function generateReceiptDoc(o, payment) {
       <div class="doc-banner-left">
         <div class="meta-group"><p class="meta-label">Order</p><p class="meta-value">${esc(orderNumber)}</p></div>
         <div class="meta-group"><p class="meta-label">Customer</p><p class="meta-value-sm">${esc(o.customer_name || '—')}</p></div>
+        ${o.job_name ? `<div class="meta-group"><p class="meta-label">Sidemark</p><p class="meta-value-sm">${esc(o.job_name)}</p></div>` : ''}
         ${when ? `<div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${esc(when)}</p></div>` : ''}
       </div>
       <span class="badge badge-paid">Approved &middot; Paid</span>
@@ -1613,7 +1614,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
 <span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
 ${o.po_number ? `<span style="color:var(--muted);">PO ref</span><span style="text-align:right;">${o.po_number}</span>` : ''}
-${o.job_name ? `<span style="color:var(--muted);">Job / Sidemark</span><span style="text-align:right;">${escDoc(o.job_name)}</span>` : ''}
+${o.job_name ? `<span style="color:var(--muted);">Sidemark</span><span style="text-align:right;">${escDoc(o.job_name)}</span>` : ''}
 </div>
 <div style="margin-top:16px;display:flex;justify-content:flex-end;">
 <span style="padding:7px 14px;border:1.5px solid ${stampColor};color:${stampColor};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.3em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</span>
@@ -1876,6 +1877,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
 <span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
 <span style="color:var(--muted);">Against invoice</span><span style="text-align:right;">${orderNumber}</span>
+${memo.job_name ? `<span style="color:var(--muted);">Sidemark</span><span style="text-align:right;">${escDoc(memo.job_name)}</span>` : ''}
 ${rma ? `<span style="color:var(--muted);">RMA</span><span style="text-align:right;">${rma}</span>` : ''}
 <span style="color:var(--muted);">Status</span><span class="mono" style="color:${stampColor};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
 </div>
@@ -2041,6 +2043,7 @@ ${isWillCall ? willCallStamp({ top: '16px', left: '52%' }) : ''}
 <div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
 <span style="color:var(--muted);">Released</span><span style="text-align:right;">${issued || '—'}</span>
 <span style="color:var(--muted);">Order</span><span style="text-align:right;">${orderNumber}</span>
+${release.job_name ? `<span style="color:var(--muted);">Sidemark</span><span style="text-align:right;">${escDoc(release.job_name)}</span>` : ''}
 ${isWillCall && poNumber ? `<span style="color:var(--muted);">Release against PO</span><span style="text-align:right;font-weight:500;color:var(--ink);">${escDoc(poNumber)}</span>` : ''}
 <span style="color:var(--muted);">Method</span><span style="text-align:right;">${methodLabel}</span>
 <span style="color:var(--muted);">Status</span><span class="mono" style="color:${stampColor};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
@@ -2166,7 +2169,7 @@ export function generateWorkOrderDoc(order, items, opts = {}) {
     ['Install date', scheduled || 'Not yet scheduled'],
     ...(order.install_window ? [['Window', escDoc(order.install_window)]] : []),
     ['Crew', escDoc(order.install_crew || 'Roma install crew')],
-    ...(order.job_name ? [['Job', escDoc(order.job_name)]] : []),
+    ...(order.job_name ? [['Sidemark', escDoc(order.job_name)]] : []),
   ];
 
   return `<!DOCTYPE html>
