@@ -1059,7 +1059,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 </style>
 </head>
 <body>
-<div style="display:flex;flex-direction:column;min-height:9.9in;">
+<div style="display:flex;flex-direction:column;min-height:9.5in;">
 
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
@@ -1129,7 +1129,7 @@ ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'v
 <div class="small" style="max-width:660px;">Accepting this quote authorizes Roma to place the order at the quoted pricing. It is subject to Roma's <strong>Terms of Sale on the reverse / attached Terms of Sale page</strong> (also at romaflooringdesigns.com/terms), including that <strong>all sales are final</strong> and that installing or using material is final acceptance of it. <strong>To accept, please review and sign the Terms of Sale on the reverse.</strong></div>
 </div>
 
-<div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<div style="margin-top:auto;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
 <span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Quote ${quoteNumber}</span>
 </div>
@@ -1615,7 +1615,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 </style>
 </head>
 <body>
-<div style="display:flex;flex-direction:column;min-height:9.9in;">
+<div style="display:flex;flex-direction:column;min-height:9.5in;">
 
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
@@ -1699,7 +1699,7 @@ ${milestones.map(m => {
 <div class="small" style="max-width:660px;">This sale is subject to Roma's <strong>Terms of Sale on the reverse / attached Terms of Sale page</strong> (also at romaflooringdesigns.com/terms), including that <strong>all sales are final</strong> and that installing or using material is final acceptance of it. <strong>Please review and sign the Terms of Sale on the reverse.</strong></div>
 </div>
 
-<div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<div style="margin-top:auto;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
 <span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Invoice ${orderNumber}</span>
 </div>
