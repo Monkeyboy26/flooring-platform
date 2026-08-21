@@ -26725,23 +26725,33 @@
                           onChange={e => setForm(f => ({ ...f, shipping_zip: e.target.value }))} disabled={isReadonly} />
                       </div>
                     </div>
-                    {/* Freight estimate — same as the order flow; flows into the quote total on save */}
+                    {/* Freight estimate — same as the order flow; its Save button
+                        writes the estimate onto the quote and updates the total. */}
                     <div style={{
                       marginTop: '0.75rem', padding: '0.75rem 0.875rem',
                       background: 'rgba(28,25,23,0.03)', border: '0.5px solid rgba(28,25,23,0.12)',
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap',
                     }}>
                       <span style={{ font: '400 0.6875rem/1.4 Inter, sans-serif', color: '#8a7e68' }}>
-                        Charged to the customer {'·'} added to the quote total on save
+                        Charged to the customer {'·'} added to the quote total
                       </span>
-                      <span style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexShrink: 0 }}>
-                        <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>Freight estimate</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
-                          <span style={{ font: '400 15px/1 var(--roma-serif)', color: '#1c1917' }}>$</span>
-                          <input type="text" inputMode="decimal" value={form.shipping} placeholder="0.00" disabled={isReadonly}
-                            onChange={e => { if (e.target.value === '' || /^\d*\.?\d{0,2}$/.test(e.target.value)) setForm(f => ({ ...f, shipping: e.target.value })); }}
-                            style={{ width: 72, border: 'none', borderBottom: '0.5px solid rgba(28,25,23,0.33)', background: 'transparent', outline: 'none', font: '400 17px/1 var(--roma-serif)', color: '#1c1917', padding: '0 0 2px', textAlign: 'right' }} />
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                        <span style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
+                          <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>Freight estimate</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                            <span style={{ font: '400 15px/1 var(--roma-serif)', color: '#1c1917' }}>$</span>
+                            <input type="text" inputMode="decimal" value={form.shipping} placeholder="0.00" disabled={isReadonly}
+                              onChange={e => { if (e.target.value === '' || /^\d*\.?\d{0,2}$/.test(e.target.value)) setForm(f => ({ ...f, shipping: e.target.value })); }}
+                              onKeyDown={e => { if (e.key === 'Enter' && !saveDisabled) saveQuote(); }}
+                              style={{ width: 72, border: 'none', borderBottom: '0.5px solid rgba(28,25,23,0.33)', background: 'transparent', outline: 'none', font: '400 17px/1 var(--roma-serif)', color: '#1c1917', padding: '0 0 2px', textAlign: 'right' }} />
+                          </span>
                         </span>
+                        {!isReadonly && (
+                          <button className="rof-btn rof-btn-primary" onClick={saveQuote} disabled={saveDisabled}
+                            style={{ padding: '0.4rem 0.9rem' }}>
+                            {saving ? 'Saving…' : 'Save'}
+                          </button>
+                        )}
                       </span>
                     </div>
                   </div>
