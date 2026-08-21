@@ -10056,12 +10056,8 @@
           { key: 'dashboard', name: 'Dashboard', glyph: '\u25E7' },
           { key: 'tasks', name: 'Tasks', glyph: '\u25C7' },
         ]},
-        { label: 'Catalog', items: [
+        { label: 'Field', items: [
           { key: 'catalog', name: 'SKU lookup', glyph: '\u229E' },
-          { key: 'vendors', name: 'Vendors', glyph: '\u25C6' },
-        ]},
-        { label: 'Customers', items: [
-          { key: 'customers', name: 'Customers', glyph: '\u25C9' },
           { key: 'visits', name: 'Visits', glyph: '\u25CE' },
         ]},
         { label: 'Sales', items: [
@@ -10070,6 +10066,10 @@
           { key: 'orders', name: 'Orders', glyph: '\u259A' },
           { key: 'purchase-orders', name: 'Purchase orders', glyph: '\u2318' },
           { key: 'samples', name: 'Sample requests', glyph: '\u2317' },
+        ]},
+        { label: 'Directory', items: [
+          { key: 'customers', name: 'Customers', glyph: '\u25C9' },
+          { key: 'vendors', name: 'Vendors', glyph: '\u25C6' },
         ]},
         // Managers only: review and approve/reject trade membership applications.
         ...(repInfo.is_manager ? [{ label: 'Trade', items: [
@@ -17536,11 +17536,11 @@
       };
 
       const VIEWS = [
+        { key: 'all', label: 'All' },
         { key: 'open', label: 'To fulfill', tone: '#c54731' },
         { key: 'transit', label: 'In transit' },
         { key: 'delivered', label: 'Delivered' },
         { key: 'cancelled', label: 'Cancelled' },
-        { key: 'all', label: 'All' },
       ];
 
       const STATUSES = [
@@ -19385,10 +19385,10 @@
       };
 
       const VIEWS = [
+        { key: 'all', label: 'All' },
         { key: 'engaged', label: 'Engaged', tone: 'var(--gold, #c9a668)' },
         { key: 'awaiting', label: 'Awaiting open' },
         { key: 'drafts', label: 'Drafts' },
-        { key: 'all', label: 'All' },
       ];
 
       return (
@@ -20604,11 +20604,11 @@
       };
 
       const VIEWS = [
+        { key: 'all', label: 'All' },
         { key: 'needs-me', label: 'Needs me', tone: '#c54731' },
         { key: 'fulfillment', label: 'In fulfillment' },
         { key: 'awaiting-pay', label: 'Awaiting payment' },
         { key: 'delivered', label: 'Delivered' },
-        { key: 'all', label: 'All' },
       ];
 
       const STATUSES = [
@@ -25248,13 +25248,13 @@
       };
 
       const VIEWS = [
+        { key: 'all', label: 'All' },
         { key: 'hot', label: 'Hot', tone: 'var(--gold, #c9a668)' },
         { key: 'awaiting', label: 'Awaiting customer' },
         { key: 'expiring', label: 'Expiring this week', tone: '#c54731' },
         { key: 'drafts', label: 'Drafts' },
         { key: 'converted', label: 'Converted' },
         { key: 'declined', label: 'Declined', tone: 'var(--brass-muted)' },
-        { key: 'all', label: 'All' },
       ];
 
       return (
@@ -27553,6 +27553,7 @@
       };
 
       const VIEWS = [
+        { key: 'all', label: 'All' },
         { key: 'open', label: 'Open', tone: '#a87935' },
         { key: 'drafts', label: 'Drafts' },
         { key: 'awaiting', label: 'Awaiting customer' },
@@ -27560,7 +27561,6 @@
         { key: 'declined', label: 'Declined', tone: '#c54731' },
         { key: 'converted', label: 'Converted' },
         { key: 'expired', label: 'Expired' },
-        { key: 'all', label: 'All' },
       ];
 
       const STATUSES = [
