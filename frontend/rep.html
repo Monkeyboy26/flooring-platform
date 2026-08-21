@@ -26758,9 +26758,6 @@
                               style={{ width: 72, border: 'none', borderBottom: '0.5px solid rgba(28,25,23,0.33)', background: 'transparent', outline: 'none', font: '400 17px/1 var(--roma-serif)', color: '#1c1917', padding: '0 0 2px', textAlign: 'right' }} />
                           </span>
                         </span>
-                        {savedFlash && !saving && (
-                          <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#3f7d5a' }}>{'✓'} Saved</span>
-                        )}
                         {!isReadonly && (
                           <button className="rof-btn rof-btn-primary" onClick={saveQuote} disabled={saveDisabled}
                             style={{ padding: '0.4rem 0.9rem' }}>
@@ -27809,6 +27806,7 @@
       const [threadPosting, setThreadPosting] = useState(false);
       const [copied, setCopied] = useState(false);
       const [actionError, setActionError] = useState(null);
+      const [savedFlash, setSavedFlash] = useState(false);
       const [form, setForm] = useState({
         customer_name: '', customer_first: '', customer_middle: '', customer_last: '', customer_email: '', phone: '',
         project_name: '',
@@ -27816,6 +27814,10 @@
         project_city: '', project_state: '', project_zip: '',
         notes: '', internal_notes: ''
       });
+
+      // "✓ Saved" stays after a save until the rep adjusts the form again (the
+      // save reload doesn't touch `form`, so the flag survives the save).
+      useEffect(() => { setSavedFlash(false); }, [form]);
 
       // Draft system — only until the estimate record exists (ensureEstimate
       // lazily creates it on the first item; from then on the server persists).
@@ -28127,6 +28129,7 @@
               })
             });
             setEstimate(data.estimate);
+            setSavedFlash(true);   // persists until the next form adjustment
           } else {
             const est = await ensureEstimate();
             navigate('estimate-edit', est.id);
@@ -29220,6 +29223,9 @@
                       } catch(e) { alert('Failed to load PDF'); }
                     }}>Preview PDF</button>
                   )}
+                  {savedFlash && !saving && (
+                    <span style={{ alignSelf: 'center', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#3f7d5a' }}>{'✓'} Saved</span>
+                  )}
                   {!isReadonly && (
                     <button className="rov-hbtn" onClick={saveEstimate} disabled={saving}>
                       {saving ? 'Saving…' : (estimate ? 'Save details' : 'Save draft')}
@@ -29891,6 +29897,9 @@
                     laborItems.length > 0 ? laborItems.length + ' labor' : null,
                   ].filter(Boolean).join(' · ')}
                 </span>
+              )}
+              {savedFlash && !saving && (
+                <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7fb98f' }}>{'✓'} Saved</span>
               )}
             </div>
             {!estimate ? (
