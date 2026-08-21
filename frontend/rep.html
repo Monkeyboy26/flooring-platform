@@ -15294,9 +15294,6 @@
       const skuSearchTimer = useRef(null);
       const skuSearchCounter = useRef(0);
       const [addBoxes, setAddBoxes] = useState(1);
-      const [showCustom, setShowCustom] = useState(false);
-      const [customItem, setCustomItem] = useState({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
-      const [customVendors, setCustomVendors] = useState([]);
       // Custom bound area rug — opened from a carpet line's button; rugModalItem
       // holds that carpet line while the shared RugConfigModal popup is open.
       const [rugModalItem, setRugModalItem] = useState(null);
@@ -15417,43 +15414,6 @@
           addSkuItem(pending.sku);
         }
       }, []);
-
-      const addCustom = () => {
-        const numBoxes = parseInt(customItem.num_boxes) || 1;
-        const unitPrice = parseFloat(customItem.unit_price);
-        if (!customItem.product_name.trim() || isNaN(unitPrice)) return;
-        const sellBy = customItem.sell_by || 'box';
-        let subtotal;
-        if (sellBy === 'roll') subtotal = unitPrice * (numBoxes / 9);
-        else if (sellBy === 'unit' || sellBy === 'piece') subtotal = unitPrice * numBoxes;
-        else subtotal = unitPrice * numBoxes;
-        const matchedVendor = customItem.vendor_id ? customVendors.find(v => String(v.id) === String(customItem.vendor_id)) : null;
-        const oneOffName = customItem.vendor_id ? '' : (customItem.custom_vendor || '').trim();
-        const newItem = {
-          _key: Date.now(),
-          sku_id: null,
-          collection: '',
-          product_name: customItem.product_name.trim(),
-          color: '',
-          variant_name: '',
-          vendor_name: matchedVendor ? matchedVendor.name : oneOffName,
-          vendor_public_code: matchedVendor ? (matchedVendor.public_code || null) : null,
-          vendor_sku: '',
-          vendor_id: customItem.vendor_id || null,
-          custom_vendor: oneOffName || null,
-          custom_vendor_email: oneOffName ? (customItem.custom_vendor_email || '').trim() : null,
-          unit_price: unitPrice,
-          num_boxes: numBoxes,
-          subtotal,
-          description: customItem.description || null,
-          sell_by: sellBy,
-          is_custom: true,
-          cost: 0
-        };
-        setData(d => ({ ...d, items: [...(d.items || []), newItem] }));
-        setCustomItem({ product_name: '', unit_price: '', num_boxes: 1, description: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
-        setShowCustom(false);
-      };
 
       const openRugModal = (carpetLine) => setRugModalItem(carpetLine);
       const addRugLine = (line) => {
@@ -25442,11 +25402,6 @@
       const searchTimeout = useRef(null);
       const [addQty, setAddQty] = useState(1);
       const [catalogOpen, setCatalogOpen] = useState(false);
-
-      // Custom item form
-      const [showCustomForm, setShowCustomForm] = useState(false);
-      const [quoteVendors, setQuoteVendors] = useState([]); // for the custom item vendor picker
-      const [customItem, setCustomItem] = useState({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
       const [rugModalItem, setRugModalItem] = useState(null); // carpet line being turned into a custom rug
 
       // Inline cell editing
@@ -25773,56 +25728,6 @@
           })();
         }
       }, []);
-
-      const addCustomItemToQuote = async () => {
-        if (!customItem.product_name || !customItem.unit_price) return;
-        try {
-        const price = parseFloat(customItem.unit_price) || 0;
-        const qty = parseInt(customItem.num_boxes) || 1;
-        const sellBy = customItem.sell_by || 'box';
-        let subtotal;
-        if (sellBy === 'roll') subtotal = price * (qty / 9);
-        else subtotal = price * qty;
-        const oneOffName = customItem.vendor_id ? '' : (customItem.custom_vendor || '').trim();
-        const matchedVendor = customItem.vendor_id ? (quoteVendors.find(v => String(v.id) === String(customItem.vendor_id)) || null) : null;
-        const newItem = {
-          product_id: null,
-          sku_id: null,
-          product_name: customItem.product_name,
-          collection: '',
-          description: customItem.description || '',
-          sqft_needed: customItem.sqft_needed ? parseFloat(customItem.sqft_needed) : null,
-          num_boxes: qty,
-          unit_price: price.toFixed(2),
-          subtotal: subtotal.toFixed(2),
-          sell_by: sellBy,
-          is_sample: false,
-          vendor_id: customItem.vendor_id || null,
-          custom_vendor: oneOffName || null,
-          custom_vendor_email: oneOffName ? (customItem.custom_vendor_email || '').trim() : null,
-          vendor_name: matchedVendor ? matchedVendor.name : (oneOffName || null),
-          vendor_public_code: matchedVendor ? (matchedVendor.public_code || null) : null,
-          _is_custom: true
-        };
-
-        if (editId) {
-          const result = await repFetch('/api/rep/quotes/' + editId + '/items', {
-            method: 'POST',
-            body: JSON.stringify(newItem)
-          });
-          if (result.item) {
-            setQuoteItems(prev => [...prev, { ...result.item, _is_custom: true, vendor_name: result.item.vendor_name || newItem.vendor_name }]);
-            const qData = await repFetch('/api/rep/quotes/' + editId);
-            setQuote(qData.quote);
-          }
-        } else {
-          setQuoteItems(prev => [...prev, { ...newItem, _temp_id: Date.now() }]);
-        }
-
-        setCustomItem({ product_name: '', description: '', num_boxes: 1, unit_price: '', sqft_needed: '', sell_by: 'box', vendor_id: '', custom_vendor: '', custom_vendor_email: '' });
-        setShowCustomForm(false);
-        } catch (err) { alert('Failed to add item: ' + (err.message || 'Unknown error')); }
-      };
 
       // Custom rug (from the carpet-line popup). On an existing quote it persists
       // via /items (backend recomputes price+cost); on a new quote it's held in
