@@ -23340,6 +23340,15 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'Quote cannot be sent in current status' });
     }
 
+    // Recipient defaults to the quote's customer; the preview modal lets the rep
+    // override who it goes to (without changing the quote's stored customer).
+    let recipient = q.customer_email;
+    if (req.body && req.body.to != null && String(req.body.to).trim() !== '') {
+      const to = String(req.body.to).trim();
+      if (!isValidEmailAddr(to)) return res.status(400).json({ error: 'Enter a valid recipient email.' });
+      recipient = to;
+    }
+
     // Mark as sent — validity runs 10 days from send (resends refresh it)
     const quoteExpiresAt = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
     await pool.query(
@@ -23370,6 +23379,7 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
     // Send email and report delivery status
     const emailData = {
       ...q,
+      customer_email: recipient,   // honor the preview "To" override
       items: quoteItems.rows,
       rep_first_name: req.rep.first_name,
       rep_last_name: req.rep.last_name,
@@ -23399,7 +23409,7 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
 
     const wasRevision = q.status === 'sent';
     await logQuoteEvent(pool, id, 'sent', {
-      body: (wasRevision ? 'Sent revision to ' : 'Sent quote to ') + q.customer_email +
+      body: (wasRevision ? 'Sent revision to ' : 'Sent quote to ') + recipient +
         ' · $' + parseFloat(q.total || 0).toFixed(2) + (emailed ? '' : ' (email not configured)'),
       meta: { emailed, revision: wasRevision, total: q.total },
       actor: 'rep',

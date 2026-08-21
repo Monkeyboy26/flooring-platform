@@ -25517,6 +25517,7 @@
       const [showPreview, setShowPreview] = useState(false);
       const [previewHtml, setPreviewHtml] = useState('');
       const [previewMeta, setPreviewMeta] = useState(null);
+      const [previewTo, setPreviewTo] = useState('');
       const [previewLoading, setPreviewLoading] = useState(false);
       const [sendFeedback, setSendFeedback] = useState(null);
 
@@ -26053,6 +26054,7 @@
           const data = await repFetch('/api/rep/quotes/' + editId + '/preview');
           setPreviewHtml(data.html || '');
           setPreviewMeta({ to: data.to, subject: data.subject, reply_to: data.reply_to });
+          setPreviewTo(data.to || '');
         } catch (err) {
           setPreviewHtml('<p style="padding:2rem;color:#dc2626;">Failed to load email preview.</p>');
         }
@@ -26065,7 +26067,9 @@
         setSaving(true);
         setSendFeedback(null);
         try {
-          const result = await repFetch('/api/rep/quotes/' + editId + '/send', { method: 'POST' });
+          const result = await repFetch('/api/rep/quotes/' + editId + '/send', {
+            method: 'POST', body: JSON.stringify({ to: previewTo.trim() })
+          });
           const data = await repFetch('/api/rep/quotes/' + editId);
           setQuote(data.quote);
           loadEvents();
@@ -27399,7 +27403,12 @@
                   <>
                     {previewMeta && (
                       <div className="email-preview-meta">
-                        <span><strong>To:</strong> {previewMeta.to}</span>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <strong>To:</strong>
+                          <input type="email" value={previewTo} onChange={e => setPreviewTo(e.target.value)}
+                            placeholder="recipient@email.com"
+                            style={{ flex: 1, padding: '0.3rem 0.5rem', border: '1px solid var(--stone-200)', borderRadius: 3, font: 'inherit' }} />
+                        </label>
                         <span><strong>Subject:</strong> {previewMeta.subject}</span>
                         <span><strong>Reply-To:</strong> {previewMeta.reply_to}</span>
                       </div>
@@ -27415,7 +27424,7 @@
                 )}
                 <div className="modal-actions" style={{ marginTop: '1rem' }}>
                   <button className="btn btn-secondary" onClick={() => setShowPreview(false)}>Cancel</button>
-                  <button className="btn btn-primary" onClick={sendQuote} disabled={saving || previewLoading}>
+                  <button className="btn btn-primary" onClick={sendQuote} disabled={saving || previewLoading || !isValidEmail(previewTo)}>
                     {saving ? 'Sending...' : 'Confirm & Send'}
                   </button>
                 </div>
