@@ -26840,12 +26840,6 @@
                               style={{ width: 72, border: 'none', borderBottom: '0.5px solid rgba(28,25,23,0.33)', background: 'transparent', outline: 'none', font: '400 17px/1 var(--roma-serif)', color: '#1c1917', padding: '0 0 2px', textAlign: 'right' }} />
                           </span>
                         </span>
-                        {!isReadonly && (
-                          <button className="rof-btn rof-btn-primary" onClick={saveQuote} disabled={saveDisabled}
-                            style={{ padding: '0.4rem 0.9rem' }}>
-                            {saving ? 'Saving…' : 'Save'}
-                          </button>
-                        )}
                       </span>
                     </div>
                   </div>
@@ -27309,12 +27303,6 @@
               <div className="qw-quick-links">
                 {quote && quote.status === 'sent' && (
                   <button className="qw-link muted" onClick={openPreview}>Resend email</button>
-                )}
-                {editId && quote && quote.status === 'sent' && (
-                  <button className="qw-link muted" onClick={() => markStatus('accepted')} disabled={statusBusy}>Mark accepted</button>
-                )}
-                {editId && quote && ['draft', 'sent', 'accepted'].includes(quote.status) && (
-                  <button className="qw-link muted" onClick={() => markStatus('declined')} disabled={statusBusy}>Mark lost</button>
                 )}
                 <button className="qw-link muted" onClick={() => navigate('quotes')}>Back to quotes</button>
               </div>
