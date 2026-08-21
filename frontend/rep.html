@@ -21053,6 +21053,8 @@
       const [saving, setSaving] = useState(false);
       const [editingId, setEditingId] = useState(null);
       const [editText, setEditText] = useState('');
+      // Only a note's own author may edit/delete it (team can still view + add).
+      const currentRepId = (JSON.parse(sessionStorage.getItem('rep_info') || '{}')).id;
 
       const load = useCallback(() => {
         if (!basePath) return;
@@ -21118,7 +21120,7 @@
                       <div className="rod-note-ts">
                         {n.created_at ? new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + new Date(n.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}
                         {n.staff_name ? ' · ' + n.staff_name : ''}
-                        {n.id && !readOnly && (
+                        {n.id && !readOnly && n.staff_id === currentRepId && (
                           <span style={{ marginLeft: 8 }}>
                             <a onClick={() => { setEditingId(n.id); setEditText(n.note); }}
                               style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--rod-muted)' }}>Edit</a>
@@ -23322,7 +23324,7 @@
                             <div className="rod-note-ts">
                               {n.created_at ? new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + new Date(n.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}
                               {n.staff_name ? ' · ' + n.staff_name : ''}
-                              {n.id && (
+                              {n.id && n.staff_id === repInfo.id && (
                                 <span style={{ marginLeft: 8 }}>
                                   <a onClick={() => { setEditingNoteId(n.id); setEditNoteText(n.note); }}
                                     style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--rod-muted)' }}>Edit</a>

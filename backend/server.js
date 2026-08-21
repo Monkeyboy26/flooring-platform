@@ -17728,6 +17728,9 @@ app.put('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
     if (!order) return res.status(404).json({ error: 'Order not found' });
     const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
     if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const owns = await pool.query('SELECT staff_id FROM customer_notes WHERE id = $1 AND order_id = $2', [req.params.noteId, req.params.id]);
+    if (!owns.rows.length) return res.status(404).json({ error: 'Note not found' });
+    if (owns.rows[0].staff_id !== req.rep.id) return res.status(403).json({ error: 'You can only edit your own notes' });
     const result = await pool.query(
       'UPDATE customer_notes SET note = $1 WHERE id = $2 AND order_id = $3 RETURNING *',
       [note.slice(0, 4000), req.params.noteId, req.params.id]);
@@ -17745,6 +17748,9 @@ app.delete('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
   try {
     const order = await orderForNotes(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
+    const owns = await pool.query('SELECT staff_id FROM customer_notes WHERE id = $1 AND order_id = $2', [req.params.noteId, req.params.id]);
+    if (!owns.rows.length) return res.status(404).json({ error: 'Note not found' });
+    if (owns.rows[0].staff_id !== req.rep.id) return res.status(403).json({ error: 'You can only delete your own notes' });
     const result = await pool.query(
       'DELETE FROM customer_notes WHERE id = $1 AND order_id = $2 RETURNING id',
       [req.params.noteId, req.params.id]);
@@ -17800,6 +17806,9 @@ app.put('/api/rep/quotes/:id/notes/:noteId', repAuth, async (req, res) => {
     if (!quote) return res.status(404).json({ error: 'Quote not found' });
     const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
     if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const owns = await pool.query('SELECT staff_id FROM customer_notes WHERE id = $1 AND quote_id = $2', [req.params.noteId, req.params.id]);
+    if (!owns.rows.length) return res.status(404).json({ error: 'Note not found' });
+    if (owns.rows[0].staff_id !== req.rep.id) return res.status(403).json({ error: 'You can only edit your own notes' });
     const result = await pool.query(
       'UPDATE customer_notes SET note = $1 WHERE id = $2 AND quote_id = $3 RETURNING *',
       [note.slice(0, 4000), req.params.noteId, req.params.id]);
@@ -17816,6 +17825,9 @@ app.delete('/api/rep/quotes/:id/notes/:noteId', repAuth, async (req, res) => {
   try {
     const quote = await quoteForNotes(req.params.id);
     if (!quote) return res.status(404).json({ error: 'Quote not found' });
+    const owns = await pool.query('SELECT staff_id FROM customer_notes WHERE id = $1 AND quote_id = $2', [req.params.noteId, req.params.id]);
+    if (!owns.rows.length) return res.status(404).json({ error: 'Note not found' });
+    if (owns.rows[0].staff_id !== req.rep.id) return res.status(403).json({ error: 'You can only delete your own notes' });
     const result = await pool.query(
       'DELETE FROM customer_notes WHERE id = $1 AND quote_id = $2 RETURNING id',
       [req.params.noteId, req.params.id]);
