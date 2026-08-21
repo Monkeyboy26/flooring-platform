@@ -23340,13 +23340,16 @@ app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'Quote cannot be sent in current status' });
     }
 
-    // Recipient defaults to the quote's customer; the preview modal lets the rep
-    // override who it goes to (without changing the quote's stored customer).
+    // Recipient(s) default to the quote's customer; the preview modal lets the rep
+    // override / add multiple recipients (without changing the stored customer).
     let recipient = q.customer_email;
-    if (req.body && req.body.to != null && String(req.body.to).trim() !== '') {
-      const to = String(req.body.to).trim();
-      if (!isValidEmailAddr(to)) return res.status(400).json({ error: 'Enter a valid recipient email.' });
-      recipient = to;
+    if (req.body && req.body.to != null) {
+      const list = (Array.isArray(req.body.to) ? req.body.to : String(req.body.to).split(/[\s,;]+/))
+        .map(s => String(s).trim()).filter(Boolean);
+      if (!list.length) return res.status(400).json({ error: 'At least one recipient is required.' });
+      const bad = list.find(e => !isValidEmailAddr(e));
+      if (bad) return res.status(400).json({ error: 'Invalid recipient email: ' + bad });
+      recipient = [...new Set(list)].join(', ');
     }
 
     // Mark as sent — validity runs 10 days from send (resends refresh it)

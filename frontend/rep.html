@@ -2596,6 +2596,26 @@
       width: 100%;
       min-height: 400px;
     }
+    /* Redesigned quote email preview modal */
+    .qw-email-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    .qw-email-head h3 { font: 400 1.35rem/1.2 'Cormorant Garamond', serif; color: var(--stone-900); }
+    .qw-email-eyebrow { font: 600 0.625rem/1 ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--brass-muted, #8a7f72); }
+    .qw-email-x { border: none; background: none; cursor: pointer; font-size: 0.9rem; color: var(--stone-400); line-height: 1; padding: 4px; }
+    .qw-email-x:hover { color: var(--stone-700); }
+    .qw-email-loading { padding: 3rem; text-align: center; color: var(--stone-500); }
+    .qw-email-meta { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.85rem 1rem; background: var(--stone-50); border: 1px solid var(--stone-200); border-radius: var(--radius-sm); margin-bottom: 1rem; }
+    .qw-email-row { display: flex; align-items: flex-start; gap: 0.75rem; }
+    .qw-email-k { flex: none; width: 64px; padding-top: 0.4rem; font: 600 0.625rem/1 ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--stone-500); }
+    .qw-email-v { flex: 1; padding-top: 0.35rem; font-size: 0.8125rem; color: var(--stone-700); word-break: break-word; }
+    .qw-recip-field { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; min-height: 36px; padding: 0.25rem 0.4rem; background: #fff; border: 1px solid var(--stone-200); border-radius: var(--radius-sm); cursor: text; }
+    .qw-recip-field:focus-within { border-color: var(--stone-400); box-shadow: 0 0 0 2px rgba(28,25,23,0.05); }
+    .qw-recip-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.3rem 0.2rem 0.55rem; background: var(--stone-100); border: 0.5px solid var(--stone-200); border-radius: 999px; font-size: 0.75rem; color: var(--stone-800); }
+    .qw-recip-chip button { border: none; background: none; cursor: pointer; color: var(--stone-400); font-size: 0.65rem; line-height: 1; padding: 1px 2px; }
+    .qw-recip-chip button:hover { color: #c54731; }
+    .qw-recip-field input { flex: 1; min-width: 130px; border: none; outline: none; background: transparent; font: inherit; font-size: 0.8125rem; padding: 0.25rem; }
+    .qw-email-frame { width: 100%; min-height: 440px; border: 1px solid var(--stone-200); border-radius: var(--radius-sm); background: #fff; }
+    .qw-email-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; }
+    .qw-email-count { font: 500 0.75rem/1 'Inter', sans-serif; color: var(--stone-500); }
 
     /* Price history */
     .price-history {
@@ -25517,7 +25537,14 @@
       const [showPreview, setShowPreview] = useState(false);
       const [previewHtml, setPreviewHtml] = useState('');
       const [previewMeta, setPreviewMeta] = useState(null);
-      const [previewTo, setPreviewTo] = useState('');
+      const [previewRecipients, setPreviewRecipients] = useState([]);
+      const [recipientDraft, setRecipientDraft] = useState('');
+      const addRecipient = (raw) => {
+        const found = String(raw).split(/[\s,;]+/).map(s => s.trim()).filter(s => s && isValidEmail(s));
+        if (found.length) setPreviewRecipients(prev => [...new Set([...prev, ...found])]);
+        setRecipientDraft('');
+      };
+      const removeRecipient = (email) => setPreviewRecipients(prev => prev.filter(e => e !== email));
       const [previewLoading, setPreviewLoading] = useState(false);
       const [sendFeedback, setSendFeedback] = useState(null);
 
@@ -26054,7 +26081,8 @@
           const data = await repFetch('/api/rep/quotes/' + editId + '/preview');
           setPreviewHtml(data.html || '');
           setPreviewMeta({ to: data.to, subject: data.subject, reply_to: data.reply_to });
-          setPreviewTo(data.to || '');
+          setPreviewRecipients(data.to ? [data.to] : []);
+          setRecipientDraft('');
         } catch (err) {
           setPreviewHtml('<p style="padding:2rem;color:#dc2626;">Failed to load email preview.</p>');
         }
@@ -26063,12 +26091,15 @@
 
       const sendQuote = async () => {
         if (!editId) return;
+        const draft = recipientDraft.trim();
+        const recipients = [...new Set([...previewRecipients, ...(isValidEmail(draft) ? [draft] : [])])];
+        if (!recipients.length) return;
         setShowPreview(false);
         setSaving(true);
         setSendFeedback(null);
         try {
           const result = await repFetch('/api/rep/quotes/' + editId + '/send', {
-            method: 'POST', body: JSON.stringify({ to: previewTo.trim() })
+            method: 'POST', body: JSON.stringify({ to: recipients })
           });
           const data = await repFetch('/api/rep/quotes/' + editId);
           setQuote(data.quote);
@@ -27395,38 +27426,56 @@
           {/* Email Preview Modal */}
           {showPreview && (
             <div className="modal-overlay" onClick={() => setShowPreview(false)}>
-              <div className="modal-box modal-wide" onClick={e => e.stopPropagation()}>
-                <h3>Email Preview</h3>
+              <div className="modal-box modal-wide qw-email-modal" onClick={e => e.stopPropagation()}>
+                <div className="qw-email-head">
+                  <div>
+                    <div className="qw-email-eyebrow">{'●'} Email preview</div>
+                    <h3 style={{ margin: '3px 0 0' }}>{previewMeta ? previewMeta.subject : 'Quote email'}</h3>
+                  </div>
+                  <button className="qw-email-x" onClick={() => setShowPreview(false)} aria-label="Close">{'✕'}</button>
+                </div>
                 {previewLoading ? (
-                  <p>Loading preview...</p>
+                  <div className="qw-email-loading">Loading preview{'…'}</div>
                 ) : (
-                  <>
+                  <React.Fragment>
                     {previewMeta && (
-                      <div className="email-preview-meta">
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <strong>To:</strong>
-                          <input type="email" value={previewTo} onChange={e => setPreviewTo(e.target.value)}
-                            placeholder="recipient@email.com"
-                            style={{ flex: 1, padding: '0.3rem 0.5rem', border: '1px solid var(--stone-200)', borderRadius: 3, font: 'inherit' }} />
-                        </label>
-                        <span><strong>Subject:</strong> {previewMeta.subject}</span>
-                        <span><strong>Reply-To:</strong> {previewMeta.reply_to}</span>
+                      <div className="qw-email-meta">
+                        <div className="qw-email-row">
+                          <span className="qw-email-k">To</span>
+                          <div className="qw-recip-field" onClick={e => { const el = e.currentTarget.querySelector('input'); if (el) el.focus(); }}>
+                            {previewRecipients.map(r => (
+                              <span className="qw-recip-chip" key={r}>
+                                {r}
+                                <button type="button" onClick={() => removeRecipient(r)} aria-label={'Remove ' + r}>{'✕'}</button>
+                              </span>
+                            ))}
+                            <input type="email" value={recipientDraft}
+                              placeholder={previewRecipients.length ? 'Add another…' : 'name@email.com'}
+                              onChange={e => setRecipientDraft(e.target.value)}
+                              onKeyDown={e => {
+                                if ((e.key === 'Enter' || e.key === ',' || e.key === ';') && recipientDraft.trim()) { e.preventDefault(); addRecipient(recipientDraft); }
+                                else if (e.key === 'Backspace' && !recipientDraft && previewRecipients.length) { removeRecipient(previewRecipients[previewRecipients.length - 1]); }
+                              }}
+                              onBlur={() => { if (recipientDraft.trim()) addRecipient(recipientDraft); }} />
+                          </div>
+                        </div>
+                        <div className="qw-email-row"><span className="qw-email-k">Reply-To</span><span className="qw-email-v">{previewMeta.reply_to}</span></div>
                       </div>
                     )}
-                    <iframe
-                      className="email-preview-frame"
-                      srcDoc={previewHtml}
-                      sandbox=""
-                      title="Email preview"
-                      style={{ width: '100%', minHeight: '450px', border: '1px solid var(--stone-200)' }}
-                    />
-                  </>
+                    <iframe className="qw-email-frame" srcDoc={previewHtml} sandbox="" title="Email preview" />
+                  </React.Fragment>
                 )}
-                <div className="modal-actions" style={{ marginTop: '1rem' }}>
-                  <button className="btn btn-secondary" onClick={() => setShowPreview(false)}>Cancel</button>
-                  <button className="btn btn-primary" onClick={sendQuote} disabled={saving || previewLoading || !isValidEmail(previewTo)}>
-                    {saving ? 'Sending...' : 'Confirm & Send'}
-                  </button>
+                <div className="qw-email-actions">
+                  <span className="qw-email-count">
+                    {(() => { const n = previewRecipients.length + (isValidEmail(recipientDraft.trim()) ? 1 : 0); return n + ' recipient' + (n === 1 ? '' : 's'); })()}
+                  </span>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-secondary" onClick={() => setShowPreview(false)}>Cancel</button>
+                    <button className="btn btn-primary" onClick={sendQuote}
+                      disabled={saving || previewLoading || (previewRecipients.length === 0 && !isValidEmail(recipientDraft.trim()))}>
+                      {saving ? 'Sending…' : 'Confirm & Send'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
