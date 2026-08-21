@@ -13947,15 +13947,25 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
           item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
-    // Carry the quote's internal notes into the order's internal-notes thread
-    // (no staff actor here — staff_id stays null, shows as "Staff" in the sidebar).
-    if (q.notes && q.notes.trim()) {
+    // Carry the quote's internal notes onto the order so they show in the order
+    // sidebar — multi-entry, preserving each note's author + timestamp (edits
+    // included). Falls back to the legacy single quotes.notes field only for a
+    // quote whose note predates the notes widget. No staff actor on the fallback.
+    {
       const noteCt = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
       const noteRef = String(order.trade_customer_id || order.customer_id || order.customer_email || order.id);
-      await client.query(`
-        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
-        VALUES ($1, $2, $3, NULL, $4)
-      `, [noteCt, noteRef, order.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
+      const carried = await client.query(`
+        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note, created_at)
+        SELECT $1, $2, $3, cn.staff_id, cn.note, cn.created_at
+        FROM customer_notes cn WHERE cn.quote_id = $4
+        ORDER BY cn.created_at
+      `, [noteCt, noteRef, order.id, q.id]);
+      if (carried.rowCount === 0 && q.notes && q.notes.trim()) {
+        await client.query(`
+          INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
+          VALUES ($1, $2, $3, NULL, $4)
+        `, [noteCt, noteRef, order.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
+      }
     }
 
     await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
@@ -14097,15 +14107,25 @@ app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) =
           item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
-    // Carry the quote's internal notes into the order's internal-notes thread
-    // (no staff actor here — staff_id stays null, shows as "Staff" in the sidebar).
-    if (q.notes && q.notes.trim()) {
+    // Carry the quote's internal notes onto the order so they show in the order
+    // sidebar — multi-entry, preserving each note's author + timestamp (edits
+    // included). Falls back to the legacy single quotes.notes field only for a
+    // quote whose note predates the notes widget. No staff actor on the fallback.
+    {
       const noteCt = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
       const noteRef = String(order.trade_customer_id || order.customer_id || order.customer_email || order.id);
-      await client.query(`
-        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
-        VALUES ($1, $2, $3, NULL, $4)
-      `, [noteCt, noteRef, order.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
+      const carried = await client.query(`
+        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note, created_at)
+        SELECT $1, $2, $3, cn.staff_id, cn.note, cn.created_at
+        FROM customer_notes cn WHERE cn.quote_id = $4
+        ORDER BY cn.created_at
+      `, [noteCt, noteRef, order.id, q.id]);
+      if (carried.rowCount === 0 && q.notes && q.notes.trim()) {
+        await client.query(`
+          INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
+          VALUES ($1, $2, $3, NULL, $4)
+        `, [noteCt, noteRef, order.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
+      }
     }
 
     await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
@@ -23556,15 +23576,25 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
           item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
     }
 
-    // Carry the quote's internal notes into the order's internal-notes thread
-    // (mirrors POST /api/rep/orders/:id/notes so it shows in the order sidebar).
-    if (q.notes && q.notes.trim()) {
+    // Carry the quote's internal notes onto the order so they show in the order
+    // sidebar — multi-entry, preserving each note's author + timestamp (edits
+    // included). Falls back to the legacy single quotes.notes field only for a
+    // quote whose note predates the notes widget (attributed to the acting rep).
+    {
       const noteCt = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
       const noteRef = String(order.trade_customer_id || order.customer_id || order.customer_email || order.id);
-      await client.query(`
-        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
-        VALUES ($1, $2, $3, $4, $5)
-      `, [noteCt, noteRef, order.id, req.rep.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
+      const carried = await client.query(`
+        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note, created_at)
+        SELECT $1, $2, $3, cn.staff_id, cn.note, cn.created_at
+        FROM customer_notes cn WHERE cn.quote_id = $4
+        ORDER BY cn.created_at
+      `, [noteCt, noteRef, order.id, q.id]);
+      if (carried.rowCount === 0 && q.notes && q.notes.trim()) {
+        await client.query(`
+          INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [noteCt, noteRef, order.id, req.rep.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
+      }
     }
 
     // Link uploaded documents to the order
