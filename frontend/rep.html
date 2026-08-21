@@ -2596,26 +2596,27 @@
       width: 100%;
       min-height: 400px;
     }
-    /* Redesigned quote email preview modal */
-    .qw-email-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-    .qw-email-head h3 { font: 400 1.35rem/1.2 'Cormorant Garamond', serif; color: var(--stone-900); }
-    .qw-email-eyebrow { font: 600 0.625rem/1 ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--brass-muted, #8a7f72); }
-    .qw-email-x { border: none; background: none; cursor: pointer; font-size: 0.9rem; color: var(--stone-400); line-height: 1; padding: 4px; }
-    .qw-email-x:hover { color: var(--stone-700); }
-    .qw-email-loading { padding: 3rem; text-align: center; color: var(--stone-500); }
-    .qw-email-meta { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.85rem 1rem; background: var(--stone-50); border: 1px solid var(--stone-200); border-radius: var(--radius-sm); margin-bottom: 1rem; }
-    .qw-email-row { display: flex; align-items: flex-start; gap: 0.75rem; }
-    .qw-email-k { flex: none; width: 64px; padding-top: 0.4rem; font: 600 0.625rem/1 ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--stone-500); }
-    .qw-email-v { flex: 1; padding-top: 0.35rem; font-size: 0.8125rem; color: var(--stone-700); word-break: break-word; }
-    .qw-recip-field { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; min-height: 36px; padding: 0.25rem 0.4rem; background: #fff; border: 1px solid var(--stone-200); border-radius: var(--radius-sm); cursor: text; }
-    .qw-recip-field:focus-within { border-color: var(--stone-400); box-shadow: 0 0 0 2px rgba(28,25,23,0.05); }
-    .qw-recip-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.3rem 0.2rem 0.55rem; background: var(--stone-100); border: 0.5px solid var(--stone-200); border-radius: 999px; font-size: 0.75rem; color: var(--stone-800); }
-    .qw-recip-chip button { border: none; background: none; cursor: pointer; color: var(--stone-400); font-size: 0.65rem; line-height: 1; padding: 1px 2px; }
+    /* Redesigned quote email preview modal — matches the rep panel's warm palette */
+    .qw-email-modal { background: #f7f3ec; border: 0.5px solid rgba(28,25,23,0.14); }
+    .qw-email-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.1rem; }
+    .qw-email-head h3 { font: 400 1.5rem/1.15 'Cormorant Garamond', serif; color: #1c1917; }
+    .qw-email-eyebrow { font: 600 9px/1 ui-monospace, monospace; letter-spacing: 0.18em; text-transform: uppercase; color: #a87935; margin-bottom: 5px; }
+    .qw-email-x { border: none; background: none; cursor: pointer; font-size: 0.85rem; color: rgba(28,25,23,0.4); line-height: 1; padding: 4px; }
+    .qw-email-x:hover { color: #1c1917; }
+    .qw-email-loading { padding: 3rem; text-align: center; color: #8a7e68; font: 400 0.875rem/1 'Inter', sans-serif; }
+    .qw-email-meta { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.9rem 1rem; background: #ece5d8; border: 0.5px solid rgba(28,25,23,0.14); margin-bottom: 1rem; }
+    .qw-email-row { display: flex; align-items: flex-start; gap: 0.85rem; }
+    .qw-email-k { flex: none; width: 60px; padding-top: 0.5rem; font: 600 9px/1 ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: #8a7e68; }
+    .qw-email-v { flex: 1; padding-top: 0.45rem; font: 400 0.8125rem/1.4 'Inter', sans-serif; color: #1c1917; word-break: break-word; }
+    .qw-recip-field { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; min-height: 38px; padding: 0.3rem 0.4rem; background: #fbf8f3; border: 0.5px solid rgba(28,25,23,0.18); cursor: text; }
+    .qw-recip-field:focus-within { border-color: rgba(28,25,23,0.4); }
+    .qw-recip-chip { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.22rem 0.35rem 0.22rem 0.6rem; background: #d8cdb6; border: 0.5px solid rgba(28,25,23,0.14); border-radius: 999px; font: 400 0.75rem/1 'Inter', sans-serif; color: #1c1917; }
+    .qw-recip-chip button { border: none; background: none; cursor: pointer; color: rgba(28,25,23,0.45); font-size: 0.65rem; line-height: 1; padding: 1px 2px; }
     .qw-recip-chip button:hover { color: #c54731; }
-    .qw-recip-field input { flex: 1; min-width: 130px; border: none; outline: none; background: transparent; font: inherit; font-size: 0.8125rem; padding: 0.25rem; }
-    .qw-email-frame { width: 100%; min-height: 440px; border: 1px solid var(--stone-200); border-radius: var(--radius-sm); background: #fff; }
+    .qw-recip-field input { flex: 1; min-width: 130px; border: none; outline: none; background: transparent; font: 400 0.8125rem/1.4 'Inter', sans-serif; color: #1c1917; padding: 0.25rem; }
+    .qw-email-frame { width: 100%; min-height: 440px; border: 0.5px solid rgba(28,25,23,0.14); background: #fff; }
     .qw-email-actions { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1.25rem; }
-    .qw-email-count { font: 500 0.75rem/1 'Inter', sans-serif; color: var(--stone-500); }
+    .qw-email-count { font: 500 9px/1 ui-monospace, monospace; letter-spacing: 0.08em; text-transform: uppercase; color: #8a7e68; }
 
     /* Price history */
     .price-history {
