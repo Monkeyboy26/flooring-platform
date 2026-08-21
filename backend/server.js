@@ -22823,7 +22823,7 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { customer_name, customer_email, phone, company_name, shipping_address_line1, shipping_address_line2,
-            shipping_city, shipping_state, shipping_zip, notes, items, delivery_method, promo_code } = req.body;
+            shipping_city, shipping_state, shipping_zip, notes, items, delivery_method, promo_code, shipping } = req.body;
     const companyName = (company_name || '').trim() || null;
     if (!customer_name || !customer_email) {
       return res.status(400).json({ error: 'Customer name and email are required' });
@@ -22932,10 +22932,11 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         }
       }
 
-      const total = subtotal - discountAmount;
+      const shipAmt = parseFloat(shipping) || 0;
+      const total = subtotal + shipAmt - discountAmount;
       await client.query(
-        'UPDATE quotes SET subtotal = $1, total = $2, promo_code_id = $3, promo_code = $4, discount_amount = $5 WHERE id = $6',
-        [subtotal.toFixed(2), total.toFixed(2), promoCodeId, promoCodeStr, discountAmount.toFixed(2), quote.id]
+        'UPDATE quotes SET subtotal = $1, total = $2, shipping = $3, promo_code_id = $4, promo_code = $5, discount_amount = $6 WHERE id = $7',
+        [subtotal.toFixed(2), total.toFixed(2), shipAmt.toFixed(2), promoCodeId, promoCodeStr, discountAmount.toFixed(2), quote.id]
       );
 
       // Record promo usage

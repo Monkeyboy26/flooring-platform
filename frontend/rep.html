@@ -25393,7 +25393,7 @@
         customer_name: '', customer_first: '', customer_middle: '', customer_last: '', customer_email: '', phone: '', company_name: '',
         shipping_address_line1: '', shipping_address_line2: '',
         shipping_city: '', shipping_state: '', shipping_zip: '', notes: '',
-        delivery_method: 'pickup'
+        delivery_method: 'pickup', shipping: ''
       });
 
       // Draft system — create mode only (an existing quote persists server-side).
@@ -25504,7 +25504,8 @@
               shipping_state: data.quote.shipping_state || '',
               shipping_zip: data.quote.shipping_zip || '',
               notes: data.quote.notes || '',
-              delivery_method: data.quote.delivery_method || 'pickup'
+              delivery_method: data.quote.delivery_method || 'pickup',
+              shipping: data.quote.shipping != null && parseFloat(data.quote.shipping) > 0 ? String(parseFloat(data.quote.shipping)) : ''
             });
             if (data.quote.promo_code) {
               setPromoCode(data.quote.promo_code);
@@ -25925,10 +25926,12 @@
         setSaving(true);
         try {
           const promoPayload = promoResult ? promoResult.code : '';
+          // Freight estimate only applies to shipping; otherwise the quote carries no freight.
+          const shippingPayload = form.delivery_method === 'shipping' ? (parseFloat(form.shipping) || 0) : 0;
           if (editId) {
             await repFetch('/api/rep/quotes/' + editId, {
               method: 'PUT',
-              body: JSON.stringify({ ...form, promo_code: promoPayload })
+              body: JSON.stringify({ ...form, shipping: shippingPayload, promo_code: promoPayload })
             });
           } else {
             const itemsPayload = quoteItems.map(i => ({
@@ -25949,7 +25952,7 @@
             }));
             const data = await repFetch('/api/rep/quotes', {
               method: 'POST',
-              body: JSON.stringify({ ...form, items: itemsPayload, promo_code: promoPayload })
+              body: JSON.stringify({ ...form, shipping: shippingPayload, items: itemsPayload, promo_code: promoPayload })
             });
             if (data.quote) {
               quoteSavedRef.current = true;           // saved server-side — not a draft anymore
@@ -26608,7 +26611,7 @@
                     { id: 'will_call', icon: '⊡', label: 'Will-call at distributor',
                       sub: 'Customer picks up at the distributor.', cost: 'No freight' },
                     { id: 'shipping', icon: '⤳', label: 'Freight / delivery',
-                      sub: 'Roma truck (local) or LTL freight.', cost: 'Quoted at order' },
+                      sub: 'Roma truck (local) or LTL freight.', cost: 'Estimate below' },
                   ].map(opt => {
                     const on = form.delivery_method === opt.id;
                     return (
@@ -26721,6 +26724,25 @@
                         <input type="text" maxLength={10} value={form.shipping_zip}
                           onChange={e => setForm(f => ({ ...f, shipping_zip: e.target.value }))} disabled={isReadonly} />
                       </div>
+                    </div>
+                    {/* Freight estimate — same as the order flow; flows into the quote total on save */}
+                    <div style={{
+                      marginTop: '0.75rem', padding: '0.75rem 0.875rem',
+                      background: 'rgba(28,25,23,0.03)', border: '0.5px solid rgba(28,25,23,0.12)',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem',
+                    }}>
+                      <span style={{ font: '400 0.6875rem/1.4 Inter, sans-serif', color: '#8a7e68' }}>
+                        Charged to the customer {'·'} added to the quote total on save
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexShrink: 0 }}>
+                        <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>Freight estimate</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'baseline' }}>
+                          <span style={{ font: '400 15px/1 var(--roma-serif)', color: '#1c1917' }}>$</span>
+                          <input type="text" inputMode="decimal" value={form.shipping} placeholder="0.00" disabled={isReadonly}
+                            onChange={e => { if (e.target.value === '' || /^\d*\.?\d{0,2}$/.test(e.target.value)) setForm(f => ({ ...f, shipping: e.target.value })); }}
+                            style={{ width: 72, border: 'none', borderBottom: '0.5px solid rgba(28,25,23,0.33)', background: 'transparent', outline: 'none', font: '400 17px/1 var(--roma-serif)', color: '#1c1917', padding: '0 0 2px', textAlign: 'right' }} />
+                        </span>
+                      </span>
                     </div>
                   </div>
                 )}
