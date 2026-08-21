@@ -15646,18 +15646,7 @@
 
       return (
         <div>
-          <WizRepCard title="Line Items"
-            actions={
-              <button className="rof-card-action" onClick={() => {
-                const opening = !showCustom;
-                setShowCustom(opening);
-                if (opening && customVendors.length === 0) {
-                  repFetch('/api/rep/vendors').then(d => setCustomVendors(d.vendors || [])).catch(() => {});
-                }
-              }}>
-                {showCustom ? 'Cancel' : '+ Custom Item'}
-              </button>
-            }>
+          <WizRepCard title="Line Items">
 
             {/* Catalog launcher — Step 01b popup */}
             <button className="rof-cat-launch" onClick={() => setCatalogOpen(true)}>
@@ -15707,65 +15696,7 @@
                 placeholder="Qty" style={{ width: '60px', padding: '0.5625rem 0.375rem', border: '0.5px solid rgba(28,25,23,0.18)', background: '#ece5d8', font: '400 0.8125rem/1 Inter, sans-serif', textAlign: 'center' }} />
             </div>
 
-            {/* Custom item form */}
-            {showCustom && (
-              <div style={{ border: '0.5px solid rgba(28,25,23,0.1)', padding: '1rem', marginBottom: '0.75rem', background: 'rgba(28,25,23,0.02)' }}>
-                <div style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: '0.5rem' }}>Custom Item</div>
-                <div style={{ display: 'grid', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: '120px' }}>
-                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Vendor *</label>
-                      <OneOffVendorPicker vendors={customVendors} vendorId={customItem.vendor_id} customVendor={customItem.custom_vendor} customVendorEmail={customItem.custom_vendor_email}
-                        onChange={(vid, cv, cve) => setCustomItem(c => ({ ...c, vendor_id: vid, custom_vendor: cv, custom_vendor_email: cve }))}
-                        selectStyle={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }}
-                        inputStyle={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
-                    </div>
-                    <div style={{ flex: 2, minWidth: '120px' }}>
-                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Product Name *</label>
-                      <input type="text" maxLength={200} value={customItem.product_name}
-                        onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))}
-                        placeholder="e.g. Custom transition strip"
-                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
-                    </div>
-                    <div style={{ width: 80 }}>
-                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Sell By</label>
-                      <select value={customItem.sell_by || 'box'} onChange={e => setCustomItem(c => ({ ...c, sell_by: e.target.value }))}
-                        style={{ width: '100%', padding: '6px 4px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 12px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }}>
-                        <option value="box">Box</option>
-                        <option value="unit">Unit</option>
-                        <option value="piece">Piece</option>
-                        <option value="roll">Roll</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 2, minWidth: '120px' }}>
-                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Description</label>
-                      <input type="text" maxLength={500} value={customItem.description}
-                        onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))}
-                        placeholder="Optional notes"
-                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
-                    </div>
-                    <div style={{ width: 60 }}>
-                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>{(customItem.sell_by === 'unit' || customItem.sell_by === 'piece') ? 'Qty *' : customItem.sell_by === 'roll' ? 'SqFt *' : 'Boxes *'}</label>
-                      <input type="number" min="1" value={customItem.num_boxes}
-                        onChange={e => setCustomItem(c => ({ ...c, num_boxes: e.target.value }))}
-                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
-                    </div>
-                    <div style={{ width: 80 }}>
-                      <label style={{ display: 'block', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>Unit Price *</label>
-                      <input type="number" step="0.01" min="0" value={customItem.unit_price}
-                        onChange={e => setCustomItem(c => ({ ...c, unit_price: e.target.value }))}
-                        placeholder="0.00"
-                        style={{ width: '100%', padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', font: '400 13px/1 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
-                    </div>
-                    <button style={{ padding: '7px 14px', background: '#1c1917', color: '#ece5d8', border: 'none', font: '500 12px/1 Inter, sans-serif', cursor: 'pointer' }}
-                      disabled={(!customItem.vendor_id && !((customItem.custom_vendor || '').trim() && isValidVendorEmail(customItem.custom_vendor_email))) || !customItem.product_name.trim() || !customItem.unit_price}
-                      onClick={addCustom}>Add</button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Custom items are added through the catalog popup's Custom-item tab. */}
 
             {/* Header row */}
             {items.length > 0 && (
@@ -26885,20 +26816,7 @@
               {/* Lines — same item table as the order flow */}
               <WizRepCard title={'Lines · ' + quoteItems.length}
                 actions={
-                  <React.Fragment>
-                    {showCost && <span style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a87935' }}>Cost + margin · rep only</span>}
-                    {!isReadonly && (
-                      <button className="rof-card-action" onClick={() => {
-                        const opening = !showCustomForm;
-                        setShowCustomForm(opening);
-                        if (opening && quoteVendors.length === 0) {
-                          repFetch('/api/rep/vendors').then(d => setQuoteVendors(d.vendors || [])).catch(() => {});
-                        }
-                      }}>
-                        {showCustomForm ? 'Cancel' : '+ Custom Item'}
-                      </button>
-                    )}
-                  </React.Fragment>
+                  showCost ? <span style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a87935' }}>Cost + margin · rep only</span> : null
                 }>
 
                 {/* Catalog launcher — same popup as the order flow */}
@@ -26960,63 +26878,7 @@
                   </div>
                 )}
 
-                {/* Custom item form */}
-                {!isReadonly && showCustomForm && (
-                  <div style={{ border: '0.5px solid rgba(28,25,23,0.1)', padding: '1rem', marginBottom: '0.75rem', background: 'rgba(28,25,23,0.02)' }}>
-                    <div style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: '0.75rem' }}>Custom Item</div>
-                    <div className="rof-field-row">
-                      <div className="rof-field">
-                        <label>Item Name *</label>
-                        <input type="text" maxLength={200} placeholder="e.g. Custom threshold piece" value={customItem.product_name}
-                          onChange={e => setCustomItem(c => ({ ...c, product_name: e.target.value }))} />
-                      </div>
-                      <div className="rof-field">
-                        <label>Description</label>
-                        <input type="text" maxLength={500} placeholder="e.g. 36in marble saddle, honed" value={customItem.description}
-                          onChange={e => setCustomItem(c => ({ ...c, description: e.target.value }))} />
-                      </div>
-                    </div>
-                    <div className="rof-field-row">
-                      <div className="rof-field">
-                        <label>Vendor / source</label>
-                        <OneOffVendorPicker vendors={quoteVendors} vendorId={customItem.vendor_id} customVendor={customItem.custom_vendor} customVendorEmail={customItem.custom_vendor_email} emailOptional
-                          onChange={(vid, cv, cve) => setCustomItem(c => ({ ...c, vendor_id: vid, custom_vendor: cv, custom_vendor_email: cve }))} />
-                      </div>
-                      <div className="rof-field" />
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                      <div className="rof-field" style={{ width: 110, marginBottom: 0 }}>
-                        <label>Sold By *</label>
-                        <select value={customItem.sell_by} onChange={e => setCustomItem(c => ({ ...c, sell_by: e.target.value }))}>
-                          <option value="box">Box</option>
-                          <option value="unit">Unit</option>
-                          <option value="piece">Piece</option>
-                          <option value="roll">Roll</option>
-                        </select>
-                      </div>
-                      <div className="rof-field" style={{ width: 80, marginBottom: 0 }}>
-                        <label>{customItem.sell_by === 'unit' ? 'Qty *' : customItem.sell_by === 'piece' ? 'Pieces *' : customItem.sell_by === 'roll' ? 'SqFt *' : 'Boxes *'}</label>
-                        <input type="number" min="1" value={customItem.num_boxes}
-                          onChange={e => setCustomItem(c => ({ ...c, num_boxes: e.target.value }))} />
-                      </div>
-                      <div className="rof-field" style={{ width: 100, marginBottom: 0 }}>
-                        <label>Unit Price *</label>
-                        <input type="number" step="0.01" min="0" placeholder="0.00" value={customItem.unit_price}
-                          onChange={e => setCustomItem(c => ({ ...c, unit_price: e.target.value }))} />
-                      </div>
-                      <div className="rof-field" style={{ width: 100, marginBottom: 0 }}>
-                        <label>SqFt (opt.)</label>
-                        <input type="number" step="0.1" min="0" placeholder="N/A" value={customItem.sqft_needed}
-                          onChange={e => setCustomItem(c => ({ ...c, sqft_needed: e.target.value }))} />
-                      </div>
-                      <button className="rof-btn-light primary" onClick={addCustomItemToQuote}
-                        disabled={!customItem.product_name || !customItem.unit_price}
-                        style={{ padding: '0.5rem 1rem' }}>
-                        Add
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {/* Custom items are added through the catalog popup's Custom-item tab. */}
 
                 {/* Header row */}
                 {quoteItems.length > 0 && (
