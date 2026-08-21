@@ -138,9 +138,12 @@ function loadTtf() {
 
 const PLANK_LONG =
   'Evolv by TrueTouch — MonoTech 100% waterproof engineered real-wood plank. ' +
-  '9-3/8" x 60" planks, 12 mm thick. Built on a monolithic platform of real wood ' +
-  'engineered for full waterproof, scratch- and pet-resistant performance, so it ' +
-  'installs on any level of the home. ~27.44 sq ft per box. Sold by the box.';
+  '9-3/8" (9.37") x 60" planks, 12 mm thick, built on a monolithic platform of ' +
+  'solid real wood — 90% harder than oak and 30% denser than ipe. Fully ' +
+  'waterproof, scratch-resistant and pet-proof, so it installs on any level of ' +
+  'the home. ~27.44 sq ft per box; sold by the box. Warranty: limited lifetime ' +
+  'residential (lifetime pet-proof, waterproof and scratch-resistant) plus a ' +
+  '15-year limited commercial warranty.';
 const PLANK_SHORT = 'MonoTech waterproof engineered real-wood plank — 9-3/8 x 60 in, 12 mm.';
 
 // ==================== Main ====================
