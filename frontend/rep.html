@@ -25389,12 +25389,18 @@
       const [quoteItems, setQuoteItems] = useState([]);
       const [loading, setLoading] = useState(!!editId);
       const [saving, setSaving] = useState(false);
+      const [savedFlash, setSavedFlash] = useState(false);
       const [form, setForm] = useState({
         customer_name: '', customer_first: '', customer_middle: '', customer_last: '', customer_email: '', phone: '', company_name: '',
         shipping_address_line1: '', shipping_address_line2: '',
         shipping_city: '', shipping_state: '', shipping_zip: '', notes: '',
         delivery_method: 'pickup', shipping: ''
       });
+
+      // "✓ Saved" stays visible after a save until the rep adjusts the form again.
+      // saveQuote's reload doesn't touch `form`, so the flag survives the save and
+      // only clears when the rep actually edits a field.
+      useEffect(() => { setSavedFlash(false); }, [form]);
 
       // Draft system — create mode only (an existing quote persists server-side).
       const quoteSavedRef = useRef(false);
@@ -25973,6 +25979,9 @@
               setPromoResult(null);
               setPromoCode('');
             }
+            // Show "Saved" and keep it until the next adjustment (the form-change
+            // effect clears it when the rep edits anything).
+            setSavedFlash(true);
           }
         } catch (err) { alert(err.message || 'Failed to save quote'); }
         setSaving(false);
@@ -26361,6 +26370,9 @@
               {quote && quote.status === 'sent' && (
                 <button className="ol-header-btn" onClick={openPreview} disabled={saving}>Send revision</button>
               )}
+              {savedFlash && !saving && (
+                <span style={{ alignSelf: 'center', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#3f7d5a' }}>{'✓'} Saved</span>
+              )}
               {!isReadonly && editId && (
                 <button className="ol-header-btn primary" onClick={saveQuote} disabled={saveDisabled}>
                   {saving ? 'Saving…' : 'Save changes'}
@@ -26746,6 +26758,9 @@
                               style={{ width: 72, border: 'none', borderBottom: '0.5px solid rgba(28,25,23,0.33)', background: 'transparent', outline: 'none', font: '400 17px/1 var(--roma-serif)', color: '#1c1917', padding: '0 0 2px', textAlign: 'right' }} />
                           </span>
                         </span>
+                        {savedFlash && !saving && (
+                          <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#3f7d5a' }}>{'✓'} Saved</span>
+                        )}
                         {!isReadonly && (
                           <button className="rof-btn rof-btn-primary" onClick={saveQuote} disabled={saveDisabled}
                             style={{ padding: '0.4rem 0.9rem' }}>
@@ -27232,6 +27247,9 @@
                     form.delivery_method === 'pickup' ? 'Pickup' : form.delivery_method === 'will_call' ? 'Will-call' : 'Shipping',
                   ].filter(Boolean).join(' · ')}
                 </span>
+              )}
+              {savedFlash && !saving && (
+                <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7fb98f' }}>{'✓'} Saved</span>
               )}
             </div>
             {!editId ? (
