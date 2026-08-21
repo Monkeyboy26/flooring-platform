@@ -22990,8 +22990,11 @@ app.get('/api/rep/quotes/:id', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const quote = await pool.query(`
-      SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name
-      FROM quotes q LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
+      SELECT q.*, sr.first_name || ' ' || sr.last_name as rep_name,
+        o.order_number as converted_order_number
+      FROM quotes q
+      LEFT JOIN staff_accounts sr ON sr.id = q.sales_rep_id
+      LEFT JOIN orders o ON o.id = q.converted_order_id
       WHERE q.id = $1
     `, [id]);
     if (!quote.rows.length) return res.status(404).json({ error: 'Quote not found' });

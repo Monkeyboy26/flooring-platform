@@ -26348,7 +26348,7 @@
             ? (quote.status === 'declined' ? 'marked lost' : 'quote expired')
             : (quote && ['accepted', 'converted'].includes(quote.status)) ? 'customer committed'
             : expiresAt ? 'expires ' + fmtD(expiresAt) : 'awaiting customer' },
-        { label: 'Converted', meta: quote && quote.converted_order_id ? 'order created' : 'locks pricing + payment' },
+        { label: 'Converted', meta: quote && quote.converted_order_number ? quote.converted_order_number : quote && quote.converted_order_id ? 'order created' : 'locks pricing + payment' },
       ];
       const deadStepIndex = 3;   // a dead quote (declined/expired) failed at the Accepted decision
       // Per-step state. Dead quotes reflect actual engagement (Viewed ✓ only if the
@@ -27314,7 +27314,7 @@
             <div className="rof-action-left">
               <span>
                 <span style={{ display: 'block', font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(245,240,232,0.47)' }}>
-                  {editId && quote ? quote.quote_number + ' · ' + st.label : 'New quote · draft'}
+                  {editId && quote ? quote.quote_number + ' · ' + st.label + (quote.converted_order_number ? ' · ' + quote.converted_order_number : '') : 'New quote · draft'}
                 </span>
                 <span className="rof-action-total" style={{ display: 'block', marginTop: 4 }}>${displayTotal.toFixed(2)}</span>
               </span>
