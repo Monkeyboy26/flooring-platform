@@ -17681,16 +17681,19 @@ app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
 // These live in customer_notes with order_id set, so a note added on an order is
 // shown only on that order — never on the customer profile or the customer's
 // other orders. Ownership-scoped to the rep's own (or unassigned) orders.
-async function repOwnsOrder(orderId, repId) {
+// Internal notes are team-collaborative: any rep may view/add/edit/delete notes
+// on any order (mirrors the Team scope on the list views). Just resolves the
+// order so the note handlers can 404 on a bad id and derive customer_ref.
+async function orderForNotes(orderId) {
   const r = await pool.query(
-    'SELECT id, trade_customer_id, customer_id, customer_email FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)',
-    [orderId, repId]);
+    'SELECT id, trade_customer_id, customer_id, customer_email FROM orders WHERE id = $1',
+    [orderId]);
   return r.rows[0] || null;
 }
 
 app.get('/api/rep/orders/:id/notes', repAuth, async (req, res) => {
   try {
-    const order = await repOwnsOrder(req.params.id, req.rep.id);
+    const order = await orderForNotes(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
     const notes = await pool.query(`
       SELECT cn.*, COALESCE(
@@ -17704,7 +17707,7 @@ app.get('/api/rep/orders/:id/notes', repAuth, async (req, res) => {
 
 app.post('/api/rep/orders/:id/notes', repAuth, async (req, res) => {
   try {
-    const order = await repOwnsOrder(req.params.id, req.rep.id);
+    const order = await orderForNotes(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
     const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
     if (!note) return res.status(400).json({ error: 'Note text is required' });
@@ -17721,7 +17724,7 @@ app.post('/api/rep/orders/:id/notes', repAuth, async (req, res) => {
 
 app.put('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
   try {
-    const order = await repOwnsOrder(req.params.id, req.rep.id);
+    const order = await orderForNotes(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
     const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
     if (!note) return res.status(400).json({ error: 'Note text is required' });
@@ -17740,7 +17743,7 @@ app.put('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
 
 app.delete('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
   try {
-    const order = await repOwnsOrder(req.params.id, req.rep.id);
+    const order = await orderForNotes(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
     const result = await pool.query(
       'DELETE FROM customer_notes WHERE id = $1 AND order_id = $2 RETURNING id',
@@ -17752,18 +17755,18 @@ app.delete('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
 
 // ── Quote internal notes ─────────────────────────────────────────────────────
 // Multi-entry, author + timestamp, edit/delete — mirrors the order notes above,
-// stored in customer_notes keyed by quote_id. Ownership matches repOwnsOrder
-// (own quote or unassigned).
-async function repOwnsQuote(quoteId, repId) {
+// stored in customer_notes keyed by quote_id. Team-collaborative like the order
+// notes above: any rep may view/add/edit/delete notes on any quote.
+async function quoteForNotes(quoteId) {
   const r = await pool.query(
-    'SELECT id, trade_customer_id, customer_id, customer_email FROM quotes WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)',
-    [quoteId, repId]);
+    'SELECT id, trade_customer_id, customer_id, customer_email FROM quotes WHERE id = $1',
+    [quoteId]);
   return r.rows[0] || null;
 }
 
 app.get('/api/rep/quotes/:id/notes', repAuth, async (req, res) => {
   try {
-    const quote = await repOwnsQuote(req.params.id, req.rep.id);
+    const quote = await quoteForNotes(req.params.id);
     if (!quote) return res.status(404).json({ error: 'Quote not found' });
     const notes = await pool.query(`
       SELECT cn.*, COALESCE(
@@ -17776,7 +17779,7 @@ app.get('/api/rep/quotes/:id/notes', repAuth, async (req, res) => {
 
 app.post('/api/rep/quotes/:id/notes', repAuth, async (req, res) => {
   try {
-    const quote = await repOwnsQuote(req.params.id, req.rep.id);
+    const quote = await quoteForNotes(req.params.id);
     if (!quote) return res.status(404).json({ error: 'Quote not found' });
     const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
     if (!note) return res.status(400).json({ error: 'Note text is required' });
@@ -17793,7 +17796,7 @@ app.post('/api/rep/quotes/:id/notes', repAuth, async (req, res) => {
 
 app.put('/api/rep/quotes/:id/notes/:noteId', repAuth, async (req, res) => {
   try {
-    const quote = await repOwnsQuote(req.params.id, req.rep.id);
+    const quote = await quoteForNotes(req.params.id);
     if (!quote) return res.status(404).json({ error: 'Quote not found' });
     const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
     if (!note) return res.status(400).json({ error: 'Note text is required' });
@@ -17811,7 +17814,7 @@ app.put('/api/rep/quotes/:id/notes/:noteId', repAuth, async (req, res) => {
 
 app.delete('/api/rep/quotes/:id/notes/:noteId', repAuth, async (req, res) => {
   try {
-    const quote = await repOwnsQuote(req.params.id, req.rep.id);
+    const quote = await quoteForNotes(req.params.id);
     if (!quote) return res.status(404).json({ error: 'Quote not found' });
     const result = await pool.query(
       'DELETE FROM customer_notes WHERE id = $1 AND quote_id = $2 RETURNING id',
