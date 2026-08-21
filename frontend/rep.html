@@ -1076,6 +1076,7 @@
       display: grid; grid-template-columns: repeat(6, 1fr);
       border: 0.5px solid rgba(28,25,23,0.14); background: #ece5d8; margin-bottom: 16px;
     }
+    .qw-stepper.cols-5 { grid-template-columns: repeat(5, 1fr); }
     .qw-stepper.cols-4 { grid-template-columns: repeat(4, 1fr); }
     .qw-stepper.cols-3 { grid-template-columns: repeat(3, 1fr); }
     .qw-step { padding: 14px 16px; border-left: 0.5px solid rgba(28,25,23,0.1); border-top: 2px solid transparent; }
@@ -1163,6 +1164,10 @@
     }
     .qw-expiry-track { margin-top: 10px; height: 3px; background: rgba(28,25,23,0.12); }
     .qw-expiry-fill { height: 100%; background: var(--gold, #c9a668); }
+    .qw-expiry-card.expired { background: #efe4de; border-color: rgba(197,71,49,0.4); }
+    .qw-expiry-card.expired .qw-expiry-label,
+    .qw-expiry-card.expired .qw-expiry-big { color: #c54731; }
+    .qw-expiry-card.expired .qw-expiry-fill { background: #c54731; }
     .qw-total-row { display: flex; justify-content: space-between; font: 400 13px/1.4 'Inter', sans-serif; color: var(--stone-900); }
     .qw-total-row .k { color: var(--brass-muted); }
     .qw-total-big {
@@ -7492,6 +7497,36 @@
       );
     }
 
+    // ---- Global toast ----------------------------------------------------
+    // Any handler can call repToast('Saved') to flash a brief confirmation.
+    // Used by the action-based workspaces (orders/visits/samples) that save-
+    // and-navigate or mutate in place, where the inline "Saved" chip on a
+    // stay-put form (quotes/estimates) doesn't fit.
+    const repToastListeners = new Set();
+    function repToast(message) { repToastListeners.forEach(fn => { try { fn(message); } catch (e) {} }); }
+    function RepToast() {
+      const [msg, setMsg] = useState(null);
+      const timer = useRef(null);
+      useEffect(() => {
+        const fn = (m) => {
+          setMsg(m);
+          if (timer.current) clearTimeout(timer.current);
+          timer.current = setTimeout(() => setMsg(null), 2600);
+        };
+        repToastListeners.add(fn);
+        return () => { repToastListeners.delete(fn); if (timer.current) clearTimeout(timer.current); };
+      }, []);
+      if (!msg) return null;
+      return (
+        <div style={{ position: 'fixed', left: '50%', bottom: 92, transform: 'translateX(-50%)', zIndex: 4000,
+          display: 'flex', alignItems: 'center', gap: 8, background: '#1c1917', color: '#ece5d8',
+          padding: '11px 20px', boxShadow: '0 8px 30px rgba(28,25,23,0.28)', pointerEvents: 'none',
+          font: '500 10px/1 Inter, sans-serif', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+          <span style={{ color: '#7fb98f', fontSize: 12 }}>{'✓'}</span>{msg}
+        </div>
+      );
+    }
+
     function App() {
       const [authed, setAuthed] = useState(false);
       const [checking, setChecking] = useState(true);
@@ -10205,6 +10240,7 @@
             navigate={navigate}
             onSeeAll={(q) => { navigate('search-results'); setSearchQuery(q); }}
           />}
+          <RepToast />
         </div>
       );
     }
@@ -17909,6 +17945,7 @@
           });
           sampleSavedRef.current = true;            // saved server-side — not a draft anymore
           rofDraftStore.clear('sample-create');
+          repToast('Sample request saved');
           navigate('sample-detail', created.sample_request.id);
         } catch (err) {
           alert('Error: ' + (err.message || 'Failed to create'));
@@ -18237,6 +18274,7 @@
             body: JSON.stringify({ tracking_number: trackingInput.trim() || null })
           });
           setShowTrackingInput(false);
+          repToast('Marked shipped');
           load();
         } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
         setActing(false);
@@ -18246,6 +18284,7 @@
         setActing(true);
         try {
           await repFetch('/api/rep/sample-requests/' + editId + '/deliver', { method: 'PUT' });
+          repToast('Marked delivered');
           load();
         } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
         setActing(false);
@@ -18256,6 +18295,7 @@
         setActing(true);
         try {
           await repFetch('/api/rep/sample-requests/' + editId + '/cancel', { method: 'PUT' });
+          repToast('Sample cancelled');
           load();
         } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
         setActing(false);
@@ -19740,6 +19780,7 @@
           }
           visitSavedRef.current = true;             // saved server-side — not a draft anymore
           rofDraftStore.clear('visit-builder');
+          repToast(andSend ? 'Visit sent' : 'Visit saved');
           navigate('visit-detail', created.visit.id);
         } catch (err) {
           alert('Error: ' + (err.message || 'Failed to save'));
@@ -21183,6 +21224,15 @@
     // ========== RepOrderDetailView ==========
     function RepOrderDetailView({ navigate, editId, terminalRef, terminalStatus, connectReader, showCost }) {
       const [order, setOrder] = useState(null);
+      // Brief "✓ Saved" confirmation shown in the bottom action bar after any
+      // in-place save (freight, status, schedule, job name, …).
+      const [savedMsg, setSavedMsg] = useState(null);
+      const savedTimer = useRef(null);
+      const flagSaved = (m) => {
+        setSavedMsg(m || 'Saved');
+        if (savedTimer.current) clearTimeout(savedTimer.current);
+        savedTimer.current = setTimeout(() => setSavedMsg(null), 4000);
+      };
       const [items, setItems] = useState([]);
       const [adjustments, setAdjustments] = useState([]);
       const [loading, setLoading] = useState(true);
@@ -21439,6 +21489,7 @@
           });
           if (data.order) setOrder(data.order);
           setShowScheduleForm(false);
+          flagSaved('Install scheduled');
           loadOrderActivity();
         } catch (err) { alert(err.message || 'Failed to save schedule'); }
         setSavingSchedule(false);
@@ -21743,6 +21794,7 @@
             body: JSON.stringify(body)
           });
           if (data.order) setOrder(data.order);
+          flagSaved('Status updated');
           loadPOs();
           setShowTrackingForm(false);
           setShowCancelForm(false);
@@ -22024,6 +22076,7 @@
                       try {
                         const data = await repFetch('/api/rep/orders/' + editId + '/job-name', { method: 'PUT', body: JSON.stringify({ job_name: next }) });
                         if (data.order) setOrder(data.order);
+                        flagSaved('Saved');
                         loadOrderActivity();
                       } catch (err) { alert(err.message || 'Failed to save job name'); }
                     }}
@@ -22710,7 +22763,7 @@
                     setDeliveryUpdating(true);
                     try {
                       const data = await repFetch('/api/rep/orders/' + editId + '/delivery-method', { method: 'PUT', body: JSON.stringify({ delivery_method: 'shipping', manual_shipping_amount: parseFloat(freightAmount) }) });
-                      if (data.order) { setOrder(data.order); setFreightAmount(''); setEditingFreight(false); }
+                      if (data.order) { setOrder(data.order); setFreightAmount(''); setEditingFreight(false); flagSaved('Freight saved'); }
                       if (data.balance) setBalanceInfo(data.balance);
                     } catch (err) {}
                     setDeliveryUpdating(false);
@@ -23401,9 +23454,12 @@
                     : 'Paid in full',
                 ].filter(Boolean).join(' · ')}
               </span>
+              {savedMsg && (
+                <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7fb98f' }}>{'✓'} {savedMsg}</span>
+              )}
             </div>
             {!hasUnreleasedMaterials && (
-              <button className="rof-btn" onClick={() => navigate('orders')}>Back to orders</button>
+              <button className="rof-btn rof-btn-primary" onClick={() => navigate('orders')}>Save &amp; close</button>
             )}
             {order.status === 'cancelled' && !order.stripe_refund_id && (
               <button className="rof-btn" onClick={() => { if (confirm('Reopen this order? It will return to Pending status.')) updateStatus('pending'); }} disabled={updating}>
@@ -26052,6 +26108,17 @@
         convertQuoteWithPI(null);
       };
 
+      const [reinstating, setReinstating] = useState(false);
+      const reinstateQuote = async () => {
+        if (!editId) return;
+        setReinstating(true);
+        try {
+          const data = await repFetch('/api/rep/quotes/' + editId + '/reinstate', { method: 'POST' });
+          if (data.quote) { setQuote(data.quote); loadEvents(); }
+        } catch (err) { alert(err.message || 'Failed to reinstate quote'); }
+        setReinstating(false);
+      };
+
       const loadEvents = () => {
         if (!editId) { setEvents([]); setEngagement(null); return; }
         repFetch('/api/rep/quotes/' + editId + '/events')
@@ -26233,8 +26300,13 @@
         expired: { label: 'Expired', tone: 'var(--brass-muted)' },
       };
       const st = quote ? (STATUS_META[quote.status] || { label: quote.status, tone: 'var(--brass-muted)' }) : { label: 'New draft', tone: '#a87935' };
-      const isDead = quote && ['declined', 'expired'].includes(quote.status);
       const expiresAt = quote && quote.expires_at ? new Date(quote.expires_at) : null;
+      // A quote still marked "sent" but past its expiry date is effectively expired
+      // (the server hasn't flipped the status yet) — treat it as dead so the stepper
+      // matches the "Expired" state shown in the rail/list.
+      const isExpired = quote && (quote.status === 'expired' ||
+        (quote.status === 'sent' && expiresAt && expiresAt.getTime() < Date.now()));
+      const isDead = quote && (quote.status === 'declined' || isExpired);
       const daysLeft = expiresAt ? Math.ceil((expiresAt.getTime() - Date.now()) / 86400000) : null;
       const expiryPct = (expiresAt && quote.created_at && expiresAt.getTime() > new Date(quote.created_at).getTime())
         ? Math.min(100, Math.max(0, (Date.now() - new Date(quote.created_at).getTime()) / (expiresAt.getTime() - new Date(quote.created_at).getTime()) * 100))
@@ -26256,12 +26328,12 @@
         new Date(lastReplyAt) > new Date(lastSentEvent.created_at) &&
         new Date(lastReplyAt) - new Date(lastSentEvent.created_at) < 86400000);
 
-      // 6-step lifecycle: Drafted → Sent → Viewed → Replied → Accepted → Converted
+      // 5-step lifecycle: Drafted → Sent → Viewed → Accepted → Converted
       let stepRank = 0;
       if (quote) {
-        if (quote.status === 'converted') stepRank = 5;
-        else if (quote.status === 'accepted' || isDead) stepRank = 4;
-        else if (quote.status === 'sent') stepRank = engReplies > 0 ? 3 : engOpens > 0 ? 2 : 1;
+        if (quote.status === 'converted') stepRank = 5;   // all steps complete → Converted shows ✓, not ●
+        else if (quote.status === 'accepted' || isDead) stepRank = 3;
+        else if (quote.status === 'sent') stepRank = engOpens > 0 ? 2 : 1;
       }
       const steps = [
         { label: 'Drafted', meta: quote ? fmtD(quote.created_at) : 'not saved yet' },
@@ -26272,14 +26344,24 @@
         { label: 'Viewed', meta: engOpens > 0
             ? engOpens + (engOpens === 1 ? ' open · ' : ' opens · ') + engViewers + (engViewers === 1 ? ' viewer' : ' viewers')
             : 'no opens yet' },
-        { label: 'Replied', meta: engReplies > 0 ? fmtDT(lastReplyAt) : 'log replies in thread' },
         { label: 'Accepted', meta: isDead
             ? (quote.status === 'declined' ? 'marked lost' : 'quote expired')
             : (quote && ['accepted', 'converted'].includes(quote.status)) ? 'customer committed'
             : expiresAt ? 'expires ' + fmtD(expiresAt) : 'awaiting customer' },
         { label: 'Converted', meta: quote && quote.converted_order_id ? 'order created' : 'locks pricing + payment' },
       ];
-      const deadStepIndex = 4;
+      const deadStepIndex = 3;   // a dead quote (declined/expired) failed at the Accepted decision
+      // Per-step state. Dead quotes reflect actual engagement (Viewed ✓ only if the
+      // customer opened it) instead of a blanket "done", and show ✕ on Accepted.
+      const stepState = (i) => {
+        if (isDead) {
+          if (i === deadStepIndex) return 'dead';
+          if (i > deadStepIndex) return 'next';
+          if (i === 2) return engOpens > 0 ? 'done' : 'next';   // Viewed
+          return 'done';                                         // Drafted, Sent
+        }
+        return i < stepRank ? 'done' : i === stepRank ? 'now' : 'next';
+      };
 
       // Rep-only economics (shown via the cost toggle); a $0 vendor cost means "cost unknown", not 100% margin
       const costedItems = quoteItems.filter(i => parseFloat(i.vendor_cost) > 0 && parseFloat(i.unit_price) > 0 && !i.is_sample);
@@ -26297,7 +26379,7 @@
       const displayShipping = quote ? parseFloat(quote.shipping || 0) : 0;
       const displayTotal = (quote ? parseFloat(quote.total) : calcSubtotal) - (promoResult && !quote ? promoResult.discount_amount : 0);
       const initials = (form.customer_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
-      const canConvert = editId && quote && ['draft', 'sent', 'accepted'].includes(quote.status);
+      const canConvert = editId && quote && ['draft', 'sent', 'accepted'].includes(quote.status) && !isExpired;
       const saveDisabled = saving || !form.customer_name || form.customer_name.trim().split(/\s+/).length < 2 || !form.customer_email || !isValidEmail(form.customer_email) || !form.phone || !isValidPhone(form.phone) || !!customerMatch;
 
       // Draft checklist — guides quote creation in the rail
@@ -26394,9 +26476,9 @@
           )}
 
           {/* Lifecycle stepper */}
-          <div className="qw-stepper">
+          <div className="qw-stepper cols-5">
             {steps.map((s, i) => {
-              const state = i < stepRank ? 'done' : i === stepRank ? (isDead && i === deadStepIndex ? 'dead' : 'now') : 'next';
+              const state = stepState(i);
               return (
                 <div key={s.label} className={'qw-step ' + state}>
                   <div className="qw-step-label">
@@ -27048,10 +27130,10 @@
             {/* ── Decision rail ── */}
             <aside className="qw-rail">
               {quote && expiresAt && ['draft', 'sent', 'accepted'].includes(quote.status) && (
-                <div className="qw-expiry-card">
-                  <div className="qw-expiry-label">{'●'} {quote.status === 'accepted' ? 'Accepted — convert before expiry' : 'Awaiting acceptance'}</div>
+                <div className={'qw-expiry-card' + (isExpired ? ' expired' : '')}>
+                  <div className="qw-expiry-label">{'●'} {isExpired ? 'Quote expired' : quote.status === 'accepted' ? 'Accepted — convert before expiry' : 'Awaiting acceptance'}</div>
                   <div className="qw-expiry-big">{daysLeft <= 0 ? 'Expired' : daysLeft + (daysLeft === 1 ? ' day left' : ' days left')}</div>
-                  <div className="qw-expiry-sub">Expires {expiresAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                  <div className="qw-expiry-sub">{isExpired ? 'Expired ' : 'Expires '}{expiresAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
                   <div className="qw-expiry-track">
                     <div className="qw-expiry-fill" style={{ width: expiryPct + '%' }} />
                   </div>
@@ -27182,6 +27264,18 @@
                   </button>
                   {expiresAt && <div className="qw-convert-note">Quoted pricing held until {fmtD(expiresAt)}</div>}
                   {!expiresAt && quoteItems.length === 0 && <div className="qw-convert-note">Add lines before converting</div>}
+                </div>
+              )}
+
+              {editId && isExpired && (
+                <div className="qw-convert-card">
+                  <div className="qw-convert-label">Quote expired</div>
+                  <div className="qw-convert-copy">
+                    Payment is blocked on an expired quote. Reinstate it to refresh the pricing window (10 days) and convert.
+                  </div>
+                  <button className="qw-convert-btn" onClick={reinstateQuote} disabled={reinstating}>
+                    {reinstating ? 'Reinstating…' : <React.Fragment>Reinstate quote {'→'}</React.Fragment>}
+                  </button>
                 </div>
               )}
 

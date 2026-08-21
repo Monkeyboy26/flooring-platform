@@ -13854,6 +13854,9 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
     const quoteRes = await client.query('SELECT * FROM quotes WHERE id = $1 AND trade_customer_id = $2', [req.params.id, req.tradeCustomer.id]);
     if (!quoteRes.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const q = quoteRes.rows[0];
+    if (q.status === 'expired' || (q.expires_at && new Date(q.expires_at).getTime() < Date.now() && ['sent', 'accepted'].includes(q.status))) {
+      return res.status(400).json({ error: 'This quote has expired. Please contact your rep to reinstate it before paying.' });
+    }
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const tradeActorName = req.tradeCustomer.contact_name || req.tradeCustomer.company_name || q.customer_name;
@@ -14011,6 +14014,9 @@ app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) =
     const quoteRes = await client.query("SELECT * FROM quotes WHERE id = $1 AND customer_id = $2 AND status != 'draft'", [req.params.id, req.customer.id]);
     if (!quoteRes.rows.length) return res.status(404).json({ error: 'Quote not found' });
     const q = quoteRes.rows[0];
+    if (q.status === 'expired' || (q.expires_at && new Date(q.expires_at).getTime() < Date.now() && ['sent', 'accepted'].includes(q.status))) {
+      return res.status(400).json({ error: 'This quote has expired. Please contact your rep to reinstate it before paying.' });
+    }
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
@@ -23301,6 +23307,25 @@ app.delete('/api/rep/quotes/:id/items/:itemId', repAuth, async (req, res) => {
   }
 });
 
+// Reinstate an expired (or lost) quote: refresh the 10-day validity window and
+// return it to "sent" so conversion/payment is unblocked again.
+app.post('/api/rep/quotes/:id/reinstate', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const r = await pool.query('SELECT status FROM quotes WHERE id = $1', [id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Quote not found' });
+    if (r.rows[0].status === 'converted') return res.status(400).json({ error: 'Quote already converted' });
+    const newExpiry = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+    const upd = await pool.query(
+      "UPDATE quotes SET status = 'sent', expires_at = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
+      [id, newExpiry]);
+    await logQuoteEvent(pool, id, 'reinstated', {
+      actor: 'rep', actorName: req.rep.first_name + ' ' + req.rep.last_name, meta: { expires_at: newExpiry }
+    });
+    res.json({ quote: upd.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 app.post('/api/rep/quotes/:id/send', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -23479,6 +23504,12 @@ app.post('/api/rep/quotes/:id/convert', repAuth, async (req, res) => {
     const q = quoteResult.rows[0];
     if (q.status === 'converted') {
       return res.status(400).json({ error: 'Quote already converted' });
+    }
+    // An expired quote can't be converted or paid until a rep reinstates it.
+    const quoteExpired = q.status === 'expired' ||
+      (q.expires_at && new Date(q.expires_at).getTime() < Date.now() && ['sent', 'accepted'].includes(q.status));
+    if (quoteExpired) {
+      return res.status(400).json({ error: 'This quote has expired — reinstate it before converting.' });
     }
 
     const itemsResult = await client.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [id]);
