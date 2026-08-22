@@ -1190,6 +1190,9 @@ CREATE TABLE IF NOT EXISTS sample_requests (
 );
 CREATE INDEX IF NOT EXISTS idx_sample_requests_rep ON sample_requests(rep_id);
 CREATE INDEX IF NOT EXISTS idx_sample_requests_status ON sample_requests(status);
+-- Set once when every sample on the request is marked ready, so the customer
+-- "your samples are ready" email fires exactly once (dedupe guard).
+ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS all_ready_notified_at TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS sample_request_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

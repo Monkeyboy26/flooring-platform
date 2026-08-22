@@ -8,7 +8,7 @@ import XLSX from 'xlsx';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -10028,7 +10028,11 @@ async function searchSkus(pool, rawQuery) {
       merged.push(row);
     }
   }
-  return merged.slice(0, 20);
+  const out = merged.slice(0, 20);
+  // Stamp each result with the PDP-identical title (display_name) so every staff
+  // search/add surface names a product exactly like the storefront. See [[line-item-display]].
+  await enrichItemsForNaming(out);
+  return out;
 }
 
 // SKU search for add-item (admin)
@@ -13748,6 +13752,7 @@ app.post('/api/trade/bulk-order', tradeAuth, async (req, res) => {
       });
     }
 
+    await enrichItemsForNaming(validated);
     res.json({ validated_items: validated, errors, total: validated.reduce((sum, i) => sum + i.subtotal, 0) });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -15457,6 +15462,7 @@ app.post('/api/rep/visits', repAuth, async (req, res) => {
     }
 
     await client.query('COMMIT');
+    await enrichItemsForNaming(resolvedItems);
     res.json({ visit, items: resolvedItems });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -15505,6 +15511,7 @@ app.get('/api/rep/visits/:id', repAuth, async (req, res) => {
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
 
     const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [req.params.id]);
+    await enrichItemsForNaming(itemsRes.rows);
     res.json({ visit: visitRes.rows[0], items: itemsRes.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -15609,6 +15616,7 @@ app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
     await client.query('COMMIT');
     const updatedVisit = await pool.query('SELECT * FROM showroom_visits WHERE id = $1', [req.params.id]);
     const updatedItems = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [req.params.id]);
+    await enrichItemsForNaming(updatedItems.rows);
     res.json({ visit: updatedVisit.rows[0], items: updatedItems.rows });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -15706,6 +15714,7 @@ app.get('/api/admin/visits/:id', staffAuth, requireRole('admin', 'manager', 'sal
     `, [req.params.id]);
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
     const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [req.params.id]);
+    await enrichItemsForNaming(itemsRes.rows);
     res.json({ visit: visitRes.rows[0], items: itemsRes.rows });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -15794,6 +15803,7 @@ app.get('/api/visit-recap/:token', async (req, res) => {
     }
 
     const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [visit.id]);
+    await enrichItemsForNaming(itemsRes.rows);
 
     res.json({
       visit: {
@@ -15958,6 +15968,21 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
       `, [sample_request.id, productId, skuId, productName, collection, variantName, primaryImage, i]);
       resolvedItems.push(itemRes.rows[0]);
+    }
+
+    // Initial internal notes staged on the create form → customer_notes thread,
+    // authored by the rep. Insert oldest-first (staged array is newest-first) so
+    // created_at ordering matches the order the rep added them.
+    const internalNotes = Array.isArray(req.body.internal_notes) ? req.body.internal_notes : [];
+    const noteCt = cust && cust.id ? 'retail' : 'guest';
+    const noteRef = String((cust && cust.id) || customer_email || sample_request.id);
+    for (let k = internalNotes.length - 1; k >= 0; k--) {
+      const noteText = String(internalNotes[k] || '').trim();
+      if (!noteText) continue;
+      await client.query(
+        `INSERT INTO customer_notes (customer_type, customer_ref, sample_request_id, staff_id, note)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [noteCt, noteRef, sample_request.id, req.rep.id, noteText.slice(0, 4000)]);
     }
 
     await client.query('COMMIT');
@@ -16220,6 +16245,54 @@ app.put('/api/rep/sample-requests/:id/items/:itemId/status', repAuth, async (req
     if (!result.rows.length) return res.status(404).json({ error: 'Item not found' });
 
     res.json({ item: result.rows[0] });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Send the "your samples are ready" email to the customer. Rep-confirmed (the UI
+// prompts once every sample is ready), so this endpoint just validates + sends.
+// A conditional UPDATE claims the notify slot atomically so it can only send once.
+app.post('/api/rep/sample-requests/:id/notify-ready', repAuth, async (req, res) => {
+  try {
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    const sr = srRes.rows[0];
+
+    const activeRes = await pool.query(
+      "SELECT * FROM sample_request_items WHERE sample_request_id = $1 AND status != 'cancelled' ORDER BY sort_order",
+      [req.params.id]);
+    const active = activeRes.rows;
+    const allReady = active.length > 0 && active.every(i => i.status === 'ready');
+    if (!allReady) return res.status(400).json({ error: 'Not every sample is ready yet' });
+
+    const claim = await pool.query(
+      'UPDATE sample_requests SET all_ready_notified_at = NOW() WHERE id = $1 AND all_ready_notified_at IS NULL RETURNING all_ready_notified_at',
+      [req.params.id]);
+    if (!claim.rows.length) return res.status(409).json({ error: 'The ready email has already been sent', already_sent: true });
+    const notifiedAt = claim.rows[0].all_ready_notified_at;
+
+    if (sr.customer_email) {
+      await enrichItemsForNaming(active);
+      const repRes = await pool.query('SELECT email, first_name, last_name FROM staff_accounts WHERE id = $1', [req.rep.id]);
+      const rep = repRes.rows[0] || {};
+      setImmediate(() => sendSampleRequestReady({
+        customer_name: sr.customer_name,
+        customer_email: sr.customer_email,
+        request_number: sr.request_number,
+        delivery_method: sr.delivery_method,
+        items: active,
+        rep_email: rep.email,
+        rep_first_name: rep.first_name,
+        rep_last_name: rep.last_name
+      }));
+    }
+    setImmediate(() => createRepNotification(pool, req.rep.id, 'sample_request_ready',
+      `Sample request ${sr.request_number} — all samples ready`,
+      `Every sample for ${sr.customer_name} is ready to ${sr.delivery_method === 'pickup' ? 'hand off for pickup' : 'ship'}`,
+      'sample_request', req.params.id));
+
+    res.json({ sent: !!sr.customer_email, notified_at: notifiedAt });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
@@ -20559,6 +20632,7 @@ app.get('/api/rep/skus/search', repAuth, async (req, res) => {
           AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
         WHERE s.id = $1 AND s.status = 'active'
       `, [req.query.sku_id]);
+      await enrichItemsForNaming(result.rows);
       return res.json({ results: result.rows });
     }
     const results = await searchSkus(pool, req.query.q);
@@ -20727,7 +20801,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
 
     // One row per active SKU (product context joined in)
     let query = `
-      SELECT p.*, v.name as vendor_name, v.code as vendor_code, v.public_code as vendor_public_code,
+      SELECT p.*, COALESCE(p.display_name, p.name) as product_name, v.name as vendor_name, v.code as vendor_code, v.public_code as vendor_public_code,
         COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code, br.code as brand_code,
         COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
         c.name as category_name, c.slug as category_slug,
@@ -20879,6 +20953,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
       // Nulls (no usable cost) always sort to the bottom regardless of direction.
       if (sort === 'margin_desc') products.sort((a, b) => (b.margin_pct ?? -Infinity) - (a.margin_pct ?? -Infinity));
       if (sort === 'margin_asc') products.sort((a, b) => (a.margin_pct ?? Infinity) - (b.margin_pct ?? Infinity));
+      await enrichItemsForNaming(products);
       res.json({ products, total, page, limit });
     } else {
       const countQuery = `SELECT COUNT(*)::int as total FROM (${query}) AS counted`;
@@ -20896,6 +20971,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
       // Nulls (no usable cost) always sort to the bottom regardless of direction.
       if (sort === 'margin_desc') products.sort((a, b) => (b.margin_pct ?? -Infinity) - (a.margin_pct ?? -Infinity));
       if (sort === 'margin_asc') products.sort((a, b) => (a.margin_pct ?? Infinity) - (b.margin_pct ?? Infinity));
+      await enrichItemsForNaming(products);
       res.json({ products, total, page, limit });
     }
   } catch (err) {
@@ -21195,6 +21271,18 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
       });
       accessories = [...accessories, ...crossAccessories];
     }
+
+    // Stamp the PDP-identical title on the main SKU + every sibling so the rep
+    // QuickView/detail names each variant exactly like the storefront. Siblings
+    // carry only variant_name + attributes, so borrow the parent's product/
+    // collection/vendor before composing. See [[line-item-display]].
+    await enrichItemsForNaming([sku]);
+    for (const sib of siblings) {
+      if (sib.product_name == null) sib.product_name = sku.product_name;
+      if (sib.collection == null) sib.collection = sku.collection;
+      if (sib.vendor_name == null) sib.vendor_name = sku.vendor_name;
+    }
+    await enrichItemsForNaming(siblings);
 
     res.json({
       sku,
@@ -22128,6 +22216,9 @@ app.get('/api/rep/purchase-orders/:poId/detail', repAuth, async (req, res) => {
       WHERE poi.purchase_order_id = $1
       ORDER BY poi.created_at
     `, [poId]);
+    // Match the PO PDF (which composes names via composeItemName) so the detail
+    // JSON names every line exactly like the storefront. See [[line-item-display]].
+    await enrichItemsForNaming(items.rows);
 
     const activity = await pool.query(
       'SELECT * FROM po_activity_log WHERE purchase_order_id = $1 ORDER BY created_at DESC',

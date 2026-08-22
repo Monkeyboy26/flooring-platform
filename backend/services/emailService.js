@@ -14,6 +14,7 @@ import { generateStaffInviteHTML } from '../templates/staffInvite.js';
 import { generateVisitRecapHTML } from '../templates/visitRecap.js';
 import { generateSampleRequestConfirmationHTML } from '../templates/sampleRequestConfirmation.js';
 import { generateSampleRequestShippedHTML } from '../templates/sampleRequestShipped.js';
+import { generateSampleRequestReadyHTML } from '../templates/sampleRequestReady.js';
 import { generateStockAlertHTML } from '../templates/stockAlert.js';
 import { generateInvoiceSentHTML } from '../templates/invoiceSent.js';
 import { generateInvoiceReminderHTML } from '../templates/invoiceReminder.js';
@@ -567,13 +568,15 @@ export async function sendPasswordReset(email, resetUrl) {
 }
 
 // Staff / admin password reset — operations-console flavored, 7-day link.
-export async function sendStaffPasswordReset(email, firstName, resetUrl) {
+// opts.expiresLabel / opts.loginPath let reps reuse this with a 1-hour link that
+// points at the rep portal instead of the admin console.
+export async function sendStaffPasswordReset(email, firstName, resetUrl, opts = {}) {
   if (!transporter) {
     console.log(`[Email] Skipping staff password reset for ${email} — SMTP not configured`);
     return { sent: false };
   }
   try {
-    const html = generateStaffPasswordResetHTML(firstName, resetUrl, { expiresLabel: '7 days' });
+    const html = generateStaffPasswordResetHTML(firstName, resetUrl, { expiresLabel: opts.expiresLabel || '7 days', loginPath: opts.loginPath });
     await deliver({
       from: NOREPLY_FROM,
       to: email,
@@ -744,6 +747,34 @@ export async function sendSampleRequestShipped(data) {
     console.log(`[Email] Sample request shipped sent to ${data.customer_email} for ${data.request_number}`);
   } catch (err) {
     console.error(`[Email] Failed to send sample request shipped for ${data.request_number}:`, err.message);
+  }
+}
+
+/**
+ * Send "your samples are ready" email to the customer — fired once when every
+ * sample on the request has been marked ready. Copy adapts to pickup vs. shipping.
+ */
+export async function sendSampleRequestReady(data) {
+  if (!transporter) {
+    console.log(`[Email] Skipping sample request ready for ${data.request_number} — SMTP not configured`);
+    return;
+  }
+  if (!data.customer_email) {
+    console.log(`[Email] Skipping sample request ready for ${data.request_number} — no customer email`);
+    return;
+  }
+  try {
+    const html = generateSampleRequestReadyHTML(data);
+    await deliver({
+      from: repFrom(data),
+      to: data.customer_email,
+      replyTo: data.rep_email,
+      subject: `Your Samples Are Ready — ${data.request_number}`,
+      html
+    });
+    console.log(`[Email] Sample request ready sent to ${data.customer_email} for ${data.request_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send sample request ready for ${data.request_number}:`, err.message);
   }
 }
 

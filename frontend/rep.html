@@ -10283,7 +10283,7 @@
         case 'orders': return (row.order_number || '') + ' \u00b7 ' + (row.customer_name || '');
         case 'quotes': return (row.quote_number || '') + ' \u00b7 ' + (row.customer_name || '');
         case 'estimates': return (row.estimate_number || '') + ' \u00b7 ' + (row.customer_name || '');
-        case 'products': return (row.product_name || '') + (row.variant_name ? ' \u00b7 ' + row.variant_name : '');
+        case 'products': return formatLineItem(row).name || row.product_name || '';
         default: return '';
       }
     }
@@ -11012,8 +11012,8 @@
                     {/* Title block */}
                     <div>
                       <div style={mono(TH.muted)}>{[product.category_name, product.brand_name || product.vendor_name, product.collection].filter(Boolean).join(' · ')}</div>
-                      <div style={{ font: '400 26px/1.05 var(--roma-serif)', letterSpacing: '-0.012em', color: TH.ink, marginTop: 8 }}>{product.name}</div>
-                      <div style={{ font: '400 13px/1.4 var(--roma-sans)', color: TH.ink + '99', marginTop: 4 }}>{[activeSku.variant_name, activeSku.size_display].filter(Boolean).join(' · ')}</div>
+                      <div style={{ font: '400 26px/1.05 var(--roma-serif)', letterSpacing: '-0.012em', color: TH.ink, marginTop: 8 }}>{activeSku.display_name || product.name}</div>
+                      {!activeSku.display_name && <div style={{ font: '400 13px/1.4 var(--roma-sans)', color: TH.ink + '99', marginTop: 4 }}>{[activeSku.variant_name, activeSku.size_display].filter(Boolean).join(' · ')}</div>}
                       {product.description_short && <div style={{ font: '400 12px/1.5 var(--roma-sans)', color: TH.muted, marginTop: 6 }}>{product.description_short}</div>}
                     </div>
 
@@ -11990,7 +11990,7 @@
       const openAddTo =(p, variantText) => setAddTo({
         skuId: p.sku_id,
         summary: {
-          name: p.name, variant: variantText !== undefined ? variantText : p.variant_name,
+          name: p.display_name || p.name, variant: p.display_name ? '' : (variantText !== undefined ? variantText : p.variant_name),
           image: p.primary_image, price: p.price, sell_by: p.sell_by, vendor_sku: p.vendor_sku || p.internal_sku,
           vendor: p.brand_name || p.vendor_name, category: p.category_name,
         },
@@ -12336,7 +12336,7 @@
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{p.category_name || ''} {'\u00B7'} {p.brand_name || p.vendor_name || ''}{p.vendor_public_code ? ' \u00B7 ' + p.vendor_public_code : ''}</span>
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0, maxWidth: '55%' }}>{p.vendor_sku || p.internal_sku || ''}</span>
                           </div>
-                          <div style={{ font: '400 16px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em', minWidth: 0, overflowWrap: 'anywhere' }}>{p.name}{variantText ? ' \u00B7 ' + variantText : ''}</div>
+                          <div style={{ font: '400 16px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em', minWidth: 0, overflowWrap: 'anywhere' }}>{p.display_name || p.name}{(!p.display_name && variantText) ? ' \u00B7 ' + variantText : ''}</div>
                           {(p.collection || p.variant_type === 'accessory' || p.accessory_count > 0) && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
                             <span style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + '99', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.collection || ''}</span>
                             {p.variant_type === 'accessory'
@@ -12411,7 +12411,7 @@
                             <span style={mono(TH.muted)}>{p.brand_name || p.vendor_name}{p.vendor_public_code ? ' \u00B7 ' + p.vendor_public_code : ''}</span>
                             <span style={{ ...mono(sk.c), color: sk.c, flexShrink: 0 }}>{'\u25CF'} {sk.l}{sk.q ? ' \u00B7 ' + sk.q : ''}</span>
                           </div>
-                          <div style={{ font: '400 16px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.name}{variantText ? ' \u00B7 ' + variantText : ''}</div>
+                          <div style={{ font: '400 16px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em' }}>{p.display_name || p.name}{(!p.display_name && variantText) ? ' \u00B7 ' + variantText : ''}</div>
                           <div style={{ font: '400 11px/1.3 var(--roma-sans)', color: TH.ink + '99' }}>
                             {[p.collection, p.category_name].filter(Boolean).join(' \u00B7 ')}
                             {p.variant_type === 'accessory'
@@ -12472,7 +12472,7 @@
                             {p.primary_image ? <img src={optimizeImg(p.primary_image, 100)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
                           </div>
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ font: '400 15px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}{variantText ? ' · ' + variantText : ''}</div>
+                            <div style={{ font: '400 15px/1.15 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.display_name || p.name}{(!p.display_name && variantText) ? ' · ' + variantText : ''}</div>
                             <div style={{ ...mono(TH.muted), fontSize: 9, marginTop: 3 }}>
                               {p.vendor_sku || p.internal_sku || '—'}
                               {p.variant_type === 'accessory' ? ' · Accessory' : p.accessory_count > 0 ? ' · ' + p.accessory_count + ' accessor' + (p.accessory_count !== 1 ? 'ies' : 'y') : ''}
@@ -17740,6 +17740,7 @@
       const [addrZip, setAddrZip] = useState('');
       const [deliveryMethod, setDeliveryMethod] = useState('pickup');
       const [notes, setNotes] = useState('');
+      const [stagedNotes, setStagedNotes] = useState([]);
       const [items, setItems] = useState([]);
       const [skuSearch, setSkuSearch] = useState('');
       const [skuResults, setSkuResults] = useState([]);
@@ -17753,7 +17754,7 @@
       useRofDraft('sample-create', 'sample request',
         () => !sampleSavedRef.current && (items.length > 0 || !!pickedCustomer ||
           !!(customerName.trim() || customerEmail.trim() || customerPhone.trim() || notes.trim())),
-        () => ({ pickedCustomer, customerName, customerEmail, customerPhone, companyName, addrLine1, addrLine2, addrCity, addrState, addrZip, deliveryMethod, notes, items }));
+        () => ({ pickedCustomer, customerName, customerEmail, customerPhone, companyName, addrLine1, addrLine2, addrCity, addrState, addrZip, deliveryMethod, notes, stagedNotes, items }));
       useRofDraftRestore('sample-create', (s) => {
         if (s.pickedCustomer) setPickedCustomer(s.pickedCustomer);
         setCustomerName(s.customerName || '');
@@ -17767,6 +17768,7 @@
         setAddrZip(s.addrZip || '');
         if (s.deliveryMethod) setDeliveryMethod(s.deliveryMethod);
         setNotes(s.notes || '');
+        if (Array.isArray(s.stagedNotes)) setStagedNotes(s.stagedNotes);
         if (Array.isArray(s.items)) setItems(s.items);
       });
 
@@ -17865,6 +17867,7 @@
             shipping_state: deliveryMethod === 'shipping' ? (addrState.trim() || null) : null,
             shipping_zip: deliveryMethod === 'shipping' ? (addrZip.trim() || null) : null,
             notes: notes.trim() || null,
+            internal_notes: stagedNotes.map(n => n.note).filter(t => t && t.trim()),
             items: items.map(i => ({ product_id: i.product_id, sku_id: i.sku_id }))
           };
           const created = await repFetch('/api/rep/sample-requests', {
@@ -18094,20 +18097,6 @@
                   </div>
                 )}
               </div>
-
-              {/* Internal notes — an initial team-only note saved with the request;
-                  further notes are added on the detail page (quote-style thread). */}
-              <div className="rod-card">
-                <div className="rod-card-header">
-                  <span className="rod-card-title">Internal notes</span>
-                  <div className="rod-card-actions">
-                    <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>Team-only · more on the saved request</span>
-                  </div>
-                </div>
-                <div className="rod-card-body-padded">
-                  <textarea style={{ ...scField, resize: 'vertical', fontFamily: 'inherit' }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any special instructions or notes…" rows="3" />
-                </div>
-              </div>
             </div>
 
             {/* Right rail */}
@@ -18143,6 +18132,9 @@
                   </button>
                 </div>
               </div>
+
+              {/* Internal notes — quote-style widget, in the rail (staged until save) */}
+              <InternalNotesCard staged={stagedNotes} onStaged={setStagedNotes} bg="#f5f0e8" />
 
               <div className="rod-card">
                 <div className="rod-card-header">
@@ -18209,7 +18201,10 @@
             body: JSON.stringify({ tracking_number: trackingInput.trim() || null })
           });
           setShowTrackingInput(false);
-          repToast('Marked shipped');
+          const wasPickup = sr && sr.delivery_method === 'pickup';
+          repToast(sr && sr.customer_email
+            ? 'Customer notified'
+            : (wasPickup ? 'Marked ready for pickup' : 'Marked shipped'));
           load();
         } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
         setActing(false);
@@ -18238,6 +18233,29 @@
 
       const [paymentActing, setPaymentActing] = useState(false);
       const [showPayModal, setShowPayModal] = useState(false);
+      const [readyPrompt, setReadyPrompt] = useState(false);
+      const [notifying, setNotifying] = useState(false);
+
+      // Send the customer the "your samples are ready" email — confirmed via the
+      // popup that appears once every sample is ready.
+      const notifyReady = async () => {
+        setNotifying(true);
+        try {
+          const data = await repFetch('/api/rep/sample-requests/' + editId + '/notify-ready', { method: 'POST' });
+          setSr(prev => ({ ...prev, all_ready_notified_at: (data && data.notified_at) || new Date().toISOString() }));
+          repToast(data && data.sent ? 'Ready email sent to the customer' : 'Marked notified — no customer email on file');
+          setReadyPrompt(false);
+        } catch (err) {
+          // Already sent from another tab/session — treat as done, not an error.
+          if (err && (err.already_sent || /already been sent/i.test(err.message || ''))) {
+            setSr(prev => ({ ...prev, all_ready_notified_at: new Date().toISOString() }));
+            setReadyPrompt(false);
+          } else {
+            alert('Error: ' + ((err && err.message) || 'Failed to send'));
+          }
+        }
+        setNotifying(false);
+      };
 
       const markPaymentCollected = async (collected, method, res) => {
         setPaymentActing(true);
@@ -18348,7 +18366,13 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
           });
-          setItems(prev => prev.map(it => it.id === itemId ? { ...it, status: data.item.status } : it));
+          const nextItems = items.map(it => it.id === itemId ? { ...it, status: data.item.status } : it);
+          setItems(nextItems);
+          // If this made every remaining sample ready, offer to email the customer.
+          if (newStatus === 'ready' && !sr.all_ready_notified_at) {
+            const active = nextItems.filter(i => i.status !== 'cancelled');
+            if (active.length > 0 && active.every(i => i.status === 'ready')) setReadyPrompt(true);
+          }
         } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
       };
 
@@ -18399,10 +18423,14 @@
         done: activeItems.length > 0 && vendorsNotified === vendorsTotal,
         detail: vendorsTotal > 0 ? vendorsNotified + ' of ' + vendorsTotal + ' vendor' + (vendorsTotal !== 1 ? 's' : '') + ' notified' : 'No items'
       });
+      const allSamplesReady = activeItems.length > 0 && readyCount === activeItems.length;
       steps.push({
         label: 'All samples ready',
-        done: activeItems.length > 0 && readyCount === activeItems.length,
-        detail: activeItems.length > 0 ? readyCount + ' of ' + activeItems.length + ' ready' : 'No items'
+        done: allSamplesReady,
+        detail: sr.all_ready_notified_at
+          ? 'Customer emailed'
+          : (activeItems.length > 0 ? readyCount + ' of ' + activeItems.length + ' ready' : 'No items'),
+        action: (allSamplesReady && !sr.all_ready_notified_at && isOpen) ? 'notify_ready' : null
       });
       const isFinalStep = sr.status === 'shipped' || sr.status === 'delivered';
       steps.push({
@@ -18519,18 +18547,49 @@
             })}
           </div>
 
-          {/* Inline ship confirmation */}
+          {/* Send confirmation popup — the last gate before the customer email fires.
+              Shown once the rep triggers the ship/ready action; warns if not every
+              sample is marked ready yet. */}
           {showTrackingInput && (
-            <div style={{ marginBottom: 20, padding: '14px 20px', background: 'var(--rod-warm)', border: '0.5px solid var(--rod-border)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={sdMono}>{isPickup ? 'Confirm ready · notifies the customer' : 'Confirm shipment'}</span>
-              {!isPickup && (
-                <input style={{ ...sdField, width: 260 }} placeholder="Tracking number (optional)"
-                  value={trackingInput} onChange={e => setTrackingInput(e.target.value)} />
-              )}
-              <button className="rod-btn rod-btn-primary" disabled={acting} onClick={markShipped}>
-                {acting ? 'Saving…' : (isPickup ? 'Confirm ready →' : 'Confirm ship →')}
-              </button>
-              <button className="rod-btn" onClick={() => setShowTrackingInput(false)}>Cancel</button>
+            <div className="rof-overlay" onMouseDown={e => { if (e.target === e.currentTarget && !acting) setShowTrackingInput(false); }}>
+              <div className="rof-modal-card rof-pop" style={{ width: 460 }}>
+                <div style={{ padding: '22px 24px 16px', borderBottom: '0.5px solid rgba(28,25,23,0.1)' }}>
+                  <div style={{ ...sdMono, letterSpacing: '0.2em', marginBottom: 8 }}>Notify customer</div>
+                  <h2 style={{ margin: 0, font: '300 24px/1.15 "Cormorant Garamond", serif', letterSpacing: '-0.012em', color: 'var(--rod-ink)' }}>
+                    {isPickup ? 'Ready for pickup' : 'Confirm shipment'}
+                  </h2>
+                </div>
+                <div style={{ padding: '18px 24px', display: 'grid', gap: 14 }}>
+                  {readyCount < activeItems.length && (
+                    <div style={{ padding: '10px 12px', background: 'rgba(168,121,53,0.12)', border: '0.5px solid rgba(168,121,53,0.4)' }}>
+                      <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rod-accent)', marginBottom: 4 }}>Not all samples ready</div>
+                      <div style={{ font: '400 13px/1.45 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                        Only {readyCount} of {activeItems.length} samples are marked ready. You can still send, but the customer will be told everything is {isPickup ? 'ready for pickup' : 'on the way'}.
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ font: '400 14px/1.5 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                    {sr.customer_email
+                      ? <React.Fragment>This emails <strong>{sr.customer_name}</strong> at {sr.customer_email} that their samples are {isPickup ? 'ready for pickup' : 'on the way'}.</React.Fragment>
+                      : <React.Fragment>No email is on file for {sr.customer_name}, so no notification is sent — this only updates the status.</React.Fragment>}
+                  </div>
+                  {!isPickup && (
+                    <div>
+                      <div style={{ ...sdMono, marginBottom: 6 }}>Tracking number · optional</div>
+                      <input style={sdField} placeholder="Tracking number"
+                        value={trackingInput} onChange={e => setTrackingInput(e.target.value)} />
+                    </div>
+                  )}
+                </div>
+                <div style={{ padding: '14px 24px 20px', display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '0.5px solid rgba(28,25,23,0.1)' }}>
+                  <button className="rod-btn" disabled={acting} onClick={() => setShowTrackingInput(false)}>Cancel</button>
+                  <button className="rod-btn rod-btn-primary" disabled={acting} onClick={markShipped}>
+                    {acting ? 'Sending…' : (sr.customer_email
+                      ? (isPickup ? 'Notify & mark ready →' : 'Notify & mark shipped →')
+                      : (isPickup ? 'Mark ready →' : 'Mark shipped →'))}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -18577,7 +18636,7 @@
                                   : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
                                 }
                                 <div className="sku-info">
-                                  <div className="sku-name">{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
+                                  <div className="sku-name">{formatLineItem(r).name}</div>
                                   <div className="product-meta">{r.vendor_name}{r.vendor_public_code ? ' · ' + r.vendor_public_code : ''}{r.collection ? ' · ' + r.collection : ''}</div>
                                 </div>
                                 <button className="btn btn-primary" style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', flexShrink: 0 }} disabled={addingItem}>
@@ -18759,6 +18818,8 @@
                         </span>
                       ) : step.action === 'uncollect_payment' ? (
                         <button className="qw-link muted" disabled={paymentActing} onClick={() => markPaymentCollected(false)}>Undo</button>
+                      ) : step.action === 'notify_ready' ? (
+                        <button style={{ ...sdSmallBtn, background: 'var(--rod-ink)', color: '#fff', borderColor: 'var(--rod-ink)' }} onClick={() => setReadyPrompt(true)}>Email customer</button>
                       ) : (
                         step.detail && <span className="qw-check-meta">{step.detail}</span>
                       )}
@@ -18854,6 +18915,31 @@
               terminalStatus={terminalStatus}
               connectReader={connectReader}
             />
+          )}
+
+          {/* Confirm before emailing the customer that all samples are ready */}
+          {readyPrompt && (
+            <div className="modal-overlay" onClick={() => !notifying && setReadyPrompt(false)}>
+              <div onClick={e => e.stopPropagation()} style={{ maxWidth: 440, width: '90%', background: '#f5f0e8', border: '0.5px solid rgba(28,25,23,0.2)', boxShadow: '0 24px 70px rgba(28,25,23,0.35)' }}>
+                <div style={{ padding: '24px 26px' }}>
+                  <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-accent)', marginBottom: 10 }}>All samples ready</div>
+                  <h3 style={{ margin: 0, font: '300 25px/1.15 "Cormorant Garamond", serif', color: 'var(--rod-ink)', letterSpacing: '-0.01em' }}>
+                    Email the customer their samples are ready?
+                  </h3>
+                  <p style={{ margin: '12px 0 0', font: '400 14px/1.6 Inter, sans-serif', color: 'rgba(28,25,23,0.72)' }}>
+                    {sr.customer_email
+                      ? <React.Fragment>Every sample on {sr.request_number} is marked ready. We{'’'}ll email <strong style={{ color: 'var(--rod-ink)', fontWeight: 500 }}>{sr.customer_name}</strong> at {sr.customer_email} that their samples are {isPickup ? 'ready to pick up at the showroom' : 'ready and being prepared to ship'}.</React.Fragment>
+                      : <React.Fragment>Every sample on {sr.request_number} is marked ready, but {sr.customer_name} has no email on file — nothing will be sent.</React.Fragment>}
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 22, justifyContent: 'flex-end' }}>
+                    <button className="rod-btn" disabled={notifying} onClick={() => setReadyPrompt(false)}>Not now</button>
+                    <button className="rod-btn rod-btn-primary" disabled={notifying} onClick={notifyReady}>
+                      {notifying ? 'Sending…' : (sr.customer_email ? 'Send email →' : 'Mark notified')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       );
@@ -19801,7 +19887,7 @@
                             : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: r.collection }), 50), flexShrink: 0 }} />
                           }
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div className="rof-search-item-name">{r.product_name}{r.variant_name ? ' — ' + r.variant_name : ''}</div>
+                            <div className="rof-search-item-name">{formatLineItem(r).name}</div>
                             <div className="rof-search-item-sub">
                               {r.collection || ''}{r.vendor_name ? ' · ' + r.vendor_name : ''}{r.internal_sku ? ' · ' + r.internal_sku : ''}
                               {r.retail_price ? ' · $' + pieceRetail(r).toFixed(2) + skuPriceSuffix(r) : ''}
@@ -20972,7 +21058,11 @@
     // Shared by the order detail and the quote workspace so both look and behave
     // identically. `basePath` is the resource path, e.g. '/api/rep/orders/<id>'
     // or '/api/rep/quotes/<id>'; notes load from `basePath + '/notes'`.
-    function InternalNotesCard({ basePath, readOnly, bg }) {
+    function InternalNotesCard({ basePath, readOnly, bg, staged, onStaged }) {
+      // "Staged" mode: no saved record yet (e.g. a create form). Entries live in
+      // the parent-owned `staged` array and are flushed to the server on save, so
+      // the widget looks and behaves exactly like the saved-record version.
+      const isStaged = !basePath && !!onStaged;
       const [notes, setNotes] = useState([]);
       const [showAdd, setShowAdd] = useState(false);
       const [text, setText] = useState('');
@@ -20980,17 +21070,27 @@
       const [editingId, setEditingId] = useState(null);
       const [editText, setEditText] = useState('');
       // Only a note's own author may edit/delete it (team can still view + add).
-      const currentRepId = (JSON.parse(sessionStorage.getItem('rep_info') || '{}')).id;
+      const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');
+      const currentRepId = repInfo.id;
+      const currentRepName = [repInfo.first_name, repInfo.last_name].filter(Boolean).join(' ') || 'You';
+      const entries = isStaged ? (staged || []) : notes;
 
       const load = useCallback(() => {
-        if (!basePath) return;
+        if (isStaged || !basePath) return;
         repFetch(basePath + '/notes').then(d => setNotes(d.notes || [])).catch(() => {});
-      }, [basePath]);
+      }, [basePath, isStaged]);
       useEffect(load, [load]);
 
       const add = async () => {
         const t = text.trim();
         if (!t) return;
+        if (isStaged) {
+          const entry = { id: 'staged-' + Date.now() + '-' + Math.round(Math.random() * 1e6),
+            note: t, staff_id: currentRepId, staff_name: currentRepName, created_at: new Date().toISOString() };
+          onStaged([entry, ...(staged || [])]);
+          setShowAdd(false); setText('');
+          return;
+        }
         setSaving(true);
         try {
           const data = await repFetch(basePath + '/notes', { method: 'POST', body: JSON.stringify({ note: t }) });
@@ -21002,6 +21102,11 @@
       const saveEdit = async (n) => {
         const t = editText.trim();
         if (!t) return;
+        if (isStaged) {
+          onStaged((staged || []).map(x => x.id === n.id ? { ...x, note: t } : x));
+          setEditingId(null); setEditText('');
+          return;
+        }
         try {
           const data = await repFetch(basePath + '/notes/' + n.id, { method: 'PUT', body: JSON.stringify({ note: t }) });
           if (data.note) setNotes(prev => prev.map(x => x.id === n.id ? data.note : x));
@@ -21010,6 +21115,7 @@
       };
       const del = async (n) => {
         if (!confirm('Delete this note? This cannot be undone.')) return;
+        if (isStaged) { onStaged((staged || []).filter(x => x.id !== n.id)); return; }
         try {
           await repFetch(basePath + '/notes/' + n.id, { method: 'DELETE' });
           setNotes(prev => prev.filter(x => x.id !== n.id));
@@ -21017,14 +21123,14 @@
       };
 
       return (
-        <RodCard title={'Internal notes' + (notes.length ? ' · ' + notes.length : '')}
+        <RodCard title={'Internal notes' + (entries.length ? ' · ' + entries.length : '')}
           action={readOnly ? undefined : '+ Add'} onAction={() => setShowAdd(true)} bg={bg}>
           <div style={{ padding: '8px 0' }}>
-            {notes.length === 0 && !showAdd && (
+            {entries.length === 0 && !showAdd && (
               <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>No notes yet</div>
             )}
-            {notes.map((n, i) => (
-              <div className="rod-note-entry" key={n.id || i} style={i === notes.length - 1 && !showAdd ? { borderBottom: 'none' } : {}}>
+            {entries.map((n, i) => (
+              <div className="rod-note-entry" key={n.id || i} style={i === entries.length - 1 && !showAdd ? { borderBottom: 'none' } : {}}>
                 <div className="rod-note-avatar">
                   {(n.staff_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                 </div>
@@ -21062,7 +21168,7 @@
               </div>
             ))}
             {showAdd && (
-              <div style={{ padding: '14px 18px', borderTop: notes.length ? '0.5px solid rgba(28,25,23,0.12)' : 'none' }}>
+              <div style={{ padding: '14px 18px', borderTop: entries.length ? '0.5px solid rgba(28,25,23,0.12)' : 'none' }}>
                 <textarea value={text} onChange={e => setText(e.target.value)}
                   placeholder="Add a note — visible only to Roma staff…" autoFocus
                   style={{ width: '100%', minHeight: 50, padding: 10, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
@@ -24743,7 +24849,7 @@
         }
         for (const { acc, qty } of accessories) {
           const accCost = (acc.cost != null && parseFloat(acc.cost) > 0) ? parseFloat(acc.cost) : ((acc.vendor_cost != null && parseFloat(acc.vendor_cost) > 0) ? parseFloat(acc.vendor_cost) : null);
-          staged.push({ key: genKey(), type: 'add', name: (acc.product_name || 'Accessory') + (acc.color ? ' ' + acc.color : ''),
+          staged.push({ key: genKey(), type: 'add', name: formatLineItem({ ...acc, product_name: acc.display_name || acc.product_name || acc.name || acc.accessory_label }).name || 'Accessory',
             vendorName: acc.vendor_name || 'Roma', image: acc.primary_image || null, isCustom: false, skuId: acc.sku_id, sellBy: acc.sell_by || 'unit', isCarpet: false, spb: 0, mult: 1,
             qty, unitPrice: tradePrice(parseFloat(acc.unit_price || acc.price || 0), acc.retail_locked), cost: accCost });
         }
@@ -28933,11 +29039,7 @@
                       : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: r.collection }), 50), flexShrink: 0 }} />
                     }
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="rof-search-item-name">
-                        {r.collection || r.product_name}
-                        {r.color ? ' — ' + r.color : ''}
-                        {r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}
-                      </div>
+                      <div className="rof-search-item-name">{formatLineItem(r).name}</div>
                       <div className="rof-search-item-sub">
                         {r.vendor_name}{r.vendor_public_code ? ' · ' + r.vendor_public_code : ''}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}
                         {rRetail > 0 && ' · '}
@@ -31240,7 +31342,7 @@
         const itemCost = isPerSqft ? rawCost * sqftPerBox : rawCost;
         const itemRetail = isPerSqft ? rawRetail * sqftPerBox : rawRetail;
         await addPOItem({
-          sku_id: r.sku_id, product_name: r.product_name + (r.color ? ' — ' + r.color : ''),
+          sku_id: r.sku_id, product_name: formatLineItem(r).name || r.product_name,
           vendor_sku: r.vendor_sku || r.internal_sku, qty: 1,
           cost: itemCost.toFixed(2), retail_price: itemRetail > 0 ? itemRetail.toFixed(2) : null,
           sell_by: r.sell_by
@@ -31470,7 +31572,7 @@
                                   : <div className="sku-thumb-placeholder"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></div>
                                 }
                                 <div className="sku-info">
-                                  <div className="sku-name">{r.product_name}{r.color ? ' — ' + r.color : ''}{r.variant_name && r.variant_name !== r.color ? ' · ' + r.variant_name : ''}</div>
+                                  <div className="sku-name">{formatLineItem(r).name}</div>
                                   <div className="product-meta">{r.vendor_name}{r.vendor_public_code ? ' · ' + r.vendor_public_code : ''}{r.vendor_sku ? ' · ' + r.vendor_sku : r.internal_sku ? ' · ' + r.internal_sku : ''}{r.cost ? ' · Cost $' + parseFloat(r.cost).toFixed(2) + skuPriceSuffix(r) : ''}</div>
                                 </div>
                               </div>
