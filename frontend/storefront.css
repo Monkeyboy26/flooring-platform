@@ -1136,7 +1136,30 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .trade-acct-page .td-ladder-rail { background: var(--td-line); }
 /* Overview concept renders inside .acct-content; keep its own borders/margins, not the shell's grid gap. */
 .trade-acct-body--overview .acct-content > div { display: block; }
-@media (max-width: 900px) { .td-band, .td-main, .td-stats { grid-template-columns: 1fr; } .td-band-l, .td-col-l { border-right: 0; padding-right: 0; } .td-band-r, .td-col-r { padding-left: 0; } .td-stat { border-right: 0; } .td-stat + .td-stat { padding-left: 0; } }
+@media (max-width: 900px) {
+  .td-band, .td-main { grid-template-columns: 1fr; }
+  .td-band-l, .td-col-l { border-right: 0; padding-right: 0; }
+  .td-band-r, .td-col-r { padding-left: 0; }
+  /* Stats stay 2-up on tablet/phone (denser than a single column) until it's very narrow. */
+  .td-stats { grid-template-columns: repeat(2, 1fr); column-gap: 1.25rem; }
+  .td-stat { border-right: 0; padding: 1rem 0; }
+  .td-stat + .td-stat { padding-left: 0; }
+}
+@media (max-width: 600px) {
+  .td-mast { align-items: flex-start; gap: 0.5rem; }
+  .td-greet { font-size: 1.75rem; }
+  .td-rep-mini { text-align: left; }
+  .td-tier-now { font-size: 1.5rem; }
+  .td-tier-pct { display: block; margin-left: 0; margin-top: 0.3rem; }
+  .td-unlock-big { font-size: 1.6rem; }
+  /* The horizontal tier ladder's tiny absolute labels collide on phones; the
+     "% to <tier>" line + the "to unlock" card already convey progress, so hide it. */
+  .td-ladder { display: none; }
+}
+@media (max-width: 440px) {
+  .td-stats { grid-template-columns: 1fr; }
+  .td-stat { padding: 0.85rem 0; }
+}
 
 /* Variant Selectors */
 .variant-selectors { margin: 0; display: flex; flex-direction: column; gap: 1.375rem; }
@@ -3670,9 +3693,22 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   .acct-body { grid-template-columns: 1fr; padding: 1.25rem 1.25rem 2.5rem; }
   .acct-sidebar { position: static; display: grid; grid-template-columns: 1fr; gap: 0; }
   .acct-sidebar .acct-customer-chip { grid-column: 1 / -1; }
-  .acct-sidebar .acct-nav { grid-column: 1 / -1; display: flex; overflow-x: auto; gap: 0; -webkit-overflow-scrolling: touch; }
-  .acct-sidebar .acct-nav-item { white-space: nowrap; border-left: none; border-bottom: 2px solid transparent; padding: 0.5rem 0.875rem; border-radius: 0; }
+  /* Section switcher becomes a clean, sticky, one-line scrollable tab strip. */
+  .acct-sidebar .acct-nav {
+    grid-column: 1 / -1; display: flex; overflow-x: auto; gap: 0; -webkit-overflow-scrolling: touch;
+    position: sticky; top: var(--header-height, 64px); z-index: 20;
+    background: var(--warm-bg); border-bottom: 1px solid rgba(28,25,23,0.1);
+    margin: 0 -1.25rem; padding: 0 1.25rem;
+    scrollbar-width: none; -ms-overflow-style: none;
+    -webkit-mask-image: linear-gradient(to right, #000 88%, transparent);
+    mask-image: linear-gradient(to right, #000 88%, transparent);
+  }
+  .acct-sidebar .acct-nav::-webkit-scrollbar { display: none; }
+  .acct-sidebar .acct-nav-item { white-space: nowrap; border-left: none; border-bottom: 2px solid transparent; padding: 0.75rem 0.9rem; border-radius: 0; min-height: 44px; align-content: center; }
+  .acct-sidebar .acct-nav-item .acct-nav-meta { display: none; }
+  .acct-sidebar .acct-nav-item .acct-nav-label { font-size: 0.875rem; }
   .acct-sidebar .acct-nav-item--active { border-bottom-color: var(--gold); background: transparent; }
+  .acct-sidebar .acct-nav-item--active .acct-nav-label { color: var(--gold-dark, #8a6a2f); }
   .acct-sidebar .acct-signout { grid-column: 1 / -1; }
   .acct-hero-heading { font-size: 2.5rem; }
   .acct-stats { grid-template-columns: repeat(2, 1fr); }
@@ -3683,6 +3719,23 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   .acct-profile-grid { grid-template-columns: 1fr; }
   .acct-content > div { gap: 2rem; }
   .acct-profile-section { padding: 1.25rem 1.25rem; }
+}
+/* Phone: restack order/quote/estimate rows into a readable card. Uses flex +
+   order so it works for every section (and beats the inline gridTemplateColumns
+   set on the quote/estimate rows, which CSS media queries otherwise can't touch). */
+@media (max-width: 640px) {
+  .acct-col-headers { display: none !important; }
+  .acct-order-row {
+    display: flex !important; flex-wrap: wrap; align-items: center;
+    gap: 0.3rem 0.6rem; padding: 0.85rem 1rem;
+  }
+  .acct-order-row > * { min-width: 0; }
+  .acct-order-row > :first-child { order: 1; }
+  .acct-order-row .acct-order-total { order: 2; margin-left: auto; font-size: 1rem; }
+  .acct-order-row .acct-order-status { order: 3; }
+  .acct-order-row .acct-order-action { order: 4; margin-left: auto; }
+  .acct-order-row .acct-order-detail { order: 5; flex-basis: 100%; font-size: 0.75rem; color: var(--warm-muted); }
+  .acct-order-row .acct-order-items { order: 6; flex-basis: 100%; }
 }
 
 /* ── AUTH FULL-PAGE ─────────────────────────────────────────────── */

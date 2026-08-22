@@ -12410,6 +12410,7 @@
               <nav className="acct-nav">
                 {NAV_SECTIONS.map(it => (
                   <button key={it.id} className={'acct-nav-item' + (section === it.id ? ' acct-nav-item--active' : '')}
+                    ref={section === it.id ? (el => { if (el && window.matchMedia('(max-width: 768px)').matches) el.scrollIntoView({ inline: 'center', block: 'nearest' }); }) : null}
                     onClick={() => setSection(it.id)}>
                     <span className="acct-nav-label">{it.label}</span>
                     <span className="acct-nav-meta">{it.meta}</span>
@@ -13808,7 +13809,9 @@
               </div>
               <nav className="acct-nav">
                 {T_NAV.map(it => (
-                  <button key={it.id} className={'acct-nav-item' + (tab === it.id ? ' acct-nav-item--active' : '')} onClick={() => setTab(it.id)}>
+                  <button key={it.id} className={'acct-nav-item' + (tab === it.id ? ' acct-nav-item--active' : '')}
+                    ref={tab === it.id ? (el => { if (el && window.matchMedia('(max-width: 768px)').matches) el.scrollIntoView({ inline: 'center', block: 'nearest' }); }) : null}
+                    onClick={() => setTab(it.id)}>
                     <span className="acct-nav-label">{it.label}</span>
                     <span className="acct-nav-meta">{it.meta}</span>
                   </button>
