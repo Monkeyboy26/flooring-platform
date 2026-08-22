@@ -9223,6 +9223,10 @@
     const [quotes, setQuotes] = useState([]);
     const [expandedQuote, setExpandedQuote] = useState(null);
     const [quoteDetail, setQuoteDetail] = useState(null);
+    const [estimates, setEstimates] = useState([]);
+    const [expandedEstimate, setExpandedEstimate] = useState(null);
+    const [estimateDetail, setEstimateDetail] = useState(null);
+    const [payingEstimate, setPayingEstimate] = useState(null);
     const [visits, setVisits] = useState([]);
     const [expandedVisit, setExpandedVisit] = useState(null);
     const [visitDetail, setVisitDetail] = useState(null);
@@ -9299,13 +9303,15 @@
           fetch(API + "/api/trade/orders", { headers: authHeaders }).then((r) => r.ok ? r.json() : { orders: [] }).catch(() => ({ orders: [] })),
           fetch(API + "/api/trade/quotes", { headers: authHeaders }).then((r) => r.ok ? r.json() : { quotes: [] }).catch(() => ({ quotes: [] })),
           fetch(API + "/api/trade/projects", { headers: authHeaders }).then((r) => r.ok ? r.json() : { projects: [] }).catch(() => ({ projects: [] })),
-          fetch(API + "/api/trade/my-rep", { headers: authHeaders }).then((r) => r.ok ? r.json() : {}).catch(() => ({}))
-        ]).then(([d, od, qd, pd, rp]) => {
+          fetch(API + "/api/trade/my-rep", { headers: authHeaders }).then((r) => r.ok ? r.json() : {}).catch(() => ({})),
+          fetch(API + "/api/trade/estimates", { headers: authHeaders }).then((r) => r.ok ? r.json() : { estimates: [] }).catch(() => ({ estimates: [] }))
+        ]).then(([d, od, qd, pd, rp, ed]) => {
           setDashData(d);
           setOrders(od.orders || []);
           setQuotes(qd.quotes || []);
           setProjects(pd.projects || []);
           setRep(rp.rep || null);
+          setEstimates(ed.estimates || []);
           setLoading(false);
         }).catch(() => setLoading(false));
       } else if (t === "orders") {
@@ -9339,6 +9345,16 @@
           setQuotes(d.quotes || []);
           setExpandedQuote(null);
           setQuoteDetail(null);
+          setLoading(false);
+        }).catch(() => setLoading(false));
+      } else if (t === "estimates") {
+        fetch(API + "/api/trade/estimates", { headers: authHeaders }).then((r) => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        }).then((d) => {
+          setEstimates(d.estimates || []);
+          setExpandedEstimate(null);
+          setEstimateDetail(null);
           setLoading(false);
         }).catch(() => setLoading(false));
       } else if (t === "visits") {
@@ -9469,6 +9485,49 @@
         console.error(e);
       }
     };
+    const expandEstimate = async (estId) => {
+      if (expandedEstimate === estId) {
+        setExpandedEstimate(null);
+        setEstimateDetail(null);
+        return;
+      }
+      setExpandedEstimate(estId);
+      const resp = await fetch(API + "/api/trade/estimates/" + estId, { headers: authHeaders });
+      const data = await resp.json();
+      setEstimateDetail(data);
+    };
+    const downloadEstimatePdf = async (estId) => {
+      try {
+        const r = await fetch(API + "/api/trade/estimates/" + estId + "/pdf", { headers: { "X-Trade-Token": tradeToken } });
+        if (!r.ok) throw new Error("Failed to load PDF");
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        setTimeout(() => URL.revokeObjectURL(url), 6e4);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    const payEstimateDeposit = async (est) => {
+      if (!est.public_token) {
+        showToast("Payment link unavailable \u2014 please contact your rep.", "error");
+        return;
+      }
+      setPayingEstimate(est.id);
+      try {
+        const resp = await fetch(API + "/api/estimate-view/" + est.public_token + "/pay-deposit", { method: "POST" });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.checkout_url) {
+          showToast(data.error || "Could not start checkout \u2014 please try again.", "error");
+          setPayingEstimate(null);
+          return;
+        }
+        window.location.href = data.checkout_url;
+      } catch (e) {
+        showToast("Could not start checkout \u2014 please try again.", "error");
+        setPayingEstimate(null);
+      }
+    };
     const assignOrderProject = async (orderId, projectId) => {
       await fetch(API + "/api/trade/orders/" + orderId + "/project", {
         method: "PUT",
@@ -9527,6 +9586,7 @@
       { id: "overview", label: "Overview", meta: "Snapshot" },
       { id: "orders", label: "Orders", meta: tOrderCount ? tOrderCount + " total" : "None yet" },
       { id: "quotes", label: "Quotes", meta: quotes.length ? quotes.length + (quotes.length === 1 ? " quote" : " quotes") : "None yet" },
+      { id: "estimates", label: "Estimates", meta: estimates.length ? estimates.length + (estimates.length === 1 ? " estimate" : " estimates") : "None yet" },
       { id: "samples", label: "Samples", meta: sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? " box" : " boxes") : "None yet" },
       { id: "visits", label: "Visits", meta: visits.length ? visits.length + " showroom" : "Recaps" },
       { id: "wishlist", label: "Wishlist", meta: favorites.length ? favorites.length + " saved" : "Collections" },
@@ -9536,6 +9596,7 @@
     const T_HERO = {
       orders: { eyebrow: "Order history", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "orders"), ".") },
       quotes: { eyebrow: "Prepared by your rep", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "quotes"), ".") },
+      estimates: { eyebrow: "Project pricing from your rep", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "estimates"), ".") },
       samples: { eyebrow: "Boxes & swatches", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "samples"), ".") },
       visits: { eyebrow: "Showroom recaps", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "visits"), ".") },
       wishlist: { eyebrow: "Saved materials", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "wishlist"), ".") },
@@ -9638,6 +9699,27 @@
           acceptQuote(q.id);
         } }, "Accept & pay"))));
       })), /* @__PURE__ */ React.createElement("div", { className: "acct-pagination" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", quotes.length, " of ", quotes.length, " ", quotes.length === 1 ? "quote" : "quotes"), /* @__PURE__ */ React.createElement("span", null, "\xB7 \xB7 \xB7"))));
+    })(), tab === "estimates" && (() => {
+      const estGrid = { gridTemplateColumns: "150px 1fr 130px 120px 80px" };
+      return /* @__PURE__ */ React.createElement("div", null, estimates.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section", style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", marginBottom: "0.375rem" } }, "No estimates yet."), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.8125rem", margin: 0 } }, "When your rep prepares a project estimate \u2014 materials and labor \u2014 it lands here.")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-col-headers", style: estGrid }, /* @__PURE__ */ React.createElement("span", null, "Estimate"), /* @__PURE__ */ React.createElement("span", null, "Detail"), /* @__PURE__ */ React.createElement("span", null, "Status"), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right" } }, "Total"), /* @__PURE__ */ React.createElement("span", null)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-table", style: { borderTop: "none", borderRadius: "0 0 6px 6px" } }, estimates.map((est) => {
+        const estExpired = est.effective_status === "expired" || est.expires_at && new Date(est.expires_at) < /* @__PURE__ */ new Date() && ["sent", "accepted"].includes(est.status);
+        const depositDue = est.status === "accepted" && parseFloat(est.deposit_amount || 0) > 0 && !est.converted_order_id && !estExpired;
+        const em = est.status === "converted" ? { label: "Became an order", color: "#3a7a4e" } : estExpired ? { label: "Expired", color: "#b0462f" } : depositDue ? { label: "Deposit due", color: "#a87935" } : est.status === "accepted" ? { label: "Accepted", color: "#3a7a4e" } : { label: "Prepared for you", color: "#a87935" };
+        const items = (est.item_count || 0) + " " + ((est.item_count || 0) === 1 ? "item" : "items");
+        const detail = [est.project_name, items, est.status === "converted" ? "Became an order" : estExpired ? "Expired " + tFmtDate(est.expires_at) : est.expires_at ? "Valid until " + tFmtDate(est.expires_at) : null].filter(Boolean).join(" \xB7 ");
+        return /* @__PURE__ */ React.createElement(React.Fragment, { key: est.id }, /* @__PURE__ */ React.createElement("div", { className: "acct-order-row", style: estGrid, onClick: () => expandEstimate(est.id) }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-order-num" }, est.estimate_number), /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, tFmtDate(est.created_at))), /* @__PURE__ */ React.createElement("div", { className: "acct-order-detail" }, detail), /* @__PURE__ */ React.createElement("div", { className: "acct-order-status", style: { color: em.color } }, "\u25CF ", em.label), /* @__PURE__ */ React.createElement("div", { className: "acct-order-total" }, tMoney(est.total)), /* @__PURE__ */ React.createElement("span", { className: "acct-order-action" }, expandedEstimate === est.id ? "Close \xD7" : "Open \u2192")), expandedEstimate === est.id && estimateDetail && /* @__PURE__ */ React.createElement("div", { className: "acct-order-expanded" }, (() => {
+          const mats = (estimateDetail.items || []).filter((i) => i.item_type === "material");
+          const labor = (estimateDetail.items || []).filter((i) => i.item_type === "labor");
+          const line = (item) => /* @__PURE__ */ React.createElement("div", { key: item.id, style: { display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: "1rem", padding: "0.5rem 0", borderBottom: "0.5px solid rgba(28,25,23,0.08)", fontSize: "0.8125rem" } }, /* @__PURE__ */ React.createElement("span", { style: { fontFamily: "var(--font-heading)", fontSize: "0.9375rem", color: "var(--stone-800)" } }, item.product_name || item.description || "Item"), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" } }, tMoney(item.subtotal)));
+          return /* @__PURE__ */ React.createElement("div", null, mats.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-sub", style: { marginBottom: "0.5rem" } }, "Materials"), mats.map(line)), labor.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-sub", style: { marginBottom: "0.5rem" } }, "Labor & Services"), labor.map(line)), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "1.5rem", fontSize: "0.8125rem", paddingTop: "0.25rem" } }, parseFloat(est.tax_amount || 0) > 0 && /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-600)" } }, "Tax ", tMoney(est.tax_amount)), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, fontVariantNumeric: "tabular-nums" } }, "Total ", tMoney(est.total))), depositDue && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1rem", padding: "0.75rem 1rem", background: "rgba(216,205,182,0.35)", border: "0.5px solid rgba(168,121,53,0.3)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "0.8125rem", color: "#7a5a1e" } }, "Accepted \u2014 pay your ", est.deposit_label ? est.deposit_label.toLowerCase() : "deposit", " of ", /* @__PURE__ */ React.createElement("strong", null, tMoney(est.deposit_amount)), " to get on the schedule."), /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: (e) => {
+            e.stopPropagation();
+            payEstimateDeposit(est);
+          }, disabled: payingEstimate === est.id }, payingEstimate === est.id ? "Preparing secure checkout\u2026" : "Pay " + tMoney(est.deposit_amount) + " deposit")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: "0.75rem", marginTop: "1rem", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("button", { className: "acct-btn acct-btn--outline", onClick: (e) => {
+            e.stopPropagation();
+            downloadEstimatePdf(est.id);
+          } }, "Download PDF")), est.notes && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "1rem", padding: "0.75rem 1rem", background: "rgba(216,205,182,0.25)", borderLeft: "3px solid var(--gold)", fontSize: "0.8125rem", color: "var(--stone-700, #44403c)", fontStyle: "italic", fontFamily: "var(--font-heading)" } }, "\u201C", est.notes, "\u201D"));
+        })()));
+      })), /* @__PURE__ */ React.createElement("div", { className: "acct-pagination" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", estimates.length, " of ", estimates.length, " ", estimates.length === 1 ? "estimate" : "estimates"), /* @__PURE__ */ React.createElement("span", null, "\xB7 \xB7 \xB7"))));
     })(), tab === "visits" && (() => {
       const visitGrid = { gridTemplateColumns: "150px 1fr 130px 130px 80px" };
       return /* @__PURE__ */ React.createElement("div", null, visits.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section", style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", marginBottom: "0.375rem" } }, "No showroom visits yet."), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.8125rem", margin: 0 } }, "After you visit us at 1440 S. State College Blvd, your rep's picks and notes land here.")) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-col-headers", style: visitGrid }, /* @__PURE__ */ React.createElement("span", null, "Visit"), /* @__PURE__ */ React.createElement("span", null, "From your rep"), /* @__PURE__ */ React.createElement("span", null, "Materials"), /* @__PURE__ */ React.createElement("span", null, "Status"), /* @__PURE__ */ React.createElement("span", null)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-table", style: { borderTop: "none", borderRadius: "0 0 6px 6px" } }, visits.map((v) => /* @__PURE__ */ React.createElement(React.Fragment, { key: v.id }, /* @__PURE__ */ React.createElement("div", { className: "acct-order-row", style: visitGrid, onClick: () => expandVisit(v.id) }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-order-num" }, tFmtDate(v.sent_at || v.created_at)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, "Roma showroom \xB7 Anaheim")), /* @__PURE__ */ React.createElement("div", { className: "acct-order-detail", style: { fontStyle: v.message ? "italic" : "normal", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" } }, v.message ? "\u201C" + v.message + "\u201D" : "Your showroom recap"), /* @__PURE__ */ React.createElement("div", { className: "acct-order-items" }, v.item_count, " material", v.item_count !== 1 ? "s" : ""), /* @__PURE__ */ React.createElement("div", { className: "acct-order-status", style: { color: "#a87935" } }, "\u25CF Recap sent"), /* @__PURE__ */ React.createElement("span", { className: "acct-order-action" }, expandedVisit === v.id ? "Close \xD7" : "Open \u2192")), expandedVisit === v.id && visitDetail && /* @__PURE__ */ React.createElement("div", { className: "acct-order-expanded" }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-sub", style: { marginBottom: "0.5rem" } }, "What you looked at"), (visitDetail.items || []).map((item, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", alignItems: "center", gap: "0.875rem", padding: "0.625rem 0", borderBottom: "0.5px solid rgba(28,25,23,0.08)", fontSize: "0.8125rem" } }, item.primary_image && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(item.primary_image, 100), alt: item.product_name, style: { width: 48, height: 48, objectFit: "cover", borderRadius: 4, border: "0.5px solid rgba(28,25,23,0.1)" }, loading: "lazy" }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--font-heading)", fontSize: "0.9375rem", color: "var(--stone-800)" } }, itemLineName(item)), item.rep_note && /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.75rem", color: "#7a5a1e", fontStyle: "italic", marginTop: 2 } }, item.rep_note)), skuListPrice(item) && /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 500, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" } }, "$", displayPrice(item, skuListPrice(item)).toFixed(2), priceSuffix(item)))))))), /* @__PURE__ */ React.createElement("div", { className: "acct-pagination" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", visits.length, " of ", visits.length, " ", visits.length === 1 ? "visit" : "visits"), /* @__PURE__ */ React.createElement("span", null, "\xB7 \xB7 \xB7"))));

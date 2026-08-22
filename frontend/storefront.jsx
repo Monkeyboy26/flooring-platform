@@ -13464,6 +13464,10 @@
       const [quotes, setQuotes] = useState([]);
       const [expandedQuote, setExpandedQuote] = useState(null);
       const [quoteDetail, setQuoteDetail] = useState(null);
+      const [estimates, setEstimates] = useState([]);
+      const [expandedEstimate, setExpandedEstimate] = useState(null);
+      const [estimateDetail, setEstimateDetail] = useState(null);
+      const [payingEstimate, setPayingEstimate] = useState(null);
       const [visits, setVisits] = useState([]);
       const [expandedVisit, setExpandedVisit] = useState(null);
       const [visitDetail, setVisitDetail] = useState(null);
@@ -13528,10 +13532,11 @@
             fetch(API + '/api/trade/orders', { headers: authHeaders }).then(r => r.ok ? r.json() : { orders: [] }).catch(() => ({ orders: [] })),
             fetch(API + '/api/trade/quotes', { headers: authHeaders }).then(r => r.ok ? r.json() : { quotes: [] }).catch(() => ({ quotes: [] })),
             fetch(API + '/api/trade/projects', { headers: authHeaders }).then(r => r.ok ? r.json() : { projects: [] }).catch(() => ({ projects: [] })),
-            fetch(API + '/api/trade/my-rep', { headers: authHeaders }).then(r => r.ok ? r.json() : {}).catch(() => ({}))
-          ]).then(([d, od, qd, pd, rp]) => {
+            fetch(API + '/api/trade/my-rep', { headers: authHeaders }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
+            fetch(API + '/api/trade/estimates', { headers: authHeaders }).then(r => r.ok ? r.json() : { estimates: [] }).catch(() => ({ estimates: [] }))
+          ]).then(([d, od, qd, pd, rp, ed]) => {
             setDashData(d); setOrders(od.orders || []); setQuotes(qd.quotes || []);
-            setProjects(pd.projects || []); setRep(rp.rep || null); setLoading(false);
+            setProjects(pd.projects || []); setRep(rp.rep || null); setEstimates(ed.estimates || []); setLoading(false);
           }).catch(() => setLoading(false));
         } else if (t === 'orders') {
           Promise.all([
@@ -13544,6 +13549,9 @@
         } else if (t === 'quotes') {
           fetch(API + '/api/trade/quotes', { headers: authHeaders })
             .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setQuotes(d.quotes || []); setExpandedQuote(null); setQuoteDetail(null); setLoading(false); }).catch(() => setLoading(false));
+        } else if (t === 'estimates') {
+          fetch(API + '/api/trade/estimates', { headers: authHeaders })
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setEstimates(d.estimates || []); setExpandedEstimate(null); setEstimateDetail(null); setLoading(false); }).catch(() => setLoading(false));
         } else if (t === 'visits') {
           fetch(API + '/api/trade/visits', { headers: authHeaders })
             .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setVisits(d.visits || []); setExpandedVisit(null); setVisitDetail(null); setLoading(false); }).catch(() => setLoading(false));
@@ -13635,6 +13643,38 @@
         } catch (e) { console.error(e); }
       };
 
+      const expandEstimate = async (estId) => {
+        if (expandedEstimate === estId) { setExpandedEstimate(null); setEstimateDetail(null); return; }
+        setExpandedEstimate(estId);
+        const resp = await fetch(API + '/api/trade/estimates/' + estId, { headers: authHeaders });
+        const data = await resp.json();
+        setEstimateDetail(data);
+      };
+
+      const downloadEstimatePdf = async (estId) => {
+        try {
+          const r = await fetch(API + '/api/trade/estimates/' + estId + '/pdf', { headers: { 'X-Trade-Token': tradeToken } });
+          if (!r.ok) throw new Error('Failed to load PDF');
+          const blob = await r.blob();
+          const url = URL.createObjectURL(blob);
+          window.open(url, '_blank');
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        } catch (e) { console.error(e); }
+      };
+
+      // Pay an estimate's deposit online — reuses the public token endpoint
+      // (converts the estimate to an order + opens a Stripe deposit checkout).
+      const payEstimateDeposit = async (est) => {
+        if (!est.public_token) { showToast('Payment link unavailable — please contact your rep.', 'error'); return; }
+        setPayingEstimate(est.id);
+        try {
+          const resp = await fetch(API + '/api/estimate-view/' + est.public_token + '/pay-deposit', { method: 'POST' });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.checkout_url) { showToast(data.error || 'Could not start checkout — please try again.', 'error'); setPayingEstimate(null); return; }
+          window.location.href = data.checkout_url;
+        } catch (e) { showToast('Could not start checkout — please try again.', 'error'); setPayingEstimate(null); }
+      };
+
       const assignOrderProject = async (orderId, projectId) => {
         await fetch(API + '/api/trade/orders/' + orderId + '/project', {
           method: 'PUT', headers, body: JSON.stringify({ project_id: projectId || null })
@@ -13679,6 +13719,7 @@
         { id: 'overview', label: 'Overview', meta: 'Snapshot' },
         { id: 'orders', label: 'Orders', meta: tOrderCount ? tOrderCount + ' total' : 'None yet' },
         { id: 'quotes', label: 'Quotes', meta: quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : 'None yet' },
+        { id: 'estimates', label: 'Estimates', meta: estimates.length ? estimates.length + (estimates.length === 1 ? ' estimate' : ' estimates') : 'None yet' },
         { id: 'samples', label: 'Samples', meta: sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? ' box' : ' boxes') : 'None yet' },
         { id: 'visits', label: 'Visits', meta: visits.length ? visits.length + ' showroom' : 'Recaps' },
         { id: 'wishlist', label: 'Wishlist', meta: favorites.length ? favorites.length + ' saved' : 'Collections' },
@@ -13688,6 +13729,7 @@
       const T_HERO = {
         orders: { eyebrow: 'Order history', heading: <>Your <em>orders</em>.</> },
         quotes: { eyebrow: 'Prepared by your rep', heading: <>Your <em>quotes</em>.</> },
+        estimates: { eyebrow: 'Project pricing from your rep', heading: <>Your <em>estimates</em>.</> },
         samples: { eyebrow: 'Boxes & swatches', heading: <>Your <em>samples</em>.</> },
         visits: { eyebrow: 'Showroom recaps', heading: <>Your <em>visits</em>.</> },
         wishlist: { eyebrow: 'Saved materials', heading: <>Your <em>wishlist</em>.</> },
@@ -14068,6 +14110,105 @@
                         </div>
                         <div className="acct-pagination">
                           <span>Showing {quotes.length} of {quotes.length} {quotes.length === 1 ? 'quote' : 'quotes'}</span>
+                          <span>&middot; &middot; &middot;</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {tab === 'estimates' && (() => {
+                const estGrid = { gridTemplateColumns: '150px 1fr 130px 120px 80px' };
+                return (
+                  <div>
+                    {estimates.length === 0 ? (
+                      <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+                        <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No estimates yet.</p>
+                        <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: 0 }}>When your rep prepares a project estimate — materials and labor — it lands here.</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="acct-col-headers" style={estGrid}>
+                          <span>Estimate</span><span>Detail</span><span>Status</span><span style={{ textAlign: 'right' }}>Total</span><span />
+                        </div>
+                        <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
+                          {estimates.map(est => {
+                            const estExpired = est.effective_status === 'expired' || (est.expires_at && new Date(est.expires_at) < new Date() && ['sent', 'accepted'].includes(est.status));
+                            const depositDue = est.status === 'accepted' && parseFloat(est.deposit_amount || 0) > 0 && !est.converted_order_id && !estExpired;
+                            const em = est.status === 'converted' ? { label: 'Became an order', color: '#3a7a4e' }
+                              : estExpired ? { label: 'Expired', color: '#b0462f' }
+                              : depositDue ? { label: 'Deposit due', color: '#a87935' }
+                              : est.status === 'accepted' ? { label: 'Accepted', color: '#3a7a4e' }
+                              : { label: 'Prepared for you', color: '#a87935' };
+                            const items = (est.item_count || 0) + ' ' + ((est.item_count || 0) === 1 ? 'item' : 'items');
+                            const detail = [est.project_name, items, est.status === 'converted' ? 'Became an order' : (estExpired ? 'Expired ' + tFmtDate(est.expires_at) : (est.expires_at ? 'Valid until ' + tFmtDate(est.expires_at) : null))].filter(Boolean).join(' · ');
+                            return (
+                              <React.Fragment key={est.id}>
+                                <div className="acct-order-row" style={estGrid} onClick={() => expandEstimate(est.id)}>
+                                  <div>
+                                    <div className="acct-order-num">{est.estimate_number}</div>
+                                    <div className="acct-order-date">{tFmtDate(est.created_at)}</div>
+                                  </div>
+                                  <div className="acct-order-detail">{detail}</div>
+                                  <div className="acct-order-status" style={{ color: em.color }}>&#9679; {em.label}</div>
+                                  <div className="acct-order-total">{tMoney(est.total)}</div>
+                                  <span className="acct-order-action">{expandedEstimate === est.id ? 'Close ×' : 'Open →'}</span>
+                                </div>
+                                {expandedEstimate === est.id && estimateDetail && (
+                                  <div className="acct-order-expanded">
+                                    {(() => {
+                                      const mats = (estimateDetail.items || []).filter(i => i.item_type === 'material');
+                                      const labor = (estimateDetail.items || []).filter(i => i.item_type === 'labor');
+                                      const line = (item) => (
+                                        <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '1rem', padding: '0.5rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
+                                          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name || item.description || 'Item'}</span>
+                                          <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{tMoney(item.subtotal)}</span>
+                                        </div>
+                                      );
+                                      return (
+                                        <div>
+                                          {mats.length > 0 && (
+                                            <div style={{ marginBottom: '1rem' }}>
+                                              <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Materials</div>
+                                              {mats.map(line)}
+                                            </div>
+                                          )}
+                                          {labor.length > 0 && (
+                                            <div style={{ marginBottom: '1rem' }}>
+                                              <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Labor &amp; Services</div>
+                                              {labor.map(line)}
+                                            </div>
+                                          )}
+                                          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1.5rem', fontSize: '0.8125rem', paddingTop: '0.25rem' }}>
+                                            {parseFloat(est.tax_amount || 0) > 0 && (<span style={{ color: 'var(--stone-600)' }}>Tax {tMoney(est.tax_amount)}</span>)}
+                                            <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>Total {tMoney(est.total)}</span>
+                                          </div>
+                                          {depositDue && (
+                                            <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(216,205,182,0.35)', border: '0.5px solid rgba(168,121,53,0.3)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                                              <span style={{ fontSize: '0.8125rem', color: '#7a5a1e' }}>Accepted — pay your {est.deposit_label ? est.deposit_label.toLowerCase() : 'deposit'} of <strong>{tMoney(est.deposit_amount)}</strong> to get on the schedule.</span>
+                                              <button className="acct-btn" onClick={(e) => { e.stopPropagation(); payEstimateDeposit(est); }} disabled={payingEstimate === est.id}>
+                                                {payingEstimate === est.id ? 'Preparing secure checkout…' : 'Pay ' + tMoney(est.deposit_amount) + ' deposit'}
+                                              </button>
+                                            </div>
+                                          )}
+                                          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                                            <button className="acct-btn acct-btn--outline" onClick={(e) => { e.stopPropagation(); downloadEstimatePdf(est.id); }}>Download PDF</button>
+                                          </div>
+                                          {est.notes && (
+                                            <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(216,205,182,0.25)', borderLeft: '3px solid var(--gold)', fontSize: '0.8125rem', color: 'var(--stone-700, #44403c)', fontStyle: 'italic', fontFamily: 'var(--font-heading)' }}>&ldquo;{est.notes}&rdquo;</div>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </div>
+                        <div className="acct-pagination">
+                          <span>Showing {estimates.length} of {estimates.length} {estimates.length === 1 ? 'estimate' : 'estimates'}</span>
                           <span>&middot; &middot; &middot;</span>
                         </div>
                       </div>

@@ -14449,6 +14449,85 @@ app.get('/api/trade/quotes/:id/pdf', tradeAuth, async (req, res) => {
   }
 });
 
+// ==================== Trade Estimates ====================
+// Rep-entered construction estimates, visible to the trade customer once sent.
+// Scoped via the customer records linked to this trade account (estimates carry
+// customer_id, not trade_customer_id). Deposit fields mirror the customer dash
+// so the trade portal can offer online deposit payment.
+app.get('/api/trade/estimates', tradeAuth, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT e.id, e.estimate_number, e.customer_name, e.project_name,
+        e.materials_subtotal, e.labor_subtotal, e.subtotal, e.tax_amount, e.total,
+        e.notes, e.status, e.expires_at, e.sent_at, e.created_at,
+        e.deposit_type, e.deposit_value, e.public_token, e.converted_order_id,
+        CASE WHEN e.status IN ('sent', 'accepted') AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
+        (SELECT CASE WHEN pm.percent IS NOT NULL AND pm.percent::text <> '' THEN ROUND((pm.percent / 100.0) * e.total, 2) ELSE pm.amount END
+           FROM payment_milestones pm WHERE pm.estimate_id = e.id ORDER BY pm.sort_order, pm.created_at LIMIT 1) as first_milestone_amount,
+        (SELECT pm.label FROM payment_milestones pm WHERE pm.estimate_id = e.id ORDER BY pm.sort_order, pm.created_at LIMIT 1) as first_milestone_label,
+        (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count,
+        sr.first_name || ' ' || sr.last_name as rep_name
+      FROM estimates e
+      LEFT JOIN staff_accounts sr ON sr.id = e.sales_rep_id
+      WHERE (e.customer_id IN (SELECT id FROM customers WHERE trade_customer_id = $1)
+             OR ($2 <> '' AND LOWER(e.customer_email) = LOWER($2)))
+        AND e.status != 'draft'
+      ORDER BY e.created_at DESC
+    `, [req.tradeCustomer.id, req.tradeCustomer.email || '']);
+    const estimates = result.rows.map(r => ({
+      ...r,
+      deposit_amount: r.first_milestone_amount != null ? parseFloat(r.first_milestone_amount) : depositAmount(r),
+      deposit_label: r.first_milestone_label || (r.deposit_type && r.deposit_type !== 'none' ? 'Deposit' : null),
+    }));
+    res.json({ estimates });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/trade/estimates/:id', tradeAuth, async (req, res) => {
+  try {
+    const est = await pool.query(`
+      SELECT e.*,
+        CASE WHEN e.status IN ('sent', 'accepted') AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
+        sr.first_name || ' ' || sr.last_name as rep_name
+      FROM estimates e
+      LEFT JOIN staff_accounts sr ON sr.id = e.sales_rep_id
+      WHERE e.id = $1
+        AND (e.customer_id IN (SELECT id FROM customers WHERE trade_customer_id = $2)
+             OR ($3 <> '' AND LOWER(e.customer_email) = LOWER($3)))
+        AND e.status != 'draft'
+    `, [req.params.id, req.tradeCustomer.id, req.tradeCustomer.email || '']);
+    if (!est.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    const items = await pool.query(
+      'SELECT * FROM estimate_items WHERE estimate_id = $1 ORDER BY sort_order, created_at',
+      [req.params.id]
+    );
+    await enrichItemsForNaming(items.rows);
+    res.json({ estimate: est.rows[0], items: items.rows });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/trade/estimates/:id/pdf', tradeAuth, async (req, res) => {
+  try {
+    // Ownership check before building the (unscoped) bundle.
+    const own = await pool.query(
+      `SELECT 1 FROM estimates WHERE id = $1
+         AND (customer_id IN (SELECT id FROM customers WHERE trade_customer_id = $2)
+              OR ($3 <> '' AND LOWER(customer_email) = LOWER($3)))
+         AND status != 'draft'`,
+      [req.params.id, req.tradeCustomer.id, req.tradeCustomer.email || '']);
+    if (!own.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    const bundle = await getEstimateBundle(pool, { id: req.params.id });
+    if (!bundle) return res.status(404).json({ error: 'Estimate not found' });
+    await generatePDF(buildEstimatePdfHtml(bundle), `estimate-${bundle.estimate.estimate_number}.pdf`, req, res);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== Invoice Helpers ====================
 
 async function generateOrderInvoiceHtml(orderId) {
