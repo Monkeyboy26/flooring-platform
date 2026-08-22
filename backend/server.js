@@ -24488,7 +24488,9 @@ app.get('/api/rep/estimates', repAuth, async (req, res) => {
           ELSE NULL END as order_balance_due,
         (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count,
         (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id AND ei.item_type = 'material') as material_count,
-        (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id AND ei.item_type = 'labor') as labor_count
+        (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id AND ei.item_type = 'labor') as labor_count,
+        (SELECT COUNT(*)::int FROM estimate_events ev WHERE ev.estimate_id = e.id AND ev.event_type = 'viewed') as view_count,
+        (SELECT COUNT(*)::int FROM estimate_events ev WHERE ev.estimate_id = e.id AND ev.event_type = 'reply') as reply_count
       FROM estimates e
       LEFT JOIN staff_accounts sr ON sr.id = e.sales_rep_id
       LEFT JOIN orders o ON o.id = e.converted_order_id
@@ -25252,6 +25254,30 @@ app.post('/api/rep/estimates/:id/send', repAuth, async (req, res) => {
     if (err && err.statusCode) return res.status(err.statusCode).json({ error: err.error });
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// POST /api/rep/estimates/:id/extend — refresh the 30-day validity window
+// WITHOUT emailing the customer (the quote's /reinstate analog; bulk-resend
+// renews too but also sends mail). Converted/declined estimates are skipped.
+app.post('/api/rep/estimates/:id/extend', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const r = await pool.query('SELECT status FROM estimates WHERE id = $1', [id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Estimate not found' });
+    if (['converted', 'declined'].includes(r.rows[0].status)) {
+      return res.status(400).json({ error: 'Estimate cannot be extended in its current status' });
+    }
+    const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    // Re-arm the expiry reminder so a future lapse still notifies.
+    const upd = await pool.query(
+      "UPDATE estimates SET status = 'sent', expires_at = $2, reminder_sent_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
+      [id, newExpiry]);
+    await logEstimateEvent(pool, id, 'extended', {
+      body: 'Expiry extended 30 days', actor: 'rep',
+      actorName: req.rep.first_name + ' ' + req.rep.last_name, meta: { expires_at: newExpiry }
+    });
+    res.json({ estimate: upd.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
 // POST /api/rep/estimates/bulk-resend — Re-send several estimates in one pass

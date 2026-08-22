@@ -728,6 +728,10 @@
     .ol-table-row:hover { background: rgba(28,25,23,0.03); }
     .ol-table-row:focus-visible { outline: 2px solid var(--gold, #c9a668); outline-offset: -2px; }
     .ol-table-row.selected { background: var(--brass-warm, #d8cdb6); }
+    /* Estimates list adds Engagement + Expires columns (12 cols) without disturbing the shared Orders grid */
+    .ol-table-est.ol-table-head, .ol-table-est.ol-table-row {
+      grid-template-columns: 18px 8px 130px 1.4fr 90px 90px 1.2fr 90px 80px 60px 80px 24px;
+    }
     .ol-table-row .ol-order-id {
       font: 500 11px/1 ui-monospace, monospace; letter-spacing: 0.06em; color: var(--stone-900);
     }
@@ -792,9 +796,13 @@
         grid-template-columns: 18px 6px 110px 1fr 80px 90px 1fr 50px 70px 20px;
         gap: 8px;
       }
+      .ol-table-est.ol-table-head, .ol-table-est.ol-table-row {
+        grid-template-columns: 18px 6px 100px 1fr 78px 78px 1fr 74px 68px 46px 64px 18px;
+      }
     }
     @media (max-width: 768px) {
       .ol-table-head { display: none; }
+      .ol-table-est.ol-table-row { grid-template-columns: 1fr; }
       .ol-table-row {
         grid-template-columns: 1fr; gap: 4px; padding: 14px 16px;
       }
@@ -27652,8 +27660,14 @@
       // Saved view definitions — filter the loaded estimates client-side
       const viewFilters = {
         'open': e => ['draft', 'sent', 'accepted'].includes(effOf(e)),
+        'hot': e => effOf(e) === 'sent' && (e.view_count || 0) >= 3,
         'drafts': e => effOf(e) === 'draft',
         'awaiting': e => effOf(e) === 'sent',
+        'expiring': e => {
+          if (!e.expires_at) return false;
+          const d = Math.ceil((new Date(e.expires_at) - Date.now()) / 86400000);
+          return d >= 0 && d <= 7 && ['draft', 'sent', 'accepted'].includes(effOf(e));
+        },
         'accepted': e => effOf(e) === 'accepted',
         'declined': e => effOf(e) === 'declined',
         'converted': e => effOf(e) === 'converted',
@@ -27668,8 +27682,10 @@
 
       const viewCounts = useMemo(() => ({
         'open': estimates.filter(viewFilters['open']).length,
+        'hot': estimates.filter(viewFilters['hot']).length,
         'drafts': estimates.filter(viewFilters['drafts']).length,
         'awaiting': estimates.filter(viewFilters['awaiting']).length,
+        'expiring': estimates.filter(viewFilters['expiring']).length,
         'accepted': estimates.filter(viewFilters['accepted']).length,
         'declined': estimates.filter(viewFilters['declined']).length,
         'converted': estimates.filter(viewFilters['converted']).length,
@@ -27719,6 +27735,57 @@
         setBulkSending(false);
       };
 
+      // Bulk: refresh the 30-day validity window on the selected estimates
+      // (reuses the per-estimate /extend endpoint — does NOT email). Converted
+      // and declined estimates are skipped.
+      const bulkExtend = async () => {
+        const eligible = estimates.filter(e => selected.has(e.id) && !['converted', 'declined'].includes(effOf(e)));
+        if (!eligible.length) {
+          setBulkMsg({ type: 'warn', text: 'No eligible estimates (converted/declined can’t be extended).' });
+          return;
+        }
+        setBulkSending(true); setBulkMsg(null);
+        let ok = 0, fail = 0;
+        for (const e of eligible) {
+          try { await repFetch('/api/rep/estimates/' + e.id + '/extend', { method: 'POST' }); ok++; }
+          catch (err) { fail++; }
+        }
+        setBulkSending(false); setSelected(new Set()); load();
+        setBulkMsg({
+          type: fail ? 'warn' : 'success',
+          text: 'Extended ' + ok + ' estimate' + (ok !== 1 ? 's' : '') + (fail ? ', ' + fail + ' failed' : '') + '.'
+        });
+      };
+
+      // Export the selected estimates (or the whole filtered view if none are
+      // checked) as a CSV. Pure client-side — no round-trip.
+      const bulkExportCsv = () => {
+        const rows = selected.size ? estimates.filter(e => selected.has(e.id)) : filteredEstimates;
+        if (!rows.length) { setBulkMsg({ type: 'warn', text: 'Nothing to export.' }); return; }
+        const cols = ['Estimate', 'Customer', 'Project', 'Items', 'Materials', 'Labor', 'Total', 'Status', 'Expires', 'Age', 'Created'];
+        const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+        const lines = [cols.join(',')];
+        rows.forEach(e => {
+          lines.push([
+            e.estimate_number, e.customer_name, e.project_name || '',
+            e.item_count || 0,
+            parseFloat(e.materials_subtotal || 0).toFixed(2),
+            parseFloat(e.labor_subtotal || 0).toFixed(2),
+            parseFloat(e.total || 0).toFixed(2),
+            effOf(e), getExpires(e).label, getAge(e.created_at),
+            e.created_at ? new Date(e.created_at).toLocaleDateString() : ''
+          ].map(esc).join(','));
+        });
+        const blob = new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'roma-estimates-' + new Date().toISOString().slice(0, 10) + '.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setBulkMsg({ type: 'success', text: 'Exported ' + rows.length + ' estimate' + (rows.length !== 1 ? 's' : '') + '.' });
+      };
+
       const getStatusColor = (s) => {
         if (s === 'draft') return '#a87935';
         if (s === 'sent') return '#5c6e94';
@@ -27736,11 +27803,23 @@
         return days + 'd';
       };
 
+      const getExpires = (e) => {
+        if (!e.expires_at) return { label: '—', tone: 'var(--brass-muted)' };
+        if (['converted', 'declined'].includes(effOf(e))) return { label: '—', tone: 'var(--brass-muted)' };
+        const days = Math.ceil((new Date(e.expires_at) - Date.now()) / 86400000);
+        if (days < 0) return { label: 'Expired', tone: 'var(--brass-muted)' };
+        if (days === 0) return { label: 'Today', tone: '#c54731' };
+        if (days <= 2) return { label: days + ' days', tone: '#a87935' };
+        return { label: days + ' days', tone: 'var(--stone-900)' };
+      };
+
       const VIEWS = [
         { key: 'all', label: 'All' },
         { key: 'open', label: 'Open', tone: '#a87935' },
+        { key: 'hot', label: 'Hot', tone: 'var(--gold, #c9a668)' },
         { key: 'drafts', label: 'Drafts' },
         { key: 'awaiting', label: 'Awaiting customer' },
+        { key: 'expiring', label: 'Expiring this week', tone: '#c54731' },
         { key: 'accepted', label: 'Accepted', tone: '#3a7a4e' },
         { key: 'declined', label: 'Declined', tone: '#c54731' },
         { key: 'converted', label: 'Converted' },
@@ -27768,7 +27847,7 @@
               <h1><em>Estimates</em></h1>
             </div>
             <div className="ol-header-actions">
-              <button className="ol-header-btn">Export</button>
+              <button className="ol-header-btn" onClick={bulkExportCsv}>Export</button>
               <button className="ol-header-btn primary" onClick={() => navigate('estimate-create')}>+ New estimate</button>
             </div>
           </div>
@@ -27818,9 +27897,10 @@
               <div className="ol-bulk-label">{'\u25CF'} {selected.size} estimate{selected.size !== 1 ? 's' : ''} selected</div>
               <div className="ol-bulk-actions">
                 <button className="ol-bulk-btn" onClick={bulkResend} disabled={bulkSending}>
-                  {bulkSending ? 'Re-sending\u2026' : '\u21BB Re-send'}
+                  {bulkSending ? 'Working\u2026' : '\u21BB Re-send'}
                 </button>
-                <button className="ol-bulk-btn">Export CSV</button>
+                <button className="ol-bulk-btn" onClick={bulkExtend} disabled={bulkSending}>Extend expiry</button>
+                <button className="ol-bulk-btn" onClick={bulkExportCsv}>Export CSV</button>
                 <button className="ol-bulk-btn" onClick={() => setSelected(new Set())}>{'\u2715'} Clear</button>
               </div>
             </div>
@@ -27834,7 +27914,7 @@
           ) : (
             <div className="ol-table-wrap">
               {/* Table header */}
-              <div className="ol-table-head">
+              <div className="ol-table-head ol-table-est">
                 <input type="checkbox" style={{ margin: 0 }} aria-label="Select all estimates on page"
                   checked={pageEstimates.length > 0 && selected.size === pageEstimates.length}
                   onChange={toggleAll} />
@@ -27844,6 +27924,8 @@
                 <span style={{ textAlign: 'right' }}>Total</span>
                 <span>Items</span>
                 <span>Status {'\u00b7'} breakdown</span>
+                <span>Engagement</span>
+                <span>Expires</span>
                 <span style={{ textAlign: 'right' }}>Age</span>
                 <span>Date</span>
                 <span />
@@ -27876,7 +27958,7 @@
                   : es === 'accepted' ? '#3a7a4e'
                   : 'transparent';
                 return (
-                  <div key={e.id} className={'ol-table-row' + (isSel ? ' selected' : '')}
+                  <div key={e.id} className={'ol-table-row ol-table-est' + (isSel ? ' selected' : '')}
                     role="button" tabIndex={0}
                     onClick={goTo}
                     onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); goTo(); } }}>
@@ -27906,6 +27988,10 @@
                         ) : stepText}
                       </div>
                     </div>
+                    <span className="ol-cust-tag" style={{ margin: 0 }}>
+                      {(e.view_count || 0)}{'×'} opens{e.reply_count ? ' ✉' : ''}
+                    </span>
+                    <span className="ol-state-label" style={{ color: getExpires(e).tone }}>{'●'} {getExpires(e).label}</span>
                     <span className="ol-age">{getAge(e.created_at)}</span>
                     <span className="ol-install">{new Date(e.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                     <span className="ol-arrow">{'\u2192'}</span>
@@ -28928,17 +29014,8 @@
         converted: { label: 'Converted', tone: '#3a7a4e' },
       };
       const st = estimate ? (EST_STATUS_META[effStatus] || { label: effStatus, tone: 'var(--brass-muted)' }) : { label: 'New draft', tone: '#a87935' };
-      const estStepRank = !estimate ? 0
-        : effStatus === 'converted' ? 3
-        : effStatus === 'accepted' ? 2
-        : effStatus === 'sent' ? 1 : 0;
-      const estSteps = [
-        { label: 'Draft', meta: estimate ? fmtD(estimate.created_at) : 'not saved yet' },
-        { label: 'Sent', meta: estimate && ['sent', 'accepted', 'declined', 'converted'].includes(estimate.status) ? 'emailed to customer' : 'preview & send' },
-        { label: 'Accepted', meta: estimate && estimate.accepted_at ? 'by ' + (estimate.accepted_by_name || 'customer') : 'customer approval' },
-        { label: 'Converted', meta: estimate && estimate.converted_quote_id ? 'quote created'
-            : estimate && estimate.converted_order_id ? 'order created' : 'becomes an order' },
-      ];
+      // Lifecycle stepper derivations live below, after the engagement vars (the
+      // "Viewed" step reads engOpens/engViewers).
       const publicLink = estimate && estimate.public_token
         ? window.location.origin + '/estimate/' + estimate.public_token : null;
       const copyPublicLink = () => {
@@ -28959,6 +29036,64 @@
       const engReplies = engagement ? engagement.replies : 0;
       const lastViewedAt = engagement && engagement.last_viewed_at ? engagement.last_viewed_at : null;
       const lastReplyAt = engagement && engagement.last_reply_at ? engagement.last_reply_at : null;
+
+      // ── Quote-workspace shell derivations ──
+      // Avatar initials (estimate has no stored initials — derive from the name)
+      const initials = (form.customer_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+
+      // Expiry math — window anchored on sent_at (renewed on each send), fallback created_at
+      const estExpiresAt = estimate && estimate.expires_at ? new Date(estimate.expires_at) : null;
+      const estIsExpired = effStatus === 'expired';
+      const estWinStart = estimate ? new Date(estimate.sent_at || estimate.created_at) : null;
+      const estDaysLeft = estExpiresAt ? Math.ceil((estExpiresAt.getTime() - Date.now()) / 86400000) : null;
+      const estExpiryPct = (estExpiresAt && estWinStart && estExpiresAt.getTime() > estWinStart.getTime())
+        ? Math.min(100, Math.max(0, (Date.now() - estWinStart.getTime()) / (estExpiresAt.getTime() - estWinStart.getTime()) * 100))
+        : 0;
+
+      // Draft checklist (shown in the rail while the estimate has no id yet)
+      const estCustomerDone = !!form.customer_name && form.customer_name.trim().split(/\s+/).length >= 2 && isValidEmail(form.customer_email);
+      const estLinesDone = items.length > 0;
+      const estChecklist = [
+        { label: 'Customer', done: estCustomerDone, meta: estCustomerDone ? form.customer_name : 'name · email' },
+        { label: 'Lines', done: estLinesDone, meta: estLinesDone ? materialItems.length + ' mat · ' + laborItems.length + ' labor' : 'add materials or labor' },
+        { label: 'Ready to send', done: estCustomerDone && estLinesDone, meta: (estCustomerDone && estLinesDone) ? 'preview & send' : 'complete the above' },
+      ];
+      const estFirstTodo = estChecklist.findIndex(c => !c.done);
+
+      // 5-step lifecycle: Draft → Sent → Viewed → Accepted → Converted (mirrors the quote)
+      let estStepRank = 0;
+      if (estimate) {
+        if (effStatus === 'converted') estStepRank = 5;
+        else if (effStatus === 'accepted' || isTerminalNeg) estStepRank = 3;
+        else if (effStatus === 'sent') estStepRank = engOpens > 0 ? 2 : 1;
+      }
+      const estSteps = [
+        { label: 'Draft', meta: estimate ? fmtD(estimate.created_at) : 'not saved yet' },
+        { label: 'Sent', meta: estimate && ['sent', 'accepted', 'declined', 'converted'].includes(estimate.status)
+            ? (estimate.sent_at ? fmtDT(estimate.sent_at) : 'emailed to customer')
+            : 'preview & send' },
+        { label: 'Viewed', meta: engOpens > 0
+            ? engOpens + (engOpens === 1 ? ' open · ' : ' opens · ') + engViewers + (engViewers === 1 ? ' viewer' : ' viewers')
+            : (estimate && estimate.first_viewed_at ? 'viewed ' + fmtD(estimate.first_viewed_at) : 'no opens yet') },
+        { label: 'Accepted', meta: isTerminalNeg
+            ? (effStatus === 'declined' ? 'declined' : 'expired')
+            : (estimate && estimate.accepted_at) ? 'by ' + (estimate.accepted_by_name || 'customer')
+            : (['accepted', 'converted'].includes(effStatus)) ? 'customer committed'
+            : estExpiresAt ? 'expires ' + fmtD(estExpiresAt) : 'customer approval' },
+        { label: 'Converted', meta: estimate && estimate.converted_order_number ? estimate.converted_order_number
+            : estimate && estimate.converted_quote_id ? 'quote created'
+            : estimate && estimate.converted_order_id ? 'order created' : 'becomes an order' },
+      ];
+      const estDeadStepIndex = 3;
+      const estStepState = (i) => {
+        if (isTerminalNeg) {
+          if (i === estDeadStepIndex) return 'dead';
+          if (i > estDeadStepIndex) return 'next';
+          if (i === 2) return engOpens > 0 ? 'done' : 'next';
+          return 'done';
+        }
+        return i < estStepRank ? 'done' : i === estStepRank ? 'now' : 'next';
+      };
 
       // Rep-only economics over materials (a $0 cost means "cost unknown", not 100% margin)
       const estCosted = materialItems.filter(i => parseFloat(i.vendor_cost) > 0 && parseFloat(i.unit_price) > 0);
@@ -29333,85 +29468,77 @@
 
       return (
         <div style={{ paddingBottom: 96 }}>
-          {/* Breadcrumb — Order View v2 style */}
-          <div className="rod-breadcrumb">
-            <div className="rod-breadcrumb-trail">
-              <a onClick={() => navigate('dashboard')}>Workspace</a>
-              <span className="rod-breadcrumb-sep"></span>
+          {/* Breadcrumb */}
+          <div className="qw-breadcrumb">
+            <div className="qw-crumbs">
               <a onClick={() => navigate('estimates')}>Estimates</a>
-              <span className="rod-breadcrumb-sep"></span>
-              <span className="rod-current">{estimate ? estimate.estimate_number : 'New estimate'}</span>
+              <span className="qw-crumb-sep" />
+              <span className="qw-crumb-current">{editId && estimate ? estimate.estimate_number : 'New estimate'}</span>
             </div>
-            <div className="rod-breadcrumb-nav">
-              <a onClick={() => navigate('estimates')}>← Estimates</a>
+            <div className="qw-meta-right">
+              {estimate && <span>Updated {fmtD(estimate.updated_at)}</span>}
+              <span style={{ color: st.tone }}>{'●'} {st.label}</span>
             </div>
           </div>
 
-          {/* Header — Order View v2 style */}
-          {(() => {
-            const chipTone = effStatus === 'accepted' ? 'live'
-              : effStatus === 'converted' ? 'done'
-              : effStatus === 'declined' ? 'hot'
-              : effStatus === 'sent' ? 'hold'
-              : 'soft';
-            return (
-              <div className="rov-header">
+          {/* Header */}
+          <div className="qw-header">
+            <div>
+              <h1>{editId && estimate ? <React.Fragment>Estimate <em>{estimate.estimate_number}</em></React.Fragment> : <React.Fragment>New <em>estimate</em></React.Fragment>}</h1>
+              <div className="qw-identity">
+                <div className="qw-avatar">{initials}</div>
                 <div>
-                  <RovMicro>Estimates{form.project_name ? ' · ' + form.project_name : ''}</RovMicro>
-                  <div className="rov-header-title-row">
-                    <h1>{estimate ? estimate.estimate_number : 'New estimate'}</h1>
-                    <RovChip tone={chipTone}>{st.label}</RovChip>
+                  <div className="qw-cust-line">{form.customer_name || 'No customer yet'}</div>
+                  <div className="qw-cust-sub">
+                    {form.customer_email || form.phone
+                      ? <React.Fragment>{[form.customer_email, form.phone].filter(Boolean).join(' · ')}{form.project_name ? ' · ' + form.project_name : ''}</React.Fragment>
+                      : 'Pick an existing customer or enter details below'}
                   </div>
-                  <RovMicro style={{ marginTop: 10 }}>
-                    {form.customer_name || 'No customer yet'}
-                    {(form.customer_email || form.phone) ? ' · ' + [form.customer_email, form.phone].filter(Boolean).join(' · ') : ''}
-                    {estimate ? ' · Updated ' + fmtD(estimate.updated_at) : ''}
-                  </RovMicro>
-                </div>
-                <div className="rov-header-actions">
-                  {estimate && (
-                    <AddTaskButton
-                      navigate={navigate}
-                      className="rov-hbtn"
-                      label="+ Task"
-                      prefill={{
-                        title: 'Follow up on estimate ' + estimate.estimate_number,
-                        linked_estimate_id: estimate.id,
-                        customer_name: form.customer_name,
-                        customer_email: form.customer_email,
-                        customer_phone: form.phone,
-                        context_label: estimate.estimate_number + (form.customer_name ? ' · ' + form.customer_name : ''),
-                      }}
-                    />
-                  )}
-                  {estimate && !isReadonly && (
-                    <button className="rov-hbtn" onClick={loadPreview} disabled={previewLoading}>
-                      {previewLoading ? 'Loading…' : effStatus === 'expired' ? 'Re-send (renew 30 days)' : estimate.status === 'sent' ? 'Resend estimate' : 'Preview & send'}
-                    </button>
-                  )}
-                  {estimate && (
-                    <button className="rov-hbtn" onClick={async () => {
-                      try {
-                        const url = await repOpenDoc('/api/rep/estimates/' + estimate.id + '/pdf?preview=true');
-                        setPdfViewer({ url, filename: (estimate.estimate_number || 'estimate') + '.pdf' });
-                      } catch(e) { alert('Failed to load PDF'); }
-                    }}>Preview PDF</button>
-                  )}
-                  {savedFlash && !saving && (
-                    <span style={{ alignSelf: 'center', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#3f7d5a' }}>{'✓'} Saved</span>
-                  )}
-                  {!isReadonly && (
-                    <button className="rov-hbtn" onClick={saveEstimate} disabled={saving}>
-                      {saving ? 'Saving…' : (estimate ? 'Save details' : 'Save draft')}
-                    </button>
-                  )}
-                  {estimate && estimate.status === 'draft' && (
-                    <button className="rov-hbtn danger" onClick={deleteEstimate}>Delete</button>
-                  )}
                 </div>
               </div>
-            );
-          })()}
+            </div>
+            <div className="ol-header-actions">
+              {estimate && (
+                <AddTaskButton
+                  navigate={navigate}
+                  className="ol-header-btn"
+                  label="+ Task"
+                  prefill={{
+                    title: 'Follow up on estimate ' + estimate.estimate_number,
+                    linked_estimate_id: estimate.id,
+                    customer_name: form.customer_name,
+                    customer_email: form.customer_email,
+                    customer_phone: form.phone,
+                    context_label: estimate.estimate_number + (form.customer_name ? ' · ' + form.customer_name : ''),
+                  }}
+                />
+              )}
+              {estimate && (
+                <button className="ol-header-btn" onClick={async () => {
+                  try {
+                    const url = await repOpenDoc('/api/rep/estimates/' + estimate.id + '/pdf?preview=true');
+                    setPdfViewer({ url, filename: (estimate.estimate_number || 'estimate') + '.pdf' });
+                  } catch(e) { alert('Failed to load PDF'); }
+                }}>Preview PDF</button>
+              )}
+              {estimate && !isReadonly && (
+                <button className="ol-header-btn" onClick={loadPreview} disabled={previewLoading}>
+                  {previewLoading ? 'Loading…' : effStatus === 'expired' ? 'Re-send (renew 30 days)' : estimate.status === 'sent' ? 'Resend estimate' : 'Preview & send'}
+                </button>
+              )}
+              {savedFlash && !saving && (
+                <span style={{ alignSelf: 'center', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#3f7d5a' }}>{'✓'} Saved</span>
+              )}
+              {!isReadonly && (
+                <button className="ol-header-btn primary" onClick={saveEstimate} disabled={saving}>
+                  {saving ? 'Saving…' : (estimate ? 'Save details' : 'Save draft')}
+                </button>
+              )}
+              {estimate && estimate.status === 'draft' && (
+                <button className="ol-header-btn" onClick={deleteEstimate}>Delete draft</button>
+              )}
+            </div>
+          </div>
           {pdfViewer && (
             <RepPdfViewer
               url={pdfViewer.url}
@@ -29440,20 +29567,17 @@
             </div>
           )}
 
-          {/* Lifecycle rail — Order View v2 style */}
-          <div className="rov-lifecycle cols-4">
+          {/* Lifecycle stepper */}
+          <div className="qw-stepper cols-5">
             {estSteps.map((s, i) => {
-              const state = isTerminalNeg ? 'dead'
-                : i < estStepRank ? 'done'
-                : i === estStepRank ? 'current'
-                : 'future';
+              const state = estStepState(i);
               return (
-                <div key={s.label} className={'rov-stage ' + state}>
-                  <span className="rov-stage-mark">{state === 'done' ? '✓' : isTerminalNeg ? '✕' : '0' + (i + 1)}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <div className="rov-stage-label">{s.label}</div>
-                    <RovMicro style={{ marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.meta}</RovMicro>
+                <div key={s.label} className={'qw-step ' + state}>
+                  <div className="qw-step-label">
+                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
+                    <span>{s.label}</span>
                   </div>
+                  <div className="qw-step-meta">{s.meta}</div>
                 </div>
               );
             })}
@@ -29854,6 +29978,33 @@
 
             {/* ── Decision rail ── */}
             <aside className="qw-rail">
+              {estimate && estExpiresAt && ['draft', 'sent', 'accepted'].includes(estimate.status) && (
+                <div className={'qw-expiry-card' + (estIsExpired ? ' expired' : '')}>
+                  <div className="qw-expiry-label">{'●'} {estIsExpired ? 'Estimate expired' : estimate.status === 'accepted' ? 'Accepted — convert before expiry' : 'Awaiting acceptance'}</div>
+                  <div className="qw-expiry-big">{estDaysLeft <= 0 ? 'Expired' : estDaysLeft + (estDaysLeft === 1 ? ' day left' : ' days left')}</div>
+                  <div className="qw-expiry-sub">{estIsExpired ? 'Expired ' : 'Expires '}{estExpiresAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
+                  <div className="qw-expiry-track">
+                    <div className="qw-expiry-fill" style={{ width: estExpiryPct + '%' }} />
+                  </div>
+                </div>
+              )}
+
+              {!editId && (
+                <div className="qw-rail-card">
+                  <h3>Draft checklist</h3>
+                  {estChecklist.map((c, i) => {
+                    const state = c.done ? 'done' : i === estFirstTodo ? 'now' : 'next';
+                    return (
+                      <div key={c.label} className={'qw-check-row ' + state}>
+                        <span className="qw-check-mark">{c.done ? '✓' : state === 'now' ? '●' : '○'}</span>
+                        <span className="qw-check-label">{c.label}</span>
+                        <span className="qw-check-meta">{c.meta}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="qw-rail-card">
                 <h3>Totals</h3>
                 <div style={{ display: 'grid', gap: 8 }}>
@@ -29929,6 +30080,27 @@
                   );
                 })()}
               </div>
+
+              {editId && estimate && (
+                <div className="qw-rail-card">
+                  <h3>Engagement</h3>
+                  <div className="qw-engage-grid">
+                    {[[engOpens, engOpens === 1 ? 'open' : 'opens'], [engViewers, engViewers === 1 ? 'viewer' : 'viewers'], [engReplies, engReplies === 1 ? 'reply' : 'replies']].map(([n, l]) => (
+                      <div key={l}>
+                        <div className="qw-engage-n">{n}</div>
+                        <div className="qw-engage-l">{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="qw-engage-foot">
+                    {engOpens > 0
+                      ? <React.Fragment>Last opened {fmtDT(lastViewedAt)}{lastReplyAt ? ' · last reply ' + fmtDT(lastReplyAt) : ''}.</React.Fragment>
+                      : estimate.status === 'draft'
+                        ? 'Send the estimate to start tracking opens.'
+                        : 'No opens yet — tracking starts when the customer opens the email.'}
+                  </div>
+                </div>
+              )}
 
               {estimate && (() => {
                 const estTotal = parseFloat(estimate.total || 0) || 0;
@@ -30042,6 +30214,18 @@
                       View order {'→'}
                     </button>
                   )}
+                </div>
+              )}
+
+              {editId && estIsExpired && (
+                <div className="qw-convert-card">
+                  <div className="qw-convert-label">Estimate expired</div>
+                  <div className="qw-convert-copy">
+                    Re-send to renew the 30-day window, then convert.
+                  </div>
+                  <button className="qw-convert-btn" onClick={loadPreview} disabled={previewLoading}>
+                    {previewLoading ? 'Loading…' : <React.Fragment>Re-send &amp; renew {'→'}</React.Fragment>}
+                  </button>
                 </div>
               )}
 
