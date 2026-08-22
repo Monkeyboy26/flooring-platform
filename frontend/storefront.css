@@ -3554,7 +3554,7 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .acct-order-date { font-family: var(--font-body); font-size: 0.625rem; font-weight: 400; letter-spacing: 0.02em; color: var(--warm-muted); margin-top: 2px; }
 .acct-order-items { font-family: var(--font-body); font-size: 0.75rem; font-weight: 400; color: rgba(28,25,23,0.55); }
 .acct-order-detail { font-size: 0.75rem; color: rgba(28,25,23,0.55); line-height: 1.4; }
-.acct-order-status { font-family: var(--font-body); font-size: 0.625rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.acct-order-status { font-family: var(--font-body); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.01em; white-space: nowrap; }
 .acct-order-total { font-family: var(--font-body); font-size: 1rem; font-weight: 500; line-height: 1; color: var(--stone-800); letter-spacing: -0.01em; text-align: right; font-variant-numeric: tabular-nums; }
 .acct-order-action { font-family: var(--font-body); font-size: 0.6875rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--warm-muted); text-decoration: none; text-align: right; transition: color 0.15s; }
 .acct-order-action:hover { color: var(--gold); }

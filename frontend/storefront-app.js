@@ -8724,9 +8724,10 @@
     const fieldStyle = { marginBottom: "0.875rem" };
     const ORDER_STATUS_META = {
       pending: { label: "Pending", color: "#a87935" },
-      confirmed: { label: "Confirmed", color: "#a87935" },
-      ready_for_pickup: { label: "Ready for pickup", color: "#3a7a4e" },
-      shipped: { label: "Shipped", color: "#2563eb" },
+      confirmed: { label: "Confirmed", color: "#2563eb" },
+      processing: { label: "Processing", color: "#2563eb" },
+      ready_for_pickup: { label: "Ready for pickup", color: "#4f46e5" },
+      shipped: { label: "Shipped", color: "#4f46e5" },
       delivered: { label: "Delivered", color: "#3a7a4e" },
       cancelled: { label: "Cancelled", color: "var(--warm-muted)" }
     };
