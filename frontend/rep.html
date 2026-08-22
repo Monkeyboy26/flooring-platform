@@ -11916,11 +11916,20 @@
       const [selected, setSelected] = useState({}); // { [sku_id]: product } — bulk selection, persists across pages/filters
       const [bulkOpen, setBulkOpen] = useState(false);
       const searchTimer = useRef(null);
+      const userSorted = useRef(false); // rep explicitly picked a sort — don't auto-override with relevance
 
       // Debounce the search field into the query param so we don't hit /api/rep/products on every keystroke.
       useEffect(() => {
         if (searchTimer.current) clearTimeout(searchTimer.current);
-        searchTimer.current = setTimeout(() => { setSearch(searchInput); setPage(1); }, 300);
+        searchTimer.current = setTimeout(() => {
+          const q = searchInput.trim();
+          setSearch(searchInput);
+          setPage(1);
+          // Default a search to relevance ordering (matches the quick-add picker),
+          // unless the rep explicitly chose another sort. Reset when the search clears.
+          if (q && !userSorted.current) setSortBy('relevance');
+          if (!q) { userSorted.current = false; setSortBy(sb => sb === 'relevance' ? 'margin_desc' : sb); }
+        }, 300);
         return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
       }, [searchInput]);
 
@@ -12100,8 +12109,9 @@
       ];
       const activeBand = priceBands.findIndex(b => b.min === minPrice && b.max === maxPrice);
 
-      // Sort options
+      // Sort options \u2014 Relevance is offered (and defaulted) only while searching.
       const sortOptions = [
+        ...(search ? [{ value: 'relevance', label: 'Relevance' }] : []),
         { value: 'margin_desc', label: 'Margin \u00B7 high \u2192 low' },
         { value: 'margin_asc', label: 'Margin \u00B7 low \u2192 high' },
         { value: 'price_desc', label: 'Price \u00B7 high \u2192 low' },
@@ -12177,7 +12187,7 @@
               <span style={mono(TH.muted)}>{total > 0 ? startIdx + '\u2013' + endIdx + ' of ' + total.toLocaleString() : '0 SKUs'}</span>
               <span style={{ width: 1, height: 18, background: TH.ink + '22' }} />
               <span style={mono(TH.muted)}>Sort</span>
-              <select value={sortBy} onChange={e => { setSortBy(e.target.value); setPage(1); }} style={{
+              <select value={sortBy} onChange={e => { userSorted.current = e.target.value !== 'relevance'; setSortBy(e.target.value); setPage(1); }} style={{
                 padding: '7px 8px', border: '0.5px solid ' + TH.ink + '33', background: TH.paper, color: TH.ink,
                 font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase',
                 cursor: 'pointer', outline: 'none',

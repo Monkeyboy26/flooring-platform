@@ -1897,7 +1897,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     // Search — Progressive FTS (AND → OR cascade) + trigram hybrid (with synonym expansion)
     let searchParamIdx = null;
     let searchTsQueryIdx = null;
-    let searchOrTsQueryIdx = null;
+    let useNarrowRecall = false; // true once the AND-recall (all words) finds matches; false ⇒ broad typo-fallback
     if (searchTerm) {
       const normalized = normalizeSearchQuery(searchTerm);
       const sanitized = normalized.replace(/[^\w\s'.-]/g, '').trim();
@@ -1909,36 +1909,72 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         const words = expanded.split(/\s+/).filter(Boolean);
         const andTsQuery = words.map(w => w + ':*').join(' & ');
         const orTsQuery = words.map(w => w + ':*').join(' | ');
-        params.push(andTsQuery);
+
+        // Progressive AND→OR recall: if any product contains ALL query words
+        // (AND full-text), recall is restricted to those (+ exact-phrase substring
+        // + sku-code prefix), dropping the OR-full-text and trigram fuzzy net. That
+        // net exists only as a fallback for typos/rare word combos — when real
+        // all-word matches exist it just pads the tail with loosely-related items
+        // ("12x24 matte" → 5,400 results, most matching only one word). When no
+        // product matches every word (a typo, or words that never co-occur), the
+        // AND count is 0 and we keep the broad net so the grid isn't empty. One
+        // small indexed probe (GIN, ~25ms) decides. This mirrors the AND→OR cascade
+        // the /search/suggest autocomplete already uses.
+        try {
+          const andCount = await pool.query(
+            `SELECT 1 FROM products WHERE status = 'active' AND search_vector @@ to_tsquery('english', unaccent($1)) LIMIT 1`,
+            [andTsQuery]
+          );
+          useNarrowRecall = andCount.rows.length > 0;
+        } catch (e) { /* malformed tsquery — fall back to broad recall */ }
+
+        // Bind a SINGLE tsquery param — the AND-query when narrowing, the OR-query
+        // otherwise — and use it for both the recall WHERE and the ranking
+        // (match_tier + ts_rank). One shared param means there's never an
+        // unreferenced/gap parameter, which the count query (WHERE only, no ranking)
+        // would otherwise reject at bind ("could not determine data type"). In broad
+        // mode nothing matches all words, so the AND-based tiers are vacuous anyway
+        // and the OR-query is the correct relevance signal there too.
+        params.push(useNarrowRecall ? andTsQuery : orTsQuery);
         searchTsQueryIdx = paramIndex;
         paramIndex++;
-        params.push(orTsQuery);
-        searchOrTsQueryIdx = paramIndex;
-        paramIndex++;
+
         // Match on product IDs via a self-contained subquery instead of OR-ing
         // predicates across the skus↔products join. OR-ing product-column and
         // sku-column predicates in the outer WHERE defeats every index (Postgres
         // can't BitmapOr across a join), forcing a full seq scan of both tables
         // (~4-7s). Resolving the match set per-table lets each branch use its GIN
         // index: search_vector, name/collection trgm, and sku-code prefix trgm.
-        // Same match semantics as before — the concat-ILIKE is split into
-        // per-column ILIKEs (both trgm-indexable); sku-code hits surface the
-        // whole product (browse dedups to one card per product regardless).
-        whereClauses.push(`p.id IN (
-          SELECT pm.id FROM products pm
-          WHERE pm.status = 'active' AND (
-            pm.search_vector @@ to_tsquery('english', unaccent($${searchTsQueryIdx}))
-            OR pm.search_vector @@ to_tsquery('english', unaccent($${searchOrTsQueryIdx}))
-            OR pm.name % $${searchParamIdx}
-            OR pm.collection % $${searchParamIdx}
-            OR pm.name ILIKE '%' || $${searchParamIdx} || '%'
-            OR pm.collection ILIKE '%' || $${searchParamIdx} || '%'
-          )
-          UNION
-          SELECT sm.product_id FROM skus sm
-          WHERE sm.status = 'active'
-            AND (sm.vendor_sku ILIKE $${searchParamIdx} || '%' OR sm.internal_sku ILIKE $${searchParamIdx} || '%')
-        )`);
+        // sku-code hits surface the whole product (browse dedups to one card anyway).
+        if (useNarrowRecall) {
+          whereClauses.push(`p.id IN (
+            SELECT pm.id FROM products pm
+            WHERE pm.status = 'active' AND (
+              pm.search_vector @@ to_tsquery('english', unaccent($${searchTsQueryIdx}))
+              OR pm.name ILIKE '%' || $${searchParamIdx} || '%'
+              OR pm.collection ILIKE '%' || $${searchParamIdx} || '%'
+            )
+            UNION
+            SELECT sm.product_id FROM skus sm
+            WHERE sm.status = 'active'
+              AND (sm.vendor_sku ILIKE $${searchParamIdx} || '%' OR sm.internal_sku ILIKE $${searchParamIdx} || '%')
+          )`);
+        } else {
+          whereClauses.push(`p.id IN (
+            SELECT pm.id FROM products pm
+            WHERE pm.status = 'active' AND (
+              pm.search_vector @@ to_tsquery('english', unaccent($${searchTsQueryIdx}))
+              OR pm.name % $${searchParamIdx}
+              OR pm.collection % $${searchParamIdx}
+              OR pm.name ILIKE '%' || $${searchParamIdx} || '%'
+              OR pm.collection ILIKE '%' || $${searchParamIdx} || '%'
+            )
+            UNION
+            SELECT sm.product_id FROM skus sm
+            WHERE sm.status = 'active'
+              AND (sm.vendor_sku ILIKE $${searchParamIdx} || '%' OR sm.internal_sku ILIKE $${searchParamIdx} || '%')
+          )`);
+        }
       }
     }
 
@@ -2023,6 +2059,26 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     // in ORDER BY. Use actual table.column references for expressions; bare aliases work for simple sorts.
     const imgFirst = 'CASE WHEN COALESCE(si.url, pi.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END';
     const rankBoost = 'p.sort_priority DESC';
+
+    // Relevance tier — the primary ranking key when searching. Fuzzy trigram
+    // matches (the recall net) were being additively scored against true matches, so
+    // a popular near-miss ("Mattia White" for "12x24 matte") could outrank a product
+    // that actually contains every query word. Bucketing by match quality first, and
+    // only scoring WITHIN a bucket, forces genuine matches to the top. Tiers:
+    //   4 = exact name/collection match
+    //   3 = full-text match on $searchTsQueryIdx (all words when narrowing recall,
+    //       any word in the broad typo-fallback — see the recall block above)
+    //   2 = literal substring in name/collection
+    //   0 = everything else, ordered by the within-tier ts_rank score
+    // Materialized once per row as the `match_tier` select column (see
+    // browseSelectCols) so both ORDER BYs compare a plain int instead of re-running
+    // the tsquery match per row. Built only when searching (else the $idx params
+    // don't exist and this is the literal '0').
+    const matchTierInner = searchParamIdx ? `CASE
+        WHEN LOWER(COALESCE(p.display_name, p.name)) = LOWER($${searchParamIdx}) OR LOWER(p.collection) = LOWER($${searchParamIdx}) THEN 4
+        WHEN p.search_vector @@ to_tsquery('english', unaccent($${searchTsQueryIdx})) THEN 3
+        WHEN COALESCE(p.display_name, p.name) ILIKE '%' || $${searchParamIdx} || '%' OR p.collection ILIKE '%' || $${searchParamIdx} || '%' THEN 2
+        ELSE 0 END` : '0';
     let orderBy = `${imgFirst}, ${rankBoost}, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC`;
     if (sort === 'discount') orderBy = `${imgFirst}, ${rankBoost}, CASE WHEN pr.sale_price IS NOT NULL AND pr.retail_price > 0 THEN (pr.retail_price - pr.sale_price) / pr.retail_price ELSE 0 END DESC, COALESCE(p.display_name, p.name) ASC`;
     else if (sort === 'price_asc') orderBy = `${imgFirst}, ${rankBoost}, pr.retail_price ASC NULLS LAST, COALESCE(p.display_name, p.name) ASC`;
@@ -2031,11 +2087,10 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     else if (sort === 'name_asc') orderBy = `${imgFirst}, ${rankBoost}, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC`;
     else if (sort === 'name_desc') orderBy = `${imgFirst}, ${rankBoost}, COALESCE(p.display_name, p.name) DESC, s.variant_name DESC`;
     else if (searchParamIdx && !sort) {
-      orderBy = `${imgFirst}, ${rankBoost}, (
+      orderBy = `${imgFirst}, ${rankBoost}, match_tier DESC, (
         COALESCE(ts_rank(p.search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))), 0) * 2
-        + greatest(similarity(COALESCE(p.display_name, p.name), $${searchParamIdx}), similarity(p.collection, $${searchParamIdx}))
         + COALESCE(pp.popularity_score, 0) * 0.1
-        + CASE WHEN LOWER(COALESCE(p.display_name, p.name)) = LOWER($${searchParamIdx}) OR LOWER(p.collection) = LOWER($${searchParamIdx}) THEN 5.0 ELSE 0.0 END
+        + 0.25 * greatest(similarity(COALESCE(p.display_name, p.name), $${searchParamIdx}), similarity(p.collection, $${searchParamIdx}))
       ) DESC, COALESCE(p.display_name, p.name) ASC`;
     }
 
@@ -2065,11 +2120,10 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       else if (sort === 'name_asc') outerOrderBy = `${oImg}, ${oRank}, product_name ASC, variant_name ASC`;
       else if (sort === 'name_desc') outerOrderBy = `${oImg}, ${oRank}, product_name DESC, variant_name DESC`;
       else if (searchParamIdx && !sort) {
-        outerOrderBy = `${oImg}, ${oRank}, (
+        outerOrderBy = `${oImg}, ${oRank}, match_tier DESC, (
           COALESCE(ts_rank(search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))), 0) * 2
-          + greatest(similarity(product_name, $${searchParamIdx}), similarity(collection, $${searchParamIdx}))
           + popularity_score * 0.1
-          + CASE WHEN LOWER(product_name) = LOWER($${searchParamIdx}) OR LOWER(collection) = LOWER($${searchParamIdx}) THEN 5.0 ELSE 0.0 END
+          + 0.25 * greatest(similarity(product_name, $${searchParamIdx}), similarity(collection, $${searchParamIdx}))
         ) DESC, product_name ASC`;
       }
     }
@@ -2170,7 +2224,8 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
              THEN inv.qty_on_hand ELSE NULL
         END as low_stock_qty,
         COALESCE(vc.variant_count, 0) as variant_count,
-        COALESCE(pp.popularity_score, 0) as popularity_score`;
+        COALESCE(pp.popularity_score, 0) as popularity_score,
+        ${matchTierInner} AS match_tier`;
 
     const browseFrom = `
       FROM skus s
@@ -2317,29 +2372,50 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       });
     }
 
-    // Did-you-mean for browse with zero results + search query
+    // Did-you-mean. Fire on zero results OR whenever recall fell back to the broad
+    // net (no product contained every query word — a strong typo / out-of-vocabulary
+    // signal). The per-word vocab lookup only substitutes a word that ISN'T in the
+    // catalog vocabulary, so a legitimate rare query (all words known) yields
+    // corrected === original and no suggestion — this can't nag on valid searches.
     let didYouMean = null;
-    if (total === 0 && searchTerm) {
+    if (searchTerm && (total === 0 || !useNarrowRecall)) {
       try {
-        const queryWords = searchTerm.toLowerCase().replace(/[^\w\s'.-]/g, '').trim().split(/\s+/).filter(Boolean);
+        const normalizedTerm = searchTerm.toLowerCase().replace(/[^\w\s'.-]/g, '').trim();
+        const queryWords = normalizedTerm.split(/\s+/).filter(Boolean);
         const corrections = [];
+        let changed = false;
         for (const word of queryWords) {
           if (word.length < 3) { corrections.push(word); continue; }
+          // Prefer a curated single-word spelling fix from the synonym map
+          // (e.g. porcelian→porcelain, carara→carrara) — it's authoritative and
+          // avoids the vocab trigram picking a rival misspelling that happens to be
+          // a catalog token. Multi-word synonym entries are expansions, not spelling
+          // corrections, so skip those here.
+          const syn = searchSynonyms[word];
+          if (syn && !syn.includes(' ') && syn !== word) {
+            corrections.push(syn);
+            changed = true;
+            continue;
+          }
           const vocabResult = await pool.query(`
             SELECT term, similarity(term, $1) as sim
             FROM search_vocabulary
             WHERE term % $1 AND similarity(term, $1) > 0.3
             ORDER BY similarity(term, $1) DESC LIMIT 1
           `, [word]);
-          corrections.push(vocabResult.rows.length > 0 && vocabResult.rows[0].term !== word ? vocabResult.rows[0].term : word);
+          if (vocabResult.rows.length > 0 && vocabResult.rows[0].term !== word) {
+            corrections.push(vocabResult.rows[0].term);
+            changed = true;
+          } else {
+            corrections.push(word);
+          }
         }
-        const corrected = corrections.join(' ');
-        if (corrected !== searchTerm.toLowerCase().replace(/[^\w\s'.-]/g, '').trim()) didYouMean = corrected;
+        if (changed) didYouMean = corrections.join(' ');
       } catch (e) { /* search_vocabulary may not exist */ }
     }
 
     const searchTimeMs = Date.now() - skuBrowseStartTime;
-    const response = { skus: skus.map(({ search_vector, popularity_score, sort_priority, discount_pct, ...rest }) => rest), total, searchTimeMs };
+    const response = { skus: skus.map(({ search_vector, popularity_score, sort_priority, discount_pct, match_tier, ...rest }) => rest), total, searchTimeMs };
     if (didYouMean) response.didYouMean = didYouMean;
     res.json(response);
   } catch (err) {
@@ -3434,17 +3510,51 @@ app.get('/api/storefront/facets', async (req, res) => {
     if (searchTerm) {
       const sanitized = searchTerm.replace(/[^\w\s'.-]/g, '').trim();
       if (sanitized) {
-        params.push(sanitized);
-        const sIdx = paramIndex++;
-        const tsQuery = sanitized.split(/\s+/).filter(Boolean).map(w => w + ':*').join(' & ');
-        params.push(tsQuery);
-        const tsIdx = paramIndex++;
-        baseWhere.push(`(
-          p.search_vector @@ to_tsquery('english', unaccent($${tsIdx}))
-          OR p.name % $${sIdx}
-          OR p.collection % $${sIdx}
-          OR (p.collection || ' ' || p.name) ILIKE '%' || $${sIdx} || '%'
-        )`);
+        // Resolve the matching product ids ONCE, then every facet/brand/price/tag
+        // sub-query below filters by this id array (a fast indexed membership)
+        // instead of re-running the recall join. This endpoint fans out ~15+
+        // COUNT(DISTINCT) queries per request (one per attribute + brand/price/tag);
+        // the old predicate re-evaluated a cross-join OR + computed-column ILIKE in
+        // every one of them, seq-scanning skus×products ~15× (~12s, which also
+        // saturated the pool and 500'd the page under concurrency).
+        //
+        // MUST mirror /api/storefront/skus' progressive AND→OR recall exactly, or the
+        // facet counts disagree with the result grid AND balloon in cost: for
+        // "carrara white" the broad trigram net matches ~2,800 vanities that merely
+        // contain both words, vs the 233 the grid shows — inconsistent numbers, and a
+        // 12× heavier facet fan-out that starved the skus query. Narrowing to the
+        // all-words set keeps facets both correct and cheap.
+        const words = sanitized.split(/\s+/).filter(Boolean);
+        const andTsQuery = words.map(w => w + ':*').join(' & ');
+        const orTsQuery = words.map(w => w + ':*').join(' | ');
+        let narrow = false;
+        try {
+          const c = await pool.query(
+            `SELECT 1 FROM products WHERE status = 'active' AND search_vector @@ to_tsquery('english', unaccent($1)) LIMIT 1`,
+            [andTsQuery]
+          );
+          narrow = c.rows.length > 0;
+        } catch (e) { /* malformed tsquery — fall through to broad recall */ }
+        let matchedPids = [];
+        try {
+          const productMatch = narrow
+            ? `pm.search_vector @@ to_tsquery('english', unaccent($1))
+               OR pm.name ILIKE '%' || $2 || '%' OR pm.collection ILIKE '%' || $2 || '%'`
+            : `pm.search_vector @@ to_tsquery('english', unaccent($1))
+               OR pm.name % $2 OR pm.collection % $2
+               OR pm.name ILIKE '%' || $2 || '%' OR pm.collection ILIKE '%' || $2 || '%'`;
+          const m = await pool.query(`
+            SELECT pm.id FROM products pm
+            WHERE pm.status = 'active' AND (${productMatch})
+            UNION
+            SELECT sm.product_id FROM skus sm
+            WHERE sm.status = 'active'
+              AND (sm.vendor_sku ILIKE $2 || '%' OR sm.internal_sku ILIKE $2 || '%')
+          `, [narrow ? andTsQuery : orTsQuery, sanitized]);
+          matchedPids = m.rows.map(r => r.id);
+        } catch (e) { /* leave matchedPids empty (no results) */ }
+        params.push(matchedPids);
+        baseWhere.push(`p.id = ANY($${paramIndex++}::uuid[])`);
       }
     }
 
@@ -9920,6 +10030,87 @@ app.post('/api/admin/orders/:id/payment-requests/:reqId/cancel', staffAuth, requ
 });
 
 // Shared SKU search with FTS, SKU fast path, trigram fallback, and images
+// The ONE catalog-search engine, shared by the quick-add SKU picker (searchSkus)
+// and the rep product catalog (/api/rep/products). Given a raw query it returns the
+// matching product ids in relevance order: SKU-code prefix (a rep pasting a part
+// number) ranks highest, then progressive full-text — exact phrase (4x) → all query
+// words present (2x) → any word (0.5x) — with a +5 exact name/collection bonus and a
+// trigram typo fallback when the text matched little. Synonyms ("LVP", "wood look",
+// common misspellings) are expanded first. Callers fetch whatever row shape they
+// need for these ids. Returns [{ id, score }] (score desc), capped at `limit`.
+//
+// `requireAllWords` (multi-word queries only): when products contain ALL the query
+// words, restrict to those — dropping the any-word OR net and the trigram fallback —
+// so "delight calacatta" returns just the tiles that are both, not everything that is
+// either. Falls back to the broad net only when nothing matches all words (a typo /
+// rare combo). The catalog turns this on; the type-ahead leaves it off so partial
+// words surface suggestions as you type.
+async function searchProductIdsRanked(pool, rawQuery, { limit = 20, requireAllWords = false } = {}) {
+  const raw = (rawQuery || '').trim();
+  if (!raw || raw.length < 2) return [];
+  const normalized = normalizeSearchQuery(raw);
+  const sanitized = normalized.replace(/[^\w\s'.-]/g, '').trim();
+  if (!sanitized) return [];
+  const { text: expanded } = expandSynonyms(sanitized);
+  const words = expanded.split(/\s+/).filter(Boolean);
+  const andTsQuery = words.map(w => w + ':*').join(' & ');
+  const orTsQuery = words.map(w => w + ':*').join(' | ');
+  const phraseInput = expanded;
+  const isSkuLike = /[a-zA-Z]/.test(sanitized) && /\d/.test(sanitized) && /^[\w.-]+$/.test(sanitized.replace(/\s/g, ''));
+  // Single-word queries can't narrow (AND == OR), so only engage for 2+ words.
+  const narrow = requireAllWords && words.length > 1;
+  const orThreshold = narrow ? 1 : limit; // OR branch fires only when phrase+AND is empty
+
+  const seen = new Set();
+  const out = [];
+  const add = (id, score) => { if (id && !seen.has(id)) { seen.add(id); out.push({ id, score }); } };
+
+  // 1. SKU-code prefix → product (highest priority).
+  if (isSkuLike) {
+    const skuSearch = sanitized.replace(/\s+/g, '');
+    const r = await pool.query(
+      `SELECT DISTINCT s.product_id FROM skus s JOIN products p ON p.id = s.product_id
+       WHERE p.status = 'active' AND s.status = 'active'
+         AND (s.vendor_sku ILIKE $1 || '%' OR s.internal_sku ILIKE $1 || '%')
+       LIMIT $2`, [skuSearch, limit]);
+    for (const row of r.rows) add(row.product_id, 100);
+  }
+
+  // 2. Progressive full-text: phrase → all-words AND → any-word OR (+ exact bonus).
+  const fts = await pool.query(`
+    WITH phrase_products AS (
+      SELECT p.id, ts_rank(p.search_vector, phraseto_tsquery('english', unaccent($3))) * 4.0 AS score
+      FROM products p WHERE p.status = 'active' AND p.search_vector @@ phraseto_tsquery('english', unaccent($3)) LIMIT $5),
+    and_products AS (
+      SELECT p.id, ts_rank(p.search_vector, to_tsquery('english', unaccent($1))) * 2.0 AS score
+      FROM products p WHERE p.status = 'active' AND p.search_vector @@ to_tsquery('english', unaccent($1))
+        AND p.id NOT IN (SELECT id FROM phrase_products) LIMIT $5),
+    or_products AS (
+      SELECT p.id, ts_rank(p.search_vector, to_tsquery('english', unaccent($2))) * 0.5 AS score
+      FROM products p WHERE p.status = 'active' AND p.search_vector @@ to_tsquery('english', unaccent($2))
+        AND p.id NOT IN (SELECT id FROM phrase_products) AND p.id NOT IN (SELECT id FROM and_products)
+        AND (SELECT COUNT(*) FROM phrase_products) + (SELECT COUNT(*) FROM and_products) < $6 LIMIT $5),
+    all_matches AS (SELECT * FROM phrase_products UNION ALL SELECT * FROM and_products UNION ALL SELECT * FROM or_products)
+    SELECT am.id, am.score + CASE WHEN LOWER(p.name) = LOWER($4) OR LOWER(p.collection) = LOWER($4) THEN 5.0 ELSE 0.0 END AS final_score
+    FROM all_matches am JOIN products p ON p.id = am.id
+    ORDER BY final_score DESC LIMIT $5
+  `, [andTsQuery, orTsQuery, phraseInput, sanitized, limit, orThreshold]);
+  for (const row of fts.rows) add(row.id, parseFloat(row.final_score));
+
+  // 3. Trigram typo fallback when the text matched little (skipped in narrow mode once
+  //    an all-word match exists — trigram would re-broaden with loose name lookalikes).
+  if (out.length < (narrow ? 1 : Math.min(8, limit))) {
+    const haveIds = out.map(r => r.id);
+    const trgm = await pool.query(
+      `SELECT p.id FROM products p WHERE p.status = 'active' AND (p.name % $1 OR p.collection % $1)
+       ${haveIds.length ? 'AND p.id <> ALL($3::uuid[])' : ''}
+       ORDER BY greatest(similarity(p.name, $1), similarity(p.collection, $1)) DESC LIMIT $2`,
+      haveIds.length ? [sanitized, limit, haveIds] : [sanitized, limit]);
+    for (const row of trgm.rows) add(row.id, 0);
+  }
+  return out.slice(0, limit);
+}
+
 async function searchSkus(pool, rawQuery) {
   const raw = (rawQuery || '').trim();
   if (!raw || raw.length < 2) return [];
@@ -9928,13 +10119,7 @@ async function searchSkus(pool, rawQuery) {
   const sanitized = normalized.replace(/[^\w\s'.-]/g, '').trim();
   if (!sanitized) return [];
 
-  const { text: expanded } = expandSynonyms(sanitized);
-  const words = expanded.split(/\s+/).filter(Boolean);
-  const andTsQuery = words.map(w => w + ':*').join(' & ');
-  const orTsQuery = words.map(w => w + ':*').join(' | ');
-  const phraseInput = expanded;
-
-  // Detect SKU-like patterns
+  // Detect SKU-like patterns (exact-SKU fast path below keeps the pasted part number first)
   const isSkuLike = /[a-zA-Z]/.test(sanitized) && /\d/.test(sanitized) && /^[\w.-]+$/.test(sanitized.replace(/\s/g, ''));
 
   const baseCols = `
@@ -9977,93 +10162,79 @@ async function searchSkus(pool, rawQuery) {
     skuRows = skuResult.rows;
   }
 
-  // 2. FTS path — phrase → AND → OR progressive matching (returns all SKUs, not distinct product)
-  const ftsResult = await pool.query(`
-    WITH phrase_products AS (
-      SELECT p.id,
-        ts_rank(p.search_vector, phraseto_tsquery('english', unaccent($3))) * 4.0 as score
-      FROM products p
-      WHERE p.status = 'active'
-        AND p.search_vector @@ phraseto_tsquery('english', unaccent($3))
-      LIMIT 20
-    ),
-    and_products AS (
-      SELECT p.id,
-        ts_rank(p.search_vector, to_tsquery('english', unaccent($1))) * 2.0 as score
-      FROM products p
-      WHERE p.status = 'active'
-        AND p.search_vector @@ to_tsquery('english', unaccent($1))
-        AND p.id NOT IN (SELECT id FROM phrase_products)
-      LIMIT 20
-    ),
-    or_products AS (
-      SELECT p.id,
-        ts_rank(p.search_vector, to_tsquery('english', unaccent($2))) * 0.5 as score
-      FROM products p
-      WHERE p.status = 'active'
-        AND p.search_vector @@ to_tsquery('english', unaccent($2))
-        AND p.id NOT IN (SELECT id FROM phrase_products)
-        AND p.id NOT IN (SELECT id FROM and_products)
-        AND (SELECT COUNT(*) FROM phrase_products) + (SELECT COUNT(*) FROM and_products) < 20
-      LIMIT 20
-    ),
-    all_matches AS (
-      SELECT * FROM phrase_products
-      UNION ALL SELECT * FROM and_products
-      UNION ALL SELECT * FROM or_products
-    ),
-    ranked AS (
-      SELECT am.id, am.score
-        + CASE WHEN LOWER(p.name) = LOWER($4) OR LOWER(p.collection) = LOWER($4) THEN 5.0 ELSE 0.0 END as final_score
-      FROM all_matches am
-      JOIN products p ON p.id = am.id
-      ORDER BY am.score
-        + CASE WHEN LOWER(p.name) = LOWER($4) OR LOWER(p.collection) = LOWER($4) THEN 5.0 ELSE 0.0 END DESC
-      LIMIT 20
-    )
-    SELECT ${baseCols}, ${imageSelect}, r.final_score
-    ${baseJoins}
-    JOIN ranked r ON r.id = p.id
-    WHERE s.status = 'active'
-    ORDER BY r.final_score DESC, p.name, s.variant_name
-    LIMIT 20
-  `, [andTsQuery, orTsQuery, phraseInput, sanitized]);
-
-  let ftsRows = ftsResult.rows;
-
-  // 3. Trigram fallback if few results
-  if (skuRows.length + ftsRows.length < 8) {
-    const existingIds = [...new Set([...skuRows, ...ftsRows].map(r => r.sku_id))];
-    const trgmResult = await pool.query(`
-      WITH trgm_products AS (
-        SELECT p.id, greatest(similarity(p.name, $1), similarity(p.collection, $1)) as trgm_score
-        FROM products p
-        WHERE p.status = 'active'
-          AND (p.name % $1 OR p.collection % $1)
-        ORDER BY greatest(similarity(p.name, $1), similarity(p.collection, $1)) DESC
-        LIMIT 10
+  // 2. Product ranking via the shared engine (synonyms, phrase→AND→OR full-text,
+  //    trigram typo fallback), then fetch each ranked product's SKUs — capped per
+  //    product for variety via the LATERAL below.
+  const ranked = await searchProductIdsRanked(pool, rawQuery, { limit: 20 });
+  let ftsRows = [];
+  if (ranked.length) {
+    const rankedIds = ranked.map(r => r.id);
+    // The helper's returned order IS the relevance order (SKU-code, then full-text by
+    // score, then trigram by similarity), so drive the fetch off array position via
+    // WITH ORDINALITY rather than re-deriving from a score (which flattened trigram
+    // ties into an alphabetical list).
+    const ftsResult = await pool.query(`
+      WITH ranked AS (SELECT id, ord FROM unnest($1::uuid[]) WITH ORDINALITY AS t(id, ord)),
+      -- Cap each product to its first few variants so one high-variant product (a tile
+      -- in 40 sizes) doesn't fill the list before other products appear. A LATERAL
+      -- index-scans just that product's skus — NOT a window over all 88k skus (~5s).
+      sku_pool AS (
+        SELECT cap.id AS sku_id
+        FROM ranked r
+        JOIN LATERAL (
+          SELECT s2.id FROM skus s2
+          WHERE s2.product_id = r.id AND s2.status = 'active'
+          ORDER BY s2.is_sample, s2.variant_name NULLS FIRST
+          LIMIT 6
+        ) cap ON TRUE
       )
-      SELECT ${baseCols}, ${imageSelect}, 0::float as final_score
+      SELECT ${baseCols}, ${imageSelect}, r.ord
       ${baseJoins}
-      JOIN trgm_products tp ON tp.id = p.id
+      JOIN ranked r ON r.id = p.id
+      JOIN sku_pool sp ON sp.sku_id = s.id
       WHERE s.status = 'active'
-        ${existingIds.length > 0 ? 'AND s.id != ALL($2::uuid[])' : ''}
-      ORDER BY tp.trgm_score DESC, p.name, s.variant_name
-      LIMIT 10
-    `, existingIds.length > 0 ? [sanitized, existingIds] : [sanitized]);
-    ftsRows = ftsRows.concat(trgmResult.rows);
+      ORDER BY r.ord, s.variant_name
+      LIMIT 100
+    `, [rankedIds]);
+    ftsRows = ftsResult.rows;
   }
 
-  // Merge + deduplicate by sku_id, SKU matches first
+  // Merge + deduplicate by sku_id (SKU-code matches first), then assemble a picker
+  // list that favours a VARIETY of products over one product's every size/finish.
+  // Group by product (variants stay together for a scannable flat list), then show
+  // an adaptive number of variants per product: with many matches show ~2 each for
+  // breadth; with only a few products show more of each so their sizes are still
+  // pickable. A final backfill tops up to 20 if the cap left room.
+  const LIMIT = 20;
   const seen = new Set();
-  const merged = [];
+  const byProduct = new Map();
+  const productOrder = [];
   for (const row of [...skuRows, ...ftsRows]) {
-    if (!seen.has(row.sku_id)) {
-      seen.add(row.sku_id);
-      merged.push(row);
+    if (seen.has(row.sku_id)) continue;
+    seen.add(row.sku_id);
+    if (!byProduct.has(row.product_id)) { byProduct.set(row.product_id, []); productOrder.push(row.product_id); }
+    byProduct.get(row.product_id).push(row);
+  }
+  const perProductCap = Math.max(2, Math.ceil(LIMIT / Math.max(1, productOrder.length)));
+  const out = [];
+  for (let pi = 0; pi < productOrder.length; pi++) {
+    const variants = byProduct.get(productOrder[pi]);
+    // The top-ranked product is almost always the exact thing the rep searched for
+    // (e.g. "delight calacatta oro"), so show more of ITS sizes/finishes to pick from;
+    // the rest are capped for breadth.
+    const cap = pi === 0 ? Math.max(perProductCap, 6) : perProductCap;
+    for (let i = 0; i < variants.length && i < cap && out.length < LIMIT; i++) out.push(variants[i]);
+    if (out.length >= LIMIT) break;
+  }
+  if (out.length < LIMIT) {
+    const inOut = new Set(out.map(r => r.sku_id));
+    for (const pid of productOrder) {
+      for (const r of byProduct.get(pid)) {
+        if (!inOut.has(r.sku_id)) { out.push(r); if (out.length >= LIMIT) break; }
+      }
+      if (out.length >= LIMIT) break;
     }
   }
-  const out = merged.slice(0, 20);
   // Stamp each result with the PDP-identical title (display_name) so every staff
   // search/add surface names a product exactly like the storefront. See [[line-item-display]].
   await enrichItemsForNaming(out);
@@ -20833,6 +21004,23 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
     const limit = Math.min(parseInt(limitParam) || 30, 100);
     const offset = (page - 1) * limit;
 
+    // Rep catalog search now uses the SAME engine as the quick-add SKU picker
+    // (searchProductIdsRanked): synonym expansion, progressive phrase→AND→OR full-text,
+    // a SKU-code prefix path, and a trigram typo fallback, ranked by relevance —
+    // replacing the old blind multi-column ILIKE. The matched product ids come back in
+    // relevance order and drive both the filter ($1) and the default ordering.
+    const params = [];
+    let paramIndex = 1;
+    let relevanceCol = '';
+    if (search) {
+      const ranked = await searchProductIdsRanked(pool, search, { limit: 400, requireAllWords: true });
+      const rankedIds = ranked.map(r => r.id);
+      if (rankedIds.length === 0) return res.json({ products: [], total: 0, page, limit });
+      params.push(rankedIds); // $1 — matched product ids, in relevance order
+      relevanceCol = ', array_position($1::uuid[], p.id) AS _relevance';
+      paramIndex = 2;
+    }
+
     const sortClauses = {
       name_asc: 'name ASC, variant_name ASC NULLS FIRST',
       name_desc: 'name DESC, variant_name DESC NULLS LAST',
@@ -20843,7 +21031,14 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
       margin_asc: 'name ASC, variant_name ASC NULLS FIRST',
       margin_desc: 'name ASC, variant_name ASC NULLS FIRST'
     };
-    const orderBy = sortClauses[sort] || 'name ASC, variant_name ASC NULLS FIRST';
+    // Relevance-first when searching (sort=relevance, or no sort given); the rep can
+    // still switch to price/name/margin/stock. Relevance only exists with a search.
+    let orderBy;
+    if (search && (!sort || sort === 'relevance')) {
+      orderBy = '_relevance ASC NULLS LAST, name ASC, variant_name ASC NULLS FIRST';
+    } else {
+      orderBy = sortClauses[sort] || 'name ASC, variant_name ASC NULLS FIRST';
+    }
 
     // One row per active SKU (product context joined in)
     let query = `
@@ -20881,7 +21076,7 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
            ELSE 'out_of_stock'
          END
          FROM inventory_snapshots inv WHERE inv.sku_id = s.id
-        ) as stock_status
+        ) as stock_status${relevanceCol}
       FROM skus s
       JOIN products p ON p.id = s.product_id
       JOIN vendors v ON v.id = p.vendor_id
@@ -20891,25 +21086,20 @@ app.get('/api/rep/products', repAuth, async (req, res) => {
       LEFT JOIN packaging pk ON pk.sku_id = s.id
       WHERE p.status = 'active' AND s.status = 'active' AND s.is_sample = false
     `;
-    const params = [];
-    let paramIndex = 1;
 
     if (include_accessories !== 'true' && include_accessories !== '1') {
       query += ` AND COALESCE(s.variant_type, '') != 'accessory'`;
     }
 
     if (search) {
-      params.push('%' + search + '%');
-      // Accessories also match on their parent product's name/collection (via sku_accessories)
-      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex} OR s.variant_name ILIKE $${paramIndex} OR s.vendor_sku ILIKE $${paramIndex} OR s.internal_sku ILIKE $${paramIndex}
+      // Matched product ids ($1, resolved via searchProductIdsRanked above). An
+      // accessory matches when its PARENT product is in the matched set.
+      query += ` AND (p.id = ANY($1::uuid[])
         OR (COALESCE(s.variant_type, '') = 'accessory' AND EXISTS (
           SELECT 1 FROM sku_accessories sacc
           JOIN skus ps ON ps.id = sacc.parent_sku_id AND ps.status = 'active'
-          JOIN products pp ON pp.id = ps.product_id AND pp.status = 'active'
-          WHERE sacc.accessory_sku_id = s.id
-            AND (pp.name ILIKE $${paramIndex} OR pp.collection ILIKE $${paramIndex} OR (pp.collection || ' ' || pp.name) ILIKE $${paramIndex})
+          WHERE sacc.accessory_sku_id = s.id AND ps.product_id = ANY($1::uuid[])
         )))`;
-      paramIndex++;
     }
 
     if (category) {

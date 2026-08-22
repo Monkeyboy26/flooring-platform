@@ -294,7 +294,7 @@ export function fullProductName(sku) {
       // Skip roll dimensions (e.g. "12x150FT"), plank dimensions with decimals (e.g. "4.96x48.04", "9.06 Wide"),
       // and simple width values (e.g. "5 in", "7 in") — the product name already carries the width
       const rawSizeVal = rawSizeAttr ? (rawSizeAttr.value || '').trim() : '';
-      const isAdexVendor = (sku.vendor_code || '') === '167'; // ADEX USA
+      const isAdexVendor = (sku.vendor_code || '') === 'ADEX'; // ADEX USA
       const sizeAttr = rawSizeAttr && !isAdexVendor && (
         /^\d+\s*[xX×]\s*\d+\s*ft$/i.test(rawSizeVal) ||
         /^\d+\.\d+\s*[xX×]\s*\d+\.\d+$/.test(rawSizeVal) ||
@@ -312,7 +312,14 @@ export function fullProductName(sku) {
       // normalized check; patterns keep the plain substring test.
       const normDim = (s) => String(s).toLowerCase().replace(/["″”'’\s]/g, '').replace(/×/g, 'x');
       const nameDimNorm = normDim(name);
-      const extras = [patternAttr, sizeAttr]
+      // Bosphorus stores finish (Matte/Polished/Glossy) as its own attribute while the
+      // variant carries only the color, so the title dropped it entirely — a product's
+      // matte and polished SKUs then read IDENTICALLY ("Delight Calacatta Oro 24x48
+      // Porcelain Tile" for both), which is unpickable in the rep add-item search.
+      // Append finish alongside size for Bosphorus (deduped below if already in the
+      // name, and skipped by the finishPos branch when finish is already positioned).
+      const isBosphorusVendor = (sku.vendor_code || '').toUpperCase() === 'BOS';
+      const extras = [patternAttr, sizeAttr, isBosphorusVendor ? finishAttr : null]
         .filter(Boolean)
         .filter(a => !nameLowerDedup.includes(a.value.toLowerCase())
           && !(a === sizeAttr && nameDimNorm.includes(normDim(a.value))))
@@ -433,6 +440,7 @@ export function skuShapeFromLine(it = {}) {
     category_name: it.category_name || null,
     format_label: it.format_label || null,
     vendor_code: it.vendor_code || null,
+    vendor_public_code: it.vendor_public_code || null,
     vendor_name: it.vendor_name || null,
     sell_by: it.sell_by || null,
     attributes,

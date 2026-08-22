@@ -1227,6 +1227,13 @@ CREATE INDEX IF NOT EXISTS idx_wishlists_customer ON wishlists(customer_id);
 
 CREATE INDEX IF NOT EXISTS idx_media_assets_sku ON media_assets(sku_id) WHERE sku_id IS NOT NULL;
 
+-- Covering indexes for the per-row primary-image lookup (searchSkus / add-item
+-- pickers, storefront compare, etc.). Those subqueries match asset_type IN
+-- ('primary','lifestyle','alternate'), which the primary-only partial indexes
+-- can't serve, so without these each lookup seq-scanned the whole media table.
+CREATE INDEX IF NOT EXISTS idx_media_sku_lookup ON media_assets (sku_id, asset_type, sort_order) INCLUDE (url) WHERE sku_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_media_product_lookup ON media_assets (product_id, asset_type, sort_order) INCLUDE (url) WHERE sku_id IS NULL;
+
 -- ==================== Product Reviews ====================
 
 CREATE TABLE IF NOT EXISTS product_reviews (
