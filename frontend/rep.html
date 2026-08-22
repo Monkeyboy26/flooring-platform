@@ -14630,9 +14630,29 @@
       const [vendorId, setVendorId] = useState('');
       const [products, setProducts] = useState([]);
       const [total, setTotal] = useState(0);
+      const [page, setPage] = useState(1);
+      const PER_PAGE = 48;
       const [loading, setLoading] = useState(true);
       const fetchTimer = useRef(null);
       const fetchCounter = useRef(0);
+      const gridRef = useRef(null);
+      const pgBtn = (active, disabled) => ({
+        minWidth: 30, padding: '5px 9px', borderRadius: 6, cursor: disabled ? 'default' : 'pointer',
+        border: '1px solid ' + (active ? TH.accent : TH.warm), background: active ? TH.accent : '#fff',
+        color: active ? '#fff' : TH.ink, font: '600 12px/1 var(--roma-sans)', opacity: disabled ? 0.4 : 1,
+      });
+      // Slide-out filters
+      const [showFilters, setShowFilters] = useState(false);
+      const [category, setCategory] = useState('');
+      const [stockStatus, setStockStatus] = useState('');
+      const [minPrice, setMinPrice] = useState('');
+      const [maxPrice, setMaxPrice] = useState('');
+      const [categories, setCategories] = useState([]);
+      const activeFilterCount = (category ? 1 : 0) + (stockStatus ? 1 : 0) + ((minPrice || maxPrice) ? 1 : 0);
+      const clearFilters = () => { setCategory(''); setStockStatus(''); setMinPrice(''); setMaxPrice(''); setPage(1); };
+      const filterPill = (on) => ({ padding: '6px 11px', cursor: 'pointer', whiteSpace: 'nowrap',
+        border: '0.5px solid ' + (on ? TH.ink : 'rgba(28,25,23,0.16)'), background: on ? TH.ink : 'transparent',
+        color: on ? TH.paper : TH.ink, font: '500 11px/1 var(--roma-sans)' });
 
       const [added, setAdded] = useState({});       // sku_id -> { item, qty }
       const [accAdded, setAccAdded] = useState({}); // acc sku_id -> { acc, parent, qty }
@@ -14654,9 +14674,10 @@
       // Vendors drive both the filter pills and the custom-line vendor picker
       useEffect(() => {
         repFetch('/api/rep/vendors').then(d => setCustomVendors(d.vendors || [])).catch(() => {});
+        fetch(API + '/api/categories').then(r => r.json()).then(d => setCategories(d.categories || [])).catch(() => {});
       }, []);
 
-      // Debounced product load
+      // Debounced product load (paginated so reps can page past the first screen).
       useEffect(() => {
         const thisFetch = ++fetchCounter.current;
         setLoading(true);
@@ -14665,17 +14686,25 @@
           const params = new URLSearchParams();
           if (query.trim()) params.set('search', query.trim());
           if (vendorId) params.set('vendor', vendorId);
-          params.set('limit', 48);
-          params.set('sort', 'margin_desc');
+          if (category) params.set('category', category);
+          if (stockStatus) params.set('stock_status', stockStatus);
+          if (minPrice) params.set('min_price', minPrice);
+          if (maxPrice) params.set('max_price', maxPrice);
+          params.set('limit', PER_PAGE);
+          params.set('page', page);
+          // Relevance-first while searching (same engine as the quick-add picker); the
+          // no-search browse stays margin-sorted for merchandising.
+          params.set('sort', query.trim() ? 'relevance' : 'margin_desc');
           repFetch('/api/rep/products?' + params.toString())
             .then(d => {
               if (thisFetch !== fetchCounter.current) return;
               setProducts(d.products || []); setTotal(d.total || 0); setLoading(false);
+              if (gridRef.current) gridRef.current.scrollTop = 0;
             })
             .catch(() => { if (thisFetch === fetchCounter.current) setLoading(false); });
         }, query.trim() ? 250 : 0);
         return () => clearTimeout(fetchTimer.current);
-      }, [query, vendorId]);
+      }, [query, vendorId, page, category, stockStatus, minPrice, maxPrice]);
 
       const setQty = (p, qty) => setAdded(a => {
         const n = { ...a };
@@ -14730,7 +14759,7 @@
 
       return (
         <div className="rof-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-          <div className="rof-cat-dialog rof-pop">
+          <div className="rof-cat-dialog rof-pop" style={{ position: 'relative' }}>
 
             {/* ── Header ── */}
             <div style={{ padding: '18px 24px', borderBottom: '0.5px solid rgba(28,25,23,0.12)', display: 'flex', alignItems: 'center', gap: 20, flexShrink: 0 }}>
@@ -14753,10 +14782,10 @@
               {/* Search */}
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)', background: TH.paper, minWidth: 120 }}>
                 <span style={{ padding: '11px 14px', color: TH.muted, font: '400 15px/1 var(--roma-sans)' }}>{'⌕'}</span>
-                <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
+                <input autoFocus value={query} onChange={e => { setQuery(e.target.value); setPage(1); }}
                   placeholder="Search SKU, material, vendor, collection… or scan a barcode"
                   style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', font: '400 14px/1 var(--roma-sans)', color: TH.ink, padding: '11px 0', minWidth: 0 }} />
-                {query && <span onClick={() => setQuery('')} style={{ padding: '0 12px', cursor: 'pointer', color: TH.muted, font: '400 15px/1 var(--roma-sans)' }}>{'×'}</span>}
+                {query && <span onClick={() => { setQuery(''); setPage(1); }} style={{ padding: '0 12px', cursor: 'pointer', color: TH.muted, font: '400 15px/1 var(--roma-sans)' }}>{'×'}</span>}
               </div>
               <button onClick={onClose} style={{ width: 34, height: 34, flexShrink: 0, border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', color: TH.ink, cursor: 'pointer', font: '400 16px/1 var(--roma-sans)' }}>{'✕'}</button>
             </div>
@@ -14789,7 +14818,7 @@
                   {[{ id: '', name: 'All vendors' }].concat(customVendors).map(v => {
                     const on = String(v.id || '') === vendorId;
                     return (
-                      <button key={v.id || 'all'} onClick={() => setVendorId(String(v.id || ''))} style={{
+                      <button key={v.id || 'all'} onClick={() => { setVendorId(String(v.id || '')); setPage(1); }} style={{
                         padding: '7px 13px', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
                         background: on ? TH.ink : 'transparent', color: on ? TH.paper : TH.ink,
                         border: on ? '0.5px solid ' + TH.ink : '0.5px solid rgba(28,25,23,0.16)',
@@ -14798,6 +14827,12 @@
                     );
                   })}
                 </div>
+                <button onClick={() => setShowFilters(true)} style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7, padding: '7px 13px', cursor: 'pointer',
+                  background: activeFilterCount ? TH.ink : 'transparent', color: activeFilterCount ? TH.paper : TH.ink,
+                  border: '0.5px solid ' + (activeFilterCount ? TH.ink : 'rgba(28,25,23,0.2)'), font: '500 11px/1 var(--roma-sans)', letterSpacing: '0.02em' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+                  Filters{activeFilterCount > 0 ? ' · ' + activeFilterCount : ''}
+                </button>
                 <span style={{ flexShrink: 0, ...mono(TH.muted), fontSize: 10 }}>
                   {loading ? 'Loading…' : total.toLocaleString() + (total === 1 ? ' result' : ' results') + (showCost ? ' · cost & margin visible' : '')}
                 </span>
@@ -14807,7 +14842,7 @@
             {/* ── Body: grid/form + order tray ── */}
             <div className="rof-cat-body">
               {mode === 'catalog' ? (
-                <div className="rof-cat-grid">
+                <div className="rof-cat-grid" ref={gridRef}>
                   {loading && products.length === 0 && (
                     <div style={{ gridColumn: '1 / -1', padding: '60px 0', textAlign: 'center', color: TH.muted, font: '400 15px/1.5 var(--roma-sans)' }}>Loading SKUs…</div>
                   )}
@@ -14829,11 +14864,29 @@
                       No products match{query.trim() ? ' “' + query.trim() + '”' : ' these filters'}.<br />Try another term or clear the category filter.
                     </div>
                   )}
-                  {!loading && total > products.length && (
-                    <div style={{ gridColumn: '1 / -1', padding: '10px 0 2px', textAlign: 'center', ...mono(TH.muted), fontSize: 9, lineHeight: 1.5 }}>
-                      Showing {products.length} of {total.toLocaleString()} {'·'} refine the search to narrow down
-                    </div>
-                  )}
+                  {!loading && total > PER_PAGE && (() => {
+                    const totalPages = Math.ceil(total / PER_PAGE);
+                    const cur = Math.min(page, totalPages);
+                    const from = (cur - 1) * PER_PAGE + 1;
+                    const to = Math.min(cur * PER_PAGE, total);
+                    // Windowed page list: 1 … (cur-2 … cur+2) … last
+                    const nums = [];
+                    for (let i = 1; i <= totalPages; i++) {
+                      if (i === 1 || i === totalPages || (i >= cur - 2 && i <= cur + 2)) nums.push(i);
+                      else if (nums[nums.length - 1] !== '…') nums.push('…');
+                    }
+                    return (
+                      <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6, padding: '16px 0 4px' }}>
+                        <span style={{ ...mono(TH.muted), fontSize: 9, marginRight: 8 }}>{from.toLocaleString()}–{to.toLocaleString()} of {total.toLocaleString()}</span>
+                        <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={cur === 1} style={pgBtn(false, cur === 1)}>‹ Prev</button>
+                        {nums.map((n, idx) => n === '…'
+                          ? <span key={'e' + idx} style={{ color: TH.muted, padding: '0 2px' }}>…</span>
+                          : <button key={n} onClick={() => setPage(n)} style={pgBtn(n === cur, false)}>{n}</button>
+                        )}
+                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={cur === totalPages} style={pgBtn(false, cur === totalPages)}>Next ›</button>
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 <RofCatCustomForm showCost={showCost} vendors={customVendors}
@@ -14850,6 +14903,52 @@
                 onRemoveRug={(cid) => setRugList(l => l.filter(r => r._cid !== cid))}
                 onClose={onClose} onConfirm={confirm}
               />
+            </div>
+
+            {/* ── Filters slide-out ── */}
+            {showFilters && <div onClick={() => setShowFilters(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(28,25,23,0.25)', zIndex: 5 }} />}
+            <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 344, maxWidth: '90%', background: TH.paper,
+              borderLeft: '0.5px solid rgba(28,25,23,0.2)', boxShadow: '-24px 0 60px rgba(28,25,23,0.22)', zIndex: 6,
+              transform: showFilters ? 'translateX(0)' : 'translateX(105%)', transition: 'transform 0.28s cubic-bezier(.22,.61,.36,1)',
+              display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '16px 20px', borderBottom: '0.5px solid rgba(28,25,23,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                <span style={{ font: '300 20px/1 var(--roma-serif)', color: TH.ink }}>Filters</span>
+                <button onClick={() => setShowFilters(false)} style={{ width: 30, height: 30, border: 'none', background: 'transparent', cursor: 'pointer', color: TH.ink, font: '400 16px/1 var(--roma-sans)' }}>{'✕'}</button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+                <div>
+                  <div style={{ ...mono(TH.muted), fontSize: 9, marginBottom: 10 }}>Category</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {[{ slug: '', name: 'All' }].concat(categories).map(c => (
+                      <button key={c.slug || 'all'} onClick={() => { setCategory(c.slug || ''); setPage(1); }} style={filterPill((c.slug || '') === category)}>{c.name}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ ...mono(TH.muted), fontSize: 9, marginBottom: 10 }}>Availability</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {[['', 'Any'], ['in_stock', 'In stock'], ['low_stock', 'Low stock'], ['out_of_stock', 'Out of stock']].map(([v, l]) => (
+                      <button key={v || 'any'} onClick={() => { setStockStatus(v); setPage(1); }} style={filterPill(v === stockStatus)}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ ...mono(TH.muted), fontSize: 9, marginBottom: 10 }}>Price per unit</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {[['Min', minPrice, setMinPrice], ['Max', maxPrice, setMaxPrice]].map(([ph, val, setter]) => (
+                      <div key={ph} style={{ flex: 1, display: 'flex', alignItems: 'center', border: '0.5px solid rgba(28,25,23,0.2)', background: '#fff' }}>
+                        <span style={{ padding: '9px 2px 9px 10px', color: TH.muted, font: '400 13px/1 var(--roma-sans)' }}>$</span>
+                        <input type="number" min="0" placeholder={ph} value={val} onChange={e => { setter(e.target.value); setPage(1); }}
+                          style={{ flex: 1, width: '100%', border: 'none', outline: 'none', background: 'transparent', font: '400 13px/1 var(--roma-sans)', color: TH.ink, padding: '9px 8px 9px 4px', minWidth: 0 }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{ padding: '14px 20px', borderTop: '0.5px solid rgba(28,25,23,0.12)', display: 'flex', gap: 10, flexShrink: 0 }}>
+                <button onClick={clearFilters} disabled={activeFilterCount === 0} style={{ flex: 1, padding: '11px', cursor: activeFilterCount ? 'pointer' : 'default', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', color: TH.ink, font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', opacity: activeFilterCount ? 1 : 0.4 }}>Clear all</button>
+                <button onClick={() => setShowFilters(false)} style={{ flex: 1, padding: '11px', cursor: 'pointer', border: '0.5px solid ' + TH.ink, background: TH.ink, color: TH.paper, font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Done</button>
+              </div>
             </div>
           </div>
 
