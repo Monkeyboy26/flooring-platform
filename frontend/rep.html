@@ -5563,6 +5563,13 @@
     .sd-btn-primary:hover { background: #322d29; border-color: #322d29; }
     .sd-btn-primary:disabled:hover { background: var(--rod-ink); border-color: var(--rod-ink); }
     .sd-btn-sm { padding: 7px 13px; font-size: 11px; letter-spacing: 0.04em; }
+    .sd-x {
+      width: 24px; height: 24px; flex-shrink: 0; padding: 0; border: none; border-radius: 4px;
+      background: transparent; color: var(--rod-muted); cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      font: 400 17px/1 'Inter', sans-serif; transition: background 0.15s ease, color 0.15s ease;
+    }
+    .sd-x:hover { background: rgba(197,71,49,0.1); color: var(--rod-red); }
     .rod-action-bar-right {
       margin-left: auto;
       font: 500 10px/1 ui-monospace, monospace;
@@ -18235,12 +18242,15 @@
         setActing(false);
       };
 
-      const deleteRequest = async () => {
-        if (!confirm('Delete this sample request? This cannot be undone.')) return;
+      const cancelRequest = async () => {
+        if (!confirm('Cancel this sample request?')) return;
+        setActing(true);
         try {
-          await repFetch('/api/rep/sample-requests/' + editId, { method: 'DELETE' });
-          navigate('samples');
+          await repFetch('/api/rep/sample-requests/' + editId + '/cancel', { method: 'PUT' });
+          repToast('Sample request cancelled');
+          load();
         } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
+        setActing(false);
       };
 
       const [editingNoteId, setEditingNoteId] = useState(null);
@@ -18250,6 +18260,23 @@
       const [showPayModal, setShowPayModal] = useState(false);
       const [readyPrompt, setReadyPrompt] = useState(false);
       const [notifying, setNotifying] = useState(false);
+      const [removeTarget, setRemoveTarget] = useState(null);
+      const [removing, setRemoving] = useState(false);
+
+      // Remove (cancel) a single sample after the little confirm popup.
+      const confirmRemoveItem = async () => {
+        if (!removeTarget) return;
+        setRemoving(true);
+        try {
+          await repFetch('/api/rep/sample-requests/' + editId + '/items/' + removeTarget.id + '/status', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'cancelled' })
+          });
+          setItems(prev => prev.map(it => it.id === removeTarget.id ? { ...it, status: 'cancelled' } : it));
+          repToast('Sample removed');
+          setRemoveTarget(null);
+        } catch (err) { alert('Error: ' + (err.message || 'Failed to remove')); }
+        setRemoving(false);
+      };
 
       // Send the customer the "your samples are ready" email — confirmed via the
       // popup that appears once every sample is ready.
@@ -18257,7 +18284,7 @@
         setNotifying(true);
         try {
           const data = await repFetch('/api/rep/sample-requests/' + editId + '/notify-ready', { method: 'POST' });
-          setSr(prev => ({ ...prev, all_ready_notified_at: (data && data.notified_at) || new Date().toISOString() }));
+          setSr(prev => ({ ...prev, all_ready_notified_at: (data && data.notified_at) || new Date().toISOString(), status: (data && data.status) || prev.status }));
           repToast(data && data.sent ? 'Ready email sent to the customer' : 'Marked notified — no customer email on file');
           setReadyPrompt(false);
         } catch (err) {
@@ -18440,20 +18467,23 @@
       });
       const allSamplesReady = activeItems.length > 0 && readyCount === activeItems.length;
       steps.push({
-        label: 'All samples ready',
+        label: isPickup ? 'Ready for pickup' : 'All samples ready',
         done: allSamplesReady,
         detail: sr.all_ready_notified_at
           ? 'Customer emailed'
           : (activeItems.length > 0 ? readyCount + ' of ' + activeItems.length + ' ready' : 'No items')
       });
       const isFinalStep = sr.status === 'shipped' || sr.status === 'delivered';
-      steps.push({
-        label: isShipping ? 'Order shipped' : 'Ready for pickup',
-        done: isFinalStep,
-        detail: isFinalStep
-          ? (sr.shipped_at ? new Date(sr.shipped_at).toLocaleDateString() : (sr.status === 'delivered' ? 'Delivered' : 'Shipped'))
-          : null
-      });
+      // Pickup ends at "Ready for pickup"; shipping adds the physical-ship step.
+      if (isShipping) {
+        steps.push({
+          label: 'Order shipped',
+          done: isFinalStep,
+          detail: isFinalStep
+            ? (sr.shipped_at ? new Date(sr.shipped_at).toLocaleDateString() : (sr.status === 'delivered' ? 'Delivered' : 'Shipped'))
+            : null
+        });
+      }
 
       // Vendor groups
       const vendorMap = {};
@@ -18466,10 +18496,11 @@
       });
       const vendorGroups = Object.values(vendorMap);
 
-      const pill = sr.status === 'requested' ? { bg: 'rgba(168,121,53,0.12)', c: 'var(--rod-accent)', l: 'Requested' }
+      const pill = sr.status === 'delivered' ? { bg: 'rgba(58,122,78,0.12)', c: 'var(--rod-green)', l: isPickup ? 'Picked up' : 'Delivered' }
         : sr.status === 'shipped' ? { bg: 'rgba(58,122,78,0.12)', c: 'var(--rod-green)', l: isPickup ? 'Ready for pickup' : 'In transit' }
-        : sr.status === 'delivered' ? { bg: 'rgba(58,122,78,0.12)', c: 'var(--rod-green)', l: isPickup ? 'Picked up' : 'Delivered' }
-        : { bg: 'rgba(197,71,49,0.12)', c: 'var(--rod-red)', l: 'Cancelled' };
+        : sr.status === 'cancelled' ? { bg: 'rgba(197,71,49,0.12)', c: 'var(--rod-red)', l: 'Cancelled' }
+        : (isPickup && allSamplesReady) ? { bg: 'rgba(58,122,78,0.12)', c: 'var(--rod-green)', l: 'Ready for pickup' }
+        : { bg: 'rgba(168,121,53,0.12)', c: 'var(--rod-accent)', l: 'Requested' };
 
       const sdMono = { font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-muted)' };
       const sdBadge = (bg, c) => ({ padding: '3px 8px', display: 'inline-block', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', whiteSpace: 'nowrap', background: bg, color: c });
@@ -18480,14 +18511,21 @@
       const initials = (sr.customer_name || '?').split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
       const cancelled = sr.status === 'cancelled';
 
-      // Lifecycle stepper (mirrors the quote workspace) — request → sent → prepared → shipped → delivered
+      // Lifecycle stepper. Pickup: requested → sent → ready-for-pickup → picked up
+      // (all-samples-ready IS ready-for-pickup). Shipping keeps prepared → shipped → delivered.
+      const readyMeta = activeItems.length > 0 ? readyCount + '/' + activeItems.length + ' ready' : '—';
       const lifecycle = [
         { label: 'Requested', done: true, meta: fmtD(sr.created_at) },
         { label: 'Sent to vendor', done: activeItems.length > 0 && vendorsNotified === vendorsTotal, meta: vendorsTotal > 0 ? vendorsNotified + '/' + vendorsTotal + ' sent' : '—' },
-        { label: 'Prepared', done: activeItems.length > 0 && readyCount === activeItems.length, meta: activeItems.length > 0 ? readyCount + '/' + activeItems.length + ' ready' : '—' },
-        { label: isPickup ? 'Ready for pickup' : 'Shipped', done: isFinalStep, meta: sr.shipped_at ? fmtD(sr.shipped_at) : '' },
-        { label: isPickup ? 'Picked up' : 'Delivered', done: sr.status === 'delivered', meta: sr.delivered_at ? fmtD(sr.delivered_at) : '' },
       ];
+      if (isPickup) {
+        lifecycle.push({ label: 'Ready for pickup', done: allSamplesReady, meta: readyMeta });
+        lifecycle.push({ label: 'Picked up', done: sr.status === 'delivered', meta: sr.delivered_at ? fmtD(sr.delivered_at) : '' });
+      } else {
+        lifecycle.push({ label: 'Prepared', done: allSamplesReady, meta: readyMeta });
+        lifecycle.push({ label: 'Shipped', done: isFinalStep, meta: sr.shipped_at ? fmtD(sr.shipped_at) : '' });
+        lifecycle.push({ label: 'Delivered', done: sr.status === 'delivered', meta: sr.delivered_at ? fmtD(sr.delivered_at) : '' });
+      }
       const lifeFirstUndone = lifecycle.findIndex(s => !s.done);
       const lifeStall = lifeFirstUndone === -1 ? lifecycle.length - 1 : lifeFirstUndone;
       const lifeState = (i) => {
@@ -18532,9 +18570,14 @@
               {allSamplesReady && !sr.all_ready_notified_at && isOpen && (
                 <button className="ol-header-btn" disabled={notifying} onClick={() => setReadyPrompt(true)}>Email customer</button>
               )}
-              {isOpen && !showTrackingInput && (
+              {isPickup && allSamplesReady && isOpen && (
+                <button className="ol-header-btn primary" disabled={acting} onClick={markDelivered}>
+                  {acting ? 'Updating…' : 'Mark picked up'}
+                </button>
+              )}
+              {isShipping && isOpen && !showTrackingInput && (
                 <button className="ol-header-btn primary" disabled={acting} onClick={() => setShowTrackingInput(true)}>
-                  {isPickup ? 'Mark ready for pickup' : 'Mark shipped'}
+                  Mark shipped
                 </button>
               )}
               {sr.status === 'shipped' && (
@@ -18543,13 +18586,13 @@
                 </button>
               )}
               {isOpen && (
-                <button className="ol-header-btn" style={{ color: '#c54731' }} disabled={acting} onClick={deleteRequest}>Delete</button>
+                <button className="ol-header-btn" style={{ color: '#c54731' }} disabled={acting} onClick={cancelRequest}>Cancel request</button>
               )}
             </div>
           </div>
 
           {/* Lifecycle stepper */}
-          <div className="qw-stepper cols-5">
+          <div className={'qw-stepper cols-' + lifecycle.length}>
             {lifecycle.map((s, i) => {
               const state = lifeState(i);
               return (
@@ -18760,6 +18803,9 @@
                                   {item.status === 'ready' ? 'Undo' : 'Mark ready'}
                                 </button>
                               )}
+                              {isOpen && !isCancelled && (
+                                <button className="sd-x" title="Remove sample" aria-label="Remove sample" onClick={() => setRemoveTarget(item)}>×</button>
+                              )}
                             </div>
                           </div>
                           {/* Per-item notes */}
@@ -18940,7 +18986,7 @@
                 <div style={{ padding: '22px 28px 18px', borderBottom: '0.5px solid rgba(28,25,23,0.12)' }}>
                   <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--rod-accent)', marginBottom: 12 }}>{'●'} All samples ready</div>
                   <h3 style={{ margin: 0, font: '300 26px/1.15 "Cormorant Garamond", serif', color: 'var(--rod-ink)', letterSpacing: '-0.01em' }}>
-                    Email the customer their samples are ready?
+                    {isPickup ? 'Email the customer their samples are ready to collect?' : 'Email the customer their samples are ready?'}
                   </h3>
                 </div>
                 {/* Body */}
@@ -18948,7 +18994,9 @@
                   {sr.customer_email ? (
                     <React.Fragment>
                       <p style={{ margin: 0, font: '400 14px/1.6 Inter, sans-serif', color: 'rgba(28,25,23,0.72)' }}>
-                        Every sample on {sr.request_number} is marked ready. We{'’'}ll let them know their samples are {isPickup ? 'ready to pick up at the Anaheim showroom' : 'ready and being prepared to ship'}.
+                        {isPickup
+                          ? <React.Fragment>Every sample on {sr.request_number} is ready. We{'’'}ll email the customer to come collect at the Anaheim showroom.</React.Fragment>
+                          : <React.Fragment>Every sample on {sr.request_number} is marked ready. We{'’'}ll let them know their samples are ready and being prepared to ship.</React.Fragment>}
                       </p>
                       <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--rod-warm)', border: '0.5px solid var(--rod-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--rod-ink)', color: '#ece5d8', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '500 12px/1 Inter, sans-serif', flexShrink: 0 }}>
@@ -18962,7 +19010,9 @@
                     </React.Fragment>
                   ) : (
                     <p style={{ margin: 0, font: '400 14px/1.6 Inter, sans-serif', color: 'rgba(28,25,23,0.72)' }}>
-                      Every sample on {sr.request_number} is marked ready, but {sr.customer_name} has no email on file — nothing will be sent.
+                      {isPickup
+                        ? <React.Fragment>Every sample on {sr.request_number} is ready, but {sr.customer_name} has no email on file — nothing will be sent.</React.Fragment>
+                        : <React.Fragment>Every sample on {sr.request_number} is marked ready, but {sr.customer_name} has no email on file — nothing will be sent.</React.Fragment>}
                     </p>
                   )}
                 </div>
@@ -18971,6 +19021,26 @@
                   <button className="sd-btn" disabled={notifying} onClick={() => setReadyPrompt(false)}>Not now</button>
                   <button className="sd-btn sd-btn-primary" disabled={notifying} onClick={notifyReady}>
                     {notifying ? 'Sending…' : (sr.customer_email ? 'Send email' : 'Mark notified')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Quick confirm before removing a sample */}
+          {removeTarget && (
+            <div className="modal-overlay" onClick={() => !removing && setRemoveTarget(null)}>
+              <div className="modal-box" onClick={e => e.stopPropagation()} style={{ width: 380, padding: 0, background: '#f5f0e8', overflow: 'hidden' }}>
+                <div style={{ padding: '22px 26px 18px' }}>
+                  <h3 style={{ margin: 0, font: '300 22px/1.2 "Cormorant Garamond", serif', color: 'var(--rod-ink)', letterSpacing: '-0.01em' }}>Remove this sample?</h3>
+                  <p style={{ margin: '10px 0 0', font: '400 13.5px/1.55 Inter, sans-serif', color: 'rgba(28,25,23,0.7)' }}>
+                    <strong style={{ color: 'var(--rod-ink)', fontWeight: 500 }}>{formatLineItem(removeTarget).name}</strong> will be removed from this request.
+                  </p>
+                </div>
+                <div style={{ padding: '14px 26px', borderTop: '0.5px solid rgba(28,25,23,0.12)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button className="sd-btn" disabled={removing} onClick={() => setRemoveTarget(null)}>Keep</button>
+                  <button className="sd-btn sd-btn-primary" disabled={removing} onClick={confirmRemoveItem} style={{ background: 'var(--rod-red)', borderColor: 'var(--rod-red)' }}>
+                    {removing ? 'Removing…' : 'Remove'}
                   </button>
                 </div>
               </div>

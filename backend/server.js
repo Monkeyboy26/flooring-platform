@@ -1915,14 +1915,29 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         params.push(orTsQuery);
         searchOrTsQueryIdx = paramIndex;
         paramIndex++;
-        whereClauses.push(`(
-          p.search_vector @@ to_tsquery('english', unaccent($${searchTsQueryIdx}))
-          OR p.search_vector @@ to_tsquery('english', unaccent($${searchOrTsQueryIdx}))
-          OR p.name % $${searchParamIdx}
-          OR p.collection % $${searchParamIdx}
-          OR (p.collection || ' ' || p.name) ILIKE '%' || $${searchParamIdx} || '%'
-          OR s.vendor_sku ILIKE $${searchParamIdx} || '%'
-          OR s.internal_sku ILIKE $${searchParamIdx} || '%'
+        // Match on product IDs via a self-contained subquery instead of OR-ing
+        // predicates across the skus↔products join. OR-ing product-column and
+        // sku-column predicates in the outer WHERE defeats every index (Postgres
+        // can't BitmapOr across a join), forcing a full seq scan of both tables
+        // (~4-7s). Resolving the match set per-table lets each branch use its GIN
+        // index: search_vector, name/collection trgm, and sku-code prefix trgm.
+        // Same match semantics as before — the concat-ILIKE is split into
+        // per-column ILIKEs (both trgm-indexable); sku-code hits surface the
+        // whole product (browse dedups to one card per product regardless).
+        whereClauses.push(`p.id IN (
+          SELECT pm.id FROM products pm
+          WHERE pm.status = 'active' AND (
+            pm.search_vector @@ to_tsquery('english', unaccent($${searchTsQueryIdx}))
+            OR pm.search_vector @@ to_tsquery('english', unaccent($${searchOrTsQueryIdx}))
+            OR pm.name % $${searchParamIdx}
+            OR pm.collection % $${searchParamIdx}
+            OR pm.name ILIKE '%' || $${searchParamIdx} || '%'
+            OR pm.collection ILIKE '%' || $${searchParamIdx} || '%'
+          )
+          UNION
+          SELECT sm.product_id FROM skus sm
+          WHERE sm.status = 'active'
+            AND (sm.vendor_sku ILIKE $${searchParamIdx} || '%' OR sm.internal_sku ILIKE $${searchParamIdx} || '%')
         )`);
       }
     }
@@ -2073,41 +2088,60 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
 
     // Main query — CTEs pre-compute images & variant counts (avoids correlated subqueries)
     // When deduplicating (default), wraps with DISTINCT ON (p.id) for one card per product
+    //
+    // browse_pids resolves the exact set of products this request can return (the
+    // full WHERE, once). Every image/variant CTE is then scoped to that set instead
+    // of scanning the whole 200k+ media_assets table five times per request — which
+    // was turning searches into 4-9s full-table-scan monsters. With scoping the
+    // media reads become index lookups (idx_media_assets_product) over a few hundred
+    // products. Results are identical; only the images we'd never display are skipped.
+    // MATERIALIZED so the set is computed once and shared by all six CTEs.
     const browseCtes = `
-      WITH sku_images AS (
+      WITH browse_pids AS MATERIALIZED (
+        SELECT DISTINCT p.id
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN brands br ON br.id = p.brand_id
+        LEFT JOIN categories c ON c.id = p.category_id
+        LEFT JOIN pricing pr ON pr.sku_id = s.id
+        WHERE ${whereSQL}
+      ),
+      sku_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
         FROM media_assets
-        WHERE asset_type = 'primary' AND sku_id IS NOT NULL
+        WHERE asset_type = 'primary' AND sku_id IS NOT NULL AND product_id IN (SELECT id FROM browse_pids)
         ORDER BY sku_id, sort_order
       ),
       sku_alt_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
         FROM media_assets
-        WHERE asset_type = 'alternate' AND sku_id IS NOT NULL
+        WHERE asset_type = 'alternate' AND sku_id IS NOT NULL AND product_id IN (SELECT id FROM browse_pids)
         ORDER BY sku_id, sort_order
       ),
       sku_lifestyle_images AS (
         SELECT DISTINCT ON (sku_id) sku_id, url
         FROM media_assets
-        WHERE asset_type = 'lifestyle' AND sku_id IS NOT NULL
+        WHERE asset_type = 'lifestyle' AND sku_id IS NOT NULL AND product_id IN (SELECT id FROM browse_pids)
         ORDER BY sku_id, sort_order
       ),
       product_images AS (
         SELECT DISTINCT ON (product_id) product_id, url
         FROM media_assets
-        WHERE asset_type = 'primary' AND sku_id IS NULL
+        WHERE asset_type = 'primary' AND sku_id IS NULL AND product_id IN (SELECT id FROM browse_pids)
         ORDER BY product_id, sort_order
       ),
       product_alt_images AS (
         SELECT DISTINCT ON (product_id) product_id, url
         FROM media_assets
-        WHERE asset_type = 'alternate' AND sku_id IS NULL
+        WHERE asset_type = 'alternate' AND sku_id IS NULL AND product_id IN (SELECT id FROM browse_pids)
         ORDER BY product_id, sort_order
       ),
       variant_counts AS (
         SELECT product_id, COUNT(*) as variant_count
         FROM skus
         WHERE status = 'active' AND is_sample = false AND COALESCE(variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+          AND product_id IN (SELECT id FROM browse_pids)
         GROUP BY product_id
       )`;
 
@@ -2141,6 +2175,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     const browseFrom = `
       FROM skus s
       JOIN products p ON p.id = s.product_id
+      JOIN browse_pids bp ON bp.id = p.id
       JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN brands br ON br.id = p.brand_id
       LEFT JOIN categories c ON c.id = p.category_id
@@ -16194,7 +16229,12 @@ app.put('/api/rep/sample-requests/:id/deliver', repAuth, async (req, res) => {
   try {
     const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
-    if (srRes.rows[0].status !== 'shipped') return res.status(400).json({ error: 'Can only mark shipped requests as delivered' });
+    // Pickup has no separate "shipped" step — a ready request is picked up directly.
+    // Shipping must have shipped first.
+    const okStatuses = srRes.rows[0].delivery_method === 'pickup' ? ['requested', 'shipped'] : ['shipped'];
+    if (!okStatuses.includes(srRes.rows[0].status)) {
+      return res.status(400).json({ error: srRes.rows[0].delivery_method === 'pickup' ? 'This request can\'t be marked picked up yet' : 'Can only mark shipped requests as delivered' });
+    }
 
     await pool.query(`UPDATE sample_requests SET status = 'delivered', delivered_at = NOW() WHERE id = $1`, [req.params.id]);
     const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
@@ -16266,11 +16306,17 @@ app.post('/api/rep/sample-requests/:id/notify-ready', repAuth, async (req, res) 
     const allReady = active.length > 0 && active.every(i => i.status === 'ready');
     if (!allReady) return res.status(400).json({ error: 'Not every sample is ready yet' });
 
+    // Just the customer notification — no status change. For pickup, "all samples
+    // ready" already IS "ready for pickup" (see the deliver endpoint); for shipping
+    // the separate Mark-shipped step still advances the status.
+    const isPickup = sr.delivery_method === 'pickup';
     const claim = await pool.query(
-      'UPDATE sample_requests SET all_ready_notified_at = NOW() WHERE id = $1 AND all_ready_notified_at IS NULL RETURNING all_ready_notified_at',
+      `UPDATE sample_requests SET all_ready_notified_at = NOW()
+       WHERE id = $1 AND all_ready_notified_at IS NULL RETURNING all_ready_notified_at, status`,
       [req.params.id]);
     if (!claim.rows.length) return res.status(409).json({ error: 'The ready email has already been sent', already_sent: true });
     const notifiedAt = claim.rows[0].all_ready_notified_at;
+    const newStatus = claim.rows[0].status;
 
     if (sr.customer_email) {
       await enrichItemsForNaming(active);
@@ -16292,7 +16338,7 @@ app.post('/api/rep/sample-requests/:id/notify-ready', repAuth, async (req, res) 
       `Every sample for ${sr.customer_name} is ready to ${sr.delivery_method === 'pickup' ? 'hand off for pickup' : 'ship'}`,
       'sample_request', req.params.id));
 
-    res.json({ sent: !!sr.customer_email, notified_at: notifiedAt });
+    res.json({ sent: !!sr.customer_email, notified_at: notifiedAt, status: newStatus });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
