@@ -3949,7 +3949,7 @@
               <div style={{ maxWidth: 600, margin: '4rem auto', textAlign: 'center', padding: '0 2rem' }}>
                 <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 300, marginBottom: '1rem' }}>Trade Login Required</h2>
                 <p style={{ color: 'var(--stone-600)', marginBottom: '1.5rem' }}>Please sign in with your trade account to access the dashboard.</p>
-                <button className="btn" onClick={() => { setTradeModalMode('login'); setShowTradeModal(true); }}>Trade Sign In</button>
+                <button className="btn" onClick={goTrade}>Trade Sign In</button>
               </div>
             )
           )}
