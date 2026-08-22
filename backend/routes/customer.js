@@ -5,6 +5,7 @@ import { generateQuoteHtml } from '../lib/documents.js';
 import { findExactDuplicate, claimGuestRecords } from '../lib/customerHelpers.js';
 import { titleCaseName, formatPhone, collapse, normState, normMiddleInitial } from '../lib/customerNormalize.js';
 import { enrichItemsForNaming } from '../lib/enrichItems.js';
+import { depositAmount } from '../lib/estimateBundle.js';
 
 export default function createCustomerRoutes(ctx) {
   const router = Router();
@@ -923,6 +924,11 @@ export default function createCustomerRoutes(ctx) {
           e.project_address_line1, e.project_city, e.project_state,
           e.materials_subtotal, e.labor_subtotal, e.subtotal, e.tax_amount, e.total,
           e.notes, e.status, e.expires_at, e.sent_at, e.created_at,
+          e.deposit_type, e.deposit_value, e.public_token, e.converted_order_id,
+          CASE WHEN e.status IN ('sent', 'accepted') AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
+          (SELECT CASE WHEN pm.percent IS NOT NULL AND pm.percent::text <> '' THEN ROUND((pm.percent / 100.0) * e.total, 2) ELSE pm.amount END
+             FROM payment_milestones pm WHERE pm.estimate_id = e.id ORDER BY pm.sort_order, pm.created_at LIMIT 1) as first_milestone_amount,
+          (SELECT pm.label FROM payment_milestones pm WHERE pm.estimate_id = e.id ORDER BY pm.sort_order, pm.created_at LIMIT 1) as first_milestone_label,
           (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count,
           sr.first_name || ' ' || sr.last_name as rep_name
         FROM estimates e
@@ -930,7 +936,14 @@ export default function createCustomerRoutes(ctx) {
         WHERE e.customer_id = $1 AND e.status != 'draft'
         ORDER BY e.created_at DESC
       `, [req.customer.id]);
-      res.json({ estimates: result.rows });
+      // Deposit the customer can pay online: the payment schedule's first
+      // milestone when one exists, otherwise the flat deposit_type/value.
+      const estimates = result.rows.map(r => ({
+        ...r,
+        deposit_amount: r.first_milestone_amount != null ? parseFloat(r.first_milestone_amount) : depositAmount(r),
+        deposit_label: r.first_milestone_label || (r.deposit_type && r.deposit_type !== 'none' ? 'Deposit' : null),
+      }));
+      res.json({ estimates });
     } catch (err) {
       console.error(err); res.status(500).json({ error: 'Internal server error' });
     }

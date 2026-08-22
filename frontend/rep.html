@@ -27735,7 +27735,7 @@
         setBulkSending(false);
       };
 
-      // Bulk: refresh the 30-day validity window on the selected estimates
+      // Bulk: refresh the 14-day validity window on the selected estimates
       // (reuses the per-estimate /extend endpoint — does NOT email). Converted
       // and declined estimates are skipped.
       const bulkExtend = async () => {
@@ -29523,7 +29523,7 @@
               )}
               {estimate && !isReadonly && (
                 <button className="ol-header-btn" onClick={loadPreview} disabled={previewLoading}>
-                  {previewLoading ? 'Loading…' : effStatus === 'expired' ? 'Re-send (renew 30 days)' : estimate.status === 'sent' ? 'Resend estimate' : 'Preview & send'}
+                  {previewLoading ? 'Loading…' : effStatus === 'expired' ? 'Re-send (renew 14 days)' : estimate.status === 'sent' ? 'Resend estimate' : 'Preview & send'}
                 </button>
               )}
               {savedFlash && !saving && (
@@ -29593,7 +29593,7 @@
               </strong>{' '}
               {effStatus === 'declined'
                 ? (estimate.decline_reason ? 'Reason: ' + estimate.decline_reason : 'The customer declined this estimate.')
-                : 'Re-send to renew for 30 days.'}
+                : 'Re-send to renew for 14 days.'}
             </div>
           )}
 
@@ -30221,7 +30221,7 @@
                 <div className="qw-convert-card">
                   <div className="qw-convert-label">Estimate expired</div>
                   <div className="qw-convert-copy">
-                    Re-send to renew the 30-day window, then convert.
+                    Re-send to renew the 14-day window, then convert.
                   </div>
                   <button className="qw-convert-btn" onClick={loadPreview} disabled={previewLoading}>
                     {previewLoading ? 'Loading…' : <React.Fragment>Re-send &amp; renew {'→'}</React.Fragment>}

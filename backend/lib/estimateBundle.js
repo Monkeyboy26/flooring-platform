@@ -26,7 +26,7 @@ export const laborDisplayName = (item) => (item.labor_category === 'other' && it
 // view so accepting after a re-send (which refreshes expires_at) needs no
 // "unexpire" transition.
 export function effectiveStatus(estimate) {
-  if (estimate.status === 'sent' && estimate.expires_at && new Date(estimate.expires_at) < new Date()) {
+  if (['sent', 'accepted'].includes(estimate.status) && estimate.expires_at && new Date(estimate.expires_at) < new Date()) {
     return 'expired';
   }
   return estimate.status;

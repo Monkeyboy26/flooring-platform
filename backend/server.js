@@ -24477,7 +24477,7 @@ app.get('/api/rep/estimates', repAuth, async (req, res) => {
     const { status, search, scope } = req.query;
     let query = `
       SELECT e.*,
-        CASE WHEN e.status = 'sent' AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
+        CASE WHEN e.status IN ('sent', 'accepted') AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
         sr.first_name || ' ' || sr.last_name as rep_name,
         o.order_number as converted_order_number,
         o.total as order_total,
@@ -24547,7 +24547,8 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
     }
 
     const estimateNumber = await getNextEstimateNumber();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    // Validity window is set on SEND (14 days), not creation — drafts don't
+    // expire, matching the quote's expiration logic.
 
     await client.query('BEGIN');
 
@@ -24565,14 +24566,14 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
     const result = await client.query(`
       INSERT INTO estimates (estimate_number, sales_rep_id, customer_id, customer_name, customer_email, phone,
         project_name, project_address_line1, project_address_line2, project_city, project_state, project_zip,
-        notes, internal_notes, expires_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        notes, internal_notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *
     `, [estimateNumber, req.rep.id, custId, customer_name || null, customer_email ? customer_email.toLowerCase().trim() : null, phone || null,
         project_name || null,
         project_address_line1 || null, project_address_line2 || null,
         project_city || null, project_state || null, project_zip || null,
-        notes || null, internal_notes || null, expiresAt]);
+        notes || null, internal_notes || null]);
 
     await client.query('COMMIT');
     res.json({ estimate: result.rows[0], items: [] });
@@ -25191,7 +25192,7 @@ async function deliverEstimate(bundle, rep) {
   // trail distinguishes it, and the reminder must re-arm for the fresh window.
   const isResend = e.status === 'sent';
   const previousExpiry = e.expires_at;
-  const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const newExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
   await pool.query(
     "UPDATE estimates SET status = 'sent', sent_at = CURRENT_TIMESTAMP, expires_at = $2, reminder_sent_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1",
     [e.id, newExpiry]
@@ -25267,7 +25268,7 @@ app.post('/api/rep/estimates/:id/extend', repAuth, async (req, res) => {
     if (['converted', 'declined'].includes(r.rows[0].status)) {
       return res.status(400).json({ error: 'Estimate cannot be extended in its current status' });
     }
-    const newExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const newExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
     // Re-arm the expiry reminder so a future lapse still notifies.
     const upd = await pool.query(
       "UPDATE estimates SET status = 'sent', expires_at = $2, reminder_sent_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
@@ -26561,7 +26562,7 @@ app.get('/api/rep/customers/:id', repAuth, async (req, res) => {
       try {
         const cols = `e.id, e.estimate_number, e.project_name, e.total, e.status, e.expires_at, e.created_at,
           e.converted_quote_id, e.converted_order_id,
-          CASE WHEN e.status = 'sent' AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
+          CASE WHEN e.status IN ('sent', 'accepted') AND e.expires_at < NOW() THEN 'expired' ELSE e.status END as effective_status,
           (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count`;
         const email = (customer.email || '').toLowerCase();
         let result;

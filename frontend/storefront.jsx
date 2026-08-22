@@ -12009,6 +12009,28 @@
         }
       };
 
+      const [payingEstimate, setPayingEstimate] = useState(null);
+      // Pay an estimate's deposit online. Reuses the public token endpoint (the
+      // customer owns this estimate) which converts it to an order + opens a
+      // Stripe deposit checkout, then redirects to Stripe.
+      const payEstimateDeposit = async (est) => {
+        if (!est.public_token) { alert('Payment link unavailable — please contact your rep.'); return; }
+        setPayingEstimate(est.id);
+        try {
+          const resp = await fetch(API + '/api/estimate-view/' + est.public_token + '/pay-deposit', { method: 'POST' });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.checkout_url) {
+            alert(data.error || 'Could not start checkout — please try again.');
+            setPayingEstimate(null);
+            return;
+          }
+          window.location.href = data.checkout_url;
+        } catch (e) {
+          alert('Could not start checkout — please try again.');
+          setPayingEstimate(null);
+        }
+      };
+
       const viewEstimateDetail = async (estId) => {
         if (expandedEstimate === estId) { setExpandedEstimate(null); setEstimateDetail(null); return; }
         setExpandedEstimate(estId);
@@ -12759,11 +12781,17 @@
                     </div>
                     <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
                       {estimates.map(est => {
+                        const estExpired = est.effective_status === 'expired' || (est.expires_at && new Date(est.expires_at) < new Date() && ['sent', 'accepted'].includes(est.status));
+                        const depositDue = est.status === 'accepted' && parseFloat(est.deposit_amount || 0) > 0 && !est.converted_order_id && !estExpired;
                         const em = est.status === 'converted'
                           ? { label: 'Became an order', color: '#166534' }
-                          : (est.expires_at && new Date(est.expires_at) < new Date())
+                          : estExpired
                             ? { label: 'Expired', color: '#8a7e68' }
-                            : { label: 'Prepared for you', color: '#a87935' };
+                            : depositDue
+                              ? { label: 'Deposit due', color: '#a87935' }
+                              : est.status === 'accepted'
+                                ? { label: 'Accepted', color: '#166534' }
+                                : { label: 'Prepared for you', color: '#a87935' };
                         return (
                           <React.Fragment key={est.id}>
                             <div className="acct-order-row" style={quoteGrid} onClick={() => viewEstimateDetail(est.id)}>
@@ -12812,6 +12840,16 @@
                                         )}
                                         <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>Total {fmtMoney(est.total)}</span>
                                       </div>
+                                      {depositDue && (
+                                        <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(216,205,182,0.35)', border: '0.5px solid rgba(168,121,53,0.3)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                                          <span style={{ fontSize: '0.8125rem', color: '#7a5a1e' }}>
+                                            Accepted — pay your {est.deposit_label ? est.deposit_label.toLowerCase() : 'deposit'} of <strong>{fmtMoney(est.deposit_amount)}</strong> to get on the schedule.
+                                          </span>
+                                          <button className="acct-btn" onClick={() => payEstimateDeposit(est)} disabled={payingEstimate === est.id}>
+                                            {payingEstimate === est.id ? 'Preparing secure checkout…' : 'Pay ' + fmtMoney(est.deposit_amount) + ' deposit'}
+                                          </button>
+                                        </div>
+                                      )}
                                       {est.notes && (
                                         <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(216,205,182,0.25)', borderLeft: '3px solid var(--gold)', fontSize: '0.8125rem', color: 'var(--stone-700, #44403c)', fontStyle: 'italic', fontFamily: 'var(--font-heading)' }}>
                                           &ldquo;{est.notes}&rdquo;

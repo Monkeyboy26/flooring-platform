@@ -1193,17 +1193,8 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
 
   const validityDays = e.expires_at
     ? Math.max(1, Math.round((new Date(e.expires_at) - new Date(e.created_at)) / 86400000))
-    : 30;
+    : 14;
   const stampText = isExpired ? 'Expired' : `Valid ${validityDays} days`;
-
-  const customerFirst = (e.customer_name || '').trim().split(/\s+/)[0] || 'Hello';
-  const repFirst = (e.rep_name || '').trim().split(/\s+/)[0];
-  const greeting = `${customerFirst} — here's the ${docNoun} ${repFirst ? repFirst + ' prepared' : 'we prepared'} for you on ${issued}. ` +
-    (isExpired
-      ? `This ${docNoun} expired on <span style="color:var(--ink);font-weight:500;">${validUntil}</span> — reach out and we'll refresh it.`
-      : validUntil
-        ? `Valid through <span style="color:var(--ink);font-weight:500;">${validUntil}</span>.`
-        : 'Valid for 30 days from the date of issue.');
 
   const SWATCH_FALLBACKS = [
     'linear-gradient(135deg,#caa97f,#7a5635)',
@@ -1334,6 +1325,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 </style>
 </head>
 <body>
+<div style="display:flex;flex-direction:column;min-height:9.5in;">
 
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
@@ -1348,21 +1340,18 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="font:300 32px/1 var(--serif);letter-spacing:-0.014em;margin-top:6px;">${estimateNumber}</div>
 <div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
 <span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
-<span style="color:var(--muted);">Valid until</span><span style="text-align:right;">${validUntil || '30 days from issue'}</span>
-${e.rep_name ? `<span style="color:var(--muted);">Prepared by</span><span style="text-align:right;">${e.rep_name}</span>` : ''}
+<span style="color:var(--muted);">Valid until</span><span style="text-align:right;">${validUntil || '14 days from issue'}</span>
+${e.project_name ? `<span style="color:var(--muted);">Project</span><span style="text-align:right;">${escDoc(e.project_name)}</span>` : ''}
+${e.rep_name ? `<span style="color:var(--muted);">Prepared by</span><span style="text-align:right;">${escDoc(e.rep_name)}</span>` : ''}
 <span style="color:var(--muted);">Status</span><span class="mono" style="color:${isExpired ? 'var(--muted)' : 'var(--accent)'};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
 </div>
+<div style="margin-top:16px;display:flex;justify-content:flex-end;">
+<span style="padding:7px 14px;border:1.5px solid ${isExpired ? 'var(--muted)' : 'var(--accent)'};color:${isExpired ? 'var(--muted)' : 'var(--accent)'};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.3em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</span>
 </div>
 </div>
-
-<div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:8px;border-bottom:1px solid #1c191711;align-items:center;">
-<div style="font:500 9px/1.4 var(--sans);letter-spacing:0.06em;color:#1c1917cc;">
-${greeting}
-</div>
-<div style="padding:8px 14px;border:1.5px solid ${isExpired ? 'var(--muted)' : 'var(--accent)'};color:${isExpired ? 'var(--muted)' : 'var(--accent)'};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg);">${stampText}</div>
 </div>
 
-<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 22px;border-bottom:1px solid #1c191722;">
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:18px 0 22px;border-bottom:1px solid #1c191722;">
 <div>
 <div class="mono" style="margin-bottom:8px;">Prepared for</div>
 <div style="font:500 11px/1.2 var(--sans);">${e.customer_name || ''}</div>
@@ -1375,17 +1364,19 @@ ${accountCard}
 ${materialsSection}
 ${laborSection}
 
+<div style="flex:1 1 auto;min-height:20px;"></div>
+
 <div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
 <div style="padding-top:4px;" class="small">
-${e.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;white-space:pre-wrap;">${e.notes}</div>` : ''}
+${e.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;white-space:pre-wrap;">${escDoc(e.notes)}</div>` : ''}
 <div class="mono" style="margin-bottom:8px;">How to accept</div>
 <div style="margin-bottom:10px;">
-<span style="color:var(--muted);">Online</span>&nbsp;&nbsp;<span style="color:var(--ink);">Open your estimate link to review &amp; approve — a typed name is your signature</span><br />
+<span style="color:var(--muted);">Online</span>&nbsp;&nbsp;<span style="color:var(--ink);">Open your ${docNoun} link to review &amp; approve — a typed name is your signature</span><br />
 <span style="color:var(--muted);">Showroom</span>&nbsp;&nbsp;<span style="color:var(--ink);">(714) 999-0009 · 1440 S. State College Blvd #6M, Anaheim</span><br />
-<span style="color:var(--muted);">Email</span>&nbsp;&nbsp;<span style="color:var(--ink);">Reply to your estimate email${e.rep_email ? ' or write ' + e.rep_email : ''}</span>
+<span style="color:var(--muted);">Email</span>&nbsp;&nbsp;<span style="color:var(--ink);">Reply to your ${docNoun} email${e.rep_email ? ' or write ' + escDoc(e.rep_email) : ''}</span>
 </div>
 <div class="mono" style="margin-bottom:8px;margin-top:14px;">Terms &amp; validity</div>
-<div>${validUntil ? `Valid through ${validUntil}` : 'Valid for 30 days from the date of issue'}; labor rates may vary based on site conditions. Sales tax applies to materials only. Natural stone and wood vary by lot — final selections are approved at the showroom or from delivered samples.${(milestones && milestones.length) ? ` <span style="color:var(--ink);">Payment is due per the payment schedule above (${milestones.map(m => `${escDoc(m.label)}${m.due_label ? ' ' + escDoc(m.due_label) : ''} — ${money(m.amount)}`).join('; ')}); accepting this ${docNoun} constitutes agreement to that schedule.</span>` : ''} Roma Flooring Designs · License #830966.</div>
+<div>${validUntil ? `This ${docNoun} is valid through ${validUntil}` : `This ${docNoun} is valid for 14 days from the date of issue`}; ${isQuoteDoc ? 'prices are subject to change after expiry' : 'labor rates may vary based on site conditions and prices are subject to change after expiry'}. Sales tax applies to materials only. Natural stone and wood vary by lot — final selections are approved at the showroom or from delivered samples.${(milestones && milestones.length) ? ` Payment is due per the payment schedule (${milestones.map(m => `${escDoc(m.label)}${m.due_label ? ' ' + escDoc(m.due_label) : ''} — ${money(m.amount)}`).join('; ')}); accepting this ${docNoun} constitutes agreement to that schedule.` : ''} See the Terms of Sale on the reverse.</div>
 </div>
 <div>
 ${totalsRows}
@@ -1393,7 +1384,7 @@ ${totalsRows}
 <span class="mono" style="color:var(--ink);letter-spacing:0.18em;">${isQuoteDoc ? 'Quote' : 'Estimate'} total · USD</span>
 <span style="font:300 28px/1 var(--serif);letter-spacing:-0.012em;">${money(e.total)}</span>
 </div>
-${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'var(--accent)'};text-align:right;margin-top:6px;letter-spacing:0.16em;">● ${isExpired ? 'Expired' : 'Valid until'} ${validUntil}</div>` : ''}
+${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'var(--accent)'};text-align:right;margin-top:8px;letter-spacing:0.16em;">● ${isExpired ? 'Expired' : 'Valid until'} ${validUntil}</div>` : ''}
 ${(milestones && milestones.length) ? `<div class="keep" style="margin-top:14px;padding-top:10px;border-top:0.5px solid #1c191733;">
 <div class="mono" style="color:var(--accent);margin-bottom:8px;letter-spacing:0.16em;">Payment schedule</div>
 ${milestones.map(m => `<div style="display:flex;justify-content:space-between;padding:4px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">${escDoc(m.label)}${m.percent ? ` · ${parseFloat(m.percent)}%` : ''}${m.due_label ? ` <span style="color:#1c191799;">(${escDoc(m.due_label)})</span>` : ''}</span><span>${money(m.amount)}</span></div>`).join('')}
@@ -1401,14 +1392,43 @@ ${milestones.map(m => `<div style="display:flex;justify-content:space-between;pa
 </div>
 </div>
 
-<div class="keep" style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:26px;">
-<div><div style="border-bottom:0.5px solid var(--ink);height:26px;"></div><div class="mono" style="margin-top:5px;letter-spacing:0.16em;">Customer acceptance · date</div></div>
-<div><div style="border-bottom:0.5px solid var(--ink);height:26px;"></div><div class="mono" style="margin-top:5px;letter-spacing:0.16em;">Roma Flooring Designs · date</div></div>
+<div class="keep" style="margin-top:22px;padding-top:12px;border-top:1px solid #1c191722;">
+<div class="small" style="max-width:660px;">Accepting this ${docNoun} authorizes Roma to proceed at the ${isQuoteDoc ? 'quoted' : 'estimated'} pricing${isQuoteDoc ? '' : ' (labor is an estimate and may vary with site conditions)'}. It is subject to Roma's <strong>Terms of Sale on the reverse / attached Terms of Sale page</strong> (also at romaflooringdesigns.com/terms), including that <strong>all sales are final</strong> and that installing or using material is final acceptance of it. <strong>To accept, please review and sign the Terms of Sale on the reverse.</strong></div>
 </div>
 
-<div style="margin-top:18px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<div style="margin-top:auto;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
 <span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
-<span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Estimate ${estimateNumber}</span>
+<span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">${docType} ${estimateNumber}</span>
+</div>
+</div>
+
+<div style="break-before:page;page-break-before:always;">
+<div style="display:flex;justify-content:space-between;align-items:baseline;padding-bottom:12px;border-bottom:1px solid #1c191722;margin-bottom:18px;">
+<div style="font:300 24px/1 var(--serif);letter-spacing:-0.01em;">Terms of Sale</div>
+<div class="mono">Roma Flooring Designs &middot; ${docType} ${estimateNumber}</div>
+</div>
+<div style="font:400 9.5px/1.55 var(--sans);color:#1c1917cc;">
+<p style="margin:0 0 9px;"><strong>1. All sales are final.</strong> Materials are sold with no returns, exchanges, refunds, or cancellations. Special-order, custom, cut, closeout, and clearance items are non-returnable and non-refundable in every case. Any exception is granted solely at Roma's written discretion and may be conditioned on the material being unopened and in resalable condition and on payment of restocking, handling, and freight charges as Roma determines.</p>
+<p style="margin:0 0 9px;"><strong>2. Inspect before installation.</strong> You are responsible for inspecting all materials before installation. Before installing, cutting, or using any product you must verify quantity, color, shade, lot, size, quality, and condition, and confirm the material is acceptable and suitable for its intended use. Do not install material you believe to be incorrect or unacceptable — contact us first.</p>
+<p style="margin:0 0 9px;"><strong>3. No claims after installation.</strong> Installing, cutting, or using any material is your final acceptance of it in its delivered condition. Once installed, cut, or used, material is deemed inspected, accepted, and satisfactory, and Roma assumes no responsibility for color, shade, quality, size, or other variation, or for labor, installation, removal, replacement, or related costs. Any permitted claim must be raised before installation.</p>
+<p style="margin:0 0 9px;"><strong>4. Natural materials &amp; variation.</strong> Stone, tile, wood, and other natural or nature-derived products vary in color, veining, shade, tone, texture, finish, size, and marking. This variation is normal and inherent — a characteristic of natural products, not a defect — and is never a basis for a claim, return, or refund. Samples, displays, and on-screen images are representative only and are not guaranteed to match production material.</p>
+<p style="margin:0 0 9px;"><strong>5. Warranties &amp; disclaimer.</strong> Manufactured products may carry the applicable manufacturer's warranty, which is provided by the manufacturer and not by Roma, and is subject to that manufacturer's terms and process. Except for any express written warranty provided by Roma, all products and services are furnished <strong>"AS IS" and "WITH ALL FAULTS,"</strong> and Roma disclaims all other warranties, express or implied, including any implied warranty of merchantability or fitness for a particular purpose, to the fullest extent permitted by law.</p>
+<p style="margin:0 0 9px;"><strong>6. Estimated pricing &amp; scope.</strong> Line quantities, coverage, labor, and services shown are an estimate prepared from the information available; final amounts may change with field measurement, site conditions, substrate preparation, and material selection. Labor is billed as described and any work beyond the stated scope is a change order at additional cost. Sales tax is calculated on materials only.</p>
+<p style="margin:0 0 9px;"><strong>7. Limitation of liability.</strong> To the maximum extent permitted by law, Roma's total liability arising out of or relating to any product, order, or these terms shall not exceed the amount actually paid to Roma for the specific product giving rise to the claim, and Roma shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or for lost profits, labor, installation, removal, replacement, or delay costs. Roma is not responsible for installation performed by you or any third party.</p>
+<p style="margin:0 0 9px;"><strong>8. Pricing, payment, taxes, title &amp; risk.</strong> Pricing is valid only through this ${docNoun}'s expiry and is subject to change afterward. Payment is due on receipt unless otherwise agreed, or per the payment schedule where one is set; Roma may require a deposit or full payment in advance, particularly for special, custom, or freight orders. Applicable California sales tax is calculated at the time of sale. Title to and risk of loss for all materials pass to you upon delivery or pickup.</p>
+<p style="margin:0 0 9px;"><strong>9. Shipping, freight &amp; pickup.</strong> Freight-shipped orders are quoted by destination and scheduled after the order is placed; delivery dates are estimates and are not guaranteed. Inspect every shipment for visible damage or shortage at the time of delivery and note it before signing. Showroom pickup is available at our Anaheim location; uncollected material may be subject to storage fees at Roma's discretion.</p>
+<p style="margin:0 0 9px;"><strong>10. Cancellations &amp; special orders.</strong> Orders may be cancelled only with Roma's written consent. Special, custom, and non-stock orders are placed with the vendor on your behalf and are non-cancellable and non-refundable once submitted. Where a cancellation is permitted, restocking, handling, and freight charges may apply and deposits may be forfeited.</p>
+<p style="margin:0 0 0;"><strong>11. Governing law.</strong> These terms and any sale are governed by the laws of the State of California, without regard to its conflict-of-laws rules, with exclusive venue in the state or federal courts of Orange County, California. If any provision is found unenforceable, the remaining provisions remain in full force and effect.</p>
+</div>
+<div style="margin-top:18px;padding-top:12px;border-top:1px solid #1c191722;font:400 8.5px/1.5 var(--sans);color:var(--muted);">These Terms of Sale summarize and are governed by Roma Flooring Designs' full Terms of Service (romaflooringdesigns.com/terms) and Privacy Policy (romaflooringdesigns.com/privacy). Roma Flooring Designs, Inc. &middot; 1440 S. State College Blvd #6M &middot; Anaheim, CA 92806 &middot; License #830966.</div>
+
+<div class="keep" style="margin-top:22px;padding-top:14px;border-top:1.5px solid var(--ink);">
+<div class="small" style="margin-bottom:18px;max-width:660px;">By signing below I accept this ${docNoun} and authorize Roma Flooring Designs to proceed at the ${isQuoteDoc ? 'quoted' : 'estimated'} pricing, and I agree to the Terms of Sale set out above, including that <strong>all sales are final</strong> and that installing or using material is final acceptance of it. I confirm I have reviewed the ${isQuoteDoc ? 'quantities and colors' : 'scope, quantities, and colors'} on ${docType} ${estimateNumber}.</div>
+<div style="display:grid;grid-template-columns:1fr 150px;gap:40px;">
+<div style="border-top:1px solid var(--ink);padding-top:6px;font:400 9px/1.4 var(--sans);color:var(--muted);">Customer signature</div>
+<div style="border-top:1px solid var(--ink);padding-top:6px;font:400 9px/1.4 var(--sans);color:var(--muted);">Date</div>
+</div>
+</div>
 </div>
 
 </body>
