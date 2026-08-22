@@ -13845,7 +13845,18 @@
                 const initials = (s) => (s || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
                 const projName = (pid) => { const p = (projects || []).find(x => x.id === pid); return p ? p.name : null; };
                 const topOrders = (orders || []).slice(0, 3);
-                const pillClass = (s) => s === 'delivered' ? 'done' : (['pending', 'confirmed', 'shipped', 'processing'].includes(s) ? 'open' : '');
+                // Overview order status → color-coded dot + label (matches the
+                // list-view convention elsewhere in the app).
+                const OV_STATUS = {
+                  pending: { label: 'Pending', color: '#a87935' },
+                  confirmed: { label: 'Confirmed', color: '#2563eb' },
+                  processing: { label: 'Processing', color: '#2563eb' },
+                  ready_for_pickup: { label: 'Ready for pickup', color: '#4f46e5' },
+                  shipped: { label: 'Shipped', color: '#4f46e5' },
+                  delivered: { label: 'Delivered', color: '#3a7a4e' },
+                  cancelled: { label: 'Cancelled', color: 'var(--warm-muted)' },
+                };
+                const ovStatus = (s) => OV_STATUS[s] || { label: s ? s.charAt(0).toUpperCase() + s.slice(1) : '—', color: 'var(--warm-muted)' };
                 const openQuotes = (quotes || []).filter(q => !['converted', 'cancelled', 'expired'].includes(q.status)).slice(0, 2);
                 const daysLeft = (d) => { if (!d) return null; return Math.ceil((new Date(d) - new Date()) / 86400000); };
                 const reorder = [];
@@ -13919,7 +13930,7 @@
                                 <tr key={o.id}>
                                   <td><span className="td-oid">{o.order_number}</span><div className="td-oname">{it ? (it.collection || it.product_name) : 'Order'}{it && o.item_count > 1 ? ' + ' + (o.item_count - 1) + ' more' : ''}</div></td>
                                   <td><div className="td-oproj">{pn || '—'}</div></td>
-                                  <td><span className={'td-pill ' + pillClass(o.status)}>{o.status}</span></td>
+                                  <td>{(() => { const st = ovStatus(o.status); return (<span className="td-ostatus" style={{ color: st.color }}><span className="td-ostatus-dot" style={{ background: st.color }}></span>{st.label}</span>); })()}</td>
                                   <td className="num"><b>{money(o.total)}</b></td>
                                 </tr>
                               ); })}

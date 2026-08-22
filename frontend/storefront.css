@@ -1100,6 +1100,9 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .td-pill { display: inline-block; padding: 0.15rem 0.5rem; font-weight: 500; font-size: 0.5625rem; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid var(--stone-300); border-radius: 999px; color: var(--stone-500); white-space: nowrap; }
 .td-pill.open { border-color: var(--gold); color: var(--gold-dark); }
 .td-pill.done { border-color: #cfe0d4; background: #f2f7f3; color: #3f6f4e; }
+/* Overview order status — color-coded dot + label (dot and label share the status color) */
+.td-ostatus { display: inline-flex; align-items: center; gap: 0.4rem; font: 500 0.75rem/1 'Inter', sans-serif; letter-spacing: 0.01em; white-space: nowrap; }
+.td-ostatus-dot { width: 6px; height: 6px; border-radius: 999px; flex-shrink: 0; }
 .td-quote-row { display: flex; justify-content: space-between; align-items: center; padding: 0.9rem 0; border-bottom: 1px solid var(--stone-200); gap: 1rem; }
 .td-quote-row:last-child { border-bottom: 0; }
 .td-qexp { font-size: 0.6875rem; color: #a3552f; margin-top: 0.15rem; }
