@@ -8436,6 +8436,19 @@
       }).then((data) => setEstimates(data.estimates || [])).catch(() => {
       });
     }, []);
+    useEffect(() => {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("payment") !== "success") return;
+      const sid = sp.get("session_id");
+      if (!sid) return;
+      fetch(API + "/api/checkout/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sid }) }).then(() => {
+        fetch(API + "/api/customer/orders", { headers: authHeaders }).then((r) => r.ok ? r.json() : { orders: [] }).then((d) => setOrders(d.orders || [])).catch(() => {
+        });
+        fetch(API + "/api/customer/quotes", { headers: authHeaders }).then((r) => r.ok ? r.json() : { quotes: [] }).then((d) => setQuotes(d.quotes || [])).catch(() => {
+        });
+      }).catch(() => {
+      });
+    }, []);
     const refreshSamples = () => {
       fetch(API + "/api/customer/sample-requests", { headers: authHeaders }).then((r) => {
         if (!r.ok) throw new Error("HTTP " + r.status);
@@ -9400,6 +9413,14 @@
     useEffect(() => {
       loadTab(tab);
     }, [tab]);
+    useEffect(() => {
+      const sp = new URLSearchParams(window.location.search);
+      if (sp.get("payment") !== "success") return;
+      const sid = sp.get("session_id");
+      if (!sid) return;
+      fetch(API + "/api/checkout/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sid }) }).then(() => loadTab("overview")).catch(() => {
+      });
+    }, []);
     const saveProject = async () => {
       const method = editingProject ? "PUT" : "POST";
       const url = editingProject ? API + "/api/trade/projects/" + editingProject : API + "/api/trade/projects";
@@ -11504,6 +11525,15 @@
       const onResize = () => setIsNarrow(window.innerWidth <= 640);
       window.addEventListener("resize", onResize);
       return () => window.removeEventListener("resize", onResize);
+    }, []);
+    useEffect(() => {
+      if (depositResult !== "success") return;
+      const sid = new URLSearchParams(window.location.search).get("session_id");
+      if (!sid) return;
+      fetch(API + "/api/checkout/confirm", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: sid }) }).then(() => fetch(API + "/api/estimate-view/" + token)).then((r) => r && r.ok ? r.json() : null).then((d) => {
+        if (d) setData(d);
+      }).catch(() => {
+      });
     }, []);
     useEffect(() => {
       let cancelled = false;

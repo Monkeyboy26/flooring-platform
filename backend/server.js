@@ -13204,6 +13204,12 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             console.log(`[Webhook] Duplicate payment_request completion (order ${order_id}, session ${session.id}) — already processed, skipping`);
           }
         }
+        // Deferred quote/estimate checkout — the order is created and the
+        // quote/estimate marked converted ONLY now that Stripe confirms payment.
+        // Idempotent; the success-page confirm endpoint may have already settled it.
+        if (session.metadata && (session.metadata.type === 'quote_checkout' || session.metadata.type === 'estimate_deposit')) {
+          await settleDeferredCheckout(session);
+        }
         break;
       }
       case 'checkout.session.expired': {
@@ -14135,81 +14141,29 @@ app.post('/api/trade/quotes/:id/accept', tradeAuth, async (req, res) => {
     const qItems = await client.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [q.id]);
     if (!qItems.rows.length) return res.status(400).json({ error: 'Quote has no items' });
 
-    await client.query('BEGIN');
-    const orderNumber = await getNextOrderNumber();
-    const orderResult = await client.query(`
-      INSERT INTO orders (order_number, customer_email, customer_name, phone,
-        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
-        subtotal, shipping, total, status, sales_rep_id, payment_method, quote_id, delivery_method,
-        promo_code_id, promo_code, discount_amount, amount_paid, trade_customer_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', $13, 'stripe', $14, $15, $16, $17, $18, 0, $19) RETURNING *
-    `, [orderNumber, q.customer_email, q.customer_name, q.phone,
-        q.shipping_address_line1, q.shipping_address_line2, q.shipping_city, q.shipping_state, q.shipping_zip,
-        q.subtotal, q.shipping || 0, q.total, q.sales_rep_id, q.id, q.delivery_method || 'shipping',
-        q.promo_code_id || null, q.promo_code || null, q.discount_amount || 0, req.tradeCustomer.id]);
-    const order = orderResult.rows[0];
-    if (q.sidemark && String(q.sidemark).trim()) {
-      await client.query('UPDATE orders SET job_name = $1 WHERE id = $2', [String(q.sidemark).trim().slice(0, 200), order.id]);
+    // DEFERRED: do NOT convert yet. Open a Checkout tied to the quote; the order
+    // is created + quote marked converted only once Stripe confirms payment
+    // (settleDeferredCheckout, via the success-page confirm + webhook). Backing
+    // out of Checkout leaves the quote untouched.
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        customer_email: q.customer_email,
+        line_items: [{
+          price_data: { currency: 'usd', product_data: { name: `Payment — Quote ${q.quote_number}` }, unit_amount: Math.round(parseFloat(q.total || 0) * 100) },
+          quantity: 1
+        }],
+        metadata: { type: 'quote_checkout', quote_id: q.id, scope: 'trade', terms_accepted: (req.body && req.body.terms_accepted) ? '1' : '0' },
+        consent_collection: { terms_of_service: 'required' },
+        success_url: `${frontendUrl}/trade/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${frontendUrl}/trade/dashboard?payment=cancelled`,
+        expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+      });
+    } catch (stripeErr) {
+      console.error(stripeErr); return res.status(500).json({ error: 'Could not start checkout — please try again.' });
     }
-    if (req.body && req.body.terms_accepted) {
-      await client.query('UPDATE orders SET terms_accepted_at = NOW() WHERE id = $1', [order.id]);
-    }
-
-    for (const item of qItems.rows) {
-      await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-      `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.parent_collection || null, item.parent_color || null, item.description,
-          item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
-          item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
-    }
-
-    // Carry the quote's internal notes onto the order so they show in the order
-    // sidebar — multi-entry, preserving each note's author + timestamp (edits
-    // included). Falls back to the legacy single quotes.notes field only for a
-    // quote whose note predates the notes widget. No staff actor on the fallback.
-    {
-      const noteCt = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
-      const noteRef = String(order.trade_customer_id || order.customer_id || order.customer_email || order.id);
-      const carried = await client.query(`
-        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note, created_at)
-        SELECT $1, $2, $3, cn.staff_id, cn.note, cn.created_at
-        FROM customer_notes cn WHERE cn.quote_id = $4
-        ORDER BY cn.created_at
-      `, [noteCt, noteRef, order.id, q.id]);
-      if (carried.rowCount === 0 && q.notes && q.notes.trim()) {
-        await client.query(`
-          INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
-          VALUES ($1, $2, $3, NULL, $4)
-        `, [noteCt, noteRef, order.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
-      }
-    }
-
-    await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
-
-    await logQuoteEvent(client, q.id, 'accepted', {
-      body: 'Accepted in trade portal',
-      meta: { source: 'trade_portal' },
-      actor: 'customer',
-      actorName: tradeActorName
-    });
-    await logQuoteEvent(client, q.id, 'converted', {
-      body: 'Converted to order ' + orderNumber + ' · $' + parseFloat(q.total || 0).toFixed(2),
-      meta: { order_id: order.id, order_number: orderNumber, source: 'trade_portal' },
-      actor: 'customer',
-      actorName: tradeActorName
-    });
-    await client.query('COMMIT');
-
-    if (q.sales_rep_id) {
-      setImmediate(() => createRepNotification(pool, q.sales_rep_id, 'quote_accepted',
-        `Quote ${q.quote_number} accepted online`,
-        `${tradeActorName} accepted ${q.quote_number} ($${parseFloat(q.total || 0).toFixed(2)}) and headed to payment`,
-        'quote', q.id));
-    }
-
-    const url = await createPaySession(order, parseFloat(q.total || 0));
-    res.json({ checkout_url: url, order_id: order.id, order_number: orderNumber });
+    res.json({ checkout_url: session.url });
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (e) { /* no open transaction */ }
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -14299,80 +14253,29 @@ app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) =
     const qItems = await client.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [q.id]);
     if (!qItems.rows.length) return res.status(400).json({ error: 'Quote has no items' });
 
-    await client.query('BEGIN');
-    const orderNumber = await getNextOrderNumber();
-    const orderResult = await client.query(`
-      INSERT INTO orders (order_number, customer_email, customer_name, phone,
-        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
-        subtotal, shipping, total, status, sales_rep_id, payment_method, quote_id, delivery_method,
-        promo_code_id, promo_code, discount_amount, amount_paid, customer_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', $13, 'stripe', $14, $15, $16, $17, $18, 0, $19) RETURNING *
-    `, [orderNumber, q.customer_email, q.customer_name, q.phone,
-        q.shipping_address_line1, q.shipping_address_line2, q.shipping_city, q.shipping_state, q.shipping_zip,
-        q.subtotal, q.shipping || 0, q.total, q.sales_rep_id, q.id, q.delivery_method || 'shipping',
-        q.promo_code_id || null, q.promo_code || null, q.discount_amount || 0, req.customer.id]);
-    const order = orderResult.rows[0];
-    if (q.sidemark && String(q.sidemark).trim()) {
-      await client.query('UPDATE orders SET job_name = $1 WHERE id = $2', [String(q.sidemark).trim().slice(0, 200), order.id]);
+    // DEFERRED: do NOT convert yet. Open a Checkout tied to the quote; the order
+    // is created + quote marked converted only once Stripe confirms payment
+    // (settleDeferredCheckout, via the success-page confirm + webhook). Backing
+    // out of Checkout leaves the quote untouched.
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        customer_email: q.customer_email,
+        line_items: [{
+          price_data: { currency: 'usd', product_data: { name: `Payment — Quote ${q.quote_number}` }, unit_amount: Math.round(parseFloat(q.total || 0) * 100) },
+          quantity: 1
+        }],
+        metadata: { type: 'quote_checkout', quote_id: q.id, scope: 'customer', terms_accepted: (req.body && req.body.terms_accepted) ? '1' : '0' },
+        consent_collection: { terms_of_service: 'required' },
+        success_url: `${frontendUrl}/account/orders?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${frontendUrl}/account/quotes?payment=cancelled`,
+        expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+      });
+    } catch (stripeErr) {
+      console.error(stripeErr); return res.status(500).json({ error: 'Could not start checkout — please try again.' });
     }
-    // Record the customer's in-app Terms-of-Sale agreement (checkbox on the quote)
-    // right away, alongside Stripe's own consent capture on the hosted checkout.
-    if (req.body && req.body.terms_accepted) {
-      await client.query('UPDATE orders SET terms_accepted_at = NOW() WHERE id = $1', [order.id]);
-    }
-
-    for (const item of qItems.rows) {
-      await client.query(`
-        INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-      `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.parent_collection || null, item.parent_color || null, item.description,
-          item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
-          item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
-    }
-
-    // Carry the quote's internal notes onto the order so they show in the order
-    // sidebar — multi-entry, preserving each note's author + timestamp (edits
-    // included). Falls back to the legacy single quotes.notes field only for a
-    // quote whose note predates the notes widget. No staff actor on the fallback.
-    {
-      const noteCt = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
-      const noteRef = String(order.trade_customer_id || order.customer_id || order.customer_email || order.id);
-      const carried = await client.query(`
-        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note, created_at)
-        SELECT $1, $2, $3, cn.staff_id, cn.note, cn.created_at
-        FROM customer_notes cn WHERE cn.quote_id = $4
-        ORDER BY cn.created_at
-      `, [noteCt, noteRef, order.id, q.id]);
-      if (carried.rowCount === 0 && q.notes && q.notes.trim()) {
-        await client.query(`
-          INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
-          VALUES ($1, $2, $3, NULL, $4)
-        `, [noteCt, noteRef, order.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
-      }
-    }
-
-    await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
-    await logQuoteEvent(client, q.id, 'accepted', {
-      body: 'Accepted in storefront account',
-      meta: { source: 'storefront' },
-      actor: 'customer', actorName: q.customer_name
-    });
-    await logQuoteEvent(client, q.id, 'converted', {
-      body: 'Converted to order ' + orderNumber + ' · $' + parseFloat(q.total || 0).toFixed(2),
-      meta: { order_id: order.id, order_number: orderNumber, source: 'storefront' },
-      actor: 'customer', actorName: q.customer_name
-    });
-    await client.query('COMMIT');
-
-    if (q.sales_rep_id) {
-      setImmediate(() => createRepNotification(pool, q.sales_rep_id, 'quote_accepted',
-        `Quote ${q.quote_number} accepted online`,
-        `${q.customer_name} accepted ${q.quote_number} ($${parseFloat(q.total || 0).toFixed(2)}) and headed to payment`,
-        'quote', q.id));
-    }
-
-    const url = await createPaySession(order, parseFloat(q.total || 0));
-    res.json({ checkout_url: url, order_id: order.id, order_number: orderNumber });
+    res.json({ checkout_url: session.url });
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (e) { /* no open transaction */ }
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -25867,6 +25770,182 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
   return order;
 }
 
+// Convert a quote to a pending order (materials only). Extracted from the
+// customer + trade accept-pay endpoints so the deferred-settlement path (below)
+// is the single place a quote becomes an order. Mirrors the prior inline logic:
+// order insert (customer_id OR trade_customer_id), sidemark/job_name, ToS stamp,
+// item copy, customer-notes carry, mark converted + log events. Order is
+// 'pending' with amount_paid 0 — the settled payment is recorded by the caller.
+async function convertQuoteToOrderTx(client, q, items, opts) {
+  const { scope = 'customer', customerId = null, tradeCustomerId = null,
+    termsAccepted = false, actor = 'customer', actorName = null } = opts || {};
+  const orderNumber = await getNextOrderNumber();
+  const orderResult = await client.query(`
+    INSERT INTO orders (order_number, customer_email, customer_name, phone,
+      shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
+      subtotal, shipping, total, status, sales_rep_id, payment_method, quote_id, delivery_method,
+      promo_code_id, promo_code, discount_amount, amount_paid, customer_id, trade_customer_id)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending',$13,'stripe',$14,$15,$16,$17,$18,0,$19,$20) RETURNING *
+  `, [orderNumber, q.customer_email, q.customer_name, q.phone,
+      q.shipping_address_line1, q.shipping_address_line2, q.shipping_city, q.shipping_state, q.shipping_zip,
+      q.subtotal, q.shipping || 0, q.total, q.sales_rep_id, q.id, q.delivery_method || 'shipping',
+      q.promo_code_id || null, q.promo_code || null, q.discount_amount || 0, customerId, tradeCustomerId]);
+  const order = orderResult.rows[0];
+  if (q.sidemark && String(q.sidemark).trim()) {
+    await client.query('UPDATE orders SET job_name = $1 WHERE id = $2', [String(q.sidemark).trim().slice(0, 200), order.id]);
+  }
+  if (termsAccepted) {
+    await client.query('UPDATE orders SET terms_accepted_at = NOW() WHERE id = $1', [order.id]);
+  }
+  for (const item of items) {
+    await client.query(`
+      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+    `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.parent_collection || null, item.parent_color || null, item.description,
+        item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
+        item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
+  }
+  // Carry the quote's internal notes onto the order (multi-entry, author+time
+  // preserved; legacy single-note fallback for pre-widget quotes).
+  {
+    const noteCt = order.trade_customer_id ? 'trade' : order.customer_id ? 'retail' : 'guest';
+    const noteRef = String(order.trade_customer_id || order.customer_id || order.customer_email || order.id);
+    const carried = await client.query(`
+      INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note, created_at)
+      SELECT $1, $2, $3, cn.staff_id, cn.note, cn.created_at
+      FROM customer_notes cn WHERE cn.quote_id = $4
+      ORDER BY cn.created_at
+    `, [noteCt, noteRef, order.id, q.id]);
+    if (carried.rowCount === 0 && q.notes && q.notes.trim()) {
+      await client.query(`
+        INSERT INTO customer_notes (customer_type, customer_ref, order_id, staff_id, note)
+        VALUES ($1, $2, $3, NULL, $4)
+      `, [noteCt, noteRef, order.id, ('From quote ' + q.quote_number + ':\n' + q.notes.trim()).slice(0, 4000)]);
+    }
+  }
+  await client.query("UPDATE quotes SET status = 'converted', converted_order_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2", [order.id, q.id]);
+  const src = scope === 'trade' ? 'trade' : 'storefront';
+  await logQuoteEvent(client, q.id, 'accepted', {
+    body: scope === 'trade' ? 'Accepted in trade portal' : 'Accepted in storefront account',
+    meta: { source: src }, actor: 'customer', actorName: actorName || q.customer_name });
+  await logQuoteEvent(client, q.id, 'converted', {
+    body: 'Converted to order ' + orderNumber + ' · $' + parseFloat(q.total || 0).toFixed(2),
+    meta: { order_id: order.id, order_number: orderNumber, source: src }, actor: 'customer', actorName: actorName || q.customer_name });
+  return order;
+}
+
+// Settle a Stripe Checkout for a DEFERRED quote/estimate payment: the order is
+// created and the quote/estimate marked converted ONLY here, once Stripe reports
+// the session paid. Called by both the webhook and the success-page confirm
+// endpoint; idempotent via the order_payments unique(stripe_checkout_session_id)
+// and a FOR UPDATE lock on the quote/estimate row (so concurrent triggers can't
+// double-convert). Preserves existing post-payment behavior (pending order +
+// finalizeSettledPayment, incl. the online-deposit rep nudge).
+async function settleDeferredCheckout(session) {
+  const md = session.metadata || {};
+  if (!['quote_checkout', 'estimate_deposit'].includes(md.type)) return { status: 'ignored' };
+  if (session.payment_status !== 'paid') return { status: 'unpaid' };
+  const paidAmount = (session.amount_total || 0) / 100;
+  const client = await pool.connect();
+  let opId = null, orderId = null, prId = null, orderNumber = null;
+  try {
+    await client.query('BEGIN');
+    if (md.type === 'estimate_deposit') {
+      const estRes = await client.query('SELECT * FROM estimates WHERE id = $1 FOR UPDATE', [md.estimate_id]);
+      if (!estRes.rows.length) { await client.query('ROLLBACK'); return { status: 'not_found' }; }
+      const e = estRes.rows[0];
+      if (e.converted_order_id) { orderId = e.converted_order_id; }
+      else {
+        const itemsRes = await client.query(`
+          SELECT ei.*, ea.name AS area_name
+          FROM estimate_items ei LEFT JOIN estimate_areas ea ON ea.id = ei.area_id
+          WHERE ei.estimate_id = $1 ORDER BY ei.sort_order, ei.created_at`, [e.id]);
+        const mats = itemsRes.rows.filter(i => i.item_type === 'material');
+        const labor = itemsRes.rows.filter(i => i.item_type === 'labor');
+        const order = await convertEstimateToOrderTx(client, e, mats, labor, {
+          paymentMethod: 'stripe', salesRepId: e.sales_rep_id,
+          actor: 'customer', actorName: e.accepted_by_name || e.customer_name || 'Customer'
+        });
+        orderId = order.id; orderNumber = order.order_number;
+        // Only on a fresh conversion — labelled 'Estimate deposit' so the rep
+        // deposit-nudge in finalizeSettledPayment fires. (No ON CONFLICT: the
+        // FOR UPDATE + converted check already prevents a duplicate here.)
+        const pr = await client.query(`
+          INSERT INTO payment_requests (order_id, amount, sent_to_email, sent_by_name, status, stripe_checkout_session_id, expires_at)
+          VALUES ($1, $2, $3, 'Estimate deposit', 'paid', $4, NOW() + INTERVAL '1 day')
+          RETURNING id`, [orderId, paidAmount.toFixed(2), session.customer_email || '', session.id]);
+        prId = pr.rows[0]?.id || null;
+      }
+    } else {
+      const qRes = await client.query('SELECT * FROM quotes WHERE id = $1 FOR UPDATE', [md.quote_id]);
+      if (!qRes.rows.length) { await client.query('ROLLBACK'); return { status: 'not_found' }; }
+      const q = qRes.rows[0];
+      if (q.converted_order_id) { orderId = q.converted_order_id; }
+      else {
+        const itemsRes = await client.query('SELECT * FROM quote_items WHERE quote_id = $1 ORDER BY id', [q.id]);
+        const order = await convertQuoteToOrderTx(client, q, itemsRes.rows, {
+          scope: md.scope === 'trade' ? 'trade' : 'customer',
+          customerId: md.scope === 'trade' ? null : (q.customer_id || null),
+          tradeCustomerId: md.scope === 'trade' ? (q.trade_customer_id || null) : null,
+          termsAccepted: md.terms_accepted === '1' || md.terms_accepted === 'true',
+          actor: 'customer', actorName: q.customer_name
+        });
+        orderId = order.id; orderNumber = order.order_number;
+        const pr = await client.query(`
+          INSERT INTO payment_requests (order_id, amount, sent_to_email, sent_by_name, status, stripe_checkout_session_id, expires_at)
+          VALUES ($1, $2, $3, $4, 'paid', $5, NOW() + INTERVAL '1 day')
+          RETURNING id`, [orderId, paidAmount.toFixed(2), session.customer_email || '',
+            md.scope === 'trade' ? 'Trade checkout' : 'Storefront checkout', session.id]);
+        prId = pr.rows[0]?.id || null;
+      }
+    }
+
+    // Record the settled payment — the unique(stripe_checkout_session_id) makes
+    // this a no-op on redelivery/double-trigger, so opId stays null and side
+    // effects are skipped.
+    const ins = await client.query(`
+      INSERT INTO order_payments (order_id, payment_type, amount, stripe_payment_intent_id, stripe_checkout_session_id, description, status, payment_method)
+      VALUES ($1, 'additional_charge', $2, $3, $4, $5, 'completed', 'card')
+      ON CONFLICT (stripe_checkout_session_id) WHERE stripe_checkout_session_id IS NOT NULL DO NOTHING
+      RETURNING id`, [orderId, paidAmount.toFixed(2), session.payment_intent || null, session.id,
+        md.type === 'estimate_deposit' ? 'Deposit via checkout' : 'Payment via checkout']);
+    if (ins.rows.length) {
+      opId = ins.rows[0].id;
+      await client.query('UPDATE orders SET amount_paid = amount_paid + $1 WHERE id = $2', [paidAmount.toFixed(2), orderId]);
+      if (session.consent && session.consent.terms_of_service === 'accepted') {
+        await client.query('UPDATE orders SET terms_accepted_at = COALESCE(terms_accepted_at, NOW()) WHERE id = $1', [orderId]);
+      }
+      await logOrderActivity(client, orderId, 'payment_received', null, 'System',
+        { method: 'checkout', amount: paidAmount.toFixed(2), stripe_session_id: session.id });
+    }
+    await client.query('COMMIT');
+  } catch (txErr) {
+    await client.query('ROLLBACK'); throw txErr;
+  } finally {
+    client.release();
+  }
+
+  if (opId) {
+    await finalizeSettledPayment(orderId, prId, paidAmount, opId);
+    // Order-confirmation email (deferred flows no longer send it at click time).
+    try {
+      const ord = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+      if (ord.rows.length) {
+        const items = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
+        await enrichItemsForNaming(items.rows);
+        const eo = { ...ord.rows[0], items: items.rows };
+        await attachRep(eo);
+        setImmediate(() => sendOrderConfirmation(eo).catch(err => console.error('[Checkout] order confirmation error:', err.message)));
+      }
+    } catch (mailErr) { console.error('[Checkout] confirmation email error:', mailErr.message); }
+  }
+  if (!orderNumber && orderId) {
+    const o = await pool.query('SELECT order_number FROM orders WHERE id = $1', [orderId]);
+    orderNumber = o.rows[0]?.order_number || null;
+  }
+  return { status: 'ok', order_id: orderId, order_number: orderNumber };
+}
+
 app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
@@ -26163,38 +26242,63 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
     // Labor-only jobs are valid orders too (leveling, demo, customer-supplied material).
     if (!materialItems.length && !laborItems.length) return res.status(400).json({ error: 'This estimate has no items.' });
 
-    await client.query('BEGIN');
-    const order = await convertEstimateToOrderTx(client, e, materialItems, laborItems, {
-      paymentMethod: 'stripe', salesRepId: e.sales_rep_id,
-      actor: 'customer', actorName: e.accepted_by_name || e.customer_name || 'Customer'
-    });
-    await client.query('COMMIT');
-
-    // Order confirmation now; the webhook sends the payment-received email on settlement.
-    const orderItems = await pool.query(`
-      SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
-        sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
-        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name
-      FROM order_items oi
-      LEFT JOIN skus s ON s.id = oi.sku_id
-      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
-      LEFT JOIN vendors v ON v.id = p.vendor_id
-      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
-      LEFT JOIN brands br ON br.id = p.brand_id
-      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
-        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
-      LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
-        AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
-      WHERE oi.order_id = $1`, [order.id]);
-    await enrichItemsForNaming(orderItems.rows);
-    setImmediate(async () => { const eo = { ...order, items: orderItems.rows }; await attachRep(eo); sendOrderConfirmation(eo).catch(err => console.error('[Email] deposit order confirmation error:', err.message)); });
-
-    res.json({ checkout_url: await createDepositSession(order, deposit) });
+    // DEFERRED: do NOT convert yet. Open a Checkout tied to the estimate; the
+    // order is created and the estimate marked converted only once Stripe
+    // confirms payment (settleDeferredCheckout, via the success-page confirm +
+    // webhook). Backing out of Checkout leaves the estimate untouched.
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card', 'klarna'],
+        customer_email: e.customer_email,
+        line_items: [{
+          price_data: {
+            currency: 'usd',
+            product_data: { name: `Deposit — Estimate ${e.estimate_number}` },
+            unit_amount: Math.round(deposit * 100)
+          },
+          quantity: 1
+        }],
+        metadata: { type: 'estimate_deposit', estimate_id: e.id, token: req.params.token },
+        consent_collection: { terms_of_service: 'required' },
+        success_url: `${frontendUrl}/estimate/${req.params.token}?deposit=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${frontendUrl}/estimate/${req.params.token}?deposit=cancelled`,
+        expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+      });
+    } catch (stripeErr) {
+      console.error(stripeErr); return res.status(500).json({ error: 'Could not start deposit payment — please try again.' });
+    }
+    res.json({ checkout_url: session.url });
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (_) { /* already committed or never began */ }
     console.error(err); res.status(500).json({ error: 'Could not start deposit payment — please try again.' });
   } finally {
     client.release();
+  }
+});
+
+// POST /api/checkout/confirm — success-page settlement for deferred quote/estimate
+// checkouts. The customer returns here from Stripe; we re-fetch the session and,
+// if paid, create the order + mark the quote/estimate converted (idempotent with
+// the webhook). This makes conversion happen on return without relying on webhook
+// delivery, while the webhook remains the async backstop.
+app.post('/api/checkout/confirm', async (req, res) => {
+  try {
+    const { session_id } = req.body || {};
+    if (!session_id) return res.status(400).json({ error: 'session_id is required' });
+    let session;
+    try { session = await stripe.checkout.sessions.retrieve(session_id); }
+    catch (e) { return res.status(404).json({ error: 'Checkout session not found' }); }
+    const t = session.metadata && session.metadata.type;
+    if (!['quote_checkout', 'estimate_deposit'].includes(t)) {
+      return res.status(400).json({ error: 'Not a deferred checkout session' });
+    }
+    if (session.payment_status !== 'paid') return res.json({ status: 'unpaid' });
+    const result = await settleDeferredCheckout(session);
+    res.json(result);
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Could not confirm payment' });
   }
 });
 
