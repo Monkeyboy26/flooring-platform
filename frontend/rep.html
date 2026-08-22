@@ -5548,6 +5548,21 @@
       border-color: rgba(197,71,49,0.3);
     }
     .rod-action-bar .rod-btn-danger:hover { background: rgba(197,71,49,0.06); }
+    /* Editorial buttons — usable anywhere (vendor cards, modals), unlike the
+       .rod-action-bar-scoped .rod-btn. Ghost by default; dark ink when primary. */
+    .sd-btn {
+      padding: 9px 16px; background: transparent; color: var(--rod-ink);
+      border: 0.5px solid rgba(28,25,23,0.28); cursor: pointer;
+      font: 500 12px/1 'Inter', sans-serif; letter-spacing: 0.02em;
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px; white-space: nowrap;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+    }
+    .sd-btn:hover { background: rgba(28,25,23,0.05); border-color: rgba(28,25,23,0.45); }
+    .sd-btn:disabled { opacity: 0.4; cursor: default; }
+    .sd-btn-primary { background: var(--rod-ink); color: #f5f0e8; border-color: var(--rod-ink); }
+    .sd-btn-primary:hover { background: #322d29; border-color: #322d29; }
+    .sd-btn-primary:disabled:hover { background: var(--rod-ink); border-color: var(--rod-ink); }
+    .sd-btn-sm { padding: 7px 13px; font-size: 11px; letter-spacing: 0.04em; }
     .rod-action-bar-right {
       margin-left: auto;
       font: 500 10px/1 ui-monospace, monospace;
@@ -18429,8 +18444,7 @@
         done: allSamplesReady,
         detail: sr.all_ready_notified_at
           ? 'Customer emailed'
-          : (activeItems.length > 0 ? readyCount + ' of ' + activeItems.length + ' ready' : 'No items'),
-        action: (allSamplesReady && !sr.all_ready_notified_at && isOpen) ? 'notify_ready' : null
+          : (activeItems.length > 0 ? readyCount + ' of ' + activeItems.length + ' ready' : 'No items')
       });
       const isFinalStep = sr.status === 'shipped' || sr.status === 'delivered';
       steps.push({
@@ -18515,6 +18529,9 @@
               </div>
             </div>
             <div className="ol-header-actions">
+              {allSamplesReady && !sr.all_ready_notified_at && isOpen && (
+                <button className="ol-header-btn" disabled={notifying} onClick={() => setReadyPrompt(true)}>Email customer</button>
+              )}
               {isOpen && !showTrackingInput && (
                 <button className="ol-header-btn primary" disabled={acting} onClick={() => setShowTrackingInput(true)}>
                   {isPickup ? 'Mark ready for pickup' : 'Mark shipped'}
@@ -18673,10 +18690,10 @@
                         {sendResult && sendResult.sent && <span style={sdBadge('rgba(58,122,78,0.12)', 'var(--rod-green)')}>✓ Sent</span>}
                         {sendResult && !sendResult.sent && <span style={sdBadge('rgba(197,71,49,0.12)', 'var(--rod-red)')}>Failed: {sendResult.error}</span>}
                         {!sendResult && notifiedItem && <span style={sdBadge('rgba(58,122,78,0.12)', 'var(--rod-green)')}>✓ Sent {new Date(notifiedItem.vendor_notified_at).toLocaleDateString()}</span>}
-                        <button className="rod-btn rod-btn-primary" style={{ padding: '7px 12px' }}
+                        <button className="sd-btn sd-btn-primary sd-btn-sm"
                           disabled={!group.vendor_email || isSending || !group.vendor_id}
                           onClick={() => sendToVendor(group.vendor_id, group.vendor_name)}>
-                          {isSending ? 'Sending…' : 'Send to vendor →'}
+                          {isSending ? 'Sending…' : <React.Fragment>Send to vendor <span style={{ opacity: 0.6 }}>→</span></React.Fragment>}
                         </button>
                       </div>
                     </div>
@@ -18818,8 +18835,6 @@
                         </span>
                       ) : step.action === 'uncollect_payment' ? (
                         <button className="qw-link muted" disabled={paymentActing} onClick={() => markPaymentCollected(false)}>Undo</button>
-                      ) : step.action === 'notify_ready' ? (
-                        <button style={{ ...sdSmallBtn, background: 'var(--rod-ink)', color: '#fff', borderColor: 'var(--rod-ink)' }} onClick={() => setReadyPrompt(true)}>Email customer</button>
                       ) : (
                         step.detail && <span className="qw-check-meta">{step.detail}</span>
                       )}
@@ -18920,23 +18935,43 @@
           {/* Confirm before emailing the customer that all samples are ready */}
           {readyPrompt && (
             <div className="modal-overlay" onClick={() => !notifying && setReadyPrompt(false)}>
-              <div onClick={e => e.stopPropagation()} style={{ maxWidth: 440, width: '90%', background: '#f5f0e8', border: '0.5px solid rgba(28,25,23,0.2)', boxShadow: '0 24px 70px rgba(28,25,23,0.35)' }}>
-                <div style={{ padding: '24px 26px' }}>
-                  <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-accent)', marginBottom: 10 }}>All samples ready</div>
-                  <h3 style={{ margin: 0, font: '300 25px/1.15 "Cormorant Garamond", serif', color: 'var(--rod-ink)', letterSpacing: '-0.01em' }}>
+              <div className="modal-box" onClick={e => e.stopPropagation()} style={{ width: 460, padding: 0, background: '#f5f0e8', overflow: 'hidden' }}>
+                {/* Header */}
+                <div style={{ padding: '22px 28px 18px', borderBottom: '0.5px solid rgba(28,25,23,0.12)' }}>
+                  <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--rod-accent)', marginBottom: 12 }}>{'●'} All samples ready</div>
+                  <h3 style={{ margin: 0, font: '300 26px/1.15 "Cormorant Garamond", serif', color: 'var(--rod-ink)', letterSpacing: '-0.01em' }}>
                     Email the customer their samples are ready?
                   </h3>
-                  <p style={{ margin: '12px 0 0', font: '400 14px/1.6 Inter, sans-serif', color: 'rgba(28,25,23,0.72)' }}>
-                    {sr.customer_email
-                      ? <React.Fragment>Every sample on {sr.request_number} is marked ready. We{'’'}ll email <strong style={{ color: 'var(--rod-ink)', fontWeight: 500 }}>{sr.customer_name}</strong> at {sr.customer_email} that their samples are {isPickup ? 'ready to pick up at the showroom' : 'ready and being prepared to ship'}.</React.Fragment>
-                      : <React.Fragment>Every sample on {sr.request_number} is marked ready, but {sr.customer_name} has no email on file — nothing will be sent.</React.Fragment>}
-                  </p>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 22, justifyContent: 'flex-end' }}>
-                    <button className="rod-btn" disabled={notifying} onClick={() => setReadyPrompt(false)}>Not now</button>
-                    <button className="rod-btn rod-btn-primary" disabled={notifying} onClick={notifyReady}>
-                      {notifying ? 'Sending…' : (sr.customer_email ? 'Send email →' : 'Mark notified')}
-                    </button>
-                  </div>
+                </div>
+                {/* Body */}
+                <div style={{ padding: '18px 28px 22px' }}>
+                  {sr.customer_email ? (
+                    <React.Fragment>
+                      <p style={{ margin: 0, font: '400 14px/1.6 Inter, sans-serif', color: 'rgba(28,25,23,0.72)' }}>
+                        Every sample on {sr.request_number} is marked ready. We{'’'}ll let them know their samples are {isPickup ? 'ready to pick up at the Anaheim showroom' : 'ready and being prepared to ship'}.
+                      </p>
+                      <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--rod-warm)', border: '0.5px solid var(--rod-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--rod-ink)', color: '#ece5d8', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '500 12px/1 Inter, sans-serif', flexShrink: 0 }}>
+                          {(sr.customer_name || '?').split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{sr.customer_name}</div>
+                          <div style={{ font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.04em', color: 'var(--rod-muted)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sr.customer_email}</div>
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  ) : (
+                    <p style={{ margin: 0, font: '400 14px/1.6 Inter, sans-serif', color: 'rgba(28,25,23,0.72)' }}>
+                      Every sample on {sr.request_number} is marked ready, but {sr.customer_name} has no email on file — nothing will be sent.
+                    </p>
+                  )}
+                </div>
+                {/* Footer */}
+                <div style={{ padding: '16px 28px', borderTop: '0.5px solid rgba(28,25,23,0.12)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button className="sd-btn" disabled={notifying} onClick={() => setReadyPrompt(false)}>Not now</button>
+                  <button className="sd-btn sd-btn-primary" disabled={notifying} onClick={notifyReady}>
+                    {notifying ? 'Sending…' : (sr.customer_email ? 'Send email' : 'Mark notified')}
+                  </button>
                 </div>
               </div>
             </div>
