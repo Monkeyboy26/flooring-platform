@@ -16378,6 +16378,7 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
         collection: i.collection,
         variant_name: i.variant_name,
         sku_code: i.vendor_sku || null,
+        primary_image: i.primary_image || null,
         notes: i.notes
       }))
     });
@@ -17863,6 +17864,83 @@ app.delete('/api/rep/quotes/:id/notes/:noteId', repAuth, async (req, res) => {
     if (owns.rows[0].staff_id !== req.rep.id) return res.status(403).json({ error: 'You can only delete your own notes' });
     const result = await pool.query(
       'DELETE FROM customer_notes WHERE id = $1 AND quote_id = $2 RETURNING id',
+      [req.params.noteId, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// ── Sample-request internal notes ────────────────────────────────────────────
+// Multi-entry, author + timestamp, edit/delete — mirrors the quote notes above,
+// stored in customer_notes keyed by sample_request_id. Team-collaborative: any
+// rep may view/add/edit/delete notes on any sample request (author-scoped edits).
+async function sampleForNotes(sampleId) {
+  const r = await pool.query(
+    'SELECT id, customer_id, customer_email FROM sample_requests WHERE id = $1',
+    [sampleId]);
+  return r.rows[0] || null;
+}
+
+app.get('/api/rep/sample-requests/:id/notes', repAuth, async (req, res) => {
+  try {
+    const sample = await sampleForNotes(req.params.id);
+    if (!sample) return res.status(404).json({ error: 'Sample request not found' });
+    const notes = await pool.query(`
+      SELECT cn.*, COALESCE(
+        (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
+        'Staff') AS staff_name
+      FROM customer_notes cn WHERE cn.sample_request_id = $1 ORDER BY cn.created_at DESC`, [req.params.id]);
+    res.json({ notes: notes.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/rep/sample-requests/:id/notes', repAuth, async (req, res) => {
+  try {
+    const sample = await sampleForNotes(req.params.id);
+    if (!sample) return res.status(404).json({ error: 'Sample request not found' });
+    const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
+    if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const ct = sample.customer_id ? 'retail' : 'guest';
+    const cref = String(sample.customer_id || sample.customer_email || req.params.id);
+    const result = await pool.query(`
+      INSERT INTO customer_notes (customer_type, customer_ref, sample_request_id, staff_id, note)
+      VALUES ($1, $2, $3, $4, $5) RETURNING *`, [ct, cref, req.params.id, req.rep.id, note.slice(0, 4000)]);
+    const newNote = result.rows[0];
+    newNote.staff_name = req.rep.first_name + ' ' + req.rep.last_name;
+    res.json({ note: newNote });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.put('/api/rep/sample-requests/:id/notes/:noteId', repAuth, async (req, res) => {
+  try {
+    const sample = await sampleForNotes(req.params.id);
+    if (!sample) return res.status(404).json({ error: 'Sample request not found' });
+    const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
+    if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const owns = await pool.query('SELECT staff_id FROM customer_notes WHERE id = $1 AND sample_request_id = $2', [req.params.noteId, req.params.id]);
+    if (!owns.rows.length) return res.status(404).json({ error: 'Note not found' });
+    if (owns.rows[0].staff_id !== req.rep.id) return res.status(403).json({ error: 'You can only edit your own notes' });
+    const result = await pool.query(
+      'UPDATE customer_notes SET note = $1 WHERE id = $2 AND sample_request_id = $3 RETURNING *',
+      [note.slice(0, 4000), req.params.noteId, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    const upd = result.rows[0];
+    upd.staff_name = (await pool.query(
+      `SELECT COALESCE((SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = $1), 'Staff') AS n`,
+      [upd.staff_id])).rows[0].n;
+    res.json({ note: upd });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.delete('/api/rep/sample-requests/:id/notes/:noteId', repAuth, async (req, res) => {
+  try {
+    const sample = await sampleForNotes(req.params.id);
+    if (!sample) return res.status(404).json({ error: 'Sample request not found' });
+    const owns = await pool.query('SELECT staff_id FROM customer_notes WHERE id = $1 AND sample_request_id = $2', [req.params.noteId, req.params.id]);
+    if (!owns.rows.length) return res.status(404).json({ error: 'Note not found' });
+    if (owns.rows[0].staff_id !== req.rep.id) return res.status(403).json({ error: 'You can only delete your own notes' });
+    const result = await pool.query(
+      'DELETE FROM customer_notes WHERE id = $1 AND sample_request_id = $2 RETURNING id',
       [req.params.noteId, req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
     res.json({ success: true });
@@ -28486,12 +28564,12 @@ app.get('/api/admin/trade-customers', staffAuth, requireRole('admin', 'manager',
 
 app.put('/api/admin/trade-customers/:id', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
   try {
-    const { status, margin_tier_id, notes, payment_terms, tax_exempt } = req.body;
+    const { status, margin_tier_id, notes, tax_exempt } = req.body;
     const result = await pool.query(
       `UPDATE trade_customers SET status = COALESCE($1, status), margin_tier_id = COALESCE($2, margin_tier_id),
-       notes = COALESCE($3, notes), payment_terms = COALESCE($4, payment_terms),
-       tax_exempt = COALESCE($5, tax_exempt), updated_at = CURRENT_TIMESTAMP WHERE id = $6 RETURNING *`,
-      [status, margin_tier_id, notes, payment_terms, tax_exempt, req.params.id]
+       notes = COALESCE($3, notes),
+       tax_exempt = COALESCE($4, tax_exempt), updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *`,
+      [status, margin_tier_id, notes, tax_exempt, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Trade customer not found' });
 

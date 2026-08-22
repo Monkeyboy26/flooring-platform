@@ -1285,6 +1285,11 @@
       .qw-term { border-left: none; border-top: 0.5px solid rgba(28,25,23,0.06); }
       .qw-stepper { grid-template-columns: 1fr; }
     }
+    /* Sample-request detail: unify every panel to the side-card background */
+    .sd-detail .qw-card,
+    .sd-detail .qw-stepper { background: #f5f0e8; }
+    /* New sample request form: same unified panel background */
+    .sc-create .rod-card { background: #f5f0e8; }
 
     /* ── Customers list (cl-*) ── */
     .cl-table-wrap { background: #ece5d8; border: 0.5px solid rgba(28,25,23,0.14); }
@@ -3366,6 +3371,7 @@
       .mobile-topbar { display: flex; }
       .rep-topbar { display: none; }
       .rep-layout { grid-template-columns: 1fr; }
+      .rof-action-bar { left: 0; } /* sidebar is off-canvas here — span full width */
       .rep-sidebar {
         position: fixed; top: 0; left: -280px; width: 280px;
         height: 100vh; z-index: 99; transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -5190,7 +5196,7 @@
     .rof-action-bar {
       position: fixed;
       bottom: 0;
-      left: 0;
+      left: 220px; /* clear the 220px sidebar column so the bar can't cover Logout */
       right: 0;
       background: #1c1917;
       padding: 0.75rem 1.5rem;
@@ -10061,10 +10067,10 @@
           { key: 'visits', name: 'Visits', glyph: '\u25CE' },
         ]},
         { label: 'Sales', items: [
-          { key: 'quotes', name: 'Quotes', glyph: '\u2398' },
-          { key: 'estimates', name: 'Construction Estimates', glyph: '\u2637' },
           { key: 'orders', name: 'Orders', glyph: '\u259A' },
           { key: 'purchase-orders', name: 'Purchase orders', glyph: '\u2318' },
+          { key: 'quotes', name: 'Quotes', glyph: '\u2398' },
+          { key: 'estimates', name: 'Construction Estimates', glyph: '\u2637' },
           { key: 'samples', name: 'Sample requests', glyph: '\u2317' },
         ]},
         { label: 'Directory', items: [
@@ -14173,7 +14179,7 @@
     // customer summary card with Change, duplicate-match warning, and inline
     // email/phone validation with auto-formatting. The parent owns the three
     // field values plus the selected record; visits pass requirePhone={false}.
-    function RepCustomerEntry({ selected, onSelect, onClear, name, email, phone, onName, onEmail, onPhone, requirePhone }) {
+    function RepCustomerEntry({ selected, onSelect, onClear, name, email, phone, onName, onEmail, onPhone, requirePhone, company, onCompany }) {
       const [mode, setMode] = useState('search');
       const [search, setSearch] = useState('');
       const [results, setResults] = useState([]);
@@ -14369,6 +14375,14 @@
                   {phoneError && <div style={{ color: 'var(--red)', fontSize: '0.6875rem', marginTop: '0.25rem' }}>{phoneError}</div>}
                 </div>
               </div>
+              {onCompany && (
+                <div className="rof-field">
+                  <label>Company <span style={{ textTransform: 'none', letterSpacing: 0, color: '#8a7e68' }}>(optional)</span></label>
+                  <input type="text" value={company || ''}
+                    onChange={e => onCompany(e.target.value)}
+                    placeholder="Company or trade business name" />
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -17718,6 +17732,7 @@
       const [customerName, setCustomerName] = useState('');
       const [customerEmail, setCustomerEmail] = useState('');
       const [customerPhone, setCustomerPhone] = useState('');
+      const [companyName, setCompanyName] = useState('');
       const [addrLine1, setAddrLine1] = useState('');
       const [addrLine2, setAddrLine2] = useState('');
       const [addrCity, setAddrCity] = useState('');
@@ -17738,12 +17753,13 @@
       useRofDraft('sample-create', 'sample request',
         () => !sampleSavedRef.current && (items.length > 0 || !!pickedCustomer ||
           !!(customerName.trim() || customerEmail.trim() || customerPhone.trim() || notes.trim())),
-        () => ({ pickedCustomer, customerName, customerEmail, customerPhone, addrLine1, addrLine2, addrCity, addrState, addrZip, deliveryMethod, notes, items }));
+        () => ({ pickedCustomer, customerName, customerEmail, customerPhone, companyName, addrLine1, addrLine2, addrCity, addrState, addrZip, deliveryMethod, notes, items }));
       useRofDraftRestore('sample-create', (s) => {
         if (s.pickedCustomer) setPickedCustomer(s.pickedCustomer);
         setCustomerName(s.customerName || '');
         setCustomerEmail(s.customerEmail || '');
         setCustomerPhone(s.customerPhone || '');
+        setCompanyName(s.companyName || '');
         setAddrLine1(s.addrLine1 || '');
         setAddrLine2(s.addrLine2 || '');
         setAddrCity(s.addrCity || '');
@@ -17841,6 +17857,7 @@
             customer_name: customerName.trim(),
             customer_email: customerEmail.trim() || null,
             customer_phone: customerPhone.trim() || null,
+            company_name: companyName.trim() || null,
             delivery_method: deliveryMethod,
             shipping_address_line1: deliveryMethod === 'shipping' ? (addrLine1.trim() || null) : null,
             shipping_address_line2: deliveryMethod === 'shipping' ? (addrLine2.trim() || null) : null,
@@ -17869,7 +17886,7 @@
       const scField = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '0.5px solid rgba(28,25,23,0.3)', background: 'rgba(255,255,255,0.35)', color: 'var(--rod-ink)', font: '400 14px/1.3 Inter, sans-serif', outline: 'none' };
 
       return (
-        <div>
+        <div className="sc-create">
           {/* Breadcrumb */}
           <div className="rod-breadcrumb">
             <div className="rod-breadcrumb-trail">
@@ -17925,6 +17942,7 @@
                       setCustomerName(c.name || '');
                       setCustomerEmail(c.email || '');
                       setCustomerPhone(c.phone || '');
+                      setCompanyName(c.company_name || '');
                       if (c.address_line1) {
                         setAddrLine1(c.address_line1);
                         setAddrLine2(c.address_line2 || '');
@@ -17933,9 +17951,10 @@
                         setAddrZip(c.zip || '');
                       }
                     }}
-                    onClear={() => { setPickedCustomer(null); setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); }}
+                    onClear={() => { setPickedCustomer(null); setCustomerName(''); setCustomerEmail(''); setCustomerPhone(''); setCompanyName(''); }}
                     name={customerName} email={customerEmail} phone={customerPhone}
                     onName={setCustomerName} onEmail={setCustomerEmail} onPhone={setCustomerPhone}
+                    company={companyName} onCompany={setCompanyName}
                     requirePhone={true}
                   />
                 </div>
@@ -18076,10 +18095,14 @@
                 )}
               </div>
 
-              {/* Notes */}
+              {/* Internal notes — an initial team-only note saved with the request;
+                  further notes are added on the detail page (quote-style thread). */}
               <div className="rod-card">
                 <div className="rod-card-header">
                   <span className="rod-card-title">Internal notes</span>
+                  <div className="rod-card-actions">
+                    <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>Team-only · more on the saved request</span>
+                  </div>
                 </div>
                 <div className="rod-card-body-padded">
                   <textarea style={{ ...scField, resize: 'vertical', fontFamily: 'inherit' }} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any special instructions or notes…" rows="3" />
@@ -18202,17 +18225,6 @@
         setActing(false);
       };
 
-      const cancelRequest = async () => {
-        if (!confirm('Cancel this sample request?')) return;
-        setActing(true);
-        try {
-          await repFetch('/api/rep/sample-requests/' + editId + '/cancel', { method: 'PUT' });
-          repToast('Sample cancelled');
-          load();
-        } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
-        setActing(false);
-      };
-
       const deleteRequest = async () => {
         if (!confirm('Delete this sample request? This cannot be undone.')) return;
         try {
@@ -18223,36 +18235,6 @@
 
       const [editingNoteId, setEditingNoteId] = useState(null);
       const [noteDraft, setNoteDraft] = useState('');
-      const [selectedItems, setSelectedItems] = useState(new Set());
-      const [cancellingItems, setCancellingItems] = useState(false);
-
-      const toggleSelectItem = (itemId) => {
-        setSelectedItems(prev => {
-          const next = new Set(prev);
-          if (next.has(itemId)) next.delete(itemId);
-          else next.add(itemId);
-          return next;
-        });
-      };
-
-      const cancelSelectedItems = async () => {
-        if (!selectedItems.size) return;
-        const count = selectedItems.size;
-        if (!confirm(`Cancel ${count} selected sample${count !== 1 ? 's' : ''}? This cannot be undone.`)) return;
-        setCancellingItems(true);
-        try {
-          for (const itemId of selectedItems) {
-            await repFetch('/api/rep/sample-requests/' + editId + '/items/' + itemId + '/status', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ status: 'cancelled' })
-            });
-          }
-          setSelectedItems(new Set());
-          load();
-        } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
-        setCancellingItems(false);
-      };
 
       const [paymentActing, setPaymentActing] = useState(false);
       const [showPayModal, setShowPayModal] = useState(false);
@@ -18430,7 +18412,6 @@
           ? (sr.shipped_at ? new Date(sr.shipped_at).toLocaleDateString() : (sr.status === 'delivered' ? 'Delivered' : 'Shipped'))
           : null
       });
-      const completedCount = steps.filter(s => s.done).length;
 
       // Vendor groups
       const vendorMap = {};
@@ -18453,68 +18434,89 @@
       const sdSmallBtn = { padding: '6px 11px', background: 'transparent', color: 'var(--rod-ink)', border: '0.5px solid rgba(28,25,23,0.25)', cursor: 'pointer', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.04em' };
       const sdField = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '0.5px solid rgba(28,25,23,0.3)', background: 'rgba(255,255,255,0.35)', color: 'var(--rod-ink)', font: '400 14px/1.3 Inter, sans-serif', outline: 'none' };
       const fmtTs = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' + new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase().replace(' ', '') : null;
+      const fmtD = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+      const initials = (sr.customer_name || '?').split(' ').map(w => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+      const cancelled = sr.status === 'cancelled';
+
+      // Lifecycle stepper (mirrors the quote workspace) — request → sent → prepared → shipped → delivered
+      const lifecycle = [
+        { label: 'Requested', done: true, meta: fmtD(sr.created_at) },
+        { label: 'Sent to vendor', done: activeItems.length > 0 && vendorsNotified === vendorsTotal, meta: vendorsTotal > 0 ? vendorsNotified + '/' + vendorsTotal + ' sent' : '—' },
+        { label: 'Prepared', done: activeItems.length > 0 && readyCount === activeItems.length, meta: activeItems.length > 0 ? readyCount + '/' + activeItems.length + ' ready' : '—' },
+        { label: isPickup ? 'Ready for pickup' : 'Shipped', done: isFinalStep, meta: sr.shipped_at ? fmtD(sr.shipped_at) : '' },
+        { label: isPickup ? 'Picked up' : 'Delivered', done: sr.status === 'delivered', meta: sr.delivered_at ? fmtD(sr.delivered_at) : '' },
+      ];
+      const lifeFirstUndone = lifecycle.findIndex(s => !s.done);
+      const lifeStall = lifeFirstUndone === -1 ? lifecycle.length - 1 : lifeFirstUndone;
+      const lifeState = (i) => {
+        if (lifecycle[i].done) return 'done';
+        if (cancelled) return i === lifeStall ? 'dead' : 'next';
+        return i === lifeStall ? 'now' : 'next';
+      };
+      const firstPendingStep = steps.findIndex(s => !s.done);
 
       return (
-        <div>
+        <div className="sd-detail">
           {/* Breadcrumb */}
-          <div className="rod-breadcrumb">
-            <div className="rod-breadcrumb-trail">
+          <div className="qw-breadcrumb">
+            <div className="qw-crumbs">
               <a onClick={() => navigate('dashboard')}>Workspace</a>
-              <span className="rod-breadcrumb-sep"></span>
+              <span className="qw-crumb-sep" />
               <a onClick={() => navigate('samples')}>Samples</a>
-              <span className="rod-breadcrumb-sep"></span>
-              <span className="rod-current">{sr.request_number}</span>
+              <span className="qw-crumb-sep" />
+              <span className="qw-crumb-current">{sr.request_number}</span>
+            </div>
+            <div className="qw-meta-right">
+              <span>Requested {fmtD(sr.created_at)}</span>
+              <span style={{ color: pill.c }}>{'●'} {pill.l}</span>
             </div>
           </div>
 
           {/* Header */}
-          <div className="rod-header">
-            <div className="rod-header-left">
-              <div className="rod-status-pill" style={{ background: pill.bg, color: pill.c }}>● {pill.l}</div>
+          <div className="qw-header">
+            <div>
               <h1>Sample request <em>{sr.request_number}</em></h1>
-              <div className="rod-header-subtitle">
-                {sr.customer_name} · {isPickup ? 'In-store pickup' : 'Shipping'} · requested {fmtTs(sr.created_at)}
-              </div>
-            </div>
-            <div className="rod-header-money">
-              <div>
-                <div className="rod-header-money-label">Samples</div>
-                <div className="rod-header-money-value">{activeItems.length}</div>
-              </div>
-              <div>
-                <div className="rod-header-money-label">Ready</div>
-                <div className="rod-header-money-value" style={activeItems.length > 0 && readyCount === activeItems.length ? { color: 'var(--rod-green)' } : undefined}>
-                  {readyCount}<span style={{ font: '400 15px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}> / {activeItems.length}</span>
+              <div className="qw-identity">
+                <div className="qw-avatar">{initials}</div>
+                <div>
+                  <div className="qw-cust-line">{sr.customer_name}</div>
+                  <div className="qw-cust-sub">
+                    {[sr.customer_email, sr.customer_phone].filter(Boolean).join(' · ') || (isPickup ? 'In-store pickup' : 'Shipping')}
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="rod-header-money-label">Shipping</div>
-                <div className="rod-header-money-value" style={isPickup ? { color: 'var(--rod-green)' } : undefined}>{isPickup ? 'Free' : '$12.00'}</div>
-              </div>
+            </div>
+            <div className="ol-header-actions">
+              {isOpen && !showTrackingInput && (
+                <button className="ol-header-btn primary" disabled={acting} onClick={() => setShowTrackingInput(true)}>
+                  {isPickup ? 'Mark ready for pickup' : 'Mark shipped'}
+                </button>
+              )}
+              {sr.status === 'shipped' && (
+                <button className="ol-header-btn primary" disabled={acting} onClick={markDelivered}>
+                  {acting ? 'Updating…' : (isPickup ? 'Mark picked up' : 'Mark delivered')}
+                </button>
+              )}
+              {isOpen && (
+                <button className="ol-header-btn" style={{ color: '#c54731' }} disabled={acting} onClick={deleteRequest}>Delete</button>
+              )}
             </div>
           </div>
 
-          {/* Action bar */}
-          <div className="rod-action-bar">
-            {isOpen && !showTrackingInput && (
-              <button className="rod-btn rod-btn-primary" disabled={acting} onClick={() => setShowTrackingInput(true)}>
-                {isPickup ? '◫ Mark ready for pickup' : '⤿ Mark shipped'}
-              </button>
-            )}
-            {sr.status === 'shipped' && (
-              <button className="rod-btn rod-btn-primary" disabled={acting} onClick={markDelivered}>
-                {acting ? 'Updating…' : (isPickup ? '✓ Mark picked up' : '✓ Mark delivered')}
-              </button>
-            )}
-            {(isOpen || sr.status === 'shipped') && (
-              <button className="rod-btn rod-btn-danger" disabled={acting} onClick={cancelRequest}>Cancel request</button>
-            )}
-            {isOpen && (
-              <button className="rod-btn rod-btn-danger" disabled={acting} onClick={deleteRequest}>Delete</button>
-            )}
-            <div className="rod-action-bar-right">
-              {items.length} sample{items.length !== 1 ? 's' : ''}{cancelledCount > 0 ? ' · ' + cancelledCount + ' cancelled' : ''} · {vendorGroups.length} vendor{vendorGroups.length !== 1 ? 's' : ''}
-            </div>
+          {/* Lifecycle stepper */}
+          <div className="qw-stepper cols-5">
+            {lifecycle.map((s, i) => {
+              const state = lifeState(i);
+              return (
+                <div key={s.label} className={'qw-step ' + state}>
+                  <div className="qw-step-label">
+                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
+                    <span>{s.label}</span>
+                  </div>
+                  <div className="qw-step-meta">{s.meta}</div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Inline ship confirmation */}
@@ -18532,20 +18534,19 @@
             </div>
           )}
 
-          <div className="rod-body">
+          <div className="qw-grid">
             {/* Left column */}
-            <div className="rod-col">
+            <div className="qw-main">
               {/* Add samples + selection (only while open) */}
               {isOpen && (
-                <div className="rod-card">
-                  <div className="rod-card-header">
-                    <span className="rod-card-title">Add samples · {activeItems.length} of 5 used</span>
-                    <div className="rod-card-actions">
-                      <a className="rod-card-action" onClick={() => setSelectedItems(new Set(items.filter(i => i.status !== 'cancelled').map(i => i.id)))}>Select all</a>
-                      {selectedItems.size > 0 && <a className="rod-card-action" onClick={() => setSelectedItems(new Set())}>Clear</a>}
+                <div className="qw-card">
+                  <div className="qw-card-head">
+                    <h3>Add samples</h3>
+                    <div style={{ display: 'flex', gap: 14, alignItems: 'baseline' }}>
+                      <span className="qw-card-hint">{activeItems.length} of 5 used</span>
                     </div>
                   </div>
-                  <div className="rod-card-body-padded">
+                  <div className="qw-card-body">
                     {activeItems.length < 5 && (
                       <button onClick={() => setCatalogOpen(true)} style={{ width: '100%', marginBottom: 12, padding: '12px 14px', cursor: 'pointer', textAlign: 'left', border: '0.5px solid var(--rod-ink)', background: 'var(--rod-ink)', color: '#ece5d8', display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
                         <span>
@@ -18589,15 +18590,7 @@
                       </div>
                     ) : (
                       <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-muted)' }}>
-                        Maximum 5 samples reached. Cancel an item to add a new one.
-                      </div>
-                    )}
-                    {selectedItems.size > 0 && (
-                      <div style={{ marginTop: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
-                        <button className="rod-btn rod-btn-danger" style={{ padding: '8px 12px' }} disabled={cancellingItems} onClick={cancelSelectedItems}>
-                          {cancellingItems ? 'Cancelling…' : 'Cancel selected (' + selectedItems.size + ')'}
-                        </button>
-                        <span style={sdMono}>Cancelled samples stay on the record</span>
+                        Maximum of 5 samples reached.
                       </div>
                     )}
                   </div>
@@ -18612,11 +18605,11 @@
                 const isSending = sendingVendorId === vid;
                 const notifiedItem = group.items.find(i => i.vendor_notified_at);
                 return (
-                  <div key={vid} className="rod-card">
-                    <div className="rod-card-header">
-                      <span className="rod-card-title">
+                  <div key={vid} className="qw-card">
+                    <div className="qw-card-head">
+                      <h3>
                         {group.vendor_name}{group.vendor_public_code ? ' · ' + group.vendor_public_code : ''} · {group.items.length} sample{group.items.length !== 1 ? 's' : ''}
-                      </span>
+                      </h3>
                       <div className="rod-card-actions" style={{ alignItems: 'center' }}>
                         {sendResult && sendResult.sent && <span style={sdBadge('rgba(58,122,78,0.12)', 'var(--rod-green)')}>✓ Sent</span>}
                         {sendResult && !sendResult.sent && <span style={sdBadge('rgba(197,71,49,0.12)', 'var(--rod-red)')}>Failed: {sendResult.error}</span>}
@@ -18669,10 +18662,7 @@
                       const isCancelled = item.status === 'cancelled';
                       return (
                         <div key={item.id} style={{ padding: '12px 20px', borderBottom: idx < group.items.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none', opacity: isCancelled ? 0.55 : 1 }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: (isOpen && !isCancelled ? '18px ' : '') + '52px 1fr auto', gap: 12, alignItems: 'center' }}>
-                            {isOpen && !isCancelled && (
-                              <input type="checkbox" style={{ margin: 0 }} checked={selectedItems.has(item.id)} onChange={() => toggleSelectItem(item.id)} aria-label={'Select sample ' + item.product_name} />
-                            )}
+                          <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr auto', gap: 12, alignItems: 'center' }}>
                             {item.primary_image
                               ? <img className="rod-line-item-thumb" src={optimizeImg(item.primary_image, 120)} alt={item.product_name} loading="lazy" />
                               : <div style={{ width: 48, height: 44, background: 'var(--rod-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-muted)' }}>◫</div>}
@@ -18698,7 +18688,7 @@
                           </div>
                           {/* Per-item notes */}
                           {!isCancelled && (
-                            <div style={{ marginTop: 8, marginLeft: (isOpen ? 30 : 0) + 64 }}>
+                            <div style={{ marginTop: 8, marginLeft: 64 }}>
                               {editingNoteId === item.id ? (
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                                   <textarea value={noteDraft} onChange={e => setNoteDraft(e.target.value)} placeholder="Add a note for this sample…" rows={2}
@@ -18728,7 +18718,7 @@
               })}
 
               {vendorGroups.length === 0 && (
-                <div className="rod-card">
+                <div className="qw-card">
                   <div style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--rod-muted)', font: '400 13px/1.5 Inter, sans-serif' }}>
                     No samples on this request yet.
                   </div>
@@ -18736,120 +18726,103 @@
               )}
             </div>
 
-            {/* Right column */}
-            <div className="rod-col">
-              {/* Customer */}
-              <div className="rod-card">
-                <div className="rod-card-header">
-                  <span className="rod-card-title">Customer</span>
+            {/* Right rail */}
+            <div className="qw-rail">
+              {/* Summary */}
+              <div className="qw-rail-card">
+                <h3>Summary</h3>
+                <div className="qw-total-row"><span className="k">Samples</span><span>{activeItems.length}{cancelledCount > 0 ? ' · ' + cancelledCount + ' cancelled' : ''}</span></div>
+                <div className="qw-total-row" style={{ marginTop: 8 }}>
+                  <span className="k">Ready</span>
+                  <span style={activeItems.length > 0 && readyCount === activeItems.length ? { color: '#3a7a4e' } : undefined}>{readyCount} / {activeItems.length}</span>
                 </div>
-                <div className="rod-card-body-padded">
-                  <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr', gap: 12, alignItems: 'center', paddingBottom: 12, borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
-                    <div style={{ width: 40, height: 40, background: 'var(--rod-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>
-                      {(sr.customer_name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-                    </div>
-                    <div>
-                      <div style={{ font: '400 15px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{sr.customer_name}</div>
-                      <div style={{ ...sdMono, marginTop: 3, textTransform: 'none', letterSpacing: '0.04em' }}>
-                        {[sr.customer_email, sr.customer_phone].filter(Boolean).join(' · ') || '—'}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 12 }}>
-                    <div style={{ ...sdMono, marginBottom: 6 }}>Delivery</div>
-                    {isPickup ? (
-                      <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-green)' }}>In-store pickup · Anaheim showroom · free</div>
-                    ) : addressParts.length > 0 ? (
-                      addressParts.map((l, i) => <div key={i} style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-ink)' }}>{l}</div>)
-                    ) : (
-                      <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-muted)' }}>Shipping · $12 flat rate</div>
-                    )}
-                    {sr.tracking_number && (
-                      <div style={{ marginTop: 10 }}>
-                        <div style={{ ...sdMono, marginBottom: 4 }}>Tracking</div>
-                        <div style={{ font: '500 13px/1.3 ui-monospace, monospace', color: 'var(--rod-ink)' }}>{sr.tracking_number}</div>
-                      </div>
-                    )}
-                  </div>
+                <div className="qw-total-row" style={{ marginTop: 8 }}><span className="k">Vendors</span><span>{vendorGroups.length}</span></div>
+                <div className="qw-total-big">
+                  <span className="k">Shipping</span>
+                  <span className="v" style={isPickup ? { color: '#3a7a4e' } : undefined}>{isPickup ? 'Free' : '$12'}</span>
                 </div>
               </div>
 
               {/* Workflow */}
-              <div className="rod-card">
-                <div className="rod-card-header">
-                  <span className="rod-card-title">Workflow</span>
-                  <div className="rod-card-actions">
-                    <span style={{ ...sdMono, color: completedCount === steps.length ? 'var(--rod-green)' : 'var(--rod-muted)' }}>
-                      {completedCount} of {steps.length} complete
-                    </span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 3, padding: '12px 20px 0' }}>
-                  {steps.map((s, i) => (
-                    <div key={i} style={{ flex: 1, height: 3, background: i < completedCount ? 'var(--rod-green)' : 'rgba(28,25,23,0.12)', transition: 'background 0.3s' }} />
-                  ))}
-                </div>
-                <div style={{ padding: '8px 0 6px' }}>
-                  {steps.map((step, i) => (
-                    <div key={i} style={{ padding: '10px 20px', display: 'grid', gridTemplateColumns: '20px 1fr auto', gap: 12, alignItems: 'center', borderBottom: i < steps.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none' }}>
-                      <span style={{
-                        width: 20, height: 20, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        font: '500 10px/1 Inter, sans-serif', flexShrink: 0,
-                        background: step.done ? 'var(--rod-green)' : 'transparent',
-                        color: step.done ? '#fff' : 'var(--rod-muted)',
-                        border: step.done ? 'none' : '1.5px solid rgba(28,25,23,0.25)',
-                      }}>{step.done ? '✓' : i + 1}</span>
-                      <div>
-                        <div style={{ font: '400 13px/1.3 Inter, sans-serif', color: 'var(--rod-ink)' }}>{step.label}</div>
-                        {step.detail && <div style={{ ...sdMono, marginTop: 3, fontSize: 9 }}>{step.detail}</div>}
-                      </div>
-                      {step.action === 'collect_payment' && (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button style={{ ...sdSmallBtn, background: 'var(--rod-ink)', color: '#fff', borderColor: 'var(--rod-ink)' }} disabled={paymentActing} onClick={() => setShowPayModal(true)}>
-                            {'Card $12 →'}
-                          </button>
-                          <button style={sdSmallBtn} disabled={paymentActing} onClick={() => markPaymentCollected(true, 'cash')}>
-                            {paymentActing ? 'Saving…' : 'Cash'}
-                          </button>
-                        </div>
-                      )}
-                      {step.action === 'uncollect_payment' && (
-                        <button style={sdSmallBtn} disabled={paymentActing} onClick={() => markPaymentCollected(false)}>Undo</button>
+              <div className="qw-rail-card">
+                <h3>Workflow</h3>
+                {steps.map((step, i) => {
+                  const state = step.done ? 'done' : (i === firstPendingStep ? 'now' : 'next');
+                  return (
+                    <div key={i} className={'qw-check-row ' + state}>
+                      <span className="qw-check-mark">{step.done ? '✓' : state === 'now' ? '●' : '○'}</span>
+                      <span className="qw-check-label">{step.label}</span>
+                      {step.action === 'collect_payment' ? (
+                        <span style={{ display: 'flex', gap: 6 }}>
+                          <button style={{ ...sdSmallBtn, background: 'var(--rod-ink)', color: '#fff', borderColor: 'var(--rod-ink)' }} disabled={paymentActing} onClick={() => setShowPayModal(true)}>Card $12</button>
+                          <button style={sdSmallBtn} disabled={paymentActing} onClick={() => markPaymentCollected(true, 'cash')}>{paymentActing ? '…' : 'Cash'}</button>
+                        </span>
+                      ) : step.action === 'uncollect_payment' ? (
+                        <button className="qw-link muted" disabled={paymentActing} onClick={() => markPaymentCollected(false)}>Undo</button>
+                      ) : (
+                        step.detail && <span className="qw-check-meta">{step.detail}</span>
                       )}
                     </div>
-                  ))}
+                  );
+                })}
+              </div>
+
+              {/* Customer */}
+              <div className="qw-rail-card">
+                <h3>Customer</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr', gap: 12, alignItems: 'center', paddingBottom: 12, borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
+                  <div style={{ width: 40, height: 40, background: 'var(--rod-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>
+                    {initials}
+                  </div>
+                  <div>
+                    <div style={{ font: '400 15px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{sr.customer_name}</div>
+                    <div style={{ ...sdMono, marginTop: 3, textTransform: 'none', letterSpacing: '0.04em' }}>
+                      {[sr.customer_email, sr.customer_phone].filter(Boolean).join(' · ') || '—'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ ...sdMono, marginBottom: 6 }}>Delivery</div>
+                  {isPickup ? (
+                    <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-green)' }}>In-store pickup · Anaheim showroom · free</div>
+                  ) : addressParts.length > 0 ? (
+                    addressParts.map((l, i) => <div key={i} style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-ink)' }}>{l}</div>)
+                  ) : (
+                    <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-muted)' }}>Shipping · $12 flat rate</div>
+                  )}
+                  {sr.tracking_number && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ ...sdMono, marginBottom: 4 }}>Tracking</div>
+                      <div style={{ font: '500 13px/1.3 ui-monospace, monospace', color: 'var(--rod-ink)' }}>{sr.tracking_number}</div>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Timeline */}
-              <div className="rod-card">
-                <div className="rod-card-header">
-                  <span className="rod-card-title">Timeline</span>
-                </div>
-                <div style={{ padding: '6px 0' }}>
-                  {[
-                    ['Created', sr.created_at, 'var(--rod-ink)'],
-                    ['Shipped', sr.shipped_at, 'var(--rod-green)'],
-                    ['Delivered', sr.delivered_at, 'var(--rod-green)'],
-                    ['Cancelled', sr.cancelled_at, 'var(--rod-red)'],
-                  ].filter(([, d]) => d).map(([l, d, c], i, arr) => (
-                    <div key={l} style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: i < arr.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none' }}>
-                      <span style={{ ...sdMono, color: c }}>● {l}</span>
-                      <span style={{ font: '400 12.5px/1.3 Inter, sans-serif', color: 'rgba(28,25,23,0.7)' }}>{fmtTs(d)}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="qw-rail-card">
+                <h3>Timeline</h3>
+                {[
+                  ['Created', sr.created_at, 'var(--rod-ink)'],
+                  ['Shipped', sr.shipped_at, 'var(--rod-green)'],
+                  ['Delivered', sr.delivered_at, 'var(--rod-green)'],
+                  ['Cancelled', sr.cancelled_at, 'var(--rod-red)'],
+                ].filter(([, d]) => d).map(([l, d, c], i, arr) => (
+                  <div key={l} style={{ padding: '9px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderBottom: i < arr.length - 1 ? '0.5px solid rgba(28,25,23,0.06)' : 'none' }}>
+                    <span style={{ ...sdMono, color: c }}>● {l}</span>
+                    <span style={{ font: '400 12.5px/1.3 Inter, sans-serif', color: 'rgba(28,25,23,0.7)' }}>{fmtTs(d)}</span>
+                  </div>
+                ))}
               </div>
+
+              {/* Internal notes — same multi-entry widget as the quote workspace */}
+              <InternalNotesCard basePath={'/api/rep/sample-requests/' + editId} bg="#f5f0e8" />
 
               {/* Request notes */}
               {sr.notes && (
-                <div className="rod-card">
-                  <div className="rod-card-header">
-                    <span className="rod-card-title">Request notes</span>
-                  </div>
-                  <div className="rod-card-body-padded">
-                    <p style={{ margin: 0, font: '400 13px/1.6 Inter, sans-serif', color: 'rgba(28,25,23,0.8)', whiteSpace: 'pre-wrap' }}>{sr.notes}</p>
-                  </div>
+                <div className="qw-rail-card">
+                  <h3>Request notes</h3>
+                  <p style={{ margin: 0, font: '400 13px/1.6 Inter, sans-serif', color: 'rgba(28,25,23,0.8)', whiteSpace: 'pre-wrap' }}>{sr.notes}</p>
                 </div>
               )}
             </div>

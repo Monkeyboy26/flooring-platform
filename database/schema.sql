@@ -1064,6 +1064,10 @@ CREATE INDEX IF NOT EXISTS idx_customer_notes_order ON customer_notes(order_id);
 -- workspace's Internal Notes widget (mirrors the order-detail notes widget).
 ALTER TABLE customer_notes ADD COLUMN IF NOT EXISTS quote_id UUID REFERENCES quotes(id) ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_customer_notes_quote ON customer_notes(quote_id);
+-- Sample-request-scoped internal notes: same pattern as quote_id, for the rep
+-- sample-request detail's Internal Notes widget.
+ALTER TABLE customer_notes ADD COLUMN IF NOT EXISTS sample_request_id UUID REFERENCES sample_requests(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_customer_notes_sample ON customer_notes(sample_request_id);
 
 -- ==================== Rep Notifications ====================
 

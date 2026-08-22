@@ -6,6 +6,7 @@
 //   - generateSampleRequestVendorEmailHTML(data) → the covering email, built on
 //     the shared "Brass Charcoal" shell (_shell.js), matching estimateSent.js et al.
 import { emailShell, heroSection, section, sectionLabel, detailList, warmCard, T, SERIF, SANS, MONO, esc } from './_shell.js';
+import { composeItemName } from '../lib/documents.js';
 
 const COMPANY = {
   name: 'Roma Flooring Designs',
@@ -44,21 +45,33 @@ export function generateSampleRequestVendorHTML(data) {
   const { vendor_name, request_number, customer_name, rep_name, notes, ship_to, items = [] } = data;
   const issued = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
+  const SWATCH_FALLBACKS = [
+    'linear-gradient(135deg,#caa97f,#7a5635)',
+    'linear-gradient(135deg,#ebe7df,#a8a59e)',
+    'linear-gradient(135deg,#e7e3db,#b0aca4)',
+    'linear-gradient(135deg,#a89074,#5e4a36)',
+  ];
   const rowsHtml = items.map((item, idx) => {
-    const name = esc(item.product_name || 'Product');
-    const sub = [item.collection, item.variant_name].filter(Boolean).map(esc).join(' &middot; ');
-    const skuCode = item.sku_code ? esc(item.sku_code) : '—';
+    const _ci = composeItemName(item);
+    const name = esc(_ci.title || 'Product');
+    const sub = _ci.descriptors.map(esc).join(' &middot; ');
+    const skuCode = item.sku_code ? esc(item.sku_code) : '';
     const itemNotes = item.notes ? esc(item.notes) : '—';
-    const ln = String(idx + 1).padStart(2, '0');
     const isLast = idx === items.length - 1;
+    const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
+    const swatchSrc = item.primary_image
+      ? `http://localhost:${process.env.PORT || 3001}/api/img?url=${encodeURIComponent(item.primary_image)}&w=64&f=jpeg`
+      : null;
+    const swatch = swatchSrc
+      ? `<div class="swatch" style="background:${gradient};overflow:hidden;"><img src="${swatchSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
+      : `<div class="swatch" style="background:${gradient};"></div>`;
     return `<div class="grid-row keep" style="padding:12px 0;border-bottom:${isLast ? 'none' : '1px solid #1c191711'};">
-      <span style="font:400 11px/1.4 var(--serif);color:var(--muted);">${ln}</span>
-      <div style="font:500 10px/1.3 ui-monospace,monospace;letter-spacing:0.04em;color:var(--ink);">${skuCode}</div>
+      ${swatch}
       <div>
-        <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${name}</div>
-        ${sub ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${sub}</div>` : ''}
+        <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${name}${sub ? ` <span style="color:var(--muted);font-weight:400;">&middot; ${sub}</span>` : ''}</div>
+        ${skuCode ? `<div style="font:500 9px/1.4 ui-monospace,monospace;letter-spacing:0.04em;color:#1c191799;margin-top:3px;">${skuCode}</div>` : ''}
       </div>
-      <div class="num" style="font:400 12px/1.2 var(--serif);">1</div>
+      <div class="num">1<div class="numsub">sample</div></div>
       <div style="font:400 10px/1.5 var(--sans);color:#1c1917cc;">${itemNotes}</div>
     </div>`;
   }).join('');
@@ -74,24 +87,29 @@ export function generateSampleRequestVendorHTML(data) {
 <head>
 <meta charset="UTF-8" />
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap');
 :root{--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter',system-ui,sans-serif;--ink:#1c1917;--accent:#a87935;--muted:#8a7e68;--warm:#d8cdb6}
 *{box-sizing:border-box}
 body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 @media screen{body{padding:48px 56px;max-width:816px;margin:0 auto}}
 .mono{font:500 9px/1 ui-monospace,monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted)}
 .small{font:400 10px/1.5 var(--sans);color:#1c1917cc}
-.grid-row{display:grid;grid-template-columns:28px 120px 1fr 54px 160px;gap:14px;align-items:flex-start}
-.num{text-align:right}
+.grid-row{display:grid;grid-template-columns:32px 1fr 54px 168px;gap:12px;align-items:flex-start}
+.swatch{width:32px;height:32px;border:0.5px solid #1c191733}
+.num{text-align:right;font:400 11px/1.2 var(--sans)}
+.numsub{font:400 9px/1.4 var(--sans);color:var(--muted);margin-top:2px}
 .keep{break-inside:avoid;orphans:3;widows:3}
 </style>
 </head>
 <body>
+<div style="display:flex;flex-direction:column;min-height:9.5in;">
 
 <div style="display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
 <div>
-<div style="font:300 36px/1 var(--serif);letter-spacing:-0.014em;">Roma</div>
-<div class="mono" style="font-size:8px;letter-spacing:0.22em;margin-top:4px;">Flooring &middot; Surfaces &middot; Anaheim</div>
+<div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
+<span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
+</div>
 <div class="small" style="margin-top:14px;">${COMPANY.name}, Inc.<br />${COMPANY.addr}<br />${COMPANY.phone} &middot; ${COMPANY.email}<br />${COMPANY.license}</div>
 </div>
 <div style="text-align:right;min-width:220px;">
@@ -100,16 +118,15 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
 <span style="color:var(--muted);">Issued</span><span style="text-align:right;">${issued}</span>
 ${rep_name ? `<span style="color:var(--muted);">Prepared by</span><span style="text-align:right;">${esc(rep_name)}</span>` : ''}
-<span style="color:var(--muted);">Status</span><span class="mono" style="color:var(--accent);text-align:right;letter-spacing:0.18em;">&#9679; Requested</span>
+</div>
+<div style="margin-top:16px;display:flex;justify-content:flex-end;">
+<span style="padding:7px 14px;border:1.5px solid var(--accent);color:var(--accent);font:500 11px/1 ui-monospace,monospace;letter-spacing:0.3em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">Samples</span>
 </div>
 </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:8px;border-bottom:1px solid #1c191711;align-items:center;">
-<div style="font:500 9px/1.4 var(--sans);letter-spacing:0.06em;color:#1c1917cc;">
-${esc(vendor_name)} — we're requesting one sample of each item below for ${customer_name ? `our customer, <span style="color:var(--ink);font-weight:500;">${esc(customer_name)}</span>` : 'a customer'}. Please ship to the address at right at your earliest convenience.
-</div>
-<div style="padding:8px 14px;border:1.5px solid var(--accent);color:var(--accent);font:500 11px/1 ui-monospace,monospace;letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg);">Samples</div>
+<div class="keep" style="padding:14px 0;border-bottom:1px solid #1c191711;font:400 10px/1.6 var(--sans);color:#1c1917cc;">
+${esc(vendor_name)} — please send <strong style="color:var(--ink);font-weight:500;">one sample of each item below</strong>${customer_name ? ` for our customer, <strong style="color:var(--ink);font-weight:500;">${esc(customer_name)}</strong>` : ''}. Ship to the address below at your earliest convenience.
 </div>
 
 <div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 22px;border-bottom:1px solid #1c191722;">
@@ -130,7 +147,7 @@ ${shipHtml}
 
 <div style="padding-top:18px;">
 <div class="grid-row" style="padding-bottom:10px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
-<span>Ln</span><span>Vendor SKU</span><span>Product</span><span style="text-align:right;">Qty</span><span>Notes</span>
+<span></span><span>Product</span><span style="text-align:right;">Qty</span><span>Notes</span>
 </div>
 ${rowsHtml || '<div class="small" style="padding:16px 0;">No items on this request.</div>'}
 </div>
@@ -140,11 +157,14 @@ ${notes ? `<div class="keep" style="margin-top:16px;padding-top:14px;border-top:
 <div class="small" style="white-space:pre-wrap;">${esc(notes)}</div>
 </div>` : ''}
 
-<div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<div style="flex:1 1 auto;min-height:20px;"></div>
+
+<div style="margin-top:auto;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
 <span>${COMPANY.name}, Inc. &middot; ${COMPANY.addr} &middot; ${COMPANY.license}</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Sample Request ${esc(request_number)}</span>
 </div>
 
+</div>
 </body>
 </html>`;
 }
