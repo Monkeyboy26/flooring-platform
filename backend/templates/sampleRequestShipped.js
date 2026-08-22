@@ -2,12 +2,13 @@
 // "Brass Charcoal" shell (_shell.js), matching sampleRequestConfirmation.js.
 // Announces the shipment, surfaces the tracking number, and lists what's inside.
 import { emailShell, heroSection, section, detailList, warmCard, T, SERIF, SANS, MONO, esc, emailImage } from './_shell.js';
+import { composeItemName } from '../lib/documents.js';
 
 function sampleRow(item, isLast) {
   const rowBorder = isLast ? '' : `border-bottom:1px solid ${T.border};`;
-  const name = esc(item.product_name || 'Product');
-  const sub = [...new Set([item.collection, item.variant_name].filter(Boolean))]
-    .filter(v => v !== item.product_name).map(esc).join(' &middot; ');
+  const _ci = composeItemName(item);
+  const name = esc(_ci.title || 'Product');
+  const sub = _ci.descriptors.map(esc).join(' &middot; ');
   const thumb = item.primary_image
     ? `<img src="${esc(emailImage(item.primary_image, 72, 72))}" alt="${name}" width="72" style="display:block;width:72px;height:72px;object-fit:cover;" />`
     : `<div style="width:72px;height:72px;background:${T.warm};border:1px solid ${T.border};"></div>`;
@@ -22,12 +23,13 @@ function sampleRow(item, isLast) {
 }
 
 export function generateSampleRequestShippedHTML(data) {
-  const { customer_name, request_number, tracking_number, items = [] } = data;
+  const { customer_name, request_number, tracking_number, items = [], sidemark } = data;
   const firstName = (customer_name || '').trim().split(/\s+/)[0] || 'there';
   const count = items.length;
 
   const metaBlock = section(detailList([
     { label: 'Request', value: esc(request_number) },
+    sidemark ? { label: 'Sidemark', value: esc(sidemark) } : null,
     count ? { label: 'In the box', value: `${count} ${count === 1 ? 'swatch' : 'swatches'}` } : null,
   ].filter(Boolean)), '4px 40px 8px');
 

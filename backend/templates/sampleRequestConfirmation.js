@@ -3,12 +3,13 @@
 // Confirms the request, lists the samples with swatches, and sets shipping vs
 // pickup expectations.
 import { emailShell, heroSection, section, detailList, warmCard, T, SERIF, SANS, MONO, esc, emailImage } from './_shell.js';
+import { composeItemName } from '../lib/documents.js';
 
 function sampleRow(item, isLast) {
   const rowBorder = isLast ? '' : `border-bottom:1px solid ${T.border};`;
-  const name = esc(item.product_name || 'Product');
-  const sub = [...new Set([item.collection, item.variant_name].filter(Boolean))]
-    .filter(v => v !== item.product_name).map(esc).join(' &middot; ');
+  const _ci = composeItemName(item);
+  const name = esc(_ci.title || 'Product');
+  const sub = _ci.descriptors.map(esc).join(' &middot; ');
   const thumb = item.primary_image
     ? `<img src="${esc(emailImage(item.primary_image, 72, 72))}" alt="${name}" width="72" style="display:block;width:72px;height:72px;object-fit:cover;" />`
     : `<div style="width:72px;height:72px;background:${T.warm};border:1px solid ${T.border};"></div>`;
@@ -27,7 +28,7 @@ function sampleRow(item, isLast) {
 
 export function generateSampleRequestConfirmationHTML(data) {
   const {
-    customer_name, request_number, delivery_method, items = [],
+    customer_name, request_number, delivery_method, items = [], sidemark,
     shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip
   } = data;
   const isPickup = delivery_method === 'pickup';
@@ -42,6 +43,7 @@ export function generateSampleRequestConfirmationHTML(data) {
 
   const metaBlock = section(detailList([
     { label: 'Request', value: esc(request_number) },
+    sidemark ? { label: 'Sidemark', value: esc(sidemark) } : null,
     count ? { label: 'Samples', value: `${count} ${count === 1 ? 'swatch' : 'swatches'} &middot; free` } : null,
     { label: isPickup ? 'Pickup' : 'Shipping to', value: isPickup
       ? 'Anaheim showroom'

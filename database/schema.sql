@@ -1132,6 +1132,7 @@ CREATE TABLE IF NOT EXISTS showroom_visits (
   customer_email TEXT,
   customer_phone TEXT,
   message TEXT,
+  sidemark VARCHAR(200),
   status VARCHAR(20) DEFAULT 'draft',
   sent_at TIMESTAMP,
   opened_at TIMESTAMP,
@@ -1141,6 +1142,8 @@ CREATE TABLE IF NOT EXISTS showroom_visits (
 );
 CREATE INDEX IF NOT EXISTS idx_showroom_visits_rep ON showroom_visits(rep_id);
 CREATE INDEX IF NOT EXISTS idx_showroom_visits_token ON showroom_visits(token);
+-- Job/project reference (sidemark) shown on the visit workspace + recap.
+ALTER TABLE showroom_visits ADD COLUMN IF NOT EXISTS sidemark VARCHAR(200);
 
 CREATE TABLE IF NOT EXISTS showroom_visit_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -1169,6 +1172,7 @@ CREATE TABLE IF NOT EXISTS sample_requests (
   customer_email TEXT,
   customer_phone TEXT,
   company_name TEXT,
+  sidemark VARCHAR(200),
   shipping_address_line1 TEXT,
   shipping_address_line2 TEXT,
   shipping_city TEXT,
@@ -1193,6 +1197,8 @@ CREATE INDEX IF NOT EXISTS idx_sample_requests_status ON sample_requests(status)
 -- Set once when every sample on the request is marked ready, so the customer
 -- "your samples are ready" email fires exactly once (dedupe guard).
 ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS all_ready_notified_at TIMESTAMP;
+-- Job/project reference (sidemark) shown on the sample workspace + confirmation/shipped emails.
+ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS sidemark VARCHAR(200);
 
 CREATE TABLE IF NOT EXISTS sample_request_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

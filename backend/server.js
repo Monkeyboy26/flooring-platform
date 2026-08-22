@@ -14520,6 +14520,7 @@ async function generateSampleRequestConfirmationHtml(sampleRequestId) {
         <div class="doc-banner-left">
           <div class="meta-group"><p class="meta-label">Request</p><p class="meta-value">${s.request_number}</p></div>
           <div class="meta-group"><p class="meta-label">Date</p><p class="meta-value-sm">${new Date(s.created_at).toLocaleDateString()}</p></div>
+          ${s.sidemark ? `<div class="meta-group"><p class="meta-label">Sidemark</p><p class="meta-value-sm">${s.sidemark}</p></div>` : ''}
         </div>
         <div><span class="badge badge-confirmed">${isPickup ? 'Pickup' : 'Shipping'}</span></div>
       </div>
@@ -15556,6 +15557,7 @@ app.post('/api/rep/visits', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { customer_name, customer_email, customer_phone, message, items } = req.body;
+    const sidemark = (req.body.sidemark || '').trim().slice(0, 200) || null;
     if (!customer_name || customer_name.trim().split(/\s+/).length < 2) {
       return res.status(400).json({ error: 'Customer first and last name are required' });
     }
@@ -15577,9 +15579,9 @@ app.post('/api/rep/visits', repAuth, async (req, res) => {
     const customerId = cust.id;
 
     const visitRes = await client.query(`
-      INSERT INTO showroom_visits (token, rep_id, customer_name, customer_email, customer_phone, message, status, expires_at, customer_id)
-      VALUES ($1, $2, $3, $4, $5, $6, 'draft', $7, $8) RETURNING *
-    `, [token, req.rep.id, customer_name, customer_email || null, customer_phone || null, message || null, expiresAt, customerId]);
+      INSERT INTO showroom_visits (token, rep_id, customer_name, customer_email, customer_phone, message, sidemark, status, expires_at, customer_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', $8, $9) RETURNING *
+    `, [token, req.rep.id, customer_name, customer_email || null, customer_phone || null, message || null, sidemark, expiresAt, customerId]);
     const visit = visitRes.rows[0];
 
     const resolvedItems = [];
@@ -15713,7 +15715,7 @@ app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
     if (visitRes.rows[0].status !== 'draft') return res.status(400).json({ error: 'Can only edit draft visits' });
 
-    const { customer_name, customer_email, customer_phone, message, items } = req.body;
+    const { customer_name, customer_email, customer_phone, message, sidemark, items } = req.body;
     if (customer_name !== undefined && (!customer_name || customer_name.trim().split(/\s+/).length < 2)) {
       return res.status(400).json({ error: 'Customer first and last name are required' });
     }
@@ -15730,6 +15732,7 @@ app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
     if (customer_email !== undefined) { fields.push(`customer_email = $${idx}`); vals.push(customer_email || null); idx++; }
     if (customer_phone !== undefined) { fields.push(`customer_phone = $${idx}`); vals.push(customer_phone || null); idx++; }
     if (message !== undefined) { fields.push(`message = $${idx}`); vals.push(message || null); idx++; }
+    if (sidemark !== undefined) { fields.push(`sidemark = $${idx}`); vals.push((sidemark || '').trim().slice(0, 200) || null); idx++; }
 
     if (fields.length) {
       vals.push(req.params.id);
@@ -15850,6 +15853,7 @@ app.post('/api/rep/visits/:id/send', repAuth, async (req, res) => {
       rep_email: rep.email,
       rep_phone: rep.phone,
       message: visit.message,
+      sidemark: visit.sidemark,
       items: itemsRes.rows,
       recap_url: recapUrl,
       visited_at: visit.created_at,
@@ -15873,7 +15877,7 @@ app.get('/api/admin/visits', staffAuth, requireRole('admin', 'manager', 'sales_r
   try {
     const r = await pool.query(`
       SELECT v.id, v.token, v.customer_name, v.customer_email, v.customer_phone, v.customer_id,
-        v.status, v.sent_at, v.opened_at, v.items_carted_at, v.quote_requested_at, v.expires_at, v.created_at,
+        v.status, v.sent_at, v.opened_at, v.items_carted_at, v.quote_requested_at, v.expires_at, v.created_at, v.sidemark,
         sr.first_name || ' ' || sr.last_name as rep_name,
         COALESCE(it.n, 0) as item_count,
         COALESCE(it.names, '{}') as item_names
@@ -15955,6 +15959,7 @@ app.post('/api/admin/visits/:id/send', staffAuth, requireRole('admin', 'manager'
       rep_email: rep.email,
       rep_phone: rep.phone,
       message: visit.message,
+      sidemark: visit.sidemark,
       items: itemsRes.rows,
       recap_url: recapUrl,
       visited_at: visit.created_at,
@@ -16067,6 +16072,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
   try {
     const { customer_name, customer_email, customer_phone, company_name, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes, items } = req.body;
     const companyName = (company_name || '').trim() || null;
+    const sidemark = (req.body.sidemark || '').trim().slice(0, 200) || null;
     if (!customer_name || customer_name.trim().split(/\s+/).length < 2) {
       return res.status(400).json({ error: 'Customer first and last name are required' });
     }
@@ -16105,10 +16111,10 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
 
     const srRes = await client.query(`
       INSERT INTO sample_requests (request_number, rep_id, customer_name, customer_email, customer_phone,
-        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes, status, customer_id, company_name)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested', $13, $14) RETURNING *
+        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes, status, customer_id, company_name, sidemark)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'requested', $13, $14, $15) RETURNING *
     `, [request_number, req.rep.id, customer_name, customer_email || null, customer_phone || null,
-        shipping_address_line1 || null, shipping_address_line2 || null, shipping_city || null, shipping_state || null, shipping_zip || null, dm, notes || null, cust.id, companyName]);
+        shipping_address_line1 || null, shipping_address_line2 || null, shipping_city || null, shipping_state || null, shipping_zip || null, dm, notes || null, cust.id, companyName, sidemark]);
     const sample_request = srRes.rows[0];
 
     const resolvedItems = [];
@@ -16180,7 +16186,7 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
     if (customer_email) {
       setImmediate(() => sendSampleRequestConfirmation({
         customer_name, customer_email, request_number,
-        delivery_method: dm,
+        delivery_method: dm, sidemark,
         items: resolvedItems,
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip
       }));
@@ -16298,7 +16304,7 @@ app.put('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only edit requests in requested status' });
 
-    const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes } = req.body;
+    const { customer_name, customer_email, customer_phone, shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip, delivery_method, notes, sidemark } = req.body;
     if (customer_name !== undefined && (!customer_name || customer_name.trim().split(/\s+/).length < 2)) {
       return res.status(400).json({ error: 'Customer first and last name are required' });
     }
@@ -16321,6 +16327,7 @@ app.put('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
     if (shipping_zip !== undefined) { fields.push(`shipping_zip = $${idx}`); vals.push(shipping_zip || null); idx++; }
     if (delivery_method !== undefined) { fields.push(`delivery_method = $${idx}`); vals.push(delivery_method === 'pickup' ? 'pickup' : 'shipping'); idx++; }
     if (notes !== undefined) { fields.push(`notes = $${idx}`); vals.push(notes || null); idx++; }
+    if (sidemark !== undefined) { fields.push(`sidemark = $${idx}`); vals.push((sidemark || '').trim().slice(0, 200) || null); idx++; }
 
     if (!fields.length) return res.status(400).json({ error: 'No fields to update' });
 
@@ -16358,6 +16365,7 @@ app.put('/api/rep/sample-requests/:id/ship', repAuth, async (req, res) => {
         customer_email: sr.customer_email,
         request_number: sr.request_number,
         tracking_number: sr.tracking_number,
+        sidemark: sr.sidemark,
         items: itemsRes.rows
       }));
     }
@@ -32516,6 +32524,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
   visitRecap: () => generateVisitRecapHTML({
     customer_name: 'Jennifer Lee',
     message: 'It was wonderful meeting you today! Here are the products we discussed for your master bathroom renovation. The Calacatta Gold would pair beautifully with the warm oak accents you mentioned.',
+    sidemark: 'Lee Residence — Master Bath',
     rep_name: 'Alex Rivera',
     rep_email: 'alex@romaflooringdesigns.com',
     rep_phone: '(714) 999-0009',
@@ -32533,6 +32542,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
     customer_name: 'Jennifer Lee',
     request_number: 'RDS-1001',
     delivery_method: 'shipping',
+    sidemark: 'Lee Residence — Master Bath',
     shipping_address_line1: '1500 Oak Street',
     shipping_address_line2: '',
     shipping_city: 'Irvine',
@@ -32557,6 +32567,7 @@ const EMAIL_PREVIEW_TEMPLATES = {
     customer_name: 'Jennifer Lee',
     request_number: 'RDS-1001',
     tracking_number: '9400111899223033005282',
+    sidemark: 'Lee Residence — Master Bath',
     items: [
       { product_name: 'European White Oak', collection: 'Heritage Collection', variant_name: '7" Wide Plank Natural', primary_image: '' },
       { product_name: 'Calacatta Gold Marble', collection: 'Luxe Stone', variant_name: '24x24 Polished', primary_image: '' },

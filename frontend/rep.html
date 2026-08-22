@@ -17872,6 +17872,7 @@
       const [customerEmail, setCustomerEmail] = useState('');
       const [customerPhone, setCustomerPhone] = useState('');
       const [companyName, setCompanyName] = useState('');
+      const [sidemark, setSidemark] = useState('');
       const [addrLine1, setAddrLine1] = useState('');
       const [addrLine2, setAddrLine2] = useState('');
       const [addrCity, setAddrCity] = useState('');
@@ -17893,13 +17894,14 @@
       useRofDraft('sample-create', 'sample request',
         () => !sampleSavedRef.current && (items.length > 0 || !!pickedCustomer ||
           !!(customerName.trim() || customerEmail.trim() || customerPhone.trim() || notes.trim())),
-        () => ({ pickedCustomer, customerName, customerEmail, customerPhone, companyName, addrLine1, addrLine2, addrCity, addrState, addrZip, deliveryMethod, notes, stagedNotes, items }));
+        () => ({ pickedCustomer, customerName, customerEmail, customerPhone, companyName, sidemark, addrLine1, addrLine2, addrCity, addrState, addrZip, deliveryMethod, notes, stagedNotes, items }));
       useRofDraftRestore('sample-create', (s) => {
         if (s.pickedCustomer) setPickedCustomer(s.pickedCustomer);
         setCustomerName(s.customerName || '');
         setCustomerEmail(s.customerEmail || '');
         setCustomerPhone(s.customerPhone || '');
         setCompanyName(s.companyName || '');
+        setSidemark(s.sidemark || '');
         setAddrLine1(s.addrLine1 || '');
         setAddrLine2(s.addrLine2 || '');
         setAddrCity(s.addrCity || '');
@@ -17999,6 +18001,7 @@
             customer_email: customerEmail.trim() || null,
             customer_phone: customerPhone.trim() || null,
             company_name: companyName.trim() || null,
+            sidemark: sidemark.trim() || null,
             delivery_method: deliveryMethod,
             shipping_address_line1: deliveryMethod === 'shipping' ? (addrLine1.trim() || null) : null,
             shipping_address_line2: deliveryMethod === 'shipping' ? (addrLine2.trim() || null) : null,
@@ -18099,6 +18102,12 @@
                     company={companyName} onCompany={setCompanyName}
                     requirePhone={true}
                   />
+                  <div style={{ marginTop: 14 }}>
+                    <label style={scLabel}>Sidemark <span style={{ textTransform: 'none', letterSpacing: 0, color: 'var(--rod-muted)' }}>· job reference (optional)</span></label>
+                    <input style={scField} value={sidemark} maxLength={200}
+                      onChange={e => setSidemark(e.target.value)}
+                      placeholder="e.g. Smith Residence — Master Bath" />
+                  </div>
                 </div>
               </div>
 
@@ -18253,6 +18262,7 @@
                   </div>
                   {[
                     ['Samples', items.length + ' of 5'],
+                    ...(sidemark.trim() ? [['Sidemark', sidemark.trim()]] : []),
                     ['Delivery', deliveryMethod === 'pickup' ? 'In-store pickup' : 'Ship to customer'],
                     ['Shipping fee', deliveryMethod === 'pickup' ? 'Free' : '$12.00 flat rate'],
                   ].map(([l, v]) => (
@@ -18981,6 +18991,12 @@
                     </div>
                   </div>
                 </div>
+                {sr.sidemark && (
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ ...sdMono, marginBottom: 6 }}>Sidemark</div>
+                    <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-ink)' }}>{sr.sidemark}</div>
+                  </div>
+                )}
                 <div style={{ marginTop: 12 }}>
                   <div style={{ ...sdMono, marginBottom: 6 }}>Delivery</div>
                   {isPickup ? (
@@ -19829,6 +19845,7 @@
       const [customerEmail, setCustomerEmail] = useState('');
       const [customerPhone, setCustomerPhone] = useState('');
       const [message, setMessage] = useState('');
+      const [sidemark, setSidemark] = useState('');
       const [items, setItems] = useState([]);
       const [skuSearch, setSkuSearch] = useState('');
       const [skuResults, setSkuResults] = useState([]);
@@ -19843,13 +19860,14 @@
       useRofDraft('visit-builder', 'visit recap',
         () => !visitSavedRef.current && (items.length > 0 || !!pickedCustomer ||
           !!(customerName.trim() || customerEmail.trim() || customerPhone.trim() || message.trim())),
-        () => ({ pickedCustomer, customerName, customerEmail, customerPhone, message, items }));
+        () => ({ pickedCustomer, customerName, customerEmail, customerPhone, message, sidemark, items }));
       useRofDraftRestore('visit-builder', (s) => {
         if (s.pickedCustomer) setPickedCustomer(s.pickedCustomer);
         setCustomerName(s.customerName || '');
         setCustomerEmail(s.customerEmail || '');
         setCustomerPhone(s.customerPhone || '');
         setMessage(s.message || '');
+        setSidemark(s.sidemark || '');
         if (Array.isArray(s.items)) setItems(s.items);
       });
 
@@ -19957,6 +19975,7 @@
             customer_email: customerEmail.trim(),
             customer_phone: customerPhone.trim() || null,
             message: message.trim() || null,
+            sidemark: sidemark.trim() || null,
             items: items.map(i => ({
               product_id: i.product_id,
               sku_id: i.sku_id,
@@ -20071,6 +20090,10 @@
                   onName={setCustomerName} onEmail={setCustomerEmail} onPhone={setCustomerPhone}
                   requirePhone={false}
                 />
+                <div className="rof-field">
+                  <label>Sidemark <span style={{ color: 'var(--rod-muted)', fontWeight: 400 }}>· job reference (optional)</span></label>
+                  <input type="text" value={sidemark} maxLength={200} onChange={e => setSidemark(e.target.value)} placeholder="e.g. Smith Residence — Master Bath" />
+                </div>
                 <div className="rof-field" style={{ marginBottom: 0 }}>
                   <label>Personal Message</label>
                   <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Thanks for visiting! Here are the materials we discussed..." rows="3" />
@@ -20363,6 +20386,7 @@
                   {mini('Name', visit.customer_name)}
                   {mini('Email', visit.customer_email || '—')}
                   {mini('Phone', visit.customer_phone || '—')}
+                  {visit.sidemark && mini('Sidemark', visit.sidemark)}
                 </div>
                 {visit.message && (
                   <div style={{ marginTop: '1rem', padding: '0.75rem 1rem', background: 'rgba(28,25,23,0.03)', borderLeft: '2px solid var(--gold, #c9a668)' }}>

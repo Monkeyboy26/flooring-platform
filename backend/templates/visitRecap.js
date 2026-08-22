@@ -3,12 +3,12 @@ import { emailShell, heroSection, section, ctaButton, money, T, SERIF, SANS, MON
 const PT_DATE = { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' };
 
 function basisLabel(basis) {
-  return basis === 'per_sqft' ? '/sqft' : basis === 'per_unit' ? '/ea' : '';
+  return basis === 'per_sqft' ? '/sqft' : basis === 'per_unit' ? '/ea' : basis === 'per_sqyd' ? '/sqyd' : '';
 }
 
 export function generateVisitRecapHTML(visitData) {
   const {
-    customer_name, message, rep_name, rep_email, rep_phone,
+    customer_name, message, sidemark, rep_name, rep_email, rep_phone,
     items = [], recap_url, visited_at, expires_at
   } = visitData;
 
@@ -86,7 +86,7 @@ export function generateVisitRecapHTML(visitData) {
       eyebrow: 'After your visit',
       headline: `Good to see you, <em style="font-style:italic;">${firstName}</em>.`,
       body: `Thanks for spending time with us at the showroom. Here's everything you looked at with ${repFirst} &mdash; every material and note, saved in one place so nothing lives on a paper swatch card.`,
-      chip: visitDate ? `Visited ${visitDate} &middot; with ${repFirst}` : `Prepared by ${repFirst}`
+      chip: (visitDate ? `Visited ${visitDate} &middot; with ${repFirst}` : `Prepared by ${repFirst}`) + (sidemark ? ` &middot; ${esc(sidemark)}` : '')
     }),
     section(productsSection, '0 40px 8px'),
     section(savedBand, '20px 40px 0'),
