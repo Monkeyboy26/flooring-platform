@@ -18850,6 +18850,41 @@
 
             {/* Right rail */}
             <div className="qw-rail">
+              {/* Customer */}
+              <div className="qw-rail-card">
+                <h3>Customer</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr', gap: 12, alignItems: 'center', paddingBottom: 12, borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
+                  <div style={{ width: 40, height: 40, background: 'var(--rod-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>
+                    {initials}
+                  </div>
+                  <div>
+                    <div style={{ font: '400 15px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{sr.customer_name}</div>
+                    <div style={{ ...sdMono, marginTop: 3, textTransform: 'none', letterSpacing: '0.04em' }}>
+                      {[sr.customer_email, sr.customer_phone].filter(Boolean).join(' · ') || '—'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ ...sdMono, marginBottom: 6 }}>Delivery</div>
+                  {isPickup ? (
+                    <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-green)' }}>In-store pickup · Anaheim showroom · free</div>
+                  ) : addressParts.length > 0 ? (
+                    addressParts.map((l, i) => <div key={i} style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-ink)' }}>{l}</div>)
+                  ) : (
+                    <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-muted)' }}>Shipping · $12 flat rate</div>
+                  )}
+                  {sr.tracking_number && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ ...sdMono, marginBottom: 4 }}>Tracking</div>
+                      <div style={{ font: '500 13px/1.3 ui-monospace, monospace', color: 'var(--rod-ink)' }}>{sr.tracking_number}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Internal notes — same multi-entry widget as the quote workspace */}
+              <InternalNotesCard basePath={'/api/rep/sample-requests/' + editId} bg="#f5f0e8" />
+
               {/* Summary */}
               <div className="qw-rail-card">
                 <h3>Summary</h3>
@@ -18889,38 +18924,6 @@
                 })}
               </div>
 
-              {/* Customer */}
-              <div className="qw-rail-card">
-                <h3>Customer</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr', gap: 12, alignItems: 'center', paddingBottom: 12, borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
-                  <div style={{ width: 40, height: 40, background: 'var(--rod-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>
-                    {initials}
-                  </div>
-                  <div>
-                    <div style={{ font: '400 15px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{sr.customer_name}</div>
-                    <div style={{ ...sdMono, marginTop: 3, textTransform: 'none', letterSpacing: '0.04em' }}>
-                      {[sr.customer_email, sr.customer_phone].filter(Boolean).join(' · ') || '—'}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ ...sdMono, marginBottom: 6 }}>Delivery</div>
-                  {isPickup ? (
-                    <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-green)' }}>In-store pickup · Anaheim showroom · free</div>
-                  ) : addressParts.length > 0 ? (
-                    addressParts.map((l, i) => <div key={i} style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-ink)' }}>{l}</div>)
-                  ) : (
-                    <div style={{ font: '400 13px/1.5 Inter, sans-serif', color: 'var(--rod-muted)' }}>Shipping · $12 flat rate</div>
-                  )}
-                  {sr.tracking_number && (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ ...sdMono, marginBottom: 4 }}>Tracking</div>
-                      <div style={{ font: '500 13px/1.3 ui-monospace, monospace', color: 'var(--rod-ink)' }}>{sr.tracking_number}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Timeline */}
               <div className="qw-rail-card">
                 <h3>Timeline</h3>
@@ -18936,9 +18939,6 @@
                   </div>
                 ))}
               </div>
-
-              {/* Internal notes — same multi-entry widget as the quote workspace */}
-              <InternalNotesCard basePath={'/api/rep/sample-requests/' + editId} bg="#f5f0e8" />
 
               {/* Request notes */}
               {sr.notes && (
