@@ -1084,7 +1084,7 @@ ${q.rep_name ? `<span style="color:var(--muted);">Prepared by</span><span style=
 </div>
 </div>
 
-<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:18px 0 22px;border-bottom:1px solid #1c191722;">
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 16px;border-bottom:1px solid #1c191722;">
 <div>
 <div class="mono" style="margin-bottom:8px;">Prepared for</div>
 <div style="font:500 11px/1.2 var(--sans);">${q.customer_name || ''}</div>
@@ -1101,13 +1101,13 @@ ${accountCard}
 ${rowsHtml}
 </div>
 
-<div style="flex:1 1 auto;min-height:20px;"></div>
+<div style="flex:1 1 auto;min-height:0;"></div>
 
-<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
+<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:10px;border-top:1px solid #1c191733;padding-top:10px;">
 <div style="padding-top:4px;" class="small">
 ${q.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;white-space:pre-wrap;">${escDoc(q.notes)}</div>` : ''}
-<div class="mono" style="margin-bottom:8px;">How to accept</div>
-<div style="margin-bottom:10px;">
+<div class="mono" style="margin-bottom:6px;">How to accept</div>
+<div style="margin-bottom:4px;">
 <span style="color:var(--muted);">Online</span>&nbsp;&nbsp;<span style="color:var(--ink);">romaflooringdesigns.com/account — accept under Account · Quotes</span><br />
 <span style="color:var(--muted);">Showroom</span>&nbsp;&nbsp;<span style="color:var(--ink);">(714) 999-0009 · 1440 S. State College Blvd #6M, Anaheim</span><br />
 <span style="color:var(--muted);">Email</span>&nbsp;&nbsp;<span style="color:var(--ink);">Reply to your quote email${q.rep_email ? ' or write ' + escDoc(q.rep_email) : ''}</span>
@@ -1224,7 +1224,7 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
     const swatch = swatchSrc
       ? `<div class="swatch" style="background:${gradient};overflow:hidden;"><img src="${swatchSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
       : `<div class="swatch" style="background:${gradient};"></div>`;
-    return `<div class="grid-row keep" style="padding:12px 0;${idx < materials.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+    return `<div class="grid-row keep" style="padding:8px 0;${idx < materials.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
       ${swatch}
       <div>
         <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${name}${suffix ? ` <span style="color:var(--muted);font-weight:400;">· ${suffix}</span>` : ''}</div>
@@ -1246,7 +1246,7 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
     const desc = i.description
       ? i.description.split('\n').map((l, k) => k === 0 ? l : '· ' + l).join('<br />')
       : '';
-    return `<div class="labor-row keep" style="padding:12px 0;${idx < labor.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
+    return `<div class="labor-row keep" style="padding:8px 0;${idx < labor.length - 1 ? 'border-bottom:1px solid #1c191711;' : ''}">
       <div>
         <div style="font:500 11px/1.2 var(--sans);letter-spacing:-0.004em;">${laborDisplayName(i)}</div>
         <div style="font:400 9px/1 ui-monospace,monospace;letter-spacing:0.12em;color:var(--muted);margin-top:4px;text-transform:uppercase;">Labor</div>
@@ -1277,9 +1277,9 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
     </div>`;
 
   const materialsSection = materials.length ? `
-<div style="padding-top:18px;">
-<div class="mono" style="margin-bottom:10px;color:var(--accent);">Materials</div>
-<div class="grid-row" style="padding-bottom:10px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
+<div style="padding-top:14px;">
+<div class="mono" style="margin-bottom:8px;color:var(--accent);">Materials</div>
+<div class="grid-row" style="padding-bottom:8px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
 <span></span><span>Description</span><span style="text-align:right;">Coverage</span><span style="text-align:right;">Qty</span><span style="text-align:right;">Unit</span><span style="text-align:right;">Line total</span>
 </div>
 ${materialRows}
@@ -1287,10 +1287,10 @@ ${materialRows}
 
   const hasScope = e.scope_of_work && e.scope_of_work.trim();
   const laborSection = (labor.length || hasScope) ? `
-<div style="padding-top:22px;">
-<div class="mono" style="margin-bottom:10px;color:var(--accent);">Labor &amp; Services</div>
-${hasScope ? `<div class="small" style="margin-bottom:12px;white-space:pre-wrap;"><span class="mono" style="display:block;margin-bottom:4px;">Scope of work</span>${e.scope_of_work}</div>` : ''}
-${labor.length ? `<div class="labor-row" style="padding-bottom:10px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
+<div style="padding-top:16px;">
+<div class="mono" style="margin-bottom:8px;color:var(--accent);">Labor &amp; Services</div>
+${hasScope ? `<div class="small" style="margin-bottom:10px;white-space:pre-wrap;"><span class="mono" style="display:block;margin-bottom:4px;">Scope of work</span>${e.scope_of_work}</div>` : ''}
+${labor.length ? `<div class="labor-row" style="padding-bottom:8px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
 <span>Service</span><span>Description</span><span style="text-align:right;">Rate</span><span style="text-align:right;">Qty</span><span style="text-align:right;">Line total</span>
 </div>
 ${laborRows}` : ''}
@@ -1351,7 +1351,7 @@ ${e.rep_name ? `<span style="color:var(--muted);">Prepared by</span><span style=
 </div>
 </div>
 
-<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:18px 0 22px;border-bottom:1px solid #1c191722;">
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 16px;border-bottom:1px solid #1c191722;">
 <div>
 <div class="mono" style="margin-bottom:8px;">Prepared for</div>
 <div style="font:500 11px/1.2 var(--sans);">${e.customer_name || ''}</div>
@@ -1364,19 +1364,19 @@ ${accountCard}
 ${materialsSection}
 ${laborSection}
 
-<div style="flex:1 1 auto;min-height:20px;"></div>
+<div style="flex:1 1 auto;min-height:0;"></div>
 
-<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
+<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:10px;border-top:1px solid #1c191733;padding-top:10px;">
 <div style="padding-top:4px;" class="small">
 ${e.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;white-space:pre-wrap;">${escDoc(e.notes)}</div>` : ''}
-<div class="mono" style="margin-bottom:8px;">How to accept</div>
-<div style="margin-bottom:10px;">
+<div class="mono" style="margin-bottom:6px;">How to accept</div>
+<div style="margin-bottom:4px;">
 <span style="color:var(--muted);">Online</span>&nbsp;&nbsp;<span style="color:var(--ink);">Open your ${docNoun} link to review &amp; approve — a typed name is your signature</span><br />
 <span style="color:var(--muted);">Showroom</span>&nbsp;&nbsp;<span style="color:var(--ink);">(714) 999-0009 · 1440 S. State College Blvd #6M, Anaheim</span><br />
 <span style="color:var(--muted);">Email</span>&nbsp;&nbsp;<span style="color:var(--ink);">Reply to your ${docNoun} email${e.rep_email ? ' or write ' + escDoc(e.rep_email) : ''}</span>
 </div>
-<div class="mono" style="margin-bottom:8px;margin-top:14px;">Terms &amp; validity</div>
-<div>${validUntil ? `This ${docNoun} is valid through ${validUntil}` : `This ${docNoun} is valid for 14 days from the date of issue`}; ${isQuoteDoc ? 'prices are subject to change after expiry' : 'labor rates may vary based on site conditions and prices are subject to change after expiry'}. Sales tax applies to materials only. Natural stone and wood vary by lot — final selections are approved at the showroom or from delivered samples.${(milestones && milestones.length) ? ` Payment is due per the payment schedule (${milestones.map(m => `${escDoc(m.label)}${m.due_label ? ' ' + escDoc(m.due_label) : ''} — ${money(m.amount)}`).join('; ')}); accepting this ${docNoun} constitutes agreement to that schedule.` : ''} See the Terms of Sale on the reverse.</div>
+<div class="mono" style="margin-bottom:6px;margin-top:12px;">Terms &amp; validity</div>
+<div>${validUntil ? `Valid through ${validUntil}` : `Valid for 14 days from issue`}; ${isQuoteDoc ? 'prices subject to change after expiry' : 'labor rates may vary with site conditions and prices are subject to change after expiry'}. Sales tax applies to materials only; natural stone and wood vary by lot.${(milestones && milestones.length) ? ` Payment is due per the schedule at right; accepting constitutes agreement to it.` : ''} Accepting authorizes Roma to proceed at the ${isQuoteDoc ? 'quoted' : 'estimated'} pricing${isQuoteDoc ? '' : ' (labor is an estimate)'} and is subject to the <strong>Terms of Sale on the reverse</strong> (also at romaflooringdesigns.com/terms), including that <strong>all sales are final</strong>. Please review and sign the reverse to accept.</div>
 </div>
 <div>
 ${totalsRows}
@@ -1390,10 +1390,6 @@ ${(milestones && milestones.length) ? `<div class="keep" style="margin-top:14px;
 ${milestones.map(m => `<div style="display:flex;justify-content:space-between;padding:4px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">${escDoc(m.label)}${m.percent ? ` · ${parseFloat(m.percent)}%` : ''}${m.due_label ? ` <span style="color:#1c191799;">(${escDoc(m.due_label)})</span>` : ''}</span><span>${money(m.amount)}</span></div>`).join('')}
 </div>` : ''}
 </div>
-</div>
-
-<div class="keep" style="margin-top:22px;padding-top:12px;border-top:1px solid #1c191722;">
-<div class="small" style="max-width:660px;">Accepting this ${docNoun} authorizes Roma to proceed at the ${isQuoteDoc ? 'quoted' : 'estimated'} pricing${isQuoteDoc ? '' : ' (labor is an estimate and may vary with site conditions)'}. It is subject to Roma's <strong>Terms of Sale on the reverse / attached Terms of Sale page</strong> (also at romaflooringdesigns.com/terms), including that <strong>all sales are final</strong> and that installing or using material is final acceptance of it. <strong>To accept, please review and sign the Terms of Sale on the reverse.</strong></div>
 </div>
 
 <div style="margin-top:auto;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
@@ -1659,7 +1655,7 @@ ${o.job_name ? `<span style="color:var(--muted);">Sidemark</span><span style="te
 </div>
 </div>
 
-<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:18px 0 22px;border-bottom:1px solid #1c191722;">
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 16px;border-bottom:1px solid #1c191722;">
 <div>
 <div class="mono" style="margin-bottom:8px;">Bill to</div>
 <div style="font:500 11px/1.2 var(--sans);">${o.customer_name || ''}</div>
@@ -1676,9 +1672,9 @@ ${accountCard}
 ${rowsHtml}
 </div>
 
-<div style="flex:1 1 auto;min-height:20px;"></div>
+<div style="flex:1 1 auto;min-height:0;"></div>
 
-<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
+<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:10px;border-top:1px solid #1c191733;padding-top:10px;">
 <div style="padding-top:4px;" class="small">
 ${custNotes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;white-space:pre-wrap;">${custNotes}</div>` : ''}
 <div class="mono" style="margin-bottom:8px;">How to pay</div>
@@ -1949,7 +1945,7 @@ ${accountCard}
 ${rowsHtml}
 </div>
 
-<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
+<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:10px;border-top:1px solid #1c191733;padding-top:10px;">
 <div style="padding-top:4px;" class="small">
 <div class="mono" style="margin-bottom:8px;">Applied to</div>
 <div style="margin-bottom:14px;">
@@ -2122,7 +2118,7 @@ ${isWillCall
 ${rowsHtml}
 </div>
 
-<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:14px;border-top:1px solid #1c191733;padding-top:14px;">
+<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:10px;border-top:1px solid #1c191733;padding-top:10px;">
 <div style="padding-top:4px;" class="small">
 ${release.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;">${String(release.notes).replace(/</g, '&lt;')}</div>` : ''}
 <div class="mono" style="margin-bottom:8px;">Received in good condition</div>
