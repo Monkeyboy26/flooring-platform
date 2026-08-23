@@ -1435,10 +1435,18 @@
     // (e.g. bare "Reducer") always carry their parent product + distinguishing info.
     function formatLineItem(it) {
       it = it || {};
+      // Brand/SKU resolved with the SAME logic as the storefront (itemBrand/itemSku):
+      // respect the hide_public_name gate (show the bare public code, never the real
+      // name, on customer-facing lines) and prefer the sub-brand (brand_name) over the
+      // parent vendor. custom_vendor is a rep's free-text name, never gated.
+      const brand = it.brand_hidden
+        ? ((it.vendor_public_code != null ? String(it.vendor_public_code) : '') || it.custom_vendor || '')
+        : (it.brand_name || it.vendor_name || it.custom_vendor || '');
+      const sku = it.vendor_sku || it.internal_sku || it.sku || '';
       // Prefer the server-computed title — the backend composes it with the SAME
       // logic as the storefront PDP (fullProductName), so an order/quote line reads
       // identically everywhere. Client fallback below covers un-enriched surfaces.
-      if (it.display_name) return { brand: it.vendor_name || it.custom_vendor || '', name: it.display_name, sku: it.vendor_sku || it.internal_sku || '' };
+      if (it.display_name) return { brand, name: it.display_name, sku };
       // Custom bound area rug → "Custom Area Rug  ·  <carpet>  ·  9' × 4'". Dims come
       // from custom_width_ft/length_ft, else parsed from the stored description.
       if (it.is_custom_rug || (it.description || '').startsWith('Custom Area Rug')) {
@@ -1446,9 +1454,9 @@
         const dims = (it.custom_width_ft && it.custom_length_ft) ? (fmtFt(it.custom_width_ft) + ' × ' + fmtFt(it.custom_length_ft)) : (it.description || '').replace(/^Custom Area Rug\s*[—-]\s*/, '');
         const carpet = [it.collection, it.color].filter(Boolean).join(' ') || it.product_name || '';
         return {
-          brand: it.vendor_name || it.custom_vendor || '',
+          brand,
           name: ['Custom Area Rug', carpet, dims].filter(Boolean).join('  ·  '),
-          sku: it.vendor_sku || it.internal_sku || '',
+          sku,
         };
       }
       const isAcc = (it.variant_type || '').toLowerCase() === 'accessory';
@@ -1542,9 +1550,9 @@
         _segsNS.add(_noSpace(kept));
       }
       return {
-        brand: it.vendor_name || it.custom_vendor || '',
+        brand,
         name: title + (descriptors.length ? '  ·  ' + descriptors.join('  ·  ') : ''),
-        sku: it.vendor_sku || it.internal_sku || '',
+        sku,
       };
     }
 
@@ -6190,6 +6198,55 @@
       );
     }
 
+    // --- SidemarkSelect — job-reference dropdown with "+ Add new" ---
+    // Mirrors the rep-side control: reads a customer's prior sidemarks/job names
+    // (across quotes, orders, samples, visits) so staff pick instead of retype;
+    // "+ Add new…" swaps to free-text, and any current value stays selectable.
+    function SidemarkSelect({ value, onChange, customerId, email, disabled, style }) {
+      const [suggestions, setSuggestions] = useState([]);
+      const [manual, setManual] = useState(false);
+      useEffect(() => {
+        let alive = true;
+        const t = setTimeout(() => {
+          const params = [];
+          if (customerId) params.push('customer_id=' + encodeURIComponent(customerId));
+          if (email) params.push('email=' + encodeURIComponent(email));
+          adminFetch('/api/staff/sidemarks' + (params.length ? '?' + params.join('&') : ''))
+            .then(d => { if (alive) setSuggestions(Array.isArray(d && d.sidemarks) ? d.sidemarks : []); })
+            .catch(() => { if (alive) setSuggestions([]); });
+        }, 300);
+        return () => { alive = false; clearTimeout(t); };
+      }, [customerId, email]);
+
+      const useInput = manual || suggestions.length === 0;
+      if (useInput) {
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <input value={value || ''} maxLength={200} disabled={disabled} placeholder="Job / sidemark"
+              onChange={e => onChange(e.target.value)}
+              style={style || { font: '400 12px/1.4 var(--sans)', padding: '2px 6px', width: 160 }} />
+            {suggestions.length > 0 && !disabled && (
+              <button type="button" className="rb-doc-link" onClick={() => setManual(false)}>list</button>
+            )}
+          </span>
+        );
+      }
+      const known = value && suggestions.includes(value);
+      return (
+        <select value={value || ''} disabled={disabled}
+          style={style || { font: '400 12px/1.4 var(--sans)', padding: '2px 6px', maxWidth: 200 }}
+          onChange={e => {
+            if (e.target.value === '__add__') { setManual(true); onChange(''); }
+            else onChange(e.target.value);
+          }}>
+          <option value="">— None —</option>
+          {value && !known && <option value={value}>{value}</option>}
+          {suggestions.map(s => <option key={s} value={s}>{s}</option>)}
+          <option value="__add__">+ Add new…</option>
+        </select>
+      );
+    }
+
     // ========== OrderDetailView ==========
     function OrderDetailView({ navigate, editId, staffRole }) {
       const [order, setOrder] = useState(null);
@@ -6828,10 +6885,8 @@
                     </span>
                   ) : (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <input value={jobNameEdit} placeholder="Job / sidemark" autoFocus
-                        onChange={e => setJobNameEdit(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') saveJobName(); if (e.key === 'Escape') setJobNameEdit(null); }}
-                        style={{ font: '400 12px/1.4 var(--sans)', padding: '2px 6px', width: 160 }} />
+                      <SidemarkSelect value={jobNameEdit} onChange={setJobNameEdit}
+                        customerId={order.customer_id} email={order.customer_email} />
                       <button className="rb-doc-link" disabled={jobNameBusy} onClick={saveJobName}>save</button>
                       <button className="rb-doc-link" onClick={() => setJobNameEdit(null)}>cancel</button>
                     </span>
@@ -9222,7 +9277,6 @@
                 <th>Type</th>
                 <th>Status</th>
                 <th>Tier</th>
-                <th>Terms</th>
                 <th>Applied</th>
                 <th>Actions</th>
               </tr>
@@ -9248,15 +9302,6 @@
                         style={{ padding: '0.3rem 0.4rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }}>
                         <option value="">No tier</option>
                         {tiers.map(t => <option key={t.id} value={t.id}>{t.name} ({parseFloat(t.discount_percent || 0)}%)</option>)}
-                      </select>
-                    </td>
-                    <td>
-                      <select value={c.payment_terms || 'due_on_receipt'} onClick={e => e.stopPropagation()} onChange={e => updateCustomer(c.id, { payment_terms: e.target.value })}
-                        style={{ padding: '0.3rem 0.4rem', border: '1px solid var(--stone-300)', fontSize: '0.8125rem' }}>
-                        <option value="due_on_receipt">Due on Receipt</option>
-                        <option value="net_15">Net 15</option>
-                        <option value="net_30">Net 30</option>
-                        <option value="net_60">Net 60</option>
                       </select>
                     </td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--stone-500)' }}>
@@ -12310,7 +12355,7 @@
         const itemCost = isPerSqft ? rawCost * sqftPerBox : rawCost;
         const itemRetail = isPerSqft ? rawRetail * sqftPerBox : rawRetail;
         await addPOItem({
-          sku_id: r.sku_id, product_name: r.product_name + (r.color ? ' — ' + r.color : ''),
+          sku_id: r.sku_id, product_name: r.display_name || r.product_name,
           vendor_sku: r.vendor_sku || r.internal_sku, qty: 1,
           cost: itemCost.toFixed(2), retail_price: itemRetail > 0 ? itemRetail.toFixed(2) : null,
           sell_by: r.sell_by

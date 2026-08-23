@@ -18549,6 +18549,55 @@ app.put('/api/rep/orders/:id/job-name', repAuth, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// ---- Sidemark / job-name suggestions (shared by rep + staff) ----
+// Reps pick a customer's prior sidemarks (across quotes, orders, sample
+// requests, and visits) instead of retyping — matched by customer_id and/or
+// email. With no customer context, returns the most recently used values so
+// the dropdown is never empty. Placeholders are referenced by every UNION arm,
+// so params are passed once (Postgres allows a $n to be reused).
+async function getSidemarkSuggestions({ customerId, email }) {
+  const cid = (customerId || '').trim() || null;
+  const em = (email || '').trim().toLowerCase() || null;
+  const params = [];
+  let where = '';
+  if (cid || em) {
+    const conds = [];
+    if (cid) { params.push(cid); conds.push(`customer_id = $${params.length}`); }
+    if (em) { params.push(em); conds.push(`LOWER(customer_email) = $${params.length}`); }
+    where = 'WHERE ' + conds.join(' OR ');
+  }
+  const scoped = !!where;
+  const sub = `
+    SELECT sidemark AS val, created_at FROM quotes ${where}
+    UNION ALL SELECT job_name AS val, created_at FROM orders ${where}
+    UNION ALL SELECT sidemark AS val, created_at FROM sample_requests ${where}
+    UNION ALL SELECT sidemark AS val, created_at FROM showroom_visits ${where}
+  `;
+  const r = await pool.query(`
+    SELECT val, MAX(created_at) AS last_used
+    FROM (${sub}) u
+    WHERE val IS NOT NULL AND btrim(val) <> ''
+    GROUP BY val
+    ORDER BY last_used DESC
+    LIMIT ${scoped ? 100 : 25}
+  `, params);
+  return r.rows.map(row => row.val);
+}
+
+app.get('/api/rep/sidemarks', repAuth, async (req, res) => {
+  try {
+    const sidemarks = await getSidemarkSuggestions({ customerId: req.query.customer_id, email: req.query.email });
+    res.json({ sidemarks });
+  } catch (err) { console.error('rep sidemarks error:', err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.get('/api/staff/sidemarks', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const sidemarks = await getSidemarkSuggestions({ customerId: req.query.customer_id, email: req.query.email });
+    res.json({ sidemarks });
+  } catch (err) { console.error('staff sidemarks error:', err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
   try {
     const { id } = req.params;

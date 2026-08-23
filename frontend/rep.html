@@ -14214,6 +14214,56 @@
       );
     }
 
+    // --- SidemarkSelect — job-reference dropdown with "+ Add new" ---
+    // Reads a customer's prior sidemarks/job names (across quotes, orders,
+    // samples, visits) so reps pick instead of retype; "+ Add new…" swaps to a
+    // free-text input, and any value not in the list stays shown/selectable.
+    // Falls back to input mode when there are no suggestions to choose from.
+    function SidemarkSelect({ value, onChange, customerId, email, disabled, className, style, placeholder }) {
+      const [suggestions, setSuggestions] = useState([]);
+      const [manual, setManual] = useState(false);
+      useEffect(() => {
+        let alive = true;
+        const t = setTimeout(() => {
+          const params = [];
+          if (customerId) params.push('customer_id=' + encodeURIComponent(customerId));
+          if (email) params.push('email=' + encodeURIComponent(email));
+          repFetch('/api/rep/sidemarks' + (params.length ? '?' + params.join('&') : ''))
+            .then(d => { if (alive) setSuggestions(Array.isArray(d && d.sidemarks) ? d.sidemarks : []); })
+            .catch(() => { if (alive) setSuggestions([]); });
+        }, 300);
+        return () => { alive = false; clearTimeout(t); };
+      }, [customerId, email]);
+
+      const useInput = manual || suggestions.length === 0;
+      if (useInput) {
+        return (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="text" className={className} style={style} maxLength={200} value={value || ''} disabled={disabled}
+              placeholder={placeholder || 'e.g. Smith Residence — Master Bath'}
+              onChange={e => onChange(e.target.value)} />
+            {suggestions.length > 0 && !disabled && (
+              <button type="button" onClick={() => setManual(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--rod-muted, #8a7e68)', whiteSpace: 'nowrap' }}>↩ List</button>
+            )}
+          </div>
+        );
+      }
+      const known = value && suggestions.includes(value);
+      return (
+        <select className={className} style={style} disabled={disabled} value={value || ''}
+          onChange={e => {
+            if (e.target.value === '__add__') { setManual(true); onChange(''); }
+            else onChange(e.target.value);
+          }}>
+          <option value="">— None —</option>
+          {value && !known && <option value={value}>{value}</option>}
+          {suggestions.map(s => <option key={s} value={s}>{s}</option>)}
+          <option value="__add__">+ Add new…</option>
+        </select>
+      );
+    }
+
     // --- RepCustomerEntry — gold-standard customer entry (mirrors the order flow) ---
     // Search Existing / + New Customer mode toggle, debounced search, selected-
     // customer summary card with Change, duplicate-match warning, and inline
@@ -17528,8 +17578,10 @@
                         warehouse docs so material is identifiable per job */}
                     <WizRepCard title="Job / Sidemark">
                       <div className="rof-field" style={{ marginBottom: 0 }}>
-                        <input type="text" maxLength={200} value={data.jobName || ''}
-                          onChange={e => setData(d => ({ ...d, jobName: e.target.value }))}
+                        <SidemarkSelect value={data.jobName || ''}
+                          onChange={v => setData(d => ({ ...d, jobName: v }))}
+                          customerId={data.customer && data.customer.id}
+                          email={(data.customer && data.customer.email) || data.newCustomerEmail}
                           placeholder="e.g. Smith residence · Unit 4B · Lobby remodel — optional, printed on vendor POs" />
                       </div>
                     </WizRepCard>
@@ -18104,8 +18156,8 @@
                   />
                   <div style={{ marginTop: 14 }}>
                     <label style={scLabel}>Sidemark <span style={{ textTransform: 'none', letterSpacing: 0, color: 'var(--rod-muted)' }}>· job reference (optional)</span></label>
-                    <input style={scField} value={sidemark} maxLength={200}
-                      onChange={e => setSidemark(e.target.value)}
+                    <SidemarkSelect value={sidemark} onChange={setSidemark} style={scField}
+                      customerId={pickedCustomer && pickedCustomer.id} email={customerEmail}
                       placeholder="e.g. Smith Residence — Master Bath" />
                   </div>
                 </div>
@@ -20092,7 +20144,9 @@
                 />
                 <div className="rof-field">
                   <label>Sidemark <span style={{ color: 'var(--rod-muted)', fontWeight: 400 }}>· job reference (optional)</span></label>
-                  <input type="text" value={sidemark} maxLength={200} onChange={e => setSidemark(e.target.value)} placeholder="e.g. Smith Residence — Master Bath" />
+                  <SidemarkSelect value={sidemark} onChange={setSidemark}
+                    customerId={pickedCustomer && pickedCustomer.id} email={customerEmail}
+                    placeholder="e.g. Smith Residence — Master Bath" />
                 </div>
                 <div className="rof-field" style={{ marginBottom: 0 }}>
                   <label>Personal Message</label>
@@ -22303,10 +22357,11 @@
               {/* Job / sidemark — inline-editable; prints on vendor POs + invoice */}
               <div style={{ marginTop: 8 }}>
                 {editingJobName ? (
-                  <input className="rod-input" autoFocus maxLength={200} value={jobNameDraft}
-                    onChange={e => setJobNameDraft(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { setEditingJobName(false); setJobNameDraft(''); } }}
-                    onBlur={async () => {
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <SidemarkSelect value={jobNameDraft} onChange={setJobNameDraft}
+                      customerId={order.customer_id} email={order.customer_email}
+                      style={{ padding: '4px 8px', fontSize: 13, maxWidth: 340 }} />
+                    <button onClick={async () => {
                       const next = jobNameDraft.trim();
                       setEditingJobName(false);
                       if (next === (order.job_name || '')) return;
@@ -22316,8 +22371,10 @@
                         flagSaved('Saved');
                         loadOrderActivity();
                       } catch (err) { alert(err.message || 'Failed to save job name'); }
-                    }}
-                    style={{ padding: '4px 8px', fontSize: 13, maxWidth: 340 }} />
+                    }} style={{ padding: '4px 12px', background: 'var(--rod-ink)', color: '#fff', border: '0.5px solid var(--rod-ink)', cursor: 'pointer', font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Save</button>
+                    <button onClick={() => { setEditingJobName(false); setJobNameDraft(''); }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>Cancel</button>
+                  </div>
                 ) : (
                   <span title="Edit job / sidemark"
                     onClick={() => { setJobNameDraft(order.job_name || ''); setEditingJobName(true); }}
@@ -26970,8 +27027,9 @@
               <WizRepCard title="Sidemark">
                 <div className="rof-field" style={{ marginBottom: 0 }}>
                   <label>Sidemark / job reference</label>
-                  <input type="text" maxLength={200} value={form.sidemark} disabled={isReadonly}
-                    onChange={e => setForm(f => ({ ...f, sidemark: e.target.value }))}
+                  <SidemarkSelect value={form.sidemark} disabled={isReadonly}
+                    onChange={v => setForm(f => ({ ...f, sidemark: v }))}
+                    customerId={selectedCustomer && selectedCustomer.id} email={form.customer_email}
                     placeholder="e.g. Smith Residence — Master Bath" />
                   <div style={{ font: '400 0.6875rem/1.4 Inter, sans-serif', color: '#8a7e68', marginTop: '0.4rem' }}>
                     Prints on the order, vendor POs, and documents. Carried over when the quote converts to an order.
