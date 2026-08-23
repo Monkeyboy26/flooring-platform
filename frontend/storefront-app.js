@@ -8324,6 +8324,67 @@
       setShowAdd(true);
     }, style: { marginTop: "0.25rem", marginBottom: "1rem" } }, "+ Add a Card"));
   }
+  function buildProjects({ orders = [], quotes = [], samples = [], visits = [], estimates = [] }) {
+    const map = /* @__PURE__ */ new Map();
+    const add = (rawKey, doc) => {
+      const label = (rawKey || "").trim();
+      if (!label) return;
+      const key = label.toLowerCase();
+      if (!map.has(key)) map.set(key, { key, label, docs: [] });
+      map.get(key).docs.push(doc);
+    };
+    orders.forEach((o) => add(o.job_name || o.sidemark, { type: "order", id: o.id, num: o.order_number, status: o.status, total: o.total != null ? parseFloat(o.total) : null, created_at: o.created_at }));
+    estimates.forEach((e) => add(e.project_name, { type: "estimate", id: e.id, num: e.estimate_number, status: e.effective_status || e.status, total: e.total != null ? parseFloat(e.total) : null, created_at: e.created_at || e.sent_at }));
+    quotes.forEach((q) => add(q.sidemark, { type: "quote", id: q.id, num: q.quote_number, status: q.status, total: q.total != null ? parseFloat(q.total) : null, created_at: q.created_at }));
+    samples.forEach((s) => add(s.sidemark, { type: "sample", id: s.id, num: s.request_number, status: s.status, total: null, created_at: s.created_at }));
+    visits.forEach((v) => add(v.sidemark, { type: "visit", id: v.id, num: v.request_number || null, status: v.status, total: null, created_at: v.created_at }));
+    const groups = Array.from(map.values()).map((g) => {
+      const lastActivity = g.docs.reduce((m, d) => d.created_at && (!m || new Date(d.created_at) > new Date(m)) ? d.created_at : m, null);
+      const value = g.docs.reduce((s, d) => s + (d.type === "order" && d.total ? d.total : 0), 0);
+      const counts = g.docs.reduce((c, d) => {
+        c[d.type] = (c[d.type] || 0) + 1;
+        return c;
+      }, {});
+      g.docs.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      return { key: g.key, label: g.label, docs: g.docs, lastActivity, value, counts, docCount: g.docs.length };
+    });
+    groups.sort((a, b) => new Date(b.lastActivity || 0) - new Date(a.lastActivity || 0));
+    return groups;
+  }
+  function ProjectsSection({ groups, fmtMoney, fmtDate, onOpen }) {
+    const [open, setOpen] = useState(null);
+    const typeLabel = { order: "Order", estimate: "Estimate", quote: "Quote", sample: "Sample", visit: "Visit" };
+    const typeChip = {
+      order: { bg: "rgba(58,122,78,0.12)", fg: "#3a7a4e" },
+      estimate: { bg: "rgba(37,99,235,0.12)", fg: "#2563eb" },
+      quote: { bg: "rgba(168,121,53,0.14)", fg: "#a87935" },
+      sample: { bg: "rgba(28,25,23,0.08)", fg: "var(--stone-700, #44403c)" },
+      visit: { bg: "rgba(176,70,47,0.12)", fg: "#b0462f" }
+    };
+    if (!groups.length) {
+      return /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section", style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", marginBottom: "0.375rem" } }, "No projects yet."), /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.8125rem", margin: 0 } }, "Add a sidemark or job reference to an order, quote, estimate, sample, or visit and everything under that name gathers here as a project."));
+    }
+    const grid = { gridTemplateColumns: "1fr 200px 120px 90px" };
+    const order = ["order", "estimate", "quote", "sample", "visit"];
+    const summary = (c) => order.filter((t) => c[t]).map((t) => c[t] + " " + typeLabel[t].toLowerCase() + (c[t] > 1 ? "s" : "")).join(" \xB7 ");
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-col-headers", style: grid }, /* @__PURE__ */ React.createElement("span", null, "Project"), /* @__PURE__ */ React.createElement("span", null, "Activity"), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right" } }, "Order value"), /* @__PURE__ */ React.createElement("span", null)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-table", style: { borderTop: "none", borderRadius: "0 0 6px 6px" } }, groups.map((g) => /* @__PURE__ */ React.createElement(React.Fragment, { key: g.key }, /* @__PURE__ */ React.createElement("div", { className: "acct-order-row", style: grid, onClick: () => setOpen(open === g.key ? null : g.key) }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-order-num" }, g.label), /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, g.lastActivity ? "Last activity " + fmtDate(g.lastActivity) : "")), /* @__PURE__ */ React.createElement("div", { className: "acct-order-detail" }, summary(g.counts)), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", fontVariantNumeric: "tabular-nums" } }, g.value ? fmtMoney(g.value) : "\u2014"), /* @__PURE__ */ React.createElement("span", { className: "acct-order-action" }, open === g.key ? "Close \xD7" : "Open \u2192")), open === g.key && /* @__PURE__ */ React.createElement("div", { className: "acct-order-expanded" }, g.docs.map((d, i) => {
+      const chip = typeChip[d.type] || typeChip.sample;
+      return /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          key: d.type + d.id + i,
+          onClick: () => onOpen(d.type, d.id),
+          style: { display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.6rem 0", borderBottom: i < g.docs.length - 1 ? "0.5px solid rgba(28,25,23,0.08)" : "none", cursor: "pointer" }
+        },
+        /* @__PURE__ */ React.createElement("span", { style: { background: chip.bg, color: chip.fg, fontSize: "0.625rem", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 8px", borderRadius: 3, flexShrink: 0, minWidth: 62, textAlign: "center" } }, typeLabel[d.type]),
+        /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, fontSize: "0.8125rem" } }, d.num || (d.type === "visit" ? "Showroom visit" : "\u2014")),
+        /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)", fontSize: "0.75rem" } }, d.created_at ? fmtDate(d.created_at) : ""),
+        /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: "0.75rem", color: "var(--warm-muted)", textTransform: "capitalize" } }, (d.status || "").replace(/_/g, " ")),
+        d.total != null && /* @__PURE__ */ React.createElement("span", { style: { fontVariantNumeric: "tabular-nums", fontSize: "0.8125rem", minWidth: 70, textAlign: "right" } }, fmtMoney(d.total)),
+        /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)" } }, "\u2192")
+      );
+    }))))));
+  }
   function AccountPage({ customer, customerToken, setCustomer, goBrowse, section, setSection, wishlist, toggleWishlist: toggleWishlist2, onSkuClick, addToCart, showToast, navigate, goHome, onLogout }) {
     const [orders, setOrders] = useState([]);
     const [expandedOrder, setExpandedOrder] = useState(null);
@@ -8491,6 +8552,24 @@
         alert("Failed to add sample");
       }
       setAddingSampleItem(null);
+    };
+    const openProjectDoc = (type, id) => {
+      if (type === "order") {
+        setSection("orders");
+        if (expandedOrder !== id) viewOrderDetail(id);
+      } else if (type === "quote") {
+        setSection("quotes");
+        if (expandedQuote !== id) viewQuoteDetail(id);
+      } else if (type === "estimate") {
+        setSection("quotes");
+        if (expandedEstimate !== id) viewEstimateDetail(id);
+      } else if (type === "sample") {
+        setSection("samples");
+        setExpandedSample(id);
+      } else if (type === "visit") {
+        setSection("visits");
+        if (expandedVisit !== id) viewVisitDetail(id);
+      }
     };
     const viewOrderDetail = async (orderId) => {
       if (expandedOrder === orderId) {
@@ -8753,8 +8832,10 @@
     const initials = (((customer.first_name || "")[0] || "") + ((customer.last_name || "")[0] || "")).toUpperCase() || (customer.email || "A")[0].toUpperCase();
     const fmtDate = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
     const fmtMoney = (n) => "$" + parseFloat(n || 0).toLocaleString(void 0, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const projectGroups = buildProjects({ orders, quotes, samples: sampleRequests, visits, estimates });
     const NAV_SECTIONS = [
       { id: "overview", label: "Overview", meta: "Snapshot" },
+      { id: "projects", label: "Projects", meta: projectGroups.length ? projectGroups.length + (projectGroups.length === 1 ? " project" : " projects") : "By sidemark" },
       { id: "orders", label: "Orders", meta: loadingOrders ? "\u2026" : orders.length + " lifetime" + (activeOrders.length ? " \xB7 " + activeOrders.length + " active" : "") },
       { id: "quotes", label: "Quotes", meta: loadingQuotes ? "\u2026" : quotes.length + estimates.length ? [quotes.length ? quotes.length + (quotes.length === 1 ? " quote" : " quotes") : null, estimates.length ? estimates.length + (estimates.length === 1 ? " estimate" : " estimates") : null].filter(Boolean).join(" \xB7 ") : "None yet" },
       { id: "samples", label: "Samples", meta: loadingSamples ? "\u2026" : sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? " box" : " boxes") + " \xB7 " + swatchCount + " swatches" : "None yet" },
@@ -8766,6 +8847,7 @@
     const monthYear = (/* @__PURE__ */ new Date()).toLocaleDateString("en-US", { month: "long", year: "numeric" });
     const heroBySection = {
       overview: { eyebrow: "Account \xB7 " + monthYear, heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Welcome back,", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("em", null, customer.first_name || "friend"), ".") },
+      projects: { eyebrow: "Grouped by sidemark", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "projects"), ".") },
       orders: { eyebrow: loadingOrders ? "Order history" : orders.length + " lifetime " + (orders.length === 1 ? "order" : "orders"), heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "orders"), ".") },
       quotes: { eyebrow: "Prepared by our team", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "quotes"), ".") },
       samples: { eyebrow: "Boxes & swatches", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "samples"), ".") },
@@ -8792,17 +8874,14 @@
     const renderOrderExpanded = () => /* @__PURE__ */ React.createElement("div", { className: "acct-order-expanded" }, orderDetail.order.tracking_number && /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(28,25,23,0.04)", border: "0.5px solid rgba(28,25,23,0.12)", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem", color: "var(--stone-700, #44403c)", borderRadius: 4 } }, /* @__PURE__ */ React.createElement("span", { className: "acct-footer-card-sub", style: { marginRight: "0.625rem" } }, "In transit"), orderDetail.order.shipping_carrier && /* @__PURE__ */ React.createElement("span", null, orderDetail.order.shipping_carrier, " "), /* @__PURE__ */ React.createElement("strong", { style: { fontVariantNumeric: "tabular-nums" } }, orderDetail.order.tracking_number), orderDetail.order.shipped_at && /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)", marginLeft: "0.5rem" } }, "Shipped ", fmtDate(orderDetail.order.shipped_at))), orderDetail.order.delivery_method === "pickup" && orderDetail.fulfillment_summary && orderDetail.fulfillment_summary.total > 0 && ["confirmed", "shipped", "delivered"].includes(orderDetail.order.status) && (() => {
       const { total, received } = orderDetail.fulfillment_summary;
       const allReady = received >= total;
+      const pct = total > 0 ? Math.round(received / total * 100) : 0;
       return /* @__PURE__ */ React.createElement("div", { style: {
-        background: allReady ? "#f0fdf4" : "#fffbeb",
-        border: "1px solid " + (allReady ? "#bbf7d0" : "#fde68a"),
-        padding: "0.75rem 1rem",
+        background: allReady ? "rgba(135,153,107,0.10)" : "rgba(28,25,23,0.04)",
+        border: "0.5px solid " + (allReady ? "rgba(135,153,107,0.45)" : "rgba(28,25,23,0.12)"),
+        padding: "0.875rem 1rem",
         marginBottom: "1rem",
-        fontSize: "0.8125rem",
-        color: allReady ? "#166534" : "#92400e",
-        display: "flex",
-        alignItems: "center",
-        gap: "0.75rem"
-      } }, /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, /* @__PURE__ */ React.createElement("strong", null, allReady ? "All items ready for pickup!" : `${received} of ${total} items ready for pickup`), !allReady && /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.35rem", fontSize: "0.75rem", opacity: 0.8 } }, "Remaining items are still being received from suppliers")), /* @__PURE__ */ React.createElement("div", { style: { width: 48, height: 48, borderRadius: "50%", background: allReady ? "#22c55e" : "#f59e0b", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8125rem", flexShrink: 0 } }, received, "/", total));
+        borderRadius: 4
+      } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.6rem" } }, /* @__PURE__ */ React.createElement("span", { className: "acct-footer-card-sub", style: { color: allReady ? "var(--sage-dark)" : "var(--warm-muted)" } }, allReady ? "\u25CF Ready for pickup" : "Preparing your order"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: "0.75rem", color: "var(--stone-600)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" } }, received, " of ", total, " ", total === 1 ? "item" : "items", " ready")), /* @__PURE__ */ React.createElement("div", { className: "acct-progress" }, /* @__PURE__ */ React.createElement("div", { className: "acct-progress-fill", style: { right: 100 - pct + "%", background: allReady ? "var(--sage)" : "var(--gold)" } })), /* @__PURE__ */ React.createElement("div", { style: { marginTop: "0.6rem", fontSize: "0.75rem", color: "var(--stone-600)", lineHeight: 1.5 } }, allReady ? "Everything\u2019s in \u2014 stop by the showroom any time we\u2019re open and we\u2019ll have it waiting." : "The rest of your materials are still arriving from our suppliers. We\u2019ll email you the moment everything\u2019s ready."));
     })(), orderDetail.order.delivery_method !== "pickup" && orderDetail.fulfillment_summary && orderDetail.fulfillment_summary.total > 0 && orderDetail.fulfillment_summary.received > 0 && orderDetail.fulfillment_summary.received < orderDetail.fulfillment_summary.total && /* @__PURE__ */ React.createElement("div", { style: { background: "rgba(28,25,23,0.04)", border: "0.5px solid rgba(28,25,23,0.12)", padding: "0.75rem 1rem", marginBottom: "1rem", fontSize: "0.8125rem", color: "var(--stone-700, #44403c)", borderRadius: 4 } }, /* @__PURE__ */ React.createElement("span", { className: "acct-footer-card-sub", style: { marginRight: "0.625rem" } }, "Preparing"), orderDetail.fulfillment_summary.received, " of ", orderDetail.fulfillment_summary.total, " items received from suppliers"), (() => {
       const isPickupOrder = orderDetail.order.delivery_method === "pickup";
       const steps = isPickupOrder ? ["pending", "confirmed", "ready_for_pickup", "delivered"] : ["pending", "confirmed", "shipped", "delivered"];
@@ -8921,7 +9000,7 @@
         /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.875rem", color: "var(--stone-800)", fontFamily: "var(--font-heading)" } }, sr.request_number, " ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)", fontFamily: "var(--font-body)", fontSize: "0.75rem" } }, "\xB7 ", n, " swatch", n === 1 ? "" : "es")), /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, fmtDate(sr.created_at))),
         /* @__PURE__ */ React.createElement("span", { className: "acct-order-status", style: { color: sc.color } }, "\u25CF ", sc.label)
       );
-    }), !loadingSamples && !sampleRequests.length && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "acct-btn acct-btn--outline", onClick: goBrowse }, "Browse products"))), /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card" }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-head" }, /* @__PURE__ */ React.createElement("h3", { className: "acct-footer-card-title" }, "Address"), /* @__PURE__ */ React.createElement("button", { className: "acct-footer-card-action", onClick: () => setSection("settings") }, "Edit")), customer.address_line1 ? /* @__PURE__ */ React.createElement("div", { className: "acct-address-card acct-address-card--primary" }, /* @__PURE__ */ React.createElement("div", { className: "acct-address-label", style: { color: "var(--gold)" } }, "\u25CF Primary"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", lineHeight: 1.5, color: "var(--stone-800)", marginTop: "0.375rem" } }, customer.address_line1, customer.address_line2 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("br", null), customer.address_line2) : null, /* @__PURE__ */ React.createElement("br", null), [customer.city, customer.state].filter(Boolean).join(", "), " ", customer.zip || "")) : /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.8125rem", color: "var(--warm-muted)", margin: 0 } }, "No saved address yet \u2014 add one for faster checkout.")), /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card" }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-head" }, /* @__PURE__ */ React.createElement("h3", { className: "acct-footer-card-title" }, "Payment"), /* @__PURE__ */ React.createElement("button", { className: "acct-footer-card-action", onClick: () => setSection("payment") }, "Manage")), cards.length ? cards.slice(0, 2).map((c, i) => /* @__PURE__ */ React.createElement("div", { key: c.id, className: "acct-payment-card" + (i === 0 ? " acct-payment-card--default" : "") }, /* @__PURE__ */ React.createElement("div", { className: "acct-payment-badge" }, (c.brand || "CARD").slice(0, 4).toUpperCase()), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--stone-800)" } }, "\u2022\u2022\u2022\u2022 ", c.last4, i === 0 ? " \xB7 Default" : ""), /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, "Exp ", String(c.exp_month).padStart(2, "0"), "/", String(c.exp_year).slice(-2))))) : /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.8125rem", color: "var(--warm-muted)", margin: 0 } }, "No saved cards yet \u2014 add one for faster ordering.")))), section === "orders" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-tabs" }, ordersTabs.map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, className: "acct-tab" + (ordersTab === t.id ? " acct-tab--active" : ""), onClick: () => setOrdersTab(t.id) }, t.label, /* @__PURE__ */ React.createElement("span", { className: "acct-tab-count" }, t.count)))), /* @__PURE__ */ React.createElement("div", { className: "acct-toolbar" }, /* @__PURE__ */ React.createElement("div", { className: "acct-search-box" }, /* @__PURE__ */ React.createElement("span", { className: "acct-search-icon" }, "\u2315"), /* @__PURE__ */ React.createElement("input", { className: "acct-search-input", placeholder: "Search by order number\u2026", value: ordersSearch, onChange: (e) => setOrdersSearch(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "acct-toolbar-right" }, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)" } }, "Sort: ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-800)" } }, "Newest first")))), loadingOrders ? /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.875rem" } }, "Loading orders...") : orders.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section", style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", marginBottom: "1rem" } }, "No orders yet."), /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: goBrowse }, "Start Shopping")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "acct-col-headers" }, /* @__PURE__ */ React.createElement("span", null, "Order"), /* @__PURE__ */ React.createElement("span", null, "Materials"), /* @__PURE__ */ React.createElement("span", null, "Detail"), /* @__PURE__ */ React.createElement("span", null, "Status"), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right" } }, "Total"), /* @__PURE__ */ React.createElement("span", null)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-table", style: { borderTop: "none", borderRadius: "0 0 6px 6px" } }, filteredOrders.length === 0 ? /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.875rem", padding: "1.5rem", margin: 0 } }, "No orders match.") : filteredOrders.map(renderOrderRow)), /* @__PURE__ */ React.createElement("div", { className: "acct-pagination" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", filteredOrders.length, " of ", orders.length, " ", orders.length === 1 ? "order" : "orders"), /* @__PURE__ */ React.createElement("span", null, "\xB7 \xB7 \xB7"))))), section === "quotes" && (() => {
+    }), !loadingSamples && !sampleRequests.length && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("button", { className: "acct-btn acct-btn--outline", onClick: goBrowse }, "Browse products"))), /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card" }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-head" }, /* @__PURE__ */ React.createElement("h3", { className: "acct-footer-card-title" }, "Address"), /* @__PURE__ */ React.createElement("button", { className: "acct-footer-card-action", onClick: () => setSection("settings") }, "Edit")), customer.address_line1 ? /* @__PURE__ */ React.createElement("div", { className: "acct-address-card acct-address-card--primary" }, /* @__PURE__ */ React.createElement("div", { className: "acct-address-label", style: { color: "var(--gold)" } }, "\u25CF Primary"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", lineHeight: 1.5, color: "var(--stone-800)", marginTop: "0.375rem" } }, customer.address_line1, customer.address_line2 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("br", null), customer.address_line2) : null, /* @__PURE__ */ React.createElement("br", null), [customer.city, customer.state].filter(Boolean).join(", "), " ", customer.zip || "")) : /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.8125rem", color: "var(--warm-muted)", margin: 0 } }, "No saved address yet \u2014 add one for faster checkout.")), /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card" }, /* @__PURE__ */ React.createElement("div", { className: "acct-footer-card-head" }, /* @__PURE__ */ React.createElement("h3", { className: "acct-footer-card-title" }, "Payment"), /* @__PURE__ */ React.createElement("button", { className: "acct-footer-card-action", onClick: () => setSection("payment") }, "Manage")), cards.length ? cards.slice(0, 2).map((c, i) => /* @__PURE__ */ React.createElement("div", { key: c.id, className: "acct-payment-card" + (i === 0 ? " acct-payment-card--default" : "") }, /* @__PURE__ */ React.createElement("div", { className: "acct-payment-badge" }, (c.brand || "CARD").slice(0, 4).toUpperCase()), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.8125rem", color: "var(--stone-800)" } }, "\u2022\u2022\u2022\u2022 ", c.last4, i === 0 ? " \xB7 Default" : ""), /* @__PURE__ */ React.createElement("div", { className: "acct-order-date" }, "Exp ", String(c.exp_month).padStart(2, "0"), "/", String(c.exp_year).slice(-2))))) : /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.8125rem", color: "var(--warm-muted)", margin: 0 } }, "No saved cards yet \u2014 add one for faster ordering.")))), section === "projects" && /* @__PURE__ */ React.createElement("div", null, sectionHead("Grouped by sidemark", "Projects"), /* @__PURE__ */ React.createElement(ProjectsSection, { groups: projectGroups, fmtMoney, fmtDate, onOpen: openProjectDoc })), section === "orders" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-tabs" }, ordersTabs.map((t) => /* @__PURE__ */ React.createElement("button", { key: t.id, className: "acct-tab" + (ordersTab === t.id ? " acct-tab--active" : ""), onClick: () => setOrdersTab(t.id) }, t.label, /* @__PURE__ */ React.createElement("span", { className: "acct-tab-count" }, t.count)))), /* @__PURE__ */ React.createElement("div", { className: "acct-toolbar" }, /* @__PURE__ */ React.createElement("div", { className: "acct-search-box" }, /* @__PURE__ */ React.createElement("span", { className: "acct-search-icon" }, "\u2315"), /* @__PURE__ */ React.createElement("input", { className: "acct-search-input", placeholder: "Search by order number\u2026", value: ordersSearch, onChange: (e) => setOrdersSearch(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "acct-toolbar-right" }, /* @__PURE__ */ React.createElement("span", { style: { color: "var(--warm-muted)" } }, "Sort: ", /* @__PURE__ */ React.createElement("span", { style: { color: "var(--stone-800)" } }, "Newest first")))), loadingOrders ? /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.875rem" } }, "Loading orders...") : orders.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "acct-profile-section", style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", marginBottom: "1rem" } }, "No orders yet."), /* @__PURE__ */ React.createElement("button", { className: "acct-btn", onClick: goBrowse }, "Start Shopping")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "acct-col-headers" }, /* @__PURE__ */ React.createElement("span", null, "Order"), /* @__PURE__ */ React.createElement("span", null, "Materials"), /* @__PURE__ */ React.createElement("span", null, "Detail"), /* @__PURE__ */ React.createElement("span", null, "Status"), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right" } }, "Total"), /* @__PURE__ */ React.createElement("span", null)), /* @__PURE__ */ React.createElement("div", { className: "acct-order-table", style: { borderTop: "none", borderRadius: "0 0 6px 6px" } }, filteredOrders.length === 0 ? /* @__PURE__ */ React.createElement("p", { style: { color: "var(--warm-muted)", fontSize: "0.875rem", padding: "1.5rem", margin: 0 } }, "No orders match.") : filteredOrders.map(renderOrderRow)), /* @__PURE__ */ React.createElement("div", { className: "acct-pagination" }, /* @__PURE__ */ React.createElement("span", null, "Showing ", filteredOrders.length, " of ", orders.length, " ", orders.length === 1 ? "order" : "orders"), /* @__PURE__ */ React.createElement("span", null, "\xB7 \xB7 \xB7"))))), section === "quotes" && (() => {
       const quoteGrid = { gridTemplateColumns: "150px 1fr 130px 120px 80px" };
       const quoteMeta = (q) => {
         const isExpired = q.status === "sent" && q.expires_at && new Date(q.expires_at) < /* @__PURE__ */ new Date();
@@ -9390,6 +9469,21 @@
           setExpandedSample(null);
           setLoading(false);
         }).catch(() => setLoading(false));
+      } else if (t === "projects") {
+        Promise.all([
+          fetch(API + "/api/trade/orders", { headers: authHeaders }).then((r) => r.ok ? r.json() : { orders: [] }).catch(() => ({ orders: [] })),
+          fetch(API + "/api/trade/quotes", { headers: authHeaders }).then((r) => r.ok ? r.json() : { quotes: [] }).catch(() => ({ quotes: [] })),
+          fetch(API + "/api/trade/estimates", { headers: authHeaders }).then((r) => r.ok ? r.json() : { estimates: [] }).catch(() => ({ estimates: [] })),
+          fetch(API + "/api/trade/samples", { headers: authHeaders }).then((r) => r.ok ? r.json() : { sample_requests: [] }).catch(() => ({ sample_requests: [] })),
+          fetch(API + "/api/trade/visits", { headers: authHeaders }).then((r) => r.ok ? r.json() : { visits: [] }).catch(() => ({ visits: [] }))
+        ]).then(([od, qd, ed, sd, vd]) => {
+          setOrders(od.orders || []);
+          setQuotes(qd.quotes || []);
+          setEstimates(ed.estimates || []);
+          setSampleRequests(sd.sample_requests || []);
+          setVisits(vd.visits || []);
+          setLoading(false);
+        }).catch(() => setLoading(false));
       } else if (t === "payment") {
         setLoading(false);
       } else if (t === "settings") {
@@ -9518,6 +9612,24 @@
       const data = await resp.json();
       setEstimateDetail(data);
     };
+    const openProjectDoc = (type, id) => {
+      if (type === "order") {
+        setTab("orders");
+        setExpandedOrder(id);
+      } else if (type === "quote") {
+        setTab("quotes");
+        if (expandedQuote !== id) expandQuote(id);
+      } else if (type === "estimate") {
+        setTab("estimates");
+        if (expandedEstimate !== id) expandEstimate(id);
+      } else if (type === "sample") {
+        setTab("samples");
+        setExpandedSample(id);
+      } else if (type === "visit") {
+        setTab("visits");
+        if (expandedVisit !== id) expandVisit(id);
+      }
+    };
     const downloadEstimatePdf = async (estId) => {
       try {
         const r = await fetch(API + "/api/trade/estimates/" + estId + "/pdf", { headers: { "X-Trade-Token": tradeToken } });
@@ -9604,8 +9716,10 @@
       return p ? p.name : null;
     };
     const tOrderCount = dashData && dashData.order_count != null ? dashData.order_count : orders.length;
+    const tProjectGroups = buildProjects({ orders, quotes, samples: sampleRequests, visits, estimates });
     const T_NAV = [
       { id: "overview", label: "Overview", meta: "Snapshot" },
+      { id: "projects", label: "Projects", meta: tProjectGroups.length ? tProjectGroups.length + (tProjectGroups.length === 1 ? " project" : " projects") : "By sidemark" },
       { id: "orders", label: "Orders", meta: tOrderCount ? tOrderCount + " total" : "None yet" },
       { id: "quotes", label: "Quotes", meta: quotes.length ? quotes.length + (quotes.length === 1 ? " quote" : " quotes") : "None yet" },
       { id: "estimates", label: "Estimates", meta: estimates.length ? estimates.length + (estimates.length === 1 ? " estimate" : " estimates") : "None yet" },
@@ -9616,6 +9730,7 @@
       { id: "settings", label: "Settings", meta: "Company & security" }
     ];
     const T_HERO = {
+      projects: { eyebrow: "Grouped by sidemark", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "projects"), ".") },
       orders: { eyebrow: "Order history", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "orders"), ".") },
       quotes: { eyebrow: "Prepared by your rep", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "quotes"), ".") },
       estimates: { eyebrow: "Project pricing from your rep", heading: /* @__PURE__ */ React.createElement(React.Fragment, null, "Your ", /* @__PURE__ */ React.createElement("em", null, "estimates"), ".") },
@@ -9703,7 +9818,7 @@
         addToCart({ product_id: it.product_id, sku_id: it.sku_id, sqft_needed: parseFloat(it.sqft_needed) || 1, num_boxes: parseInt(it.num_boxes) || 1, unit_price: parseFloat(it.unit_price || 0), subtotal: parseFloat(it.unit_price || 0).toFixed(2) });
         showToast && showToast("Added to cart", "success");
       } }, "Add")))), /* @__PURE__ */ React.createElement("div", { className: "td-side-card" }, /* @__PURE__ */ React.createElement("h3", { style: { marginTop: 0 } }, curName, " benefits"), /* @__PURE__ */ React.createElement("div", { className: "td-perk" }, /* @__PURE__ */ React.createElement("span", null, "Catalog discount"), /* @__PURE__ */ React.createElement("b", null, curDisc, "% off list")), /* @__PURE__ */ React.createElement("div", { className: "td-perk" }, /* @__PURE__ */ React.createElement("span", null, "Trade pricing"), /* @__PURE__ */ React.createElement("b", null, "Baked into every line")), /* @__PURE__ */ React.createElement("div", { className: "td-perk" }, /* @__PURE__ */ React.createElement("span", null, "Dedicated rep"), /* @__PURE__ */ React.createElement("b", null, rep ? rep.first_name + " " + rep.last_name : "On every order")), nextName && /* @__PURE__ */ React.createElement("div", { className: "td-perk" }, /* @__PURE__ */ React.createElement("span", null, "At ", nextName), /* @__PURE__ */ React.createElement("b", null, fmtPct(nextDisc), "% off list"))))));
-    })()) : /* @__PURE__ */ React.createElement(React.Fragment, null, tab === "orders" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-tabs" }, [{ id: "all", label: "All" }, { id: "active", label: "Active" }, { id: "delivered", label: "Delivered" }].map((t) => {
+    })()) : /* @__PURE__ */ React.createElement(React.Fragment, null, tab === "projects" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(ProjectsSection, { groups: tProjectGroups, fmtMoney: tMoney, fmtDate: tFmtDate, onOpen: openProjectDoc })), tab === "orders" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "acct-tabs" }, [{ id: "all", label: "All" }, { id: "active", label: "Active" }, { id: "delivered", label: "Delivered" }].map((t) => {
       const active = ["pending", "confirmed", "processing", "shipped", "ready_for_pickup"];
       const count = t.id === "all" ? orders.length : t.id === "active" ? orders.filter((o) => active.includes(o.status)).length : orders.filter((o) => o.status === "delivered").length;
       return /* @__PURE__ */ React.createElement("button", { key: t.id, className: "acct-tab" + (ordersTab === t.id ? " acct-tab--active" : ""), onClick: () => setOrdersTab(t.id) }, t.label, /* @__PURE__ */ React.createElement("span", { className: "acct-tab-count" }, count));

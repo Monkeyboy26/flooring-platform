@@ -5000,8 +5000,8 @@
                 <span className="qv-eyebrow-stock">{isUnit ? 'Accessory' : 'Flooring'}</span>
               </div>
               <h2>{fullProductName(activeSku)}</h2>
-              {activeSku.variant_name && (
-                <div className="qv-variant-label">{formatVariantName(activeSku.variant_name)}{activeSku.sku_code ? ' \u00B7 SKU ' + activeSku.sku_code : ''}</div>
+              {activeSku.sku_code && (
+                <div className="qv-variant-label">SKU {activeSku.sku_code}</div>
               )}
 
               {/* Compact specs grid */}
@@ -5592,7 +5592,7 @@
                         <div className="form-specimen-card-meta">No. {String(i + 1).padStart(2, '0')} &middot; {sku.category_name || 'Flooring'}</div>
                         {price && <div className="form-specimen-card-price">${cardPriceOf(sku, price).toFixed(2)}{cardPriceSuffix(sku)}</div>}
                         <div className="form-specimen-card-name">{fullProductName(sku)}</div>
-                        <div className="form-specimen-card-desc">{[publicBrand(sku), sku.variant_name].filter(Boolean).join(' \u00B7 ')}</div>
+                        {publicBrand(sku) && <div className="form-specimen-card-desc">{publicBrand(sku)}</div>}
                         <div className="form-specimen-card-cta">View in catalog &rarr;</div>
                       </div>
                     );
@@ -5753,7 +5753,7 @@
                         </div>
                         <div className="shop-featured-card-cat">{sku.category_name || 'Flooring'}</div>
                         <div className="shop-featured-card-name">{fullProductName(sku)}</div>
-                        <div className="shop-featured-card-meta">{[publicBrand(sku), sku.variant_name].filter(Boolean).join(' \u00B7 ')}</div>
+                        {publicBrand(sku) && <div className="shop-featured-card-meta">{publicBrand(sku)}</div>}
                         <div className="shop-featured-card-bottom">
                           <span className="shop-featured-card-price">{price ? '$' + cardPriceOf(sku, price).toFixed(2) + cardPriceSuffix(sku) : 'Call for price'}</span>
                           <span className="shop-featured-card-cta">View &rarr;</span>
@@ -5988,6 +5988,11 @@
                 {totalActiveFilterCount > 0 && <span className="filter-badge">{totalActiveFilterCount}</span>}
               </button>
             </div>
+            {didYouMean && searchQuery && !loading && skus.length > 0 && (
+              <div className="browse-did-you-mean">
+                Did you mean <button type="button" className="browse-dym-link" onClick={() => onSearch(didYouMean)}>{didYouMean}</button>?
+              </div>
+            )}
             {loading ? (
               <SkeletonGrid count={8} />
             ) : skus.length === 0 ? (
@@ -8128,7 +8133,7 @@
 
                 // Size pills from collection siblings (vanities where sizes are separate products)
                 // Computed BEFORE the merge so we can skip merging sizes into colorItems
-                const _isDecorativeHW = (sku.vendor_code || '') === 'HR'; // Hardware Resources
+                const _isDecorativeHW = (sku.vendor_code || '') === 'HR' && !['Vanity', 'Mirrors'].includes(sku.category_name || ''); // HR decorative hardware suppresses attr pills, but NOT vanities/mirrors (finish/size selectable)
                 let collectionSizeItems = [];
                 if (collectionSiblings.length > 0) {
                   const extractDims = (name) => {
@@ -8146,7 +8151,7 @@
                   // Build a lookup of all size+finish combos → sku_id
                   const curSz = extractDims(sku.product_name);
                   const curFinishVal = extractFinish(sku.product_name);
-                  const allItems = [{ product_name: sku.product_name, sku_id: sku.sku_id, primary_image: media && media[0] ? media[0].url : null }, ...collectionSiblings];
+                  const allItems = [{ product_name: sku.product_name, sku_id: sku.sku_id, primary_image: media && media[0] ? media[0].url : null }, ...collectionSiblings.filter(s => (s.variant_type || '') !== 'accessory')];
                   // When siblings span multiple colors, size pills must not jump colors
                   // (a "2x4" pill on a Camo page must never navigate to Bianco 2x4)
                   const sizeSource = multiColorCollection
@@ -8182,11 +8187,11 @@
                 // Finish pills from collection siblings
                 let collectionFinishItems = [];
                 if (collectionSiblings.length > 0) {
-                  const extractDims2 = (name) => { const m = (name || '').match(/(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/); return m ? m[0] : null; };
+                  const extractDims2 = (name) => { const m = (name || '').match(/(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*[xX×]\s*(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/); if (m) return m[0]; const s = (name || '').match(/\b(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)\s*["″]/); return s ? s[0] : null; };
                   const extractFinish2 = (name) => { const m = (name || '').match(/,\s*(.+?)(?:\s*\(|$)/); return m ? m[1].trim() : null; };
                   const curSz2 = extractDims2(sku.product_name);
                   const curFn = extractFinish2(sku.product_name);
-                  const allItems2 = [{ product_name: sku.product_name, sku_id: sku.sku_id }, ...collectionSiblings];
+                  const allItems2 = [{ product_name: sku.product_name, sku_id: sku.sku_id }, ...collectionSiblings.filter(s => (s.variant_type || '') !== 'accessory')];
                   const comboMap2 = new Map();
                   allItems2.forEach(s => {
                     const sz = extractDims2(s.product_name);
@@ -10141,7 +10146,6 @@
                       {itemBrand(item) && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)' }}>{itemBrand(item)}</div>}
                       <h3 className="ct-line-name">{itemLineName(item) || 'Product'}</h3>
                       {itemSku(item) && <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.125rem' }}>{itemSku(item)}</div>}
-                      {item.variant_name && <div className="ct-line-variant">{item.variant_name}</div>}
 
                       {/* Lead-time / stock */}
                       {item.stock_status && item.stock_status !== 'unknown' && item.vendor_has_inventory !== false && (
@@ -11812,6 +11816,98 @@
       );
     }
 
+    // Group a customer's documents into "projects" by their sidemark / job
+    // reference (orders use job_name; quotes/samples/visits use sidemark;
+    // estimates use project_name). No new table — this is a live view over the
+    // records already loaded. Docs with no reference are simply not projects.
+    function buildProjects({ orders = [], quotes = [], samples = [], visits = [], estimates = [] }) {
+      const map = new Map(); // lowercased key -> group (preserves first-seen label)
+      const add = (rawKey, doc) => {
+        const label = (rawKey || '').trim();
+        if (!label) return;
+        const key = label.toLowerCase();
+        if (!map.has(key)) map.set(key, { key, label, docs: [] });
+        map.get(key).docs.push(doc);
+      };
+      orders.forEach(o => add(o.job_name || o.sidemark, { type: 'order', id: o.id, num: o.order_number, status: o.status, total: o.total != null ? parseFloat(o.total) : null, created_at: o.created_at }));
+      estimates.forEach(e => add(e.project_name, { type: 'estimate', id: e.id, num: e.estimate_number, status: e.effective_status || e.status, total: e.total != null ? parseFloat(e.total) : null, created_at: e.created_at || e.sent_at }));
+      quotes.forEach(q => add(q.sidemark, { type: 'quote', id: q.id, num: q.quote_number, status: q.status, total: q.total != null ? parseFloat(q.total) : null, created_at: q.created_at }));
+      samples.forEach(s => add(s.sidemark, { type: 'sample', id: s.id, num: s.request_number, status: s.status, total: null, created_at: s.created_at }));
+      visits.forEach(v => add(v.sidemark, { type: 'visit', id: v.id, num: v.request_number || null, status: v.status, total: null, created_at: v.created_at }));
+      const groups = Array.from(map.values()).map(g => {
+        const lastActivity = g.docs.reduce((m, d) => (d.created_at && (!m || new Date(d.created_at) > new Date(m))) ? d.created_at : m, null);
+        const value = g.docs.reduce((s, d) => s + (d.type === 'order' && d.total ? d.total : 0), 0);
+        const counts = g.docs.reduce((c, d) => { c[d.type] = (c[d.type] || 0) + 1; return c; }, {});
+        g.docs.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        return { key: g.key, label: g.label, docs: g.docs, lastActivity, value, counts, docCount: g.docs.length };
+      });
+      groups.sort((a, b) => new Date(b.lastActivity || 0) - new Date(a.lastActivity || 0));
+      return groups;
+    }
+
+    // Shared Projects view for both the customer account and trade dashboard.
+    // onOpen(type, id) hands off to the parent's existing open/expand handlers.
+    function ProjectsSection({ groups, fmtMoney, fmtDate, onOpen }) {
+      const [open, setOpen] = useState(null);
+      const typeLabel = { order: 'Order', estimate: 'Estimate', quote: 'Quote', sample: 'Sample', visit: 'Visit' };
+      const typeChip = {
+        order: { bg: 'rgba(58,122,78,0.12)', fg: '#3a7a4e' }, estimate: { bg: 'rgba(37,99,235,0.12)', fg: '#2563eb' },
+        quote: { bg: 'rgba(168,121,53,0.14)', fg: '#a87935' }, sample: { bg: 'rgba(28,25,23,0.08)', fg: 'var(--stone-700, #44403c)' },
+        visit: { bg: 'rgba(176,70,47,0.12)', fg: '#b0462f' }
+      };
+      if (!groups.length) {
+        return (
+          <div className="acct-profile-section" style={{ textAlign: 'center' }}>
+            <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No projects yet.</p>
+            <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: 0 }}>Add a sidemark or job reference to an order, quote, estimate, sample, or visit and everything under that name gathers here as a project.</p>
+          </div>
+        );
+      }
+      const grid = { gridTemplateColumns: '1fr 200px 120px 90px' };
+      const order = ['order', 'estimate', 'quote', 'sample', 'visit'];
+      const summary = (c) => order.filter(t => c[t]).map(t => c[t] + ' ' + typeLabel[t].toLowerCase() + (c[t] > 1 ? 's' : '')).join(' · ');
+      return (
+        <div>
+          <div className="acct-col-headers" style={grid}>
+            <span>Project</span><span>Activity</span><span style={{ textAlign: 'right' }}>Order value</span><span />
+          </div>
+          <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
+            {groups.map(g => (
+              <React.Fragment key={g.key}>
+                <div className="acct-order-row" style={grid} onClick={() => setOpen(open === g.key ? null : g.key)}>
+                  <div>
+                    <div className="acct-order-num">{g.label}</div>
+                    <div className="acct-order-date">{g.lastActivity ? 'Last activity ' + fmtDate(g.lastActivity) : ''}</div>
+                  </div>
+                  <div className="acct-order-detail">{summary(g.counts)}</div>
+                  <div style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{g.value ? fmtMoney(g.value) : '—'}</div>
+                  <span className="acct-order-action">{open === g.key ? 'Close ×' : 'Open →'}</span>
+                </div>
+                {open === g.key && (
+                  <div className="acct-order-expanded">
+                    {g.docs.map((d, i) => {
+                      const chip = typeChip[d.type] || typeChip.sample;
+                      return (
+                        <div key={d.type + d.id + i} onClick={() => onOpen(d.type, d.id)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0', borderBottom: i < g.docs.length - 1 ? '0.5px solid rgba(28,25,23,0.08)' : 'none', cursor: 'pointer' }}>
+                          <span style={{ background: chip.bg, color: chip.fg, fontSize: '0.625rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 3, flexShrink: 0, minWidth: 62, textAlign: 'center' }}>{typeLabel[d.type]}</span>
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{d.num || (d.type === 'visit' ? 'Showroom visit' : '—')}</span>
+                          <span style={{ color: 'var(--warm-muted)', fontSize: '0.75rem' }}>{d.created_at ? fmtDate(d.created_at) : ''}</span>
+                          <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--warm-muted)', textTransform: 'capitalize' }}>{(d.status || '').replace(/_/g, ' ')}</span>
+                          {d.total != null && <span style={{ fontVariantNumeric: 'tabular-nums', fontSize: '0.8125rem', minWidth: 70, textAlign: 'right' }}>{fmtMoney(d.total)}</span>}
+                          <span style={{ color: 'var(--warm-muted)' }}>&rarr;</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     function AccountPage({ customer, customerToken, setCustomer, goBrowse, section, setSection, wishlist, toggleWishlist, onSkuClick, addToCart, showToast, navigate, goHome, onLogout }) {
       const [orders, setOrders] = useState([]);
       const [expandedOrder, setExpandedOrder] = useState(null);
@@ -11973,6 +12069,14 @@
           }
         } catch(e) { alert('Failed to add sample'); }
         setAddingSampleItem(null);
+      };
+
+      const openProjectDoc = (type, id) => {
+        if (type === 'order') { setSection('orders'); if (expandedOrder !== id) viewOrderDetail(id); }
+        else if (type === 'quote') { setSection('quotes'); if (expandedQuote !== id) viewQuoteDetail(id); }
+        else if (type === 'estimate') { setSection('quotes'); if (expandedEstimate !== id) viewEstimateDetail(id); }
+        else if (type === 'sample') { setSection('samples'); setExpandedSample(id); }
+        else if (type === 'visit') { setSection('visits'); if (expandedVisit !== id) viewVisitDetail(id); }
       };
 
       const viewOrderDetail = async (orderId) => {
@@ -12143,8 +12247,10 @@
       const fmtDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+      const projectGroups = buildProjects({ orders, quotes, samples: sampleRequests, visits, estimates });
       const NAV_SECTIONS = [
         { id: 'overview', label: 'Overview', meta: 'Snapshot' },
+        { id: 'projects', label: 'Projects', meta: projectGroups.length ? projectGroups.length + (projectGroups.length === 1 ? ' project' : ' projects') : 'By sidemark' },
         { id: 'orders', label: 'Orders', meta: loadingOrders ? '…' : orders.length + ' lifetime' + (activeOrders.length ? ' · ' + activeOrders.length + ' active' : '') },
         { id: 'quotes', label: 'Quotes', meta: loadingQuotes ? '…' : ((quotes.length + estimates.length) ? [quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : null, estimates.length ? estimates.length + (estimates.length === 1 ? ' estimate' : ' estimates') : null].filter(Boolean).join(' · ') : 'None yet') },
         { id: 'samples', label: 'Samples', meta: loadingSamples ? '…' : (sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? ' box' : ' boxes') + ' · ' + swatchCount + ' swatches' : 'None yet') },
@@ -12157,6 +12263,7 @@
       const monthYear = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
       const heroBySection = {
         overview: { eyebrow: 'Account · ' + monthYear, heading: <>Welcome back,<br /><em>{customer.first_name || 'friend'}</em>.</> },
+        projects: { eyebrow: 'Grouped by sidemark', heading: <>Your <em>projects</em>.</> },
         orders: { eyebrow: loadingOrders ? 'Order history' : orders.length + ' lifetime ' + (orders.length === 1 ? 'order' : 'orders'), heading: <>Your <em>orders</em>.</> },
         quotes: { eyebrow: 'Prepared by our team', heading: <>Your <em>quotes</em>.</> },
         samples: { eyebrow: 'Boxes & swatches', heading: <>Your <em>samples</em>.</> },
@@ -12207,18 +12314,28 @@
           {orderDetail.order.delivery_method === 'pickup' && orderDetail.fulfillment_summary && orderDetail.fulfillment_summary.total > 0 && ['confirmed', 'shipped', 'delivered'].includes(orderDetail.order.status) && (() => {
             const { total, received } = orderDetail.fulfillment_summary;
             const allReady = received >= total;
+            const pct = total > 0 ? Math.round((received / total) * 100) : 0;
             return (
               <div style={{
-                background: allReady ? '#f0fdf4' : '#fffbeb', border: '1px solid ' + (allReady ? '#bbf7d0' : '#fde68a'),
-                padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.8125rem',
-                color: allReady ? '#166534' : '#92400e', display: 'flex', alignItems: 'center', gap: '0.75rem'
+                background: allReady ? 'rgba(135,153,107,0.10)' : 'rgba(28,25,23,0.04)',
+                border: '0.5px solid ' + (allReady ? 'rgba(135,153,107,0.45)' : 'rgba(28,25,23,0.12)'),
+                padding: '0.875rem 1rem', marginBottom: '1rem', borderRadius: 4
               }}>
-                <div style={{ flex: 1 }}>
-                  <strong>{allReady ? 'All items ready for pickup!' : `${received} of ${total} items ready for pickup`}</strong>
-                  {!allReady && <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', opacity: 0.8 }}>Remaining items are still being received from suppliers</div>}
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.6rem' }}>
+                  <span className="acct-footer-card-sub" style={{ color: allReady ? 'var(--sage-dark)' : 'var(--warm-muted)' }}>
+                    {allReady ? '● Ready for pickup' : 'Preparing your order'}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--stone-600)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                    {received} of {total} {total === 1 ? 'item' : 'items'} ready
+                  </span>
                 </div>
-                <div style={{ width: 48, height: 48, borderRadius: '50%', background: allReady ? '#22c55e' : '#f59e0b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.8125rem', flexShrink: 0 }}>
-                  {received}/{total}
+                <div className="acct-progress">
+                  <div className="acct-progress-fill" style={{ right: (100 - pct) + '%', background: allReady ? 'var(--sage)' : 'var(--gold)' }} />
+                </div>
+                <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: 'var(--stone-600)', lineHeight: 1.5 }}>
+                  {allReady
+                    ? 'Everything’s in — stop by the showroom any time we’re open and we’ll have it waiting.'
+                    : 'The rest of your materials are still arriving from our suppliers. We’ll email you the moment everything’s ready.'}
                 </div>
               </div>
             );
@@ -12624,6 +12741,13 @@
             </div>
           )}
 
+          {section === 'projects' && (
+            <div>
+              {sectionHead('Grouped by sidemark', 'Projects')}
+              <ProjectsSection groups={projectGroups} fmtMoney={fmtMoney} fmtDate={fmtDate} onOpen={openProjectDoc} />
+            </div>
+          )}
+
           {section === 'orders' && (
             <div>
               <div>
@@ -12975,12 +13099,7 @@
                                     <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, border: '0.5px solid rgba(28,25,23,0.1)' }} loading="lazy" />
                                   )}
                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name}</div>
-                                    {(item.collection || item.variant_name) && (
-                                      <div style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>
-                                        {[item.collection, item.variant_name].filter(Boolean).join(' · ')}
-                                      </div>
-                                    )}
+                                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{itemLineName(item)}</div>
                                   </div>
                                   <span className="acct-order-status" style={{ color: 'var(--warm-muted)' }}>Free</span>
                                 </div>
@@ -13011,8 +13130,7 @@
                                         <div key={sku.sku_id} style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', padding: '0.5rem 0.75rem', borderBottom: '0.5px solid rgba(28,25,23,0.06)', fontSize: '0.8125rem' }}>
                                           {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 100)} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 3 }} loading="lazy" />}
                                           <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontWeight: 500 }}>{sku.product_name || sku.collection}</div>
-                                            {sku.variant_name && <div style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>{sku.variant_name}</div>}
+                                            <div style={{ fontWeight: 500 }}>{fullProductName(sku)}</div>
                                           </div>
                                           {alreadyAdded ? (
                                             <span style={{ fontSize: '0.6875rem', color: 'var(--warm-muted)' }}>Added</span>
@@ -13104,12 +13222,7 @@
                                     )}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                       <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)', cursor: item.sku_id ? 'pointer' : 'default' }}
-                                        onClick={() => item.sku_id && onSkuClick(item.sku_id, item.product_name)}>{item.product_name}</div>
-                                      {(item.collection || item.variant_name) && (
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>
-                                          {[item.collection, item.variant_name].filter(Boolean).join(' · ')}
-                                        </div>
-                                      )}
+                                        onClick={() => item.sku_id && onSkuClick(item.sku_id, item.product_name)}>{itemLineName(item)}</div>
                                       {item.rep_note && (
                                         <div style={{ fontSize: '0.75rem', color: '#7a5a1e', fontStyle: 'italic', marginTop: 2 }}>
                                           {item.rep_note}
@@ -13576,6 +13689,18 @@
         } else if (t === 'samples') {
           fetch(API + '/api/trade/samples', { headers: authHeaders })
             .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(d => { setSampleRequests(d.sample_requests || []); setExpandedSample(null); setLoading(false); }).catch(() => setLoading(false));
+        } else if (t === 'projects') {
+          // Projects group by sidemark across every doc type, so pull them all.
+          Promise.all([
+            fetch(API + '/api/trade/orders', { headers: authHeaders }).then(r => r.ok ? r.json() : { orders: [] }).catch(() => ({ orders: [] })),
+            fetch(API + '/api/trade/quotes', { headers: authHeaders }).then(r => r.ok ? r.json() : { quotes: [] }).catch(() => ({ quotes: [] })),
+            fetch(API + '/api/trade/estimates', { headers: authHeaders }).then(r => r.ok ? r.json() : { estimates: [] }).catch(() => ({ estimates: [] })),
+            fetch(API + '/api/trade/samples', { headers: authHeaders }).then(r => r.ok ? r.json() : { sample_requests: [] }).catch(() => ({ sample_requests: [] })),
+            fetch(API + '/api/trade/visits', { headers: authHeaders }).then(r => r.ok ? r.json() : { visits: [] }).catch(() => ({ visits: [] }))
+          ]).then(([od, qd, ed, sd, vd]) => {
+            setOrders(od.orders || []); setQuotes(qd.quotes || []); setEstimates(ed.estimates || []);
+            setSampleRequests(sd.sample_requests || []); setVisits(vd.visits || []); setLoading(false);
+          }).catch(() => setLoading(false));
         } else if (t === 'payment') {
           setLoading(false);
         } else if (t === 'settings') {
@@ -13657,10 +13782,16 @@
       };
 
       const acceptQuote = async (quoteId) => {
-        if (!confirm('Accept this quote and convert it to an order?')) return;
-        const resp = await fetch(API + '/api/trade/quotes/' + quoteId + '/accept', { method: 'POST', headers: authHeaders });
-        if (resp.ok) { showToast('Quote accepted! Order has been created.', 'success'); loadTab('quotes'); }
-        else { const d = await resp.json(); showToast(d.error || 'Failed to accept quote', 'error'); }
+        if (!confirm('Accept this quote and pay now to place your order?')) return;
+        try {
+          const resp = await fetch(API + '/api/trade/quotes/' + quoteId + '/accept', {
+            method: 'POST', headers: { ...authHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ terms_accepted: true })
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data.checkout_url) { showToast(data.error || 'Could not start checkout — please try again.', 'error'); return; }
+          window.location.href = data.checkout_url;
+        } catch (e) { showToast('Could not start checkout — please try again.', 'error'); }
       };
 
       const downloadQuotePdf = async (quoteId) => {
@@ -13680,6 +13811,14 @@
         const resp = await fetch(API + '/api/trade/estimates/' + estId, { headers: authHeaders });
         const data = await resp.json();
         setEstimateDetail(data);
+      };
+
+      const openProjectDoc = (type, id) => {
+        if (type === 'order') { setTab('orders'); setExpandedOrder(id); }
+        else if (type === 'quote') { setTab('quotes'); if (expandedQuote !== id) expandQuote(id); }
+        else if (type === 'estimate') { setTab('estimates'); if (expandedEstimate !== id) expandEstimate(id); }
+        else if (type === 'sample') { setTab('samples'); setExpandedSample(id); }
+        else if (type === 'visit') { setTab('visits'); if (expandedVisit !== id) expandVisit(id); }
       };
 
       const downloadEstimatePdf = async (estId) => {
@@ -13746,8 +13885,10 @@
       };
       const tProjName = (pid) => { const p = (projects || []).find(x => x.id === pid); return p ? p.name : null; };
       const tOrderCount = (dashData && dashData.order_count != null) ? dashData.order_count : orders.length;
+      const tProjectGroups = buildProjects({ orders, quotes, samples: sampleRequests, visits, estimates });
       const T_NAV = [
         { id: 'overview', label: 'Overview', meta: 'Snapshot' },
+        { id: 'projects', label: 'Projects', meta: tProjectGroups.length ? tProjectGroups.length + (tProjectGroups.length === 1 ? ' project' : ' projects') : 'By sidemark' },
         { id: 'orders', label: 'Orders', meta: tOrderCount ? tOrderCount + ' total' : 'None yet' },
         { id: 'quotes', label: 'Quotes', meta: quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : 'None yet' },
         { id: 'estimates', label: 'Estimates', meta: estimates.length ? estimates.length + (estimates.length === 1 ? ' estimate' : ' estimates') : 'None yet' },
@@ -13758,6 +13899,7 @@
         { id: 'settings', label: 'Settings', meta: 'Company & security' }
       ];
       const T_HERO = {
+        projects: { eyebrow: 'Grouped by sidemark', heading: <>Your <em>projects</em>.</> },
         orders: { eyebrow: 'Order history', heading: <>Your <em>orders</em>.</> },
         quotes: { eyebrow: 'Prepared by your rep', heading: <>Your <em>quotes</em>.</> },
         estimates: { eyebrow: 'Project pricing from your rep', heading: <>Your <em>estimates</em>.</> },
@@ -13948,7 +14090,7 @@
                           <div key={q.id} className="td-quote-row">
                             <div><span className="td-oid">{q.quote_number}</span><div className="td-oname">{q.customer_name || 'Quote'}</div>{dl != null && dl >= 0 && <div className="td-qexp">Locked pricing expires in {dl} day{dl === 1 ? '' : 's'}</div>}</div>
                             <div style={{ textAlign: 'right' }}><b style={{ fontSize: '1rem' }}>{money(q.total)}</b><div className="td-oproj">{q.item_count} line{q.item_count === 1 ? '' : 's'}</div></div>
-                            <button className="btn" onClick={() => acceptQuote(q.id)}>Accept</button>
+                            <button className="btn" onClick={() => acceptQuote(q.id)}>Accept &amp; pay</button>
                           </div>
                         ); }) : <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No open quotes.</p>}
                       </div>
@@ -13998,6 +14140,12 @@
               ) : (
                 <>
               {/* Orders */}
+              {tab === 'projects' && (
+                <div>
+                  <ProjectsSection groups={tProjectGroups} fmtMoney={tMoney} fmtDate={tFmtDate} onOpen={openProjectDoc} />
+                </div>
+              )}
+
               {tab === 'orders' && (
                 <div>
                   <div className="acct-tabs">
@@ -14143,7 +14291,7 @@
                                     <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', flexWrap: 'wrap' }}>
                                       <button className="acct-btn acct-btn--outline" onClick={(e) => { e.stopPropagation(); downloadQuotePdf(q.id); }}>Download PDF</button>
                                       {q.status !== 'converted' && !isExpired && (
-                                        <button className="acct-btn" onClick={(e) => { e.stopPropagation(); acceptQuote(q.id); }}>Accept quote</button>
+                                        <button className="acct-btn" onClick={(e) => { e.stopPropagation(); acceptQuote(q.id); }}>Accept &amp; pay</button>
                                       )}
                                     </div>
                                   </div>
@@ -14296,8 +14444,7 @@
                                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.625rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
                                       {item.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: '0.5px solid rgba(28,25,23,0.1)' }} loading="lazy" />}
                                       <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name}</div>
-                                        {(item.collection || item.variant_name) && <div style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>{[item.collection, item.variant_name].filter(Boolean).join(' · ')}</div>}
+                                        <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{itemLineName(item)}</div>
                                         {item.rep_note && <div style={{ fontSize: '0.75rem', color: '#7a5a1e', fontStyle: 'italic', marginTop: 2 }}>{item.rep_note}</div>}
                                       </div>
                                       {skuListPrice(item) && <span style={{ fontWeight: 500, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>${displayPrice(item, skuListPrice(item)).toFixed(2)}{priceSuffix(item)}</span>}
@@ -14364,8 +14511,7 @@
                                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.875rem', padding: '0.625rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)', fontSize: '0.8125rem' }}>
                                         {item.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(item.primary_image, 100)} alt={item.product_name} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4, border: '0.5px solid rgba(28,25,23,0.1)' }} loading="lazy" />}
                                         <div style={{ flex: 1, minWidth: 0 }}>
-                                          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{item.product_name}</div>
-                                          {(item.collection || item.variant_name) && <div style={{ fontSize: '0.75rem', color: 'var(--warm-muted)' }}>{[item.collection, item.variant_name].filter(Boolean).join(' · ')}</div>}
+                                          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9375rem', color: 'var(--stone-800)' }}>{itemLineName(item)}</div>
                                         </div>
                                       </div>
                                     ))}
@@ -17248,7 +17394,7 @@
                   {preview.validated_items.map((item, i) => (
                     <tr key={i}>
                       <td style={{ fontWeight: 500 }}>{item.sku_code}</td>
-                      <td>{item.product_name}</td>
+                      <td>{itemLineName(item)}</td>
                       <td>{item.quantity}</td>
                       <td>${parseFloat(item.unit_price).toFixed(2)}</td>
                       <td>${parseFloat(item.subtotal).toFixed(2)}</td>

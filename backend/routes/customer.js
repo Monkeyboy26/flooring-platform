@@ -594,7 +594,7 @@ export default function createCustomerRoutes(ctx) {
     try {
       const result = await pool.query(
         `SELECT o.id, o.order_number, o.customer_name, o.customer_email, o.status, o.subtotal, o.shipping, o.total, o.amount_paid,
-          o.delivery_method, o.shipping_method, o.tracking_number, o.shipping_carrier, o.shipped_at, o.created_at,
+          o.delivery_method, o.shipping_method, o.tracking_number, o.shipping_carrier, o.shipped_at, o.created_at, o.job_name,
           (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) as item_count,
           (SELECT json_agg(t) FROM (
             SELECT oi.product_name, s.variant_name, s.accessory_label, s.variant_type,
@@ -706,6 +706,9 @@ export default function createCustomerRoutes(ctx) {
         ...r,
         items: r.items && r.items[0] && r.items[0].id ? r.items : []
       }));
+      // Stamp display_name on every swatch line (json_agg gives plain objects, so
+      // in-place enrichment flows back into each request). See [[line-item-display]].
+      await enrichItemsForNaming(requests.flatMap(r => r.items));
       res.json({ sample_requests: requests });
     } catch (err) {
       console.error('Customer sample requests error:', err);
@@ -907,6 +910,7 @@ export default function createCustomerRoutes(ctx) {
       const visit = await pool.query("SELECT * FROM showroom_visits WHERE id = $1 AND customer_id = $2 AND status IN ('sent', 'opened', 'carted')", [req.params.id, req.customer.id]);
       if (!visit.rows.length) return res.status(404).json({ error: 'Visit not found' });
       const items = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order, id', [req.params.id]);
+      await enrichItemsForNaming(items.rows);
       res.json({ visit: visit.rows[0], items: items.rows });
     } catch (err) {
       console.error(err); res.status(500).json({ error: 'Internal server error' });
