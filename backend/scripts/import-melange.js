@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Import Mélange Boutique Tile product data from 2025 Q2 Price List.
+ * Import Mélange Boutique Tile product data from the 2026 Price Book.
  *
- * 26 collections, ~120 products (one per color), ~423 SKUs:
+ * 26 collections, ~120 products (one per color), ~440 SKUs:
  *   Porcelain Floor Tile: Block, Ca'Foscari, Caprice, Concrete Soul Infinity,
  *     Decoro, Factory, Kauri, Moonlit, Nirvana, Portland Stone,
  *     Real Stone Travertino, Shellstone, Sicily, Sixty 60 Silktech, Snow,
@@ -12,11 +12,20 @@
  *   Wall Tile: Evolution, Memory, Pearl
  *   Porcelain Paver: Quartz Outdoor
  *
- * Pricing: PDF lists dealer cost. Retail = cost × 1.6 keystone.
- * All tiles sold per sqft unless noted (mosaico sheets SH, bullnose PC).
+ * Pricing: PDF lists dealer cost. Imported (non-domestic) items carry the 2026
+ * book's 5% surcharge in cost; retail = cost × 1.6 keystone snapped to a 9-ending
+ * with the covering floor (cost+$0.99), matching the store standard. Domestic
+ * (Made-in-USA) collections — Shellstone, Quartz Outdoor (`domestic: true`) — are
+ * surcharge-exempt. All tiles sold per sqft unless noted (mosaico sheets SH,
+ * bullnose PC → per-unit accessories).
  *
- * Draft collections (no pricing in Q2-2025 PDF): Shellstone, Sicily, Caprice,
- * Evolution, Unique Bourgogne — imported as status='draft' with no pricing rows.
+ * Newly priced/activated in the 2026 book: Shellstone (USA) and Unique Bourgogne
+ * (Italy) — both were placeholder drafts; the placeholder SKUs/products (old IDs
+ * 4400s / 4450s) are pruned and their photos migrated to the real color products.
+ * Still draft (absent from the 2026 book): Sicily, Caprice, Evolution.
+ *
+ * Re-run-safe: retail is only recomputed when a SKU is new or its cost changed
+ * (e.g. first surcharge run) — unchanged rows keep the platform 9-ending backfill.
  *
  * Usage: docker compose exec api node scripts/import-melange.js
  */
@@ -32,6 +41,32 @@ const pool = new pg.Pool({
 });
 
 const RETAIL_MARKUP = 1.6;
+const RETAIL_MIN_MARGIN = 0.99;
+// 2026 price book: "A surcharge of 5% will be applied to all items with the
+// exception of domestic products." Domestic = Made in USA (Shellstone, Quartz
+// Outdoor). We bake the surcharge into Roma's COST for imported items, so retail
+// (cost x1.6 keystone, 9-ending) carries it through. See collection `domestic` flag.
+const IMPORT_SURCHARGE = 1.05;
+const round2 = (v) => Math.round(Number(v) * 100) / 100;
+
+// ---- Pricing (mirrors scrapers/base.js upsertPricing 9-ending + covering floor) ----
+const keystone = (cost) => Number(cost) * RETAIL_MARKUP;
+const nearestNine = (v) => {
+  const cents = Math.round(Number(v) * 100);
+  const k = Math.floor((cents - 9) / 10);
+  return Math.max(9, k * 10 + 9) / 100;
+};
+// price_basis 'per_sqft' → covering floor (cost+$0.99) applies; 'per_unit'
+// (mosaico sheets, bullnose pieces) → 9-ending only.
+const priceRetail = (cost, basis) => {
+  const rn = keystone(cost);
+  if (!(rn > 0)) return null;
+  const cn = basis === 'per_sqft' ? (Number(cost) || 0) : 0;
+  const floorMin = cn > 0 ? cn + RETAIL_MIN_MARGIN : 0;
+  let nine = nearestNine(Math.max(rn, floorMin));
+  if (floorMin > 0 && nine < floorMin - 1e-9) nine = Math.round((nine + 0.10) * 100) / 100;
+  return nine;
+};
 
 // ==================== Helpers ====================
 
@@ -48,29 +83,40 @@ async function upsertProduct(vendor_id, { name, collection, category_id, descrip
   return result.rows[0];
 }
 
-async function upsertSku(product_id, { vendor_sku, internal_sku, variant_name, sell_by, variant_type }) {
+async function upsertSku(product_id, { vendor_sku, internal_sku, variant_name, sell_by, variant_type, accessory_label }) {
   const result = await pool.query(`
-    INSERT INTO skus (product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type)
-    VALUES ($1, $2, $3, $4, $5, $6)
+    INSERT INTO skus (product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type, accessory_label)
+    VALUES ($1, $2, $3, $4, $5, $6, $7)
     ON CONFLICT (internal_sku) DO UPDATE SET
       product_id = EXCLUDED.product_id,
       vendor_sku = COALESCE(EXCLUDED.vendor_sku, skus.vendor_sku),
       variant_name = COALESCE(EXCLUDED.variant_name, skus.variant_name),
       sell_by = COALESCE(EXCLUDED.sell_by, skus.sell_by),
       variant_type = COALESCE(EXCLUDED.variant_type, skus.variant_type),
+      accessory_label = COALESCE(EXCLUDED.accessory_label, skus.accessory_label),
       updated_at = CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
-  `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'box', variant_type || null]);
+  `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'box', variant_type || null, accessory_label || null]);
   return result.rows[0];
 }
 
 async function upsertPricing(sku_id, { cost, retail_price, price_basis }) {
+  // Cost-gated retail: only (re)write retail when the row is new, its cost
+  // changed (e.g. the 5% surcharge bumps imported costs), or it has no retail
+  // yet. This preserves the platform-wide 9-ending backfill on unchanged rows
+  // (re-deriving from cost would nudge nickel-history ties by a cent). Never
+  // overwrites a retail_locked (Home-Depot-matched) price.
   await pool.query(`
     INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
     VALUES ($1, $2, $3, $4)
     ON CONFLICT (sku_id) DO UPDATE SET
       cost = EXCLUDED.cost,
-      retail_price = EXCLUDED.retail_price,
+      retail_price = CASE
+        WHEN COALESCE(pricing.retail_locked, false) THEN pricing.retail_price
+        WHEN pricing.retail_price IS NULL
+             OR pricing.cost IS DISTINCT FROM EXCLUDED.cost THEN EXCLUDED.retail_price
+        ELSE pricing.retail_price
+      END,
       price_basis = EXCLUDED.price_basis
   `, [sku_id, cost, retail_price, price_basis || 'per_sqft']);
 }
@@ -97,6 +143,49 @@ async function setAttr(sku_id, slug, value) {
     ON CONFLICT (sku_id, attribute_id) DO UPDATE SET value = EXCLUDED.value
   `, [sku_id, attr.rows[0].id, String(value).trim()]);
 }
+
+// Delete SKUs and all their child rows (no ON DELETE CASCADE on most FKs).
+// Media should be migrated off BEFORE calling this (rows with sku_id set here
+// are removed). Placeholders are draft/never-ordered, so cart/order refs are none.
+async function deleteSkus(skuIds) {
+  if (!skuIds.length) return;
+  for (const tbl of ['media_assets', 'pricing', 'packaging', 'sku_attributes', 'inventory_snapshots']) {
+    await pool.query(`DELETE FROM ${tbl} WHERE sku_id = ANY($1::uuid[])`, [skuIds]);
+  }
+  await pool.query('DELETE FROM sku_accessories WHERE parent_sku_id = ANY($1::uuid[]) OR accessory_sku_id = ANY($1::uuid[])', [skuIds]);
+  await pool.query('DELETE FROM skus WHERE id = ANY($1::uuid[])', [skuIds]);
+}
+
+// Promote a placeholder SKU's photos to product level (sku_id → NULL) on the
+// target product, so the newly-activated color keeps its imagery. Only the
+// chosen donor SKU is promoted (the product-level unique index forbids dupes);
+// callers delete the remaining placeholder SKUs (and their media) afterwards.
+async function promoteMediaToProduct(donorSkuId, targetProductId) {
+  await pool.query(
+    'UPDATE media_assets SET sku_id = NULL, product_id = $2 WHERE sku_id = $1',
+    [donorSkuId, targetProductId]
+  );
+}
+
+// Priced items the 2026 book marks "Special Order" — imported so they carry
+// pricing, but set to draft (not shown in-stock on the storefront). Unpriced
+// non-stock pavers aren't imported at all. Drafted LAST, after the generic
+// active/draft pass (which would otherwise flip them back to active).
+const SPECIAL_ORDER_SKUS = [
+  // Concrete Soul Infinity — Natural finish (Wax is the stock finish)
+  'MLG-CSI-4169-3', 'MLG-CSI-4170-3', 'MLG-CSI-4171-3', 'MLG-CSI-4172-3', 'MLG-CSI-4173-3',
+  // Sixty 60 Silktech — Salvia/Cielo 24x48 (Natural + Timbro)
+  'MLG-S60-4178-2', 'MLG-S60-4179-2', 'MLG-S60-4178-3', 'MLG-S60-4179-3',
+  // Sublime — Lap Polished 24x48, Strutt 48x48, Lap Polished 48x48
+  'MLG-SUB-4195-4', 'MLG-SUB-4196-4', 'MLG-SUB-4197-4',
+  'MLG-SUB-4195-6', 'MLG-SUB-4196-6', 'MLG-SUB-4197-6',
+  'MLG-SUB-4195-7', 'MLG-SUB-4196-7', 'MLG-SUB-4197-7',
+  // Unique Bourgogne — Variee Lappato Antique
+  'MLG-UBG-4361-6', 'MLG-UBG-4362-6', 'MLG-UBG-4363-6',
+  // Unique Infinity — Cobblestone 48x48, Puerstone 48x48
+  'MLG-UNI-4259-3', 'MLG-UNI-4260-3', 'MLG-UNI-4261-3', 'MLG-UNI-4262-3',
+  'MLG-UNI-4259-6', 'MLG-UNI-4260-6', 'MLG-UNI-4261-6', 'MLG-UNI-4262-6',
+];
 
 // ==================== Collection Data ====================
 // Each collection: { name, code, desc, origin, material, groups: [{ finish?, size, price, um, pkg, colors }] }
@@ -383,9 +472,8 @@ const COLLECTIONS = [
       { finish: 'Minimal Natural', size: '24x48', price: 4.99, um: 'SF',
         pkg: { sqft_per_box: 15.50, pieces_per_box: 2, boxes_per_pallet: 36, sqft_per_pallet: 558.0 },
         colors: [['White','3121-4'],['Grey','3122-4'],['Dark','3123-4'],['Sand','3125-4'],['Taupe','3126-4']] },
-      { finish: 'Minimal Natural', size: '36x36', price: 5.99, um: 'SF',
-        pkg: { sqft_per_box: 17.44, pieces_per_box: 2, boxes_per_pallet: 36, sqft_per_pallet: 313.92 },
-        colors: [['White','3121-8'],['Grey','3122-8'],['Dark','3123-8'],['Sand','3125-8'],['Taupe','3126-8']] },
+      // 36x36 Minimal Natural (…-8) dropped from the 2026 book — the existing
+      // SKUs are set to draft in the placeholder-cleanup step below.
       { finish: 'Mosaico Dado', size: '2x2', price: 14.99, um: 'SH',
         pkg: { sqft_per_box: 5, pieces_per_box: 5 },
         colors: [['White','3121-5'],['Grey','3122-5'],['Dark','3123-5'],['Sand','3125-5'],['Taupe','3126-5']] },
@@ -573,7 +661,7 @@ const COLLECTIONS = [
   {
     name: 'Quartz Outdoor', code: 'QOD',
     desc: 'Rectified Color Body Porcelain Paver 20mm',
-    origin: 'USA', material: 'Porcelain',
+    origin: 'USA', material: 'Porcelain', domestic: true,
     paver: true,
     groups: [
       { size: '12x48', price: 5.59, um: 'SF',
@@ -588,19 +676,24 @@ const COLLECTIONS = [
     ],
   },
 
-  // ── 22. SHELLSTONE (draft — not in price list) ──────
+  // ── 22. SHELLSTONE (2026 book p.16 — Made in USA, DOMESTIC, no surcharge) ──
   {
     name: 'Shellstone', code: 'SHL',
-    desc: 'Porcelain Tile Floor | Wall | Interior | Exterior R10',
-    origin: 'USA', material: 'Porcelain',
-    draft: true, price: 0,
+    desc: 'Full Color Body Porcelain Tile Floor | Wall | Interior | Exterior R10',
+    origin: 'USA', material: 'Porcelain', domestic: true,
     groups: [
-      { size: '12x24', price: 0, um: 'SF',
-        pkg: { sqft_per_box: 11.63, pieces_per_box: 6, boxes_per_pallet: 40 },
-        colors: [['White','4400'],['Gray','4401'],['Dark Gray','4402'],['Sand','4403']] },
-      { size: '24x48', price: 0, um: 'SF',
-        pkg: { sqft_per_box: 15.50, pieces_per_box: 2, boxes_per_pallet: 35 },
-        colors: [['White','4400-2'],['Gray','4401-2'],['Dark Gray','4402-2'],['Sand','4403-2']] },
+      { finish: 'Natural', size: '12x24', price: 3.99, um: 'SF',
+        pkg: { sqft_per_box: 17.0, pieces_per_box: 9, boxes_per_pallet: 32, sqft_per_pallet: 544 },
+        colors: [['White','4345-2'],['Gray','4346-2'],['Dark Gray','4347-2'],['Sand','4348-2']] },
+      { finish: 'Natural', size: '24x48', price: 4.79, um: 'SF',
+        pkg: { sqft_per_box: 15.5, pieces_per_box: 2, boxes_per_pallet: 36, sqft_per_pallet: 558 },
+        colors: [['White','4345-3'],['Gray','4346-3'],['Dark Gray','4347-3'],['Sand','4348-3']] },
+      { finish: 'Mosaico', size: '2x2', price: 14.99, um: 'SH',
+        pkg: { sqft_per_box: 5, pieces_per_box: 5 },
+        colors: [['White','4345-4'],['Gray','4346-4'],['Dark Gray','4347-4'],['Sand','4348-4']] },
+      { finish: 'Décor Groove', size: '24x48', price: 4.99, um: 'SF',
+        pkg: { sqft_per_box: 15.5, pieces_per_box: 2, boxes_per_pallet: 36, sqft_per_pallet: 558 },
+        colors: [['White','4345-5'],['Gray','4346-5'],['Dark Gray','4347-5'],['Sand','4348-5']] },
     ],
   },
 
@@ -662,22 +755,30 @@ const COLLECTIONS = [
     ],
   },
 
-  // ── 26. UNIQUE BOURGOGNE (draft — not in price list) ─
+  // ── 26. UNIQUE BOURGOGNE (2026 book p.28 — Made in Italy, imported) ──
   {
     name: 'Unique Bourgogne', code: 'UBG',
-    desc: 'Porcelain Tile Floor | Wall | Provenza (Emil Group)',
+    desc: 'Full Color Body Porcelain Tile Floor | Wall | Interior | Exterior R10',
     origin: 'Italy', material: 'Porcelain',
-    draft: true, price: 0,
     groups: [
-      { size: '12x24', price: 0, um: 'SF',
-        pkg: { sqft_per_box: 11.63, pieces_per_box: 6, boxes_per_pallet: 40 },
-        colors: [['Blanc Variee','4450'],['Blanc Minimal','4451'],['Beige Variee','4452'],['Beige Minimal','4453'],['Gris Variee','4454'],['Gris Minimal','4455']] },
-      { size: '24x24', price: 0, um: 'SF',
-        pkg: { sqft_per_box: 11.63, pieces_per_box: 3, boxes_per_pallet: 40 },
-        colors: [['Blanc Variee','4450-2'],['Blanc Minimal','4451-2'],['Beige Variee','4452-2'],['Beige Minimal','4453-2'],['Gris Variee','4454-2'],['Gris Minimal','4455-2']] },
-      { size: '24x48', price: 0, um: 'SF',
-        pkg: { sqft_per_box: 15.50, pieces_per_box: 2, boxes_per_pallet: 35 },
-        colors: [['Blanc Variee','4450-3'],['Blanc Minimal','4451-3'],['Beige Variee','4452-3'],['Beige Minimal','4453-3'],['Gris Variee','4454-3'],['Gris Minimal','4455-3']] },
+      { finish: 'Minimal Naturale', size: '24x48', price: 4.99, um: 'SF',
+        pkg: { sqft_per_box: 15.5, pieces_per_box: 2, boxes_per_pallet: 36, sqft_per_pallet: 558 },
+        colors: [['Blanc','4361-2'],['Beige','4362-2'],['Gris','4363-2']] },
+      { finish: 'Minimal Mosaico', size: '2x2', price: 14.99, um: 'SH',
+        pkg: { sqft_per_box: 5, pieces_per_box: 5 },
+        colors: [['Blanc','4361-3'],['Beige','4362-3'],['Gris','4363-3']] },
+      { finish: 'Variee Naturale', size: '24x48', price: 4.99, um: 'SF',
+        pkg: { sqft_per_box: 15.5, pieces_per_box: 2, boxes_per_pallet: 36, sqft_per_pallet: 558 },
+        colors: [['Blanc','4361-4'],['Beige','4362-4'],['Gris','4363-4']] },
+      { finish: 'Variee Mosaico', size: '2x2', price: 14.99, um: 'SH',
+        pkg: { sqft_per_box: 5, pieces_per_box: 5 },
+        colors: [['Blanc','4361-5'],['Beige','4362-5'],['Gris','4363-5']] },
+      { finish: 'Variee Lappato Antique', size: '24x48', price: 5.49, um: 'SF',
+        pkg: { sqft_per_box: 15.5, pieces_per_box: 2, boxes_per_pallet: 36, sqft_per_pallet: 558 },
+        colors: [['Blanc','4361-6'],['Beige','4362-6'],['Gris','4363-6']] },
+      { finish: 'Pointes Naturale Décor', size: '24x48', price: 5.29, um: 'SF',
+        pkg: { sqft_per_box: 15.5, pieces_per_box: 2, boxes_per_pallet: 36, sqft_per_pallet: 558 },
+        colors: [['Blanc','4361-7'],['Beige','4362-7'],['Gris','4363-7']] },
     ],
   },
 ];
@@ -763,14 +864,20 @@ async function main() {
           variant_name: variantName,
           sell_by: sellBy,
           variant_type: variantType,
+          // Accessories (bullnose PC, mosaico SH) show accessory_label in the
+          // storefront's Matching Accessories card. Use the full variant name so
+          // sibling accessories stay distinguishable (e.g. Bullnose Lux vs Matt),
+          // matching the rest of the Melange catalog. Non-accessories: null.
+          accessory_label: isAccessory ? variantName : null,
         });
         if (sku.is_new) skusCreated++; else skusUpdated++;
 
-        // Pricing: PDF price = dealer cost, retail = cost × 1.6 keystone
-        // Skip pricing for draft collections (not in price list yet)
-        if (!coll.draft) {
-          const cost = group.price;
-          const retail = parseFloat((cost * RETAIL_MARKUP).toFixed(2));
+        // Pricing: PDF price = dealer cost. Imported (non-domestic) items carry
+        // the 5% surcharge in cost; retail = cost × 1.6 keystone, 9-ending.
+        // Skip pricing for draft collections (not in price list yet).
+        if (!coll.draft && group.price > 0) {
+          const cost = coll.domestic ? round2(group.price) : round2(group.price * IMPORT_SURCHARGE);
+          const retail = priceRetail(cost, priceBasis);
           await upsertPricing(sku.id, { cost, retail_price: retail, price_basis: priceBasis });
         }
 
@@ -795,6 +902,51 @@ async function main() {
 
   console.log(`\nProducts: ${productsCreated} created, ${productsUpdated} updated`);
   console.log(`SKUs: ${skusCreated} created, ${skusUpdated} updated`);
+
+  // ==================== Placeholder pruning (2026 activations) ====================
+  // Shellstone & Unique Bourgogne were placeholder drafts with fake IDs. The real
+  // 2026 SKUs are now imported; drop the stale ones, keeping one photo set/color.
+  console.log('\n--- Cleanup: pruning placeholder SKUs & migrating photos ---');
+
+  // Shellstone: real import reused the same-named products; remove old SKUs 4400-4403(+-2).
+  for (const [color, baseId] of [['White', '4400'], ['Gray', '4401'], ['Dark Gray', '4402'], ['Sand', '4403']]) {
+    const ph = await pool.query(`
+      SELECT s.id, s.vendor_sku, s.product_id FROM skus s
+      JOIN products p ON p.id = s.product_id
+      WHERE p.vendor_id = $1 AND p.collection = 'Shellstone' AND p.name = $2
+        AND s.internal_sku LIKE 'MLG-SHL-44%'`, [vendorId, color]);
+    if (!ph.rows.length) continue;
+    const donor = ph.rows.find(r => r.vendor_sku === baseId) || ph.rows[0];
+    await promoteMediaToProduct(donor.id, donor.product_id);
+    await deleteSkus(ph.rows.map(r => r.id));
+    console.log(`  Shellstone/${color}: promoted photos, removed ${ph.rows.length} placeholder SKUs`);
+  }
+
+  // Unique Bourgogne: old 6-color products (…Variee/…Minimal) → new Blanc/Beige/Gris.
+  const UBG_MAP = [
+    { newColor: 'Blanc', placeholders: ['Blanc Variee', 'Blanc Minimal'], donorBaseId: '4450' },
+    { newColor: 'Beige', placeholders: ['Beige Variee', 'Beige Minimal'], donorBaseId: '4452' },
+    { newColor: 'Gris', placeholders: ['Gris Variee', 'Gris Minimal'], donorBaseId: '4454' },
+  ];
+  for (const { newColor, placeholders, donorBaseId } of UBG_MAP) {
+    const newProd = await pool.query(
+      `SELECT id FROM products WHERE vendor_id = $1 AND collection = 'Unique Bourgogne' AND name = $2`,
+      [vendorId, newColor]);
+    const newProdId = newProd.rows[0]?.id;
+    const ph = await pool.query(`
+      SELECT s.id, s.vendor_sku, s.product_id FROM skus s
+      JOIN products p ON p.id = s.product_id
+      WHERE p.vendor_id = $1 AND p.collection = 'Unique Bourgogne' AND p.name = ANY($2)`,
+      [vendorId, placeholders]);
+    if (!ph.rows.length) continue;
+    const donor = ph.rows.find(r => r.vendor_sku === donorBaseId) || ph.rows[0];
+    if (newProdId) await promoteMediaToProduct(donor.id, newProdId);
+    await deleteSkus(ph.rows.map(r => r.id));
+    const phProdIds = [...new Set(ph.rows.map(r => r.product_id))];
+    await pool.query('DELETE FROM media_assets WHERE product_id = ANY($1::uuid[])', [phProdIds]);
+    await pool.query('DELETE FROM products WHERE id = ANY($1::uuid[])', [phProdIds]);
+    console.log(`  Unique Bourgogne/${newColor}: promoted photos, removed ${ph.rows.length} placeholder SKUs + ${phProdIds.length} products`);
+  }
 
   // ==================== Cleanup ====================
   // Migrate media from old collection-level products to new color-level products,
@@ -896,6 +1048,27 @@ async function main() {
 
     console.log(`  Set ${draftProductIds.size} draft products (${draftCollections.size} collections)`);
   }
+
+  // Stonetalk 36x36 Minimal Natural (…-8) dropped from the 2026 book → discontinue.
+  // Runs LAST: the generic active/draft pass above flips every SKU of an active
+  // collection back to 'active', so this discontinuation must come after it.
+  const stk = await pool.query(`
+    UPDATE skus s SET status = 'draft', updated_at = CURRENT_TIMESTAMP
+    FROM products p
+    WHERE s.product_id = p.id AND p.vendor_id = $1 AND p.collection = 'Stonetalk'
+      AND s.internal_sku IN ('MLG-STK-3121-8','MLG-STK-3122-8','MLG-STK-3123-8','MLG-STK-3125-8','MLG-STK-3126-8')
+      AND s.status <> 'draft'
+    RETURNING s.id`, [vendorId]);
+  console.log(`  Stonetalk 36x36: set ${stk.rowCount} SKUs to draft (dropped from 2026 book)`);
+
+  // Special-order items → draft (priced, but not shown as in-stock).
+  const so = await pool.query(`
+    UPDATE skus s SET status = 'draft', updated_at = CURRENT_TIMESTAMP
+    FROM products p
+    WHERE s.product_id = p.id AND p.vendor_id = $1
+      AND s.internal_sku = ANY($2) AND s.status <> 'draft'
+    RETURNING s.id`, [vendorId, SPECIAL_ORDER_SKUS]);
+  console.log(`  Special order: set ${so.rowCount} SKUs to draft`);
 
   console.log('\n=== Melange Import Complete ===');
 

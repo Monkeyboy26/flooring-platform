@@ -47,7 +47,7 @@ const RETAIL_MIN_MARGIN = 0.99;
 const keystone = (cost) => Number(cost) * RETAIL_MARKUP;
 const nearestNine = (v) => {
   const cents = Math.round(Number(v) * 100);
-  const k = Math.round((cents - 9) / 10 - 1e-9);
+  const k = Math.floor((cents - 9) / 10);
   return Math.max(9, k * 10 + 9) / 100;
 };
 // price_basis 'per_sqft' → covering floor applies; 'per_unit' (mouldings) → 9-ending only.

@@ -194,6 +194,31 @@ function parseIntOrNull(raw) {
   return Math.round(n);
 }
 
+// Charm-price DOWN to the nearest 9-ending (…X.09/X.19/…/X.99), never up,
+// floor at $0.09. Mirrors nearestNine() in backend/scrapers/base.js so HR
+// retail follows the same convention as every other vendor.
+function nearestNine(v) {
+  const cents = Math.round(Number(v) * 100);
+  const k = Math.floor((cents - 9) / 10);
+  return Math.max(9, k * 10 + 9) / 100;
+}
+
+// HR retail = max(street MAP, cost floor), then nine-ending.
+//   street MAP  = 2026 List Price − 10%  — the uniform online price every
+//                 authorized Jeffrey Alexander/Elements/HR dealer honors.
+//   cost floor  = 1.8× Full Carton cost (~44% margin) — protects items whose
+//                 List sits too close to cost from selling at near-zero margin.
+// Falls back to whatever single input exists if the other is missing.
+function computeRetail(cost, listPrice) {
+  const c  = cost != null ? Number(cost) : null;
+  const lp = listPrice != null ? Number(listPrice) : null;
+  const street = lp != null && lp > 0 ? lp * 0.90 : 0;
+  const floor  = c  != null && c  > 0 ? c  * 1.80 : 0;
+  const base = Math.max(street, floor);
+  if (!(base > 0)) return lp != null ? lp : c; // no positive basis to price on
+  return nearestNine(base);
+}
+
 // ==================== Normalize CSV row ====================
 
 function normalizeCsvRow(r, masterClass) {
@@ -613,8 +638,9 @@ async function main() {
         stats.skus++;
 
         // Pricing — NEVER write cut_price.
+        // retail = max(List × 0.90, cost × 1.80), nine-ended. See computeRetail().
         const cost = row.fullCarton;
-        const retail = row.listPrice ?? row.fullCarton;
+        const retail = computeRetail(cost, row.listPrice);
         if (cost !== null && retail !== null && cost >= 0 && retail >= 0) {
           await client.query(PRICING_INSERT_SQL, [
             skuId,

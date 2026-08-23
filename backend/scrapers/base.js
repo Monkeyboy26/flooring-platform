@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream/promises';
+import { dedupeStoredName } from '../lib/productName.js';
 
 export function launchBrowser() {
   const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH
@@ -372,7 +373,12 @@ export async function upsertProduct(pool, rawData, opts = {}) {
     logValidationWarnings(pool, opts.jobId, cleaned.name, warnings).catch(() => {});
   }
 
-  const { vendor_id, name, collection, category_id, brand_id, description_short, description_long } = cleaned;
+  const { vendor_id, collection, category_id, brand_id, description_short, description_long } = cleaned;
+  // Collapse redundant collection/token echoes baked into the incoming name so
+  // re-imports don't re-introduce "B&W Marble B&W Breach" / "... Matte Matte"
+  // style dupes. Shared with the storefront title builder and the one-time
+  // dedupe-product-names backfill. See lib/productName.js dedupeStoredName.
+  const name = dedupeStoredName(collection || '', cleaned.name) || cleaned.name;
   const slugBase = (collection && !name.toLowerCase().startsWith(collection.toLowerCase()))
     ? (collection + ' ' + name)
     : name;
@@ -618,9 +624,10 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   //      (per_unit) which callers flag via opts.coveringFloor. per_unit alone is
   //      ambiguous (also accessories/hardware/trim, NOT floored). Carpet (per_sqyd)
   //      floored separately by carpetFloor below. See [[covering-margin-floor]].
-  //   2. Charm pricing — EVERY retail price ends in a 9: round to the NEAREST value
-  //      whose last cent is 9 (…X.09/X.19/…/X.99, 10¢ apart; exact midpoints round
-  //      down). Applies to retail_price only, not carpet cut/roll or cost.
+  //   2. Charm pricing — EVERY retail price ends in a 9: round DOWN to the nearest
+  //      value whose last cent is 9 (…X.09/X.19/…/X.99, 10¢ apart). Never rounds up
+  //      (the covering/margin floor below is the only thing that can lift it back).
+  //      Applies to retail_price only, not carpet cut/roll or cost.
   //      See [[nine-ending-prices]].
   // The floor wins over "nearest": if the nearest 9-ending sits under cost+$0.99 on
   // a covering product, bump to the next 9-ending up. Only ever touches rows with a
@@ -629,11 +636,11 @@ export async function upsertPricing(pool, sku_id, rawData, opts = {}) {
   const RETAIL_MIN_MARGIN = 0.99;
   const isAreaCovering = price_basis === 'per_sqft' || price_basis === 'sqft';
   const applyCoveringFloor = isAreaCovering || (price_basis === 'per_unit' && opts.coveringFloor === true);
-  // Nearest value ending in 9 (…X.09/X.19/…/X.99), exact midpoints (…X.x4) round
-  // down. Integer cents avoid float drift; 1e-9 nudge makes .5 tie round down.
+  // Largest value ending in 9 (…X.09/X.19/…/X.99) that is ≤ v — round DOWN only,
+  // never up. Integer cents avoid float drift; floored at $0.09 (min 9-ending).
   const nearestNine = (v) => {
     const cents = Math.round(Number(v) * 100);
-    const k = Math.round((cents - 9) / 10 - 1e-9);
+    const k = Math.floor((cents - 9) / 10);
     return Math.max(9, k * 10 + 9) / 100;
   };
   const priceRetail = (price) => {
