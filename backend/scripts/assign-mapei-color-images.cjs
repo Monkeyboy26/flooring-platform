@@ -235,6 +235,19 @@ function getFdSku(productLineKey, colorName) {
 }
 
 async function main() {
+  // ── DEPRECATED ───────────────────────────────────────────────────────
+  // This script assigned per-color swatches from Floor & Decor's Amplience
+  // CDN (i8.amplience.net/i/flooranddecor/...). Those photos have "Floor &
+  // Decor" branding baked in and were removed 2026-08-23. Swatches are now
+  // self-hosted solid-color chips generated from Mapei's OFFICIAL palette hex
+  // (see backend/scripts/replace-mapei-fd-swatches.cjs).
+  // Re-running this would re-introduce the F&D-branded images, so it is guarded.
+  if (!process.argv.includes('--force-floordecor')) {
+    console.error('DEPRECATED: assign-mapei-color-images.cjs sources Floor & Decor branded\n' +
+      'swatches and has been retired. Use replace-mapei-fd-swatches.cjs (Mapei-hex chips).\n' +
+      'Pass --force-floordecor to override (not recommended).');
+    process.exit(1);
+  }
   try {
     // Load all Keracolor/Keracaulk SKUs across ALL vendors
     const { rows: skus } = await pool.query(`
