@@ -49,6 +49,54 @@ function priceUnitSuffix(i) {
 }
 
 /**
+ * Canonical quantity + unit for a line item's "Qty" column — the SINGLE source of
+ * truth so every document labels the material the way it is actually sold, and
+ * stays consistent with priceUnitSuffix(). Different materials carry different
+ * nouns:
+ *   roll / per_sqyd  → "sqyd"   (carpet is sold by the SQUARE YARD, never "rolls"
+ *                                or "boxes"; see the num_boxes note below)
+ *   LF               → "LF"     (rug carpet cut off the roll by the linear foot)
+ *   sqft             → "sqft"   (loose-lay / sheet goods)
+ *   unit / piece     → "unit(s)"
+ *   box (default)    → "box(es)"
+ *
+ * Carpet stores its coverage in sqft_needed while num_boxes is a placeholder 1
+ * (storefront) — so when the raw quantity is the placeholder we recover the real
+ * yardage as sqft_needed / 9. A quantity a rep entered directly (> 1) is already
+ * in square yards and is trusted as-is (and the PO document, whose row has no
+ * sqft_needed, therefore mirrors exactly what the EDI 850 transmits).
+ *
+ * Returns { value, label, text } where text is the display-formatted number.
+ */
+export function lineQtyUnit(i = {}, rawQty) {
+  const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+  const fmt = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+  const sb = String(i.sell_by || '').toLowerCase();
+  const basis = i.price_basis;
+  let q = (rawQty != null) ? num(rawQty) : (num(i.num_boxes) ?? num(i.quantity) ?? num(i.qty));
+  if (q == null) q = 1;
+  if (sb === 'roll' || basis === 'per_sqyd') {
+    const sqft = num(i.sqft_needed);
+    if (q <= 1 && sqft && sqft > 0) q = sqft / 9;
+    const value = Math.round(q * 10) / 10;
+    return { value, label: 'sqyd', text: fmt(value) };
+  }
+  if (sb === 'lf') return { value: q, label: 'LF', text: fmt(q) };
+  if (sb === 'sqft') return { value: q, label: 'sqft', text: fmt(q) };
+  if (sb === 'unit' || sb === 'piece') return { value: q, label: q === 1 ? 'unit' : 'units', text: fmt(q) };
+  if (sb === 'each') return { value: q, label: 'each', text: fmt(q) };
+  if (!sb || sb === 'box') return { value: q, label: q === 1 ? 'box' : 'boxes', text: fmt(q) };
+  // Unknown UOM — generic pluralization (mirrors the legacy PO logic).
+  return { value: q, label: q === 1 ? sb : (/(x|s|ch|sh)$/.test(sb) ? sb + 'es' : sb + 's'), text: fmt(q) };
+}
+
+/** True when a line is broadloom carpet, which is sold by the square yard and has
+ *  no per-box coverage (so documents suppress the "sf / box" sub-figure). */
+function isCarpetLine(i = {}) {
+  return String(i.sell_by || '').toLowerCase() === 'roll' || i.price_basis === 'per_sqyd';
+}
+
+/**
  * The distinguishing tail of a product_name once the collection prefix and color
  * are removed — typically the size (+ finish), e.g. product_name "Ecoslate 24x48"
  * / collection "Ecoslate" / color "White" → "24x48"; "Marmi Lux 24x48, Natural" →
@@ -709,15 +757,11 @@ export async function generatePOHtml(pool, poId) {
     return `${date} &middot; ${time}`;
   };
 
-  const statusDotClass = {
-    draft: 'dot-draft', sent: 'dot-sent', acknowledged: 'dot-ack',
-    fulfilled: 'dot-fulfilled', cancelled: 'dot-cancelled'
-  }[p.status] || 'dot-draft';
   const statusLabel = (p.status || 'draft').toUpperCase();
 
   const ediConfig = p.edi_config || {};
   const ediId = ediConfig.receiver_id || '';
-  const shipTo = p.ship_to || 'Roma Anaheim Warehouse\n1440 S. State College Blvd\nAnaheim, CA 92806';
+  const shipTo = p.ship_to || 'Roma Anaheim Warehouse\n1440 S. State College Blvd #6M\nAnaheim, CA 92806';
   const shipLines = shipTo.split('\n');
 
   const ink = '#1c1917';
@@ -725,14 +769,16 @@ export async function generatePOHtml(pool, poId) {
   const accent = '#a87935';
   const warm = '#d8cdb6';
   const cool = '#c4bba5';
-  const mono = "ui-monospace, monospace";
   const serif = "'Cormorant Garamond', 'Times New Roman', serif";
   const sans = "'Inter', system-ui, sans-serif";
   const subtotal = parseFloat(p.subtotal || 0);
 
-  // Approved stamp: show when PO has been approved/sent
+  // Approved stamp: show when PO has been approved/sent. A resent PO (is_revised)
+  // is stamped "Revised" so the vendor knows it supersedes the prior version.
   const showApprovedStamp = ['sent', 'acknowledged', 'fulfilled'].includes(p.status);
-  const stampLabel = p.status === 'acknowledged' ? 'Acknowledged' : 'Approved &amp; sent';
+  const stampLabel = p.is_revised
+    ? 'Revised'
+    : (p.status === 'acknowledged' ? 'Acknowledged' : 'Approved &amp; sent');
 
   // Will-call: mark the PO so the distributor knows the customer collects directly.
   // True when the order is a will-call order, or a will-call release already exists
@@ -751,186 +797,202 @@ export async function generatePOHtml(pool, poId) {
   const isPickup = !isWillCall && p.fulfillment_method === 'pickup';
   const pickupLines = (p.ship_to || p.vendor_address || 'At distributor location').split('\n');
 
-  const html = `<!DOCTYPE html><html><head>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet" />
-    <style>
-    :root{
-      --roma-serif:${serif};
-      --roma-sans:${sans};
-      --ink:${ink};--muted:${muted};--accent:${accent};--warm:${warm};--cool:${cool};
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{margin:0;padding:0}
-    body{font-family:var(--roma-sans);color:var(--ink);font-size:11px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-    ol{margin:0;padding-left:14px;display:grid;gap:4px}
-    /* PDF vertical spacing comes from page margins (PO_PDF_MARGIN) so page 2+
-       gets the same breathing room; the iframe preview needs it as padding. */
-    @media screen { .po-page { padding-top:48px; padding-bottom:40px; } }
-    .avoid-break { break-inside:avoid; page-break-inside:avoid; }
-    </style>
-    <script>document.fonts&&document.fonts.ready.then(function(){})</script>
-    </head><body>
-    <div class="po-page" style="width:100%;background:#fff;color:${ink};font-family:${sans};padding-left:56px;padding-right:56px;box-sizing:border-box;font-size:11px">
+  // Swatch gradient fallbacks + resize proxy \u2014 mirrors the customer invoice
+  // (generateOrderInvoiceDoc) so the PO shares its swatch-led editorial system.
+  const SWATCH_FALLBACKS = [
+    'linear-gradient(135deg,#caa97f,#7a5635)',
+    'linear-gradient(135deg,#ebe7df,#a8a59e)',
+    'linear-gradient(135deg,#e7e3db,#b0aca4)',
+    'linear-gradient(135deg,#a89074,#5e4a36)',
+  ];
 
-      <!-- HEADER -->
-      <div style="position:relative;display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid ${ink}22">
-        ${isWillCall ? willCallStamp({ accent, top: '16px', left: '50%' }) : ''}
-        <div>
-          <div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em">
-            <span style="font-family:${serif};font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:${ink};white-space:nowrap">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:${ink}">FLOORING</em></span>
-            <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:${accent};margin-top:-11px;white-space:nowrap">Designs</span>
-          </div>
-          <div style="margin-top:14px;font:400 10px/1.5 ${sans};color:${ink}cc">
-            Roma Flooring Designs, Inc.<br>
-            1440 S. State College Blvd, Anaheim, CA 92806<br>
-            (714) 999-0009 &middot; orders@romaflooringdesigns.com<br>
-            License #830966
-          </div>
-        </div>
-        <div style="text-align:right;min-width:240px">
-          <div style="font:500 9px/1 ${mono};letter-spacing:0.22em;text-transform:uppercase;color:${muted}">Purchase order</div>
-          <div style="font:300 30px/1 ${serif};letter-spacing:-0.014em;color:${ink};margin-top:6px">${p.po_number}</div>
-          <div style="margin-top:12px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 ${sans};text-align:left">
-            <span style="color:${muted}">Issued</span>
-            <span style="color:${ink};text-align:right">${fmtDate(p.created_at)}</span>
-            ${p.expected_delivery ? `<span style="color:${muted}">Expected</span><span style="color:${ink};text-align:right">${fmtDate(p.expected_delivery)}</span>` : ''}
-            ${p.order_number ? `<span style="color:${muted}">Customer ref</span><span style="color:${ink};text-align:right">${p.order_number}</span>` : ''}
-            ${p.job_name ? `<span style="color:${muted}">Sidemark</span><span style="color:${ink};text-align:right">${escDoc(p.job_name)}</span>` : ''}
-            <span style="color:${muted}">Revision</span>
-            <span style="color:${ink};text-align:right">${p.revision || 0}</span>
-            <span style="color:${muted}">Status</span>
-            <span style="color:${accent};text-align:right;font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase">&#9679; ${statusLabel}</span>
-          </div>
-        </div>
-      </div>
+  const html = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Inter:wght@300;400;500;600&family=Pinyon+Script&display=swap" rel="stylesheet" />
+<style>
+:root{--serif:${serif};--sans:${sans};--ink:${ink};--accent:${accent};--muted:${muted};--warm:${warm};--cool:${cool}}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{margin:0;padding:0}
+body{font-family:var(--sans);color:var(--ink);font-size:11px;background:#fff;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+/* PDF vertical spacing comes from page margins (PO_PDF_MARGIN); the iframe
+   preview needs it as screen-only padding so page 2+ keeps the same breathing room. */
+@media screen{.po-page{padding-top:48px;padding-bottom:40px}}
+.mono{font:500 9px/1 ui-monospace,monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted)}
+.small{font:400 10px/1.5 var(--sans);color:#1c1917cc}
+.grid-row{display:grid;grid-template-columns:32px 1fr 104px 76px 84px 92px;gap:12px;align-items:flex-start}
+.swatch{width:32px;height:32px;border:0.5px solid #1c191733;flex-shrink:0}
+.num{text-align:right;font:400 11px/1.2 var(--sans)}
+.numsub{font:400 9px/1.4 var(--sans);color:var(--muted);margin-top:2px}
+.line-total{text-align:right;font:500 12px/1.2 var(--serif)}
+.keep{break-inside:avoid;orphans:3;widows:3}
+ol{margin:0;padding-left:14px;display:grid;gap:4px}
+</style>
+<script>document.fonts&&document.fonts.ready.then(function(){})</script>
+</head><body>
+<div class="po-page" style="padding-left:56px;padding-right:56px;">
+<div style="display:flex;flex-direction:column;min-height:9.5in;">
 
-      <!-- APPROVED STAMP -->
-      <div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:4px;border-bottom:1px solid ${ink}11">
-        <div style="font:500 9px/1.4 ${sans};letter-spacing:0.06em;color:${ink}cc">
-          This purchase order is binding upon vendor acknowledgment. Reference <strong style="color:${ink}">${p.po_number}</strong> on all packing slips, invoices, BOLs, and shipping documents. Vendor to confirm via X12 855 or email reply within 1 business day. Pricing locked at the costs below; any change requires Roma&rsquo;s written approval.
-        </div>
-        ${showApprovedStamp ? `<div style="display:flex;align-items:center;gap:0;padding:8px 14px;border:1.5px solid ${accent};color:${accent};font:500 11px/1 ${mono};letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg)">${stampLabel}</div>` : ''}
-      </div>
+<!-- HEADER -->
+<div style="position:relative;display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
+${isWillCall ? willCallStamp({ accent, top: '16px', left: '50%' }) : ''}
+<div>
+<div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
+<span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
+<span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
+</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 &middot; orders@romaflooringdesigns.com<br />License #830966</div>
+</div>
+<div style="text-align:right;min-width:240px;">
+<div class="mono" style="letter-spacing:0.22em;">Purchase order</div>
+<div style="font:300 32px/1 var(--serif);letter-spacing:-0.014em;margin-top:6px;">${p.po_number}</div>
+<div style="margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font:400 10px/1.4 var(--sans);text-align:left;">
+<span style="color:var(--muted);">Issued</span><span style="text-align:right;">${fmtDate(p.created_at)}</span>
+${p.expected_delivery ? `<span style="color:var(--muted);">Expected</span><span style="text-align:right;">${fmtDate(p.expected_delivery)}</span>` : ''}
+${p.order_number ? `<span style="color:var(--muted);">Customer ref</span><span style="text-align:right;">${p.order_number}</span>` : ''}
+${p.job_name ? `<span style="color:var(--muted);">Sidemark</span><span style="text-align:right;">${escDoc(p.job_name)}</span>` : ''}
+<span style="color:var(--muted);">Revision</span><span style="text-align:right;">${p.revision || 0}</span>
+<span style="color:var(--muted);">Status</span><span style="text-align:right;color:var(--accent);font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">&#9679; ${statusLabel}</span>
+</div>
+${showApprovedStamp ? `<div style="margin-top:16px;display:flex;justify-content:flex-end;">
+<span style="padding:7px 14px;border:1.5px solid var(--accent);color:var(--accent);font:500 11px/1 ui-monospace,monospace;letter-spacing:0.3em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampLabel}</span>
+</div>` : ''}
+</div>
+</div>
 
-      <!-- BUYER / VENDOR / SHIP-TO -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:16px 0 20px;border-bottom:1px solid ${ink}22">
-        <div>
-          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Buyer</div>
-          <div style="font:500 11px/1.2 ${sans};color:${ink}">${buyerName}</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">
-            Sales rep<br>${buyerEmail}
-            ${p.approved_at && approverName ? `<br><br><span style="color:${muted}">Approved by</span><br>${approverName}<br>${fmtShortDate(p.approved_at)}` : ''}
-          </div>
-        </div>
-        <div>
-          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Vendor &middot; ${p.vendor_code}</div>
-          <div style="font:500 11px/1.2 ${sans};color:${ink}">${p.vendor_name}</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">
-            ${p.vendor_address ? `${escDoc(p.vendor_address)}<br>` : ''}${p.vendor_email || ''}
-          </div>
-        </div>
-        <div>
-          <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">${isWillCall ? 'Fulfillment' : (isPickup ? 'Pickup' : 'Ship to')}</div>
-          ${isWillCall ? `
-          <div style="font:500 11px/1.2 ${sans};color:${ink}">Customer will-call</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">Hold at your warehouse for customer pickup.</div>
-          <div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Do not ship &middot; pickup only</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:6px">Customer references PO ${p.po_number} at pickup.</div>
-          ` : isPickup ? `
-          <div style="font:500 11px/1.2 ${sans};color:${ink}">Roma will pick up</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${escDoc(pickupLines[0] || '')}${pickupLines.length > 1 ? '<br>' + pickupLines.slice(1).map(escDoc).join('<br>') : ''}</div>
-          <div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Do not ship &middot; Roma pickup</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:6px">Hold for Roma pickup &middot; reference PO ${p.po_number}. Call ${'(714) 999-0009'} when ready.</div>
-          ` : `
-          <div style="font:500 11px/1.2 ${sans};color:${ink}">${shipLines[0] || ''}</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}cc;margin-top:4px">${shipLines.slice(1).join('<br>')}</div>
-          <div style="margin-top:8px;padding:6px 10px;background:${warm};font:500 9px/1.4 ${mono};letter-spacing:0.14em;text-transform:uppercase;color:${ink};display:inline-block">&#9679; Receiving &middot; Mon&ndash;Fri &middot; 9a&ndash;5p</div>
-          <div style="font:400 10px/1.5 ${sans};color:${ink}99;margin-top:6px">28&rsquo; truck max &middot; forklift on-site</div>
-          `}
-          ${ediId ? `<div style="margin-top:10px;font:400 10px/1.5 ${sans};color:${muted}">EDI: <span style="color:${ink}">${ediId}</span></div>` : ''}
-        </div>
-      </div>
+<!-- BUYER / VENDOR / SHIP-TO -->
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 16px;border-bottom:1px solid #1c191722;">
+<div>
+<div class="mono" style="margin-bottom:8px;">Buyer</div>
+<div style="font:500 11px/1.2 var(--sans);">${buyerName}</div>
+<div class="small" style="margin-top:4px;">Sales rep<br />${buyerEmail}${p.approved_at && approverName ? `<br /><br /><span style="color:var(--muted);">Approved by</span><br />${approverName}<br />${fmtShortDate(p.approved_at)}` : ''}</div>
+</div>
+<div>
+<div class="mono" style="margin-bottom:8px;">Vendor &middot; ${p.vendor_code}</div>
+<div style="font:500 11px/1.2 var(--sans);">${p.vendor_name}</div>
+<div class="small" style="margin-top:4px;">${p.vendor_address ? `${escDoc(p.vendor_address)}<br />` : ''}${p.vendor_email || ''}</div>
+</div>
+<div>
+<div class="mono" style="margin-bottom:8px;">${isWillCall ? 'Fulfillment' : (isPickup ? 'Pickup' : 'Ship to')}</div>
+${isWillCall ? `
+<div style="font:500 11px/1.2 var(--sans);">Customer will-call</div>
+<div class="small" style="margin-top:4px;">Hold at your warehouse for customer pickup.</div>
+<div style="margin-top:8px;padding:6px 10px;background:var(--warm);font:500 9px/1.4 ui-monospace,monospace;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink);display:inline-block;">&#9679; Do not ship &middot; pickup only</div>
+<div style="font:400 10px/1.5 var(--sans);color:#1c191799;margin-top:6px;">Customer references PO ${p.po_number} at pickup.</div>
+` : isPickup ? `
+<div style="font:500 11px/1.2 var(--sans);">Roma will pick up</div>
+<div class="small" style="margin-top:4px;">${escDoc(pickupLines[0] || '')}${pickupLines.length > 1 ? '<br />' + pickupLines.slice(1).map(escDoc).join('<br />') : ''}</div>
+<div style="margin-top:8px;padding:6px 10px;background:var(--warm);font:500 9px/1.4 ui-monospace,monospace;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink);display:inline-block;">&#9679; Do not ship &middot; Roma pickup</div>
+<div style="font:400 10px/1.5 var(--sans);color:#1c191799;margin-top:6px;">Hold for Roma pickup &middot; reference PO ${p.po_number}. Call (714) 999-0009 when ready.</div>
+` : `
+<div style="font:500 11px/1.2 var(--sans);">${shipLines[0] || ''}</div>
+<div class="small" style="margin-top:4px;">${shipLines.slice(1).join('<br />')}</div>
+<div style="margin-top:8px;padding:6px 10px;background:var(--warm);font:500 9px/1.4 ui-monospace,monospace;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink);display:inline-block;">&#9679; Receiving &middot; Mon&ndash;Fri &middot; 9a&ndash;5p</div>
+`}
+${ediId ? `<div style="margin-top:10px;font:400 10px/1.5 var(--sans);color:var(--muted);">EDI: <span style="color:var(--ink);">${ediId}</span></div>` : ''}
+</div>
+</div>
 
-      <!-- LINE ITEMS -->
-      <div style="padding-top:18px">
-        <div style="display:grid;grid-template-columns:28px 1fr 110px 70px 60px 80px 110px;gap:10px;padding:0 0 10px;border-bottom:1px solid ${ink}33;font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${muted}">
-          <span>Ln</span><span>Description</span><span>Vendor SKU</span>
-          <span style="text-align:right">Qty</span><span>UOM</span>
-          <span style="text-align:right">Unit cost</span><span style="text-align:right">Line subtotal</span>
-        </div>
-        ${items.rows.map((it, idx) => {
-          const ln = String(idx + 1).padStart(2, '0');
-          const vsku = it.vendor_sku || '\u2014';
-          const imgHtml = it.primary_image
-            ? `<img src="${it.primary_image}" style="width:32px;height:32px;object-fit:cover;flex-shrink:0;border:0.5px solid ${ink}22" />`
-            : '';
-          const ci = composeItemName(it);
-          let desc = ci.nameLine;
-          if ((!desc || desc === 'Product') && it.description) desc = it.description;
-          desc = escDoc(desc || '\u2014');
-          // Brand line sits ABOVE the name; the vendor SKU prints in its own
-          // column so it is NOT duplicated beneath the name here.
-          const brand = escDoc(ci.vendor || p.vendor_name || '');
-          const lineNote = it.line_note ? escDoc(it.line_note) : '';
-          const uom = (it.sell_by || 'unit').toUpperCase();
-          const cost = parseFloat(it.cost || 0).toFixed(2);
-          const sub = parseFloat(it.subtotal || 0).toFixed(2);
-          const isLast = idx === items.rows.length - 1;
-          return `<div class="avoid-break" style="display:grid;grid-template-columns:28px 1fr 110px 70px 60px 80px 110px;gap:10px;padding:12px 0;border-bottom:${isLast ? 'none' : `1px solid ${ink}11`};align-items:flex-start">
-            <span style="font:400 11px/1.4 ${serif};color:${muted}">${ln}</span>
-            <div style="display:flex;gap:10px;align-items:flex-start">
-              ${imgHtml}
-              <div>
-                ${brand ? `<div style="font:400 9px/1.4 ${sans};color:${muted};margin-bottom:2px">${brand}</div>` : ''}
-                <div style="font:500 11px/1.3 ${sans};color:${ink};letter-spacing:-0.004em">${desc}</div>
-                ${lineNote ? `<div style="font:400 9.5px/1.45 ${sans};color:${ink}cc;font-style:italic;margin-top:4px;padding-left:8px;border-left:2px solid ${accent}">${lineNote}</div>` : ''}
-              </div>
-            </div>
-            <div style="font:500 10px/1.2 ${mono};color:${ink};letter-spacing:0.04em">${vsku}</div>
-            <div style="text-align:right;font:400 12px/1.2 ${serif};color:${ink};letter-spacing:-0.005em">${it.qty}</div>
-            <div style="font:500 9px/1.4 ${mono};color:${muted};text-transform:uppercase">${uom}</div>
-            <div style="text-align:right;font:400 11px/1.2 ${serif};color:${ink};letter-spacing:-0.005em">$${cost}</div>
-            <div style="text-align:right;font:500 12px/1.2 ${serif};color:${ink};letter-spacing:-0.005em">$${sub}</div>
-          </div>`;
-        }).join('')}
-      </div>
+<!-- LINE ITEMS -->
+<div style="padding-top:18px;">
+<div class="grid-row" style="padding-bottom:10px;border-bottom:1px solid #1c191733;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);">
+<span></span><span>Description</span><span>Vendor SKU</span><span style="text-align:right;">Qty</span><span style="text-align:right;">Unit cost</span><span style="text-align:right;">Line total</span>
+</div>
+${items.rows.map((it, idx) => {
+  const ln = String(idx + 1).padStart(2, '0');
+  const vsku = it.vendor_sku || '\u2014';
+  const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
+  const swatchSrc = it.primary_image
+    ? `http://localhost:${process.env.PORT || 3001}/api/img?url=${encodeURIComponent(it.primary_image)}&w=64&f=jpeg`
+    : null;
+  const swatch = swatchSrc
+    ? `<div class="swatch" style="background:${gradient};overflow:hidden;"><img src="${swatchSrc}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>`
+    : `<div class="swatch" style="background:${gradient};"></div>`;
+  const ci = composeItemName(it);
+  // Custom bound area rug -> the vendor only orders the raw carpet MATERIAL cut off
+  // the roll. Show the carpet product (never the customer-facing "Custom Area Rug"
+  // label or its finished dimensions) and keep only the cut instruction from the
+  // note. The rug line is stored with sell_by 'LF'; its description begins "Custom
+  // Area Rug" (which would otherwise route composeItemName to the rug label).
+  const isRugLine = String(it.sell_by || '').toUpperCase() === 'LF'
+    || String(it.description || '').startsWith('Custom Area Rug');
+  let desc;
+  if (isRugLine) {
+    desc = escDoc(it.product_name || 'Carpet material');
+  } else {
+    desc = ci.nameLine;
+    if ((!desc || desc === 'Product') && it.description) desc = it.description;
+    desc = escDoc(desc || '\u2014');
+  }
+  // Brand line sits ABOVE the name; the vendor SKU prints in its own column so
+  // it is NOT duplicated beneath the name here.
+  const brand = escDoc(ci.vendor || p.vendor_name || '');
+  let lineNote = it.line_note ? escDoc(it.line_note) : '';
+  // Drop the finished-rug dimensions ("9' x 12' -- ") from the vendor note,
+  // leaving just the material cut instruction ("cut 9 LF off 12' roll (12 sqyd)").
+  if (isRugLine && lineNote) lineNote = lineNote.replace(/^[^\u2014]*\u2014\s*/, '');
+  // Qty + unit via the canonical helper (carpet -> sqyd, LF -> LF, box -> box/boxes).
+  const { text: qtyText, label: uomLabel } = lineQtyUnit(it, it.qty);
+  const cost = parseFloat(it.cost || 0).toFixed(2);
+  const sub = parseFloat(it.subtotal || 0).toFixed(2);
+  const isLast = idx === items.rows.length - 1;
+  return `<div class="grid-row keep" style="padding:12px 0;${isLast ? '' : 'border-bottom:1px solid #1c191711;'}">
+${swatch}
+<div>
+<div style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.12em;color:var(--muted);margin-bottom:3px;">L${ln}${brand ? ` &middot; ${brand}` : ''}</div>
+<div style="font:500 11px/1.3 var(--sans);letter-spacing:-0.004em;">${desc}</div>
+${lineNote ? `<div style="font:400 9.5px/1.45 var(--sans);color:#1c1917cc;font-style:italic;margin-top:4px;padding-left:8px;border-left:2px solid var(--accent);">${lineNote}</div>` : ''}
+</div>
+<div style="font:500 10px/1.2 ui-monospace,monospace;color:var(--ink);letter-spacing:0.04em;padding-top:1px;">${vsku}</div>
+<div class="num">${qtyText}<div class="numsub">${uomLabel}</div></div>
+<div class="num">$${cost}</div>
+<div class="line-total">$${sub}</div>
+</div>`;
+}).join('')}
+</div>
 
-      <!-- TERMS + TOTALS + SIGNATURES + FOOTER (5th grid row) -->
-      <div>
-        <div class="avoid-break" style="display:grid;grid-template-columns:1fr 220px;gap:28px;margin-top:12px">
-          <div style="padding-top:4px;font:400 9.5px/1.55 ${sans};color:${ink}cc">
-            <div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:8px">Terms</div>
-            <ol>
-              <li>Freight + tax to be billed via 810 invoice (AP bill); not included on this PO.</li>
-              <li>Vendor to confirm receipt and acknowledge via X12 855 EDI or email reply within 1 business day.</li>
-              <li>Substitutions require Roma written approval before fulfillment.</li>
-              <li>Reference PO number on all packing slips, invoices, and shipping documents.</li>
-            </ol>
-            ${p.notes ? `<div style="font:500 9px/1 ${mono};letter-spacing:0.2em;text-transform:uppercase;color:${muted};margin-bottom:6px;margin-top:14px">Notes to vendor</div><div style="font-style:italic">${p.notes}</div>` : ''}
-          </div>
-          <div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Lines</span><span style="color:${ink}">${items.rows.length}</span></div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Subtotal</span><span style="color:${ink}">$${subtotal.toFixed(2)}</span></div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Freight</span><span style="color:${muted};font-style:italic">By vendor invoice</span></div>
-            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font:400 10px/1.3 ${sans}"><span style="color:${ink}99">Tax</span><span style="color:${muted};font-style:italic">By vendor invoice</span></div>
-            <div style="margin-top:8px;padding-top:8px;border-top:1.5px solid ${ink};display:flex;justify-content:space-between;align-items:baseline">
-              <span style="font:500 10px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase;color:${ink}">PO total &middot; USD</span>
-              <span style="font:300 26px/1 ${serif};letter-spacing:-0.012em;color:${ink}">$${subtotal.toFixed(2)}</span>
-            </div>
-            <div style="margin-top:4px;font:500 9px/1 ${mono};letter-spacing:0.14em;color:${muted};text-transform:uppercase;text-align:right">Materials only &middot; Freight + tax billed on 810</div>
-          </div>
-        </div>
+${p.notes ? `<div class="keep" style="margin-top:16px;border:1px solid var(--ink);padding:13px 18px;">
+<div style="font:600 9px/1 ui-monospace,monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink);margin-bottom:7px;">&#9873; Note to vendor</div>
+<div style="font:500 12.5px/1.55 var(--sans);color:var(--ink);white-space:pre-wrap;">${escDoc(p.notes)}</div>
+</div>` : ''}
 
-        <!-- FOOTER -->
-        <div class="avoid-break" style="margin-top:16px;padding-top:12px;border-top:1px solid ${ink}22;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 ${sans};color:${muted}">
-          <span>Roma Flooring Designs, Inc. &middot; 1440 S. State College Blvd &middot; Anaheim, CA 92806 &middot; License #830966</span>
-          <span style="font:500 9px/1 ${mono};letter-spacing:0.18em;text-transform:uppercase">${p.po_number} &middot; Rev ${p.revision || 0}</span>
-        </div>
-      </div>
-    </div>
-  </body></html>`;
+<div style="flex:1 1 auto;min-height:0;"></div>
+
+<!-- TERMS + TOTALS -->
+<div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:10px;border-top:1px solid #1c191733;padding-top:10px;">
+<div style="padding-top:4px;" class="small">
+<div class="mono" style="margin-bottom:8px;">Terms</div>
+<ol>
+<li>Freight + tax to be billed via 810 invoice (AP bill); not included on this PO.</li>
+<li>Vendor to confirm receipt and acknowledge via X12 855 EDI or email reply within 1 business day.</li>
+<li>Substitutions require Roma written approval before fulfillment.</li>
+<li>Reference PO number on all packing slips, invoices, and shipping documents.</li>
+</ol>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Lines</span><span>${items.rows.length}</span></div>
+<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Subtotal</span><span>$${subtotal.toFixed(2)}</span></div>
+<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Freight</span><span style="color:var(--muted);font-style:italic;">By vendor invoice</span></div>
+<div style="display:flex;justify-content:space-between;padding:5px 0;font:400 10px/1.4 var(--sans);border-bottom:1px solid #1c191711;"><span style="color:var(--muted);">Tax</span><span style="color:var(--muted);font-style:italic;">By vendor invoice</span></div>
+<div style="margin-top:8px;padding-top:8px;border-top:1.5px solid var(--ink);display:flex;justify-content:space-between;align-items:baseline;">
+<span class="mono" style="color:var(--ink);letter-spacing:0.18em;">PO total &middot; USD</span>
+<span style="font:300 28px/1 var(--serif);letter-spacing:-0.012em;">$${subtotal.toFixed(2)}</span>
+</div>
+<div style="margin-top:4px;font:500 9px/1 ui-monospace,monospace;letter-spacing:0.14em;color:var(--muted);text-transform:uppercase;text-align:right;">Materials only &middot; Freight + tax billed on 810</div>
+</div>
+</div>
+
+<!-- FOOTER -->
+<div style="margin-top:auto;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<span>Roma Flooring Designs &middot; 1440 S. State College Blvd #6M &middot; Anaheim, CA 92806 &middot; License #830966</span>
+<span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">${p.po_number} &middot; Rev ${p.revision || 0}</span>
+</div>
+
+</div>
+</div>
+</body></html>`;
 
   return { html, po: p, items: items.rows };
 }
@@ -967,6 +1029,7 @@ export function generateQuoteHtml(q, items) {
   const rowsHtml = items.map((i, idx) => {
     const isUnit = i.sell_by === 'unit';
     const qty = i.num_boxes || i.quantity || 1;
+    const _qu = lineQtyUnit(i, qty);
     const ci = composeItemName(i);
     let baseName = ci.title;
     if ((!baseName || baseName === 'Product') && i.description) baseName = i.description;
@@ -977,7 +1040,9 @@ export function generateQuoteHtml(q, items) {
     const perBoxSqft = parseFloat(i.sqft_per_box || 0);
     let sqft = parseFloat(i.sqft_needed || 0);
     if (!(sqft > 0) && !isUnit && perBoxSqft > 0 && qty > 0) sqft = perBoxSqft * qty;
-    const perBox = !isUnit ? (perBoxSqft > 0 ? perBoxSqft : (sqft > 0 && qty > 0 ? sqft / qty : null)) : null;
+    // Carpet has no box packaging (sold by the square yard), so it never shows a
+    // "sf / box" sub-figure even though it isn't a per-unit item.
+    const perBox = (!isUnit && !isCarpetLine(i)) ? (perBoxSqft > 0 ? perBoxSqft : (sqft > 0 && qty > 0 ? sqft / qty : null)) : null;
     const isFree = i.is_sample && parseFloat(i.subtotal || 0) === 0;
     const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
     // Swatch images go through the local resize proxy (small, disk-cached) so
@@ -997,7 +1062,7 @@ export function generateQuoteHtml(q, items) {
         ${i.is_sample ? `<div style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.12em;color:var(--muted);margin-top:4px;text-transform:uppercase;">Sample</div>` : ''}
       </div>
       <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
-      <div class="num">${qty}<div class="numsub">${isUnit ? (qty === 1 ? 'unit' : 'units') : (qty === 1 ? 'box' : 'boxes')}</div></div>
+      <div class="num">${_qu.text}<div class="numsub">${_qu.label}</div></div>
       <div class="num">${isFree ? 'Free' : money(i.unit_price) + priceUnitSuffix(i)}</div>
       <div class="line-total">${isFree ? 'Free' : money(i.subtotal)}</div>
     </div>`;
@@ -1067,7 +1132,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
-<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
 <div class="mono" style="letter-spacing:0.22em;">Quote</div>
@@ -1130,7 +1195,7 @@ ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'v
 </div>
 
 <div style="margin-top:auto;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
-<span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
+<span>Roma Flooring Designs · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Quote ${quoteNumber}</span>
 </div>
 </div>
@@ -1152,7 +1217,7 @@ ${validUntil ? `<div class="mono" style="color:${isExpired ? 'var(--muted)' : 'v
 <p style="margin:0 0 9px;"><strong>9. Cancellations &amp; special orders.</strong> Orders may be cancelled only with Roma's written consent. Special, custom, and non-stock orders are placed with the vendor on your behalf and are non-cancellable and non-refundable once submitted. Where a cancellation is permitted, restocking, handling, and freight charges may apply and deposits may be forfeited.</p>
 <p style="margin:0 0 0;"><strong>10. Governing law.</strong> These terms and any sale are governed by the laws of the State of California, without regard to its conflict-of-laws rules, with exclusive venue in the state or federal courts of Orange County, California. If any provision is found unenforceable, the remaining provisions remain in full force and effect.</p>
 </div>
-<div style="margin-top:18px;padding-top:12px;border-top:1px solid #1c191722;font:400 8.5px/1.5 var(--sans);color:var(--muted);">These Terms of Sale summarize and are governed by Roma Flooring Designs' full Terms of Service (romaflooringdesigns.com/terms) and Privacy Policy (romaflooringdesigns.com/privacy). Roma Flooring Designs, Inc. &middot; 1440 S. State College Blvd #6M &middot; Anaheim, CA 92806 &middot; License #830966.</div>
+<div style="margin-top:18px;padding-top:12px;border-top:1px solid #1c191722;font:400 8.5px/1.5 var(--sans);color:var(--muted);">These Terms of Sale summarize and are governed by Roma Flooring Designs' full Terms of Service (romaflooringdesigns.com/terms) and Privacy Policy (romaflooringdesigns.com/privacy). Roma Flooring Designs &middot; 1440 S. State College Blvd #6M &middot; Anaheim, CA 92806 &middot; License #830966.</div>
 
 <div class="keep" style="margin-top:22px;padding-top:14px;border-top:1.5px solid var(--ink);">
 <div class="small" style="margin-bottom:18px;max-width:660px;">By signing below I accept this quote and authorize Roma Flooring Designs to place this order at the quoted pricing, and I agree to the Terms of Sale set out above, including that <strong>all sales are final</strong> and that installing or using material is final acceptance of it. I confirm I have verified the quantities and colors on Quote ${quoteNumber}.</div>
@@ -1206,6 +1271,7 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
   const materialRows = materials.map((i, idx) => {
     const isUnit = i.sell_by === 'unit' || i.sell_by === 'piece';
     const qty = i.num_boxes || i.quantity || 1;
+    const _qu = lineQtyUnit(i, qty);
     const _ci = composeItemName(i);
     const name = escDoc(_ci.title || '—');
     const suffix = escDoc(_ci.descriptors.join(' · '));
@@ -1216,7 +1282,9 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
     const perBoxSqft = parseFloat(i.sqft_per_box || 0);
     let sqft = parseFloat(i.sqft_needed || 0);
     if (!(sqft > 0) && !isUnit && perBoxSqft > 0 && qty > 0) sqft = perBoxSqft * qty;
-    const perBox = !isUnit ? (perBoxSqft > 0 ? perBoxSqft : (sqft > 0 && qty > 0 ? sqft / qty : null)) : null;
+    // Carpet has no box packaging (sold by the square yard), so it never shows a
+    // "sf / box" sub-figure even though it isn't a per-unit item.
+    const perBox = (!isUnit && !isCarpetLine(i)) ? (perBoxSqft > 0 ? perBoxSqft : (sqft > 0 && qty > 0 ? sqft / qty : null)) : null;
     const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
     const swatchSrc = i.primary_image
       ? `http://localhost:${process.env.PORT || 3001}/api/img?url=${encodeURIComponent(i.primary_image)}&w=64&f=jpeg`
@@ -1231,7 +1299,7 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
         ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
       </div>
       <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
-      <div class="num">${qty}<div class="numsub">${isUnit ? (qty === 1 ? 'unit' : 'units') : (qty === 1 ? 'box' : 'boxes')}</div></div>
+      <div class="num">${_qu.text}<div class="numsub">${_qu.label}</div></div>
       <div class="num">${money(i.unit_price)}${priceUnitSuffix(i)}</div>
       <div class="line-total">${money(i.subtotal)}</div>
     </div>`;
@@ -1333,7 +1401,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
-<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
 <div class="mono" style="letter-spacing:0.22em;">${docType}</div>
@@ -1393,7 +1461,7 @@ ${milestones.map(m => `<div style="display:flex;justify-content:space-between;pa
 </div>
 
 <div style="margin-top:auto;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
-<span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
+<span>Roma Flooring Designs · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">${docType} ${estimateNumber}</span>
 </div>
 </div>
@@ -1416,7 +1484,7 @@ ${milestones.map(m => `<div style="display:flex;justify-content:space-between;pa
 <p style="margin:0 0 9px;"><strong>10. Cancellations &amp; special orders.</strong> Orders may be cancelled only with Roma's written consent. Special, custom, and non-stock orders are placed with the vendor on your behalf and are non-cancellable and non-refundable once submitted. Where a cancellation is permitted, restocking, handling, and freight charges may apply and deposits may be forfeited.</p>
 <p style="margin:0 0 0;"><strong>11. Governing law.</strong> These terms and any sale are governed by the laws of the State of California, without regard to its conflict-of-laws rules, with exclusive venue in the state or federal courts of Orange County, California. If any provision is found unenforceable, the remaining provisions remain in full force and effect.</p>
 </div>
-<div style="margin-top:18px;padding-top:12px;border-top:1px solid #1c191722;font:400 8.5px/1.5 var(--sans);color:var(--muted);">These Terms of Sale summarize and are governed by Roma Flooring Designs' full Terms of Service (romaflooringdesigns.com/terms) and Privacy Policy (romaflooringdesigns.com/privacy). Roma Flooring Designs, Inc. &middot; 1440 S. State College Blvd #6M &middot; Anaheim, CA 92806 &middot; License #830966.</div>
+<div style="margin-top:18px;padding-top:12px;border-top:1px solid #1c191722;font:400 8.5px/1.5 var(--sans);color:var(--muted);">These Terms of Sale summarize and are governed by Roma Flooring Designs' full Terms of Service (romaflooringdesigns.com/terms) and Privacy Policy (romaflooringdesigns.com/privacy). Roma Flooring Designs &middot; 1440 S. State College Blvd #6M &middot; Anaheim, CA 92806 &middot; License #830966.</div>
 
 <div class="keep" style="margin-top:22px;padding-top:14px;border-top:1.5px solid var(--ink);">
 <div class="small" style="margin-bottom:18px;max-width:660px;">By signing below I accept this ${docNoun} and authorize Roma Flooring Designs to proceed at the ${isQuoteDoc ? 'quoted' : 'estimated'} pricing, and I agree to the Terms of Sale set out above, including that <strong>all sales are final</strong> and that installing or using material is final acceptance of it. I confirm I have reviewed the ${isQuoteDoc ? 'quantities and colors' : 'scope, quantities, and colors'} on ${docType} ${estimateNumber}.</div>
@@ -1515,6 +1583,7 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
     }
     const isUnit = i.sell_by === 'unit';
     const qty = i.num_boxes || i.quantity || 1;
+    const _qu = lineQtyUnit(i, qty);
     const ci = composeItemName(i);
     let baseName = ci.title;
     if ((!baseName || baseName === 'Product') && i.description) baseName = i.description;
@@ -1528,7 +1597,9 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
     const perBoxSqft = parseFloat(i.sqft_per_box || 0);
     let sqft = parseFloat(i.sqft_needed || 0);
     if (!(sqft > 0) && !isUnit && perBoxSqft > 0 && qty > 0) sqft = perBoxSqft * qty;
-    const perBox = !isUnit ? (perBoxSqft > 0 ? perBoxSqft : (sqft > 0 && qty > 0 ? sqft / qty : null)) : null;
+    // Carpet has no box packaging (sold by the square yard), so it never shows a
+    // "sf / box" sub-figure even though it isn't a per-unit item.
+    const perBox = (!isUnit && !isCarpetLine(i)) ? (perBoxSqft > 0 ? perBoxSqft : (sqft > 0 && qty > 0 ? sqft / qty : null)) : null;
     const isFree = i.is_sample && parseFloat(i.subtotal || 0) === 0;
     const gradient = SWATCH_FALLBACKS[idx % SWATCH_FALLBACKS.length];
     const swatchSrc = i.primary_image
@@ -1546,7 +1617,7 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
         ${i.is_sample ? `<div style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.12em;color:var(--muted);margin-top:4px;text-transform:uppercase;">Sample</div>` : ''}
       </div>
       <div class="num">${isUnit || !sqft ? '—' : sqft.toFixed(1) + ' sf'}${perBox ? `<div class="numsub">${perBox.toFixed(1)} sf / box</div>` : ''}</div>
-      <div class="num">${qty}<div class="numsub">${isUnit ? (qty === 1 ? 'unit' : 'units') : (qty === 1 ? 'box' : 'boxes')}</div></div>
+      <div class="num">${_qu.text}<div class="numsub">${_qu.label}</div></div>
       <div class="num">${isFree ? 'Free' : money(i.unit_price) + priceUnitSuffix(i)}</div>
       <div class="line-total">${isFree ? 'Free' : money(i.subtotal)}</div>
     </div>`;
@@ -1639,7 +1710,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
-<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
 <div class="mono" style="letter-spacing:0.22em;">Invoice</div>
@@ -1649,7 +1720,8 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 ${o.po_number ? `<span style="color:var(--muted);">PO ref</span><span style="text-align:right;">${o.po_number}</span>` : ''}
 ${o.job_name ? `<span style="color:var(--muted);">Sidemark</span><span style="text-align:right;">${escDoc(o.job_name)}</span>` : ''}
 </div>
-<div style="margin-top:16px;display:flex;justify-content:flex-end;">
+<div style="margin-top:16px;display:flex;flex-direction:column;align-items:flex-end;gap:9px;">
+${o.is_revised ? `<span style="padding:7px 14px;border:1.5px solid var(--ink);color:var(--ink);font:500 11px/1 ui-monospace,monospace;letter-spacing:0.3em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">Revised &middot; Rev ${o.revision}</span>` : ''}
 <span style="padding:7px 14px;border:1.5px solid ${stampColor};color:${stampColor};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.3em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</span>
 </div>
 </div>
@@ -1716,7 +1788,7 @@ ${milestones.map(m => {
 </div>
 
 <div style="margin-top:auto;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
-<span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
+<span>Roma Flooring Designs · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Invoice ${orderNumber}</span>
 </div>
 
@@ -1742,7 +1814,7 @@ ${milestones.map(m => {
 <p style="margin:0 0 9px;"><strong>9. Cancellations &amp; special orders.</strong> Orders may be cancelled only with Roma's written consent. Special, custom, and non-stock orders are placed with the vendor on your behalf and are non-cancellable and non-refundable once submitted. Where a cancellation is permitted, restocking, handling, and freight charges may apply and deposits may be forfeited.</p>
 <p style="margin:0 0 0;"><strong>10. Governing law.</strong> These terms and any sale are governed by the laws of the State of California, without regard to its conflict-of-laws rules, with exclusive venue in the state or federal courts of Orange County, California. If any provision is found unenforceable, the remaining provisions remain in full force and effect.</p>
 </div>
-<div style="margin-top:18px;padding-top:12px;border-top:1px solid #1c191722;font:400 8.5px/1.5 var(--sans);color:var(--muted);">These Terms of Sale summarize and are governed by Roma Flooring Designs' full Terms of Service (romaflooringdesigns.com/terms) and Privacy Policy (romaflooringdesigns.com/privacy). Roma Flooring Designs, Inc. &middot; 1440 S. State College Blvd #6M &middot; Anaheim, CA 92806 &middot; License #830966.</div>
+<div style="margin-top:18px;padding-top:12px;border-top:1px solid #1c191722;font:400 8.5px/1.5 var(--sans);color:var(--muted);">These Terms of Sale summarize and are governed by Roma Flooring Designs' full Terms of Service (romaflooringdesigns.com/terms) and Privacy Policy (romaflooringdesigns.com/privacy). Roma Flooring Designs &middot; 1440 S. State College Blvd #6M &middot; Anaheim, CA 92806 &middot; License #830966.</div>
 
 <!-- Binding customer acceptance — signed directly beneath the terms above (direct
      assent, not incorporation by reference). -->
@@ -1902,7 +1974,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
-<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
 <div class="mono" style="letter-spacing:0.22em;">Credit Memo</div>
@@ -1968,7 +2040,7 @@ ${totalsRows}
 </div>
 
 <div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
-<span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
+<span>Roma Flooring Designs · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Credit Memo ${cmNumber}</span>
 </div>
 
@@ -2010,7 +2082,9 @@ export function generateReleaseFormDoc(release, items, opts = {}) {
   const rowsHtml = items.map((i, idx) => {
     const qty = parseFloat(i.release_qty || 0) || 0;
     const ordered = parseFloat(i.ordered_qty || 0);
-    const unit = i.sell_by === 'unit' ? 'unit' : i.sell_by === 'roll' ? 'roll' : 'box';
+    // Released quantity is already the material amount (carpet in sqyd, LF for rug
+    // cuts) — label it per material, don't derive from full-order coverage.
+    const _qu = lineQtyUnit({ sell_by: i.sell_by, price_basis: i.price_basis }, qty);
     const _ci = composeItemName(i);
     const name = escDoc(_ci.title || '—');
     const suffix = escDoc(_ci.descriptors.join(' · '));
@@ -2033,7 +2107,7 @@ export function generateReleaseFormDoc(release, items, opts = {}) {
         ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
       </div>
       <div class="num">${ordered ? ordered : '—'}<div class="numsub">ordered</div></div>
-      <div class="line-total">${qty}<div class="numsub" style="font-weight:400;">${qty === 1 ? unit : unit + 's'} released</div></div>
+      <div class="line-total">${_qu.text}<div class="numsub" style="font-weight:400;">${_qu.label} released</div></div>
     </div>`;
   }).join('');
 
@@ -2068,7 +2142,7 @@ ${isWillCall ? willCallStamp({ top: '16px', left: '52%' }) : ''}
 <span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
-<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
 <div class="mono" style="letter-spacing:0.22em;">Material Release</div>
@@ -2140,7 +2214,7 @@ ${release.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div 
 </div>
 
 <div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
-<span>Roma Flooring Designs, Inc. · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
+<span>Roma Flooring Designs · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Release ${relNumber}</span>
 </div>
 
@@ -2167,8 +2241,8 @@ export function generateWorkOrderDoc(order, items, opts = {}) {
     const _ci = composeItemName(i);
     const name = escDoc(_ci.title || i.product_name || '—');
     const suffix = escDoc(_ci.descriptors.join(' · '));
-    const unit = i.sell_by === 'unit' ? 'unit' : i.sell_by === 'roll' ? 'roll' : 'box';
     const qty = parseFloat(i.num_boxes || i.quantity || 0) || 0;
+    const _qu = lineQtyUnit(i, qty);
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
       i.collection && i.collection !== name ? i.collection : null,
@@ -2179,7 +2253,7 @@ export function generateWorkOrderDoc(order, items, opts = {}) {
         <div style="font:500 11px/1.25 var(--sans);">${name}${suffix ? ` <span style="color:var(--muted);font-weight:400;">· ${suffix}</span>` : ''}</div>
         ${skuLine ? `<div style="font:400 9px/1.5 var(--sans);color:#1c191799;margin-top:3px;">${skuLine}</div>` : ''}
       </div>
-      <div class="line-total">${qty}<div class="numsub" style="font-weight:400;">${qty === 1 ? unit : unit + 's'}</div></div>
+      <div class="line-total">${_qu.text}<div class="numsub" style="font-weight:400;">${_qu.label}</div></div>
     </div>`;
   }).join('') || `<div style="font:400 10px/1.5 var(--sans);color:var(--muted);padding:11px 0;">No material lines on this order.</div>`;
 
@@ -2232,7 +2306,7 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 <span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
 <span style="font-family:'Pinyon Script','Cormorant Garamond',cursive;font-size:35px;line-height:1;color:var(--accent);margin-top:-11px;white-space:nowrap;">Designs</span>
 </div>
-<div class="small" style="margin-top:14px;">Roma Flooring Designs, Inc.<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
+<div class="small" style="margin-top:14px;">Roma Flooring Designs<br />1440 S. State College Blvd #6M, Anaheim, CA 92806<br />(714) 999-0009 · Sales@romaflooringdesigns.com<br />License #830966</div>
 </div>
 <div style="text-align:right;min-width:220px;">
 <div class="mono" style="letter-spacing:0.22em;">Installation Work Order</div>

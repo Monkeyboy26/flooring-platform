@@ -1,12 +1,12 @@
 import { emailShell, heroSection, section, sectionLabel, ctaButton, detailList, money, T, SERIF, SANS, MONO, esc } from './_shell.js';
 import { SITE_URL } from './_config.js';
-import { composeItemName } from '../lib/documents.js';
+import { composeItemName, lineQtyUnit } from '../lib/documents.js';
 
 export function generateOrderConfirmationHTML(orderData) {
   const {
     order_number, created_at, customer_name,
     shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
-    delivery_method, subtotal, shipping, sample_shipping, total, items = []
+    delivery_method, subtotal, shipping, sample_shipping, transfer_fee, total, items = []
   } = orderData;
 
   const orderDate = new Date(created_at).toLocaleDateString('en-US', {
@@ -27,7 +27,7 @@ export function generateOrderConfirmationHTML(orderData) {
       ? (item.rate_type === 'per_sqft' ? `${parseFloat(item.labor_sqft || 0).toFixed(0)} sqft` : 'Service')
       : isSample
       ? `${item.num_boxes} sample${item.num_boxes > 1 ? 's' : ''}`
-      : item.sell_by === 'unit' ? `${item.num_boxes}` : `${item.num_boxes} box${item.num_boxes > 1 ? 'es' : ''}`;
+      : (() => { const u = lineQtyUnit(item); return `${u.text} ${u.label}`; })();
     const price = isSample ? 'Free' : money(item.subtotal);
     const sampleBadge = isSample
       ? ` <span style="display:inline-block;padding:2px 7px;background:${T.warm};border:1px solid ${T.border};font-family:${MONO};font-size:9px;font-weight:500;letter-spacing:0.14em;text-transform:uppercase;color:${T.ink};vertical-align:2px;">Sample</span>`
@@ -54,7 +54,7 @@ export function generateOrderConfirmationHTML(orderData) {
     </table>`;
 
   const addressValue = isPickup
-    ? `Roma Flooring Designs<br>1440 S. State College Blvd #6M, Anaheim, CA 92806<br><span style="color:${T.soft};">Mon&ndash;Fri 8am&ndash;5pm &middot; Sat 9am&ndash;2pm &middot; bring a photo ID</span>`
+    ? `Roma Flooring Designs<br>1440 S. State College Blvd #6M, Anaheim, CA 92806<br><span style="color:${T.soft};">Mon&ndash;Fri 9am&ndash;5pm &middot; Sat 10am&ndash;5pm &middot; bring a photo ID</span>`
     : `${esc(shipping_address_line1)}${shipping_address_line2 ? `<br>${esc(shipping_address_line2)}` : ''}<br>${esc(shipping_city)}, ${esc(shipping_state)} ${esc(shipping_zip)}`;
 
   const orderDetails = detailList([
@@ -75,6 +75,10 @@ export function generateOrderConfirmationHTML(orderData) {
       ${parseFloat(sample_shipping || 0) > 0 ? `<tr>
         <td style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.body};">Sample shipping</td>
         <td align="right" style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.ink};">${money(sample_shipping)}</td>
+      </tr>` : ''}
+      ${parseFloat(transfer_fee || 0) > 0 ? `<tr>
+        <td style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.body};">Transfer fee</td>
+        <td align="right" style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.ink};">${money(transfer_fee)}</td>
       </tr>` : ''}
       <tr>
         <td style="padding:6px 0;font-family:${SANS};font-size:14px;color:${T.body};">${isPickup ? 'Pickup' : 'Freight'}</td>

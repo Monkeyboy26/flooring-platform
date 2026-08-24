@@ -31,6 +31,7 @@ import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generate
 import { formatRugDims, computeRugCost, computeRugQuote } from './lib/rugPricing.js';
 import * as valorConnect from './lib/valorConnect.js';
 import { enrichItemsForNaming } from './lib/enrichItems.js';
+import { fullProductName } from './lib/productName.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -432,13 +433,29 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
       name_asc: 'name ASC',
       name_desc: 'name DESC'
     };
-    const sortKey = req.query.sort && sortMap[req.query.sort] ? req.query.sort : 'name_asc';
-    const orderClause = sortMap[sortKey];
-
     // Wrap as subquery so we can sort by computed aliases (price)
     const countQuery = `SELECT COUNT(*) FROM (${query}) AS filtered`;
     const countResult = await pool.query(countQuery, params);
     const total = parseInt(countResult.rows[0].count);
+
+    // Relevance-first ordering when searching without an explicit sort (exact →
+    // prefix → trigram similarity), so the admin typeahead surfaces the best name
+    // match first instead of plain alphabetical. Pushed after the count query so the
+    // extra param never reaches it. Falls back to the chosen/default sort otherwise.
+    let orderClause;
+    if (req.query.search && !req.query.sort) {
+      params.push(req.query.search);
+      const rel = paramIndex++;
+      orderClause = `
+        CASE WHEN LOWER(name) = LOWER($${rel}) OR LOWER(COALESCE(collection,'')) = LOWER($${rel}) THEN 0
+             WHEN name ILIKE $${rel} || '%' OR collection ILIKE $${rel} || '%' THEN 1
+             ELSE 2 END,
+        GREATEST(similarity(name, $${rel}), similarity(COALESCE(collection,''), $${rel})) DESC,
+        name ASC`;
+    } else {
+      const sortKey = req.query.sort && sortMap[req.query.sort] ? req.query.sort : 'name_asc';
+      orderClause = sortMap[sortKey];
+    }
 
     query = `SELECT * FROM (${query}) AS filtered ORDER BY ${orderClause}`;
 
@@ -1219,6 +1236,21 @@ async function loadSynonymsFromDb() {
 loadSynonymsFromDb();
 setInterval(loadSynonymsFromDb, 3600000);
 
+// Attribute slug → id cache (attributes is a tiny static table). Lets the structured
+// facet boost scan only the relevant sku_attributes rows via the (sku_id, attribute_id)
+// PK instead of joining the attributes table per SKU.
+let attributeIdBySlug = {};
+async function loadAttributeIds() {
+  try {
+    const res = await pool.query('SELECT id, slug FROM attributes');
+    const m = {};
+    for (const row of res.rows) m[row.slug] = row.id;
+    attributeIdBySlug = m;
+  } catch (err) { /* keep previous map */ }
+}
+loadAttributeIds();
+setInterval(loadAttributeIds, 3600000);
+
 function expandSynonyms(query) {
   const lower = query.toLowerCase().trim();
   if (searchSynonyms[lower]) return { text: query + ' ' + searchSynonyms[lower], expandedFrom: lower };
@@ -1251,6 +1283,71 @@ function expandSynonyms(query) {
     return { text: exp, expandedFrom };
   }
   return { text: query, expandedFrom: null };
+}
+
+// Build the full-text query fragments for a sanitized search string.
+//
+// CRITICAL: synonym expansion (e.g. waterproof → "waterproof flooring vinyl laminate")
+// may only ever BROADEN recall — it feeds the OR ("any word") query plus phrase/exact
+// ranking. It must NEVER be folded into the AND ("all words") query. Folding synonyms
+// into AND made every multi-word search containing an expandable term require the synonym
+// words too, so a legitimate query like "waterproof oak" matched zero products on the
+// all-words probe and collapsed into the broad any-word net — thousands of loosely
+// related rows ("Aruba"/"Bahamas" Waterproof Laminate, no oak) plus multi-second latency,
+// even though 122 products genuinely contain both words. AND is built from the user's
+// ORIGINAL words; OR from the expanded set.
+function buildFtsQueries(sanitized) {
+  const { text: expanded, expandedFrom } = expandSynonyms(sanitized);
+  const origWords = sanitized.split(/\s+/).filter(Boolean);
+  const expWords = expanded.split(/\s+/).filter(Boolean);
+  return {
+    expanded,
+    expandedFrom,
+    origWords,
+    expWords,
+    andTsQuery: origWords.map(w => w + ':*').join(' & '),
+    orTsQuery: expWords.map(w => w + ':*').join(' | '),
+  };
+}
+
+// Decide NARROW (all-words) vs RELAXED (min-should-match, ≥ N-1 words) recall for a
+// sanitized query. Shared by the grid (/api/storefront/skus) and /facets so their result
+// sets stay identical — a divergence here makes facet counts disagree with the grid.
+// Narrow only when ≥ NARROW_MIN products contain every word (enough to fill a grid);
+// otherwise relax, so a single incidental all-words hit can't collapse recall to ~0.
+const SEARCH_NARROW_MIN = 8;
+async function resolveSearchRecall(sanitized) {
+  const { andTsQuery, orTsQuery, origWords } = buildFtsQueries(sanitized);
+  const cw = origWords.map(w => w.replace(/[^a-z0-9]/gi, '').toLowerCase()).filter(Boolean);
+  const N = cw.length;
+  let narrow = false;
+  try {
+    const c = await pool.query(
+      `SELECT count(*) c FROM (SELECT 1 FROM products WHERE status = 'active' AND search_vector @@ to_tsquery('english', unaccent($1)) LIMIT ${SEARCH_NARROW_MIN}) t`,
+      [andTsQuery]
+    );
+    const andCount = parseInt(c.rows[0].c, 10);
+    // Narrow when enough products match ALL words, OR when the query is long/specific
+    // (≥5 words with ≥1 all-word match) — a pasted full product name must not relax into
+    // a huge any-word net (thousands of loosely-related rows → multi-second timeout).
+    narrow = andCount >= SEARCH_NARROW_MIN || (andCount >= 1 && N >= 5);
+  } catch (e) { /* malformed tsquery — fall back to relaxed recall */ }
+  // Min-should-match recall query:
+  //   N<=2 → plain OR (either word);
+  //   3..6 → OR of every "drop one word" combination (≥ N-1 words);
+  //   N>6  → all-words AND. A long query is almost always a pasted product name; OR-ing
+  //          its many common words ("in", "tile", "floor", "for") matched ~14k products
+  //          and took 20-30s. Requiring all words keeps the FTS set tiny, and the name
+  //          trigram/substring branches in the recall WHERE still catch the exact product.
+  let msmTsQuery = orTsQuery;
+  if (N >= 3 && N <= 6) {
+    const combos = [];
+    for (let i = 0; i < N; i++) combos.push('(' + cw.filter((_, j) => j !== i).map(w => w + ':*').join(' & ') + ')');
+    msmTsQuery = combos.join(' | ');
+  } else if (N > 6) {
+    msmTsQuery = andTsQuery;
+  }
+  return { narrow, andTsQuery, msmTsQuery, cw, N, recallTsQuery: narrow ? andTsQuery : msmTsQuery };
 }
 
 // ==================== Color Family Mapping ====================
@@ -1364,6 +1461,55 @@ function parseDimensions(query) {
   return Object.keys(dims).length > 0 ? dims : null;
 }
 
+// ==================== Structured Query Parsing (dimension / color / finish / material) ====================
+
+// Shopper-facing finish vocabulary — grounded in the top sku_attributes.finish values
+// (matte 15k, polished 4.7k, glossy 4.1k, honed 1.8k, …). Multi-word phrases listed so
+// they can be matched before their sub-words.
+const FINISH_TERMS = [
+  'semi polished', 'semi-polished', 'split face', 'splitface', 'honed', 'matte', 'polished',
+  'glossy', 'gloss', 'satin', 'textured', 'structured', 'tumbled', 'brushed', 'lappato',
+  'glazed', 'unglazed', 'sandblasted',
+];
+// Shopper-facing material vocabulary — grounded in sku_attributes.material + categories
+// (porcelain 9.5k, ceramic 3.7k, marble 1.3k, quartz 1.5k, …). "quartzite" before "quartz".
+const MATERIAL_TERMS = [
+  'porcelain', 'ceramic', 'marble', 'quartzite', 'quartz', 'travertine', 'granite',
+  'limestone', 'slate', 'glass', 'vinyl', 'laminate', 'hardwood', 'bamboo', 'cork',
+  'terracotta', 'terrazzo', 'onyx', 'sandstone', 'basalt', 'mosaic',
+];
+
+// Parse a raw search string into structured facets used ONLY as a per-SKU ranking boost
+// (never a hard filter — recall is unaffected). Size comes from parseDimensions (already
+// normalized to "12x24", the exact sku_attributes.size format); color reuses the
+// COLOR_FAMILY_MAP keys; finish/material use the curated vocab above. Everything is
+// matched on whole-word / phrase boundaries so "matte" doesn't fire on "Mattia".
+function parseSearchQuery(raw) {
+  const lower = (raw || '').toLowerCase();
+  const has = (term) => {
+    const t = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+    return new RegExp(`(^|[^a-z0-9])${t}([^a-z0-9]|$)`, 'i').test(lower);
+  };
+  const dims = parseDimensions(normalizeSearchQuery(raw));
+  const finishWords = [];
+  for (const f of FINISH_TERMS) {
+    // skip a sub-word if a longer phrase already captured it (e.g. "semi polished" ⊃ "polished")
+    if (has(f) && !finishWords.some(x => x.includes(f) || f.includes(x))) finishWords.push(f);
+  }
+  const materialWords = MATERIAL_TERMS.filter(has);
+  // 'natural'/'multi'/'mixed' are ambiguous (finish/none), so excluded from color intent.
+  const colorWords = Object.keys(COLOR_FAMILY_MAP)
+    .filter(c => c !== 'natural' && c !== 'multi' && c !== 'mixed' && has(c));
+  return {
+    size: dims && dims.sizePattern ? dims.sizePattern.toLowerCase() : null,
+    thickness: dims && dims.thickness ? dims.thickness : null,
+    finishWords,
+    materialWords,
+    colorWords,
+    hasFacets: !!(dims && dims.sizePattern) || finishWords.length > 0 || materialWords.length > 0 || colorWords.length > 0,
+  };
+}
+
 // ==================== LRU Search Cache ====================
 
 class SearchCache {
@@ -1419,11 +1565,10 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
     const cached = suggestCache.get(cacheKey);
     if (cached) return res.json(cached);
 
-    const { text: expanded, expandedFrom } = expandSynonyms(sanitized);
-    const words = expanded.split(/\s+/).filter(Boolean);
-    const andTsQuery = words.map(w => w + ':*').join(' & ');
-    const orTsQuery = words.map(w => w + ':*').join(' | ');
-    const phraseInput = expanded;
+    const { expanded, expandedFrom, andTsQuery, orTsQuery } = buildFtsQueries(sanitized);
+    // Phrase/exact ranking matches the user's actual phrase, not the synonym-expanded
+    // string (phraseto_tsquery on the mangled expansion never matches as a phrase).
+    const phraseInput = sanitized;
     const dims = parseDimensions(sanitized);
 
     // Detect SKU-like patterns (letters+digits+hyphens, at least one digit and one letter)
@@ -1897,7 +2042,9 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     // Search — Progressive FTS (AND → OR cascade) + trigram hybrid (with synonym expansion)
     let searchParamIdx = null;
     let searchTsQueryIdx = null;
-    let useNarrowRecall = false; // true once the AND-recall (all words) finds matches; false ⇒ broad typo-fallback
+    let useNarrowRecall = false; // true once the AND-recall (all words) finds enough matches; false ⇒ relaxed recall
+    let coverageInner = '0';     // per-word coverage score (SELECT expr, set when searching)
+    let strongMatchKey = null;   // ranks exact/full-name matches above image-presence when searching
     if (searchTerm) {
       const normalized = normalizeSearchQuery(searchTerm);
       const sanitized = normalized.replace(/[^\w\s'.-]/g, '').trim();
@@ -1905,39 +2052,40 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         params.push(sanitized);
         searchParamIdx = paramIndex;
         paramIndex++;
-        const { text: expanded } = expandSynonyms(sanitized);
-        const words = expanded.split(/\s+/).filter(Boolean);
-        const andTsQuery = words.map(w => w + ':*').join(' & ');
-        const orTsQuery = words.map(w => w + ':*').join(' | ');
+        // Progressive recall (narrow all-words vs relaxed min-should-match) — shared with
+        // /facets via resolveSearchRecall so the two never diverge. See that helper for why
+        // a single incidental all-words hit must not collapse recall ("small white hexagon").
+        const { narrow, recallTsQuery, cw, N } = await resolveSearchRecall(sanitized);
+        useNarrowRecall = narrow;
 
-        // Progressive AND→OR recall: if any product contains ALL query words
-        // (AND full-text), recall is restricted to those (+ exact-phrase substring
-        // + sku-code prefix), dropping the OR-full-text and trigram fuzzy net. That
-        // net exists only as a fallback for typos/rare word combos — when real
-        // all-word matches exist it just pads the tail with loosely-related items
-        // ("12x24 matte" → 5,400 results, most matching only one word). When no
-        // product matches every word (a typo, or words that never co-occur), the
-        // AND count is 0 and we keep the broad net so the grid isn't empty. One
-        // small indexed probe (GIN, ~25ms) decides. This mirrors the AND→OR cascade
-        // the /search/suggest autocomplete already uses.
-        try {
-          const andCount = await pool.query(
-            `SELECT 1 FROM products WHERE status = 'active' AND search_vector @@ to_tsquery('english', unaccent($1)) LIMIT 1`,
-            [andTsQuery]
-          );
-          useNarrowRecall = andCount.rows.length > 0;
-        } catch (e) { /* malformed tsquery — fall back to broad recall */ }
-
-        // Bind a SINGLE tsquery param — the AND-query when narrowing, the OR-query
-        // otherwise — and use it for both the recall WHERE and the ranking
-        // (match_tier + ts_rank). One shared param means there's never an
-        // unreferenced/gap parameter, which the count query (WHERE only, no ranking)
-        // would otherwise reject at bind ("could not determine data type"). In broad
-        // mode nothing matches all words, so the AND-based tiers are vacuous anyway
-        // and the OR-query is the correct relevance signal there too.
-        params.push(useNarrowRecall ? andTsQuery : orTsQuery);
+        // Bind a SINGLE tsquery param — all-words when narrowing, min-should-match otherwise —
+        // used for BOTH the recall WHERE and the ranking (match_tier + ts_rank). One shared
+        // param means there's never an unreferenced/gap parameter, which the count query
+        // (WHERE only, no ranking) would otherwise reject at bind.
+        params.push(recallTsQuery);
         searchTsQueryIdx = paramIndex;
         paramIndex++;
+
+        // Per-word coverage (how many query words the product matches) — the primary
+        // relevance sub-key after match_tier, so in relaxed mode a product matching 2 of 3
+        // words outranks one matching 1. Product-level (search_vector), constant across a
+        // product's SKUs; inline alnum-cleaned words (no param). '0' for single-word queries.
+        // Capped at 8 words so a pasted 15-word name doesn't run 15 tsquery checks per row.
+        const covWords = cw.slice(0, 8);
+        coverageInner = covWords.length >= 2
+          ? covWords.map(w => `(CASE WHEN p.search_vector @@ to_tsquery('english', unaccent('${w}:*')) THEN 1 ELSE 0 END)`).join(' + ')
+          : '0';
+
+        // Strong-match key (0 = strong, 1 = not): an exact name/collection match
+        // (match_tier 4) OR a full-word-coverage match. Placed FIRST in the search ORDER BY
+        // — above image-presence — so searching a product's exact name always surfaces it,
+        // even when that product has no image (previously buried below imaged weak matches,
+        // e.g. "Coloso Gris", "Black Vermont Slab" fell past #24). match_tier 4 needs exact
+        // string equality (fails for names with stripped punctuation), so full coverage is
+        // the fallback that catches multi-word names like "3/4\" X 6\" Cove Moulding…".
+        strongMatchKey = covWords.length >= 2
+          ? `CASE WHEN match_tier = 4 OR coverage >= ${covWords.length} THEN 0 ELSE 1 END`
+          : `CASE WHEN match_tier = 4 THEN 0 ELSE 1 END`;
 
         // Match on product IDs via a self-contained subquery instead of OR-ing
         // predicates across the skus↔products join. OR-ing product-column and
@@ -2054,6 +2202,55 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
 
     const whereSQL = whereClauses.join(' AND ');
 
+    // Structured facet boost — parse dimension/color/finish/material out of the query and
+    // score each SKU by how many of its attributes match. This is a RANKING boost only
+    // (never a filter), so recall is unchanged, but a SKU that matches the parsed size +
+    // finish + color + material floats above bag-of-words matches (fixes "12x24 matte white
+    // porcelain" surfacing an off-size paver just because it hit "porcelain"). Params are
+    // pushed after the WHERE params — whereParamCount marks the boundary the count query
+    // (WHERE only, no ranking) must not exceed. facetScoreInner references s.id (valid in
+    // the inner query); facet_score is the selected alias the outer/dedup ORDER BY uses.
+    const whereParamCount = params.length;
+    let facetScoreInner = '0';
+    let facetLateral = '';  // single per-SKU attribute scan appended to browseFrom
+    let facetDedup = '';    // expression fragment for the DISTINCT ON representative-pick
+    let facetOrder = '';    // alias fragment for the relevance ORDER BYs
+    if (searchParamIdx) {
+      const parsed = parseSearchQuery(searchTerm);
+      const idsFor = (slugs) => slugs.map(s => attributeIdBySlug[s]).filter(Boolean);
+      if (parsed.hasFacets) {
+        const terms = [];
+        if (parsed.size) terms.push({ attrIds: idsFor(['size']), values: [parsed.size], exact: true });
+        if (parsed.finishWords.length) terms.push({ attrIds: idsFor(['finish']), values: parsed.finishWords.map(w => '%' + w + '%') });
+        if (parsed.colorWords.length) terms.push({ attrIds: idsFor(['color']), values: parsed.colorWords.map(w => '%' + w + '%') });
+        if (parsed.materialWords.length) terms.push({ attrIds: idsFor(['material', 'material_class']), values: parsed.materialWords.map(w => '%' + w + '%') });
+        const usable = terms.filter(t => t.attrIds.length > 0); // drop any facet whose id isn't cached yet
+        if (usable.length) {
+          // One LATERAL scan of each SKU's attribute rows — narrowed by the
+          // (sku_id, attribute_id) PK to just the 3-4 relevant rows and summing one point
+          // per matched facet type. Far cheaper than N correlated EXISTS subqueries
+          // (which turned "matte white" into a ~4s scan) or scanning every attribute row.
+          const allIds = [...new Set(usable.flatMap(t => t.attrIds))];
+          const allIdsParam = paramIndex++; params.push(allIds);
+          const sums = usable.map(t => {
+            const idParam = paramIndex++; params.push(t.attrIds);
+            const valParam = paramIndex++; params.push(t.values);
+            const cmp = t.exact ? `LOWER(sa.value) = ANY($${valParam})` : `LOWER(sa.value) LIKE ANY($${valParam})`;
+            return `MAX(CASE WHEN sa.attribute_id = ANY($${idParam}::uuid[]) AND ${cmp} THEN 1 ELSE 0 END)`;
+          });
+          facetLateral = `
+      LEFT JOIN LATERAL (
+        SELECT ${sums.join(' + ')} AS score
+        FROM sku_attributes sa
+        WHERE sa.sku_id = s.id AND sa.attribute_id = ANY($${allIdsParam}::uuid[])
+      ) fs ON TRUE`;
+          facetScoreInner = 'COALESCE(fs.score, 0)';
+          facetDedup = `${facetScoreInner} DESC, `;
+          facetOrder = 'facet_score DESC, ';
+        }
+      }
+    }
+
     // Sort — relevance-first when searching (unless user explicitly chose a sort)
     // NOTE: PostgreSQL does not allow SELECT aliases inside expressions (CASE, LOWER, similarity, etc.)
     // in ORDER BY. Use actual table.column references for expressions; bare aliases work for simple sorts.
@@ -2087,7 +2284,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     else if (sort === 'name_asc') orderBy = `${imgFirst}, ${rankBoost}, COALESCE(p.display_name, p.name) ASC, s.variant_name ASC`;
     else if (sort === 'name_desc') orderBy = `${imgFirst}, ${rankBoost}, COALESCE(p.display_name, p.name) DESC, s.variant_name DESC`;
     else if (searchParamIdx && !sort) {
-      orderBy = `${imgFirst}, ${rankBoost}, match_tier DESC, (
+      orderBy = `${strongMatchKey}, ${imgFirst}, ${rankBoost}, match_tier DESC, coverage DESC, ${facetOrder}(
         COALESCE(ts_rank(p.search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))), 0) * 2
         + COALESCE(pp.popularity_score, 0) * 0.1
         + 0.25 * greatest(similarity(COALESCE(p.display_name, p.name), $${searchParamIdx}), similarity(p.collection, $${searchParamIdx}))
@@ -2120,7 +2317,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       else if (sort === 'name_asc') outerOrderBy = `${oImg}, ${oRank}, product_name ASC, variant_name ASC`;
       else if (sort === 'name_desc') outerOrderBy = `${oImg}, ${oRank}, product_name DESC, variant_name DESC`;
       else if (searchParamIdx && !sort) {
-        outerOrderBy = `${oImg}, ${oRank}, match_tier DESC, (
+        outerOrderBy = `${strongMatchKey}, ${oImg}, ${oRank}, match_tier DESC, coverage DESC, ${facetOrder}(
           COALESCE(ts_rank(search_vector, to_tsquery('english', unaccent($${searchTsQueryIdx}))), 0) * 2
           + popularity_score * 0.1
           + 0.25 * greatest(similarity(product_name, $${searchParamIdx}), similarity(collection, $${searchParamIdx}))
@@ -2225,7 +2422,9 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         END as low_stock_qty,
         COALESCE(vc.variant_count, 0) as variant_count,
         COALESCE(pp.popularity_score, 0) as popularity_score,
-        ${matchTierInner} AS match_tier`;
+        ${matchTierInner} AS match_tier,
+        (${coverageInner}) AS coverage,
+        (${facetScoreInner}) AS facet_score`;
 
     const browseFrom = `
       FROM skus s
@@ -2246,7 +2445,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       LEFT JOIN product_images pi ON pi.product_id = p.id
       LEFT JOIN product_alt_images pai ON pai.product_id = p.id
       LEFT JOIN variant_counts vc ON vc.product_id = p.id
-      LEFT JOIN product_popularity pp ON pp.product_id = p.id`;
+      LEFT JOIN product_popularity pp ON pp.product_id = p.id${facetLateral}`;
 
     let mainSQL;
     if (deduplicateByProduct) {
@@ -2259,7 +2458,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
           WHERE ${whereSQL}
           ORDER BY ${browseGroupKey},
             CASE WHEN COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END,
-            s.created_at
+            ${facetDedup}s.created_at
         ) browse_deduped
         ORDER BY ${outerOrderBy}
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
@@ -2275,7 +2474,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     params.push(limit, offset);
 
     const [countResult, skuResult] = await Promise.all([
-      pool.query(countSQL, params.slice(0, paramIndex - 1)),
+      pool.query(countSQL, params.slice(0, whereParamCount)),
       pool.query(mainSQL, params)
     ]);
 
@@ -3524,17 +3723,7 @@ app.get('/api/storefront/facets', async (req, res) => {
         // contain both words, vs the 233 the grid shows — inconsistent numbers, and a
         // 12× heavier facet fan-out that starved the skus query. Narrowing to the
         // all-words set keeps facets both correct and cheap.
-        const words = sanitized.split(/\s+/).filter(Boolean);
-        const andTsQuery = words.map(w => w + ':*').join(' & ');
-        const orTsQuery = words.map(w => w + ':*').join(' | ');
-        let narrow = false;
-        try {
-          const c = await pool.query(
-            `SELECT 1 FROM products WHERE status = 'active' AND search_vector @@ to_tsquery('english', unaccent($1)) LIMIT 1`,
-            [andTsQuery]
-          );
-          narrow = c.rows.length > 0;
-        } catch (e) { /* malformed tsquery — fall through to broad recall */ }
+        const { narrow, recallTsQuery } = await resolveSearchRecall(sanitized);
         let matchedPids = [];
         try {
           const productMatch = narrow
@@ -3550,7 +3739,7 @@ app.get('/api/storefront/facets', async (req, res) => {
             SELECT sm.product_id FROM skus sm
             WHERE sm.status = 'active'
               AND (sm.vendor_sku ILIKE $2 || '%' OR sm.internal_sku ILIKE $2 || '%')
-          `, [narrow ? andTsQuery : orTsQuery, sanitized]);
+          `, [recallTsQuery, sanitized]);
           matchedPids = m.rows.map(r => r.id);
         } catch (e) { /* leave matchedPids empty (no results) */ }
         params.push(matchedPids);
@@ -5126,12 +5315,16 @@ async function generatePurchaseOrders(orderId, client) {
       } else if (item.price_tier === 'cut' && item.cut_cost != null) {
         vendorCost = parseFloat(item.cut_cost);
       }
-      let costPerBox, retailPerBox, itemSubtotal;
+      let costPerBox, retailPerBox, itemSubtotal, poQty = item.qty;
       if (item.price_basis === 'per_sqyd') {
-        const sqyd = parseFloat(item.sqft_needed || 0) / 9;
+        // Carpet is ordered by the SQUARE YARD — store the real sqyd as the PO qty
+        // (not the num_boxes placeholder) so qty×cost = subtotal and the EDI 850 /
+        // vendor PO transmit the true yardage in SY. See [[doc-material-units]].
+        const sqyd = Math.round((parseFloat(item.sqft_needed || 0) / 9) * 100) / 100;
         costPerBox = vendorCost; // cost per sqyd
         retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null; // retail per sqyd
         itemSubtotal = vendorCost * sqyd;
+        poQty = sqyd;
       } else if (item.price_basis === 'per_sqft' || item.price_basis === 'sqft') {
         costPerBox = vendorCost * sqftPerBox;
         retailPerBox = item.unit_price ? parseFloat(item.unit_price) * sqftPerBox : null;
@@ -5146,7 +5339,7 @@ async function generatePurchaseOrders(orderId, client) {
           (purchase_order_id, order_item_id, sku_id, product_name, vendor_sku, description, qty, sell_by, cost, original_cost, retail_price, subtotal)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       `, [po.id, item.order_item_id, item.sku_id, item.product_name, item.vendor_sku,
-          item.description, item.qty, item.sell_by,
+          item.description, poQty, item.sell_by,
           costPerBox.toFixed(2), costPerBox.toFixed(2),
           retailPerBox !== null ? retailPerBox.toFixed(2) : null,
           itemSubtotal.toFixed(2)]);
@@ -9679,10 +9872,13 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         const poIsPerSqft = sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft';
 
         if (isCarpet) {
-          const sqyd = (parseFloat(sqft_needed) || 0) / 9;
+          // Carpet is ordered by the SQUARE YARD — store the real sqyd as the PO
+          // qty (not the num_boxes placeholder of 1) so qty×cost = subtotal and the
+          // EDI 850 / vendor PO transmit the true yardage in SY. See [[doc-material-units]].
+          const sqyd = Math.round(((parseFloat(sqft_needed) || 0) / 9) * 100) / 100;
           poCost = vendorCost;
           poRetail = unitPrice;
-          poQty = num_boxes;
+          poQty = sqyd;
           poSubtotal = vendorCost * sqyd;
         } else if (poIsPerSqft) {
           poCost = vendorCost * skuSqftPerBox;
@@ -9703,8 +9899,11 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         poCost = customCost != null ? customCost : unitPrice;
         poRetail = unitPrice;
         if (customSellBy === 'roll') {
-          poQty = 1;
-          poSubtotal = poCost * (num_boxes / 9);
+          // Custom carpet line: num_boxes carries the sqft entered; order by the
+          // square yard so qty×cost = subtotal and EDI transmits true SY.
+          const sqyd = Math.round((num_boxes / 9) * 100) / 100;
+          poQty = sqyd;
+          poSubtotal = poCost * sqyd;
         } else {
           poQty = num_boxes;
           poSubtotal = poCost * num_boxes;
@@ -10051,14 +10250,12 @@ async function searchProductIdsRanked(pool, rawQuery, { limit = 20, requireAllWo
   const normalized = normalizeSearchQuery(raw);
   const sanitized = normalized.replace(/[^\w\s'.-]/g, '').trim();
   if (!sanitized) return [];
-  const { text: expanded } = expandSynonyms(sanitized);
-  const words = expanded.split(/\s+/).filter(Boolean);
-  const andTsQuery = words.map(w => w + ':*').join(' & ');
-  const orTsQuery = words.map(w => w + ':*').join(' | ');
-  const phraseInput = expanded;
+  const { origWords, andTsQuery, orTsQuery } = buildFtsQueries(sanitized);
+  // Phrase/exact ranking matches the user's actual phrase, not the expanded string.
+  const phraseInput = sanitized;
   const isSkuLike = /[a-zA-Z]/.test(sanitized) && /\d/.test(sanitized) && /^[\w.-]+$/.test(sanitized.replace(/\s/g, ''));
   // Single-word queries can't narrow (AND == OR), so only engage for 2+ words.
-  const narrow = requireAllWords && words.length > 1;
+  const narrow = requireAllWords && origWords.length > 1;
   const orThreshold = narrow ? 1 : limit; // OR branch fires only when phrase+AND is empty
 
   const seen = new Set();
@@ -17377,7 +17574,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     const { customer_name, customer_email, phone, company_name, delivery_method, shipping_address,
-            payment_method, items, promo_code, document_ids, payment_amount } = req.body;
+            payment_method, items, promo_code, document_ids, payment_amount,
+            manual_discount_type, manual_discount_value } = req.body;
     const companyName = (company_name || '').trim() || null;
     const jobName = (req.body.job_name || '').trim().slice(0, 200) || null;
 
@@ -17608,6 +17806,15 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       discountAmount = promoResult.discount_amount;
       promoCodeId = promoResult.promo.id;
       promoCodeStr = promoResult.promo.code;
+    } else if (manual_discount_type && manual_discount_value != null) {
+      // Rep-entered manual discount (only when no promo code is applied). Fixed $
+      // off the total, or a percent of the merchandise subtotal; clamped so it
+      // never exceeds the subtotal.
+      const mv = parseFloat(manual_discount_value);
+      if (['percent', 'fixed'].includes(manual_discount_type) && !isNaN(mv) && mv > 0) {
+        const raw = manual_discount_type === 'percent' ? (subtotal * Math.min(mv, 100) / 100) : mv;
+        discountAmount = Math.min(parseFloat(raw.toFixed(2)), subtotal);
+      }
     }
 
     // Calculate sales tax — CA lets retailer discounts (promo codes) reduce the
@@ -18150,6 +18357,83 @@ app.delete('/api/rep/quotes/:id/notes/:noteId', repAuth, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// ── Estimate internal notes ──────────────────────────────────────────────────
+// Multi-entry, author + timestamp, edit/delete — mirrors the quote notes above,
+// stored in customer_notes keyed by estimate_id. Team-collaborative: any rep may
+// view/add/edit/delete notes on any estimate (author-scoped edits).
+async function estimateForNotes(estimateId) {
+  const r = await pool.query(
+    'SELECT id, customer_id, customer_email FROM estimates WHERE id = $1',
+    [estimateId]);
+  return r.rows[0] || null;
+}
+
+app.get('/api/rep/estimates/:id/notes', repAuth, async (req, res) => {
+  try {
+    const estimate = await estimateForNotes(req.params.id);
+    if (!estimate) return res.status(404).json({ error: 'Estimate not found' });
+    const notes = await pool.query(`
+      SELECT cn.*, COALESCE(
+        (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = cn.staff_id),
+        'Staff') AS staff_name
+      FROM customer_notes cn WHERE cn.estimate_id = $1 ORDER BY cn.created_at DESC`, [req.params.id]);
+    res.json({ notes: notes.rows });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/rep/estimates/:id/notes', repAuth, async (req, res) => {
+  try {
+    const estimate = await estimateForNotes(req.params.id);
+    if (!estimate) return res.status(404).json({ error: 'Estimate not found' });
+    const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
+    if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const ct = estimate.customer_id ? 'retail' : 'guest';
+    const cref = String(estimate.customer_id || estimate.customer_email || req.params.id);
+    const result = await pool.query(`
+      INSERT INTO customer_notes (customer_type, customer_ref, estimate_id, staff_id, note)
+      VALUES ($1, $2, $3, $4, $5) RETURNING *`, [ct, cref, req.params.id, req.rep.id, note.slice(0, 4000)]);
+    const newNote = result.rows[0];
+    newNote.staff_name = req.rep.first_name + ' ' + req.rep.last_name;
+    res.json({ note: newNote });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.put('/api/rep/estimates/:id/notes/:noteId', repAuth, async (req, res) => {
+  try {
+    const estimate = await estimateForNotes(req.params.id);
+    if (!estimate) return res.status(404).json({ error: 'Estimate not found' });
+    const note = (req.body && req.body.note ? String(req.body.note) : '').trim();
+    if (!note) return res.status(400).json({ error: 'Note text is required' });
+    const owns = await pool.query('SELECT staff_id FROM customer_notes WHERE id = $1 AND estimate_id = $2', [req.params.noteId, req.params.id]);
+    if (!owns.rows.length) return res.status(404).json({ error: 'Note not found' });
+    if (owns.rows[0].staff_id !== req.rep.id) return res.status(403).json({ error: 'You can only edit your own notes' });
+    const result = await pool.query(
+      'UPDATE customer_notes SET note = $1 WHERE id = $2 AND estimate_id = $3 RETURNING *',
+      [note.slice(0, 4000), req.params.noteId, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    const upd = result.rows[0];
+    upd.staff_name = (await pool.query(
+      `SELECT COALESCE((SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = $1), 'Staff') AS n`,
+      [upd.staff_id])).rows[0].n;
+    res.json({ note: upd });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.delete('/api/rep/estimates/:id/notes/:noteId', repAuth, async (req, res) => {
+  try {
+    const estimate = await estimateForNotes(req.params.id);
+    if (!estimate) return res.status(404).json({ error: 'Estimate not found' });
+    const owns = await pool.query('SELECT staff_id FROM customer_notes WHERE id = $1 AND estimate_id = $2', [req.params.noteId, req.params.id]);
+    if (!owns.rows.length) return res.status(404).json({ error: 'Note not found' });
+    if (owns.rows[0].staff_id !== req.rep.id) return res.status(403).json({ error: 'You can only delete your own notes' });
+    const result = await pool.query(
+      'DELETE FROM customer_notes WHERE id = $1 AND estimate_id = $2 RETURNING id',
+      [req.params.noteId, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 // ── Sample-request internal notes ────────────────────────────────────────────
 // Multi-entry, author + timestamp, edit/delete — mirrors the quote notes above,
 // stored in customer_notes keyed by sample_request_id. Team-collaborative: any
@@ -18551,36 +18835,68 @@ app.put('/api/rep/orders/:id/job-name', repAuth, async (req, res) => {
 
 // ---- Sidemark / job-name suggestions (shared by rep + staff) ----
 // Reps pick a customer's prior sidemarks (across quotes, orders, sample
-// requests, and visits) instead of retyping — matched by customer_id and/or
-// email. With no customer context, returns the most recently used values so
-// the dropdown is never empty. Placeholders are referenced by every UNION arm,
-// so params are passed once (Postgres allows a $n to be reused).
+// requests, and visits) instead of retyping. We first resolve the customer's
+// FULL identity set — every linked email + customer/trade id — so a sidemark
+// isn't missed when a retail account is linked to a trade account or the same
+// person appears under more than one email. With no customer context, returns
+// the most recently used values so the dropdown is never empty.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function getSidemarkSuggestions({ customerId, email }) {
-  const cid = (customerId || '').trim() || null;
+  const cid0 = (customerId || '').trim();
+  const cid = UUID_RE.test(cid0) ? cid0 : null;
   const em = (email || '').trim().toLowerCase() || null;
-  const params = [];
-  let where = '';
-  if (cid || em) {
-    const conds = [];
-    if (cid) { params.push(cid); conds.push(`customer_id = $${params.length}`); }
-    if (em) { params.push(em); conds.push(`LOWER(customer_email) = $${params.length}`); }
-    where = 'WHERE ' + conds.join(' OR ');
+
+  // No context → most-recent values across everyone (never an empty list).
+  if (!cid && !em) {
+    const r = await pool.query(`
+      SELECT val, MAX(created_at) AS last_used FROM (
+        SELECT sidemark AS val, created_at FROM quotes
+        UNION ALL SELECT job_name AS val, created_at FROM orders
+        UNION ALL SELECT sidemark AS val, created_at FROM sample_requests
+        UNION ALL SELECT sidemark AS val, created_at FROM showroom_visits
+      ) u WHERE val IS NOT NULL AND btrim(val) <> ''
+      GROUP BY val ORDER BY last_used DESC LIMIT 25`);
+    return r.rows.map(row => row.val);
   }
-  const scoped = !!where;
-  const sub = `
-    SELECT sidemark AS val, created_at FROM quotes ${where}
-    UNION ALL SELECT job_name AS val, created_at FROM orders ${where}
-    UNION ALL SELECT sidemark AS val, created_at FROM sample_requests ${where}
-    UNION ALL SELECT sidemark AS val, created_at FROM showroom_visits ${where}
-  `;
+
+  // Resolve the linked identity set: retail customer(s) → their trade account →
+  // sibling retail accounts on that trade account, gathering every id + email.
+  const emails = new Set(); if (em) emails.add(em);
+  const custIds = new Set(); if (cid) custIds.add(cid);
+  const tradeIds = new Set();
+
+  const cRes = await pool.query(
+    `SELECT id, LOWER(email) AS email, trade_customer_id FROM customers
+      WHERE ($1::uuid IS NOT NULL AND id = $1::uuid) OR ($2::text IS NOT NULL AND LOWER(email) = $2)`,
+    [cid, em]);
+  for (const r of cRes.rows) { custIds.add(r.id); if (r.email) emails.add(r.email); if (r.trade_customer_id) tradeIds.add(r.trade_customer_id); }
+
+  const tRes = await pool.query(
+    `SELECT id, LOWER(email) AS email FROM trade_customers
+      WHERE id = ANY($1::uuid[]) OR ($2::text IS NOT NULL AND LOWER(email) = $2)`,
+    [Array.from(tradeIds), em]);
+  for (const r of tRes.rows) { tradeIds.add(r.id); if (r.email) emails.add(r.email); }
+
+  if (tradeIds.size) {
+    const sRes = await pool.query(
+      `SELECT id, LOWER(email) AS email FROM customers WHERE trade_customer_id = ANY($1::uuid[])`,
+      [Array.from(tradeIds)]);
+    for (const r of sRes.rows) { custIds.add(r.id); if (r.email) emails.add(r.email); }
+  }
+
+  // $1 customer ids, $2 trade ids, $3 emails. orders/quotes carry
+  // trade_customer_id; sample_requests/showroom_visits match by customer_id/email.
+  const params = [Array.from(custIds), Array.from(tradeIds), Array.from(emails)];
+  const withTrade = `(customer_id = ANY($1::uuid[]) OR trade_customer_id = ANY($2::uuid[]) OR LOWER(customer_email) = ANY($3::text[]))`;
+  const noTrade = `(customer_id = ANY($1::uuid[]) OR LOWER(customer_email) = ANY($3::text[]))`;
   const r = await pool.query(`
-    SELECT val, MAX(created_at) AS last_used
-    FROM (${sub}) u
-    WHERE val IS NOT NULL AND btrim(val) <> ''
-    GROUP BY val
-    ORDER BY last_used DESC
-    LIMIT ${scoped ? 100 : 25}
-  `, params);
+    SELECT val, MAX(created_at) AS last_used FROM (
+      SELECT sidemark AS val, created_at FROM quotes WHERE ${withTrade}
+      UNION ALL SELECT job_name AS val, created_at FROM orders WHERE ${withTrade}
+      UNION ALL SELECT sidemark AS val, created_at FROM sample_requests WHERE ${noTrade}
+      UNION ALL SELECT sidemark AS val, created_at FROM showroom_visits WHERE ${noTrade}
+    ) u WHERE val IS NOT NULL AND btrim(val) <> ''
+    GROUP BY val ORDER BY last_used DESC LIMIT 100`, params);
   return r.rows.map(row => row.val);
 }
 
@@ -18623,6 +18939,18 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
     // Switch to will-call at distributor — no freight, no Roma address (like pickup,
     // but the customer collects at the distributor). [[material-releases]]
     if (delivery_method === 'will_call') {
+      // Guard: once Roma has received any material into the showroom, the goods are
+      // here — the customer can't collect them at the distributor, so will-call is
+      // no longer a valid method. [[will-call-distributor]]
+      if (oldDeliveryMethod !== 'will_call') {
+        const recv = await pool.query(
+          `SELECT 1 FROM order_items WHERE order_id = $1 AND COALESCE(is_sample, false) = false
+             AND COALESCE(item_type, 'material') != 'labor'
+             AND (ready_at IS NOT NULL OR qty_received > 0) LIMIT 1`, [id]);
+        if (recv.rows.length) {
+          return res.status(400).json({ error: 'Cannot switch to will-call — materials have already been received at the showroom' });
+        }
+      }
       const newTotal = (parseFloat(order.subtotal) + parseFloat(order.sample_shipping || 0) + parseFloat(order.transfer_fee || 0) + parseFloat(order.tax_amount || 0) - parseFloat(order.discount_amount || 0)).toFixed(2);
       const updated = await pool.query(`
         UPDATE orders SET delivery_method = 'will_call', shipping = 0, shipping_method = 'will_call',
@@ -18878,6 +19206,75 @@ app.put('/api/rep/orders/:id/items/:itemId/price', repAuth, async (req, res) => 
 
     const balanceInfo = await recalculateBalance(pool, id);
     res.json({ order: updatedOrder.rows[0], items: updatedItems.rows, price_adjustments: adjustments.rows, balance: balanceInfo });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Apply / change a manual discount on an order (rep). Sets orders.discount_amount
+// (a dollar amount off the total), recomputes totals, and logs 'discount_changed'
+// — which latches the order REVISED (stamping the invoice) when it was already
+// sent. Accepts a fixed dollar amount or a percent of the line-item subtotal;
+// the resulting discount is clamped to the subtotal so the total never goes
+// negative. Pass discount_type:'fixed' with discount_value:0 to clear it.
+app.put('/api/rep/orders/:id/discount', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { discount_type, discount_value, reason } = req.body || {};
+    if (!['percent', 'fixed'].includes(discount_type)) {
+      return res.status(400).json({ error: "discount_type must be 'percent' or 'fixed'" });
+    }
+    const val = parseFloat(discount_value);
+    if (isNaN(val) || val < 0) return res.status(400).json({ error: 'discount_value must be a non-negative number' });
+    if (discount_type === 'percent' && val > 100) return res.status(400).json({ error: 'Percent discount cannot exceed 100%' });
+
+    await client.query('BEGIN');
+    const orderRes = await client.query(
+      'SELECT id, order_number, status, discount_amount, sales_rep_id FROM orders WHERE id = $1', [id]);
+    if (!orderRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
+    const order = orderRes.rows[0];
+    if (order.status === 'cancelled') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Cannot discount a cancelled order' }); }
+
+    // Percent base = current non-sample line-item subtotal (matches recalcOrderTotals).
+    const subRes = await client.query(
+      `SELECT COALESCE(SUM(CASE WHEN NOT is_sample THEN subtotal ELSE 0 END), 0) AS subtotal
+       FROM order_items WHERE order_id = $1`, [id]);
+    const subtotal = parseFloat(subRes.rows[0].subtotal);
+    const prevDiscount = parseFloat(order.discount_amount || 0);
+    let newDiscount = discount_type === 'percent'
+      ? parseFloat((subtotal * val / 100).toFixed(2))
+      : parseFloat(val.toFixed(2));
+    if (newDiscount > subtotal) newDiscount = subtotal;
+
+    await client.query('UPDATE orders SET discount_amount = $1 WHERE id = $2', [newDiscount.toFixed(2), id]);
+    await recalcOrderTotals(client, id);
+
+    const repName = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(client, id, 'discount_changed', req.rep.id, repName, {
+      previous_discount: prevDiscount.toFixed(2), new_discount: newDiscount.toFixed(2),
+      discount_type, discount_value: val, reason: reason || null
+    });
+    await client.query('COMMIT');
+
+    // The discount lowers order.total, which is the materials-margin base for
+    // commission — recompute so the rep's commission reflects the discount.
+    setImmediate(() => recalculateCommission(pool, id));
+
+    // Notify the assigned rep if a different rep made the change.
+    if (order.sales_rep_id && order.sales_rep_id !== req.rep.id) {
+      setImmediate(() => createRepNotification(pool, order.sales_rep_id, 'discount_changed',
+        `Discount changed on ${order.order_number}`,
+        `${repName} set the order discount to $${newDiscount.toFixed(2)}`,
+        'order', id));
+    }
+
+    const updatedOrder = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    const balanceInfo = await recalculateBalance(pool, id);
+    res.json({ order: updatedOrder.rows[0], balance: balanceInfo });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -19149,11 +19546,13 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         const poIsPerSqft = sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft';
 
         if (isCarpet) {
-          // Carpet: cost per sqyd, qty = 1 (sqyd tracked via subtotal)
-          const sqyd = (parseFloat(sqft_needed) || 0) / 9;
+          // Carpet is ordered by the SQUARE YARD — store the real sqyd as the PO
+          // qty (not the num_boxes placeholder) so qty×cost = subtotal and the EDI
+          // 850 / vendor PO transmit true yardage in SY. See [[doc-material-units]].
+          const sqyd = Math.round(((parseFloat(sqft_needed) || 0) / 9) * 100) / 100;
           poCost = vendorCost;
           poRetail = unitPrice;
-          poQty = num_boxes;
+          poQty = sqyd;
           poSubtotal = vendorCost * sqyd;
         } else if (poIsPerSqft) {
           poCost = vendorCost * skuSqftPerBox;
@@ -19174,8 +19573,11 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         poCost = customCost != null ? customCost : unitPrice;
         poRetail = unitPrice;
         if (customSellBy === 'roll') {
-          poQty = 1;
-          poSubtotal = poCost * (num_boxes / 9);
+          // Custom carpet line: num_boxes carries the sqft entered; order by the
+          // square yard so qty×cost = subtotal and EDI transmits true SY.
+          const sqyd = Math.round((num_boxes / 9) * 100) / 100;
+          poQty = sqyd;
+          poSubtotal = poCost * sqyd;
         } else {
           poQty = num_boxes;
           poSubtotal = poCost * num_boxes;
@@ -21355,6 +21757,9 @@ app.get('/api/rep/skus/:skuId', repAuth, async (req, res) => {
       ORDER BY a.display_order, a.name
     `, [skuId]);
     sku.attributes = attrResult.rows;
+    // Storefront-identical title: the exact fullProductName() the storefront PDP h1
+    // uses, so the rep PDP / quick-view name matches the customer-facing name.
+    sku.display_name = fullProductName(sku);
 
     // Media: match storefront logic — SKU-specific photos including lifestyle/room scenes
     const skuMediaResult = await pool.query(`
@@ -22849,9 +23254,10 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId', repAuth, async (req, res
     }
 
     const newCost = cost != null ? parseFloat(cost) : parseFloat(item.rows[0].cost);
-    const newQty = qty != null ? parseInt(qty) : item.rows[0].qty;
+    // Qty may be fractional (carpet ordered in square yards); round to 2 dp.
+    const newQty = qty != null ? Math.round(parseFloat(qty) * 100) / 100 : parseFloat(item.rows[0].qty);
     if (isNaN(newCost) || newCost < 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid cost' }); }
-    if (isNaN(newQty) || newQty < 1) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid qty' }); }
+    if (isNaN(newQty) || newQty <= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid qty' }); }
 
     const itemSubtotal = newCost * newQty;
     const sets = ['cost = $1', 'qty = $2', 'subtotal = $3'];
@@ -24761,7 +25167,7 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
     const { customer_name, customer_email, phone, project_name,
             project_address_line1, project_address_line2,
             project_city, project_state, project_zip,
-            notes, internal_notes } = req.body;
+            notes, internal_notes, sidemark } = req.body;
 
     // A draft can be created with no customer yet (build first, attach before
     // sending). Only validate the format of fields that were actually provided.
@@ -24795,14 +25201,14 @@ app.post('/api/rep/estimates', repAuth, async (req, res) => {
     const result = await client.query(`
       INSERT INTO estimates (estimate_number, sales_rep_id, customer_id, customer_name, customer_email, phone,
         project_name, project_address_line1, project_address_line2, project_city, project_state, project_zip,
-        notes, internal_notes)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        notes, internal_notes, sidemark)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [estimateNumber, req.rep.id, custId, customer_name || null, customer_email ? customer_email.toLowerCase().trim() : null, phone || null,
         project_name || null,
         project_address_line1 || null, project_address_line2 || null,
         project_city || null, project_state || null, project_zip || null,
-        notes || null, internal_notes || null]);
+        notes || null, internal_notes || null, (sidemark || '').trim().slice(0, 200) || null]);
 
     await client.query('COMMIT');
     res.json({ estimate: result.rows[0], items: [] });
@@ -24909,7 +25315,7 @@ app.put('/api/rep/estimates/:id', repAuth, async (req, res) => {
             project_address_line1, project_address_line2,
             project_city, project_state, project_zip,
             notes, internal_notes, scope_of_work, tax_rate,
-            deposit_type, deposit_value } = req.body;
+            deposit_type, deposit_value, sidemark } = req.body;
 
     // Validate only fields that carry a value — empty means "clear", undefined
     // means "leave as is" (a customer can be attached or removed at any point).
@@ -24967,6 +25373,7 @@ app.put('/api/rep/estimates/:id', repAuth, async (req, res) => {
         scope_of_work = COALESCE($15, scope_of_work),
         deposit_type = COALESCE($16, deposit_type),
         deposit_value = COALESCE($17, deposit_value),
+        sidemark = COALESCE($18, sidemark),
         customer_id = CASE WHEN $13 THEN $14::uuid ELSE customer_id END,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $12
@@ -24975,7 +25382,8 @@ app.put('/api/rep/estimates/:id', repAuth, async (req, res) => {
         project_address_line1, project_address_line2,
         project_city, project_state, project_zip,
         notes, internal_notes, id, touchCustomer, custId, scope_of_work,
-        deposit_type ?? null, deposit_value ?? null]);
+        deposit_type ?? null, deposit_value ?? null,
+        sidemark === undefined ? null : ((sidemark || '').trim().slice(0, 200))]);
 
     // Recalculate totals (in case zip changed, affecting tax)
     await recalculateEstimateTotals(id, client);
@@ -25488,13 +25896,13 @@ app.post('/api/rep/estimates/:id/send', repAuth, async (req, res) => {
 
 // POST /api/rep/estimates/:id/extend — refresh the 30-day validity window
 // WITHOUT emailing the customer (the quote's /reinstate analog; bulk-resend
-// renews too but also sends mail). Converted/declined estimates are skipped.
+// renews too but also sends mail). Converted estimates are skipped.
 app.post('/api/rep/estimates/:id/extend', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const r = await pool.query('SELECT status FROM estimates WHERE id = $1', [id]);
     if (!r.rows.length) return res.status(404).json({ error: 'Estimate not found' });
-    if (['converted', 'declined'].includes(r.rows[0].status)) {
+    if (r.rows[0].status === 'converted') {
       return res.status(400).json({ error: 'Estimate cannot be extended in its current status' });
     }
     const newExpiry = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
@@ -25549,12 +25957,10 @@ app.post('/api/rep/estimates/:id/convert-to-quote', repAuth, async (req, res) =>
     if (e.status === 'converted') {
       return res.status(400).json({ error: 'Estimate already converted' });
     }
-    // Declined or expired estimates need an explicit rep override
-    if (!force && (e.status === 'declined' || effectiveStatus(e) === 'expired')) {
+    // Expired estimates need an explicit rep override
+    if (!force && effectiveStatus(e) === 'expired') {
       return res.status(400).json({
-        error: e.status === 'declined'
-          ? 'Customer declined this estimate. Pass force to convert anyway.'
-          : 'This estimate has expired. Re-send it or pass force to convert anyway.',
+        error: 'This estimate has expired. Re-send it or pass force to convert anyway.',
         needs_force: true
       });
     }
@@ -25707,13 +26113,18 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
   const inStore = !onTerms && ['cash', 'check', 'card', 'offline'].includes(paymentMethod);
   const orderStatus = (inStore || onTerms) ? 'confirmed' : 'pending';
 
-  // Subtotal covers materials + labor; sales tax applies to materials only,
-  // and is zeroed for resale-exempt trade customers.
+  // Subtotal covers materials + labor. Tax carries the amount the customer
+  // ACCEPTED on the estimate rather than being recomputed here — recomputing
+  // drifts from the agreed total (the deposit was charged against it), which
+  // would silently under/over-bill the balance. Resale-exempt trade customers
+  // still get tax zeroed (that only ever lowers what they owe).
   const matSubtotal = parseFloat(e.materials_subtotal || 0);
   const laborSubtotal = parseFloat(e.labor_subtotal || 0);
   const orderSubtotal = parseFloat((matSubtotal + laborSubtotal).toFixed(2));
   const taxExempt = await isTradeTaxExempt(client, { email: e.customer_email });
-  const tax = calculateSalesTax(matSubtotal, e.project_zip, taxExempt);
+  const tax = taxExempt
+    ? { rate: 0, amount: 0 }
+    : { rate: parseFloat(e.tax_rate || 0), amount: parseFloat(e.tax_amount || 0) };
   const orderTotal = parseFloat((orderSubtotal + tax.amount).toFixed(2));
 
   // How much the rep collects at conversion. On terms → $0. In-store with no
@@ -25741,6 +26152,12 @@ async function convertEstimateToOrderTx(client, e, materialItems, laborItems, op
       collected.toFixed(2)]);
 
   const order = orderResult.rows[0];
+
+  // Carry the estimate's sidemark onto the order as job_name (same as the quote
+  // convert path) — it prints on the order, vendor POs, and documents.
+  if (e.sidemark && String(e.sidemark).trim()) {
+    await client.query('UPDATE orders SET job_name = $1 WHERE id = $2', [String(e.sidemark).trim().slice(0, 200), order.id]);
+  }
 
   // Copy material items to order items (custom rug metadata + cost carried so the
   // LF carpet PO + commission work post-conversion)
@@ -26020,11 +26437,9 @@ app.post('/api/rep/estimates/:id/convert-to-order', repAuth, async (req, res) =>
     if (e.status === 'converted') {
       return res.status(400).json({ error: 'Estimate already converted' });
     }
-    if (!force && (e.status === 'declined' || effectiveStatus(e) === 'expired')) {
+    if (!force && effectiveStatus(e) === 'expired') {
       return res.status(400).json({
-        error: e.status === 'declined'
-          ? 'Customer declined this estimate. Pass force to convert anyway.'
-          : 'This estimate has expired. Re-send it or pass force to convert anyway.',
+        error: 'This estimate has expired. Re-send it or pass force to convert anyway.',
         needs_force: true
       });
     }
@@ -26130,7 +26545,6 @@ app.get('/api/estimate-view/:token', async (req, res) => {
         tax_rate: e.tax_rate, tax_amount: e.tax_amount, total: e.total,
         notes: e.notes, scope_of_work: e.scope_of_work, expires_at: e.expires_at, sent_at: e.sent_at, created_at: e.created_at,
         accepted_at: e.accepted_at, accepted_by_name: e.accepted_by_name,
-        declined_at: e.declined_at, decline_reason: e.decline_reason,
         deposit_type: e.deposit_type, deposit_value: e.deposit_value, deposit_amount: e.deposit_amount,
         deposit_label: e.deposit_label, deposit_from_schedule: e.deposit_from_schedule,
         has_labor: e.has_labor, doc_type: e.doc_type,
@@ -26146,77 +26560,31 @@ app.get('/api/estimate-view/:token', async (req, res) => {
   }
 });
 
-// POST /api/estimate-view/:token/accept — customer accepts (typed name = signature)
-app.post('/api/estimate-view/:token/accept', async (req, res) => {
+// GET /api/estimate-view/:token/pdf — public, token-gated branded PDF download.
+// Same visibility rules as the view endpoint (drafts 404, expired 410) so the
+// link in the customer page can never leak an unsent or lapsed estimate.
+app.get('/api/estimate-view/:token/pdf', async (req, res) => {
   try {
-    const name = typeof req.body?.name === 'string' ? req.body.name.trim().substring(0, 120) : '';
-    if (!name || name.split(/\s+/).length < 2) {
-      return res.status(400).json({ error: 'Please type your full name to accept' });
-    }
-
-    const estRes = await pool.query(`
-      SELECT e.*, sr.first_name AS rep_first_name, sr.last_name AS rep_last_name, sr.email AS rep_email
-      FROM estimates e LEFT JOIN staff_accounts sr ON sr.id = e.sales_rep_id
-      WHERE e.public_token = $1
-    `, [req.params.token]);
-    if (!estRes.rows.length || estRes.rows[0].status === 'draft') {
+    const bundle = await getEstimateBundle(pool, { token: req.params.token, includeInternal: false });
+    if (!bundle || bundle.estimate.status === 'draft') {
       return res.status(404).json({ error: 'Estimate not found' });
     }
-    const e = estRes.rows[0];
-
-    if (e.status === 'accepted') return res.json({ success: true, already_decided: true, status: 'accepted' });
-    if (e.status !== 'sent') {
-      return res.status(400).json({ error: 'This estimate can no longer be accepted. Please contact your sales rep.' });
+    if (bundle.estimate.effective_status === 'expired') {
+      return res.status(410).json({ error: 'This estimate has expired' });
     }
-    if (effectiveStatus(e) === 'expired') {
-      return res.status(410).json({ error: 'This estimate has expired. Please contact your sales rep for an updated estimate.' });
-    }
-
-    await pool.query(
-      "UPDATE estimates SET status = 'accepted', accepted_at = NOW(), accepted_by_name = $2, updated_at = NOW() WHERE id = $1",
-      [e.id, name]
-    );
-    // Snapshot the payment schedule the customer agreed to, so the binding is on
-    // record immutably even if the schedule is later edited on the estimate.
-    const msRows = await pool.query(
-      'SELECT label, percent, due_label FROM payment_milestones WHERE estimate_id = $1 ORDER BY sort_order, created_at', [e.id]);
-    const agreedSchedule = computeSchedule(msRows.rows, e.total, 0).map(m => ({
-      label: m.label, percent: m.percent != null ? parseFloat(m.percent) : null, amount: m.amount, due_label: m.due_label || null }));
-    await logEstimateEvent(pool, e.id, 'accepted', {
-      body: `Accepted online — signed "${name}"` +
-        (agreedSchedule.length ? ` · agreed to payment schedule (${agreedSchedule.map(m => `${m.label} ${m.percent}%`).join(', ')})` : ''),
-      meta: { accepted_by_name: name, source: 'page', ...(agreedSchedule.length ? { agreed_schedule: agreedSchedule } : {}) },
-      actor: 'customer',
-      actorName: name
-    });
-
-    setImmediate(() => {
-      createRepNotification(pool, e.sales_rep_id, 'estimate_accepted',
-        `${e.customer_name} accepted Estimate ${e.estimate_number}`,
-        `Signed by ${name} — $${parseFloat(e.total || 0).toFixed(2)} total. Convert it to an order to get started.`,
-        'estimate', e.id)
-        .catch(err => console.error('[Notify] estimate_accepted error:', err.message));
-      createAutoTask(pool, e.sales_rep_id, 'estimate_accepted', e.id,
-        `Convert accepted Estimate ${e.estimate_number} — ${e.customer_name}`, {
-          description: `Customer accepted online (signed "${name}"). Collect payment and convert to an order.`,
-          priority: 'high',
-          customer_name: e.customer_name, customer_email: e.customer_email, customer_phone: e.phone,
-          linked_estimate_id: e.id
-        }).catch(err => console.error('[AutoTask] estimate_accepted error:', err.message));
-      // Confirmation receipt to the customer — they just signed, so give them a
-      // record of it and set the "your rep will follow up" expectation.
-      sendEstimateAccepted({
-        estimate_number: e.estimate_number, customer_name: e.customer_name, customer_email: e.customer_email,
-        project_name: e.project_name, total: e.total, accepted_by_name: name, accepted_at: new Date().toISOString(),
-        deposit_amount: depositAmount(e), public_token: e.public_token,
-        rep_first_name: e.rep_first_name, rep_last_name: e.rep_last_name, rep_email: e.rep_email
-      }).catch(err => console.error('[Email] estimate_accepted confirmation error:', err.message));
-    });
-
-    res.json({ success: true, status: 'accepted' });
+    const label = (bundle.estimate.doc_type === 'Quote') ? 'quote' : 'estimate';
+    await generatePDF(buildEstimatePdfHtml(bundle), `${label}-${bundle.estimate.estimate_number}.pdf`, req, res);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+// POST /api/estimate-view/:token/accept — RETIRED. Acceptance is now payment-only:
+// the customer accepts by completing the deposit/full payment via POST /pay-deposit,
+// which records the acceptance and converts the estimate to an order. Kept as a 410
+// so any stale client bundle gets a clear message instead of a bare 404.
+app.post('/api/estimate-view/:token/accept', async (req, res) => {
+  return res.status(410).json({ error: 'This estimate is now accepted by completing payment.' });
 });
 
 // POST /api/estimate-view/:token/pay-deposit — customer pays the configured
@@ -26229,8 +26597,13 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
     const bundle = await getEstimateBundle(pool, { token: req.params.token });
     if (!bundle || bundle.estimate.status === 'draft') return res.status(404).json({ error: 'Estimate not found' });
     const e = bundle.estimate;
-    const deposit = parseFloat(e.deposit_amount || 0);
-    if (deposit <= 0) return res.status(400).json({ error: 'No deposit is configured for this estimate.' });
+    // Acceptance IS payment: charge the configured deposit, or the full total when
+    // no deposit is set. Settling this Checkout accepts + converts to an order.
+    const configuredDeposit = parseFloat(e.deposit_amount || 0);
+    const isFullPayment = !(configuredDeposit > 0);
+    const deposit = isFullPayment ? parseFloat(e.total || 0) : configuredDeposit;
+    const payItemName = isFullPayment ? 'Payment' : 'Deposit';
+    if (deposit <= 0) return res.status(400).json({ error: 'This estimate has no payable amount. Please contact your sales rep.' });
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
@@ -26251,7 +26624,7 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
           line_items: [{
             price_data: {
               currency: 'usd',
-              product_data: { name: `Deposit — Estimate ${e.estimate_number} (Order ${order.order_number})` },
+              product_data: { name: `${payItemName} — Estimate ${e.estimate_number} (Order ${order.order_number})` },
               unit_amount: Math.round(amount * 100)
             },
             quantity: 1
@@ -26291,7 +26664,6 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
       return res.json({ checkout_url: await createDepositSession(order, amount) });
     }
 
-    if (e.status === 'declined') return res.status(400).json({ error: 'This estimate was declined.' });
     if (e.effective_status === 'expired') return res.status(410).json({ error: 'This estimate has expired. Please contact your sales rep for an updated estimate.' });
 
     const materialItems = bundle.items.filter(i => i.item_type === 'material');
@@ -26312,7 +26684,7 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
         line_items: [{
           price_data: {
             currency: 'usd',
-            product_data: { name: `Deposit — Estimate ${e.estimate_number}` },
+            product_data: { name: `${payItemName} — Estimate ${e.estimate_number}` },
             unit_amount: Math.round(deposit * 100)
           },
           quantity: 1
@@ -26330,6 +26702,73 @@ app.post('/api/estimate-view/:token/pay-deposit', async (req, res) => {
   } catch (err) {
     try { await client.query('ROLLBACK'); } catch (_) { /* already committed or never began */ }
     console.error(err); res.status(500).json({ error: 'Could not start deposit payment — please try again.' });
+  } finally {
+    client.release();
+  }
+});
+
+// POST /api/estimate-view/:token/approve — customer approves a NO-DEPOSIT estimate
+// without paying. Converts it to an order "on terms" (confirmed, $0 collected, full
+// balance due) — the balance rides the normal payment-request flow. Only valid when
+// the estimate has no deposit due; deposit estimates accept by paying (payment IS
+// acceptance, via pay-deposit above).
+app.post('/api/estimate-view/:token/approve', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const bundle = await getEstimateBundle(pool, { token: req.params.token });
+    if (!bundle || bundle.estimate.status === 'draft') return res.status(404).json({ error: 'Estimate not found' });
+    const e = bundle.estimate;
+    // Guard: this no-payment path is only for estimates with no deposit due. Any
+    // configured deposit (including a draw-schedule first milestone) must be paid.
+    if (parseFloat(e.deposit_amount || 0) > 0) {
+      return res.status(400).json({ error: 'This estimate requires a deposit — please accept by paying the deposit.' });
+    }
+    // Idempotent: already converted (e.g. double-click) → report the existing order.
+    if (e.status === 'converted' && e.converted_order_id) {
+      const ord = await pool.query('SELECT order_number FROM orders WHERE id = $1', [e.converted_order_id]);
+      return res.json({ status: 'approved', order_number: ord.rows[0]?.order_number || null });
+    }
+    if (e.effective_status === 'expired') return res.status(410).json({ error: 'This estimate has expired. Please contact your sales rep for an updated estimate.' });
+
+    const materialItems = bundle.items.filter(i => i.item_type === 'material');
+    const laborItems = bundle.items.filter(i => i.item_type === 'labor');
+    if (!materialItems.length && !laborItems.length) return res.status(400).json({ error: 'This estimate has no items.' });
+
+    await client.query('BEGIN');
+    // Stamp who approved before conversion flips status to 'converted'.
+    await client.query(
+      "UPDATE estimates SET accepted_at = COALESCE(accepted_at, CURRENT_TIMESTAMP), accepted_by_name = COALESCE(accepted_by_name, $2) WHERE id = $1",
+      [e.id, e.customer_name || 'Customer']);
+    const order = await convertEstimateToOrderTx(client, e, materialItems, laborItems, {
+      paymentMethod: 'offline', salesRepId: e.sales_rep_id, onTerms: true,
+      actor: 'customer', actorName: e.customer_name || 'Customer'
+    });
+    await client.query('COMMIT');
+
+    // Fire-and-forget order confirmation, mirroring the rep convert-to-order path
+    // (enriched items so line names render correctly in the email).
+    const orderItems = await pool.query(`
+      SELECT oi.*, s.variant_name, s.accessory_label, s.variant_type, s.vendor_sku, s.internal_sku,
+        sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
+        COALESCE(v.name, cv.name, oi.custom_vendor) AS vendor_name
+      FROM order_items oi
+      LEFT JOIN skus s ON s.id = oi.sku_id
+      LEFT JOIN products p ON p.id = COALESCE(s.product_id, oi.product_id)
+      LEFT JOIN vendors v ON v.id = p.vendor_id
+      LEFT JOIN vendors cv ON cv.id = oi.vendor_id
+      LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = oi.sku_id
+        AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+      LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = oi.sku_id
+        AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
+      WHERE oi.order_id = $1`, [order.id]);
+    await enrichItemsForNaming(orderItems.rows);
+    const emailOrder = { ...order, items: orderItems.rows };
+    setImmediate(async () => { await attachRep(emailOrder); sendOrderConfirmation(emailOrder).catch(err => console.error('[Email] estimate approve confirmation error:', err.message)); });
+
+    res.json({ status: 'approved', order_number: order.order_number });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* never began or already committed */ }
+    console.error(err); res.status(500).json({ error: 'Could not approve the estimate — please try again.' });
   } finally {
     client.release();
   }
@@ -26356,52 +26795,6 @@ app.post('/api/checkout/confirm', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Could not confirm payment' });
-  }
-});
-
-// POST /api/estimate-view/:token/decline — customer declines (optional reason)
-app.post('/api/estimate-view/:token/decline', async (req, res) => {
-  try {
-    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim().substring(0, 1000) : null;
-
-    const estRes = await pool.query('SELECT * FROM estimates WHERE public_token = $1', [req.params.token]);
-    if (!estRes.rows.length || estRes.rows[0].status === 'draft') {
-      return res.status(404).json({ error: 'Estimate not found' });
-    }
-    const e = estRes.rows[0];
-
-    if (e.status === 'declined') return res.json({ success: true, already_decided: true, status: 'declined' });
-    if (e.status !== 'sent') {
-      return res.status(400).json({ error: 'This estimate can no longer be declined. Please contact your sales rep.' });
-    }
-
-    await pool.query(
-      "UPDATE estimates SET status = 'declined', declined_at = NOW(), decline_reason = $2, updated_at = NOW() WHERE id = $1",
-      [e.id, reason]
-    );
-    await logEstimateEvent(pool, e.id, 'declined', {
-      body: 'Declined online' + (reason ? ` — "${reason}"` : ''),
-      meta: { reason, source: 'page' },
-      actor: 'customer',
-      actorName: e.customer_name
-    });
-
-    setImmediate(() => {
-      createRepNotification(pool, e.sales_rep_id, 'estimate_declined',
-        `${e.customer_name} declined Estimate ${e.estimate_number}`,
-        reason ? `Reason: "${reason}"` : null, 'estimate', e.id)
-        .catch(err => console.error('[Notify] estimate_declined error:', err.message));
-      createAutoTask(pool, e.sales_rep_id, 'estimate_declined', e.id,
-        `Follow up on declined Estimate ${e.estimate_number} — ${e.customer_name}`, {
-          description: `Customer declined online${reason ? ` — "${reason}"` : ' (no reason given)'}. Reach out to understand the objection and see if a revised estimate can win it back.`,
-          customer_name: e.customer_name, customer_email: e.customer_email, customer_phone: e.phone,
-          linked_estimate_id: e.id
-        }).catch(err => console.error('[AutoTask] estimate_declined error:', err.message));
-    });
-
-    res.json({ success: true, status: 'declined' });
-  } catch (err) {
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -27404,6 +27797,9 @@ app.get('/api/rep/customers/:id/materials', repAuth, async (req, res) => {
         COUNT(DISTINCT oi.order_id)::int as order_count,
         COALESCE(SUM(oi.num_boxes), 0)::numeric as total_boxes,
         MAX(o.created_at) as last_purchased,
+        -- most-recently-purchased real SKU, so the rep PDP can open per-SKU
+        (ARRAY_AGG(oi.sku_id ORDER BY o.created_at DESC)
+           FILTER (WHERE oi.sku_id IS NOT NULL))[1] as sku_id,
         (SELECT ma.url FROM media_assets ma
           WHERE ma.product_id = oi.product_id
           ORDER BY CASE WHEN ma.asset_type = 'primary' THEN 0 ELSE 1 END,
@@ -28900,9 +29296,10 @@ app.put('/api/admin/purchase-orders/:poId/items/:itemId', staffAuth, requireRole
     }
 
     const newCost = cost != null ? parseFloat(cost) : parseFloat(item.rows[0].cost);
-    const newQty = qty != null ? parseInt(qty) : item.rows[0].qty;
+    // Qty may be fractional (carpet ordered in square yards); round to 2 dp.
+    const newQty = qty != null ? Math.round(parseFloat(qty) * 100) / 100 : parseFloat(item.rows[0].qty);
     if (isNaN(newCost) || newCost < 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid cost' }); }
-    if (isNaN(newQty) || newQty < 1) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid qty' }); }
+    if (isNaN(newQty) || newQty <= 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Invalid qty' }); }
 
     const itemSubtotal = newCost * newQty;
     await client.query(

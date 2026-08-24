@@ -1565,7 +1565,7 @@
     /* ── Product detail (pd-*) ── */
     .pd-breadcrumb {
       padding-bottom: 16px; border-bottom: 0.5px solid rgba(28,25,23,0.1);
-      margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px; display: flex; align-items: flex-start; justify-content: space-between;
       flex-wrap: wrap; gap: 8px;
     }
     .pd-breadcrumb-trail {
@@ -1874,6 +1874,9 @@
     .rep-content {
       padding: 32px 40px 60px;
       min-height: 100vh;
+      /* grid item: allow it to stay within its track instead of expanding to
+         max-content when a child is very wide (e.g. a long image thumbnail row) */
+      min-width: 0;
       border-left: 0.5px solid rgba(28,25,23,0.09);
     }
     .content-header {
@@ -6812,7 +6815,20 @@
         ordered = [parentColor, accLabel || it.product_name];
       } else {
         title = it.collection || it.current_collection || it.product_name || 'Product';
-        const design = it.color || (it.product_name && it.product_name !== title ? it.product_name : null);
+        // Strip a leading color token that merely echoes the collection's leading
+        // token (collection "B&W Marble" + color "B&W Breach" → "Breach"), so the
+        // fallback title doesn't read "B&W Marble · B&W Breach". Mirrors
+        // dedupeStoredName in backend/lib/productName.js. Skips "A & B" alternation
+        // collections where the leading token is a meaningful selector.
+        const _leadEcho = (coll, val) => {
+          if (!coll || !val) return val;
+          const c = String(coll).trim().split(/\s+/), k = String(val).trim().split(/\s+/);
+          if (c.some(t => t === '&' || t.toLowerCase() === 'and')) return val;
+          const nz = t => t.toLowerCase().replace(/[.,]+$/, '');
+          let a = 0; while (a < k.length - 1 && a < c.length && nz(k[a]) === nz(c[a])) a++;
+          return a > 0 ? k.slice(a).join(' ') : val;
+        };
+        const design = _leadEcho(title, it.color) || (it.product_name && it.product_name !== title ? it.product_name : null);
         // Size/finish often lives only in product_name (e.g. "Ecoslate 24x48")
         // when a Color already names the design — surface it as a descriptor.
         let sizeInfo = null;
@@ -9605,7 +9621,7 @@
           ) : (
             <div className="cdv-mats">
               {materials.map(m => (
-                <div className="cdv-mat" key={m.product_id} onClick={() => navigate('product-detail', m.product_id)}>
+                <div className="cdv-mat" key={m.product_id} onClick={() => navigate('product-detail', m.sku_id || m.product_id)}>
                   {matImg(m.image)
                     ? <img className="cdv-mat-face" src={matImg(m.image)} alt="" loading="lazy" onError={e => { e.currentTarget.removeAttribute('src'); }} />
                     : <div className="cdv-mat-face" />}
@@ -10004,7 +10020,8 @@
         setReleaseIntent(v === 'release-flow' && opts && opts.method ? opts.method : null);
         const hash = buildHash(v, id);
         if (window.location.hash !== (hash || '#')) {
-          history.pushState({ view: v, id: id || null }, '', hash || window.location.pathname);
+          const method = opts && opts.replace ? 'replaceState' : 'pushState';
+          history[method]({ view: v, id: id || null }, '', hash || window.location.pathname);
         }
         window.scrollTo(0, 0);
         setShowNotifDropdown(false);
@@ -10362,7 +10379,7 @@
         case 'orders': navigate('order-detail', row.id); break;
         case 'quotes': navigate('quote-edit', row.id); break;
         case 'estimates': navigate('estimate-edit', row.id); break;
-        case 'products': navigate('product-detail', row.product_id); break;
+        case 'products': navigate('product-detail', row.sku_id || row.product_id); break;
       }
     }
 
@@ -12373,12 +12390,11 @@
                         {/* Body */}
                         <div style={{ padding: '12px 14px 8px', display: 'grid', gap: 4, flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, ...mono(TH.muted), fontSize: 9, minWidth: 0 }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{p.category_name || ''} {'\u00B7'} {p.brand_name || p.vendor_name || ''}{p.vendor_public_code ? ' \u00B7 ' + p.vendor_public_code : ''}</span>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0, maxWidth: '55%' }}>{p.vendor_sku || p.internal_sku || ''}</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{p.brand_name || p.vendor_name || ''}{p.vendor_public_code ? ' \u00B7 ' + p.vendor_public_code : ''}{p.category_name ? ' \u00B7 ' + p.category_name : ''}</span>
                           </div>
                           <div style={{ font: '400 16px/1.2 var(--roma-serif)', color: TH.ink, letterSpacing: '-0.008em', minWidth: 0, overflowWrap: 'anywhere' }}>{p.display_name || p.name}{(!p.display_name && variantText) ? ' \u00B7 ' + variantText : ''}</div>
-                          {(p.collection || p.variant_type === 'accessory' || p.accessory_count > 0) && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
-                            <span style={{ font: '400 12px/1.3 var(--roma-sans)', color: TH.ink + '99', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.collection || ''}</span>
+                          {(p.vendor_sku || p.internal_sku || p.variant_type === 'accessory' || p.accessory_count > 0) && <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+                            <span style={{ ...mono(TH.muted), fontSize: 10, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.vendor_sku || p.internal_sku || ''}</span>
                             {p.variant_type === 'accessory'
                               ? <span style={{ ...mono(TH.accent), fontSize: 9, flexShrink: 0 }}>Accessory</span>
                               : p.accessory_count > 0 ? <span style={{ ...mono(TH.accent), fontSize: 9, flexShrink: 0 }}>{'\u229E'} {p.accessory_count} accessor{p.accessory_count !== 1 ? 'ies' : 'y'}</span> : null}
@@ -12593,36 +12609,99 @@
       const [skus, setSkus] = useState([]);
       const [media, setMedia] = useState([]);
       const [loading, setLoading] = useState(true);
+      const [skuLoading, setSkuLoading] = useState(false);
       const [selectedImage, setSelectedImage] = useState(null);
+      const [activeSku, setActiveSku] = useState(null);
+      const [accessories, setAccessories] = useState([]);
+      // The page is keyed by SKU: editId is a SKU id, loaded via /api/rep/skus/:id.
+      // variantSkus holds every variant (the active SKU + its siblings) with its
+      // structured attributes + a representative image, so repBuildVariantSelectors
+      // can draw the color swatches / attribute pills. Selecting a pill navigates to
+      // that sibling's SKU URL, so the active variant is always `editId`.
+      const [variantSkus, setVariantSkus] = useState(null);
+      const loadedPidRef = useRef(null);
 
-      const loadProduct = useCallback(() => {
+      const loadSku = useCallback(() => {
         if (!editId) return;
-        setLoading(true);
-        repFetch('/api/rep/products/' + editId)
-          .then(d => {
-            setProduct(d.product);
-            setSkus(d.skus || []);
-            setMedia(d.media || []);
-            const primary = (d.media || []).find(m => m.asset_type === 'primary');
-            if (primary) setSelectedImage(primary.url);
-            setLoading(false);
+        setSkuLoading(true);
+        repFetch('/api/rep/skus/' + editId)
+          .then(sd => {
+            setActiveSku(sd.sku);
+            setAccessories(sd.accessories || []);
+            const skuMedia = (sd.media || []).filter(m => m.asset_type !== 'spec_pdf');
+            setMedia(skuMedia);
+            setSelectedImage((skuMedia.find(m => m.asset_type === 'primary') || skuMedia[0] || {}).url || null);
+            // Active SKU + siblings, each with attributes + one image — enough to
+            // (re)build the pills without another request when hopping siblings.
+            const cur = {
+              sku_id: sd.sku.sku_id, variant_name: sd.sku.variant_name, attributes: sd.sku.attributes || [],
+              primary_image: (skuMedia[0] || {}).url || null,
+              stock_status: sd.sku.stock_status, qty_on_hand: sd.sku.qty_on_hand, sell_by: sd.sku.sell_by,
+            };
+            const sibs = (sd.siblings || []).map(s => ({
+              sku_id: s.sku_id, variant_name: s.variant_name, attributes: s.attributes || [],
+              primary_image: s.primary_image || null, stock_status: s.stock_status,
+              qty_on_hand: s.qty_on_hand, sell_by: s.sell_by,
+            }));
+            setVariantSkus([cur, ...sibs]);
+            // Product-level data (full SKU table + complete meta) only when the
+            // product actually changes — sibling hops reuse what's already loaded.
+            const pid = sd.sku.product_id;
+            if (loadedPidRef.current === pid) {
+              setSkuLoading(false); setLoading(false);
+              return null;
+            }
+            return repFetch('/api/rep/products/' + pid)
+              .then(d => { loadedPidRef.current = pid; setProduct(d.product); setSkus(d.skus || []); })
+              .finally(() => { setSkuLoading(false); setLoading(false); });
           })
-          .catch(() => setLoading(false));
-      }, [editId]);
+          .catch(err => {
+            // editId may be a PRODUCT id (materials palette / legacy links) — resolve
+            // to the first real SKU and canonicalize the URL so the page stays per-SKU.
+            if (err && err.status === 404) {
+              repFetch('/api/rep/products/' + editId)
+                .then(d => {
+                  const first = (d.skus || []).find(s => !s.is_sample) || (d.skus || [])[0];
+                  if (first) { navigate('product-detail', first.id, { replace: true }); }
+                  else { setProduct(d.product || null); setSkus(d.skus || []); setLoading(false); setSkuLoading(false); }
+                })
+                .catch(() => { setLoading(false); setSkuLoading(false); });
+            } else {
+              setLoading(false); setSkuLoading(false);
+            }
+          });
+      }, [editId, navigate]);
 
-      useEffect(loadProduct, [loadProduct]);
+      useEffect(loadSku, [loadSku]);
 
       useEffect(() => {
-        const onFocus = () => loadProduct();
+        const onFocus = () => loadSku();
         window.addEventListener('focus', onFocus);
         return () => window.removeEventListener('focus', onFocus);
-      }, [loadProduct]);
+      }, [loadSku]);
+
+      // Variant pills — color swatches + attribute pills, built by the same helper
+      // the quick-view uses; the active variant is the routed SKU (editId). Computed
+      // before any early return (hooks rule); null → no structured variants.
+      const variantSelectors = useMemo(() => {
+        if (!variantSkus) return null;
+        const cur = variantSkus.find(s => s.sku_id === editId);
+        if (!cur) return null;
+        return repBuildVariantSelectors(cur, variantSkus.filter(s => s.sku_id !== editId));
+      }, [variantSkus, editId]);
 
       if (loading) return <div className="loading">Loading product...</div>;
       if (!product) return <div className="loading">Product not found</div>;
 
-      // Compute pricing and stats from SKUs
-      const mainSku = skus.find(s => !s.is_sample) || skus[0];
+      // Pricing and stats follow the active SKU (editId); sibling hops just change
+      // the URL, so everything below re-derives from the routed variant.
+      // Authoritative active-SKU data comes from the SKU endpoint (handles variants
+      // the product list omits, e.g. inactive SKUs); fall back to the product list.
+      const mainSku = (activeSku && activeSku.sku_id === editId) ? activeSku
+        : (skus.find(s => s.id === editId) || skus.find(s => !s.is_sample) || skus[0]);
+      const showVariants = !!(variantSelectors && (variantSelectors.colorItems.length >= 2 || variantSelectors.sizeItems.length >= 2 || variantSelectors.attrPills.length > 0));
+      const selectVariant = (skuId) => { if (skuId && skuId !== editId) navigate('product-detail', skuId); };
+      const vpLabel = { font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--brass-muted)' };
       const retailPrice = mainSku && mainSku.retail_price ? parseFloat(mainSku.retail_price) : null;
       const costPrice = mainSku && mainSku.cost ? parseFloat(mainSku.cost) : null;
       const marginPct = mainSku && mainSku.margin_pct ? mainSku.margin_pct : null;
@@ -12636,14 +12715,44 @@
       const totalSkuCount = skus.filter(s => !s.is_sample).length;
       const stockColor = inStockCount === totalSkuCount ? '#3a7a4e' : inStockCount > 0 ? '#a87935' : '#c54731';
       const stockLabel = inStockCount === totalSkuCount ? 'Active' : inStockCount > 0 ? 'Partial stock' : 'Out of stock';
+      // Top badge = the ACTIVE SKU's real availability via the shared gated helper,
+      // so vendors without an inventory feed read "No inv. data" (muted) instead of a
+      // misleading red "Out of stock". [[inventory-display-gating]]
+      const activeStock = mainSku ? stockDisplay({ ...mainSku, vendor_has_inventory: mainSku.vendor_has_inventory != null ? mainSku.vendor_has_inventory : product.vendor_has_inventory }) : { l: '—', c: '#8a7e68' };
 
-      // Pricing tiers (show cost only when toggled)
+      // Title: match the storefront exactly — the SKU endpoint computes display_name
+      // with the same fullProductName() the storefront PDP h1 uses. Keep the rep's
+      // italic-descriptor flourish only when the name cleanly begins with the
+      // collection; otherwise render the storefront string verbatim.
+      const titleName = ((mainSku && mainSku.display_name) || product.display_name || product.name || '').trim();
+      const titleColl = (product.collection || '').trim();
+      let titleNode;
+      if (titleColl && titleName.toLowerCase().startsWith(titleColl.toLowerCase() + ' ')) {
+        titleNode = <>{titleColl} <em>{titleName.slice(titleColl.length).trim()}</em></>;
+      } else {
+        titleNode = titleName || titleColl;
+      }
+
+      // Pricing tiers \u2014 the real trade tier names + discounts (margin_tiers table:
+      // Silver 12.5% \u00b7 Gold 18.75% \u00b7 Platinum 21.875%), matching the catalog quick-view.
       const pricingRows = [];
       if (retailPrice) {
-        pricingRows.push({ label: 'Retail \u00b7 walk-in', mult: '100%', price: '$' + retailPrice.toFixed(2), margin: marginPct ? marginPct.toFixed(0) + '%' : '\u2014' });
-        pricingRows.push({ label: 'Trade Tier 1 \u00b7 10%', mult: '90%', price: '$' + (retailPrice * 0.9).toFixed(2), margin: marginPct ? ((1 - (costPrice || 0) / (retailPrice * 0.9)) * 100).toFixed(0) + '%' : '\u2014' });
-        pricingRows.push({ label: 'Trade Tier 2 \u00b7 22%', mult: '78%', price: '$' + (retailPrice * 0.78).toFixed(2), margin: marginPct ? ((1 - (costPrice || 0) / (retailPrice * 0.78)) * 100).toFixed(0) + '%' : '\u2014', highlight: true });
-        pricingRows.push({ label: 'Trade Tier 3 \u00b7 25%', mult: '75%', price: '$' + (retailPrice * 0.75).toFixed(2), margin: marginPct ? ((1 - (costPrice || 0) / (retailPrice * 0.75)) * 100).toFixed(0) + '%' : '\u2014' });
+        const TRADE_TIERS = [
+          { label: 'Retail \u00b7 walk-in', pct: 0 },
+          { label: 'Silver', pct: 12.5 },
+          { label: 'Gold', pct: 18.75, highlight: true },
+          { label: 'Platinum', pct: 21.875 },
+        ];
+        TRADE_TIERS.forEach(t => {
+          const price = retailPrice * (1 - t.pct / 100);
+          pricingRows.push({
+            label: t.label,
+            mult: t.pct ? '\u2212' + t.pct + '%' : 'list',
+            price: '$' + price.toFixed(2),
+            margin: marginPct ? ((1 - (costPrice || 0) / price) * 100).toFixed(0) + '%' : '\u2014',
+            highlight: t.highlight,
+          });
+        });
         if (showCost && costPrice) {
           pricingRows.push({ label: 'Floor \u00b7 vendor cost', mult: ((costPrice / retailPrice) * 100).toFixed(0) + '%', price: '$' + costPrice.toFixed(2), margin: '0%', muted: true });
         }
@@ -12660,16 +12769,23 @@
               <span className="pd-sep" />
               <span className="pd-current">{mainSku ? mainSku.internal_sku : product.name}</span>
             </div>
-            <span className="pd-breadcrumb-status" style={{ color: stockColor }}>
-              {'\u25CF'} {stockLabel} {'\u00b7'} {inStockCount} of {totalSkuCount} SKUs in stock
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+              <span className="pd-breadcrumb-status" style={{ color: activeStock.c }}>
+                {'\u25CF'} {activeStock.l}{activeStock.q ? ' \u00b7 ' + activeStock.q : ''}
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="td-btn primary" onClick={() => navigate('quote-create')}>+ Add to quote</button>
+                <button className="td-btn" onClick={() => navigate('order-create')}>+ Add to order</button>
+              </div>
+            </div>
           </div>
 
           {/* Header: image + info */}
           <div className="pd-header">
             <div className="pd-image">
               {selectedImage ? (
-                <img src={optimizeImg(selectedImage, 800)} alt={product.name} />
+                <img src={optimizeImg(selectedImage, 800)} alt={product.name}
+                  style={{ opacity: skuLoading ? 0.55 : 1, transition: 'opacity 0.15s' }} />
               ) : (
                 <span style={{ color: 'var(--brass-muted)', font: '400 13px/1 Inter, sans-serif' }}>No image</span>
               )}
@@ -12680,29 +12796,83 @@
                 {'\u25CF'} {product.category_name || 'Product'} {'\u00b7'} {product.vendor_name}{product.vendor_public_code ? ' \u00b7 ' + product.vendor_public_code : ''}
               </div>
               <h1 className="pd-title">
-                {product.collection ? <>{product.collection} <em>{product.name.replace(product.collection, '').trim() || ''}</em></> : product.name}
+                {titleNode}
               </h1>
               <div className="pd-description">
                 {product.description_short || product.description || ''}
-              </div>
-              <div className="pd-actions">
-                <button className="td-btn primary" onClick={() => navigate('quote-create')}>+ Add to quote</button>
-                <button className="td-btn" onClick={() => navigate('order-create')}>+ Add to order</button>
-                <button className="td-btn" onClick={() => navigate('catalog')}>Catalog page {'\u2192'}</button>
               </div>
             </div>
           </div>
 
           {/* Media thumbnails */}
           {media.length > 1 && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 22, overflowX: 'auto', paddingBottom: 4 }}>
               {media.map(m => (
                 <img key={m.id} src={optimizeImg(m.url, 120)} alt=""
                   style={{
-                    width: 64, height: 64, objectFit: 'cover', cursor: 'pointer',
+                    width: 64, height: 64, objectFit: 'cover', cursor: 'pointer', flexShrink: 0,
                     border: m.url === selectedImage ? '2px solid var(--gold)' : '0.5px solid rgba(28,25,23,0.13)',
                   }}
                   onClick={() => setSelectedImage(m.url)} loading="lazy" />
+              ))}
+            </div>
+          )}
+
+          {/* Variant selectors — color swatches + size/attribute pills */}
+          {showVariants && (
+            <div style={{ display: 'grid', gap: 18, marginBottom: 22 }}>
+              {variantSelectors.colorItems.length >= 2 && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={vpLabel}>Color</div>
+                    <div style={vpLabel}>{variantSelectors.colorItems.length} colors</div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(84px, 1fr))', gap: 10 }}>
+                    {variantSelectors.colorItems.map(v => {
+                      const isActive = v.is_current;
+                      const st = v.stock_status ? stockDisplay({ ...v, vendor_has_inventory: product.vendor_has_inventory }) : null;
+                      return (
+                        <button key={v.sku_id} onClick={() => selectVariant(v.sku_id)}
+                          title={[v.label, st && st.l].filter(Boolean).join(' · ')}
+                          style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 0, cursor: isActive ? 'default' : 'pointer', background: 'transparent', border: 'none', textAlign: 'left' }}>
+                          <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', overflow: 'hidden',
+                              border: isActive ? '2px solid var(--stone-900)' : '1px solid rgba(28,25,23,0.15)',
+                              outline: isActive ? '2px solid var(--stone-900)' : 'none', outlineOffset: 2,
+                              background: 'var(--stone-100)' }}>
+                            {v.primary_image ? <img src={optimizeImg(v.primary_image, 160)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', font: '400 10px/1.2 Inter, sans-serif', color: 'var(--brass-muted)', textAlign: 'center', padding: 4 }}>{v.label}</span>}
+                            {st && <span title={st.l} style={{ position: 'absolute', top: 5, right: 5, width: 9, height: 9, borderRadius: '50%', background: st.c, boxShadow: '0 0 0 2px #fff' }} />}
+                          </div>
+                          <span style={{ font: (isActive ? '600' : '400') + ' 11px/1.25 Inter, sans-serif', color: isActive ? 'var(--stone-900)' : 'var(--brass-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{v.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {[
+                ...(variantSelectors.sizeItems.length >= 2 ? [{ slug: '_size', name: 'Size', items: variantSelectors.sizeItems.map(s => ({ value: s.label, sku_id: s.sku_id, is_current: s.is_current })) }] : []),
+                ...variantSelectors.attrPills,
+              ].map(group => (
+                <div key={group.slug}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={vpLabel}>{group.name}</div>
+                    <div style={vpLabel}>{(group.items.find(i => i.is_current) || {}).value || ''}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {group.items.map(it => (
+                      <button key={it.value} onClick={() => selectVariant(it.sku_id)}
+                        disabled={!it.sku_id}
+                        style={{ padding: '7px 13px', font: '500 12px/1 Inter, sans-serif',
+                          border: it.is_current ? '1.5px solid var(--stone-900)' : '0.5px solid rgba(28,25,23,0.25)',
+                          background: it.is_current ? 'var(--stone-900)' : 'transparent',
+                          color: it.is_current ? '#fff' : 'var(--stone-900)',
+                          cursor: it.is_current || !it.sku_id ? 'default' : 'pointer', opacity: it.sku_id ? 1 : 0.4 }}>
+                        {it.value}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -12755,7 +12925,7 @@
           <div className="pd-two-col">
             {/* Pricing per channel */}
             {pricingRows.length > 0 && (
-              <div className="td-panel">
+              <div className="td-panel" style={{ order: 2 }}>
                 <div className="td-panel-header">
                   <h3>Pricing {'\u00b7'} per channel</h3>
                   <label className="cost-toggle" onClick={() => setShowCost(s => !s)} style={{ cursor: 'pointer' }}>
@@ -12777,7 +12947,7 @@
             )}
 
             {/* Specs */}
-            <div className="td-panel">
+            <div className="td-panel" style={{ order: 1 }}>
               <div className="td-panel-header">
                 <h3>Specs + details</h3>
               </div>
@@ -12808,6 +12978,13 @@
                   <div className="pd-spec-label">Status</div>
                   <div className="pd-spec-value" style={{ color: stockColor }}>{'\u25CF'} {product.status}</div>
                 </div>
+                {/* Full SKU attributes (same set the catalog quick-view shows) */}
+                {(mainSku && mainSku.attributes || []).filter(a => a.value && String(a.value).trim() && !['color_code', 'style_code', 'upc', 'price_list', 'material_class', 'collection', 'brand', 'subcategory', 'msrp', 'group_number', 'top_ref_sku', 'sink_ref_sku', 'optional_accessories'].includes(a.slug)).map(a => (
+                  <div key={a.slug}>
+                    <div className="pd-spec-label">{a.name}</div>
+                    <div className="pd-spec-value">{a.value}</div>
+                  </div>
+                ))}
                 {product.description && product.description !== product.description_short && (
                   <div className="pd-spec-wide">
                     <div className="pd-spec-label">Full description</div>
@@ -12817,6 +12994,31 @@
               </div>
             </div>
           </div>
+
+          {/* Matching accessories — complete the install */}
+          {accessories.length > 0 && (
+            <div className="td-panel" style={{ marginBottom: 16 }}>
+              <div className="td-panel-header">
+                <h3>Accessories {'·'} complete the install</h3>
+                <span style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--brass-muted)' }}>{accessories.length} suggested</span>
+              </div>
+              {accessories.map((a, i) => (
+                <div key={a.sku_id} style={{ display: 'grid', gridTemplateColumns: '44px 1fr auto', gap: 14, alignItems: 'center', padding: '11px 22px', borderTop: i ? '0.5px solid rgba(28,25,23,0.07)' : 'none' }}>
+                  {a.primary_image
+                    ? <img src={optimizeImg(a.primary_image, 88)} alt="" style={{ width: 44, height: 44, objectFit: 'cover', border: '0.5px solid rgba(28,25,23,0.06)' }} />
+                    : <div style={{ width: 44, height: 44, background: 'var(--stone-200)', border: '0.5px solid rgba(28,25,23,0.06)' }} />}
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--stone-900)' }}>{a.accessory_label || a.variant_name || '—'}</div>
+                    <div style={{ font: '400 11px/1.3 Inter, sans-serif', color: 'var(--brass-muted)', marginTop: 2 }}>{a.sell_by === 'box' ? 'per sqft' : 'per unit'}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ font: '300 18px/1 "Cormorant Garamond", serif', color: 'var(--stone-900)' }}>{a.retail_price ? '$' + parseFloat(a.retail_price).toFixed(2) : '—'}</div>
+                    {showCost && a.cost && <div style={{ font: '400 10px/1 Inter, sans-serif', color: 'var(--brass-muted)', marginTop: 3 }}>cost ${parseFloat(a.cost).toFixed(2)}</div>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* SKU inventory table */}
           <div className="td-panel" style={{ marginBottom: 16 }}>
@@ -12828,10 +13030,12 @@
               const sColor = detSk.c;
               const sLabel = detSk.l;
               return (
-                <div key={s.id} style={{
+                <div key={s.id} onClick={() => !s.is_sample && selectVariant(s.id)} style={{
                   padding: '12px 22px',
                   borderBottom: i < skus.length - 1 ? '0.5px solid rgba(28,25,23,0.07)' : 'none',
                   display: 'grid', gridTemplateColumns: '1.2fr 120px 120px 100px 100px 100px', gap: 14, alignItems: 'center',
+                  background: s.id === editId ? 'var(--stone-100)' : 'transparent',
+                  cursor: s.is_sample ? 'default' : 'pointer',
                 }}>
                   <div>
                     <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--stone-900)' }}>
@@ -13481,6 +13685,11 @@
 
           // Create the order
           const orderItems = (data.items || []).map(i => {
+            // Custom bound area rug: carries the carpet's sku_id but must be flagged
+            // so the backend reprices it server-authoritatively (material + binding +
+            // fabrication). Without these fields it falls through to the plain-SKU
+            // branch and prices as 1 sqyd of carpet. [[custom-rug-calculator]]
+            if (i.is_custom_rug && i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, is_custom_rug: true, custom_width_ft: i.custom_width_ft, custom_length_ft: i.custom_length_ft };
             if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, sell_by: i.sell_by, slab_sqft: i.slab_sqft || undefined };
             return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, custom_vendor: i.custom_vendor || undefined, custom_vendor_email: i.custom_vendor_email || undefined, cost: i.cost || undefined, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
           });
@@ -13500,7 +13709,9 @@
             document_ids: data.documentIds || undefined,
             check_number: (primaryTender && primaryTender.checkNumber) || undefined,
             notes: data.notes || undefined,
-            job_name: (data.jobName || '').trim() || undefined
+            job_name: (data.jobName || '').trim() || undefined,
+            manual_discount_type: (!data.promoResult && parseFloat(data.manualDiscountValue) > 0) ? (data.manualDiscountType || 'fixed') : undefined,
+            manual_discount_value: (!data.promoResult && parseFloat(data.manualDiscountValue) > 0) ? parseFloat(data.manualDiscountValue) : undefined
           };
           if (data.deliveryMethod === 'shipping' && data.shippingAddress) {
             body.shipping_address = {
@@ -16222,14 +16433,6 @@
             )}
           </WizRepCard>
 
-          {/* Delivery notes */}
-          <WizRepCard title="Delivery Notes">
-            <div className="rof-field" style={{ marginBottom: 0 }}>
-              <textarea value={data.deliveryNotes || ''} placeholder="Special instructions, access codes, gate codes, etc."
-                onChange={e => setData(d => ({ ...d, deliveryNotes: e.target.value }))}
-                rows={3} />
-            </div>
-          </WizRepCard>
         </div>
       );
     }
@@ -16280,17 +16483,61 @@
       );
     }
 
+    // --- RofDiscountField (manual $/% discount — sits under the promo field) ---
+    // Only one discount source applies: a promo code takes precedence, so this is
+    // disabled while a promo is active. Sent to the create endpoint as
+    // manual_discount_type / manual_discount_value.
+    function RofDiscountField({ data, setData }) {
+      const itemsSubtotal = (data.items || []).reduce((s, i) => s + (i.subtotal || 0), 0);
+      const type = data.manualDiscountType || 'fixed';
+      const raw = parseFloat(data.manualDiscountValue);
+      const amount = !isNaN(raw) && raw > 0
+        ? Math.min(type === 'percent' ? itemsSubtotal * Math.min(raw, 100) / 100 : raw, itemsSubtotal)
+        : 0;
+      if (data.promoResult) {
+        return (
+          <div className="rof-summary-section">
+            <div className="rof-summary-label">Manual discount</div>
+            <div style={{ fontSize: '0.6875rem', color: '#8a7e68' }}>Remove the promo code to enter a manual discount.</div>
+          </div>
+        );
+      }
+      return (
+        <div className="rof-summary-section">
+          <div className="rof-summary-label">Manual discount</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <select value={type} onChange={e => setData(d => ({ ...d, manualDiscountType: e.target.value }))}
+              style={{ flex: '0 0 52px', padding: '6px 4px', border: '0.5px solid rgba(28,25,23,0.3)', background: '#fff', font: '400 0.75rem/1 Inter, sans-serif', color: 'var(--rod-ink)', outline: 'none' }}>
+              <option value="fixed">$</option>
+              <option value="percent">%</option>
+            </select>
+            <input type="number" min="0" step="0.01" value={data.manualDiscountValue || ''}
+              onChange={e => setData(d => ({ ...d, manualDiscountValue: e.target.value }))}
+              placeholder={type === 'percent' ? '% off subtotal' : '$ off total'}
+              style={{ flex: 1, minWidth: 0, padding: '6px 8px', border: '0.5px solid rgba(28,25,23,0.3)', background: '#fff', font: '400 0.75rem/1 Inter, sans-serif', color: 'var(--rod-ink)', outline: 'none' }} />
+          </div>
+          {amount > 0 && (
+            <div style={{ font: '300 0.9rem/1 "Cormorant Garamond", serif', color: 'var(--green)', marginTop: 4, textAlign: 'right' }}>-${amount.toFixed(2)}</div>
+          )}
+        </div>
+      );
+    }
+
     // --- RofRunningSummary (sidebar) ---
     function RofRunningSummary({ data, setData, step }) {
       const itemsSubtotal = (data.items || []).reduce((sum, i) => sum + (i.subtotal || 0), 0);
-      const discount = data.promoResult ? data.promoResult.discount_amount : 0;
+      const manualRaw = parseFloat(data.manualDiscountValue);
+      const manualDiscount = (!data.promoResult && !isNaN(manualRaw) && manualRaw > 0)
+        ? Math.min(data.manualDiscountType === 'percent' ? itemsSubtotal * Math.min(manualRaw, 100) / 100 : manualRaw, itemsSubtotal)
+        : 0;
+      const discount = data.promoResult ? data.promoResult.discount_amount : manualDiscount;
       const taxableSubtotal = Math.max(0, itemsSubtotal - discount);
       // Estimate CA tax with the backend's zip-prefix rate table
       const destZip = data.deliveryMethod === 'pickup'
         ? '92806'
         : (data.shippingAddress && data.shippingAddress.zip ? data.shippingAddress.zip : '92806');
       const taxRate = caTaxRate(destZip);
-      const estTax = parseFloat((itemsSubtotal * taxRate).toFixed(2));
+      const estTax = parseFloat((taxableSubtotal * taxRate).toFixed(2));
       const estShipping = data.deliveryMethod === 'shipping' ? (parseFloat(data.estShipping) || 0) : 0;
       const total = taxableSubtotal + estTax + estShipping;
       const paymentCollected = (data.paymentMethods || []).reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
@@ -16361,6 +16608,10 @@
 
             {data.items && data.items.length > 0 && step < 3 && (
               <RofPromoField data={data} setData={setData} />
+            )}
+
+            {data.items && data.items.length > 0 && step < 3 && (
+              <RofDiscountField data={data} setData={setData} />
             )}
 
             <div className="rof-summary-section" style={{ marginBottom: 0 }}>
@@ -16758,15 +17009,6 @@
               </div>
             </WizRepCard>
           )}
-
-          {/* Internal notes */}
-          <WizRepCard title="Internal Notes">
-            <div className="rof-field" style={{ marginBottom: 0 }}>
-              <textarea value={data.notes || ''} placeholder="Notes visible only to staff (not sent to customer)..."
-                onChange={e => setData(d => ({ ...d, notes: e.target.value }))}
-                rows={2} />
-            </div>
-          </WizRepCard>
 
           {/* What Process Order does */}
           <WizRepCard title="What Process Order does">
@@ -21560,6 +21802,7 @@
       });
       const [shippingOptions, setShippingOptions] = useState(null);
       const [deliveryUpdating, setDeliveryUpdating] = useState(false);
+      const [showFulfillmentMenu, setShowFulfillmentMenu] = useState(false);
       const [freightAmount, setFreightAmount] = useState('');
       const [editingFreight, setEditingFreight] = useState(false);
       const [payments, setPayments] = useState([]);
@@ -21587,7 +21830,7 @@
       const [invoiceMessage, setInvoiceMessage] = useState('');
       const [sendingInvoice, setSendingInvoice] = useState(false);
       const [showScheduleForm, setShowScheduleForm] = useState(false);
-      const [scheduleForm, setScheduleForm] = useState({ date: '', window: '', crew: '', notes: '', notify: true });
+      const [scheduleForm, setScheduleForm] = useState({ date: '', window: '', crew: '', notes: '', notify: false });
       const [savingSchedule, setSavingSchedule] = useState(false);
       const [showCollectPayment, setShowCollectPayment] = useState(false);
       const [collectMethod, setCollectMethod] = useState(null);
@@ -21612,6 +21855,16 @@
       const [savingOrderNote, setSavingOrderNote] = useState(false);
       const [editingNoteId, setEditingNoteId] = useState(null);
       const [editNoteText, setEditNoteText] = useState('');
+      // Quick "add a note to a linked PO" composer, inline in the Documents rail.
+      // Full PO note history lives on the PO detail page; this just files one note.
+      const [noteForPoId, setNoteForPoId] = useState(null);
+      const [poNoteText, setPoNoteText] = useState('');
+      const [savingPoNote, setSavingPoNote] = useState(false);
+      // Manual order discount editor (Totals card).
+      const [showDiscountEdit, setShowDiscountEdit] = useState(false);
+      const [discountType, setDiscountType] = useState('fixed');
+      const [discountValue, setDiscountValue] = useState('');
+      const [savingDiscount, setSavingDiscount] = useState(false);
 
       const orderActionLabel = (action) => {
         const labels = {
@@ -21757,7 +22010,7 @@
           window: (order && order.install_window) || '',
           crew: (order && order.install_crew) || '',
           notes: (order && order.install_notes) || '',
-          notify: true,
+          notify: false,
         });
         setShowScheduleForm(true);
       };
@@ -22187,6 +22440,10 @@
       // Vacuously "received" when there are no material lines (labor-only job) so
       // the Start-install / advance gates don't dead-lock with nothing to receive.
       const allReceived = recvLines.length === 0 || recvLinesIn === recvLines.length;
+      // Any material already received into the Roma showroom (partial counts). Once
+      // Roma physically holds the goods, will-call (customer collects at the
+      // DISTRIBUTOR) is no longer a coherent option. [[will-call-distributor]]
+      const anyReceived = recvLines.some(i => i.ready_at || (i.qty_received != null && parseFloat(i.qty_received) > 0));
       // Will-call: Roma never receives, so the 4th milestone is "Released" (a
       // will-call form issued for every material line) rather than warehouse receipt.
       const relLinesOut = recvLines.filter(it => (parseFloat(it.num_boxes || 0) - parseFloat(it.already_released || 0)) <= 0.001).length;
@@ -22831,11 +23088,38 @@
                                     <button className="rov-po-menu-item" role="menuitem" disabled={confirmUploadingPoId === po.id} onClick={() => { setPoMenuOpen(null); pickConfirmationFor(po.id); }}>
                                       <span className="rov-po-menu-ico">📎</span>{confirmUploadingPoId === po.id ? 'Uploading…' : 'Attach confirmation'}
                                     </button>
+                                    {po.status === 'draft' && (
+                                      <button className="rov-po-menu-item" role="menuitem" onClick={() => { setPoMenuOpen(null); setNoteForPoId(po.id); setPoNoteText(po.notes || ''); }}>
+                                        <span className="rov-po-menu-ico">✎</span>{po.notes ? 'Edit PO note' : 'Add PO note'}
+                                      </button>
+                                    )}
                                   </div>
                                 </>
                               )}
                             </div>
                           </div>
+                          {noteForPoId === po.id && (
+                            <div className="rov-po-note-compose" style={{ gridColumn: '1 / -1', padding: '2px 0 0 54px' }}>
+                              <textarea value={poNoteText} onChange={e => setPoNoteText(e.target.value)} autoFocus
+                                placeholder={'Note for the vendor on ' + po.po_number + ' — prints on the PO…'}
+                                style={{ width: '100%', minHeight: 46, padding: 8, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
+                                <span style={{ marginRight: 'auto', font: '400 10px/1.3 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>Prints on the PO PDF</span>
+                                <button onClick={() => { setNoteForPoId(null); setPoNoteText(''); }}
+                                  style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                                <button disabled={savingPoNote} onClick={async () => {
+                                  setSavingPoNote(true);
+                                  try {
+                                    await repFetch('/api/rep/purchase-orders/' + po.id, { method: 'PUT', body: JSON.stringify({ notes: poNoteText.trim() }) });
+                                    setNoteForPoId(null); setPoNoteText(''); loadPOs();
+                                  } catch (err) { alert(err.message || 'Failed to save note'); }
+                                  setSavingPoNote(false);
+                                }}
+                                  style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: savingPoNote ? 'default' : 'pointer' }}>
+                                  {savingPoNote ? 'Saving…' : 'Save note'}</button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -22968,20 +23252,64 @@
 
               {/* Fulfillment — v2 */}
               <RodCard title="Fulfillment"
-                action={!isInstall && ['pending', 'confirmed'].includes(order.status) ? (noFreight ? 'Switch to Shipping' : 'Switch to Pickup') : undefined}
-                onAction={noFreight ? () => {
-                  setDeliveryAddress({ line1: order.shipping_address_line1 || '', line2: order.shipping_address_line2 || '', city: order.shipping_city || '', state: order.shipping_state || '', zip: order.shipping_zip || '' });
-                  setShippingOptions(null); setShowDeliveryForm(true);
-                } : async () => {
-                  if (!confirm('Switch this order to store pickup? Shipping will be set to $0.')) return;
-                  setDeliveryUpdating(true);
-                  try {
-                    const data = await repFetch('/api/rep/orders/' + editId + '/delivery-method', { method: 'PUT', body: JSON.stringify({ delivery_method: 'pickup' }) });
-                    if (data.order) setOrder(data.order);
-                    if (data.balance) setBalanceInfo(data.balance);
-                  } catch (err) {}
-                  setDeliveryUpdating(false);
-                }}>
+                action={!isInstall && ['pending', 'confirmed'].includes(order.status) ? (showFulfillmentMenu ? 'Close' : 'Change method') : undefined}
+                onAction={() => setShowFulfillmentMenu(s => !s)}>
+                {/* Method picker — switch between shipping / store pickup / will-call
+                    at the distributor. Backend supports all three on pending/confirmed
+                    orders; shipping opens the address+freight form, the two no-freight
+                    methods apply immediately. [[will-call-distributor]] */}
+                {showFulfillmentMenu && (() => {
+                  const applyNoFreight = async (method) => {
+                    const label = method === 'will_call' ? 'will-call at the distributor' : 'store pickup';
+                    if (!confirm('Switch this order to ' + label + '? Any carrier freight will be set to $0.')) return;
+                    setDeliveryUpdating(true);
+                    try {
+                      const data = await repFetch('/api/rep/orders/' + editId + '/delivery-method', { method: 'PUT', body: JSON.stringify({ delivery_method: method }) });
+                      if (data.order) setOrder(data.order);
+                      if (data.balance) setBalanceInfo(data.balance);
+                      setShowFulfillmentMenu(false); setShowDeliveryForm(false);
+                    } catch (err) { alert(err.message || 'Failed to change method'); }
+                    setDeliveryUpdating(false);
+                  };
+                  const openShipping = () => {
+                    setDeliveryAddress({ line1: order.shipping_address_line1 || '', line2: order.shipping_address_line2 || '', city: order.shipping_city || '', state: order.shipping_state || '', zip: order.shipping_zip || '' });
+                    setShippingOptions(null); setShowDeliveryForm(true); setShowFulfillmentMenu(false);
+                  };
+                  const opts = [
+                    { key: 'shipping', label: 'Shipping', sub: 'Carrier freight to the delivery address', active: !noFreight, onClick: openShipping },
+                    { key: 'pickup', label: 'Store pickup', sub: 'Customer collects at Roma · Anaheim', active: isPickup, onClick: () => applyNoFreight('pickup') },
+                    // Will-call = pickup at the distributor. Lock it once Roma has
+                    // received any material — the goods are already in the showroom, so
+                    // the customer can't collect them at the distributor. [[will-call-distributor]]
+                    { key: 'will_call', label: 'Will-call at distributor', sub: 'Customer collects at the distributor', active: isWillCall,
+                      locked: !isWillCall && anyReceived, lockReason: 'Materials already received at the showroom', onClick: () => applyNoFreight('will_call') },
+                  ];
+                  return (
+                    <div style={{ padding: '10px 20px 4px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {opts.map(o => {
+                        const disabled = deliveryUpdating || o.active || o.locked;
+                        return (
+                        <button key={o.key} type="button" disabled={disabled}
+                          onClick={o.locked ? undefined : o.onClick}
+                          title={o.locked ? o.lockReason : undefined}
+                          style={{ textAlign: 'left', padding: '10px 14px', border: '0.5px solid ' + (o.active ? 'var(--gold)' : 'var(--rod-border)'),
+                            background: o.active ? '#faf3e4' : o.locked ? '#f6f5f3' : '#fff', cursor: o.locked ? 'not-allowed' : o.active ? 'default' : 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, opacity: o.locked ? 0.55 : (deliveryUpdating && !o.active ? 0.5 : 1) }}>
+                          <span>
+                            <span style={{ font: '500 13px/1.3 Inter, sans-serif', color: 'var(--rod-ink)' }}>{o.label}</span>
+                            <span style={{ display: 'block', font: '400 11.5px/1.4 Inter, sans-serif', color: 'var(--rod-muted)', marginTop: 2 }}>{o.locked ? o.lockReason : o.sub}</span>
+                          </span>
+                          {o.active
+                            ? <span style={{ font: '600 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a6d3b', flexShrink: 0 }}>Current</span>
+                            : o.locked
+                            ? <span style={{ font: '600 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-muted)', flexShrink: 0 }}>Unavailable</span>
+                            : null}
+                        </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
                 <div className="rov-fulfill-grid">
                   {[
                     ['Method', isWillCall ? 'Will-call at distributor' : isPickup ? 'Store pickup · will-call' : isInstall ? 'Installation · job site' : 'Shipping' + (order.shipping_method === 'quote_pending' ? ' · freight quote pending' : order.shipping_method ? ' · ' + order.shipping_method : '')],
@@ -23303,6 +23631,44 @@
                     : <RovRow l="Shipping" v={'$' + parseFloat(order.shipping || 0).toFixed(2)} />}
                   {parseFloat(order.sample_shipping || 0) > 0 && (
                     <RovRow l="Sample shipping" v={'$' + parseFloat(order.sample_shipping).toFixed(2)} />
+                  )}
+                  {parseFloat(order.discount_amount || 0) > 0 && (
+                    <RovRow l="Discount" v={'−$' + parseFloat(order.discount_amount).toFixed(2)} c="var(--rod-green)" />
+                  )}
+                  {order.status !== 'cancelled' && !showDiscountEdit && (
+                    <button className="rov-textlink" style={{ background: 'none', border: 'none', padding: 0, justifySelf: 'start', width: 'fit-content', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-muted)', cursor: 'pointer' }}
+                      onClick={() => { setDiscountType('fixed'); setDiscountValue(''); setShowDiscountEdit(true); }}>
+                      {parseFloat(order.discount_amount || 0) > 0 ? 'Edit discount' : '+ Add discount'}
+                    </button>
+                  )}
+                  {showDiscountEdit && (
+                    <div style={{ padding: '10px', border: '0.5px solid rgba(28,25,23,0.15)', background: 'rgba(28,25,23,0.02)', display: 'grid', gap: 8 }}>
+                      <label className="rod-field-label">Order discount</label>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <select className="rod-input" value={discountType} onChange={e => setDiscountType(e.target.value)} style={{ width: 'auto', flex: '0 0 64px' }}>
+                          <option value="fixed">$</option>
+                          <option value="percent">%</option>
+                        </select>
+                        <input className="rod-input" type="number" min="0" step="0.01" value={discountValue} autoFocus
+                          onChange={e => setDiscountValue(e.target.value)}
+                          placeholder={discountType === 'percent' ? '% off subtotal' : '$ off total'} style={{ flex: 1 }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                        <button onClick={() => { setShowDiscountEdit(false); setDiscountValue(''); }}
+                          style={{ padding: '5px 10px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                        <button disabled={savingDiscount || discountValue === '' || parseFloat(discountValue) < 0} onClick={async () => {
+                          setSavingDiscount(true);
+                          try {
+                            await repFetch('/api/rep/orders/' + editId + '/discount', { method: 'PUT', body: JSON.stringify({ discount_type: discountType, discount_value: parseFloat(discountValue) || 0 }) });
+                            setShowDiscountEdit(false); setDiscountValue(''); load();
+                          } catch (err) { alert(err.message || 'Failed to apply discount'); }
+                          setSavingDiscount(false);
+                        }}
+                          style={{ padding: '5px 10px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: savingDiscount ? 'default' : 'pointer' }}>
+                          {savingDiscount ? 'Saving…' : 'Apply'}</button>
+                      </div>
+                      <div style={{ fontSize: 10, lineHeight: 1.4, color: 'var(--rod-muted)' }}>Set to 0 to remove. Re-issues the invoice as revised if it was already sent.</div>
+                    </div>
                   )}
                   <RovRow l="Amount paid" v={'$' + amountPaid.toFixed(2)} c="var(--rod-green)" />
                   <div className="rov-total-row">
@@ -25087,6 +25453,12 @@
             description: it.description || null,
             sell_by: it.sell_by || 'box', num_boxes: qty
           };
+        }
+        // Custom bound area rug: carries the carpet's sku_id but must stay flagged so
+        // add-item reprices it server-authoritatively. Without these it re-adds as
+        // plain per-sqyd carpet. [[custom-rug-calculator]]
+        if (it.is_custom_rug) {
+          return { sku_id: it.sku_id, num_boxes: qty, is_custom_rug: true, custom_width_ft: it.custom_width_ft, custom_length_ft: it.custom_length_ft };
         }
         const sellBy = it.sell_by || 'box';
         const isUnit = sellBy === 'unit' || sellBy === 'piece';
@@ -27386,6 +27758,17 @@
                 )}
               </WizRepCard>
 
+              {/* Notes — customer-facing only; internal notes live in the rail (see below) */}
+              {(
+                <WizRepCard title="Notes">
+                  <div className="rof-field" style={{ marginBottom: 0 }}>
+                    <label>Customer Notes (shown on PDF)</label>
+                    <textarea rows="3" value={form.notes} disabled={isReadonly}
+                      onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes visible to customer..." />
+                  </div>
+                </WizRepCard>
+              )}
+
               {rugModalItem && (
                 <RugConfigModal carpet={rugModalItem} showCost={showCost}
                   onClose={() => setRugModalItem(null)} onAdd={addRugToQuote} />
@@ -28267,7 +28650,7 @@
         project_name: '',
         project_address_line1: '', project_address_line2: '',
         project_city: '', project_state: '', project_zip: '',
-        notes: '', internal_notes: ''
+        notes: '', internal_notes: '', sidemark: ''
       });
 
       // "✓ Saved" stays after a save until the rep adjusts the form again (the
@@ -28353,8 +28736,6 @@
       const [convertDeposit, setConvertDeposit] = useState('');
       const [converting, setConverting] = useState(false);
 
-      // Overage
-      const [overageEnabled, setOverageEnabled] = useState(false);
 
       // Header/item mutations are backend-rejected unless status is draft|sent.
       const isReadonly = estimate && !['draft', 'sent'].includes(estimate.status);
@@ -28386,7 +28767,8 @@
               project_state: data.estimate.project_state || '',
               project_zip: data.estimate.project_zip || '',
               notes: data.estimate.notes || '',
-              internal_notes: data.estimate.internal_notes || ''
+              internal_notes: data.estimate.internal_notes || '',
+              sidemark: data.estimate.sidemark || ''
             });
             // Deposit: pre-fill the house default (percent/50) when it was never
             // set (type none/null AND value 0/null); otherwise show saved values.
@@ -28641,7 +29023,7 @@
         const sellBy = isCarpet ? 'roll' : (sku.sell_by || 'box');
         const numBoxes = 1;
         const sqftNeeded = isCarpet ? 9 : (sqftPerBox || 0);
-        const ovFactor = overageEnabled ? 1.10 : 1;
+        const ovFactor = 1;
         const sub = isCarpet
           ? parseFloat((price * (sqftNeeded / 9) * ovFactor).toFixed(2))
           : sellBy === 'box' ? parseFloat((sqftNeeded * ovFactor * price).toFixed(2)) : parseFloat((numBoxes * price).toFixed(2));
@@ -28714,12 +29096,12 @@
         } catch (err) { setActionError(err.message || 'Failed to add custom rug'); return; }
       };
 
-      // Bulk add from the "Browse catalog" popup — materials only, with overage applied
+      // Bulk add from the "Browse catalog" popup — materials only
       const addFromCatalog = async ({ lines, accessories, customs }) => {
         const existed = !!estimate;
         let est;
         try { est = await ensureEstimate(); } catch (err) { setActionError(err.message || 'Failed to start estimate'); return; }
-        const ovFactor = overageEnabled ? 1.10 : 1;
+        const ovFactor = 1;
         const discount = tradeDiscountFor(selectedCustomer);
         const toAdd = [];
         for (const { item: p, qty } of lines) {
@@ -28820,7 +29202,7 @@
         const sqftPerBox = item._sqft_per_box || parseFloat(item.sqft_needed || 0) / Math.max(item.num_boxes || 1, 1);
         const merged = { ...item, ...local };
         const price = parseFloat(merged.unit_price || 0);
-        const ovFactor = overageEnabled ? 1.10 : 1;
+        const ovFactor = 1;
         const sqft = parseFloat(merged.sqft_needed || 0);
         const boxes = parseInt(merged.num_boxes || 1);
 
@@ -29053,7 +29435,10 @@
         }
         setSavingSchedule(true);
         try {
-          const data = await repFetch('/api/rep/estimates/' + editId + '/payment-schedule', {
+          // A new estimate has no record yet — create it first (same as adding a
+          // line does), so the schedule can be built while still on the new form.
+          const est = await ensureEstimate();
+          const data = await repFetch('/api/rep/estimates/' + est.id + '/payment-schedule', {
             method: 'PUT',
             body: JSON.stringify({ milestones: milestones.map(m => ({ label: m.label, percent: parseFloat(m.percent), due_label: m.due_label || null })) })
           });
@@ -30031,6 +30416,20 @@
                 </div>
               </WizRepCard>
 
+              {/* Sidemark / job reference — carried onto the order on conversion */}
+              <WizRepCard title="Sidemark">
+                <div className="rof-field" style={{ marginBottom: 0 }}>
+                  <label>Sidemark / job reference</label>
+                  <SidemarkSelect value={form.sidemark} disabled={isReadonly}
+                    onChange={v => setForm(f => ({ ...f, sidemark: v }))}
+                    customerId={selectedCustomer && selectedCustomer.id} email={form.customer_email}
+                    placeholder="e.g. Smith Residence — Master Bath" />
+                  <div style={{ font: '400 0.6875rem/1.4 Inter, sans-serif', color: '#8a7e68', marginTop: '0.4rem' }}>
+                    Prints on the order, vendor POs, and documents. Carried over when the estimate converts to an order.
+                  </div>
+                </div>
+              </WizRepCard>
+
               {/* Two fixed groups: Materials, then Labor & scope of work.
                   The estimate record is created lazily on the first add. */}
               {actionError && (
@@ -30046,12 +30445,6 @@
                   actions={
                     <React.Fragment>
                       {showCost && <span style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#a87935' }}>Cost + margin · rep only</span>}
-                      {!isReadonly && (
-                        <label onClick={() => setOverageEnabled(v => !v)} role="switch" aria-checked={overageEnabled} style={{ font: '500 0.5625rem/1 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#8a7e68', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-                          <span className={'rof-switch' + (overageEnabled ? ' on' : '')} />
-                          10% overage
-                        </label>
-                      )}
                       <span style={{ font: '400 1rem/1 "Cormorant Garamond", serif', color: '#1c1917' }}>${items.filter(i => i.item_type === 'material').reduce((s, i) => s + parseFloat(i.subtotal || 0), 0).toFixed(2)}</span>
                     </React.Fragment>
                   }>
@@ -30067,20 +30460,13 @@
                 </WizRepCard>
               )}
 
-              {/* Notes */}
+              {/* Notes — customer-facing only; internal notes live in the rail (see below) */}
               {(
                 <WizRepCard title="Notes">
-  <div className="rof-field-row">
-                    <div className="rof-field" style={{ marginBottom: 0 }}>
-                      <label>Customer Notes (shown on PDF)</label>
-                      <textarea rows="3" value={form.notes} disabled={isReadonly}
-                        onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes visible to customer..." />
-                    </div>
-                    <div className="rof-field" style={{ marginBottom: 0 }}>
-                      <label>Internal Notes (rep only)</label>
-                      <textarea rows="3" value={form.internal_notes} disabled={isReadonly}
-                        onChange={e => setForm(f => ({ ...f, internal_notes: e.target.value }))} placeholder="Private notes..." />
-                    </div>
+                  <div className="rof-field" style={{ marginBottom: 0 }}>
+                    <label>Customer Notes (shown on PDF)</label>
+                    <textarea rows="3" value={form.notes} disabled={isReadonly}
+                      onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Notes visible to customer..." />
                   </div>
                 </WizRepCard>
               )}
@@ -30196,6 +30582,16 @@
                 </div>
               )}
 
+              {/* Internal notes — same multi-entry widget as the order/quote detail */}
+              {editId ? (
+                <InternalNotesCard basePath={'/api/rep/estimates/' + editId} readOnly={isReadonly} bg="#f5f0e8" />
+              ) : (
+                <div className="qw-rail-card">
+                  <h3>Internal notes</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: '#8a7e68' }}>Save the estimate to start adding internal notes.</p>
+                </div>
+              )}
+
               <div className="qw-rail-card">
                 <h3>Totals</h3>
                 <div style={{ display: 'grid', gap: 8 }}>
@@ -30293,8 +30689,8 @@
                 </div>
               )}
 
-              {estimate && (() => {
-                const estTotal = parseFloat(estimate.total || 0) || 0;
+              {(() => {
+                const estTotal = estimate ? (parseFloat(estimate.total || 0) || 0) : 0;
                 const sumOff = milestones.length > 0 && Math.abs(schedulePctSum - 100) > 0.01;
                 const miniInput = { width: '100%', padding: '5px 7px', border: '0.5px solid rgba(28,25,23,0.25)', borderRadius: 4, font: '400 12px/1.2 Inter, sans-serif', background: isReadonly ? '#f3efe7' : '#fff', color: 'var(--ink)' };
                 const linkBtn = { background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: '500 11px/1 Inter, sans-serif', color: 'var(--brass)', textDecoration: 'underline' };
@@ -30492,8 +30888,6 @@
               data={{ customer: selectedCustomer, newCustomerName: form.customer_name }}
               showCost={showCost}
               contextLabel={'Add to estimate · ' + (estimate ? estimate.estimate_number : 'New estimate')}
-              overage={overageEnabled}
-              onOverageChange={setOverageEnabled}
               onClose={() => setCatalogOpen(false)}
               onAdd={addFromCatalog}
               onAddRug={addRugToEstimate}
@@ -31418,7 +31812,7 @@
       const [showCreate, setShowCreate] = useState(false);
       const [newVendorId, setNewVendorId] = useState('');
       const [newNotes, setNewNotes] = useState('');
-      const [newShipTo, setNewShipTo] = useState('Roma Anaheim Warehouse\n1440 S. State College Blvd\nAnaheim, CA 92806');
+      const [newShipTo, setNewShipTo] = useState('Roma Anaheim Warehouse\n1440 S. State College Blvd #6M\nAnaheim, CA 92806');
       const [newExpectedDelivery, setNewExpectedDelivery] = useState('');
       const [newRecipientEmail, setNewRecipientEmail] = useState('');
       const [newCcEmails, setNewCcEmails] = useState('');
@@ -31456,7 +31850,7 @@
           });
           if (data.error) throw new Error(data.error);
           setShowCreate(false); setNewVendorId(''); setNewNotes('');
-          setNewShipTo('Roma Anaheim Warehouse\n1440 S. State College Blvd\nAnaheim, CA 92806');
+          setNewShipTo('Roma Anaheim Warehouse\n1440 S. State College Blvd #6M\nAnaheim, CA 92806');
           setNewExpectedDelivery(''); setNewRecipientEmail(''); setNewCcEmails('');
           navigate('purchase-order-detail', data.purchase_order.id);
         } catch (err) { alert(err.message); }
@@ -32145,8 +32539,8 @@
                       <div style={{ ...monoLabel, fontSize: 10, letterSpacing: '0.06em' }}>{item.vendor_sku || '—'}</div>
                       <div style={{ textAlign: 'right' }}>
                         {editable ? (
-                          <input type="number" min="1" defaultValue={item.qty}
-                            onBlur={e => { const v = parseInt(e.target.value); if (v && v !== item.qty) updatePOItem(item.id, { qty: v }); }}
+                          <input type="number" min="0" step="any" defaultValue={item.qty}
+                            onBlur={e => { const v = parseFloat(e.target.value); if (v > 0 && v !== parseFloat(item.qty)) updatePOItem(item.id, { qty: v }); }}
                             style={{ width: '100%', border: 'none', borderBottom: '1px solid ' + INK + '26', background: 'transparent', outline: 'none', padding: '2px 0', fontFamily: "'Cormorant Garamond', serif", fontSize: 14, color: INK, textAlign: 'right' }} />
                         ) : (
                           <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 14, color: INK }}>{item.qty}</span>

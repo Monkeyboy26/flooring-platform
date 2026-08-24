@@ -584,7 +584,7 @@ CREATE TABLE purchase_order_items (
     product_name TEXT,
     vendor_sku TEXT,
     description TEXT,
-    qty INTEGER NOT NULL,
+    qty NUMERIC(10,2) NOT NULL,  -- fractional for carpet ordered by the square yard (SY)
     sell_by VARCHAR(20),
     cost DECIMAL(10,2) NOT NULL,
     original_cost DECIMAL(10,2) NOT NULL,
@@ -1068,6 +1068,10 @@ CREATE INDEX IF NOT EXISTS idx_customer_notes_quote ON customer_notes(quote_id);
 -- sample-request detail's Internal Notes widget.
 ALTER TABLE customer_notes ADD COLUMN IF NOT EXISTS sample_request_id UUID REFERENCES sample_requests(id) ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_customer_notes_sample ON customer_notes(sample_request_id);
+-- Estimate-scoped internal notes: same pattern as quote_id, for the rep estimate
+-- builder's Internal Notes rail widget (mirrors the order/quote notes widget).
+ALTER TABLE customer_notes ADD COLUMN IF NOT EXISTS estimate_id UUID REFERENCES estimates(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_customer_notes_estimate ON customer_notes(estimate_id);
 
 -- ==================== Rep Notifications ====================
 
@@ -1704,6 +1708,11 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS tax_amount DECIMAL(10,2) DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS freightview_shipment_id TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_status VARCHAR(30);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_last_checked TIMESTAMP;
+-- Invoice revision tracking: mirrors purchase_orders.revision/is_revised. Each
+-- invoice (re)send after the first bumps revision and sets is_revised, which
+-- stamps "REVISED · Rev N" on the invoice document.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS revision INTEGER DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS is_revised BOOLEAN DEFAULT false;
 
 -- Tracking events timeline
 CREATE TABLE IF NOT EXISTS tracking_events (
@@ -1882,6 +1891,9 @@ CREATE TABLE IF NOT EXISTS estimates (
 );
 CREATE INDEX IF NOT EXISTS idx_estimates_rep ON estimates(sales_rep_id);
 CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status);
+-- Sidemark / job reference (e.g. "Smith Residence — Master Bath"). Mirrors the
+-- quotes.sidemark field; carried onto the order's job_name on conversion.
+ALTER TABLE estimates ADD COLUMN IF NOT EXISTS sidemark VARCHAR(200);
 
 -- Rooms/areas within an estimate ("Master Bath", "Kitchen"). Items reference an
 -- area via estimate_items.area_id; NULL area_id = the implicit "General" bucket.

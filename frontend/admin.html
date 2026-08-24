@@ -1471,7 +1471,20 @@
         ordered = [parentColor, accLabel || it.product_name];
       } else {
         title = it.collection || it.current_collection || it.product_name || 'Product';
-        const design = it.color || (it.product_name && it.product_name !== title ? it.product_name : null);
+        // Strip a leading color token that merely echoes the collection's leading
+        // token (collection "B&W Marble" + color "B&W Breach" → "Breach"), so the
+        // fallback title doesn't read "B&W Marble · B&W Breach". Mirrors
+        // dedupeStoredName in backend/lib/productName.js. Skips "A & B" alternation
+        // collections where the leading token is a meaningful selector.
+        const _leadEcho = (coll, val) => {
+          if (!coll || !val) return val;
+          const c = String(coll).trim().split(/\s+/), k = String(val).trim().split(/\s+/);
+          if (c.some(t => t === '&' || t.toLowerCase() === 'and')) return val;
+          const nz = t => t.toLowerCase().replace(/[.,]+$/, '');
+          let a = 0; while (a < k.length - 1 && a < c.length && nz(k[a]) === nz(c[a])) a++;
+          return a > 0 ? k.slice(a).join(' ') : val;
+        };
+        const design = _leadEcho(title, it.color) || (it.product_name && it.product_name !== title ? it.product_name : null);
         // Size/finish often lives only in product_name (e.g. "Ecoslate 24x48")
         // when a Color already names the design — surface it as a descriptor.
         let sizeInfo = null;
@@ -8243,7 +8256,7 @@
                     install_window: order.install_window || '',
                     install_crew: order.install_crew || '',
                     install_notes: order.install_notes || '',
-                    notify: true
+                    notify: false
                   })}>{order.install_scheduled_at ? 'Edit schedule' : 'Schedule install'}</button>
                 )}
               </span>
@@ -12647,8 +12660,8 @@
                     <td data-label="Vendor SKU" style={{ fontSize: '0.8125rem' }}>{item.vendor_sku || '—'}</td>
                     <td data-label="Qty">
                       {isDraft && canManage ? (
-                        <input type="number" min="1" defaultValue={item.qty}
-                          onBlur={e => { const v = parseInt(e.target.value); if (v && v !== item.qty) updatePOItem(item.id, { qty: v }); }}
+                        <input type="number" min="0" step="any" defaultValue={item.qty}
+                          onBlur={e => { const v = parseFloat(e.target.value); if (v > 0 && v !== parseFloat(item.qty)) updatePOItem(item.id, { qty: v }); }}
                           style={{ width: '60px', padding: '0.2rem 0.35rem', fontSize: '0.8125rem', border: '1px solid var(--stone-300)', borderRadius: '4px' }} />
                       ) : item.qty}
                     </td>

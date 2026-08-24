@@ -146,13 +146,24 @@ function build850(opts) {
   let lineNum = 0;
   for (const item of items) {
     lineNum++;
-    const qty = item.qty || 0;
-    const unit = item.sell_by === 'box' ? 'SF' : item.sell_by === 'roll' ? 'SY' : 'EA';
+    // Keep whole quantities as integers; carpet (SY) is fractional so it keeps its
+    // 2-decimal square yards. Hard-surface lines transmit the same qtyStr as before.
+    const qtyNum = parseFloat(item.qty) || 0;
+    const qtyStr = Number.isInteger(qtyNum) ? String(qtyNum) : qtyNum.toFixed(2);
+    // X12 unit of measure must match how qty + price are actually stored on the PO
+    // line, or the PO1 segment is self-contradictory:
+    //   box  → cartons ordered, priced per carton              → CT (was wrongly SF)
+    //   roll → carpet square yards, priced per sqyd            → SY
+    //   LF   → carpet cut off the roll by the linear foot      → LF (rug material)
+    //   sqft → loose/sheet goods sold by the square foot       → SF
+    //   unit / accessory / anything else                       → EA
+    const UOM = { box: 'CT', roll: 'SY', LF: 'LF', sqft: 'SF' };
+    const unit = UOM[item.sell_by] || 'EA';
     const price = parseFloat(item.cost || 0).toFixed(2);
     const vendorSku = item.vendor_sku || '';
 
     // PO1 — Baseline Item Data
-    const po1Parts = ['PO1', padLeft(lineNum, 4), String(qty), unit, price, 'PE'];
+    const po1Parts = ['PO1', padLeft(lineNum, 4), qtyStr, unit, price, 'PE'];
     if (vendorSku) {
       po1Parts.push('VP', vendorSku);
     }

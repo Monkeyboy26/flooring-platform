@@ -3,6 +3,7 @@
 // were released and what to do next (bring the release number to Anaheim, or expect
 // delivery). Built on the shared Brass Charcoal shell. Cadence-neutral copy.
 import { emailShell, heroSection, section, detailList, ctaButton, warmCard, T, SERIF, SANS, MONO, esc } from './_shell.js';
+import { composeItemName, lineQtyUnit } from '../lib/documents.js';
 
 const num = (v) => parseFloat(String(v ?? 0).replace(/,/g, '')) || 0;
 
@@ -10,6 +11,7 @@ export function generateMaterialReleaseHTML(data) {
   const {
     release_number, order_number, customer_name, recipient_name,
     release_method, created_at, notes, items = [], rep_name,
+    po_number, distributor_name, distributor_address, distributor_phone,
   } = data;
 
   const siteUrl = process.env.SITE_URL || 'http://localhost:3000';
@@ -17,14 +19,20 @@ export function generateMaterialReleaseHTML(data) {
   const longDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null;
   const issued = longDate(created_at) || 'today';
   const isDelivery = release_method === 'delivery';
+  const isWillCall = release_method === 'will_call';
 
   const itemRows = items.map((it) => {
-    const name = esc(it.description || it.product_name || 'Item');
+    const composed = composeItemName(it);
+    const name = esc(composed.nameLine || it.description || it.product_name || 'Item');
+    const brand = composed.vendor ? esc(composed.vendor) : '';
+    const skuText = composed.sku ? esc(composed.sku) : '';
     const qty = num(it.qty) || 0;
-    const unit = it.sell_by === 'unit' ? 'unit' : it.sell_by === 'roll' ? 'roll' : 'box';
+    // Released qty is the material amount already (carpet in sqyd, LF for rug cuts);
+    // label it per material without deriving from full-order coverage.
+    const _qu = lineQtyUnit({ sell_by: it.sell_by, price_basis: it.price_basis }, qty);
     return {
-      label: `${parseFloat(qty.toFixed(2))} ${qty === 1 ? unit : unit + 's'}`,
-      value: `<span style="color:${T.ink};">${name}</span>`,
+      label: `${_qu.text} ${_qu.label}`,
+      value: `${brand ? `<span style="font-size:12px;color:${T.muted};">${brand}</span><br>` : ''}<span style="color:${T.ink};">${name}</span>${skuText ? `<br><span style="font-size:12px;color:${T.muted};">${skuText}</span>` : ''}`,
     };
   });
 
@@ -35,14 +43,19 @@ export function generateMaterialReleaseHTML(data) {
       `, '8px 40px 20px')
     : '';
 
-  const nextStep = isDelivery
+  const distLoc = [distributor_address ? esc(distributor_address) : null, distributor_phone ? esc(distributor_phone) : null].filter(Boolean).join(' &middot; ');
+  const nextStep = isWillCall
+    ? `Your order is paid and ready to collect at <span style="color:${T.ink};font-weight:500;">${esc(distributor_name || 'the distributor')}</span>. Bring this release${po_number ? ` and reference purchase order <span style="color:${T.ink};font-weight:500;">${esc(po_number)}</span>` : ''} to pick up${recipient_name ? ` — authorized for <span style="color:${T.ink};font-weight:500;">${esc(recipient_name)}</span>` : ''}.`
+    : isDelivery
     ? `These materials are staged and scheduled for <span style="color:${T.ink};font-weight:500;">delivery</span>. We'll be in touch to confirm the delivery window.`
     : `These materials are ready for <span style="color:${T.ink};font-weight:500;">pickup</span> at our Anaheim warehouse. Bring release <span style="color:${T.ink};font-weight:500;">${esc(release_number || '')}</span>${recipient_name ? ` — pickup is authorized for <span style="color:${T.ink};font-weight:500;">${esc(recipient_name)}</span>` : ''}.`;
 
   const nextBlock = section(warmCard(`
     <p style="margin:0 0 8px;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.accent};">${isDelivery ? 'What happens next' : 'Picking up'}</p>
     <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.6;color:${T.body};">${nextStep}</p>
-    ${!isDelivery ? `<p style="margin:12px 0 0;font-family:${SANS};font-size:13px;line-height:1.6;color:${T.soft};">Roma &middot; 1440 S. State College Blvd #6M, Anaheim, CA 92806 &middot; (714) 999-0009</p>` : ''}
+    ${isWillCall
+      ? (distLoc ? `<p style="margin:12px 0 0;font-family:${SANS};font-size:13px;line-height:1.6;color:${T.soft};">${esc(distributor_name || '')}${distLoc ? ' &middot; ' + distLoc : ''}</p>` : '')
+      : !isDelivery ? `<p style="margin:12px 0 0;font-family:${SANS};font-size:13px;line-height:1.6;color:${T.soft};">Roma &middot; 1440 S. State College Blvd #6M, Anaheim, CA 92806 &middot; (714) 999-0009</p>` : ''}
     ${notes ? `<p style="margin:12px 0 0;font-family:${SANS};font-size:13px;line-height:1.6;color:${T.soft};"><span style="color:${T.muted};">Note:</span> ${esc(notes)}</p>` : ''}
   `, '20px 22px'), '0 40px 20px');
 
