@@ -20181,7 +20181,7 @@ app.post('/api/rep/orders/:id/payments/:paymentId/refund', repAuth, async (req, 
 // ==================== Returns / RMA ====================
 
 // GET return context — order + eligible lines (with already-returned qty) + refundable tenders.
-app.get('/api/rep/orders/:id/return-context', repAuth, async (req, res) => {
+app.get('/api/rep/orders/:id/return-context', repAuth, requireRepManager, async (req, res) => {
   try {
     const { id } = req.params;
     const oRes = await pool.query(
@@ -20403,7 +20403,7 @@ async function emailCreditMemo({ order, creditMemo, computed, settlement, rmaNum
   }
 }
 
-app.post('/api/rep/orders/:id/returns', repAuth, async (req, res) => {
+app.post('/api/rep/orders/:id/returns', repAuth, requireRepManager, async (req, res) => {
   const client = await pool.connect();
   try {
     const { id } = req.params;

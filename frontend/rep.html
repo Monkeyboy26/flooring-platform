@@ -10304,7 +10304,7 @@
               {view === 'purchase-orders' && <RepPurchaseOrdersListView navigate={navigate} />}
               {view === 'purchase-order-detail' && <RepPurchaseOrderDetailView navigate={navigate} editId={editId} />}
               {view === 'search-results' && <RepSearchResultsView navigate={navigate} initialQuery={searchQuery} onOpenPalette={() => setShowSearch(true)} />}
-              {view === 'return-flow' && <RepReturnFlowView navigate={navigate} editId={editId} showCost={showCost} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />}
+              {view === 'return-flow' && repInfo.is_manager && <RepReturnFlowView navigate={navigate} editId={editId} showCost={showCost} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />}
               {view === 'change-order' && <RepChangeOrderView navigate={navigate} editId={editId} showCost={showCost} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />}
               {view === 'release-flow' && <RepReleaseFlowView navigate={navigate} editId={editId} initialMethod={releaseIntent} />}
             </div>
@@ -22672,7 +22672,7 @@
               {hasUnreleasedMaterials && (
                 <button className="rov-hbtn" onClick={() => navigate('release-flow', order.id, isWillCall ? { method: 'will_call' } : undefined)}><span className="rov-hico">→</span>Release materials</button>
               )}
-              {['shipped', 'delivered', 'ready_for_pickup'].includes(order.status) && (
+              {repInfo.is_manager && ['shipped', 'delivered', 'ready_for_pickup'].includes(order.status) && (
                 <button className="rov-hbtn" onClick={() => navigate('return-flow', order.id)}><span className="rov-hico">↩</span>Start return</button>
               )}
               {!showCancelForm && canCancel && (
