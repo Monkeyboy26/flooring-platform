@@ -10130,11 +10130,14 @@
         ]}] : []),
         { label: 'Reports', items: [
           { key: 'commissions', name: 'Commission', glyph: '$' },
+          // Managers only: view any rep's commission ledger.
+          ...(repInfo.is_manager ? [{ key: 'team-commissions', name: 'Team commissions', glyph: '\u25ce' }] : []),
           { key: 'cash-drawer', name: 'Cash drawer', glyph: '\u2338' },
         ]},
       ];
 
       const activeBase = view === 'commissions' ? 'commissions' :
+                          view === 'team-commissions' ? 'team-commissions' :
                           view === 'cash-drawer' ? 'cash-drawer' :
                           view === 'tasks' ? 'tasks' :
                           view === 'purchase-orders' || view === 'purchase-order-detail' ? 'purchase-orders' :
@@ -10292,6 +10295,7 @@
               {view === 'customer-detail' && <RepCustomerDetailView navigate={navigate} editId={editId} />}
               {view === 'customer-create' && <RepCustomerCreateView navigate={navigate} />}
               {view === 'commissions' && <RepCommissionsView navigate={navigate} />}
+              {view === 'team-commissions' && repInfo.is_manager && <RepTeamCommissionsView navigate={navigate} />}
               {view === 'trade-applications' && <RepTradeApplicationsView navigate={navigate} />}
               {view === 'visits' && <RepVisitsListView navigate={navigate} />}
               {view === 'visit-create' && <RepVisitBuilderView navigate={navigate} />}
@@ -19650,23 +19654,82 @@
       );
     }
 
+    // ========== RepTeamCommissionsView (managers only) ==========
+    // Manager picks any rep and views their commission ledger. Reuses
+    // RepCommissionsView, pointed at the manager-only /team/commissions endpoint.
+    function RepTeamCommissionsView({ navigate }) {
+      const [reps, setReps] = useState(null);
+      const [repId, setRepId] = useState('');
+
+      useEffect(() => {
+        repFetch('/api/rep/reps')
+          .then(d => setReps(d.reps || []))
+          .catch(() => setReps([]));
+      }, []);
+
+      const selected = (reps || []).find(r => r.id === repId);
+      const accent = '#a87935', ink = '#1c1917', muted = '#8a7e68';
+
+      return (
+        <div style={{ color: ink, fontFamily: 'var(--roma-sans)' }}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: accent, marginBottom: 12 }}>
+              ● Manager view
+            </div>
+            <h1 style={{ font: '300 44px/1 var(--roma-serif)', letterSpacing: '-0.018em', margin: 0, color: ink }}>
+              Team <em style={{ color: accent }}>commissions</em>
+            </h1>
+            <div style={{ font: '400 14px/1.5 var(--roma-sans)', color: ink + 'b3', marginTop: 6 }}>
+              Select a sales rep to review their commission ledger.
+            </div>
+            <div style={{ marginTop: 18 }}>
+              <select
+                value={repId}
+                onChange={e => setRepId(e.target.value)}
+                style={{ font: '400 15px/1 var(--roma-sans)', padding: '10px 14px', border: '0.5px solid ' + ink + '44', background: '#faf7f0', color: ink, minWidth: 280, borderRadius: 2 }}
+              >
+                <option value="">{reps === null ? 'Loading reps…' : 'Choose a rep…'}</option>
+                {(reps || []).map(r => (
+                  <option key={r.id} value={r.id}>{r.name}{r.is_manager ? ' · manager' : ''}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {repId && selected ? (
+            <RepCommissionsView
+              key={repId}
+              navigate={navigate}
+              endpoint={'/api/rep/team/commissions/' + repId}
+              viewRepName={selected.name}
+            />
+          ) : (
+            <div style={{ padding: '48px 22px', textAlign: 'center', font: '400 14px/1.5 var(--roma-sans)', color: muted, background: '#faf7f0', border: '0.5px solid ' + ink + '22' }}>
+              No rep selected.
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // ========== RepCommissionsView ==========
     // Editorial commission ledger (Rep Improvements v2 · rep-commission-ledger.jsx).
     // Backed by the real rep_commissions model — the design's Held/Clawback/
     // accelerator-tier/ACH fictions are dropped; its four tones map to the four
     // real statuses (earned=locked, pending, paid, forfeited). Periods, summaries
     // and CSV are all computed client-side from the full commission list.
-    function RepCommissionsView({ navigate }) {
+    function RepCommissionsView({ navigate, endpoint, viewRepName }) {
       const [data, setData] = useState(null);
       const [loading, setLoading] = useState(true);
       const [period, setPeriod] = useState('m0');
+      const src = endpoint || '/api/rep/commissions';
 
       useEffect(() => {
         setLoading(true);
-        repFetch('/api/rep/commissions')
+        repFetch(src)
           .then(d => { setData(d); setLoading(false); })
           .catch(() => setLoading(false));
-      }, []);
+      }, [src]);
 
       const theme = { ink: '#1c1917', paper: '#faf7f0', accent: '#a87935', muted: '#8a7e68', warm: '#efe7d6' };
       const { ink, paper, accent, muted, warm } = theme;
@@ -19681,10 +19744,14 @@
       const laborRate = parseFloat(data.labor_rate != null ? data.labor_rate : 0.03);
 
       let repName = '';
-      try {
-        const info = JSON.parse(sessionStorage.getItem('rep_info') || '{}');
-        repName = [info.first_name, info.last_name].filter(Boolean).join(' ');
-      } catch (e) {}
+      if (viewRepName != null) {
+        repName = viewRepName;
+      } else {
+        try {
+          const info = JSON.parse(sessionStorage.getItem('rep_info') || '{}');
+          repName = [info.first_name, info.last_name].filter(Boolean).join(' ');
+        } catch (e) {}
+      }
 
       // ---- Period buckets, built from real dates ----
       const now = new Date();
