@@ -3637,6 +3637,11 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       finish: attrIdx.finish || null
     };
 
+    // Siblings are always the same vendor as the current SKU (queried by vendor_id),
+    // so carry the vendor_code onto each — the storefront's name composer needs it
+    // (e.g. Emser color-before-finish reorder) and the sibling SELECTs don't fetch it.
+    const withVendorCode = (arr) => (arr || []).map(s => s.vendor_code ? s : { ...s, vendor_code: sku.vendor_code });
+
     res.json({
       sku,
       title_parts: titleParts,
@@ -3644,12 +3649,12 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       countertop_image: countertopImage,
       tags: productTags,
       accessories: skuAccessories,
-      same_product_siblings: sameSiblings,
+      same_product_siblings: withVendorCode(sameSiblings),
       cross_product_accessories: crossProductAccessories,
-      collection_siblings: collectionSiblings,
+      collection_siblings: withVendorCode(collectionSiblings),
       collection_attributes: collectionAttributes,
-      grouped_products: groupedProducts,
-      format_siblings: formatSiblings,
+      grouped_products: withVendorCode(groupedProducts),
+      format_siblings: withVendorCode(formatSiblings),
       format_label: sku.format_label || null
     });
   } catch (err) {
@@ -15748,6 +15753,56 @@ app.get('/api/rep/commissions/summary', repAuth, async (req, res) => {
   }
 });
 
+// Managers: view any rep's commission ledger. Same shape as /api/rep/commissions
+// but scoped to :repId instead of the logged-in rep.
+app.get('/api/rep/team/commissions/:repId', repAuth, requireRepManager, async (req, res) => {
+  try {
+    const { repId } = req.params;
+    const { status } = req.query;
+
+    const repRes = await pool.query(
+      `SELECT id, first_name, last_name, first_name || ' ' || last_name AS name, email
+       FROM staff_accounts WHERE id = $1 AND role = 'sales_rep'`,
+      [repId]
+    );
+    if (!repRes.rows.length) return res.status(404).json({ error: 'Rep not found' });
+
+    let query = `
+      SELECT rc.*, o.order_number, o.customer_name, o.status as order_status, o.created_at as order_date
+      FROM rep_commissions rc
+      JOIN orders o ON o.id = rc.order_id
+      WHERE rc.rep_id = $1
+    `;
+    const params = [repId];
+    if (status) { query += ' AND rc.status = $2'; params.push(status); }
+    query += ' ORDER BY rc.created_at DESC';
+    const commissions = await pool.query(query, params);
+
+    const summaryRes = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN status = 'earned' THEN commission_amount ELSE 0 END), 0) as total_earned,
+        COALESCE(SUM(CASE WHEN status = 'pending' THEN commission_amount ELSE 0 END), 0) as total_pending,
+        COALESCE(SUM(CASE WHEN status = 'paid' THEN commission_amount ELSE 0 END), 0) as total_paid,
+        COALESCE(SUM(CASE WHEN status = 'forfeited' THEN commission_amount ELSE 0 END), 0) as total_forfeited
+      FROM rep_commissions WHERE rep_id = $1
+    `, [repId]);
+
+    const configRes = await pool.query('SELECT rate, labor_rate FROM commission_config LIMIT 1');
+    const commissionRate = configRes.rows.length ? parseFloat(configRes.rows[0].rate) : 0.10;
+    const laborRate = configRes.rows.length ? parseFloat(configRes.rows[0].labor_rate) : 0.03;
+
+    res.json({
+      rep: repRes.rows[0],
+      summary: summaryRes.rows[0],
+      commission_rate: commissionRate,
+      labor_rate: laborRate,
+      commissions: commissions.rows
+    });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== Showroom Visits (Rep) ====================
 
 app.post('/api/rep/visits', repAuth, async (req, res) => {
@@ -23521,29 +23576,12 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       }
 
       if (ediSuccess) {
+        // New-order policy: send EDI *and* the human-readable PDF copy to the
+        // vendor (the email path below runs when an address is on file). EDI stays
+        // the order of record, so sent_via remains 'edi'; the email is a copy.
         await pool.query(`UPDATE purchase_orders SET sent_via = 'edi' WHERE id = $1`, [poId]);
-        const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
-        const action = isRevised ? 'revised_and_sent' : 'edi_sent';
-        await pool.query(
-          `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, revision, details)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [poId, action, repName, newRevision, JSON.stringify({ ...ediDetails, approved_via: 'rep_portal' })]
-        );
-
-        // Notify assigned rep if different
-        const poOrder = await pool.query('SELECT order_number, sales_rep_id FROM orders WHERE id = $1', [po.order_id]);
-        if (poOrder.rows.length && poOrder.rows[0].sales_rep_id && poOrder.rows[0].sales_rep_id !== req.rep.id) {
-          setImmediate(() => createRepNotification(pool, poOrder.rows[0].sales_rep_id, 'po_approved',
-            `PO ${po.po_number} sent to ${po.vendor_name} via EDI`,
-            `${repName} approved and sent PO for ${poOrder.rows[0].order_number}`,
-            'order', po.order_id));
-        }
-
-        return res.json({ purchase_order: updatedPO.rows[0], sent_via: 'edi', edi: ediDetails });
-      }
-
-      // EDI failed — fall through to email
-      if (!toEmail) {
+      } else if (!toEmail) {
+        // EDI failed and there's no email address to fall back to.
         return res.status(500).json({ error: 'EDI send failed and vendor has no email configured for fallback.' });
       }
     }
@@ -23573,13 +23611,15 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       }
     }
 
-    // Log activity
-    const action = isRevised ? 'revised_and_sent' : 'sent';
+    // Log activity — a single record covers both channels. When EDI succeeded the
+    // email is a copy (sent_via stays 'edi'); when it failed the email is the
+    // fallback (sent_via 'email').
+    const action = isRevised ? 'revised_and_sent' : (sentVia === 'edi' ? 'edi_sent' : 'sent');
     await pool.query(
       `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, recipient_email, revision, details)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [poId, action, repName, toEmail || null, newRevision,
-       JSON.stringify({ email_sent: emailSent, approved_via: 'rep_portal', edi_fallback: ediDetails,
+       JSON.stringify({ email_sent: emailSent, sent_via: sentVia, approved_via: 'rep_portal', edi: ediDetails,
          cc: ccOverride || undefined })]
     );
 
@@ -28953,55 +28993,51 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
       }
 
       if (ediSuccess) {
-        // Log activity and return
+        // New-order policy: also send the PDF email copy below (when a vendor email
+        // is on file). EDI stays the order of record; sent_via remains 'edi'.
         await pool.query(`UPDATE purchase_orders SET sent_via = 'edi' WHERE id = $1`, [poId]);
-        const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
-        await pool.query(
-          `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, revision, details)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [poId, 'edi_sent', req.staff.id, staffName, updatedPO.rows[0].revision || 0,
-           JSON.stringify(ediDetails)]
-        );
-        return res.json({ purchase_order: updatedPO.rows[0], sent_via: 'edi', edi: ediDetails });
       }
     }
 
-    // Email path (default or EDI fallback)
-    if (!po.vendor_email) {
+    // Email path — a PDF copy when EDI already went out (new-order policy = EDI +
+    // email), the primary channel otherwise. Only hard-fail on a missing email or
+    // PDF when EDI did NOT send.
+    const ediSent = sentVia === 'edi';
+    if (po.vendor_email) {
+      const poData = await generatePOHtml(pool, poId);
+      if (!poData) return res.status(404).json({ error: 'Purchase order not found' });
+      let pdfBuffer = null;
+      try {
+        pdfBuffer = await generatePDFBuffer(poData.html, PO_PDF_MARGIN);
+      } catch (pdfErr) {
+        console.error('[PO Send] PDF generation failed:', pdfErr.message);
+        if (!ediSent) return res.status(500).json({ error: 'PDF generation failed. Puppeteer may not be available.' });
+      }
+      if (pdfBuffer) {
+        emailResult = await sendPurchaseOrderToVendor({
+          vendor_email: po.vendor_email,
+          vendor_name: po.vendor_name,
+          po_number: po.po_number,
+          is_revised: action === 'revised_and_sent',
+          pdf_buffer: pdfBuffer,
+          rep_email: po.rep_email,
+          rep_name: [po.rep_first_name, po.rep_last_name].filter(Boolean).join(' '),
+          vendor_contact_email: po.vendor_contact_email
+        });
+      }
+    } else if (!ediSent) {
       return res.status(400).json({ error: 'EDI send failed and vendor has no email configured for fallback.' });
     }
 
-    const poData = await generatePOHtml(pool, poId);
-    if (!poData) return res.status(404).json({ error: 'Purchase order not found' });
-
-    const updatedData = await generatePOHtml(pool, poId);
-    let pdfBuffer;
-    try {
-      pdfBuffer = await generatePDFBuffer(updatedData.html, PO_PDF_MARGIN);
-    } catch (pdfErr) {
-      console.error('[PO Send] PDF generation failed:', pdfErr.message);
-      return res.status(500).json({ error: 'PDF generation failed. Puppeteer may not be available.' });
-    }
-
-    emailResult = await sendPurchaseOrderToVendor({
-      vendor_email: po.vendor_email,
-      vendor_name: po.vendor_name,
-      po_number: po.po_number,
-      is_revised: action === 'revised_and_sent',
-      pdf_buffer: pdfBuffer,
-      rep_email: po.rep_email,
-      rep_name: [po.rep_first_name, po.rep_last_name].filter(Boolean).join(' '),
-      vendor_contact_email: po.vendor_contact_email
-    });
-
-    // Log activity
+    // Log activity — a single record covers both channels.
     await pool.query(`UPDATE purchase_orders SET sent_via = $2 WHERE id = $1`, [poId, sentVia]);
     const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+    const logAction = (ediSent && action === 'sent') ? 'edi_sent' : action;
     await pool.query(
       `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, recipient_email, revision, details)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [poId, action, req.staff.id, staffName, po.vendor_email, updatedPO.rows[0].revision || 0,
-       JSON.stringify({ email_sent: emailResult.sent, ...(ediDetails || {}) })]
+      [poId, logAction, req.staff.id, staffName, po.vendor_email || null, updatedPO.rows[0].revision || 0,
+       JSON.stringify({ email_sent: emailResult.sent, sent_via: sentVia, ...(ediDetails ? { edi: ediDetails } : {}) })]
     );
 
     res.json({ purchase_order: updatedPO.rows[0], sent_via: sentVia, email_sent: emailResult.sent });
