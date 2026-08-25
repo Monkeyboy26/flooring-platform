@@ -5095,16 +5095,18 @@ app.post('/api/checkout/update-payment-intent-shipping', async (req, res) => {
 // column backstop concurrent allocation. Trailing-digit extraction also covers
 // legacy formats (RDP-ELITESTONE-1074, RMA-2026-0009) so numbering continues
 // from wherever each series stands instead of restarting.
-async function nextDocNumber(db, table, column, prefix, pad = 0) {
+async function nextDocNumber(db, table, column, prefix, pad = 0, floor = 0) {
   const result = await db.query(
     `SELECT COALESCE(MAX((substring(${column} FROM '([0-9]+)$'))::int), 0) AS maxnum
      FROM ${table} WHERE ${column} LIKE $1`, [prefix + '%']
   );
-  return prefix + String((result.rows[0].maxnum || 0) + 1).padStart(pad, '0');
+  return prefix + String(Math.max(result.rows[0].maxnum || 0, floor) + 1).padStart(pad, '0');
 }
 
 async function getNextOrderNumber() {
-  return nextDocNumber(pool, 'orders', 'order_number', 'RD-');
+  // Floor 1000: production launched with a clean orders table — start the
+  // public series at RD-1001 rather than RD-1.
+  return nextDocNumber(pool, 'orders', 'order_number', 'RD-', 0, 1000);
 }
 
 async function getNextQuoteNumber() {
