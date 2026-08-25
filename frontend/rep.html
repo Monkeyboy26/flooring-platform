@@ -6586,6 +6586,34 @@
   <script type="text/babel" data-presets="env,react">
     const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
+    // Ordered ID sequence per list section, captured when a rep opens a row, so
+    // the matching detail/edit view's Prev/Next can walk the same filtered /
+    // sorted list. Empty on a deep-link — the arrows disable when there is no
+    // neighbor to move to.
+    const repListNav = {}; // { orders: [ids], quotes: [ids], ... }
+    function repNavNeighbors(section, id) {
+      const ids = repListNav[section] || [];
+      const i = ids.indexOf(id);
+      return {
+        prev: i > 0 ? ids[i - 1] : null,
+        next: i >= 0 && i < ids.length - 1 ? ids[i + 1] : null,
+      };
+    }
+    // Prev/Next arrows for a detail/edit view — walk the captured list sequence
+    // for `section`, navigating to `view` with the neighbor id. Plain <a>s so
+    // they inherit whatever breadcrumb styles the parent defines; disabled (dim,
+    // non-clickable) at the ends of the list or on a deep-link with no sequence.
+    function RepPrevNext({ section, id, view, navigate, linkStyle }) {
+      const { prev, next } = repNavNeighbors(section, id);
+      const st = (on) => ({ ...(linkStyle || {}), opacity: on ? 1 : 0.35, cursor: on ? 'pointer' : 'default', pointerEvents: on ? 'auto' : 'none' });
+      return (
+        <React.Fragment>
+          <a aria-disabled={!prev} style={st(prev)} onClick={() => prev && navigate(view, prev)}>{'←'} Prev</a>
+          <a aria-disabled={!next} style={st(next)} onClick={() => next && navigate(view, next)}>Next {'→'}</a>
+        </React.Fragment>
+      );
+    }
+
     // ========== Draft system (rofDraft) ==========
     // Entry forms register a guard while the rep is typing. Leaving the view
     // (in-app navigate or browser back) with unsaved input asks whether to keep
@@ -6792,14 +6820,22 @@
       // logic as the storefront PDP (fullProductName), so an order/quote line reads
       // identically everywhere. Client fallback below covers un-enriched surfaces.
       if (it.display_name) return { brand, name: it.display_name, sku };
-      // Custom bound area rug → "Custom Area Rug  ·  <carpet>  ·  9' × 4'".
+      // Custom bound area rug → "Custom Area Rug  ·  9' × 4'  ·  <carpet>" (size leads).
       if (it.is_custom_rug || (it.description || '').startsWith('Custom Area Rug')) {
         const fmtFt = (ft) => { const n = parseFloat(ft) || 0, w = Math.floor(n); let i = Math.round((n - w) * 12); if (i === 12) return (w + 1) + "'"; return i === 0 ? w + "'" : w + "'" + i + '"'; };
         const dims = (it.custom_width_ft && it.custom_length_ft) ? (fmtFt(it.custom_width_ft) + ' × ' + fmtFt(it.custom_length_ft)) : (it.description || '').replace(/^Custom Area Rug\s*[—-]\s*/, '');
-        const carpet = [it.collection, it.color].filter(Boolean).join(' ') || it.product_name || '';
+        // Carpet as "<style>  ·  <color>". collection sometimes just echoes the brand
+        // (EF: "Engineered Floors" + code "1812", real style in product_name), so style
+        // = brand-stripped product_name (collection fallback) and color is appended
+        // unless already present. Brand shows on its own line.
+        const rawBrand = it.brand_name || it.vendor_name || '';
+        const stripBrand = (s) => { let o = String(s || '').trim(); if (rawBrand) o = o.replace(new RegExp('^' + rawBrand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b\\s*', 'i'), '').trim(); return o; };
+        const normKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+        const style = stripBrand(it.product_name) || stripBrand(it.collection);
+        const colorPart = it.color && !(style && normKey(style).includes(normKey(it.color))) ? it.color : '';
         return {
           brand,
-          name: ['Custom Area Rug', carpet, dims].filter(Boolean).join('  ·  '),
+          name: ['Custom Area Rug', dims, style, colorPart].filter(Boolean).join('  ·  '),
           sku,
         };
       }
@@ -8419,7 +8455,7 @@
           ) : (
             <div>
               {visible.map(v => (
-                <div key={v.id} className="cv-row" style={{ gridTemplateColumns: ROW_COLS }} onClick={() => navigate('vendor-detail', v.id)}>
+                <div key={v.id} className="cv-row" style={{ gridTemplateColumns: ROW_COLS }} onClick={() => { repListNav.vendors = visible.map(x => x.id); navigate('vendor-detail', v.id); }}>
                   <div className="cl-avatar">{initials(v.name)}</div>
                   <div>
                     <div className="cv-row-name">{v.name}{v.public_code ? <span style={{ color: 'var(--brass-muted)', fontWeight: 400 }}>{' · '}{v.public_code}</span> : null}</div>
@@ -8588,6 +8624,8 @@
               <a onClick={() => navigate('vendors')}>Vendors</a>
               <span className="cdv-crumb-sep" />
               <span className="cdv-crumb-cur">{v.name}{v.public_code ? ' · ' + v.public_code : ''}</span>
+              <span className="cdv-crumb-sep" />
+              <RepPrevNext section="vendors" id={editId} view="vendor-detail" navigate={navigate} />
             </div>
             <span className="cdv-crumb-status" style={{ color: v.is_active ? '#3a7a4e' : 'var(--brass-muted)' }}>
               {'●'} {v.is_active ? 'Active supplier' : 'Inactive'}
@@ -8992,7 +9030,7 @@
                 const name = c.company_name || c.name || '\u2014';
                 const ltv = parseFloat(c.total_spent) || 0;
                 return (
-                  <div key={c.id} className="cv-row" onClick={() => navigate('customer-detail', c.id)}>
+                  <div key={c.id} className="cv-row" onClick={() => { repListNav.customers = displayCustomers.map(x => x.id); navigate('customer-detail', c.id); }}>
                     <div className="cl-avatar">{getInitials(name)}</div>
                     <div>
                       <div className="cv-row-name">{name}</div>
@@ -9860,6 +9898,8 @@
               <a onClick={() => navigate('customers')}>Customers</a>
               <span className="cdv-crumb-sep" />
               <span className="cdv-crumb-cur">{displayName}</span>
+              <span className="cdv-crumb-sep" />
+              <RepPrevNext section="customers" id={editId} view="customer-detail" navigate={navigate} />
             </div>
             <span className="cdv-crumb-status" style={{ color: activeOrders.length ? '#3a7a4e' : 'var(--brass-muted)' }}>
               {'●'} {typeLabel}{activeOrders.length ? ' · ' + activeOrders.length + ' active order' + (activeOrders.length !== 1 ? 's' : '') : ' · no open work'}
@@ -13713,6 +13753,7 @@
             document_ids: data.documentIds || undefined,
             check_number: (primaryTender && primaryTender.checkNumber) || undefined,
             notes: data.notes || undefined,
+            invoice_notes: (data.invoiceNotes || '').trim() || undefined,
             job_name: (data.jobName || '').trim() || undefined,
             manual_discount_type: (!data.promoResult && parseFloat(data.manualDiscountValue) > 0) ? (data.manualDiscountType || 'fixed') : undefined,
             manual_discount_value: (!data.promoResult && parseFloat(data.manualDiscountValue) > 0) ? parseFloat(data.manualDiscountValue) : undefined
@@ -16439,7 +16480,7 @@
     }
 
     // --- RofPromoField (promo code entry — lives in the order summary sidebar) ---
-    function RofPromoField({ data, setData }) {
+    function RofPromoField({ data, setData, onCancel }) {
       const [code, setCode] = useState(data.promoCode || '');
       const [err, setErr] = useState('');
       const [loading, setLoading] = useState(false);
@@ -16458,10 +16499,15 @@
         } catch (e) { setErr(e.message); }
         setLoading(false);
       };
-      const remove = () => { setData(d => ({ ...d, promoResult: null, promoCode: '' })); setCode(''); setErr(''); };
+      const remove = () => { setData(d => ({ ...d, promoResult: null, promoCode: '' })); setCode(''); setErr(''); if (onCancel) onCancel(); };
       return (
         <div className="rof-summary-section">
-          <div className="rof-summary-label">Promo code</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="rof-summary-label" style={{ marginBottom: 0 }}>Promo code</div>
+            {onCancel && !data.promoResult && (
+              <button onClick={onCancel} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: '500 0.5rem/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8a7e68' }}>&larr; Back</button>
+            )}
+          </div>
           {data.promoResult ? (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <span style={{ font: '600 0.6875rem/1 ui-monospace, monospace', color: 'var(--green)', letterSpacing: '0.04em' }}>{data.promoResult.code}</span>
@@ -16488,13 +16534,14 @@
     // Only one discount source applies: a promo code takes precedence, so this is
     // disabled while a promo is active. Sent to the create endpoint as
     // manual_discount_type / manual_discount_value.
-    function RofDiscountField({ data, setData }) {
+    function RofDiscountField({ data, setData, onCancel }) {
       const itemsSubtotal = (data.items || []).reduce((s, i) => s + (i.subtotal || 0), 0);
       const type = data.manualDiscountType || 'fixed';
       const raw = parseFloat(data.manualDiscountValue);
       const amount = !isNaN(raw) && raw > 0
         ? Math.min(type === 'percent' ? itemsSubtotal * Math.min(raw, 100) / 100 : raw, itemsSubtotal)
         : 0;
+      const back = () => { setData(d => ({ ...d, manualDiscountValue: '' })); if (onCancel) onCancel(); };
       if (data.promoResult) {
         return (
           <div className="rof-summary-section">
@@ -16505,8 +16552,13 @@
       }
       return (
         <div className="rof-summary-section">
-          <div className="rof-summary-label">Manual discount</div>
-          <div style={{ display: 'flex', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="rof-summary-label" style={{ marginBottom: 0 }}>Manual discount</div>
+            {onCancel && (
+              <button onClick={back} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: '500 0.5rem/1 ui-monospace, monospace', letterSpacing: '0.06em', textTransform: 'uppercase', color: '#8a7e68' }}>&larr; Back</button>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
             <select value={type} onChange={e => setData(d => ({ ...d, manualDiscountType: e.target.value }))}
               style={{ flex: '0 0 52px', padding: '6px 4px', border: '0.5px solid rgba(28,25,23,0.3)', background: '#fff', font: '400 0.75rem/1 Inter, sans-serif', color: 'var(--rod-ink)', outline: 'none' }}>
               <option value="fixed">$</option>
@@ -16520,6 +16572,29 @@
           {amount > 0 && (
             <div style={{ font: '300 0.9rem/1 "Cormorant Garamond", serif', color: 'var(--green)', marginTop: 4, textAlign: 'right' }}>-${amount.toFixed(2)}</div>
           )}
+        </div>
+      );
+    }
+
+    // --- RofDiscountControls (two buttons: Promo code | Manual discount) ---
+    // Collapses the promo + manual-discount fields behind a pair of buttons.
+    // Picking one reveals its field; "Back" returns to the buttons. The two
+    // discount sources stay mutually exclusive (promo wins) as before.
+    function RofDiscountControls({ data, setData }) {
+      const hasManual = !data.promoResult && parseFloat(data.manualDiscountValue) > 0;
+      const [mode, setMode] = useState(data.promoResult ? 'promo' : (hasManual ? 'manual' : null));
+      // If a promo gets applied/cleared elsewhere, keep the view in sync.
+      useEffect(() => { if (data.promoResult) setMode('promo'); }, [data.promoResult]);
+
+      if (mode === 'promo') return <RofPromoField data={data} setData={setData} onCancel={() => setMode(null)} />;
+      if (mode === 'manual') return <RofDiscountField data={data} setData={setData} onCancel={() => setMode(null)} />;
+      return (
+        <div className="rof-summary-section">
+          <div className="rof-summary-label">Discount</div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="rof-btn-light" onClick={() => setMode('promo')} style={{ flex: 1, padding: '0.4rem 0.6rem' }}>Promo code</button>
+            <button className="rof-btn-light" onClick={() => setMode('manual')} style={{ flex: 1, padding: '0.4rem 0.6rem' }}>Manual discount</button>
+          </div>
         </div>
       );
     }
@@ -16608,11 +16683,7 @@
             )}
 
             {data.items && data.items.length > 0 && step < 3 && (
-              <RofPromoField data={data} setData={setData} />
-            )}
-
-            {data.items && data.items.length > 0 && step < 3 && (
-              <RofDiscountField data={data} setData={setData} />
+              <RofDiscountControls data={data} setData={setData} />
             )}
 
             <div className="rof-summary-section" style={{ marginBottom: 0 }}>
@@ -17051,7 +17122,7 @@
     }
 
     // --- Step 3: Send POs ---
-    function RofSendPOsStep({ data, setData, showCost }) {
+    function RofSendPOsStep({ data, setData, showCost, setStep }) {
       const items = (data.items || []).filter(i => i.sku_id);
       const vendorGroups = {};
       items.forEach(item => {
@@ -17085,6 +17156,7 @@
       // + a line→po_item_id map so line costs can be adjusted and persisted.
       const [poInfo, setPoInfo] = useState(null); // { edi, poId, status, line } | null while loading
       const [savingCost, setSavingCost] = useState({}); // { [item._key]: bool }
+      const [savingNote, setSavingNote] = useState({}); // { [vKey]: bool }
 
       useEffect(() => {
         const oid = data.createdOrder && data.createdOrder.id;
@@ -17151,6 +17223,24 @@
           });
         } catch (e) { /* keep optimistic value; PO can still be corrected from its detail page */ }
         setSavingCost(s => ({ ...s, [item._key]: false }));
+      };
+
+      // Per-PO note to the vendor — printed on this PO's PDF + email. Edited inline
+      // on the card; kept in poInfo.notes so the send dialog pre-fills the same text.
+      const setPoNote = (vKey, text) => {
+        setPoInfo(pi => pi ? { ...pi, notes: { ...pi.notes, [vKey]: text } } : pi);
+      };
+      // Persist the note to the draft PO on blur (same endpoint as order detail).
+      const savePoNote = async (vKey) => {
+        const poId = poInfo && poInfo.poId && poInfo.poId[vKey];
+        if (!poId) return;
+        setSavingNote(s => ({ ...s, [vKey]: true }));
+        try {
+          await repFetch('/api/rep/purchase-orders/' + poId, {
+            method: 'PUT', body: JSON.stringify({ notes: ((poInfo.notes && poInfo.notes[vKey]) || '').trim() })
+          });
+        } catch (e) { /* keep optimistic value; note can still be set from the send dialog */ }
+        setSavingNote(s => ({ ...s, [vKey]: false }));
       };
 
       const [emailModal, setEmailModal] = useState(null); // { vKey, group } | null
@@ -17405,6 +17495,32 @@
                       ))}
                     </div>
 
+                    {/* Note to vendor — one per PO; printed on this PO's PDF + email.
+                        Editable until the PO is sent; persisted to the draft on blur. */}
+                    <div style={{ padding: '0.5rem 1.125rem 0.75rem', borderTop: '0.5px solid rgba(28,25,23,0.07)' }}>
+                      <div style={{ font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: MUTED, marginBottom: 6 }}>
+                        Note to vendor {'·'} printed on this PO
+                      </div>
+                      {isSent ? (
+                        <div style={{ font: '400 12px/1.5 var(--roma-sans)', color: (poInfo && poInfo.notes && poInfo.notes[vKey]) ? INK : MUTED, whiteSpace: 'pre-wrap' }}>
+                          {(poInfo && poInfo.notes && poInfo.notes[vKey]) || 'No note added'}
+                        </div>
+                      ) : (
+                        <textarea
+                          value={(poInfo && poInfo.notes && poInfo.notes[vKey]) || ''}
+                          onChange={e => setPoNote(vKey, e.target.value)}
+                          onBlur={() => savePoNote(vKey)}
+                          rows={2} maxLength={2000}
+                          placeholder="e.g. Confirm lead time · deliver to will-call · hold for pickup Fri"
+                          style={{
+                            width: '100%', padding: '7px 9px', resize: 'vertical', boxSizing: 'border-box',
+                            font: '400 12px/1.5 var(--roma-sans)', color: INK,
+                            border: '0.5px solid rgba(28,25,23,0.2)', background: '#fff',
+                            opacity: savingNote[vKey] ? 0.6 : 1,
+                          }} />
+                      )}
+                    </div>
+
                     {/* Footer */}
                     <div style={{
                       padding: '0.625rem 1.125rem', background: WARM,
@@ -17443,7 +17559,7 @@
               POs are created as drafts. You can skip sending now and transmit them later from the order detail page.
             </div>
             <button className="rof-btn-light" style={{ padding: '0.375rem 0.875rem' }}
-              onClick={() => { /* hold — just continue without sending */ }}>
+              onClick={() => { if (setStep) setStep(4); }}>
               Hold all POs for now
             </button>
           </WizRepCard>
@@ -17828,6 +17944,17 @@
                           placeholder="e.g. Smith residence · Unit 4B · Lobby remodel — optional, printed on vendor POs" />
                       </div>
                     </WizRepCard>
+                    {/* Invoice note — its own slim card; prints on the customer
+                        invoice PDF in its own boxed block (like the PO note). */}
+                    <WizRepCard title="Invoice note">
+                      <div className="rof-field" style={{ marginBottom: 0 }}>
+                        <label>Note to customer <span style={{ textTransform: 'none', color: '#8a7e68' }}>· printed on the invoice</span></label>
+                        <textarea value={data.invoiceNotes || ''}
+                          onChange={e => setData(d => ({ ...d, invoiceNotes: e.target.value }))}
+                          rows={3} maxLength={2000}
+                          placeholder="e.g. Thank you for your business · balance due on delivery · lead time 2–3 weeks — optional, printed on the invoice" />
+                      </div>
+                    </WizRepCard>
                     <RofSectionHeader num="01b" label="Items" id="items" />
                     <RofItemsSection data={data} setData={setData} showCost={showCost} />
                     <RofSectionHeader num="01c" label="Fulfillment" id="fulfillment" />
@@ -17838,7 +17965,7 @@
                   <RofPaymentStep data={data} setData={setData} setStep={setStep} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />
                 )}
                 {step === 3 && (
-                  <RofSendPOsStep data={data} setData={setData} showCost={showCost} />
+                  <RofSendPOsStep data={data} setData={setData} showCost={showCost} setStep={setStep} />
                 )}
               </div>
               <div className="rof-sidebar">
@@ -18092,8 +18219,8 @@
                 return (
                   <div key={r.id} className={'sl-table-row' + (isSel ? ' selected' : '')}
                     role="button" tabIndex={0}
-                    onClick={() => navigate('sample-detail', r.id)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('sample-detail', r.id); } }}>
+                    onClick={() => { repListNav.samples = filtered.map(x => x.id); navigate('sample-detail', r.id); }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); repListNav.samples = filtered.map(x => x.id); navigate('sample-detail', r.id); } }}>
                     <input type="checkbox" style={{ margin: 0 }} checked={isSel} aria-label={'Select sample request ' + r.request_number}
                       onChange={() => toggleSelect(r.id)} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} />
                     <span className="ol-flag" style={{ background: getFlagColor(r) }} />
@@ -18967,6 +19094,8 @@
               <a onClick={() => navigate('samples')}>Samples</a>
               <span className="qw-crumb-sep" />
               <span className="qw-crumb-current">{sr.request_number}</span>
+              <span className="qw-crumb-sep" />
+              <RepPrevNext section="samples" id={editId} view="sample-detail" navigate={navigate} />
             </div>
             <div className="qw-meta-right">
               <span>Requested {fmtD(sr.created_at)}</span>
@@ -20138,8 +20267,8 @@
                 return (
                   <div key={v.id} className={'vl-table-row' + (isSel ? ' selected' : '')}
                     role="button" tabIndex={0}
-                    onClick={() => navigate('visit-detail', v.id)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('visit-detail', v.id); } }}>
+                    onClick={() => { repListNav.visits = filteredVisits.map(x => x.id); navigate('visit-detail', v.id); }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); repListNav.visits = filteredVisits.map(x => x.id); navigate('visit-detail', v.id); } }}>
                     <input type="checkbox" style={{ margin: 0 }} checked={isSel} aria-label={'Select visit for ' + v.customer_name}
                       onChange={() => toggleSelect(v.id)} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} />
                     <div>
@@ -20687,6 +20816,8 @@
               <a onClick={() => navigate('visits')}>Visits</a>
               <span className="qw-crumb-sep" />
               <span className="qw-crumb-current">{visit.customer_name}</span>
+              <span className="qw-crumb-sep" />
+              <RepPrevNext section="visits" id={editId} view="visit-detail" navigate={navigate} />
             </div>
             <div className="qw-meta-right">
               <span>Created {fmtDT(visit.created_at)}</span>
@@ -21401,8 +21532,8 @@
                 return (
                   <div key={o.id} className={'ol-table-row' + (isSel ? ' selected' : '')}
                     role="button" tabIndex={0}
-                    onClick={() => navigate('order-detail', o.id)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('order-detail', o.id); } }}>
+                    onClick={() => { repListNav.orders = filteredOrders.map(x => x.id); navigate('order-detail', o.id); }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); repListNav.orders = filteredOrders.map(x => x.id); navigate('order-detail', o.id); } }}>
                     <input type="checkbox" style={{ margin: 0 }} checked={isSel} aria-label={'Select order ' + o.order_number}
                       onChange={() => toggleSelect(o.id)} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} />
                     <span className="ol-flag" style={{ background: flagColor }} />
@@ -21924,6 +22055,10 @@
       const [noteForPoId, setNoteForPoId] = useState(null);
       const [poNoteText, setPoNoteText] = useState('');
       const [savingPoNote, setSavingPoNote] = useState(false);
+      // Customer-facing invoice note — prints on the invoice PDF (own boxed block).
+      const [editingInvoiceNote, setEditingInvoiceNote] = useState(false);
+      const [invoiceNoteText, setInvoiceNoteText] = useState('');
+      const [savingInvoiceNote, setSavingInvoiceNote] = useState(false);
       // Manual order discount editor (Totals card).
       const [showDiscountEdit, setShowDiscountEdit] = useState(false);
       const [discountType, setDiscountType] = useState('fixed');
@@ -22654,8 +22789,7 @@
               <span className="rod-current">{order.order_number}</span>
             </div>
             <div className="rod-breadcrumb-nav">
-              <a onClick={() => navigate('orders')}>← Prev</a>
-              <a onClick={() => navigate('orders')}>Next →</a>
+              <RepPrevNext section="orders" id={editId} view="order-detail" navigate={navigate} />
             </div>
           </div>
 
@@ -24015,6 +24149,43 @@
                       <button className="rov-doc-link" onClick={async () => { try { const url = await repOpenDoc('/api/rep/orders/' + editId + '/invoice?preview=true'); setDocPreview({ url, title: 'Invoice', downloadPath: '/api/rep/orders/' + editId + '/invoice' }); } catch(e) { alert('Failed to load invoice'); } }}>PDF ↓</button>
                     </div>
                   )}
+                  {/* Invoice note — one per order; prints on the invoice PDF as its
+                      own boxed block (mirrors the PO's "Note to vendor"). */}
+                  <div className="rov-doc-row2" style={{ alignItems: 'flex-start' }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Invoice note</div>
+                      {editingInvoiceNote ? (
+                        <div style={{ marginTop: 8 }}>
+                          <textarea value={invoiceNoteText} onChange={e => setInvoiceNoteText(e.target.value)} autoFocus maxLength={2000}
+                            placeholder={'Note to the customer on ' + (order.order_number || 'this order') + ' — prints on the invoice…'}
+                            style={{ width: '100%', minHeight: 52, padding: 8, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
+                            <span style={{ marginRight: 'auto', font: '400 10px/1.3 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>Prints on the invoice PDF</span>
+                            <button onClick={() => { setEditingInvoiceNote(false); setInvoiceNoteText(''); }}
+                              style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                            <button disabled={savingInvoiceNote} onClick={async () => {
+                              setSavingInvoiceNote(true);
+                              try {
+                                const res = await repFetch('/api/rep/orders/' + editId + '/invoice-notes', { method: 'PUT', body: JSON.stringify({ invoice_notes: invoiceNoteText.trim() }) });
+                                if (res && res.order) setOrder(o => ({ ...o, invoice_notes: res.order.invoice_notes }));
+                                setEditingInvoiceNote(false); setInvoiceNoteText('');
+                              } catch (err) { alert(err.message || 'Failed to save note'); }
+                              setSavingInvoiceNote(false);
+                            }}
+                              style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: savingInvoiceNote ? 'default' : 'pointer' }}>
+                              {savingInvoiceNote ? 'Saving…' : 'Save note'}</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <RovMicro style={{ marginTop: 2, whiteSpace: 'pre-wrap' }}>{order.invoice_notes ? order.invoice_notes : 'No note · prints on the invoice PDF'}</RovMicro>
+                      )}
+                    </div>
+                    {!editingInvoiceNote && (
+                      <button className="rov-doc-link" onClick={() => { setInvoiceNoteText(order.invoice_notes || ''); setEditingInvoiceNote(true); }}>
+                        {order.invoice_notes ? '✎ Edit' : '+ Add'}
+                      </button>
+                    )}
+                  </div>
                   {payments.filter(p => p.valor_tran_no || p.stripe_receipt_url).map(p => (
                     <div className="rov-doc-row2" key={'rcpt-' + p.id}>
                       <div style={{ minWidth: 0 }}>
@@ -26180,8 +26351,8 @@
                   <div key={q.id} className={'ql-table-row' + (isSel ? ' selected' : '')}
                     style={isSel ? { background: 'var(--brass-warm, #d8cdb6)' } : undefined}
                     role="button" tabIndex={0}
-                    onClick={() => navigate('quote-edit', q.id)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('quote-edit', q.id); } }}>
+                    onClick={() => { repListNav.quotes = filteredQuotes.map(x => x.id); navigate('quote-edit', q.id); }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); repListNav.quotes = filteredQuotes.map(x => x.id); navigate('quote-edit', q.id); } }}>
                     <input type="checkbox" style={{ margin: 0 }} checked={isSel} aria-label={'Select quote ' + q.quote_number}
                       onChange={() => toggleSelect(q.id)} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()} />
                     <span className="ql-quote-id">{q.quote_number}</span>
@@ -27163,6 +27334,10 @@
               <a onClick={() => navigate('quotes')}>Quotes</a>
               <span className="qw-crumb-sep" />
               <span className="qw-crumb-current">{editId && quote ? quote.quote_number : 'New quote'}</span>
+              {editId && (<React.Fragment>
+                <span className="qw-crumb-sep" />
+                <RepPrevNext section="quotes" id={editId} view="quote-edit" navigate={navigate} />
+              </React.Fragment>)}
             </div>
             <div className="qw-meta-right">
               {quote && <span>Updated {fmtD(quote.updated_at)}</span>}
@@ -28587,9 +28762,12 @@
                 // row jumps to the order instead of the (read-only) estimate.
                 const isConverted = es === 'converted' && e.converted_order_id;
                 const balDue = parseFloat(e.order_balance_due || 0);
-                const goTo = () => isConverted
-                  ? navigate('order-detail', e.converted_order_id)
-                  : navigate('estimate-edit', e.id);
+                const goTo = () => {
+                  repListNav.estimates = filteredEstimates.map(x => x.id);
+                  return isConverted
+                    ? navigate('order-detail', e.converted_order_id)
+                    : navigate('estimate-edit', e.id);
+                };
                 // Flag color: drafts get amber, expired gets red
                 const flagColor = es === 'draft' ? '#a87935'
                   : es === 'declined' ? '#c54731'
@@ -30114,6 +30292,10 @@
               <a onClick={() => navigate('estimates')}>Estimates</a>
               <span className="qw-crumb-sep" />
               <span className="qw-crumb-current">{editId && estimate ? estimate.estimate_number : 'New estimate'}</span>
+              {editId && (<React.Fragment>
+                <span className="qw-crumb-sep" />
+                <RepPrevNext section="estimates" id={editId} view="estimate-edit" navigate={navigate} />
+              </React.Fragment>)}
             </div>
             <div className="qw-meta-right">
               {estimate && <span>Updated {fmtD(estimate.updated_at)}</span>}
@@ -31938,7 +32120,11 @@
 
       const filteredPOs = pos.filter(po => tab === 'order' ? po.order_id != null : po.order_id == null);
       const orderCount = pos.filter(po => po.order_id != null).length;
-      const openPO = (po) => tab === 'order' ? navigate('order-detail', po.order_id) : navigate('purchase-order-detail', po.id);
+      const openPO = (po) => {
+        if (tab === 'order') { navigate('order-detail', po.order_id); return; }
+        repListNav['purchase-orders'] = filteredPOs.map(x => x.id);
+        navigate('purchase-order-detail', po.id);
+      };
       const viewSubtotal = filteredPOs.reduce((sum, po) => sum + parseFloat(po.subtotal || 0), 0);
 
       const VIEWS = [
@@ -32365,6 +32551,9 @@
                 <span style={{ width: 12, height: 1, background: INK + '33', display: 'inline-block' }} />
               </>)}
               <span style={{ color: INK }}>{po.po_number}</span>
+              <span style={{ width: 12, height: 1, background: INK + '33', display: 'inline-block' }} />
+              <RepPrevNext section="purchase-orders" id={editId} view="purchase-order-detail" navigate={navigate}
+                linkStyle={{ color: MUTED, textDecoration: 'none' }} />
             </div>
           </div>
 
