@@ -27,10 +27,14 @@ const SFTP_CONFIG = {
 
 const FCB2B = {
   base_url: 'https://www.engfloors.info/B2B',
-  api_key: 'ENGFLOORWSV1',
-  secret_key: '1WDE34',
-  client_id: '18110',
+  api_key: process.env.EF_B2B_API_KEY,
+  secret_key: process.env.EF_B2B_SECRET_KEY,
+  client_id: process.env.EF_CLIENT_ID,
 };
+if (!FCB2B.api_key || !FCB2B.secret_key || !FCB2B.client_id) {
+  console.error('Missing EF_B2B_API_KEY / EF_B2B_SECRET_KEY / EF_CLIENT_ID env vars');
+  process.exit(1);
+}
 
 const REMOTE_DIRS = [
   '/opt/OpenAS2/data', '/opt/OpenAS2/data/toAny',

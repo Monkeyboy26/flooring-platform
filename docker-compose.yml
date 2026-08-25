@@ -107,10 +107,10 @@ services:
       # Galleher Duffy dealer session cookie (capture from DevTools; refresh when it lapses)
       GALLEHER_COOKIES: ${GALLEHER_COOKIES:-}
       GALLEHER_PROFILE_DIR: /app/data/gall-profile
-      EF_B2B_API_KEY: ${EF_B2B_API_KEY:-ENGFLOORWSV1}
-      EF_B2B_SECRET_KEY: ${EF_B2B_SECRET_KEY:-1WDE34}
-      EF_CLIENT_ID: ${EF_CLIENT_ID:-18110}
-      EF_FTP_USER: ${EF_FTP_USER:-18110}
+      EF_B2B_API_KEY: ${EF_B2B_API_KEY:-}
+      EF_B2B_SECRET_KEY: ${EF_B2B_SECRET_KEY:-}
+      EF_CLIENT_ID: ${EF_CLIENT_ID:-}
+      EF_FTP_USER: ${EF_FTP_USER:-}
       EF_FTP_PASS: ${EF_FTP_PASS:-}
       EF_CLOUDINARY_API_KEY: ${EF_CLOUDINARY_API_KEY:-}
       EF_CLOUDINARY_API_SECRET: ${EF_CLOUDINARY_API_SECRET:-}

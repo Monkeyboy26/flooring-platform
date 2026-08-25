@@ -60,7 +60,9 @@ async function main() {
     "SELECT config FROM vendor_sources WHERE scraper_key = 'engfloors-webservices'"
   );
   const cfg = {
-    api_key: 'ENGFLOORWSV1', secret_key: '1WDE34', client_id: '18110',
+    api_key: process.env.EF_B2B_API_KEY || '',
+    secret_key: process.env.EF_B2B_SECRET_KEY || '',
+    client_id: process.env.EF_CLIENT_ID || '',
     base_url: 'https://www.engfloors.info/B2B',
     ...(srcRes.rows[0]?.config || {}),
   };

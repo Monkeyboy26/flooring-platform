@@ -9,6 +9,8 @@ import { generateTierPromotionHTML } from '../templates/tierPromotion.js';
 import { generateInstallationInquiryStaffHTML } from '../templates/installationInquiryStaff.js';
 import { generateInstallationInquiryConfirmationHTML } from '../templates/installationInquiryConfirmation.js';
 import { generatePasswordResetHTML } from '../templates/passwordReset.js';
+import { generateEmailChangeConfirmHTML } from '../templates/emailChangeConfirm.js';
+import { generateEmailChangeNoticeHTML } from '../templates/emailChangeNotice.js';
 import { generateStaffPasswordResetHTML } from '../templates/staffPasswordReset.js';
 import { generateStaffInviteHTML } from '../templates/staffInvite.js';
 import { generateVisitRecapHTML } from '../templates/visitRecap.js';
@@ -21,6 +23,7 @@ import { generateInvoiceReminderHTML } from '../templates/invoiceReminder.js';
 import { generateSampleRequestVendorEmailHTML } from '../templates/sampleRequestVendor.js';
 import { generateSampleShippingPaymentHTML } from '../templates/sampleShippingPayment.js';
 import { generateWelcomeSetPasswordHTML } from '../templates/welcomeSetPassword.js';
+import { generateWelcomeCustomerHTML } from '../templates/welcomeCustomer.js';
 import { generateDailyAnalyticsSummaryHTML } from '../templates/dailyAnalyticsSummary.js';
 import { generateDailyHealthCheckHTML } from '../templates/dailyHealthCheck.js';
 import { generateEstimateSentHTML } from '../templates/estimateSent.js';
@@ -501,7 +504,7 @@ export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_
 <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #e7e5e4;">
   <tr><td style="padding:40px;text-align:center;">
     <h1 style="font-family:'Cormorant Garamond',Georgia,serif;font-size:28px;font-weight:300;color:#1c1917;margin:0 0 24px;">Roma Flooring Designs</h1>
-    <p style="color:#57534e;font-size:16px;margin:0 0 8px;">Dear ${vendor_name || 'Vendor'},</p>
+    <p style="color:#57534e;font-size:16px;margin:0 0 8px;">Dear ${escapeHtml(vendor_name || 'Vendor')},</p>
     <p style="color:#57534e;font-size:16px;margin:0 0 24px;">
       ${is_revised ? 'Please find the revised purchase order attached.' : 'Please find the attached purchase order for your review.'}
     </p>
@@ -523,9 +526,10 @@ export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_
 </td></tr></table>
 </body></html>`;
 
-    // An explicit cc_list (from the send dialog) overrides the default CC set of
-    // rep + vendor primary contact. Dedupe against the To address.
-    const cc = (Array.isArray(cc_list) ? cc_list : [rep_email, vendor_contact_email])
+    // An explicit cc_list (from the send dialog) overrides the default CC, which
+    // is just the Roma rep — the PO goes To the vendor's order desk and CCs only
+    // our own rep, not the vendor's rep. Dedupe against the To address.
+    const cc = (Array.isArray(cc_list) ? cc_list : [rep_email])
       .filter(Boolean)
       .filter(addr => addr.toLowerCase() !== String(vendor_email || '').toLowerCase());
     await deliver({
@@ -1041,7 +1045,7 @@ export async function sendOrderInvoiceEmail({ order, items, balance, checkout_ur
       const qty = i.is_sample ? '1 sample' : (i.num_boxes + (isUnit ? '' : ' box' + (i.num_boxes > 1 ? 'es' : '')));
       const price = i.is_sample ? '$0.00' : '$' + parseFloat(i.subtotal || 0).toFixed(2);
       return `<tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #e7e5e4;font-size:13px;color:#1c1917;">${i.product_name || ''}${i.is_sample ? ' <span style="color:#c8a97e;">(Sample)</span>' : ''}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e7e5e4;font-size:13px;color:#1c1917;">${escapeHtml(i.product_name || '')}${i.is_sample ? ' <span style="color:#c8a97e;">(Sample)</span>' : ''}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #e7e5e4;font-size:13px;color:#57534e;text-align:center;">${qty}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #e7e5e4;font-size:13px;color:#1c1917;text-align:right;">${price}</td>
       </tr>`;
@@ -1074,7 +1078,7 @@ export async function sendOrderInvoiceEmail({ order, items, balance, checkout_ur
     const msgSection = message ? `
       <tr><td style="padding:0 40px 24px;">
         <div style="padding:12px 16px;background:#fafaf9;border:1px solid #e7e5e4;font-size:13px;color:#57534e;line-height:1.6;">
-          <strong style="color:#1c1917;">Message from your rep:</strong><br/>${message.replace(/\n/g, '<br/>')}
+          <strong style="color:#1c1917;">Message from your rep:</strong><br/>${escapeHtml(message).replace(/\n/g, '<br/>')}
         </div>
       </td></tr>` : '';
 
@@ -1271,6 +1275,72 @@ export async function sendWelcomeSetPassword(toEmail, firstName, resetUrl) {
     return { sent: true };
   } catch (err) {
     console.error(`[Email] Failed to send welcome set-password to ${toEmail}:`, err.message);
+    return { sent: false };
+  }
+}
+
+// Welcome for a first-time customer who already has a login (self sign-up / Google).
+export async function sendWelcomeCustomer(toEmail, firstName) {
+  if (!transporter) {
+    console.log(`[Email] Skipping welcome for ${toEmail} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    await deliver({
+      from: NOREPLY_FROM,
+      to: toEmail,
+      subject: 'Welcome to Roma Flooring Designs',
+      html: generateWelcomeCustomerHTML(firstName)
+    });
+    console.log(`[Email] Welcome sent to ${toEmail}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send welcome to ${toEmail}:`, err.message);
+    return { sent: false };
+  }
+}
+
+// Send the confirmation link to the NEW email a customer wants to switch to.
+export async function sendEmailChangeConfirm(toEmail, firstName, confirmUrl) {
+  if (!transporter) {
+    console.log(`[Email] Skipping email-change confirm for ${toEmail} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    await deliver({
+      from: NOREPLY_FROM,
+      to: toEmail,
+      subject: 'Confirm your new email — Roma Flooring Designs',
+      html: generateEmailChangeConfirmHTML(firstName, confirmUrl, toEmail)
+    });
+    console.log(`[Email] Email-change confirm sent to ${toEmail}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send email-change confirm to ${toEmail}:`, err.message);
+    return { sent: false };
+  }
+}
+
+// Notify the OLD email that its account's sign-in email is changing/changed.
+// stage = 'requested' (link sent, not yet applied) or 'completed' (applied).
+export async function sendEmailChangeNotice(toEmail, firstName, newEmail, stage = 'requested') {
+  if (!transporter) {
+    console.log(`[Email] Skipping email-change notice for ${toEmail} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    await deliver({
+      from: NOREPLY_FROM,
+      to: toEmail,
+      subject: stage === 'completed'
+        ? 'Your email was changed — Roma Flooring Designs'
+        : 'Email change requested — Roma Flooring Designs',
+      html: generateEmailChangeNoticeHTML(firstName, newEmail, stage)
+    });
+    console.log(`[Email] Email-change notice (${stage}) sent to ${toEmail}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send email-change notice to ${toEmail}:`, err.message);
     return { sent: false };
   }
 }

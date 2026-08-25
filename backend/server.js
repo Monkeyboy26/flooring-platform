@@ -8,7 +8,8 @@ import XLSX from 'xlsx';
 import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete } from './services/emailService.js';
+import dns from 'dns';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -206,21 +207,51 @@ const BAD_IMAGE_HASHES = new Set([
   'ed35f9e3649f263f7086f75487ab71e8', // Widen CDN 300×300 "PREVIEW NOT AVAILABLE" placeholder (8KB)
 ]);
 
-function isPrivateUrl(urlStr) {
-  try {
-    const u = new URL(urlStr);
-    if (!['http:', 'https:'].includes(u.protocol)) return true;
-    const host = u.hostname.toLowerCase();
-    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') return true;
-    const parts = host.split('.').map(Number);
-    if (parts.length === 4 && !parts.some(isNaN)) {
-      if (parts[0] === 10) return true;
-      if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-      if (parts[0] === 192 && parts[1] === 168) return true;
-      if (parts[0] === 169 && parts[1] === 254) return true;
-    }
+// True if an IP literal (v4 or v6) falls in a private/loopback/link-local/reserved range.
+function isPrivateIp(ip) {
+  const v = String(ip).toLowerCase();
+  // IPv4-mapped IPv6 (::ffff:169.254.169.254) → check the embedded v4
+  const mapped = v.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  const addr = mapped ? mapped[1] : v;
+  const parts = addr.split('.').map(Number);
+  if (parts.length === 4 && parts.every(n => Number.isInteger(n) && n >= 0 && n <= 255)) {
+    const [a, b] = parts;
+    if (a === 10) return true;                          // 10.0.0.0/8
+    if (a === 172 && b >= 16 && b <= 31) return true;   // 172.16.0.0/12
+    if (a === 192 && b === 168) return true;            // 192.168.0.0/16
+    if (a === 169 && b === 254) return true;            // link-local / cloud metadata
+    if (a === 127) return true;                         // loopback
+    if (a === 0) return true;                           // 0.0.0.0/8
+    if (a >= 224) return true;                          // multicast + reserved
     return false;
-  } catch { return true; }
+  }
+  // IPv6
+  if (v === '::1' || v === '::') return true;           // loopback / unspecified
+  if (v.startsWith('fe80')) return true;                // link-local
+  if (v.startsWith('fc') || v.startsWith('fd')) return true; // unique-local fc00::/7
+  return false;
+}
+
+// SSRF guard for the image proxy. Blocks non-http(s), internal service names, and
+// resolves the hostname so a public name pointing at a private IP is caught. The
+// WHATWG URL parser already normalizes numeric IP encodings (decimal/octal/hex) to
+// dotted-quad, closing that bypass. Residual: DNS rebinding between this check and
+// fetch() is not fully closed (would require pinning the resolved IP at connect time).
+async function isBlockedUrl(urlStr) {
+  let u;
+  try { u = new URL(urlStr); } catch { return true; }
+  if (!['http:', 'https:'].includes(u.protocol)) return true;
+  let host = u.hostname.toLowerCase();
+  if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1); // strip IPv6 brackets
+  // Internal Docker service hostnames must never be fetched
+  if (['localhost', 'minio', 'db', 'api', 'postgres', 'redis'].includes(host)) return true;
+  try {
+    const results = await dns.promises.lookup(host, { all: true });
+    if (!results.length) return true;
+    return results.some(r => isPrivateIp(r.address));
+  } catch {
+    return true; // unresolvable → block
+  }
 }
 
 app.get('/api/img', imgLimiter, async (req, res) => {
@@ -260,11 +291,16 @@ app.get('/api/img', imgLimiter, async (req, res) => {
       const work = (async () => {
         let inputBuffer;
         if (url.startsWith('/uploads/') || url.startsWith('/assets/')) {
-          const localPath = path.join(process.cwd(), url.split('?')[0]);
+          const rel = url.split('?')[0];
+          const baseDir = process.cwd();
+          const allowed = path.resolve(baseDir, rel.startsWith('/assets/') ? 'assets' : 'uploads');
+          const localPath = path.resolve(baseDir, '.' + rel);
+          // Reject anything that escapes the intended uploads/ or assets/ subtree (../ traversal)
+          if (localPath !== allowed && !localPath.startsWith(allowed + path.sep)) return null;
           if (!fs.existsSync(localPath)) return null;
           inputBuffer = await fs.promises.readFile(localPath);
         } else {
-          if (isPrivateUrl(url)) return null;
+          if (await isBlockedUrl(url)) return null;
           const isWiden = url.includes('.widen.net');
           const maxAttempts = isWiden ? 3 : 1;
           for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -1103,7 +1139,9 @@ const handleNewsletterUnsubscribe = async (req, res) => {
       WHERE unsubscribe_token = $1 RETURNING email
     `, [token]);
     if (!result.rows.length) return page('Link not valid', 'This unsubscribe link is incomplete or expired. You can also unsubscribe by replying to any of our emails.');
-    return page('You’re unsubscribed', `${result.rows[0].email} will no longer receive marketing emails from us. You may still receive transactional emails about orders and your account. Unsubscribed by mistake? Sign up again any time from our site footer.`);
+    // Don't echo the subscriber's email back on this unauthenticated page — the
+    // token confirms the action without disclosing which address it belongs to.
+    return page('You’re unsubscribed', 'You will no longer receive marketing emails from us. You may still receive transactional emails about orders and your account. Unsubscribed by mistake? Sign up again any time from our site footer.');
   } catch (err) {
     console.error('[Newsletter] Unsubscribe error:', err.message);
     return page('Something went wrong', 'We could not process your unsubscribe request. Please try again or contact Sales@romaflooringdesigns.com.');
@@ -5744,7 +5782,12 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // applied amount. Re-validates balance and THROWS on insufficient credit,
     // rolling back the whole transaction. Runs inside the order tx.
     if (storeCreditApplied > 0 && req.customer) {
-      await redeemStoreCredit(client, { email: customer_email, amount: storeCreditApplied, order_id: order.id, staffName: 'Checkout' });
+      // SECURITY: redeem against the AUTHENTICATED customer's own balance, never
+      // the client-supplied body email. customer_email may be a different address
+      // (guest-checkout prefill / on-behalf entry); using it here would let an
+      // authenticated caller drain another account's store credit. The balance was
+      // computed from req.customer.email at intent creation, so it must match here.
+      await redeemStoreCredit(client, { email: req.customer.email, amount: storeCreditApplied, order_id: order.id, staffName: 'Checkout' });
     }
 
     // Record promo code usage
@@ -12959,7 +13002,10 @@ app.post('/api/customer/trade-upgrade', customerAuth, async (req, res) => {
     }
 
     if (Array.isArray(document_ids) && document_ids.length) {
-      await client.query('UPDATE trade_documents SET trade_customer_id = $1 WHERE id = ANY($2)', [tradeId, document_ids]);
+      // SECURITY: only claim documents that are still UNCLAIMED. Without an
+      // uploader-identity column on trade_documents, this prevents re-parenting
+      // another applicant's already-attached docs onto this account (IDOR).
+      await client.query('UPDATE trade_documents SET trade_customer_id = $1 WHERE id = ANY($2) AND trade_customer_id IS NULL', [tradeId, document_ids]);
     }
     await client.query('UPDATE customers SET trade_customer_id = $1 WHERE id = $2', [tradeId, cust.id]);
 
@@ -15014,8 +15060,8 @@ app.post('/api/staff/orders/:id/send-invoice', staffAuth, async (req, res) => {
   }
 });
 
-// Image audit — list primary images by vendor for visual QA (no auth for dev use)
-app.get('/api/admin/audit/primary-images', async (req, res) => {
+// Image audit — list primary images by vendor for visual QA
+app.get('/api/admin/audit/primary-images', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
   try {
     const { vendor_id, limit, offset } = req.query;
     if (!vendor_id) return res.status(400).json({ error: 'vendor_id required' });
@@ -23188,6 +23234,11 @@ app.put('/api/rep/purchase-orders/:poId/items/bulk-status', repAuth, async (req,
     const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
 
+    // Can't receive goods that were never ordered: block 'received' until the PO
+    // has actually been sent to the vendor (status moves off 'draft').
+    if (status === 'received' && po.rows[0].status === 'draft')
+      return res.status(400).json({ error: 'Can\'t receive items yet — this purchase order hasn\'t been sent to the vendor.' });
+
     await client.query('BEGIN');
 
     await client.query(
@@ -23251,6 +23302,11 @@ app.put('/api/rep/purchase-orders/:poId/items/:itemId/status', repAuth, async (r
 
     const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+
+    // Can't receive goods that were never ordered: block 'received' until the PO
+    // has actually been sent to the vendor (status moves off 'draft').
+    if (status === 'received' && po.rows[0].status === 'draft')
+      return res.status(400).json({ error: 'Can\'t receive items yet — this purchase order hasn\'t been sent to the vendor.' });
 
     await client.query('BEGIN');
 
@@ -29339,6 +29395,11 @@ app.put('/api/admin/purchase-orders/:poId/items/bulk-status', staffAuth, require
     const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
 
+    // Can't receive goods that were never ordered: block 'received' until the PO
+    // has actually been sent to the vendor (status moves off 'draft').
+    if (status === 'received' && po.rows[0].status === 'draft')
+      return res.status(400).json({ error: 'Can\'t receive items yet — this purchase order hasn\'t been sent to the vendor.' });
+
     await client.query('BEGIN');
 
     await client.query(
@@ -29514,6 +29575,11 @@ app.put('/api/admin/purchase-orders/:poId/items/:itemId/status', staffAuth, requ
 
     const po = await client.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     if (!po.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
+
+    // Can't receive goods that were never ordered: block 'received' until the PO
+    // has actually been sent to the vendor (status moves off 'draft').
+    if (status === 'received' && po.rows[0].status === 'draft')
+      return res.status(400).json({ error: 'Can\'t receive items yet — this purchase order hasn\'t been sent to the vendor.' });
 
     await client.query('BEGIN');
 
@@ -32342,7 +32408,8 @@ cron.schedule('0 8 * * *', async () => {
 app.use(createCustomerRoutes({
   pool, customerAuth, optionalCustomerAuth,
   hashPassword, verifyPassword, hashToken, logAudit,
-  sendPasswordReset, sendWelcomeSetPassword,
+  sendPasswordReset, sendWelcomeSetPassword, sendWelcomeCustomer,
+  sendEmailChangeConfirm, sendEmailChangeNotice,
   recalculateBalance: (orderId, client) => recalculateBalance(pool, orderId, client),
   generatePDF, generateSampleRequestConfirmationHtml
 }));

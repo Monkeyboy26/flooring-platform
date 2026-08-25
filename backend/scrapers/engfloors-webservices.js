@@ -49,10 +49,13 @@ import {
 
 const VENDOR_CODE = 'EF';
 
+// SECURITY: no hardcoded credential fallbacks. These are live vendor B2B API keys
+// and must come from the environment; missing values are left blank so callers
+// fail loudly rather than silently using committed secrets.
 const DEFAULT_CONFIG = {
-  api_key: process.env.EF_B2B_API_KEY || 'ENGFLOORWSV1',
-  secret_key: process.env.EF_B2B_SECRET_KEY || '1WDE34',
-  client_id: process.env.EF_CLIENT_ID || '18110',
+  api_key: process.env.EF_B2B_API_KEY || '',
+  secret_key: process.env.EF_B2B_SECRET_KEY || '',
+  client_id: process.env.EF_CLIENT_ID || '',
   base_url: 'https://www.engfloors.info/B2B',
   batch_delay_ms: 200,
   concurrency: 4,
@@ -431,7 +434,7 @@ export async function run(pool, job, source) {
           // EF PriceInquiry returns dealer cost per SY (for broadloom/tile)
           // Find Roll price and Cut price
           let rollPrice = null, cutPrice = null;
-          let primaryPrice = null;
+          let primaryPrice = null, primaryUom = null;
 
           for (const item of result.items) {
             if (item.price === null) continue;
@@ -439,12 +442,12 @@ export async function run(pool, job, source) {
 
             if (flag === 'R') {
               rollPrice = item.price;
-              if (primaryPrice === null) primaryPrice = item.price;
+              if (primaryPrice === null) { primaryPrice = item.price; primaryUom = item.uom; }
             } else if (flag === 'C') {
               cutPrice = item.price;
-              if (primaryPrice === null) primaryPrice = item.price;
+              if (primaryPrice === null) { primaryPrice = item.price; primaryUom = item.uom; }
             } else {
-              if (primaryPrice === null) primaryPrice = item.price;
+              if (primaryPrice === null) { primaryPrice = item.price; primaryUom = item.uom; }
             }
           }
 
@@ -469,8 +472,12 @@ export async function run(pool, job, source) {
                 if (cutPrice !== null) pricingData.cut_cost = parseFloat(cutPrice.toFixed(2));
                 if (rollPrice !== null) pricingData.roll_cost = parseFloat(rollPrice.toFixed(2));
                 if (rollMinSqft !== null) pricingData.roll_min_sqft = rollMinSqft;
-                // Also update base cost (per sqft) = per SY / 9
-                pricingData.cost = parseFloat(((cutPrice || rollPrice || primaryPrice) / 9).toFixed(4));
+                // Base cost stays in the same unit as retail_price (per SY) so
+                // margin math is correct everywhere — matching how Shaw/Pentz store
+                // carpet cost. (Previously this stored cost/9 as a per-sqft value,
+                // which read as a nonsensical ~$1.60 against a per-SY retail and
+                // inflated margins to ~94% on every surface but the catalog.)
+                pricingData.cost = parseFloat((cutPrice || rollPrice || primaryPrice).toFixed(2));
                 await upsertPricing(pool, sku.id, pricingData);
               } else if (isUnit) {
                 // Transitions/accessories: price per unit
@@ -479,8 +486,14 @@ export async function run(pool, job, source) {
                   price_basis: 'per_unit',
                 });
               } else {
-                // Carpet tile / LVP: price per SY, convert to per sqft
-                const costPerSqft = parseFloat((primaryPrice / 9).toFixed(4));
+                // Box goods (LVP / carpet tile) sold per sqft. Honor the response
+                // UOM instead of assuming per-SY: EF reports hard-surface LVP per
+                // SF already, and only carpet-tile-style goods come back as SY.
+                // The old blind `/9` made LVP cost ~9x too low (e.g. $0.13/sf vs a
+                // real ~$1.17/sf), inflating catalog margins to ~94%.
+                const costPerSqft = primaryUom === 'SY'
+                  ? parseFloat((primaryPrice / 9).toFixed(4))
+                  : parseFloat(primaryPrice.toFixed(4));
                 await upsertPricing(pool, sku.id, {
                   cost: costPerSqft,
                   price_basis: 'per_sqft',
