@@ -23803,30 +23803,8 @@
                 )}
               </RodCard>
 
-              {/* Activity */}
-              <RodCard title={'Activity' + (orderActivity ? ' · ' + orderActivity.length : '')} action="Full log →" onAction={loadOrderActivity}>
-                {orderActivity === null ? (
-                  <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading activity...</div>
-                ) : orderActivity.length === 0 ? (
-                  <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>No activity recorded yet</div>
-                ) : (
-                  <div style={{ padding: '6px 20px 14px' }}>
-                    {orderActivity.map(entry => (
-                      <div className="rov-activity-row" key={entry.id}>
-                        <RovMicro>{rodFmtDT(entry.created_at)}</RovMicro>
-                        <span className="rov-activity-dot" />
-                        <span style={{ font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }}>
-                          {orderActionLabel(entry.action)}{orderActivityDetail(entry) ? ' · ' + orderActivityDetail(entry) : ''}
-                        </span>
-                        <RovMicro>{entry.performer_name || 'System'}</RovMicro>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </RodCard>
-
-              {/* Invoice note — bottom of the left column; prints on the invoice
-                  PDF as its own boxed block (mirrors the PO's "Note to vendor"). */}
+              {/* Invoice note — above the log; prints on the invoice PDF as its
+                  own boxed block (mirrors the PO's "Note to vendor"). */}
               <RodCard title="Invoice note"
                 action={editingInvoiceNote ? undefined : (order.invoice_notes ? '✎ Edit' : '+ Add')}
                 onAction={editingInvoiceNote ? undefined : () => { setInvoiceNoteText(order.invoice_notes || ''); setEditingInvoiceNote(true); }}>
@@ -23857,6 +23835,28 @@
                     <RovMicro style={{ whiteSpace: 'pre-wrap' }}>{order.invoice_notes ? order.invoice_notes : 'No note · prints on the invoice PDF'}</RovMicro>
                   )}
                 </div>
+              </RodCard>
+
+              {/* Activity */}
+              <RodCard title={'Activity' + (orderActivity ? ' · ' + orderActivity.length : '')} action="Full log →" onAction={loadOrderActivity}>
+                {orderActivity === null ? (
+                  <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading activity...</div>
+                ) : orderActivity.length === 0 ? (
+                  <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>No activity recorded yet</div>
+                ) : (
+                  <div style={{ padding: '6px 20px 14px' }}>
+                    {orderActivity.map(entry => (
+                      <div className="rov-activity-row" key={entry.id}>
+                        <RovMicro>{rodFmtDT(entry.created_at)}</RovMicro>
+                        <span className="rov-activity-dot" />
+                        <span style={{ font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                          {orderActionLabel(entry.action)}{orderActivityDetail(entry) ? ' · ' + orderActivityDetail(entry) : ''}
+                        </span>
+                        <RovMicro>{entry.performer_name || 'System'}</RovMicro>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </RodCard>
 
             </div>
