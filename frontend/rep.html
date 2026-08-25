@@ -8624,12 +8624,15 @@
               <a onClick={() => navigate('vendors')}>Vendors</a>
               <span className="cdv-crumb-sep" />
               <span className="cdv-crumb-cur">{v.name}{v.public_code ? ' · ' + v.public_code : ''}</span>
-              <span className="cdv-crumb-sep" />
-              <RepPrevNext section="vendors" id={editId} view="vendor-detail" navigate={navigate} />
             </div>
-            <span className="cdv-crumb-status" style={{ color: v.is_active ? '#3a7a4e' : 'var(--brass-muted)' }}>
-              {'●'} {v.is_active ? 'Active supplier' : 'Inactive'}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <RepPrevNext section="vendors" id={editId} view="vendor-detail" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
+              </div>
+              <span className="cdv-crumb-status" style={{ color: v.is_active ? '#3a7a4e' : 'var(--brass-muted)' }}>
+                {'●'} {v.is_active ? 'Active supplier' : 'Inactive'}
+              </span>
+            </div>
           </div>
 
           {/* Header */}
@@ -9898,12 +9901,15 @@
               <a onClick={() => navigate('customers')}>Customers</a>
               <span className="cdv-crumb-sep" />
               <span className="cdv-crumb-cur">{displayName}</span>
-              <span className="cdv-crumb-sep" />
-              <RepPrevNext section="customers" id={editId} view="customer-detail" navigate={navigate} />
             </div>
-            <span className="cdv-crumb-status" style={{ color: activeOrders.length ? '#3a7a4e' : 'var(--brass-muted)' }}>
-              {'●'} {typeLabel}{activeOrders.length ? ' · ' + activeOrders.length + ' active order' + (activeOrders.length !== 1 ? 's' : '') : ' · no open work'}
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <RepPrevNext section="customers" id={editId} view="customer-detail" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
+              </div>
+              <span className="cdv-crumb-status" style={{ color: activeOrders.length ? '#3a7a4e' : 'var(--brass-muted)' }}>
+                {'●'} {typeLabel}{activeOrders.length ? ' · ' + activeOrders.length + ' active order' + (activeOrders.length !== 1 ? 's' : '') : ' · no open work'}
+              </span>
+            </div>
           </div>
 
           {/* Header */}
@@ -17203,7 +17209,7 @@
       const defaultCc = (vKey) => {
         if (!poInfo) return [];
         if (poInfo.cc[vKey] && poInfo.cc[vKey].length) return poInfo.cc[vKey];
-        return [poInfo.repEmail, poInfo.contactEmail[vKey]].filter(Boolean);
+        return [poInfo.repEmail].filter(Boolean);
       };
       const defaultNotes = (vKey) => (poInfo && poInfo.notes && poInfo.notes[vKey]) || '';
 
@@ -17709,7 +17715,7 @@
     }
 
     // --- Step 4: Done ---
-    function RofDoneStep({ data, navigate, showCost }) {
+    function RofDoneStep({ data, navigate, showCost, onNewOrder }) {
       const order = data.createdOrder;
       const log = data.transmissionLog || [];
       const total = (data.items || []).reduce((s, i) => s + i.subtotal, 0) - (data.promoResult ? data.promoResult.discount_amount : 0);
@@ -17793,15 +17799,15 @@
                   View Order Details
                 </button>
               )}
-              <button className="rof-quick-btn" onClick={() => {
-                if (order) window.open('/api/rep/orders/' + order.id + '/receipt', '_blank');
-              }}>
-                Print Receipt
-              </button>
+              {order && (
+                <button className="rof-quick-btn" onClick={() => window.open('/api/rep/orders/' + order.id + '/receipt', '_blank')}>
+                  Print Receipt
+                </button>
+              )}
               <button className="rof-quick-btn" onClick={() => navigate('orders')}>
                 All Orders
               </button>
-              <button className="rof-quick-btn" onClick={() => navigate('order-create')}>
+              <button className="rof-quick-btn" onClick={() => (onNewOrder ? onNewOrder() : navigate('order-create'))}>
                 + New Order
               </button>
             </WizRepCard>
@@ -17810,13 +17816,11 @@
       );
     }
 
-    // --- RepOrderWizard (orchestrator — 4-step) ---
-    function RepOrderWizard({ navigate, terminalRef, terminalStatus, connectReader, showCost }) {
-      const [step, setStep] = useState(1);
-      const [processing, setProcessing] = useState(false);
-      const [showProcessModal, setShowProcessModal] = useState(false);
-      const [activeAnchor, setActiveAnchor] = useState('customer');
-      const [data, setData] = useState({
+    // Fresh wizard state — used for the initial mount AND for the "+ New Order"
+    // quick action, which resets in place (the view is already 'order-create',
+    // so navigate() alone won't remount the wizard).
+    function makeInitialOrderWizardData() {
+      return {
         // Step 1 — Order
         customer: null,
         customerMode: 'search',
@@ -17842,7 +17846,16 @@
         notes: '',
         createdOrder: null,
         transmissionLog: []
-      });
+      };
+    }
+
+    // --- RepOrderWizard (orchestrator — 4-step) ---
+    function RepOrderWizard({ navigate, terminalRef, terminalStatus, connectReader, showCost }) {
+      const [step, setStep] = useState(1);
+      const [processing, setProcessing] = useState(false);
+      const [showProcessModal, setShowProcessModal] = useState(false);
+      const [activeAnchor, setActiveAnchor] = useState('customer');
+      const [data, setData] = useState(makeInitialOrderWizardData);
 
       // Draft system — anything entered (customer, items) can be kept as a draft
       // when the rep leaves mid-build; offered back on the next visit.
@@ -17892,6 +17905,18 @@
 
       // processOrder — opens the live task-runner modal
       const processOrder = () => setShowProcessModal(true);
+
+      // Start a fresh order without leaving the wizard view (the "+ New Order"
+      // quick action on the done step). Clears any lingering draft too.
+      const startNewOrder = () => {
+        rofDraftStore.clear('order-wizard');
+        setData(makeInitialOrderWizardData());
+        setActiveAnchor('customer');
+        setShowProcessModal(false);
+        setProcessing(false);
+        setStep(1);
+        window.scrollTo(0, 0);
+      };
 
       return (
         <div className="rof-container">
@@ -17944,8 +17969,12 @@
                           placeholder="e.g. Smith residence · Unit 4B · Lobby remodel — optional, printed on vendor POs" />
                       </div>
                     </WizRepCard>
-                    {/* Invoice note — its own slim card; prints on the customer
-                        invoice PDF in its own boxed block (like the PO note). */}
+                    <RofSectionHeader num="01b" label="Items" id="items" />
+                    <RofItemsSection data={data} setData={setData} showCost={showCost} />
+                    <RofSectionHeader num="01c" label="Fulfillment" id="fulfillment" />
+                    <RofFulfillmentSection data={data} setData={setData} />
+                    {/* Invoice note — its own slim card at the bottom; prints on the
+                        customer invoice PDF in its own boxed block (like the PO note). */}
                     <WizRepCard title="Invoice note">
                       <div className="rof-field" style={{ marginBottom: 0 }}>
                         <label>Note to customer <span style={{ textTransform: 'none', color: '#8a7e68' }}>· printed on the invoice</span></label>
@@ -17955,10 +17984,6 @@
                           placeholder="e.g. Thank you for your business · balance due on delivery · lead time 2–3 weeks — optional, printed on the invoice" />
                       </div>
                     </WizRepCard>
-                    <RofSectionHeader num="01b" label="Items" id="items" />
-                    <RofItemsSection data={data} setData={setData} showCost={showCost} />
-                    <RofSectionHeader num="01c" label="Fulfillment" id="fulfillment" />
-                    <RofFulfillmentSection data={data} setData={setData} />
                   </div>
                 )}
                 {step === 2 && (
@@ -17973,7 +17998,7 @@
               </div>
             </div>
           ) : (
-            <RofDoneStep data={data} navigate={navigate} showCost={showCost} />
+            <RofDoneStep data={data} navigate={navigate} showCost={showCost} onNewOrder={startNewOrder} />
           )}
 
           <RofActionBar
@@ -19094,12 +19119,15 @@
               <a onClick={() => navigate('samples')}>Samples</a>
               <span className="qw-crumb-sep" />
               <span className="qw-crumb-current">{sr.request_number}</span>
-              <span className="qw-crumb-sep" />
-              <RepPrevNext section="samples" id={editId} view="sample-detail" navigate={navigate} />
             </div>
-            <div className="qw-meta-right">
-              <span>Requested {fmtD(sr.created_at)}</span>
-              <span style={{ color: pill.c }}>{'●'} {pill.l}</span>
+            <div className="qw-meta-right" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <RepPrevNext section="samples" id={editId} view="sample-detail" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <span>Requested {fmtD(sr.created_at)}</span>
+                <span style={{ color: pill.c }}>{'●'} {pill.l}</span>
+              </div>
             </div>
           </div>
 
@@ -20816,12 +20844,15 @@
               <a onClick={() => navigate('visits')}>Visits</a>
               <span className="qw-crumb-sep" />
               <span className="qw-crumb-current">{visit.customer_name}</span>
-              <span className="qw-crumb-sep" />
-              <RepPrevNext section="visits" id={editId} view="visit-detail" navigate={navigate} />
             </div>
-            <div className="qw-meta-right">
-              <span>Created {fmtDT(visit.created_at)}</span>
-              <span style={{ color: st.tone }}>{'●'} {st.label}</span>
+            <div className="qw-meta-right" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <RepPrevNext section="visits" id={editId} view="visit-detail" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
+              </div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <span>Created {fmtDT(visit.created_at)}</span>
+                <span style={{ color: st.tone }}>{'●'} {st.label}</span>
+              </div>
             </div>
           </div>
 
@@ -24564,7 +24595,7 @@
               defaultTo={poEmailModal.recipient_email || poEmailModal.vendor_email || ''}
               defaultCc={(poEmailModal.cc_emails && poEmailModal.cc_emails.length)
                 ? poEmailModal.cc_emails
-                : [poRepEmail, poEmailModal.vendor_contact_email].filter(Boolean)}
+                : [poRepEmail].filter(Boolean)}
               defaultNotes={poEmailModal.notes || ''}
               lines={(poEmailModal.items || []).map(it => ({
                 id: it.id,
@@ -27334,14 +27365,15 @@
               <a onClick={() => navigate('quotes')}>Quotes</a>
               <span className="qw-crumb-sep" />
               <span className="qw-crumb-current">{editId && quote ? quote.quote_number : 'New quote'}</span>
-              {editId && (<React.Fragment>
-                <span className="qw-crumb-sep" />
-                <RepPrevNext section="quotes" id={editId} view="quote-edit" navigate={navigate} />
-              </React.Fragment>)}
             </div>
-            <div className="qw-meta-right">
-              {quote && <span>Updated {fmtD(quote.updated_at)}</span>}
-              <span style={{ color: st.tone }}>{'●'} {st.label}</span>
+            <div className="qw-meta-right" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+              {editId && <div style={{ display: 'flex', gap: 12 }}>
+                <RepPrevNext section="quotes" id={editId} view="quote-edit" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
+              </div>}
+              <div style={{ display: 'flex', gap: 16 }}>
+                {quote && <span>Updated {fmtD(quote.updated_at)}</span>}
+                <span style={{ color: st.tone }}>{'●'} {st.label}</span>
+              </div>
             </div>
           </div>
 
@@ -28758,15 +28790,14 @@
                 // Descriptive step text — materials vs labor split
                 const stepText = 'Mat $' + parseFloat(e.materials_subtotal || 0).toFixed(2)
                   + ' \u00b7 Labor $' + parseFloat(e.labor_subtotal || 0).toFixed(2);
-                // Converted estimates surface the order + its balance due, and the
-                // row jumps to the order instead of the (read-only) estimate.
+                // Converted estimates surface the order + its balance due, but the
+                // row still opens the (read-only) estimate — the estimate page has
+                // a "View Order →" link for jumping to the created order.
                 const isConverted = es === 'converted' && e.converted_order_id;
                 const balDue = parseFloat(e.order_balance_due || 0);
                 const goTo = () => {
                   repListNav.estimates = filteredEstimates.map(x => x.id);
-                  return isConverted
-                    ? navigate('order-detail', e.converted_order_id)
-                    : navigate('estimate-edit', e.id);
+                  return navigate('estimate-edit', e.id);
                 };
                 // Flag color: drafts get amber, expired gets red
                 const flagColor = es === 'draft' ? '#a87935'
@@ -30292,14 +30323,15 @@
               <a onClick={() => navigate('estimates')}>Estimates</a>
               <span className="qw-crumb-sep" />
               <span className="qw-crumb-current">{editId && estimate ? estimate.estimate_number : 'New estimate'}</span>
-              {editId && (<React.Fragment>
-                <span className="qw-crumb-sep" />
-                <RepPrevNext section="estimates" id={editId} view="estimate-edit" navigate={navigate} />
-              </React.Fragment>)}
             </div>
-            <div className="qw-meta-right">
-              {estimate && <span>Updated {fmtD(estimate.updated_at)}</span>}
-              <span style={{ color: st.tone }}>{'●'} {st.label}</span>
+            <div className="qw-meta-right" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+              {editId && <div style={{ display: 'flex', gap: 12 }}>
+                <RepPrevNext section="estimates" id={editId} view="estimate-edit" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
+              </div>}
+              <div style={{ display: 'flex', gap: 16 }}>
+                {estimate && <span>Updated {fmtD(estimate.updated_at)}</span>}
+                <span style={{ color: st.tone }}>{'●'} {st.label}</span>
+              </div>
             </div>
           </div>
 
@@ -32551,7 +32583,8 @@
                 <span style={{ width: 12, height: 1, background: INK + '33', display: 'inline-block' }} />
               </>)}
               <span style={{ color: INK }}>{po.po_number}</span>
-              <span style={{ width: 12, height: 1, background: INK + '33', display: 'inline-block' }} />
+            </div>
+            <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: MUTED, display: 'flex', gap: 12, alignItems: 'center' }}>
               <RepPrevNext section="purchase-orders" id={editId} view="purchase-order-detail" navigate={navigate}
                 linkStyle={{ color: MUTED, textDecoration: 'none' }} />
             </div>

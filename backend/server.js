@@ -25,7 +25,7 @@ import { calculateSalesTax, isTradeTaxExempt, isPickupOnly, getNextBusinessDay, 
 import { recalculateBalance, recalcOrderTotals, logOrderActivity, recalculateCommission, syncOrderPaymentToInvoice, getStoreCreditBalance, grantStoreCredit, redeemStoreCredit } from './lib/orderHelpers.js';
 import { createRepNotification, notifyAllActiveReps, createAutoTask, AUTO_TASK_DEFAULT_DAYS } from './lib/notifications.js';
 import { getEstimateBundle, bundleSections, effectiveStatus, depositAmount, computeSchedule, LABOR_CATEGORY_LABELS, laborUnitShort, laborDisplayName } from './lib/estimateBundle.js';
-import { createCustomerHelpers, findExactDuplicate, claimGuestRecords } from './lib/customerHelpers.js';
+import { createCustomerHelpers, findExactDuplicate, claimGuestRecords, migrateCustomerEmail } from './lib/customerHelpers.js';
 import { titleCaseName, formatPhone, normMiddleInitial, normState, collapse } from './lib/customerNormalize.js';
 import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generateQuoteHtml, generateEstimateHtml, generateOrderInvoiceDoc, generateReceiptDoc, generateCreditMemoDoc, generateReleaseFormDoc, generateWorkOrderDoc, generateLabelSheetHtml, generateLabelRollHtml, renderLabelPngs, generateLabelImageRollHtml, generateResaleCertificateHtml, getDocumentBaseCSS, getDocumentHeader, getDocumentFooter, itemDescriptionCell, itemNameCell, composeItemName } from './lib/documents.js';
 import { formatRugDims, computeRugCost, computeRugQuote } from './lib/rugPricing.js';
@@ -14702,7 +14702,6 @@ async function generateOrderReceiptHtml(orderId, paymentId) {
     : await pool.query(
         `SELECT * FROM order_payments
           WHERE order_id = $1 AND payment_type IN ('charge','additional_charge') AND status = 'completed'
-            AND (card_brand IS NOT NULL OR valor_tran_no IS NOT NULL OR stripe_receipt_url IS NOT NULL)
           ORDER BY created_at DESC LIMIT 1`, [orderId]);
   if (!payQ.rows.length) return null;
   const o = order.rows[0];
@@ -14774,7 +14773,7 @@ app.get('/api/staff/orders/:id/invoice', staffDocAuth, async (req, res) => {
 app.get('/api/staff/orders/:id/receipt', staffDocAuth, async (req, res) => {
   try {
     const result = await generateOrderReceiptHtml(req.params.id, req.query.payment_id);
-    if (!result) return res.status(404).json({ error: 'No card payment found for this order' });
+    if (!result) return res.status(404).json({ error: 'No completed payment found for this order' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -14835,10 +14834,10 @@ async function generateCreditMemoHtml(returnId, { repId = null } = {}) {
   };
 }
 
-// Credit memo PDF (rep) — only for returns on the rep's own orders.
+// Credit memo PDF (rep) — any rep can view any return's credit memo.
 app.get('/api/rep/returns/:id/credit-memo', repAuth, async (req, res) => {
   try {
-    const result = await generateCreditMemoHtml(req.params.id, { repId: req.rep.id });
+    const result = await generateCreditMemoHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Credit memo not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
@@ -14894,10 +14893,10 @@ async function generateReleaseFormHtml(releaseId, opts = {}) {
   };
 }
 
-// Material release form PDF (rep) — only for releases on the rep's own orders.
+// Material release form PDF (rep) — any rep can view any release form.
 app.get('/api/rep/releases/:id/release-form', repAuth, async (req, res) => {
   try {
-    const result = await generateReleaseFormHtml(req.params.id, { repId: req.rep.id });
+    const result = await generateReleaseFormHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Release not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
@@ -15963,7 +15962,7 @@ app.get('/api/rep/visits', repAuth, async (req, res) => {
 
 app.get('/api/rep/visits/:id', repAuth, async (req, res) => {
   try {
-    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE id = $1', [req.params.id]);
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
 
     const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [req.params.id]);
@@ -15977,7 +15976,7 @@ app.get('/api/rep/visits/:id', repAuth, async (req, res) => {
 app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
   const client = await pool.connect();
   try {
-    const visitRes = await client.query('SELECT * FROM showroom_visits WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const visitRes = await client.query('SELECT * FROM showroom_visits WHERE id = $1', [req.params.id]);
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
     if (visitRes.rows[0].status !== 'draft') return res.status(400).json({ error: 'Can only edit draft visits' });
 
@@ -16085,7 +16084,7 @@ app.put('/api/rep/visits/:id', repAuth, async (req, res) => {
 
 app.delete('/api/rep/visits/:id', repAuth, async (req, res) => {
   try {
-    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE id = $1', [req.params.id]);
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
     if (visitRes.rows[0].status !== 'draft') return res.status(400).json({ error: 'Can only delete draft visits' });
 
@@ -16098,7 +16097,7 @@ app.delete('/api/rep/visits/:id', repAuth, async (req, res) => {
 
 app.post('/api/rep/visits/:id/send', repAuth, async (req, res) => {
   try {
-    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE id = $1', [req.params.id]);
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
     const visit = visitRes.rows[0];
     if (!visit.customer_email) return res.status(400).json({ error: 'Customer email is required to send' });
@@ -16545,7 +16544,7 @@ app.get('/api/rep/sample-requests', repAuth, async (req, res) => {
 
 app.get('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
   try {
-    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
 
     const itemsRes = await pool.query(`
@@ -16566,7 +16565,7 @@ app.get('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
 
 app.put('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
   try {
-    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only edit requests in requested status' });
 
@@ -16609,7 +16608,7 @@ app.put('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
 
 app.put('/api/rep/sample-requests/:id/ship', repAuth, async (req, res) => {
   try {
-    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only ship requests in requested status' });
 
@@ -16654,7 +16653,7 @@ app.put('/api/rep/sample-requests/:id/ship', repAuth, async (req, res) => {
 
 app.put('/api/rep/sample-requests/:id/deliver', repAuth, async (req, res) => {
   try {
-    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     // Pickup has no separate "shipped" step — a ready request is picked up directly.
     // Shipping must have shipped first.
@@ -16673,7 +16672,7 @@ app.put('/api/rep/sample-requests/:id/deliver', repAuth, async (req, res) => {
 
 app.put('/api/rep/sample-requests/:id/cancel', repAuth, async (req, res) => {
   try {
-    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     if (!['requested', 'shipped'].includes(srRes.rows[0].status)) return res.status(400).json({ error: 'Can only cancel requested or shipped sample requests' });
 
@@ -16687,7 +16686,7 @@ app.put('/api/rep/sample-requests/:id/cancel', repAuth, async (req, res) => {
 
 app.put('/api/rep/sample-requests/:id/items/:itemId/status', repAuth, async (req, res) => {
   try {
-    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only update item status while request is in requested status' });
 
@@ -16722,7 +16721,7 @@ app.put('/api/rep/sample-requests/:id/items/:itemId/status', repAuth, async (req
 // A conditional UPDATE claims the notify slot atomically so it can only send once.
 app.post('/api/rep/sample-requests/:id/notify-ready', repAuth, async (req, res) => {
   try {
-    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     const sr = srRes.rows[0];
 
@@ -16778,7 +16777,7 @@ app.post('/api/rep/sample-requests/:id/add-items', repAuth, async (req, res) => 
     const { items } = req.body;
     if (!items || !items.length) return res.status(400).json({ error: 'At least one item is required' });
 
-    const srRes = await client.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await client.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     const sr = srRes.rows[0];
     if (sr.status !== 'requested') return res.status(400).json({ error: 'Can only add items to open sample requests' });
@@ -16863,7 +16862,7 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
     if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required' });
     if (!['store', 'customer'].includes(ship_to)) return res.status(400).json({ error: 'ship_to must be store or customer' });
 
-    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     const sr = srRes.rows[0];
 
@@ -16960,7 +16959,7 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
 
 app.put('/api/rep/sample-requests/:id/payment-status', repAuth, async (req, res) => {
   try {
-    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
 
     const { collected, method, stripe_payment_intent_id } = req.body;
@@ -16983,7 +16982,7 @@ app.put('/api/rep/sample-requests/:id/payment-status', repAuth, async (req, res)
 
 app.delete('/api/rep/sample-requests/:id', repAuth, async (req, res) => {
   try {
-    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1 AND rep_id = $2', [req.params.id, req.rep.id]);
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
     if (srRes.rows[0].status !== 'requested') return res.status(400).json({ error: 'Can only delete requests in requested status' });
 
@@ -18117,8 +18116,8 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
       SELECT o.*, sr.first_name || ' ' || sr.last_name as rep_name
       FROM orders o
       LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
-      WHERE o.id = $1 AND (o.sales_rep_id = $2 OR o.sales_rep_id IS NULL OR $3::boolean = true)
-    `, [id, req.rep.id, !!req.rep.is_manager]);
+      WHERE o.id = $1
+    `, [id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
 
     // Attach the trade tier discount (if this is a trade order) so change-order
@@ -18229,8 +18228,8 @@ app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const ord = await pool.query(
-      'SELECT id FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)',
-      [id, req.rep.id]
+      'SELECT id FROM orders WHERE id = $1',
+      [id]
     );
     if (!ord.rows.length) return res.status(404).json({ error: 'Order not found' });
 
@@ -18589,7 +18588,7 @@ app.put('/api/rep/orders/:id/items/:itemId/ready', repAuth, async (req, res) => 
   try {
     const { id, itemId } = req.params;
     await client.query('BEGIN');
-    const own = await client.query('SELECT id FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const own = await client.query('SELECT id FROM orders WHERE id = $1', [id]);
     if (!own.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
     const it = await client.query(
       'SELECT id, product_name, collection, num_boxes FROM order_items WHERE id = $1 AND order_id = $2 FOR UPDATE',
@@ -18649,10 +18648,10 @@ app.put('/api/rep/orders/:id/install-schedule', repAuth, async (req, res) => {
         install_window = $2,
         install_crew = $3,
         install_notes = $4
-      WHERE id = $5 AND sales_rep_id = $6
+      WHERE id = $5
       RETURNING *`,
       [install_scheduled_at || null, install_window || null, install_crew || null,
-       install_notes || null, id, req.rep.id]);
+       install_notes || null, id]);
 
     if (!result.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = result.rows[0];
@@ -18695,7 +18694,7 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
     await client.query('BEGIN');
 
     // Block uncancelling a refunded order + verify rep ownership
-    const currentOrder = await client.query('SELECT status, stripe_refund_id, delivery_method FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const currentOrder = await client.query('SELECT status, stripe_refund_id, delivery_method FROM orders WHERE id = $1', [id]);
     if (!currentOrder.rows.length) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Order not found' });
@@ -18894,7 +18893,7 @@ app.put('/api/rep/orders/:id/job-name', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const jobName = (req.body.job_name || '').trim().slice(0, 200) || null;
-    const own = await pool.query('SELECT id, job_name FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)', [id, req.rep.id]);
+    const own = await pool.query('SELECT id, job_name FROM orders WHERE id = $1', [id]);
     if (!own.rows.length) return res.status(404).json({ error: 'Order not found' });
     const updated = await pool.query('UPDATE orders SET job_name = $1 WHERE id = $2 RETURNING *', [jobName, id]);
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
@@ -18909,7 +18908,7 @@ app.put('/api/rep/orders/:id/invoice-notes', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const invoiceNotes = (req.body.invoice_notes || '').trim().slice(0, 2000) || null;
-    const own = await pool.query('SELECT id FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)', [id, req.rep.id]);
+    const own = await pool.query('SELECT id FROM orders WHERE id = $1', [id]);
     if (!own.rows.length) return res.status(404).json({ error: 'Order not found' });
     const updated = await pool.query('UPDATE orders SET invoice_notes = $1 WHERE id = $2 RETURNING *', [invoiceNotes, id]);
     res.json({ order: updated.rows[0] });
@@ -19004,7 +19003,7 @@ app.put('/api/rep/orders/:id/delivery-method', repAuth, async (req, res) => {
 
     // Allow unassigned (self-checkout storefront) orders too — freight-quote-pending
     // orders come from the storefront with sales_rep_id NULL. [[freight-quote-later]]
-    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)', [id, req.rep.id]);
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
 
@@ -19376,7 +19375,7 @@ app.put('/api/rep/orders/:id/items/:itemId/cost', repAuth, async (req, res) => {
     const cost = (raw === '' || raw == null) ? null : parseFloat(raw);
     if (cost != null && (isNaN(cost) || cost < 0)) return res.status(400).json({ error: 'Invalid cost' });
     await client.query('BEGIN');
-    const own = await client.query('SELECT id FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const own = await client.query('SELECT id FROM orders WHERE id = $1', [id]);
     if (!own.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order not found' }); }
     const it = await client.query('SELECT product_name, cost FROM order_items WHERE id = $1 AND order_id = $2 FOR UPDATE', [itemId, id]);
     if (!it.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Order item not found' }); }
@@ -19441,7 +19440,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       if ((!num_boxes || num_boxes < 1) && !sqft_needed) return res.status(400).json({ error: 'sku_id and num_boxes (>= 1) or sqft_needed are required' });
     }
 
-    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
     if (['delivered', 'cancelled', 'refunded'].includes(order.status)) {
@@ -19765,7 +19764,7 @@ app.delete('/api/rep/orders/:id/items/:itemId', repAuth, async (req, res) => {
   try {
     const { id, itemId } = req.params;
 
-    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const orderResult = await client.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
     if (['delivered', 'cancelled', 'refunded'].includes(order.status)) {
@@ -19885,7 +19884,7 @@ app.post('/api/rep/orders/:id/payment-request', repAuth, async (req, res) => {
     const { message, recipient_email } = req.body || {};
     // Include unassigned (self-checkout) orders so a rep can collect freight on a
     // storefront freight-quote order (sales_rep_id NULL). [[freight-quote-later]]
-    const order = await pool.query('SELECT * FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)', [id, req.rep.id]);
+    const order = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!order.rows.length) return res.status(404).json({ error: 'Order not found' });
     const o = order.rows[0];
 
@@ -20179,7 +20178,7 @@ app.post('/api/rep/orders/:id/payments/:paymentId/refund', repAuth, async (req, 
     const { amount, reason } = req.body || {};
     if (!reason || !reason.trim()) return res.status(400).json({ error: 'A refund reason is required' });
 
-    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!orderResult.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = orderResult.rows[0];
 
@@ -20270,7 +20269,7 @@ app.get('/api/rep/orders/:id/return-context', repAuth, requireRepManager, async 
     const oRes = await pool.query(
       `SELECT o.*, sr.first_name || ' ' || sr.last_name AS rep_name
        FROM orders o LEFT JOIN staff_accounts sr ON sr.id = o.sales_rep_id
-       WHERE o.id = $1 AND o.sales_rep_id = $2`, [id, req.rep.id]);
+       WHERE o.id = $1`, [id]);
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
 
@@ -20492,7 +20491,7 @@ app.post('/api/rep/orders/:id/returns', repAuth, requireRepManager, async (req, 
     const { id } = req.params;
     const { lines, refund_splits = [], store_credit_amount = 0, customer_note, reason_summary } = req.body || {};
 
-    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
     if (!['shipped', 'delivered', 'ready_for_pickup'].includes(order.status)) {
@@ -20780,7 +20779,7 @@ async function emailMaterialRelease({ order, release, computed, actorName, actor
 app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
     const itemsRes = await pool.query(`
@@ -20835,7 +20834,7 @@ app.post('/api/rep/orders/:id/releases', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { lines, release_method, recipient_name, notes, vendor_id } = req.body || {};
-    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const oRes = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
     if (!oRes.rows.length) return res.status(404).json({ error: 'Order not found' });
     const order = oRes.rows[0];
     if (!RELEASABLE_STATUSES.includes(order.status)) {
@@ -20902,7 +20901,7 @@ app.post('/api/rep/releases/:releaseId/uncomplete', repAuth, async (req, res) =>
     const rRes = await client.query(`
       SELECT mr.*, o.sales_rep_id, o.order_number FROM material_releases mr
       JOIN orders o ON o.id = mr.order_id
-      WHERE mr.id = $1 AND o.sales_rep_id = $2 FOR UPDATE OF mr`, [releaseId, req.rep.id]);
+      WHERE mr.id = $1 FOR UPDATE OF mr`, [releaseId]);
     if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Release not found' }); }
     const rel = rRes.rows[0];
     if (rel.status !== 'completed') { await client.query('ROLLBACK'); return res.status(400).json({ error: `Only a completed release can be undone (this one is ${rel.status})` }); }
@@ -20932,7 +20931,7 @@ app.post('/api/rep/releases/:releaseId/complete', repAuth, async (req, res) => {
     const rRes = await client.query(`
       SELECT mr.*, o.sales_rep_id, o.order_number FROM material_releases mr
       JOIN orders o ON o.id = mr.order_id
-      WHERE mr.id = $1 AND o.sales_rep_id = $2 FOR UPDATE OF mr`, [releaseId, req.rep.id]);
+      WHERE mr.id = $1 FOR UPDATE OF mr`, [releaseId]);
     if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Release not found' }); }
     const rel = rRes.rows[0];
     if (rel.status !== 'released') { await client.query('ROLLBACK'); return res.status(400).json({ error: `Release is already ${rel.status}` }); }
@@ -21006,7 +21005,7 @@ app.post('/api/rep/releases/:releaseId/void', repAuth, async (req, res) => {
     const rRes = await client.query(`
       SELECT mr.*, o.sales_rep_id FROM material_releases mr
       JOIN orders o ON o.id = mr.order_id
-      WHERE mr.id = $1 AND o.sales_rep_id = $2 FOR UPDATE OF mr`, [releaseId, req.rep.id]);
+      WHERE mr.id = $1 FOR UPDATE OF mr`, [releaseId]);
     if (!rRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'Release not found' }); }
     const rel = rRes.rows[0];
     if (rel.status === 'void') { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Release is already void' }); }
@@ -21451,10 +21450,9 @@ app.get('/api/rep/global-search', repAuth, async (req, res) => {
             (SELECT COUNT(*)::int FROM quote_items qi WHERE qi.quote_id = q.id) as item_count
           FROM quotes q
           WHERE (q.customer_name ILIKE $1 OR q.customer_email ILIKE $1 OR q.quote_number ILIKE $1)
-            AND q.sales_rep_id = $3
           ORDER BY q.created_at DESC
           LIMIT $2
-        `, [term, limit, repId]).then(r => { groups.quotes = r.rows; })
+        `, [term, limit]).then(r => { groups.quotes = r.rows; })
       );
     }
 
@@ -21467,10 +21465,9 @@ app.get('/api/rep/global-search', repAuth, async (req, res) => {
             (SELECT COUNT(*)::int FROM estimate_items ei WHERE ei.estimate_id = e.id) as item_count
           FROM estimates e
           WHERE (e.customer_name ILIKE $1 OR e.customer_email ILIKE $1 OR e.estimate_number ILIKE $1 OR e.project_name ILIKE $1)
-            AND e.sales_rep_id = $3
           ORDER BY e.created_at DESC
           LIMIT $2
-        `, [term, limit, repId]).then(r => { groups.estimates = r.rows; })
+        `, [term, limit]).then(r => { groups.estimates = r.rows; })
       );
     }
 
@@ -22237,9 +22234,6 @@ app.post('/api/rep/purchase-orders/:poId/documents', repAuth, docUpload.single('
       WHERE po.id = $1`, [poId]);
     if (!poRes.rows.length) return res.status(404).json({ error: 'Purchase order not found' });
     const po = poRes.rows[0];
-    if (po.sales_rep_id && po.sales_rep_id !== req.rep.id) {
-      return res.status(403).json({ error: 'This PO belongs to another rep' });
-    }
     const ext = path.extname(req.file.originalname).toLowerCase();
     const hex = crypto.randomBytes(8).toString('hex');
     const fileKey = `order-docs/${Date.now()}-${hex}${ext}`;
@@ -22281,8 +22275,8 @@ app.delete('/api/rep/orders/documents/:docId', repAuth, async (req, res) => {
     const del = await pool.query(`
       DELETE FROM order_documents od
       USING orders o
-      WHERE od.id = $1 AND od.order_id = o.id AND (o.sales_rep_id = $2 OR o.sales_rep_id IS NULL)
-      RETURNING od.id, od.doc_type, od.purchase_order_id`, [docId, req.rep.id]);
+      WHERE od.id = $1 AND od.order_id = o.id
+      RETURNING od.id, od.doc_type, od.purchase_order_id`, [docId]);
     if (!del.rows.length) return res.status(404).json({ error: 'Document not found' });
 
     // Deleting the vendor's confirmation removes the proof it was confirmed, so
@@ -22330,7 +22324,7 @@ app.get('/api/rep/orders/:id/invoice', repAuth, async (req, res) => {
 app.get('/api/rep/orders/:id/receipt', repAuth, async (req, res) => {
   try {
     const result = await generateOrderReceiptHtml(req.params.id, req.query.payment_id);
-    if (!result) return res.status(404).json({ error: 'No card payment found for this order' });
+    if (!result) return res.status(404).json({ error: 'No completed payment found for this order' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -22366,10 +22360,10 @@ async function generateWorkOrderHtml(orderId, { repId } = {}) {
   };
 }
 
-// Installation work-order PDF (rep) — only for the rep's own orders.
+// Installation work-order PDF (rep) — viewable for any order (reps see all).
 app.get('/api/rep/orders/:id/work-order', repAuth, async (req, res) => {
   try {
-    const result = await generateWorkOrderHtml(req.params.id, { repId: req.rep.id });
+    const result = await generateWorkOrderHtml(req.params.id);
     if (!result) return res.status(404).json({ error: 'Order not found' });
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
@@ -25358,7 +25352,7 @@ app.put('/api/rep/estimates/:id/payment-schedule', repAuth, async (req, res) => 
   try {
     const { id } = req.params;
     const { milestones } = req.body || {};
-    const own = await client.query('SELECT id, total FROM estimates WHERE id = $1 AND sales_rep_id = $2', [id, req.rep.id]);
+    const own = await client.query('SELECT id, total FROM estimates WHERE id = $1', [id]);
     if (!own.rows.length) return res.status(404).json({ error: 'Estimate not found' });
 
     const rows = Array.isArray(milestones) ? milestones : [];
@@ -27273,8 +27267,10 @@ app.put('/api/rep/customers/:id', repAuth, async (req, res) => {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailNorm)) return res.status(400).json({ error: 'Enter a valid email address' });
     if (!phone || phone.replace(/\D/g, '').length < 10) return res.status(400).json({ error: 'A valid 10-digit phone number is required' });
 
-    const existing = await pool.query('SELECT id FROM customers WHERE id = $1', [id]);
+    const existing = await pool.query('SELECT id, email FROM customers WHERE id = $1', [id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Customer not found' });
+    const oldEmail = (existing.rows[0].email || '').toLowerCase();
+    const emailChanged = oldEmail !== emailNorm;
 
     // Block collisions with a DIFFERENT account by email or phone (excludes self).
     const match = await findExactDuplicate(pool, { email: emailNorm, phone, excludeId: id });
@@ -27283,15 +27279,33 @@ app.put('/api/rep/customers/:id', repAuth, async (req, res) => {
       return res.status(409).json({ error: `Another customer with that ${byWhat} already exists (${match.name || match.email}).`, match });
     }
 
-    await pool.query(
-      `UPDATE customers SET first_name = $1, last_name = $2, middle_initial = $3, email = $4, phone = $5,
-        company_name = $6, address_line1 = $7, address_line2 = $8, city = $9, state = $10, zip = $11,
-        updated_at = CURRENT_TIMESTAMP
-       WHERE id = $12`,
-      [titleCaseName(first_name), titleCaseName(last_name), normMiddleInitial(middle_initial), emailNorm, formatPhone(phone) || null,
-       collapse(company_name), collapse(address_line1), collapse(address_line2), collapse(city), normState(state), (zip || '').trim() || null, id]);
+    // Email is the customer's login identity AND the join key for their orders,
+    // quotes, invoices, promo limits and store credit (retail records carry no
+    // owning FK). Change it and cascade the whole footprint in ONE transaction so
+    // nothing is left orphaned under the old address. Non-email edits skip the cascade.
+    const client = await pool.connect();
+    let migration = null;
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE customers SET first_name = $1, last_name = $2, middle_initial = $3, email = $4, phone = $5,
+          company_name = $6, address_line1 = $7, address_line2 = $8, city = $9, state = $10, zip = $11,
+          updated_at = CURRENT_TIMESTAMP
+         WHERE id = $12`,
+        [titleCaseName(first_name), titleCaseName(last_name), normMiddleInitial(middle_initial), emailNorm, formatPhone(phone) || null,
+         collapse(company_name), collapse(address_line1), collapse(address_line2), collapse(city), normState(state), (zip || '').trim() || null, id]);
+      if (emailChanged) {
+        migration = await migrateCustomerEmail(client, { customerId: id, oldEmail, newEmail: emailNorm });
+      }
+      await client.query('COMMIT');
+    } catch (txErr) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw txErr;
+    } finally {
+      client.release();
+    }
 
-    res.json({ id, success: true });
+    res.json({ id, success: true, email_changed: emailChanged, migration });
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Another customer with that email already exists' });
     console.error(err); res.status(500).json({ error: 'Internal server error' });

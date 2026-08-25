@@ -174,7 +174,8 @@ export function composeItemName(it = {}) {
     return { title, descriptors, sku, vendor, meta, nameLine, metaLine, oneLine: [nameLine, metaLine].filter(Boolean).join(SEP) };
   };
 
-  // 1) Custom bound area rug: "Custom Area Rug  ·  <carpet>  ·  9' × 4'". No live
+  // 1) Custom bound area rug: "Custom Area Rug  ·  9' × 4'  ·  <carpet>". Size — the
+  // rug's defining spec — leads; the carpet it's cut from follows. No live
   // SKU identity — dimensions come from custom_width_ft/length_ft when selected,
   // else from the stored description. See [[custom-rug-calculator]].
   // NB: test the raw boolean, NOT g() — g() stringifies, so a Postgres boolean
@@ -185,8 +186,23 @@ export function composeItemName(it = {}) {
     const dims = (it.custom_width_ft && it.custom_length_ft)
       ? formatRugDims(it.custom_width_ft, it.custom_length_ft)
       : (g('description') || '').replace(/^Custom Area Rug\s*[—-]\s*/, '');
-    const carpet = [collection, color].filter(Boolean).join(' ') || product || null;
-    return build('Custom Area Rug', [carpet, dims]);
+    // Identify the carpet the rug is cut from, as "<style>  ·  <color>". Some carpets
+    // store the BRAND in the collection field (e.g. EF: collection "Engineered Floors",
+    // real style in product_name "Airwaves E100", color a bare code "1812"), so the
+    // style comes from product_name (brand-stripped) with collection as fallback, and
+    // the color is appended unless the style already contains it. Brand shows on the
+    // meta line, so never repeat it here. [[custom-rug-calculator]]
+    const rawBrand = g('brand_name') || g('vendor_name') || null;
+    const stripBrand = (s) => {
+      if (!s) return null;
+      let out = String(s).trim();
+      if (rawBrand) out = out.replace(new RegExp('^' + rawBrand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b\\s*', 'i'), '').trim();
+      return out || null;
+    };
+    const normKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const style = stripBrand(product) || stripBrand(collection);
+    const colorPart = color && !(style && normKey(style).includes(normKey(color))) ? color : null;
+    return build('Custom Area Rug', [dims, style, colorPart]);
   }
 
   // 2) Accessory bought for a specific floor: lead with that floor's collection +
@@ -502,20 +518,35 @@ export function generateReceiptDoc(o, payment) {
   const amountPaid = parseFloat(o.amount_paid || 0);
   const balanceDue = parseFloat((total - amountPaid).toFixed(2));
 
+  // Tender type — a payment is card only when it carries card/terminal/Stripe
+  // evidence. Cash, check, and ACH are non-card and must not be labelled "Card".
+  const method = p.payment_method || '';
+  const isAch = method === 'ach';
+  const isCash = method === 'cash';
+  const isCheck = method === 'check';
+  const isCard = isValor || !!p.card_brand || method === 'card' || method === 'stripe' || !!p.stripe_receipt_url;
+
   const detailRows = [['Status', isValor ? 'Approved' : 'Completed']];
   if (isValor) {
     if (p.valor_tran_no) detailRows.push(['Transaction #', String(p.valor_tran_no)]);
     if (p.valor_rrn) detailRows.push(['Reference (RRN)', String(p.valor_rrn)]);
     detailRows.push(['Processor', 'Valor Connect · in-store terminal']);
+  } else if (isCash) {
+    detailRows.push(['Method', 'Cash · in-store']);
+  } else if (isCheck) {
+    if (p.check_number) detailRows.push(['Check #', String(p.check_number)]);
+    detailRows.push(['Method', 'Check · in-store']);
+  } else if (isAch) {
+    detailRows.push(['Method', 'ACH bank transfer']);
   } else {
     if (p.stripe_receipt_number) detailRows.push(['Receipt #', String(p.stripe_receipt_number)]);
     detailRows.push(['Processor', 'Stripe']);
   }
   const detail = detailRows.map(([l, v]) => `<tr><td>${esc(l)}</td><td>${esc(v)}</td></tr>`).join('');
-  const isAch = p.payment_method === 'ach';
-  const cardLine = isAch
-    ? 'Bank account · ACH transfer'
-    : brand + (p.card_last4 ? ' ···· ' + p.card_last4 : '') + (isValor ? ' · tap / dip / swipe' : '');
+  const cardLine = isCash ? 'Cash'
+    : isCheck ? ('Check' + (p.check_number ? ' #' + p.check_number : ''))
+    : isAch ? 'Bank account · ACH transfer'
+    : (isCard ? brand + (p.card_last4 ? ' ···· ' + p.card_last4 : '') + (isValor ? ' · tap / dip / swipe' : '') : 'Payment received');
   const paidInFull = balanceDue <= 0.01;
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Receipt ${esc(orderNumber)}</title><style>
