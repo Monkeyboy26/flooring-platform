@@ -57,7 +57,9 @@ rm -rf "$DATA_PATH/conf/live/$DOMAIN"
 
 # Request real certificate
 echo "Requesting Let's Encrypt certificate..."
-docker compose $COMPOSE_FILES run --rm certbot certonly \
+# --entrypoint override is required: the certbot service defines a renew-loop
+# entrypoint that would otherwise swallow the certonly command and hang forever
+docker compose $COMPOSE_FILES run --rm --entrypoint certbot certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
     --email "$EMAIL" \
