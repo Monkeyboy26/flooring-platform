@@ -4,6 +4,14 @@ uploads/
 .DS_Store
 .claude/
 
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Database backups / dumps
+database/backups/
+*.dump
+
 # Production
 certbot/
 *.sql.gz
