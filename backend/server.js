@@ -162,7 +162,12 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json({ limit: '2mb' }));
+// The Stripe webhook must receive the RAW request body for signature
+// verification — running it through the global JSON parser breaks
+// stripe.webhooks.constructEvent. Skip parsing for that path only; the
+// route itself applies express.raw().
+const jsonParser = express.json({ limit: '2mb' });
+app.use((req, res, next) => (req.originalUrl === '/api/webhooks/stripe' ? next() : jsonParser(req, res, next)));
 app.use('/assets', express.static('assets'));
 app.use(healthRoutes);
 app.use(createSeoRouter(pool));
