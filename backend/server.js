@@ -372,7 +372,8 @@ app.get('/api/products', optionalTradeAuth, async (req, res) => {
 
     if (req.query.search) {
       params.push('%' + req.query.search + '%');
-      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex})`;
+      query += ` AND (p.name ILIKE $${paramIndex} OR p.collection ILIKE $${paramIndex} OR (p.collection || ' ' || p.name) ILIKE $${paramIndex} OR p.description_short ILIKE $${paramIndex} OR v.name ILIKE $${paramIndex}
+        OR EXISTS (SELECT 1 FROM skus s WHERE s.product_id = p.id AND (s.vendor_sku ILIKE $${paramIndex} OR s.internal_sku ILIKE $${paramIndex})))`;
       paramIndex++;
     }
 
@@ -1310,6 +1311,19 @@ function buildFtsQueries(sanitized) {
   };
 }
 
+// Does a sanitized query look like a part number / SKU rather than words? Gates the
+// exact-SKU fast paths (ILIKE prefix on vendor_sku/internal_sku, exact match ranked
+// first) shared by the suggest dropdown and the admin/rep add-item pickers. A single
+// token of code chars that either mixes letters and digits ("AB-1234", "0Q90") or is
+// all-numeric with ≥4 digits — the latter catches numeric vendor SKUs / UPCs while
+// still ignoring short dimension numbers ("12", "24") that shouldn't hijack a search.
+function looksLikeSkuQuery(sanitized) {
+  const token = (sanitized || '').replace(/\s/g, '');
+  if (!token || !/^[\w.-]+$/.test(token)) return false;
+  if (/[a-zA-Z]/.test(token) && /\d/.test(token)) return true; // alnum part number
+  return /^\d{4,}$/.test(token);                                // all-numeric SKU / UPC
+}
+
 // Decide NARROW (all-words) vs RELAXED (min-should-match, ≥ N-1 words) recall for a
 // sanitized query. Shared by the grid (/api/storefront/skus) and /facets so their result
 // sets stay identical — a divergence here makes facet counts disagree with the grid.
@@ -1571,8 +1585,8 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
     const phraseInput = sanitized;
     const dims = parseDimensions(sanitized);
 
-    // Detect SKU-like patterns (letters+digits+hyphens, at least one digit and one letter)
-    const isSkuLike = /[a-zA-Z]/.test(sanitized) && /\d/.test(sanitized) && /^[\w.-]+$/.test(sanitized.replace(/\s/g, ''));
+    // Detect SKU-like patterns (part numbers, incl. all-numeric SKUs — see looksLikeSkuQuery)
+    const isSkuLike = looksLikeSkuQuery(sanitized);
 
     // SKU fast path — direct ILIKE prefix match on vendor_sku / internal_sku
     let skuDirectRows = [];
@@ -10258,7 +10272,7 @@ async function searchProductIdsRanked(pool, rawQuery, { limit = 20, requireAllWo
   const { origWords, andTsQuery, orTsQuery } = buildFtsQueries(sanitized);
   // Phrase/exact ranking matches the user's actual phrase, not the expanded string.
   const phraseInput = sanitized;
-  const isSkuLike = /[a-zA-Z]/.test(sanitized) && /\d/.test(sanitized) && /^[\w.-]+$/.test(sanitized.replace(/\s/g, ''));
+  const isSkuLike = looksLikeSkuQuery(sanitized);
   // Single-word queries can't narrow (AND == OR), so only engage for 2+ words.
   const narrow = requireAllWords && origWords.length > 1;
   const orThreshold = narrow ? 1 : limit; // OR branch fires only when phrase+AND is empty
@@ -10322,7 +10336,7 @@ async function searchSkus(pool, rawQuery) {
   if (!sanitized) return [];
 
   // Detect SKU-like patterns (exact-SKU fast path below keeps the pasted part number first)
-  const isSkuLike = /[a-zA-Z]/.test(sanitized) && /\d/.test(sanitized) && /^[\w.-]+$/.test(sanitized.replace(/\s/g, ''));
+  const isSkuLike = looksLikeSkuQuery(sanitized);
 
   const baseCols = `
     s.id as sku_id, s.product_id, s.internal_sku, s.vendor_sku, s.variant_name, s.is_sample, s.sell_by,
@@ -17679,6 +17693,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     if (req.body.notes) notesParts.push(String(req.body.notes).slice(0, 2000));
     if (req.body.delivery_notes) notesParts.push('Delivery: ' + String(req.body.delivery_notes).slice(0, 1000));
     const orderNotes = notesParts.length ? notesParts.join('\n') : null;
+    // Customer-facing note printed on the invoice PDF (own boxed block).
+    const invoiceNotes = (req.body.invoice_notes || '').trim().slice(0, 2000) || null;
 
     await client.query('BEGIN');
 
@@ -17942,8 +17958,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
         subtotal, shipping, total, status, sales_rep_id, payment_method, delivery_method,
         stripe_payment_intent_id, promo_code_id, promo_code, discount_amount,
-        amount_paid, customer_id, tax_rate, tax_amount, notes, trade_customer_id, company_name, job_name)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25, $26, $27, $28)
+        amount_paid, customer_id, tax_rate, tax_amount, notes, trade_customer_id, company_name, job_name, invoice_notes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25, $26, $27, $28, $29)
       RETURNING *
     `, [orderNumber, customer_email.toLowerCase().trim(), customer_name, phone || null,
         noFreight ? null : shipping_address.line1, noFreight ? null : (shipping_address.line2 || null),
@@ -17952,7 +17968,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         isWillCall ? 'will_call' : isPickup ? 'pickup' : 'shipping',
         stripePaymentIntentId, promoCodeId, promoCodeStr, discountAmount.toFixed(2),
         paidInStore ? collectedNow.toFixed(2) : '0.00', cust.id, taxRate, taxAmount.toFixed(2),
-        shippingCost.toFixed(2), orderNotes, tradeCustomer ? tradeCustomer.id : null, companyName, jobName]);
+        shippingCost.toFixed(2), orderNotes, tradeCustomer ? tradeCustomer.id : null, companyName, jobName, invoiceNotes]);
 
     const order = orderResult.rows[0];
 
@@ -18884,6 +18900,18 @@ app.put('/api/rep/orders/:id/job-name', repAuth, async (req, res) => {
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await logOrderActivity(pool, id, 'job_name_updated', req.rep.id, repName,
       { previous: own.rows[0].job_name || null, job_name: jobName });
+    res.json({ order: updated.rows[0] });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Customer-facing invoice note — prints on the invoice PDF as its own boxed block.
+app.put('/api/rep/orders/:id/invoice-notes', repAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const invoiceNotes = (req.body.invoice_notes || '').trim().slice(0, 2000) || null;
+    const own = await pool.query('SELECT id FROM orders WHERE id = $1 AND (sales_rep_id = $2 OR sales_rep_id IS NULL)', [id, req.rep.id]);
+    if (!own.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const updated = await pool.query('UPDATE orders SET invoice_notes = $1 WHERE id = $2 RETURNING *', [invoiceNotes, id]);
     res.json({ order: updated.rows[0] });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -23576,12 +23604,29 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       }
 
       if (ediSuccess) {
-        // New-order policy: send EDI *and* the human-readable PDF copy to the
-        // vendor (the email path below runs when an address is on file). EDI stays
-        // the order of record, so sent_via remains 'edi'; the email is a copy.
         await pool.query(`UPDATE purchase_orders SET sent_via = 'edi' WHERE id = $1`, [poId]);
-      } else if (!toEmail) {
-        // EDI failed and there's no email address to fall back to.
+        const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+        const action = isRevised ? 'revised_and_sent' : 'edi_sent';
+        await pool.query(
+          `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, revision, details)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [poId, action, repName, newRevision, JSON.stringify({ ...ediDetails, approved_via: 'rep_portal' })]
+        );
+
+        // Notify assigned rep if different
+        const poOrder = await pool.query('SELECT order_number, sales_rep_id FROM orders WHERE id = $1', [po.order_id]);
+        if (poOrder.rows.length && poOrder.rows[0].sales_rep_id && poOrder.rows[0].sales_rep_id !== req.rep.id) {
+          setImmediate(() => createRepNotification(pool, poOrder.rows[0].sales_rep_id, 'po_approved',
+            `PO ${po.po_number} sent to ${po.vendor_name} via EDI`,
+            `${repName} approved and sent PO for ${poOrder.rows[0].order_number}`,
+            'order', po.order_id));
+        }
+
+        return res.json({ purchase_order: updatedPO.rows[0], sent_via: 'edi', edi: ediDetails });
+      }
+
+      // EDI failed — fall through to email
+      if (!toEmail) {
         return res.status(500).json({ error: 'EDI send failed and vendor has no email configured for fallback.' });
       }
     }
@@ -23611,15 +23656,13 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
       }
     }
 
-    // Log activity — a single record covers both channels. When EDI succeeded the
-    // email is a copy (sent_via stays 'edi'); when it failed the email is the
-    // fallback (sent_via 'email').
-    const action = isRevised ? 'revised_and_sent' : (sentVia === 'edi' ? 'edi_sent' : 'sent');
+    // Log activity
+    const action = isRevised ? 'revised_and_sent' : 'sent';
     await pool.query(
       `INSERT INTO po_activity_log (purchase_order_id, action, performer_name, recipient_email, revision, details)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [poId, action, repName, toEmail || null, newRevision,
-       JSON.stringify({ email_sent: emailSent, sent_via: sentVia, approved_via: 'rep_portal', edi: ediDetails,
+       JSON.stringify({ email_sent: emailSent, approved_via: 'rep_portal', edi_fallback: ediDetails,
          cc: ccOverride || undefined })]
     );
 
@@ -28993,51 +29036,55 @@ app.post('/api/admin/purchase-orders/:poId/send', staffAuth, requireRole('admin'
       }
 
       if (ediSuccess) {
-        // New-order policy: also send the PDF email copy below (when a vendor email
-        // is on file). EDI stays the order of record; sent_via remains 'edi'.
+        // Log activity and return
         await pool.query(`UPDATE purchase_orders SET sent_via = 'edi' WHERE id = $1`, [poId]);
+        const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
+        await pool.query(
+          `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, revision, details)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [poId, 'edi_sent', req.staff.id, staffName, updatedPO.rows[0].revision || 0,
+           JSON.stringify(ediDetails)]
+        );
+        return res.json({ purchase_order: updatedPO.rows[0], sent_via: 'edi', edi: ediDetails });
       }
     }
 
-    // Email path — a PDF copy when EDI already went out (new-order policy = EDI +
-    // email), the primary channel otherwise. Only hard-fail on a missing email or
-    // PDF when EDI did NOT send.
-    const ediSent = sentVia === 'edi';
-    if (po.vendor_email) {
-      const poData = await generatePOHtml(pool, poId);
-      if (!poData) return res.status(404).json({ error: 'Purchase order not found' });
-      let pdfBuffer = null;
-      try {
-        pdfBuffer = await generatePDFBuffer(poData.html, PO_PDF_MARGIN);
-      } catch (pdfErr) {
-        console.error('[PO Send] PDF generation failed:', pdfErr.message);
-        if (!ediSent) return res.status(500).json({ error: 'PDF generation failed. Puppeteer may not be available.' });
-      }
-      if (pdfBuffer) {
-        emailResult = await sendPurchaseOrderToVendor({
-          vendor_email: po.vendor_email,
-          vendor_name: po.vendor_name,
-          po_number: po.po_number,
-          is_revised: action === 'revised_and_sent',
-          pdf_buffer: pdfBuffer,
-          rep_email: po.rep_email,
-          rep_name: [po.rep_first_name, po.rep_last_name].filter(Boolean).join(' '),
-          vendor_contact_email: po.vendor_contact_email
-        });
-      }
-    } else if (!ediSent) {
+    // Email path (default or EDI fallback)
+    if (!po.vendor_email) {
       return res.status(400).json({ error: 'EDI send failed and vendor has no email configured for fallback.' });
     }
 
-    // Log activity — a single record covers both channels.
+    const poData = await generatePOHtml(pool, poId);
+    if (!poData) return res.status(404).json({ error: 'Purchase order not found' });
+
+    const updatedData = await generatePOHtml(pool, poId);
+    let pdfBuffer;
+    try {
+      pdfBuffer = await generatePDFBuffer(updatedData.html, PO_PDF_MARGIN);
+    } catch (pdfErr) {
+      console.error('[PO Send] PDF generation failed:', pdfErr.message);
+      return res.status(500).json({ error: 'PDF generation failed. Puppeteer may not be available.' });
+    }
+
+    emailResult = await sendPurchaseOrderToVendor({
+      vendor_email: po.vendor_email,
+      vendor_name: po.vendor_name,
+      po_number: po.po_number,
+      is_revised: action === 'revised_and_sent',
+      pdf_buffer: pdfBuffer,
+      rep_email: po.rep_email,
+      rep_name: [po.rep_first_name, po.rep_last_name].filter(Boolean).join(' '),
+      vendor_contact_email: po.vendor_contact_email
+    });
+
+    // Log activity
     await pool.query(`UPDATE purchase_orders SET sent_via = $2 WHERE id = $1`, [poId, sentVia]);
     const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
-    const logAction = (ediSent && action === 'sent') ? 'edi_sent' : action;
     await pool.query(
       `INSERT INTO po_activity_log (purchase_order_id, action, performed_by, performer_name, recipient_email, revision, details)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [poId, logAction, req.staff.id, staffName, po.vendor_email || null, updatedPO.rows[0].revision || 0,
-       JSON.stringify({ email_sent: emailResult.sent, sent_via: sentVia, ...(ediDetails ? { edi: ediDetails } : {}) })]
+      [poId, action, req.staff.id, staffName, po.vendor_email, updatedPO.rows[0].revision || 0,
+       JSON.stringify({ email_sent: emailResult.sent, ...(ediDetails || {}) })]
     );
 
     res.json({ purchase_order: updatedPO.rows[0], sent_via: sentVia, email_sent: emailResult.sent });
