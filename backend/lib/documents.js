@@ -1519,6 +1519,10 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
     .replace(/Converted from Estimate[^.]*\./i, '')
     .replace(/Started on terms\s*[—–-]\s*balance due\./i, '')
     .trim();
+  // The customer-facing invoice note prints in its own boxed block (mirrors the
+  // PO's "Note to vendor"). Prefer the dedicated invoice_notes field; fall back to
+  // the legacy stripped order notes so pre-existing orders keep their note.
+  const invoiceNote = escDoc((o.invoice_notes || custNotes || '').trim());
 
   const total = parseFloat(o.total || 0);
   const amountPaid = parseFloat(o.amount_paid || 0);
@@ -1744,11 +1748,15 @@ ${accountCard}
 ${rowsHtml}
 </div>
 
+${invoiceNote ? `<div class="keep" style="margin-top:16px;border:1px solid var(--ink);padding:13px 18px;">
+<div style="font:600 9px/1 ui-monospace,monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--ink);margin-bottom:7px;">&#9873; Note</div>
+<div style="font:500 12.5px/1.55 var(--sans);color:var(--ink);white-space:pre-wrap;">${invoiceNote}</div>
+</div>` : ''}
+
 <div style="flex:1 1 auto;min-height:0;"></div>
 
 <div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:10px;border-top:1px solid #1c191733;padding-top:10px;">
 <div style="padding-top:4px;" class="small">
-${custNotes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;white-space:pre-wrap;">${custNotes}</div>` : ''}
 <div class="mono" style="margin-bottom:8px;">How to pay</div>
 <div style="margin-bottom:10px;">
 <span style="color:var(--muted);">Online</span>&nbsp;&nbsp;<span style="color:var(--ink);">romaflooringdesigns.com/account — pay under Account · Orders</span><br />

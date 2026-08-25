@@ -214,6 +214,10 @@ CREATE TABLE orders (
     bank_transfer_instructions JSONB,
     bank_transfer_expires_at TIMESTAMP,
     notes TEXT,
+    -- Customer-facing note printed on the invoice PDF (its own boxed block, like
+    -- the PO's "Note to vendor"). Separate from `notes`, which also carries
+    -- internal/system metadata that is stripped from the invoice.
+    invoice_notes TEXT,
     measure_requested BOOLEAN DEFAULT false,
     preferred_measure_date DATE,
     preferred_measure_time VARCHAR(20),
@@ -227,6 +231,8 @@ CREATE TABLE orders (
     terms_accepted_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+-- Customer-facing invoice note (printed on the invoice PDF as its own boxed block).
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS invoice_notes TEXT;
 
 CREATE TABLE order_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
