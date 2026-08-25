@@ -9,9 +9,16 @@ export function launchBrowser() {
     || (fs.existsSync('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
         ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
         : undefined);
+  // In the container (non-root appuser, unwritable HOME) crashpad cannot create
+  // its database and Chromium refuses to start — point HOME at /tmp and disable
+  // crash reporting entirely.
+  const inContainer = chromePath === '/usr/bin/chromium';
   return puppeteer.launch({
     headless: 'new',
     executablePath: chromePath,
+    env: inContainer
+      ? { ...process.env, HOME: '/tmp', XDG_CONFIG_HOME: '/tmp/.config', XDG_CACHE_HOME: '/tmp/.cache' }
+      : undefined,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -23,6 +30,8 @@ export function launchBrowser() {
       '--disable-translate',
       '--no-first-run',
       '--single-process',
+      '--disable-crash-reporter',
+      '--disable-crashpad',
     ]
   });
 }
