@@ -1,8 +1,10 @@
     const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
+    // Dev: talk to the API container directly. Production: same-origin — nginx
+    // proxies /api/* to the backend; port 3001 is not exposed publicly.
     const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3001'
-      : `${window.location.protocol}//${window.location.hostname}:3001`;
+      : '';
 
     function getSessionId() {
       let id = localStorage.getItem('cart_session_id');
@@ -570,6 +572,46 @@
         .replace(/\s+/g, ' ')
         .trim();
     }
+    // Collapse redundant collection/token echoes baked into the stored product
+    // name (e.g. "B&W Marble B&W Breach" → "B&W Marble Breach"). Defensive net
+    // alongside the DB backfill + scraper upsert. Keep in lock-step with
+    // backend/lib/productName.js dedupeStoredName().
+    function _dedupTok(t) { return t.toLowerCase().replace(/[.,]+$/, ''); }
+    function collapseAdjacentDupWords(tokens) {
+      const out = [];
+      for (const t of tokens) {
+        if (out.length && !/\d/.test(t) && _dedupTok(out[out.length - 1]) === _dedupTok(t)) continue;
+        out.push(t);
+      }
+      return out;
+    }
+    function dedupeStoredName(collection, name) {
+      if (!name || typeof name !== 'string') return name;
+      const col = (collection || '').trim();
+      const colToks = col.split(/\s+/).filter(Boolean);
+      const nC = colToks.length;
+      const colN = colToks.map(_dedupTok);
+      const isAlternation = colN.some(t => t === '&' || t === 'and');
+      if (isAlternation) return name.trim().replace(/\s+/g, ' ');
+      let toks = collapseAdjacentDupWords(name.trim().split(/\s+/).filter(Boolean));
+      if (!col) return toks.join(' ');
+      if (toks.length <= nC) return toks.join(' ');
+      for (let i = 0; i < nC; i++) if (_dedupTok(toks[i]) !== colN[i]) return toks.join(' ');
+      let rest = toks.slice(nC);
+      { let a = 0; while (a < rest.length && a < colN.length && _dedupTok(rest[a]) === colN[a]) a++; if (a > 0) rest = rest.slice(a); }
+      {
+        const rn = rest.map(_dedupTok);
+        let s = 0;
+        while (s + nC <= rn.length) {
+          let hit = true;
+          for (let k = 0; k < nC; k++) if (rn[s + k] !== colN[k]) { hit = false; break; }
+          if (hit) { rest.splice(s, nC); rn.splice(s, nC); } else s++;
+        }
+      }
+      while (rest.length && _dedupTok(rest[rest.length - 1]) === colN[0]) rest.pop();
+      const out = collapseAdjacentDupWords(toks.slice(0, nC).concat(rest)).join(' ').trim();
+      return out || col;
+    }
     function formatCarpetValue(val) {
       if (!val || typeof val !== 'string') return val;
       // Fiber format: "PILE 100 NYLON" → "100% Nylon"
@@ -1067,8 +1109,10 @@
 
     function formatVariantName(name) {
       if (!name) return '';
-      // If it looks like a clean name already (has uppercase or spaces), return as-is
-      if (/[A-Z]/.test(name) && name.includes(' ')) return name;
+      // Already cased (has a lowercase letter) and multi-word → leave as-is. An
+      // ALL-CAPS multi-word name ("PATH 24x47") is NOT clean — fall through so it
+      // gets title-cased to "Path 24x47".
+      if (/[a-z]/.test(name) && name.includes(' ')) return name;
       // Protect fraction slashes (e.g. "4-1/2") from the "/" split below
       const parts = name.replace(/(\d)\/(\d)/g, '$1\u2044$2').split(/\s*\/\s*/);
       return parts.map(part => {
@@ -1080,8 +1124,9 @@
         formatted = formatted.replace(/(\d+)\s(\d+)\s(\d+)/g, '$1-$2/$3');
         // Restore dimension "x" lowercase
         formatted = formatted.replace(/\bX\b/g, 'x');
-        // Title case each word
-        formatted = formatted.replace(/\b\w/g, c => c.toUpperCase());
+        // Title case each word (uppercase first letter, lowercase the rest so
+        // ALL-CAPS colors like "PATH" become "Path", not "PATH")
+        formatted = formatted.replace(/\b\w+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
         // Keep "x" lowercase between dimensions
         formatted = formatted.replace(/(\d)\s*X\s*(\d)/g, '$1 x $2');
         return formatted.trim();
@@ -1194,7 +1239,9 @@
     function fullProductName(sku) {
       const rawName = sku.product_name || '';
       const col = sku.collection || '';
-      let name = formatCarpetValue(rawName);
+      // Defensive net: strip any collection/token echo still baked into the stored
+      // product_name (belt-and-suspenders alongside the DB backfill). See dedupeStoredName.
+      let name = formatCarpetValue(dedupeStoredName(col, rawName));
 
       // Accessories: show "Collection Color — Accessory Type" (e.g., "Prime 3 — End Cap, 8'")
       if (sku.variant_type === 'accessory') {
@@ -1445,6 +1492,37 @@
       // Append sub_line Roman numeral after color (e.g., "Astounding Amberwood III Carpet")
       const subLineAttr = (sku.attributes || []).find(a => a.slug === 'sub_line');
       const subLineNumeral = subLineAttr && /^I{1,3}$/.test(subLineAttr.value) ? subLineAttr.value : null;
+      // Emser stores the finish in the product name and "Color Size" in the
+      // variant, so the default join reads finish-before-color. Insert the color
+      // right before the finish (wherever it sits in the name) and move the size
+      // to the end: "Access II Matte/Satin" + "Path 24x47" → "Access II Path
+      // Matte/Satin 24x47"; "Perenne Matte 9mm" + "Gray 24x47" → "Perenne Gray
+      // Matte 9mm 24x47". Scoped to Emser — other vendors put the color in the
+      // name and finish in the variant, so this must not touch them.
+      if (variant && (sku.vendor_code || '').toUpperCase() === 'EMS') {
+        // First finish token anywhere in the name (matte/satin combos too).
+        const FIN = /(?:^|\s)((?:matte|satin|polished|glossy|gloss|honed|semi-?gloss|flamed|tumbled|brushed|lappato|rectified|leathered|unpolished)(?:\/(?:matte|satin|polished|glossy|gloss))?)(?=\s|$)/i;
+        const fm = name.match(FIN);
+        // Split the variant into color + trailing size dimension.
+        const vm = variant.match(/^(.+?)\s+(\d+(?:\.\d+)?\s*[xX×″].*)$/);
+        const colorPart = (vm ? vm[1] : variant).trim();
+        let sizePart = vm ? vm[2].trim() : '';
+        if (fm && colorPart && /[A-Za-z]/.test(colorPart) && !/^\d/.test(colorPart)) {
+          const finishStart = fm.index + fm[0].length - fm[1].length; // start of the finish word
+          const series = name.slice(0, finishStart).trim();
+          const rest = name.slice(finishStart).trim();               // finish + any modifiers
+          if (series) {
+            // Drop the variant size if the same dimension already appears in the
+            // name (e.g. name "…Mosaic/13x13", variant "Brahmms 13x13").
+            if (sizePart) {
+              const nd = s => { const m = String(s).replace(/["″]/g, '').replace(/×/g, 'x').match(/\d+(?:\.\d+)?x\d+(?:\.\d+)?/i); return m ? m[0].replace(/\s/g, '') : ''; };
+              if (nd(sizePart) && nd(sizePart) === nd(rest)) sizePart = '';
+            }
+            name = series + ' ' + colorPart + ' ' + rest;
+            variant = sizePart || null;
+          }
+        }
+      }
       // When product name contains a size dimension (e.g., "12x24, Matte" or "Arenite 12x24, Matte"),
       // insert the color/variant before the size so it reads "Arenite Ostuni 12x24, Matte"
       // instead of "Arenite 12x24, Matte Ostuni".
@@ -1454,7 +1532,17 @@
         const sizeMatch = name.match(/^(.*?\s)?(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d.*)$/);
         if (sizeMatch && sizeMatch[2]) {
           const prefix = (sizeMatch[1] || '').trimEnd();
-          orderedName = (prefix ? prefix + ' ' : '') + variant + ' ' + sizeMatch[2];
+          let tail = sizeMatch[2];
+          // The variant already carries the size (e.g. "2″ × 2″, Matte"). If the name's
+          // trailing part ALSO leads with that same dimension ("2x2 Mosaic"/"2x2 Hexagon"),
+          // drop the bare dimension so the size isn't printed twice.
+          const nd = s => { const t = String(s).replace(/["″”'’]/g, '').replace(/×/g, 'x'); const m = t.match(/\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?/i); return m ? m[0].replace(/\s/g, '').toLowerCase() : ''; };
+          const vDim = nd(variant);
+          const tHead = tail.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/);
+          if (vDim && tHead && nd(tHead[1]) === vDim) {
+            tail = tail.slice(tHead[1].length).replace(/^[\s,.\-–—]+/, '').trim();
+          }
+          orderedName = (prefix ? prefix + ' ' : '') + variant + (tail ? ' ' + tail : '');
           orderedVariant = null;
         }
       }
@@ -1547,11 +1635,18 @@
       // to the product page. The client fallback below stays for any surface not
       // yet enriched by the API. See [[line-item-display]].
       if (it.display_name) return it.display_name;
-      // Custom bound area rug → "Custom Area Rug  ·  <carpet>  ·  9' × 4'"
+      // Custom bound area rug → "Custom Area Rug  ·  9' × 4'  ·  <carpet>" (size leads)
       if (it.is_custom_rug) {
         const dims = (it.custom_width_ft && it.custom_length_ft) ? formatRugDims(it.custom_width_ft, it.custom_length_ft) : '';
-        const carpet = [it.collection, it.color].filter(Boolean).join(' ') || it.product_name || '';
-        return ['Custom Area Rug', carpet, dims].filter(Boolean).join('  ·  ');
+        // Carpet as "<style>  ·  <color>". collection sometimes just echoes the brand
+        // (EF: "Engineered Floors" + code); style = brand-stripped product_name
+        // (collection fallback), color appended unless already present.
+        const rawBrand = it.brand_name || it.vendor_name || '';
+        const stripBrand = (s) => { let o = String(s || '').trim(); if (rawBrand) o = o.replace(new RegExp('^' + rawBrand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b\\s*', 'i'), '').trim(); return o; };
+        const normKey = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+        const style = stripBrand(it.product_name) || stripBrand(it.collection);
+        const colorPart = it.color && !(style && normKey(style).includes(normKey(it.color))) ? it.color : '';
+        return ['Custom Area Rug', dims, style, colorPart].filter(Boolean).join('  ·  ');
       }
       const isAcc = (it.variant_type || '').toLowerCase() === 'accessory';
       const accLabel = isAcc ? (it.accessory_label || it.variant_name) : null;
@@ -3430,6 +3525,8 @@
           setView('checkout');
         } else if (path === '/account' && sp.get('action') === 'set-password' && sp.get('token')) {
           setView('set-password');
+        } else if (path === '/account' && sp.get('action') === 'confirm-email' && sp.get('token')) {
+          setView('confirm-email');
         } else if (path === '/account' || path === '/shop/account' || path.startsWith('/account/')) {
           const sec = path.startsWith('/account/') ? path.replace('/account/', '').split('/')[0] : 'overview';
           setAccountSection(['overview', 'orders', 'quotes', 'samples', 'visits', 'wishlist', 'payment', 'settings'].includes(sec) ? sec : 'overview');
@@ -3721,7 +3818,7 @@
         // Lock body scroll when cart drawer is open
       }, [view, selectedCategory, selectedCollection, categories, currentPage]);
 
-      const isAuthPage = view === 'signin' || view === 'signup' || view === 'forgot-password' || view === 'set-password';
+      const isAuthPage = view === 'signin' || view === 'signup' || view === 'forgot-password' || view === 'set-password' || view === 'confirm-email';
       const isCheckoutFlow = view === 'checkout' || view === 'confirmation' || isAuthPage;
 
       return (
@@ -3972,6 +4069,10 @@
 
           {view === 'set-password' && (
             <SetPasswordPage onLogin={handleCustomerLogin} goHome={goHome} navigate={navigate} />
+          )}
+
+          {view === 'confirm-email' && (
+            <ConfirmEmailPage goHome={goHome} navigate={navigate} />
           )}
 
           {view === 'signin' && (
@@ -11953,6 +12054,14 @@
       const [profileError, setProfileError] = useState('');
       const [saving, setSaving] = useState(false);
 
+      // Verified email change (new address confirmed via link before it takes effect)
+      const [emailFormOpen, setEmailFormOpen] = useState(false);
+      const [emailNew, setEmailNew] = useState('');
+      const [emailPw, setEmailPw] = useState('');
+      const [emailMsg, setEmailMsg] = useState('');
+      const [emailError, setEmailError] = useState('');
+      const [emailSaving, setEmailSaving] = useState(false);
+
       const [currentPw, setCurrentPw] = useState('');
       const [newPw, setNewPw] = useState('');
       const [confirmPw, setConfirmPw] = useState('');
@@ -12193,6 +12302,24 @@
         setPwSaving(false);
       };
 
+      const requestEmailChange = async () => {
+        setEmailSaving(true); setEmailMsg(''); setEmailError('');
+        const e = emailNew.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) { setEmailError('Enter a valid email address.'); setEmailSaving(false); return; }
+        if (!emailPw) { setEmailError('Enter your current password to confirm.'); setEmailSaving(false); return; }
+        try {
+          const resp = await fetch(API + '/api/customer/email-change/request', {
+            method: 'POST', headers,
+            body: JSON.stringify({ new_email: e, current_password: emailPw })
+          });
+          const data = await resp.json();
+          if (!resp.ok) { setEmailError(data.error || 'Could not start the change.'); setEmailSaving(false); return; }
+          setEmailMsg('Check ' + e + ' for a confirmation link — your sign-in email changes only after you click it.');
+          setEmailNew(''); setEmailPw(''); setEmailFormOpen(false);
+        } catch(err) { setEmailError('Failed to start email change.'); }
+        setEmailSaving(false);
+      };
+
       const formatPhone = (val) => {
         const digits = val.replace(/\D/g, '').slice(0, 10);
         if (digits.length === 0) return '';
@@ -12252,7 +12379,7 @@
         { id: 'overview', label: 'Overview', meta: 'Snapshot' },
         { id: 'projects', label: 'Projects', meta: projectGroups.length ? projectGroups.length + (projectGroups.length === 1 ? ' project' : ' projects') : 'By sidemark' },
         { id: 'orders', label: 'Orders', meta: loadingOrders ? '…' : orders.length + ' lifetime' + (activeOrders.length ? ' · ' + activeOrders.length + ' active' : '') },
-        { id: 'quotes', label: 'Quotes', meta: loadingQuotes ? '…' : ((quotes.length + estimates.length) ? [quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : null, estimates.length ? estimates.length + (estimates.length === 1 ? ' estimate' : ' estimates') : null].filter(Boolean).join(' · ') : 'None yet') },
+        { id: 'quotes', label: 'Quotes', meta: loadingQuotes ? '…' : ((quotes.length + estimates.length) ? [quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : null, estimates.length ? estimates.length + (estimates.length === 1 ? ' construction estimate' : ' construction estimates') : null].filter(Boolean).join(' · ') : 'None yet') },
         { id: 'samples', label: 'Samples', meta: loadingSamples ? '…' : (sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? ' box' : ' boxes') + ' · ' + swatchCount + ' swatches' : 'None yet') },
         { id: 'visits', label: 'Visits', meta: loadingVisits ? '…' : (visits.length ? visits.length + (visits.length === 1 ? ' showroom visit' : ' showroom visits') : 'None yet') },
         { id: 'wishlist', label: 'Wishlist', meta: (wishlist || []).length ? wishlist.length + (wishlist.length === 1 ? ' item saved' : ' items saved') : 'Nothing saved yet' },
@@ -12917,9 +13044,9 @@
 
                 {estimates.length > 0 && (
                   <div style={{ marginTop: '2rem' }}>
-                    <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Project Estimates</div>
+                    <div className="acct-footer-card-sub" style={{ marginBottom: '0.5rem' }}>Construction Estimates</div>
                     <div className="acct-col-headers" style={quoteGrid}>
-                      <span>Estimate</span><span>Detail</span><span>Status</span><span style={{ textAlign: 'right' }}>Total</span><span />
+                      <span>Construction Estimate</span><span>Detail</span><span>Status</span><span style={{ textAlign: 'right' }}>Total</span><span />
                     </div>
                     <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
                       {estimates.map(est => {
@@ -13271,10 +13398,6 @@
                 </div>
               </div>
               <div style={fieldStyle}>
-                <label style={labelStyle}>Email</label>
-                <input style={{ ...inputStyle, background: 'var(--stone-100)', color: 'var(--stone-500)' }} value={customer.email} readOnly />
-              </div>
-              <div style={fieldStyle}>
                 <label style={labelStyle}>Phone</label>
                 <input style={inputStyle} type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" />
               </div>
@@ -13308,6 +13431,43 @@
               <button className="acct-btn" onClick={saveProfile} disabled={saving || !firstName.trim() || !lastName.trim()}>
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
+              </div>
+
+              <div className="acct-profile-section">
+              <h3 className="acct-profile-title">Email &amp; sign-in</h3>
+              {emailMsg && <div className="acct-msg--success">{emailMsg}</div>}
+              {emailError && <div className="acct-msg--error">{emailError}</div>}
+              <div style={fieldStyle}>
+                <label style={labelStyle}>Current sign-in email</label>
+                <input style={{ ...inputStyle, background: 'var(--stone-100)', color: 'var(--stone-500)' }} value={customer.email} readOnly />
+              </div>
+              {!emailFormOpen ? (
+                <button className="acct-btn acct-btn--outline" onClick={() => { setEmailFormOpen(true); setEmailMsg(''); setEmailError(''); }}>
+                  Change email &rarr;
+                </button>
+              ) : (
+                <div>
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>New Email</label>
+                    <input style={inputStyle} type="email" value={emailNew} onChange={e => setEmailNew(e.target.value)} placeholder="you@example.com" autoComplete="off" />
+                  </div>
+                  <div style={fieldStyle}>
+                    <label style={labelStyle}>Current Password</label>
+                    <input style={inputStyle} type="password" value={emailPw} onChange={e => setEmailPw(e.target.value)} autoComplete="current-password" />
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginBottom: '1rem' }}>
+                    We&rsquo;ll send a confirmation link to the new address. Your email &mdash; and everything tied to it, including store credit &mdash; changes only after you click it.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="acct-btn" onClick={requestEmailChange} disabled={emailSaving || !emailNew.trim() || !emailPw}>
+                      {emailSaving ? 'Sending...' : 'Send confirmation link'}
+                    </button>
+                    <button className="acct-btn acct-btn--outline" onClick={() => { setEmailFormOpen(false); setEmailNew(''); setEmailPw(''); setEmailError(''); }} disabled={emailSaving}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
               </div>
 
               <div className="acct-profile-section">
@@ -13891,7 +14051,7 @@
         { id: 'projects', label: 'Projects', meta: tProjectGroups.length ? tProjectGroups.length + (tProjectGroups.length === 1 ? ' project' : ' projects') : 'By sidemark' },
         { id: 'orders', label: 'Orders', meta: tOrderCount ? tOrderCount + ' total' : 'None yet' },
         { id: 'quotes', label: 'Quotes', meta: quotes.length ? quotes.length + (quotes.length === 1 ? ' quote' : ' quotes') : 'None yet' },
-        { id: 'estimates', label: 'Estimates', meta: estimates.length ? estimates.length + (estimates.length === 1 ? ' estimate' : ' estimates') : 'None yet' },
+        { id: 'estimates', label: 'Construction Estimates', meta: estimates.length ? estimates.length + (estimates.length === 1 ? ' construction estimate' : ' construction estimates') : 'None yet' },
         { id: 'samples', label: 'Samples', meta: sampleRequests.length ? sampleRequests.length + (sampleRequests.length === 1 ? ' box' : ' boxes') : 'None yet' },
         { id: 'visits', label: 'Visits', meta: visits.length ? visits.length + ' showroom' : 'Recaps' },
         { id: 'wishlist', label: 'Wishlist', meta: favorites.length ? favorites.length + ' saved' : 'Collections' },
@@ -13902,7 +14062,7 @@
         projects: { eyebrow: 'Grouped by sidemark', heading: <>Your <em>projects</em>.</> },
         orders: { eyebrow: 'Order history', heading: <>Your <em>orders</em>.</> },
         quotes: { eyebrow: 'Prepared by your rep', heading: <>Your <em>quotes</em>.</> },
-        estimates: { eyebrow: 'Project pricing from your rep', heading: <>Your <em>estimates</em>.</> },
+        estimates: { eyebrow: 'Project pricing from your rep', heading: <>Your <em>construction estimates</em>.</> },
         samples: { eyebrow: 'Boxes & swatches', heading: <>Your <em>samples</em>.</> },
         visits: { eyebrow: 'Showroom recaps', heading: <>Your <em>visits</em>.</> },
         wishlist: { eyebrow: 'Saved materials', heading: <>Your <em>wishlist</em>.</> },
@@ -14316,13 +14476,13 @@
                   <div>
                     {estimates.length === 0 ? (
                       <div className="acct-profile-section" style={{ textAlign: 'center' }}>
-                        <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No estimates yet.</p>
-                        <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: 0 }}>When your rep prepares a project estimate — materials and labor — it lands here.</p>
+                        <p style={{ color: 'var(--warm-muted)', marginBottom: '0.375rem' }}>No construction estimates yet.</p>
+                        <p style={{ color: 'var(--warm-muted)', fontSize: '0.8125rem', margin: 0 }}>When your rep prepares a construction estimate — materials and labor — it lands here.</p>
                       </div>
                     ) : (
                       <div>
                         <div className="acct-col-headers" style={estGrid}>
-                          <span>Estimate</span><span>Detail</span><span>Status</span><span style={{ textAlign: 'right' }}>Total</span><span />
+                          <span>Construction Estimate</span><span>Detail</span><span>Status</span><span style={{ textAlign: 'right' }}>Total</span><span />
                         </div>
                         <div className="acct-order-table" style={{ borderTop: 'none', borderRadius: '0 0 6px 6px' }}>
                           {estimates.map(est => {
@@ -14400,7 +14560,7 @@
                           })}
                         </div>
                         <div className="acct-pagination">
-                          <span>Showing {estimates.length} of {estimates.length} {estimates.length === 1 ? 'estimate' : 'estimates'}</span>
+                          <span>Showing {estimates.length} of {estimates.length} {estimates.length === 1 ? 'construction estimate' : 'construction estimates'}</span>
                           <span>&middot; &middot; &middot;</span>
                         </div>
                       </div>
@@ -15128,7 +15288,7 @@
       };
 
       const stepLabels = ['Company', 'Documents', 'Done'];
-      const docLabel = (type) => ({ ein: 'EIN Certificate *', resale_cert: 'Resale Certificate *', business_card: 'Business Card *' }[type] || type);
+      const docLabel = (type) => ({ ein: 'EIN Certificate *', resale_cert: 'Resale Certificate *', business_card: 'Business Card *', sellers_permit: "Seller's Permit (optional)" }[type] || type);
 
       return (
         <div className="trade-modal-overlay" onClick={onClose}>
@@ -15244,6 +15404,19 @@
                       Upload your business documents for verification. EIN, Resale Certificate, and Business Card are required.
                     </p>
                     {['ein', 'resale_cert', 'business_card'].map(docType => (
+                      <div key={docType}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.35rem' }}>
+                          {docLabel(docType)}
+                        </label>
+                        <div className={'trade-doc-upload' + (docUploads[docType] ? ' uploaded' : '')}
+                          onClick={() => { const inp = document.getElementById('doc-' + docType); if (inp) inp.click(); }}>
+                          {uploading === docType ? 'Uploading...' : docUploads[docType] ? docUploads[docType].file_name : 'Click to upload'}
+                          <input type="file" id={'doc-' + docType} accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }}
+                            onChange={e => handleDocUpload(docType, e.target.files[0])} />
+                        </div>
+                      </div>
+                    ))}
+                    {['sellers_permit'].map(docType => (
                       <div key={docType}>
                         <label style={{ display: 'block', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--stone-500)', marginBottom: '0.35rem' }}>
                           {docLabel(docType)}
@@ -15681,6 +15854,55 @@
           /* @__PURE__ */ React.createElement("span", null, "Already have a password?"),
           /* @__PURE__ */ React.createElement("a", { className: "auth-link", onClick: () => navigate("/signin") }, "Sign in \u2192")
         )
+      );
+    }
+
+    // ── Confirm Email Change ── (link clicked from the new inbox commits the swap)
+    function ConfirmEmailPage({ goHome, navigate }) {
+      const [status, setStatus] = useState('loading'); // loading | success | error
+      const [message, setMessage] = useState('');
+      const [newEmail, setNewEmail] = useState('');
+      useEffect(() => {
+        const token = new URLSearchParams(window.location.search).get('token');
+        if (!token) { setStatus('error'); setMessage('This confirmation link is invalid.'); return; }
+        (async () => {
+          try {
+            const resp = await fetch(API + '/api/customer/email-change/confirm', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ token })
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) { setStatus('error'); setMessage(data.error || 'This confirmation link is invalid or has expired.'); return; }
+            setNewEmail(data.email || '');
+            setStatus('success');
+            window.history.replaceState({}, '', '/account');
+          } catch (e) { setStatus('error'); setMessage('Something went wrong. Please try again.'); }
+        })();
+      }, []);
+      return (
+        <AuthPageShell goHome={goHome}
+          panelImage="https://images.unsplash.com/photo-1659362549741-c32157cc71f4?q=80&w=1471&auto=format&fit=crop"
+          panelEyebrow="Roma Flooring Designs"
+          panelHeadline={<>Your account, <em>updated</em>.</>}
+          panelSub="Confirming your new sign-in email keeps your orders, invoices, and store credit all in one place.">
+          <div>
+            <div className="auth-eyebrow">Account security</div>
+            <h1 className="auth-title">{status === 'success' ? 'Email confirmed' : status === 'error' ? 'Link problem' : 'Confirming...'}</h1>
+          </div>
+          {status === 'loading' && <p className="auth-subtitle">Confirming your new email address...</p>}
+          {status === 'success' && (
+            <div style={{ display: 'grid', gap: 18 }}>
+              <p className="auth-subtitle">Your sign-in email is now <strong>{newEmail}</strong>. For your security you have been signed out everywhere &mdash; sign in with your new email to continue.</p>
+              <button type="button" className="auth-cta" onClick={() => navigate('/signin')}>Sign in &rarr;</button>
+            </div>
+          )}
+          {status === 'error' && (
+            <div style={{ display: 'grid', gap: 18 }}>
+              <div className="auth-error">{message}</div>
+              <button type="button" className="auth-cta" onClick={() => navigate('/account')}>Go to my account &rarr;</button>
+            </div>
+          )}
+        </AuthPageShell>
       );
     }
 
@@ -17284,6 +17506,7 @@
                       )}
                     </div>
                   )}
+                  <TapDropzone theme={theme} label="Seller's permit · optional" docType="sellers_permit" upload={docUploads.sellers_permit} uploading={uploading} onFile={handleDocUpload} onRemove={removeDoc} />
                   <TapDropzone theme={theme} label="Contractor license · optional" docType="contractor_license" upload={docUploads.contractor_license} uploading={uploading} onFile={handleDocUpload} onRemove={removeDoc} />
                 </TapSection>
 
@@ -17451,19 +17674,12 @@
       const [loading, setLoading] = useState(true);
       const [error, setError] = useState(null); // 'not_found' | 'expired'
       const [expiredInfo, setExpiredInfo] = useState(null); // rep contact from 410 body
-      // Live status override once the customer accepts/declines without reloading
-      const [liveStatus, setLiveStatus] = useState(null);
-      const [liveAccept, setLiveAccept] = useState(null); // { accepted_by_name, accepted_at }
-      const [liveDecline, setLiveDecline] = useState(null); // { decline_reason }
-      const [acceptOpen, setAcceptOpen] = useState(false);
-      const [declineOpen, setDeclineOpen] = useState(false);
-      const [signName, setSignName] = useState('');
-      const [declineReason, setDeclineReason] = useState('');
-      const [submitting, setSubmitting] = useState(false);
-      const [actionError, setActionError] = useState('');
       const [isNarrow, setIsNarrow] = useState(typeof window !== 'undefined' && window.innerWidth <= 640);
+      const [isWide, setIsWide] = useState(typeof window !== 'undefined' && window.innerWidth >= 900);
       const [depositLoading, setDepositLoading] = useState(false);
       const [depositError, setDepositError] = useState('');
+      // No-deposit estimates approve without paying (converts to an order, balance due).
+      const [approveLoading, setApproveLoading] = useState(false);
       // Read ?deposit=success|cancelled once on mount (return from Stripe Checkout)
       const [depositResult, setDepositResult] = useState(() => {
         if (typeof window === 'undefined') return null;
@@ -17472,7 +17688,7 @@
       });
 
       useEffect(() => {
-        const onResize = () => setIsNarrow(window.innerWidth <= 640);
+        const onResize = () => { setIsNarrow(window.innerWidth <= 640); setIsWide(window.innerWidth >= 900); };
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
       }, []);
@@ -17517,58 +17733,6 @@
       const money = (v) => '$' + parseFloat(v || 0).toFixed(2);
       const fmtDay = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
 
-      const submitAccept = async () => {
-        setActionError('');
-        const trimmed = signName.trim();
-        if (trimmed.split(/\s+/).filter(Boolean).length < 2) {
-          setActionError('Please type your full name to accept'); return;
-        }
-        setSubmitting(true);
-        try {
-          const resp = await fetch(API + '/api/estimate-view/' + token + '/accept', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: trimmed })
-          });
-          if (resp.status === 410) {
-            setAcceptOpen(false); setError('expired');
-            const body = await resp.json().catch(() => ({}));
-            setExpiredInfo(body && body.estimate);
-            setSubmitting(false); return;
-          }
-          const body = await resp.json().catch(() => ({}));
-          if (!resp.ok) { setActionError(body.error || 'Something went wrong. Please try again.'); setSubmitting(false); return; }
-          setLiveStatus('accepted');
-          setLiveAccept({ accepted_by_name: trimmed, accepted_at: new Date().toISOString() });
-          setAcceptOpen(false); setSubmitting(false);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        } catch (e) {
-          setActionError('Something went wrong. Please try again.'); setSubmitting(false);
-        }
-      };
-
-      const submitDecline = async () => {
-        setActionError(''); setSubmitting(true);
-        try {
-          const resp = await fetch(API + '/api/estimate-view/' + token + '/decline', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reason: declineReason.trim() || undefined })
-          });
-          if (resp.status === 410) {
-            setDeclineOpen(false); setError('expired');
-            const body = await resp.json().catch(() => ({}));
-            setExpiredInfo(body && body.estimate);
-            setSubmitting(false); return;
-          }
-          if (!resp.ok) { const b = await resp.json().catch(() => ({})); setActionError(b.error || 'Something went wrong. Please try again.'); setSubmitting(false); return; }
-          setLiveStatus('declined');
-          setLiveDecline({ decline_reason: declineReason.trim() || null });
-          setDeclineOpen(false); setSubmitting(false);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        } catch (e) {
-          setActionError('Something went wrong. Please try again.'); setSubmitting(false);
-        }
-      };
-
       const payDeposit = async () => {
         setDepositError(''); setDepositLoading(true);
         try {
@@ -17581,6 +17745,25 @@
           window.location.href = body.checkout_url;
         } catch (e) {
           setDepositError('Something went wrong. Please try again.'); setDepositLoading(false);
+        }
+      };
+
+      // Approve a no-deposit estimate without paying — converts to an order on
+      // terms (full balance due), then re-fetches the view to show the accepted state.
+      const approveEstimate = async () => {
+        setDepositError(''); setApproveLoading(true);
+        try {
+          const resp = await fetch(API + '/api/estimate-view/' + token + '/approve', { method: 'POST' });
+          const body = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            setDepositError(body.error || 'Something went wrong. Please try again.');
+            setApproveLoading(false); return;
+          }
+          const r = await fetch(API + '/api/estimate-view/' + token);
+          if (r && r.ok) setData(await r.json());
+          setApproveLoading(false);
+        } catch (e) {
+          setDepositError('Something went wrong. Please try again.'); setApproveLoading(false);
         }
       };
 
@@ -17632,7 +17815,7 @@
       const docNoun = docType === 'Quote' ? 'quote' : 'estimate';
       const docLabel = docType === 'Quote' ? 'Quote' : 'Estimate'; // short, capitalized
       const scopeOfWork = (est.scope_of_work || '').trim();
-      const status = liveStatus || est.status;
+      const status = est.status;
 
       const addr = [
         est.project_address_line1,
@@ -17645,13 +17828,22 @@
       const showActions = status === 'sent';
       const depositAmount = parseFloat(est.deposit_amount || 0);
       const hasDeposit = depositAmount > 0;
-      // Show pay-deposit CTA only when accepted, deposit configured, and not yet converted to an order
+      // Two acceptance paths: a deposit estimate accepts by PAYING the deposit
+      // (payment IS acceptance). A no-deposit estimate is APPROVED without paying —
+      // it converts to an order with the full balance due (no upfront charge).
+      const payAmount = hasDeposit ? depositAmount : parseFloat(est.total || 0);
+      const acceptPayLabel = depositLoading
+        ? 'Redirecting…'
+        : 'Accept & pay ' + (est.deposit_from_schedule ? (est.deposit_label || 'deposit') : 'deposit') + ' · ' + money(payAmount);
+      const approveLabel = approveLoading ? 'Approving…' : 'Approve estimate';
+      // Legacy pay-deposit CTA: only for older estimates already 'accepted' (typed-name
+      // era) that haven't been paid/converted yet. New estimates accept via payment.
       const canPayDeposit = hasDeposit && status === 'accepted' && !est.converted_order_id;
 
       const renderDepositCta = () => {
         if (!canPayDeposit) return null;
         return (
-          <div style={{ marginTop: '0.9rem' }}>
+          <div>
             {depositResult !== 'success' && (
               <button className="btn" style={{ padding: '0.85rem 1.75rem' }} onClick={payDeposit} disabled={depositLoading}>
                 {depositLoading ? 'Redirecting…'
@@ -17666,45 +17858,35 @@
       };
 
       const bannerStyles = {
-        accepted: { bg: '#f0fdf4', border: '#bbf7d0', color: '#166534' },
-        declined: { bg: 'var(--stone-50)', border: 'rgba(28,25,23,0.14)', color: 'var(--stone-700)' },
+        accepted: { bg: 'linear-gradient(180deg, rgba(135,153,107,0.16), rgba(135,153,107,0.09))', border: 'rgba(107,127,85,0.42)', color: 'var(--sage-dark)' },
         converted: { bg: 'rgba(216,205,182,0.35)', border: 'rgba(168,121,53,0.3)', color: '#7a5a1e' },
       };
 
       const renderStatusBanner = () => {
         if (status === 'accepted') {
-          const by = (liveAccept && liveAccept.accepted_by_name) || est.accepted_by_name;
-          const at = (liveAccept && liveAccept.accepted_at) || est.accepted_at;
+          const by = est.accepted_by_name;
+          const at = est.accepted_at;
           const s = bannerStyles.accepted;
+          const depositCta = renderDepositCta();
           return (
-            <div style={{ background: s.bg, border: '1px solid ' + s.border, color: s.color, borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem' }}>
+            <div style={{ background: s.bg, border: '1px solid ' + s.border, color: s.color, borderRadius: 3, padding: '1.15rem 1.4rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1.25rem', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{docType === 'Quote' ? 'Quote' : 'Estimate'} accepted{by ? ' by ' + by : ''}</div>
+                  <div style={{ fontWeight: 600, fontSize: '1rem' }}>{docType === 'Quote' ? 'Quote' : 'Estimate'} accepted{by ? ' by ' + by : ''}</div>
                   {at && <div style={{ fontSize: '0.8125rem', opacity: 0.85, marginTop: '0.15rem' }}>Accepted {fmtDay(at)}. Your rep will follow up with next steps.</div>}
                 </div>
               </div>
-              {renderDepositCta()}
-            </div>
-          );
-        }
-        if (status === 'declined') {
-          const reason = (liveDecline && liveDecline.decline_reason) || est.decline_reason;
-          const s = bannerStyles.declined;
-          return (
-            <div style={{ background: s.bg, border: '1px solid ' + s.border, color: s.color, borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem' }}>
-              <div style={{ fontWeight: 600 }}>This {docNoun} was declined</div>
-              {reason && <div style={{ fontSize: '0.8125rem', opacity: 0.9, marginTop: '0.3rem', lineHeight: 1.5 }}>Reason: {reason}</div>}
-              <div style={{ fontSize: '0.8125rem', opacity: 0.85, marginTop: '0.3rem' }}>Changed your mind or need adjustments? Contact your rep below.</div>
+              {depositCta && <div style={{ flexShrink: 0 }}>{depositCta}</div>}
             </div>
           );
         }
         if (status === 'converted') {
           const s = bannerStyles.converted;
           return (
-            <div style={{ background: s.bg, border: '1px solid ' + s.border, color: s.color, borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem', fontWeight: 600 }}>
-              This {docNoun} has been converted to an order.
+            <div style={{ background: s.bg, border: '1px solid ' + s.border, color: s.color, borderRadius: 3, padding: '1.15rem 1.4rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24" style={{ flexShrink: 0 }}><path d="M20 6L9 17l-5-5"/></svg>
+              <div style={{ fontWeight: 600, fontSize: '1rem' }}>This {docNoun} has been converted to an order.</div>
             </div>
           );
         }
@@ -17768,25 +17950,155 @@
         );
       };
 
-      return (
-        <div style={{ maxWidth: 820, margin: '0 auto', padding: '3rem 1.5rem', paddingBottom: showActions ? '7rem' : '3rem' }}>
-          {/* Header */}
-          <div style={{ marginBottom: '2rem' }}>
-            <div style={{ fontSize: '0.6875rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.6rem' }}>
-              {docType}{est.estimate_number ? ' · ' + est.estimate_number : ''}
+      // Shared surface styling — warm editorial: cream paper, sharp corners, gold hairlines.
+      const cardBase = { background: '#fffdf9', border: '1px solid rgba(28,25,23,0.14)', borderRadius: 3 };
+      const softShadow = '0 2px 5px rgba(21,18,15,0.04), 0 14px 34px -22px rgba(21,18,15,0.20)';
+      const railShadow = '0 3px 8px rgba(21,18,15,0.05), 0 26px 60px -30px rgba(21,18,15,0.38)';
+      const microLabel = { fontSize: '0.625rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--gold-dark)', fontWeight: 600, fontFamily: 'var(--font-body)' };
+      // Editorial section head: serif numeral in gold + serif title over a hairline rule.
+      const sectionHead = (num, title, amount) => (
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '1rem', paddingBottom: '0.65rem', borderBottom: '1.5px solid var(--charcoal, #2a2523)', marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.65rem' }}>
+            {num != null && <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.6875rem', color: 'var(--gold-dark)', fontWeight: 700, letterSpacing: '0.12em', fontVariantNumeric: 'tabular-nums' }}>{num}</span>}
+            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', color: 'var(--stone-900)', lineHeight: 1 }}>{title}</span>
+          </div>
+          {amount != null && <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: 'var(--stone-700)', whiteSpace: 'nowrap', fontSize: '1rem' }}>{amount}</span>}
+        </div>
+      );
+
+      const metaCells = [
+        est.customer_name && { k: 'Prepared for', v: est.customer_name },
+        (est.sent_at || est.created_at) && { k: 'Issued', v: fmtDay(est.sent_at || est.created_at) },
+        est.expires_at && { k: 'Valid through', v: fmtDay(est.expires_at) },
+        { k: 'Estimated total', v: money(est.total), accent: true },
+      ].filter(Boolean);
+
+      // ---- Right rail: summary, schedule, rep (sticky on desktop, stacked on mobile) ----
+      const summaryCard = (
+        <div style={{ ...cardBase, boxShadow: railShadow, overflow: 'hidden' }}>
+          <div style={{ padding: '1.35rem 1.5rem 1.25rem' }}>
+            <div style={{ ...microLabel, marginBottom: '0.9rem' }}>{docLabel} summary</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.3rem 0' }}>
+              <span>Materials</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(est.materials_subtotal)}</span>
             </div>
-            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.5rem', fontWeight: 400, lineHeight: 1.1, margin: '0 0 0.75rem' }}>
+            {laborTotal > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.3rem 0' }}>
+                <span>Labor &amp; Services</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(est.labor_subtotal)}</span>
+              </div>
+            )}
+            {taxAmt > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.3rem 0' }}>
+                <span>Tax{est.tax_rate ? ' (' + (parseFloat(est.tax_rate) * 100).toFixed(2).replace(/\.?0+$/, '') + '%)' : ''}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(est.tax_amount)}</span>
+              </div>
+            )}
+          </div>
+          {/* Gold-tinted total band — the visual anchor */}
+          <div style={{ background: 'linear-gradient(180deg, rgba(200,166,104,0.14), rgba(168,121,53,0.10))', borderTop: '1px solid rgba(168,121,53,0.28)', borderBottom: (hasDeposit && status === 'sent') ? '1px solid rgba(168,121,53,0.22)' : 'none', padding: '0.95rem 1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', color: 'var(--stone-900)' }}>Total</span>
+              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', lineHeight: 1, color: 'var(--gold-dark)', fontVariantNumeric: 'tabular-nums' }}>{money(est.total)}</span>
+            </div>
+            {hasDeposit && status === 'sent' && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--stone-600)' }}>
+                <span>{est.deposit_from_schedule ? (est.deposit_label || 'Deposit') + ' due on acceptance' : 'Deposit due on acceptance'}</span>
+                <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--stone-800)', fontWeight: 600 }}>{money(depositAmount)}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Action footer (desktop & tablet); narrow uses sticky bar. A deposit
+              estimate accepts by paying; a no-deposit estimate approves for free. */}
+          {showActions && !isNarrow && (
+            <div style={{ padding: '1.25rem 1.5rem 1.4rem' }}>
+              {hasDeposit ? (
+                <button className="btn" style={{ width: '100%', padding: '0.95rem', fontSize: '0.9375rem' }} onClick={payDeposit} disabled={depositLoading}>{acceptPayLabel}</button>
+              ) : (
+                <button className="btn" style={{ width: '100%', padding: '0.95rem', fontSize: '0.9375rem' }} onClick={approveEstimate} disabled={approveLoading}>{approveLabel}</button>
+              )}
+              {depositError && <div className="checkout-error" style={{ marginTop: '0.6rem' }}>{depositError}</div>}
+              <div style={{ marginTop: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--stone-400)', textAlign: 'center' }}>
+                {hasDeposit ? (
+                  <React.Fragment>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="12" height="12"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <span>Secure payment via Stripe · balance due later{est.expires_at ? ' · valid through ' + fmtDay(est.expires_at) : ''}</span>
+                  </React.Fragment>
+                ) : (
+                  <span>No payment due now · your rep will arrange the balance{est.expires_at ? ' · valid through ' + fmtDay(est.expires_at) : ''}</span>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+
+      const scheduleCard = milestones.length > 0 ? (
+        <div style={{ ...cardBase, boxShadow: softShadow, padding: '1.35rem 1.5rem' }}>
+          <div style={{ ...microLabel, marginBottom: '0.85rem' }}>Payment schedule</div>
+          {milestones.map((m, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0.45rem 0', borderBottom: i < milestones.length - 1 ? '0.5px solid rgba(28,25,23,0.08)' : 'none' }}>
+              <span style={{ fontSize: '0.9375rem', color: 'var(--stone-700)' }}>
+                {m.label}
+                {m.percent ? <span style={{ color: 'var(--stone-400)' }}> · {parseFloat(m.percent)}%</span> : null}
+                {m.due_label ? <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: 2 }}>{m.due_label}</span> : null}
+              </span>
+              <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500, color: 'var(--stone-800)', whiteSpace: 'nowrap' }}>{money(m.amount)}</span>
+            </div>
+          ))}
+          <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.85rem', lineHeight: 1.5 }}>
+            Accepting this {docNoun} confirms your agreement to this payment schedule.
+          </div>
+        </div>
+      ) : null;
+
+      const repCard = (est.rep_name || est.rep_email) ? (
+        <div style={{ ...cardBase, boxShadow: softShadow, padding: '1.25rem 1.4rem' }}>
+          <div style={{ ...microLabel, marginBottom: '0.55rem' }}>Your representative</div>
+          {est.rep_name && <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', color: 'var(--stone-800)', lineHeight: 1.2 }}>{est.rep_name}</div>}
+          <div style={{ marginTop: '0.5rem', fontSize: '0.9375rem', color: 'var(--stone-600)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            {est.rep_email && <a href={'mailto:' + est.rep_email} style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>{est.rep_email}</a>}
+            <a href="tel:+17149990009" style={{ color: 'var(--stone-600)', textDecoration: 'none' }}>(714) 999-0009</a>
+          </div>
+        </div>
+      ) : null;
+
+      return (
+        <div style={{ maxWidth: isWide ? 1080 : 820, margin: '0 auto', padding: isNarrow ? '1.75rem 1.15rem' : '3rem 1.5rem', paddingBottom: (showActions && isNarrow) ? '7rem' : (isNarrow ? '3rem' : '4rem') }}>
+          {/* Letterhead masthead — dark warm band for contrast + editorial anchor */}
+          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 3, background: 'radial-gradient(120% 140% at 15% 0%, #35302b 0%, #241f1b 55%, #1a1613 100%)', color: '#f3ecdd', boxShadow: '0 3px 8px rgba(21,18,15,0.06), 0 30px 70px -34px rgba(21,18,15,0.6)', padding: isNarrow ? '2rem 1.5rem 1.75rem' : '3rem 3rem 2.5rem', marginBottom: '1.25rem' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, var(--gold-dark), var(--gold-light) 55%, var(--gold))' }} />
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: isNarrow ? '1.5rem' : '2rem' }}>
+              <div style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.32em', textIndent: '0.32em', fontSize: '0.8125rem', color: '#e8dcc4', textTransform: 'uppercase', paddingTop: '0.35rem' }}>Roma Flooring Designs</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: isNarrow ? 'flex-start' : 'flex-end', gap: '0.65rem' }}>
+                <div style={{ fontSize: '0.6875rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--gold-light)', fontWeight: 600 }}>
+                  {docType}{est.estimate_number ? ' · ' + est.estimate_number : ''}
+                </div>
+                <a href={API + '/api/estimate-view/' + token + '/pdf'} target="_blank" rel="noopener" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', border: '1px solid rgba(200,166,104,0.55)', color: '#f3ecdd', background: 'rgba(200,166,104,0.08)', padding: '0.45rem 0.9rem', borderRadius: 3, fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600, textDecoration: 'none', transition: 'background 0.15s, border-color 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(200,166,104,0.2)'; e.currentTarget.style.borderColor = 'var(--gold-light)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(200,166,104,0.08)'; e.currentTarget.style.borderColor = 'rgba(200,166,104,0.55)'; }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download PDF
+                </a>
+              </div>
+            </div>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: isNarrow ? '2.25rem' : '3.25rem', fontWeight: 400, lineHeight: 1.04, margin: '0 0 0.55rem', color: '#fdfaf3' }}>
               {est.project_name || 'Your Project'}
             </h1>
             {addr.length > 0 && (
-              <div style={{ color: 'var(--stone-600)', fontSize: '0.9375rem', lineHeight: 1.5 }}>
+              <div style={{ color: 'rgba(243,236,221,0.62)', fontSize: '0.9375rem', lineHeight: 1.5 }}>
                 {addr.map((line, i) => <div key={i}>{line}</div>)}
               </div>
             )}
-            <div style={{ marginTop: '0.85rem', display: 'flex', flexWrap: 'wrap', gap: '0.35rem 1.5rem', color: 'var(--stone-500)', fontSize: '0.875rem' }}>
-              {est.customer_name && <span>Prepared for <strong style={{ color: 'var(--stone-700)', fontWeight: 500 }}>{est.customer_name}</strong></span>}
-              {(est.sent_at || est.created_at) && <span>{fmtDay(est.sent_at || est.created_at)}</span>}
-              {est.expires_at && <span>Valid through {fmtDay(est.expires_at)}</span>}
+            {/* Meta strip */}
+            <div style={{ marginTop: isNarrow ? '1.75rem' : '2.25rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(200,166,104,0.28)', display: 'flex', flexWrap: 'wrap', rowGap: '1.1rem' }}>
+              {metaCells.map((c, i) => (
+                <div key={i} style={{ flex: '1 1 auto', minWidth: 128, padding: i === 0 ? '0 1.5rem 0 0' : '0 1.5rem', borderLeft: i === 0 ? 'none' : '1px solid rgba(200,166,104,0.22)' }}>
+                  <div style={{ fontSize: '0.625rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--gold-light)', fontWeight: 600, marginBottom: '0.4rem' }}>{c.k}</div>
+                  <div style={c.accent
+                    ? { fontFamily: 'var(--font-heading)', fontSize: '1.5rem', color: '#f6d99a', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }
+                    : { fontSize: '0.9375rem', color: '#f3ecdd', fontWeight: 500 }}>{c.v}</div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -17794,176 +18106,79 @@
 
           {/* Deposit payment return banner (from Stripe Checkout) */}
           {depositResult === 'success' && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="22" height="22" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              <div style={{ fontWeight: 600 }}>Deposit received — thank you! Your rep will follow up to schedule the work.</div>
+            <div style={{ background: bannerStyles.accepted.bg, border: '1px solid ' + bannerStyles.accepted.border, color: bannerStyles.accepted.color, borderRadius: 3, padding: '1.15rem 1.4rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <div style={{ fontWeight: 600, fontSize: '1rem' }}>Deposit received — thank you! Your rep will follow up to schedule the work.</div>
             </div>
           )}
           {depositResult === 'cancelled' && (
-            <div style={{ background: 'var(--stone-50)', border: '1px solid rgba(28,25,23,0.14)', color: 'var(--stone-700)', borderRadius: 6, padding: '1.1rem 1.35rem', marginBottom: '2rem' }}>
-              <div style={{ fontWeight: 600 }}>Deposit payment cancelled</div>
-              <div style={{ fontSize: '0.8125rem', opacity: 0.9, marginTop: '0.3rem' }}>No charge was made — you can pay your deposit anytime from this page.</div>
-            </div>
-          )}
-
-          {/* Rep card */}
-          {(est.rep_name || est.rep_email) && (
-            <div style={{ background: 'var(--stone-50)', border: '0.5px solid rgba(28,25,23,0.12)', borderRadius: 6, padding: '1.15rem 1.35rem', marginBottom: '2rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+            <div style={{ background: 'var(--stone-50)', border: '1px solid rgba(28,25,23,0.14)', color: 'var(--stone-700)', borderRadius: 3, padding: '1.15rem 1.4rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24" style={{ flexShrink: 0, marginTop: '0.05rem' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <div>
-                <div style={{ fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.3rem' }}>Prepared by</div>
-                {est.rep_name && <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', color: 'var(--stone-800)' }}>{est.rep_name}</div>}
-              </div>
-              <div style={{ textAlign: 'right', fontSize: '0.9375rem' }}>
-                {est.rep_email && <div><a href={'mailto:' + est.rep_email} style={{ color: 'var(--stone-700)', textDecoration: 'underline' }}>{est.rep_email}</a></div>}
-                <div style={{ color: 'var(--stone-600)', marginTop: '0.2rem' }}>(714) 999-0009</div>
+                <div style={{ fontWeight: 600, fontSize: '1rem' }}>Deposit payment cancelled</div>
+                <div style={{ fontSize: '0.8125rem', opacity: 0.9, marginTop: '0.3rem' }}>No charge was made — you can pay your deposit anytime from this page.</div>
               </div>
             </div>
           )}
 
-          {/* Two groups: Materials, then Labor & Services (with scope of work) */}
-          <div style={{ marginBottom: '2.5rem' }}>
-            {materials.length > 0 && (
-              <div style={{ marginBottom: (labor.length > 0 || scopeOfWork) ? '2rem' : 0 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '1rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '0.25rem' }}>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.375rem', color: 'var(--stone-800)' }}>Materials</div>
-                  <div style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: 'var(--stone-700)', whiteSpace: 'nowrap' }}>{money(est.materials_subtotal)}</div>
-                </div>
-                <div>{materials.map((item, ii) => renderMaterialRow(item, 'm-' + ii))}</div>
-              </div>
-            )}
-            {(labor.length > 0 || scopeOfWork) && (
-              <div>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '1rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--stone-200)', marginBottom: '0.25rem' }}>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.375rem', color: 'var(--stone-800)' }}>Labor &amp; Services</div>
-                  {parseFloat(est.labor_subtotal || 0) > 0 && (
-                    <div style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: 'var(--stone-700)', whiteSpace: 'nowrap' }}>{money(est.labor_subtotal)}</div>
-                  )}
-                </div>
-                {scopeOfWork && (
-                  <div style={{ margin: '0.75rem 0 1rem' }}>
-                    <div style={{ fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.35rem' }}>Scope of work</div>
-                    <p style={{ color: 'var(--stone-700)', fontSize: '0.9375rem', lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap' }}>{scopeOfWork}</p>
+          {/* Body: line items (left) + sticky summary rail (right) */}
+          <div style={{ display: isWide ? 'grid' : 'block', gridTemplateColumns: isWide ? 'minmax(0, 1fr) 340px' : 'none', gap: isWide ? '2rem' : 0, alignItems: 'start' }}>
+            {/* Left — proposal body */}
+            <div>
+              <div style={{ ...cardBase, boxShadow: softShadow, padding: isNarrow ? '1.35rem 1.35rem 0.5rem' : '1.75rem 2rem 0.75rem', marginBottom: '1.5rem' }}>
+                {materials.length > 0 && (
+                  <div style={{ marginBottom: (labor.length > 0 || scopeOfWork) ? '2rem' : '1rem' }}>
+                    {sectionHead(labor.length > 0 || scopeOfWork ? '01' : null, 'Materials', money(est.materials_subtotal))}
+                    <div>{materials.map((item, ii) => renderMaterialRow(item, 'm-' + ii))}</div>
                   </div>
                 )}
-                <div>{labor.map((item, ii) => renderLaborRow(item, 'l-' + ii))}</div>
+                {(labor.length > 0 || scopeOfWork) && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    {sectionHead(materials.length > 0 ? '02' : null, 'Labor & Services', parseFloat(est.labor_subtotal || 0) > 0 ? money(est.labor_subtotal) : null)}
+                    {scopeOfWork && (
+                      <div style={{ margin: '0.85rem 0 1rem' }}>
+                        <div style={{ ...microLabel, marginBottom: '0.35rem' }}>Scope of work</div>
+                        <p style={{ color: 'var(--stone-700)', fontSize: '0.9375rem', lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap' }}>{scopeOfWork}</p>
+                      </div>
+                    )}
+                    <div>{labor.map((item, ii) => renderLaborRow(item, 'l-' + ii))}</div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Totals */}
-          <div style={{ background: 'var(--stone-50)', border: '0.5px solid rgba(28,25,23,0.12)', borderRadius: 6, padding: '1.5rem 1.75rem', marginBottom: '2rem', maxWidth: 420, marginLeft: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.35rem 0' }}>
-              <span>Materials</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(est.materials_subtotal)}</span>
-            </div>
-            {laborTotal > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.35rem 0' }}>
-                <span>Labor &amp; Services</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(est.labor_subtotal)}</span>
-              </div>
-            )}
-            {taxAmt > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.35rem 0' }}>
-                <span>Tax{est.tax_rate ? ' (' + (parseFloat(est.tax_rate) * 100).toFixed(2).replace(/\.?0+$/, '') + '%, materials only)' : ' (materials only)'}</span>
-                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(est.tax_amount)}</span>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: '0.6rem', paddingTop: '0.75rem', borderTop: '1px solid var(--stone-200)' }}>
-              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', color: 'var(--stone-800)' }}>Grand Total</span>
-              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', color: 'var(--stone-900)', fontVariantNumeric: 'tabular-nums' }}>{money(est.total)}</span>
-            </div>
-          </div>
-
-          {/* Payment schedule (draw schedule) */}
-          {milestones.length > 0 && (
-            <div style={{ background: 'var(--stone-50)', border: '0.5px solid rgba(28,25,23,0.12)', borderRadius: 6, padding: '1.5rem 1.75rem', marginBottom: '2rem', maxWidth: 420, marginLeft: 'auto' }}>
-              <div style={{ fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.85rem' }}>Payment schedule</div>
-              {milestones.map((m, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0.4rem 0', borderBottom: i < milestones.length - 1 ? '1px solid var(--stone-200)' : 'none' }}>
-                  <span style={{ fontSize: '0.9375rem', color: 'var(--stone-700)' }}>
-                    {m.label}
-                    {m.percent ? <span style={{ color: 'var(--stone-400)' }}> · {parseFloat(m.percent)}%</span> : null}
-                    {m.due_label ? <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: 2 }}>{m.due_label}</span> : null}
-                  </span>
-                  <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 500, color: 'var(--stone-800)', whiteSpace: 'nowrap' }}>{money(m.amount)}</span>
+              {/* Customer notes */}
+              {est.notes && String(est.notes).trim() && (
+                <div style={{ marginBottom: '1.5rem', padding: '1.25rem 1.5rem', background: 'var(--stone-50)', border: '0.5px solid rgba(28,25,23,0.1)', borderLeft: '3px solid var(--gold)', borderRadius: 3 }}>
+                  <div style={{ ...microLabel, marginBottom: '0.5rem' }}>Notes</div>
+                  <p style={{ margin: 0, color: 'var(--stone-700)', fontSize: '0.9375rem', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{est.notes}</p>
                 </div>
-              ))}
-              <div style={{ fontSize: '0.75rem', color: 'var(--stone-500)', marginTop: '0.85rem', lineHeight: 1.5 }}>
-                Accepting this {docNoun} confirms your agreement to this payment schedule.
-              </div>
+              )}
             </div>
-          )}
 
-          {/* Customer notes */}
-          {est.notes && String(est.notes).trim() && (
-            <div style={{ marginBottom: '2rem', padding: '1.25rem 1.5rem', background: 'var(--stone-50)', borderLeft: '3px solid var(--gold)' }}>
-              <div style={{ fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.5rem' }}>Notes</div>
-              <p style={{ margin: 0, color: 'var(--stone-700)', fontSize: '0.9375rem', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>{est.notes}</p>
+            {/* Right — sticky rail */}
+            <div style={{ position: isWide ? 'sticky' : 'static', top: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: isWide ? 0 : '0.5rem' }}>
+              {summaryCard}
+              {scheduleCard}
+              {repCard}
             </div>
-          )}
-
-          {/* Inline action buttons (desktop); mobile uses the sticky bar below */}
-          {showActions && !isNarrow && (
-            <div className="est-actions-inline" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '1rem' }}>
-              <button className="btn" style={{ flex: '1 1 200px', padding: '1rem' }} onClick={() => { setActionError(''); setAcceptOpen(true); }}>Accept {docLabel}</button>
-              <button className="btn btn-secondary" style={{ flex: '1 1 140px', padding: '1rem' }} onClick={() => { setActionError(''); setDeclineOpen(true); }}>Decline</button>
-            </div>
-          )}
+          </div>
 
           {/* Footer contact */}
-          <div style={{ textAlign: 'center', paddingTop: '2.5rem', marginTop: '2.5rem', borderTop: '1px solid var(--stone-200)' }}>
+          <div style={{ textAlign: 'center', paddingTop: '2.5rem', marginTop: '1.5rem', borderTop: '1px solid var(--stone-200)' }}>
             <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Questions? Contact us at (714) 999-0009</p>
-            <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>Roma Flooring Designs · 1440 S. State College Blvd Suite 6M, Anaheim, CA 92806</p>
+            <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>Roma Flooring Designs · 1440 S. State College Blvd Suite 6M, Anaheim, CA 92806 · Lic. #830966</p>
           </div>
 
-          {/* Sticky mobile action bar */}
+          {/* Sticky mobile action bar — accept via payment, or approve when no deposit */}
           {showActions && isNarrow && (
             <div className="est-sticky-bar" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900, background: '#fff', borderTop: '1px solid var(--stone-200)', boxShadow: '0 -4px 20px rgba(0,0,0,0.08)', padding: '0.75rem 1rem' }}>
-              <div style={{ maxWidth: 820, margin: '0 auto', display: 'flex', gap: '0.6rem' }}>
-                <button className="btn btn-secondary" style={{ flex: '0 0 auto', padding: '0.85rem 1.25rem' }} onClick={() => { setActionError(''); setDeclineOpen(true); }}>Decline</button>
-                <button className="btn" style={{ flex: 1, padding: '0.85rem' }} onClick={() => { setActionError(''); setAcceptOpen(true); }}>Accept {docLabel}</button>
-              </div>
-            </div>
-          )}
-
-          {/* Accept modal */}
-          {acceptOpen && (
-            <div className="modal-overlay" onClick={() => !submitting && setAcceptOpen(false)}>
-              <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <button className="modal-close" onClick={() => setAcceptOpen(false)}>&times;</button>
-                <h2 style={{ marginBottom: '0.5rem' }}>Accept {docLabel}</h2>
-                <p style={{ color: 'var(--stone-600)', fontSize: '0.9rem', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-                  Type your full name below to accept this {docNoun}. Typing your name constitutes acceptance of this {docNoun}
-                  {milestones.length > 0 ? ' and agreement to the payment schedule shown above' : ''}.
-                  {hasDeposit && ' A ' + money(depositAmount) + ' deposit secures your project — you can pay it right after accepting.'}
-                </p>
-                <div className="checkout-field">
-                  <label>Full name</label>
-                  <input className="checkout-input" value={signName} onChange={e => setSignName(e.target.value)} placeholder="Your full name" autoFocus onKeyDown={e => { if (e.key === 'Enter') submitAccept(); }} />
-                </div>
-                {actionError && <div className="checkout-error" style={{ marginTop: '0.5rem' }}>{actionError}</div>}
-                <button className="btn" style={{ width: '100%', padding: '0.95rem', marginTop: '1rem' }} onClick={submitAccept} disabled={submitting}>
-                  {submitting ? 'Submitting…' : 'Confirm & Accept'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Decline modal */}
-          {declineOpen && (
-            <div className="modal-overlay" onClick={() => !submitting && setDeclineOpen(false)}>
-              <div className="modal-content" onClick={e => e.stopPropagation()}>
-                <button className="modal-close" onClick={() => setDeclineOpen(false)}>&times;</button>
-                <h2 style={{ marginBottom: '0.5rem' }}>Decline {docLabel}</h2>
-                <p style={{ color: 'var(--stone-600)', fontSize: '0.9rem', marginBottom: '1.25rem', lineHeight: 1.6 }}>
-                  If you'd like, let your rep know why — this is optional and helps us make it right.
-                </p>
-                <div className="checkout-field">
-                  <label>Reason (optional)</label>
-                  <textarea className="checkout-input" rows={3} style={{ resize: 'none' }} value={declineReason} onChange={e => setDeclineReason(e.target.value)} maxLength={1000} placeholder="Anything you'd like your rep to know…" />
-                </div>
-                {actionError && <div className="checkout-error" style={{ marginTop: '0.5rem' }}>{actionError}</div>}
-                <button className="btn btn-secondary" style={{ width: '100%', padding: '0.95rem', marginTop: '1rem' }} onClick={submitDecline} disabled={submitting}>
-                  {submitting ? 'Submitting…' : 'Confirm Decline'}
-                </button>
+              <div style={{ maxWidth: 820, margin: '0 auto' }}>
+                {hasDeposit ? (
+                  <button className="btn" style={{ width: '100%', padding: '0.9rem' }} onClick={payDeposit} disabled={depositLoading}>{acceptPayLabel}</button>
+                ) : (
+                  <button className="btn" style={{ width: '100%', padding: '0.9rem' }} onClick={approveEstimate} disabled={approveLoading}>{approveLabel}</button>
+                )}
+                {depositError && <div className="checkout-error" style={{ marginTop: '0.5rem', textAlign: 'center' }}>{depositError}</div>}
               </div>
             </div>
           )}

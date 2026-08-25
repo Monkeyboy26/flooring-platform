@@ -1400,9 +1400,11 @@
       Chart.defaults.font.family = "'IBM Plex Sans', system-ui, sans-serif";
     }
 
+        // Dev: direct to API container. Production: same-origin via nginx /api proxy
+        // (port 3001 is not publicly exposed).
         const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'http://localhost:3001'
-      : `${window.location.protocol}//${window.location.hostname}:3001`;
+      : '';
 
     // ========== Image Optimization Helper ==========
     function optimizeImg(url, width) {
@@ -9263,7 +9265,7 @@
         return <span className={'badge ' + cls}>{status}</span>;
       };
 
-      const docTypeLabel = (t) => ({ ein: 'EIN Certificate', resale_cert: 'Resale Certificate', contractor_license: 'Contractor License', business_card: 'Business Card' }[t] || t);
+      const docTypeLabel = (t) => ({ ein: 'EIN Certificate', resale_cert: 'Resale Certificate', contractor_license: 'Contractor License', business_card: 'Business Card', sellers_permit: "Seller's Permit" }[t] || t);
 
       if (loading) return <div className="loading">Loading trade customers...</div>;
 
@@ -9342,6 +9344,22 @@
                     <tr><td colSpan="8" style={{ background: 'var(--stone-50)', padding: '1.5rem' }}>
                       <div className="resp-grid-2" style={{ gap: '1.5rem' }}>
                         <div>
+                          <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>Applicant details</h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '0.35rem 1rem', fontSize: '0.8125rem', marginBottom: '1.25rem' }}>
+                            {[
+                              ['Email', c.email || '—'],
+                              ['Phone', c.phone || 'Not provided'],
+                              ['Business type', (c.business_type || '').replace(/_/g, ' ') || 'Not stated'],
+                              ['EIN', c.ein || 'Not provided'],
+                              ['Contractor license', c.contractor_license || 'Not provided'],
+                              ['Address', [c.address_line1, [c.city, c.state].filter(Boolean).join(', '), c.zip].filter(Boolean).join(' · ') || 'Not provided'],
+                            ].map(([k, v]) => (
+                              <React.Fragment key={k}>
+                                <span style={{ color: 'var(--stone-500)' }}>{k}</span>
+                                <span style={{ textTransform: k === 'Business type' ? 'capitalize' : 'none' }}>{v}</span>
+                              </React.Fragment>
+                            ))}
+                          </div>
                           <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem' }}>Documents</h4>
                           {docsLoading ? <div>Loading documents...</div> : docs.length === 0 ? <div style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>No documents uploaded</div> : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

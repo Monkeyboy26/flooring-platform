@@ -6685,9 +6685,9 @@
         const API = (() => {
       const h = window.location.hostname;
       if (h === 'localhost' || h === '127.0.0.1') return 'http://localhost:3001';
-      const allowed = ['romaflooringdesigns.com', 'www.romaflooringdesigns.com'];
-      if (!allowed.includes(h)) return '';  // same-origin fallback
-      return `${window.location.protocol}//${h}:3001`;
+      // Production and everywhere else: same-origin — nginx proxies /api/*
+      // (port 3001 is not publicly exposed).
+      return '';
     })();
 
     // ========== CA Sales Tax Estimate ==========
@@ -8107,10 +8107,12 @@
       const submitted = a ? [
         ['Business name', a.company_name || '—'],
         ['Contact', a.contact_name || '—'],
+        ['Email', a.email || '—'],
+        ['Phone', a.phone || 'Not provided'],
         ['Business type', a.business_type ? a.business_type.replace(/_/g, ' ') : 'Not stated'],
         ['EIN', a.ein || 'Not provided'],
         ['License', a.contractor_license || 'Not provided'],
-        ['State', a.state || '—'],
+        ['Address', [a.address_line1, [a.city, a.state].filter(Boolean).join(', '), a.zip].filter(Boolean).join(' · ') || 'Not provided'],
         ['Applied', taDate(a.created_at)],
         ['Account', a.from_retail_upgrade ? 'Upgraded from retail' + (a.retail_customer_since ? ' · customer since ' + taDate(a.retail_customer_since) : '') : 'New applicant'],
         ['Trailing spend', taMoney(effSpend) + (a.from_retail_upgrade && effSpend > 0 ? ' · rolls into tier' : '')],
@@ -8155,7 +8157,7 @@
       const hCell = { font: `500 9px/1 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase', color: tInk(0.4) };
       return (
         <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-          <div style={{ maxWidth: 1080, margin: '0 auto', padding: '26px 30px 48px' }}>
+          <div style={{ padding: '26px 0 48px' }}>
             <div className="ta-hide" style={{ display: 'grid', gridTemplateColumns: COLS, gap: 18, padding: '0 20px 11px' }}>
               <span style={hCell}>Status</span>
               <span style={hCell}>Business</span>
@@ -23838,7 +23840,7 @@
               </RodCard>
 
               {/* Activity */}
-              <RodCard title={'Activity' + (orderActivity ? ' · ' + orderActivity.length : '')} action="Full log →" onAction={loadOrderActivity}>
+              <RodCard title={'Activity' + (orderActivity ? ' · ' + orderActivity.length : '')}>
                 {orderActivity === null ? (
                   <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading activity...</div>
                 ) : orderActivity.length === 0 ? (
