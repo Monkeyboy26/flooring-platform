@@ -10442,6 +10442,7 @@
       };
       const resetSavedCardNonce = () => { savedCardNonceRef.current = null; };
       const [customerName, setCustomerName] = useState(tradeCustomer ? tradeCustomer.contact_name : (customer ? (customer.first_name + ' ' + customer.last_name) : ''));
+      const [nameTouched, setNameTouched] = useState(false);
       const [customerEmail, setCustomerEmail] = useState(tradeCustomer ? tradeCustomer.email : (customer ? customer.email : ''));
       const [phone, setPhone] = useState(customer ? (customer.phone || '') : '');
       const [companyName, setCompanyName] = useState(tradeCustomer ? (tradeCustomer.company_name || '') : (customer ? (customer.company_name || '') : ''));
@@ -10493,6 +10494,15 @@
         setError('Please accept the terms of service and privacy policy to place your order.');
         return false;
       };
+
+      // Validation errors render in a banner at the top of the form, but the
+      // submit CTA sits at the bottom — without this, a failed click looks like
+      // a dead button because the message appears off-screen.
+      useEffect(() => {
+        if (error) {
+          setTimeout(() => document.querySelector('.co-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+        }
+      }, [error]);
 
       const cartEmpty = !cart || cart.length === 0;
 
@@ -11193,21 +11203,21 @@
                       <div className="co-form-row-2">
                         <div className="co-field">
                           <div className="co-field-label">Full name</div>
-                          <input value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="John Smith" />
-                          {customerName.trim() && customerName.trim().split(/\s+/).length < 2 && <div style={{ marginTop: 4, font: '400 11px/1.4 Inter, sans-serif', color: '#c0392b' }}>Enter a first and last name.</div>}
+                          <input value={customerName} autoComplete="name" onChange={e => setCustomerName(e.target.value)} onBlur={() => setNameTouched(true)} placeholder="John Smith" />
+                          {nameTouched && customerName.trim() && customerName.trim().split(/\s+/).length < 2 && <div style={{ marginTop: 4, font: '400 11px/1.4 Inter, sans-serif', color: '#c0392b' }}>Enter a first and last name.</div>}
                         </div>
                         <div className="co-field">
                           <div className="co-field-label">Email</div>
-                          <input type="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="john@example.com" />
+                          <input type="email" autoComplete="email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} placeholder="john@example.com" />
                         </div>
                       </div>
                       <div className="co-field">
                         <div className="co-field-label">Phone</div>
-                        <input type="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" />
+                        <input type="tel" autoComplete="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" />
                       </div>
                       <div className="co-field">
                         <div className="co-field-label">Company <span style={{ color: 'var(--stone-400)', fontWeight: 400 }}>(optional)</span></div>
-                        <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Company name" />
+                        <input type="text" autoComplete="organization" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Company name" />
                       </div>
                       {!customer && !tradeCustomer && (
                         <>
