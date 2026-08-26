@@ -99,6 +99,25 @@ function httpsGet(url, timeoutMs = 15000, deadlineMs = 30000, agent = undefined)
       timeout: timeoutMs,
       agent,
     }, (res) => {
+      // Guard for the rejectUnauthorized:false agent: tolerate ONLY the
+      // expired-cert error, and require the peer to actually be engfloors.info
+      // signed by DigiCert — anything else is treated as a hard TLS failure.
+      const sock = res.socket;
+      if (sock && sock.authorizationError && sock.authorizationError !== 'CERT_HAS_EXPIRED') {
+        settle(reject, new Error(`TLS validation failed: ${sock.authorizationError}`));
+        req.destroy();
+        return;
+      }
+      if (sock && sock.authorizationError === 'CERT_HAS_EXPIRED') {
+        const cert = sock.getPeerCertificate();
+        const cn = (cert && cert.subject && cert.subject.CN) || '';
+        const issuerO = (cert && cert.issuer && cert.issuer.O) || '';
+        if (!/(^|\.)engfloors\.info$/.test(cn) || !/DigiCert/i.test(issuerO)) {
+          settle(reject, new Error(`TLS identity mismatch on expired cert: CN=${cn} issuer=${issuerO}`));
+          req.destroy();
+          return;
+        }
+      }
       let data = '';
       res.on('data', (c) => {
         data += c;
@@ -347,7 +366,12 @@ export async function run(pool, job, source) {
   const concurrency = Math.max(1, Math.min(8, parseInt(cfg.concurrency, 10) || 4));
   // Keep-alive agent: reuse TLS connections across the ~4.7k requests instead
   // of a fresh handshake per call. Destroyed after the run.
-  const agent = new https.Agent({ keepAlive: true, maxSockets: concurrency });
+  // TEMP (2026-08-25): EF let their TLS certificate expire (notAfter
+  // 2026-08-23), which fails every request. Scoped workaround: accept the
+  // expired cert, but the response handler still verifies the peer identity
+  // (CN + DigiCert issuer) and rejects any OTHER validation failure. Remove
+  // once `openssl s_client -connect www.engfloors.info:443` shows a fresh cert.
+  const agent = new https.Agent({ keepAlive: true, maxSockets: concurrency, rejectUnauthorized: false });
   let nextIndex = 0;
   let backoffGate = null; // Promise all workers await while backing off
 

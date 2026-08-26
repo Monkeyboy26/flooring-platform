@@ -29312,10 +29312,22 @@ async function pollAllEdiVendors(vendorId) {
   const pollerModule = await import('./scrapers/edi-poller.js');
   const jobs = [];
   for (const vendor of vendorResult.rows) {
+    // Resolve the tracking source first — inlining this as a subquery made a
+    // missing vendor_sources row a NOT NULL violation that aborted the whole
+    // loop, silently skipping every vendor after the offender.
+    const sourceResult = await pool.query(
+      `SELECT id FROM vendor_sources WHERE vendor_id = $1 AND scraper_key LIKE '%edi%' LIMIT 1`,
+      [vendor.vendor_id]
+    );
+    const sourceId = sourceResult.rows[0]?.id;
+    if (!sourceId) {
+      console.warn(`[EDI Poll:${vendor.vendor_code}] No vendor_sources row for job tracking — skipping (add one to enable polling)`);
+      continue;
+    }
     const jobResult = await pool.query(
       `INSERT INTO scrape_jobs (vendor_source_id, status, started_at)
-       VALUES ((SELECT id FROM vendor_sources WHERE vendor_id = $1 AND scraper_key LIKE '%edi%' LIMIT 1), 'running', CURRENT_TIMESTAMP) RETURNING id`,
-      [vendor.vendor_id]
+       VALUES ($1, 'running', CURRENT_TIMESTAMP) RETURNING id`,
+      [sourceId]
     );
     const jobId = jobResult.rows[0]?.id;
     if (!jobId) continue;
