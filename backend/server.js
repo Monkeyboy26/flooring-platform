@@ -1603,7 +1603,29 @@ const suggestCache = new SearchCache(500, 5 * 60 * 1000); // 5 min TTL
 // URL-keyed in-process cache is safe. Facets is the expensive one (10s+ on
 // prod under scraper load) and changes only when scrapers write.
 const facetsCache = new SearchCache(300, 10 * 60 * 1000); // 10 min TTL
-const browseCache = new SearchCache(500, 2 * 60 * 1000);  // 2 min TTL
+const browseCache = new SearchCache(500, 10 * 60 * 1000); // 10 min TTL (warmer refreshes every 9)
+
+// Cache warmer: re-heat the hottest browse URLs just inside their TTLs so no
+// visitor ever pays the cold-query cost (multi-second facet aggregations).
+// Serial requests, production only.
+async function warmBrowseCaches() {
+  try {
+    const cats = await pool.query(
+      "SELECT slug FROM categories WHERE is_active IS NOT FALSE AND parent_id IS NULL ORDER BY sort_order NULLS LAST LIMIT 12");
+    const urls = ['/api/storefront/facets', '/api/storefront/skus?limit=24'];
+    for (const c of cats.rows) {
+      urls.push('/api/storefront/facets?category=' + encodeURIComponent(c.slug));
+      urls.push('/api/storefront/skus?category=' + encodeURIComponent(c.slug) + '&limit=24');
+    }
+    for (const u of urls) {
+      try { await fetch('http://localhost:' + (process.env.PORT || 3001) + u); } catch {}
+    }
+  } catch (err) { console.warn('[CacheWarmer]', err.message); }
+}
+if (process.env.NODE_ENV === 'production') {
+  setTimeout(warmBrowseCaches, 20 * 1000);            // shortly after boot
+  setInterval(warmBrowseCaches, 9 * 60 * 1000);       // inside the 10-min facets TTL
+}
 const popularCache = new SearchCache(1, 10 * 60 * 1000); // 10 min TTL
 
 function clearSearchCaches() {
