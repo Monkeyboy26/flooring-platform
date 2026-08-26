@@ -527,6 +527,27 @@ async function processImages(pool, color, productId, skuId, counters, usedConten
     }
   }
 
+  // Shaw's API sometimes serves ANOTHER color's asset URL for a color (426
+  // catalog-wide when audited 2026-08-26). The CDN filename embeds the real
+  // color ({STYLE}_{COLOR}.jpg / /v1/{STYLE}_{COLOR}/) whose last-3 digits
+  // must match the color being processed — drop contradicting URLs.
+  const urlColorLast3 = (u) => {
+    const m = u && (String(u).match(/\/[A-Z0-9]+_(\d{4,6})\.jpg/i) || String(u).match(/\/v1\/[A-Z0-9]+_(\d{4,6})\//i));
+    return m ? m[1].slice(-3) : null;
+  };
+  const skuC3 = String(color.colorNumber || '').trim().slice(-3);
+  if (skuC3) {
+    const pc3 = urlColorLast3(primaryRaw);
+    if (pc3 && pc3 !== skuC3) {
+      console.log(`  [SKIP mislabeled] ${color.colorNumber} ${color.colorName || ''}: primary URL encodes color ${pc3}`);
+      primaryRaw = null; primaryUrl = null;
+    }
+    const ac3 = urlColorLast3(altRaw);
+    if (ac3 && ac3 !== skuC3) {
+      altRaw = null; altUrl = null;
+    }
+  }
+
   // Check if a content ID is a duplicate. Two levels:
   // 1. Within-product: usedContentIds tracks IDs seen for this product's colors
   // 2. Cross-collection: contentIdCollections maps IDs to their existing collection.
