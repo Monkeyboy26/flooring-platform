@@ -59,6 +59,10 @@ function escapeHtml(s) {
 const NOREPLY_ADDR = process.env.NOREPLY_FROM || SMTP_FROM;
 const NOREPLY_FROM = `"${BRAND_NAME}" <${NOREPLY_ADDR}>`;
 
+// Scraper/pipeline ops alerts (failures, health check) go to the owner, not
+// the shared sales inbox or the whole staff list.
+export const SCRAPER_ALERT_ADDR = process.env.SCRAPER_ALERT_EMAIL || 'kian@romaflooringdesigns.com';
+
 // Customer-facing mail is sent AS the responsible sales rep — reps use
 // @romaflooringdesigns.com addresses, so this passes SPF/DKIM for the domain.
 // Falls back to the brand address when no rep is known (e.g. self-serve
@@ -963,7 +967,7 @@ export async function sendSampleRequestReady(data) {
  * Notifies SCRAPER_ALERT_EMAIL (or SMTP_FROM as fallback) when a scrape job fails.
  */
 export async function sendScraperFailure({ source_name, scraper_key, job_id, error, started_at, duration_minutes }) {
-  const alertEmail = process.env.SCRAPER_ALERT_EMAIL || SMTP_FROM;
+  const alertEmail = SCRAPER_ALERT_ADDR;
   if (!transporter) {
     console.log(`[Email] Skipping scraper failure alert for ${scraper_key} — SMTP not configured`);
     return;
@@ -1004,7 +1008,7 @@ export async function sendScraperFailure({ source_name, scraper_key, job_id, err
  * Called by lifecycle steps only when a live run actually changed the catalog.
  */
 export async function sendPipelineSummary({ label, activated = [], retired = [], coverage = null }) {
-  const alertEmail = process.env.SCRAPER_ALERT_EMAIL || SMTP_FROM;
+  const alertEmail = SCRAPER_ALERT_ADDR;
   if (!transporter) {
     console.log(`[Email] Skipping pipeline summary for ${label} — SMTP not configured`);
     return;
@@ -1044,7 +1048,7 @@ export async function sendPipelineSummary({ label, activated = [], retired = [],
  * failures in any step — including ones that abort before the reporting step.
  */
 export async function sendPipelineFailure({ label, vendor_code, step_label, error }) {
-  const alertEmail = process.env.SCRAPER_ALERT_EMAIL || SMTP_FROM;
+  const alertEmail = SCRAPER_ALERT_ADDR;
   if (!transporter) {
     console.log(`[Email] Skipping pipeline failure alert for ${vendor_code} — SMTP not configured`);
     return;
