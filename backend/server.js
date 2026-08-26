@@ -232,7 +232,14 @@ app.use('/api/storefront/search/suggest', searchLimiter);
 const imgLimiter = rateLimit({ windowMs: 60 * 1000, max: 1000, standardHeaders: true, legacyHeaders: false });
 const IMG_CACHE_DIR = path.join(process.cwd(), '_cache');
 if (!fs.existsSync(IMG_CACHE_DIR)) fs.mkdirSync(IMG_CACHE_DIR, { recursive: true });
+// Originals cached separately from resized variants: without this, every new
+// width of the same image (card 400 → PDP 800/1200) re-downloads the original
+// from the vendor host — the dominant cost of a cold resize.
+const IMG_ORIG_CACHE_DIR = path.join(IMG_CACHE_DIR, 'orig');
+if (!fs.existsSync(IMG_ORIG_CACHE_DIR)) fs.mkdirSync(IMG_ORIG_CACHE_DIR, { recursive: true });
+const IMG_ORIG_MAX_BYTES = 12 * 1024 * 1024; // don't hoard giant originals on disk
 const imgInflight = new Map(); // cacheKey → Promise<Buffer> — dedup concurrent requests
+const imgOrigInflight = new Map(); // url hash → Promise<Buffer|null> — dedup origin downloads across widths
 
 // Known bad/error image MD5 hashes — reject these at the proxy level
 const BAD_IMAGE_HASHES = new Set([
@@ -335,29 +342,47 @@ app.get('/api/img', imgLimiter, async (req, res) => {
           if (!fs.existsSync(localPath)) return null;
           inputBuffer = await fs.promises.readFile(localPath);
         } else {
-          if (await isBlockedUrl(url)) return null;
-          const isWiden = url.includes('.widen.net');
-          const maxAttempts = isWiden ? 3 : 1;
-          for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 10000);
-            try {
-              const fetchUrl = attempt > 0 ? url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now() : url;
-              const resp = await fetch(fetchUrl, { signal: controller.signal, headers: { 'User-Agent': 'Roma-ImageProxy/1.0' } });
-              clearTimeout(timeout);
-              if (!resp.ok) {
-                if (isWiden && attempt < maxAttempts - 1) { await new Promise(r => setTimeout(r, 300)); continue; }
-                return null;
-              }
-              inputBuffer = Buffer.from(await resp.arrayBuffer());
-              // Check for Widen placeholder before accepting
-              const tmpHash = crypto.createHash('md5').update(inputBuffer).digest('hex');
-              if (isWiden && BAD_IMAGE_HASHES.has(tmpHash) && attempt < maxAttempts - 1) {
-                await new Promise(r => setTimeout(r, 300));
-                continue;
-              }
-              break;
-            } catch { clearTimeout(timeout); if (attempt >= maxAttempts - 1) return null; await new Promise(r => setTimeout(r, 300)); }
+          const origKey = crypto.createHash('sha256').update(url).digest('hex');
+          const origPath = path.join(IMG_ORIG_CACHE_DIR, origKey);
+          if (fs.existsSync(origPath)) {
+            inputBuffer = await fs.promises.readFile(origPath);
+          } else {
+            if (!imgOrigInflight.has(origKey)) {
+              const dl = (async () => {
+                if (await isBlockedUrl(url)) return null;
+                const isWiden = url.includes('.widen.net');
+                const maxAttempts = isWiden ? 3 : 1;
+                let buf;
+                for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                  const controller = new AbortController();
+                  const timeout = setTimeout(() => controller.abort(), 10000);
+                  try {
+                    const fetchUrl = attempt > 0 ? url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now() : url;
+                    const resp = await fetch(fetchUrl, { signal: controller.signal, headers: { 'User-Agent': 'Roma-ImageProxy/1.0' } });
+                    clearTimeout(timeout);
+                    if (!resp.ok) {
+                      if (isWiden && attempt < maxAttempts - 1) { await new Promise(r => setTimeout(r, 300)); continue; }
+                      return null;
+                    }
+                    buf = Buffer.from(await resp.arrayBuffer());
+                    // Check for Widen placeholder before accepting
+                    const tmpHash = crypto.createHash('md5').update(buf).digest('hex');
+                    if (isWiden && BAD_IMAGE_HASHES.has(tmpHash) && attempt < maxAttempts - 1) {
+                      await new Promise(r => setTimeout(r, 300));
+                      continue;
+                    }
+                    break;
+                  } catch { clearTimeout(timeout); if (attempt >= maxAttempts - 1) return null; await new Promise(r => setTimeout(r, 300)); }
+                }
+                if (buf && buf.length > 500 && buf.length <= IMG_ORIG_MAX_BYTES && !BAD_IMAGE_HASHES.has(crypto.createHash('md5').update(buf).digest('hex'))) {
+                  fs.writeFile(origPath, buf, (err) => { if (err) console.error('[img] orig cache write failed:', err.message); });
+                }
+                return buf || null;
+              })();
+              imgOrigInflight.set(origKey, dl);
+              dl.finally(() => imgOrigInflight.delete(origKey));
+            }
+            inputBuffer = await imgOrigInflight.get(origKey);
           }
           if (!inputBuffer) return null;
         }

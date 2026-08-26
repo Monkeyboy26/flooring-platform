@@ -5091,7 +5091,8 @@
                 {media.length > 1 && (
                   <button className="quick-view-gallery-arrow left" disabled={imgIndex === 0} onClick={() => setImgIndex(i => i - 1)}>{'\u2039'}</button>
                 )}
-                {currentImg.url && <img onLoad={handleProductImgLoad} src={optimizeImg(currentImg.url, 800)} {...optimizeSrcSet(currentImg.url, [400, 600, 800])} sizes="(max-width: 768px) 90vw, 540px" alt={activeSku.product_name} decoding="async" width={540} height={540} />}
+                {currentImg.url && <img className="qv-hero-lowres" aria-hidden="true" src={optimizeImg(currentImg.url, 400)} alt="" decoding="async" />}
+                {currentImg.url && <img key={currentImg.url} className="qv-hero-main" onLoad={e => { e.currentTarget.classList.add('is-loaded'); handleProductImgLoad(e); }} src={optimizeImg(currentImg.url, 800)} {...optimizeSrcSet(currentImg.url, [400, 600, 800])} sizes="(max-width: 768px) 90vw, 540px" alt={activeSku.product_name} decoding="async" width={540} height={540} />}
                 {media.length > 1 && (
                   <button className="quick-view-gallery-arrow right" disabled={imgIndex >= media.length - 1} onClick={() => setImgIndex(i => i + 1)}>{'\u203A'}</button>
                 )}
@@ -7609,7 +7610,10 @@
             <div className="sku-detail-main" ref={sectionRefs.details}>
             <div className="sku-detail-gallery" ref={galleryRef}>
               <div className="sku-detail-image">
-                {mainImage && <img onLoad={handleProductImgLoad} src={optimizeImg(mainImage.url, 800)} {...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200])} sizes="(max-width: 768px) 100vw, 50vw" alt={sku.product_name} fetchPriority="high" decoding="async" />}
+                {/* Blur-up: the 400px variant is already warm (grid/quick-view fetched it),
+                    so it paints instantly while the full-size hero streams in over it. */}
+                {mainImage && <img className="pdp-hero-lowres" aria-hidden="true" src={optimizeImg(mainImage.url, 400)} alt="" decoding="async" />}
+                {mainImage && <img key={mainImage.url} className="pdp-hero-main" onLoad={e => { e.currentTarget.classList.add('is-loaded'); handleProductImgLoad(e); }} src={optimizeImg(mainImage.url, 800)} {...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200])} sizes="(max-width: 768px) 100vw, 50vw" alt={sku.product_name} fetchPriority="high" decoding="async" />}
               </div>
               {images.length > 1 && (
                 <div className="gallery-thumbs">

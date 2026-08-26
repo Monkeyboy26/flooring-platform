@@ -1034,6 +1034,11 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .pdp-details-below { margin-top: 3rem; max-width: 720px; }
 .sku-detail-image { width: 100%; padding-bottom: 100%; position: relative; background: var(--warm-bg); border-radius: 2px; overflow: hidden; }
 .sku-detail-image img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+/* Blur-up: warm 400px variant paints instantly under the streaming hero */
+.sku-detail-image .pdp-hero-lowres { filter: blur(10px); transform: scale(1.03); transition: opacity 0.2s ease; }
+.sku-detail-image:has(.pdp-hero-main.is-loaded) .pdp-hero-lowres { opacity: 0; }
+.sku-detail-image .pdp-hero-main { opacity: 0; transition: opacity 0.25s ease; }
+.sku-detail-image .pdp-hero-main.is-loaded { opacity: 1; }
 .gallery-main-label { position: absolute; bottom: 0; left: 0; right: 0; padding: 1rem 1.125rem; font: 500 10px/1.2 ui-monospace, SFMono-Regular, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: white; background: linear-gradient(transparent, rgba(28,25,23,0.45)); pointer-events: none; z-index: 1; }
 .gallery-thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 0.75rem; }
 .pdp-specs-section { margin-top: 2.5rem; }
@@ -1571,6 +1576,11 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .quick-view-main-image { height: 540px; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
 .quick-view-main-image img { width: 100%; height: 100%; object-fit: contain; background: var(--warm-bg); transition: transform 600ms ease; }
 .quick-view-main-image:hover img { transform: scale(1.03); }
+/* Blur-up: warm 400px variant paints instantly under the streaming hero */
+.quick-view-main-image .qv-hero-lowres { position: absolute; inset: 0; filter: blur(10px); transform: scale(1.03); transition: opacity 0.2s ease; }
+.quick-view-main-image:has(.qv-hero-main.is-loaded) .qv-hero-lowres { opacity: 0; }
+.quick-view-main-image .qv-hero-main { opacity: 0; transition: opacity 0.25s ease, transform 600ms ease; }
+.quick-view-main-image .qv-hero-main.is-loaded { opacity: 1; }
 .quick-view-gallery-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; background: var(--warm-bg); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.18); transition: all var(--transition-base); font: 400 18px/1 var(--font-heading); color: var(--stone-800); }
 .quick-view-gallery-arrow:hover { background: var(--stone-800); color: var(--warm-bg); }
 .quick-view-gallery-arrow:disabled { opacity: 0; pointer-events: none; }
