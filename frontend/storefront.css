@@ -722,7 +722,19 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .category-header-search .cat-header-headline em { font-style: italic; color: var(--gold); }
 /* View mode responsive */
 @media (max-width: 768px) {
+  /* Contain any stray wide element — without this one overflowing row drags
+     the whole page into horizontal scroll on phones. clip (not hidden) so no
+     new scroll container is created. */
+  html, body { overflow-x: clip; }
   .view-mode-toggle { display: none; }
+  /* Toolbar: stack and wrap instead of forcing one over-wide row */
+  .browse-toolbar { flex-wrap: wrap; row-gap: 10px; }
+  .browse-toolbar .result-count { flex: 1 1 100%; }
+  .browse-toolbar-right { flex-wrap: wrap; gap: 10px; width: 100%; justify-content: flex-start; }
+  /* Pagination: wrap and center; slightly smaller touch targets */
+  .pagination { flex-wrap: wrap; justify-content: center; row-gap: 10px; }
+  .pagination-pages { order: 3; flex-basis: 100%; justify-content: center; flex-wrap: wrap; }
+  .pagination-num, .pagination-ellipsis { width: 32px; height: 32px; }
   .sku-grid--compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .spec-header { display: none; }
   .sku-grid--spec { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; border-top: none; }
