@@ -63,8 +63,11 @@ else
 fi
 
 if [ "$RELOAD_NGINX" = true ] && [ "$FULL_UP" != true ]; then
-    echo "Nginx config changed — reloading..."
-    docker compose $COMPOSE_FILES exec -T frontend nginx -s reload
+    # Recreate rather than reload: the conf is a single-file bind mount, and
+    # git pull swaps the file's inode — the running container keeps seeing the
+    # OLD file, so a reload silently applies nothing.
+    echo "Nginx config changed — recreating frontend container..."
+    docker compose $COMPOSE_FILES up -d --force-recreate frontend
 fi
 
 # Health check whenever the api was touched
