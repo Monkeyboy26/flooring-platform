@@ -1,0 +1,25 @@
+{
+  "viva_las_vegas": {
+    "High Roller": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/644815506c3064a244143427_6447806573a58ade37ab0ff9_High%2520Roller%2520B.jpeg", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6785cc8bfb26169ad5c4aefa_659603c4cd6715db2d7902c4_High-Roller-Room-v2.webp"},
+    "Feeling Lucky": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/64481550e252a7f10165e63b_64477fa58b12bd6e1fa1e74b_Feeling%2520Lucky%2520B.jpeg", "lifestyle": null},
+    "Desert Walnut": {"primary": null, "lifestyle": null},
+    "Bellagio Beige": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4baae40fc6dd767c7144_650d19bd78b7863a0a026839_Bellagio%2520Beige%2520tight%2520shot.jpeg", "lifestyle": null},
+    "Venetian Vibes": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4bac67fb2404813b40d7_650d1948ac1621883fcfb738_Venetian%2520Vibes%2520tight%2520Shot.jpeg", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6785cc8d909e230b18cec17f_651e5b6225e282985109588f_Venetian%2520Vibes%2520RoomV1.webp"},
+    "All In": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4baaca3bea2a829196b0_650d14fb0274a5a48eb8194f_All%2520In%2520tight%2520shot-2.jpeg", "lifestyle": null},
+    "Royal Flush": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4bab1abc8f695633e288_650d1a3d5741721e197a7a3a_Royal%2520Flush%2520tight%2520shot.jpeg", "lifestyle": null},
+    "Tropicana": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/67a3cd7735404dcffba7b243_Tropicana_Angled_0002-2-2.webp", "lifestyle": null}
+  },
+  "monaco_royale": {
+    "Grand Prix": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/689222609569fa3e1bd29303_Grand%20Prix%20T.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6891b3ce9afed457b347f48b_Grand%20Prix%20living.jpeg"},
+    "Monte Carlo": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/68cbae6165bdc8092c54fce0_CC%20Tioght-3.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/68f5e7ddc06e2f9d99fec6b1_Monte%20Carlo%20room%20Finalp.jpg"},
+    "Elysian Heights": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/689372f4b0b15e1cd9c5536e_EH.t.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/689372e7462d70c9d64bce9e_EH%20room%20scene%20final5%202.webp"},
+    "Chateau Crest": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/68cddedab823b1ae931c7f4b_chateau_web_medium.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/68883664eb486a67337f907e_Chateau%20crest%20color%20final.webp"},
+    "Echelon": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6892475c04ad55d240d01569_Echelon%20t.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/689247539360003e1ded6244_Echelon%20room.webp"},
+    "Aurelia": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/688aa57114e1d2e8ca5c7024_Aurelia%203.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/68f7b80e543b9ff787740693_Aurelia%20Room%20scene23.jpg"}
+  },
+  "exotic_delights": {
+    "Hawaiian Koa": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4bd961d0e97108337100_65809797caf4657e31a8c7f4_Hawaiian%2520Koa%2520tight.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6847eec94f47c11fb0a4bafe_ChatGPT%20Image%20Jun%2010%2C%202025%2C%2001_37_09%20AM.webp"},
+    "Santos Mahogany": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4bd9532da3ee5e9cf5ca_656edd45f15d48f8234b56af_Santos%2520Mahogany%2520tight.webp", "lifestyle": null},
+    "Exotic Walnut": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4bd9c896545dbfb56d09_6580980fb6b942b259cdd655_Exotic%2520Walnut%2520tight.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6847ded06abd00ac92b12869_walnut%20room%20scene%20update.webp"}
+  }
+}

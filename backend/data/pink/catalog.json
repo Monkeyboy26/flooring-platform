@@ -1,0 +1,119 @@
+{
+  "vendor": {
+    "name": "Pink Floors",
+    "code": "PINK",
+    "public_code": "132",
+    "website": "https://www.pinkfloors.com",
+    "email": "info@pinkfloors.com",
+    "phone": "(818) 212-9888",
+    "address": "547 W 132nd St, Gardena, CA 90248",
+    "notes": "Engineered hardwood distributor. Tagline: \"Every floor gives back.\" Vendor Price List PIA eff. 7/13/2026 (accessories eff. 4/20/2026) = Roma cost; retail = cost x1.6, nine-ended. Collections: Blush Botanical, Red Oak, Click, Herringbone, Chevron. Accessories (stair nose / tread / riser / T-mold / reducer / end mold) are made-to-order out of the flooring material, sold per length; vapor-lock adhesive sold per 5-gal pail. No returns on accessories."
+  },
+  "collections": {
+    "Blush Botanical": { "size": "5/8\" x 9.5\" x 86.6\"", "thickness": "5/8 in", "width": "9.5 in", "length": "86.6 in", "wear_layer": "4 mm", "grade": "Natural ABCD", "install": "Glue Down or Nail Down", "species": "Oak" },
+    "Red Oak": { "size": "5/8\" x 9.5\" x RL 86\"", "thickness": "5/8 in", "width": "9.5 in", "length": "RL 86 in", "wear_layer": "4 mm", "grade": "Select", "install": "Glue Down or Nail Down", "species": "Red Oak" },
+    "Click": { "size": "9/16\" x 6.25\" x RL 79\"", "thickness": "9/16 in", "width": "6.25 in", "length": "RL 79 in", "wear_layer": "4 mm", "grade": "Natural ABCD", "install": "Click Lock", "species": "Oak" },
+    "Herringbone": { "size": "5/8\" x 5\" x 27.5\"", "thickness": "5/8 in", "width": "5 in", "length": "27.5 in", "wear_layer": "4 mm", "grade": "Natural ABCD", "install": "Glue Down", "species": "Oak", "pattern": "Herringbone" },
+    "Chevron": { "size": "5/8\" x 5\" x 23\"", "thickness": "5/8 in", "width": "5 in", "length": "23 in", "wear_layer": "4 mm", "grade": "Natural ABCD", "install": "Glue Down", "species": "Oak", "pattern": "Chevron" }
+  },
+  "_comment_accessory_profile": "Which accessory profile thickness each floor thickness uses (per Pink Floors). 5/8\" floors → 5/8\" profiles; the 9/16\" Click line → the 3/4\" profiles.",
+  "accessory_profile_by_floor_thickness": {
+    "5/8 in": "5/8 in",
+    "9/16 in": "3/4 in"
+  },
+  "products": [
+    { "collection": "Blush Botanical", "name": "Pink Horizon",   "color": "Pink Horizon",   "vendor_sku": "PLN-VM13", "sqft_box": 34.1,  "lbs_ctn": 75,   "cost": 5.59 },
+    { "collection": "Blush Botanical", "name": "Peony Ash",      "color": "Peony Ash",      "vendor_sku": "PLN-VN15", "sqft_box": 34.1,  "lbs_ctn": 75,   "cost": 5.59 },
+    { "collection": "Blush Botanical", "name": "Ivory Willow",   "color": "Ivory Willow",   "vendor_sku": "PLN-VP05", "sqft_box": 34.1,  "lbs_ctn": 75,   "cost": 5.59 },
+    { "collection": "Blush Botanical", "name": "Soft Magnolia",  "color": "Soft Magnolia",  "vendor_sku": "PLN-VR06", "sqft_box": 34.1,  "lbs_ctn": 75,   "cost": 5.59 },
+    { "collection": "Blush Botanical", "name": "Coral Driftwood","color": "Coral Driftwood","vendor_sku": "PLN-VS09", "sqft_box": 34.1,  "lbs_ctn": 75,   "cost": 5.59 },
+    { "collection": "Blush Botanical", "name": "Blush Oak",      "color": "Blush Oak",      "vendor_sku": "PLN-VS14", "sqft_box": 34.1,  "lbs_ctn": 75,   "cost": 5.59 },
+    { "collection": "Blush Botanical", "name": "Moonlight Cedar","color": "Moonlight Cedar","vendor_sku": "PLN-VV02", "sqft_box": 34.1,  "lbs_ctn": 75,   "cost": 5.59 },
+    { "collection": "Blush Botanical", "name": "Walnut Noce",    "color": "Walnut Noce",    "vendor_sku": "PLN-WAL 7.5", "sqft_box": 23.31, "lbs_ctn": null, "cost": 6.79, "size": "5/8\" x 7.5\" x 86.6\"", "width": "7.5 in" },
+
+    { "collection": "Red Oak", "name": "Rosé Maple",     "color": "Rosé Maple",     "vendor_sku": "PLN-GPD 9.5 AB", "sqft_box": 28.41, "lbs_ctn": null, "cost": 5.99 },
+    { "collection": "Red Oak", "name": "Dawn Birch",     "color": "Dawn Birch",     "vendor_sku": "PLN-RDS 9.5 AB", "sqft_box": 28.41, "lbs_ctn": null, "cost": 5.99 },
+    { "collection": "Red Oak", "name": "Sandy Blush Oak", "color": "Sandy Blush Oak", "vendor_sku": "PLN-MTV 9.5 AB", "sqft_box": 28.41, "lbs_ctn": null, "cost": 5.99 },
+
+    { "collection": "Click", "name": "Urban Lugana", "color": "Urban Lugana", "vendor_sku": "PLN-1748905 CLK", "sqft_box": 31.15, "lbs_ctn": null, "cost": 4.99 },
+    { "collection": "Click", "name": "Nordic Sand",  "color": "Nordic Sand",  "vendor_sku": "PLN-1750786 CLK", "sqft_box": 31.15, "lbs_ctn": null, "cost": 4.99 },
+
+    { "collection": "Herringbone", "name": "Pink Horizon Herringbone",   "color": "Pink Horizon",   "vendor_sku": "HR-VM1PF", "sqft_box": 15.31, "lbs_ctn": 32, "cost": 6.49 },
+    { "collection": "Herringbone", "name": "Ivory Willow Herringbone",   "color": "Ivory Willow",   "vendor_sku": "HR-VP2",   "sqft_box": 15.31, "lbs_ctn": 32, "cost": 6.49 },
+    { "collection": "Herringbone", "name": "Soft Magnolia Herringbone",  "color": "Soft Magnolia",  "vendor_sku": "HR-VR3",   "sqft_box": 15.31, "lbs_ctn": 32, "cost": 6.49 },
+    { "collection": "Herringbone", "name": "Moonlight Cedar Herringbone","color": "Moonlight Cedar","vendor_sku": "HR-VV4",   "sqft_box": 15.31, "lbs_ctn": 32, "cost": 6.49 },
+
+    { "collection": "Chevron", "name": "Ivory Willow Chevron",   "color": "Ivory Willow",   "vendor_sku": "CH-VP1PF", "sqft_box": 12.77, "lbs_ctn": 27, "cost": 6.79 },
+    { "collection": "Chevron", "name": "Soft Magnolia Chevron",  "color": "Soft Magnolia",  "vendor_sku": "CH-VR2",   "sqft_box": 12.77, "lbs_ctn": 27, "cost": 6.79 },
+    { "collection": "Chevron", "name": "Coral Driftwood Chevron","color": "Coral Driftwood","vendor_sku": "CH-VS3",   "sqft_box": 12.77, "lbs_ctn": 27, "cost": 6.79 }
+  ],
+  "accessories": [
+    {
+      "product_name": "Pink Floors Stair Nosing",
+      "category": "transitions-moldings",
+      "description": "Made-to-order engineered stair nosing milled from the matching Pink Floors flooring, 7.2 ft lengths. Round or square edge, 5/8\" or 3/4\" profile. No returns on accessories; custom sizing available on request.",
+      "items": [
+        { "label": "5/8\" Round (7.2 ft)",  "thickness": "5/8 in", "cost": 182.00 },
+        { "label": "5/8\" Square (7.2 ft)", "thickness": "5/8 in", "cost": 161.00 },
+        { "label": "3/4\" Round (7.2 ft)",  "thickness": "3/4 in", "cost": 192.00 },
+        { "label": "3/4\" Square (7.2 ft)", "thickness": "3/4 in", "cost": 171.00 }
+      ]
+    },
+    {
+      "product_name": "Pink Floors Stair Tread",
+      "category": "transitions-moldings",
+      "description": "Made-to-order engineered stair tread milled from the matching Pink Floors flooring, 3.5 ft x 12\". Round or square edge, 5/8\" or 3/4\" profile.",
+      "items": [
+        { "label": "5/8\" Round (3.5 ft)",  "thickness": "5/8 in", "cost": 192.00 },
+        { "label": "5/8\" Square (3.5 ft)", "thickness": "5/8 in", "cost": 142.00 },
+        { "label": "3/4\" Round (3.5 ft)",  "thickness": "3/4 in", "cost": 192.00 },
+        { "label": "3/4\" Square (3.5 ft)", "thickness": "3/4 in", "cost": 142.00 }
+      ]
+    },
+    {
+      "product_name": "Pink Floors Riser",
+      "category": "transitions-moldings",
+      "description": "Made-to-order engineered stair riser milled from the matching Pink Floors flooring, 3.5 ft x 8\".",
+      "items": [
+        { "label": "5/8\" (3.5 ft)", "thickness": "5/8 in", "cost": 97.00 },
+        { "label": "3/4\" (3.5 ft)", "thickness": "3/4 in", "cost": 97.00 }
+      ]
+    },
+    {
+      "product_name": "Pink Floors T-Molding",
+      "category": "transitions-moldings",
+      "description": "Made-to-order engineered T-molding milled from the matching Pink Floors flooring, 3.5 ft x 1.5\". Transitions between two floors of equal height.",
+      "items": [
+        { "label": "5/8\" (3.5 ft)", "thickness": "5/8 in", "cost": 141.00 },
+        { "label": "3/4\" (3.5 ft)", "thickness": "3/4 in", "cost": 151.00 }
+      ]
+    },
+    {
+      "product_name": "Pink Floors Reducer",
+      "category": "transitions-moldings",
+      "description": "Made-to-order engineered reducer molding milled from the matching Pink Floors flooring, 3.5 ft x 2\". Transitions to a lower surface.",
+      "items": [
+        { "label": "5/8\" (3.5 ft)", "thickness": "5/8 in", "cost": 141.00 },
+        { "label": "3/4\" (3.5 ft)", "thickness": "3/4 in", "cost": 151.00 }
+      ]
+    },
+    {
+      "product_name": "Pink Floors End Molding",
+      "category": "transitions-moldings",
+      "description": "Made-to-order engineered end / square-nose molding milled from the matching Pink Floors flooring, 3.5 ft. Finishes an exposed floor edge.",
+      "items": [
+        { "label": "5/8\" (3.5 ft)", "thickness": "5/8 in", "cost": 141.00 },
+        { "label": "3/4\" (3.5 ft)", "thickness": "3/4 in", "cost": 151.00 }
+      ]
+    },
+    {
+      "product_name": "Pink Floors Vapor-Lock Adhesive",
+      "category": "adhesives-sealants",
+      "description": "Pink Floors recommended flooring adhesive with vapor-lock moisture barrier, 5-gallon pail. Recommended for all Pink Floors floor installations.",
+      "universal": true,
+      "items": [
+        { "label": "5-Gallon Pail", "cost": 169.00 }
+      ]
+    }
+  ]
+}

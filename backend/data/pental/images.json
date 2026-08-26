@@ -1,0 +1,249 @@
+{
+  "PENT-haleo": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Haleo-2.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/373808/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/373804/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-venoso-pq": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Venoso-Slab.jpg",
+    "jumbo": [],
+    "lifestyle": []
+  },
+  "PENT-pearl-white": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Pearl-White-PQ1002.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/315816/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317562/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-oceanus": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Oceanus-Slab-e1750683747432.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/330588/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/330589/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-nightfall-honed": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Nightfall-Honed-PQ8031.jpg",
+    "jumbo": [],
+    "lifestyle": []
+  },
+  "PENT-myora": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/myora-PQ5185.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/332668/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/336701/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/747909/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317407/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317403/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-myora-gold": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Mystere-Gold-Slab-1.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317508/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/324919/slab.jpg"
+    ],
+    "lifestyle": [
+      "https://arcsurfaces.com/wp-content/uploads/Mystere-Gold-Slab-1-scaled.jpg"
+    ]
+  },
+  "PENT-midnight-mist-honed": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Midnight-Mist-Honed-PQ5191.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/319422/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/319425/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-marestar": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Marestar-2.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317343/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317342/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-malana": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Malana-Pattern-Bluish-1.jpeg",
+    "jumbo": [],
+    "lifestyle": []
+  },
+  "PENT-illennia": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Illennia.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/608290/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-enza-oro": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Enza-Oro-8.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/354449/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/354450/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-costa-bella": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Costa-Bella-100-Edit-V1-1.jpg",
+    "jumbo": [],
+    "lifestyle": []
+  },
+  "PENT-cielo-sky": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Cielo-Sky-6.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/365922/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/365926/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-cielo-blue": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Cielo-Blue-Edit.jpg",
+    "jumbo": [],
+    "lifestyle": []
+  },
+  "PENT-blossom-mist": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Blossom-Mist-4-1.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/358383/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/358381/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-bianco-sol": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Bianco-Sol-10.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/345499/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/345497/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-bianco-aspen": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Bianco-Aspen-1.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317288/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317286/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-aura-gold": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Aura-Gold-PQ5184.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/326241/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/326248/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-venus": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Venus-Slab.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/330584/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/330586/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-unique-calacatta-macchia-vecchia": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-Macchia-Vecchia-3.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/319075/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/354587/slab.jpg"
+    ],
+    "lifestyle": [
+      "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-Macchia-Vecchia-3-scaled.jpg"
+    ]
+  },
+  "PENT-unique-calacatta-gold": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-Gold-corrected.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/318330/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/318332/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-unique-calacatta-blue": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-Blue-2.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/352309/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/370160/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-unique-calacatta": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-5.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/319085/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317429/slab.jpg"
+    ],
+    "lifestyle": [
+      "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-5-scaled.jpg"
+    ]
+  },
+  "PENT-terra-sky-gold": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Terra-Sky-Gold-Approved.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/722205/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-terra-sky": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Terra-Sky-Approved.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/614706/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-super-white": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Super-White-3Cm.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/316159/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317252/slab.jpg"
+    ],
+    "lifestyle": [
+      "https://arcsurfaces.com/wp-content/uploads/Super-White-3Cm-scaled.jpg"
+    ]
+  },
+  "PENT-seashell": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Seashell-color-corrected.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/316621/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/318208/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-salora-grey": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Salora-Grey-5-e1752666832447.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/376825/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/376826/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-salora-gold": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Salora-Gold-7-e1752666898635.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/376790/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/376789/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-revelry-storm": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Revelry-Storm.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/611744/slab.jpg"
+    ],
+    "lifestyle": []
+  },
+  "PENT-revelry-macchia": {
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Reverly-Macchia-Approved.jpg",
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/733771/slab.jpg"
+    ],
+    "lifestyle": []
+  }
+}

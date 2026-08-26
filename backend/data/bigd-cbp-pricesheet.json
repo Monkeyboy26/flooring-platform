@@ -1,0 +1,223 @@
+{
+ "source": "Big D Floor Covering Supplies CSP \u2014 ROMA FLOORING, as of 10/1/2025 (SCA12 41515)",
+ "vendor": "CUSTOM BUILDING PRODUCTS",
+ "items": [
+  {
+   "pid": "99132",
+   "code": "VPSAT4",
+   "desc": "VPSAT4 CUSTOM VINYL PSA RESILIENT FLOORING PRESSURE SENSITIVE ADH 4 GALLON",
+   "price": 69.51,
+   "uom": "ea"
+  },
+  {
+   "pid": "92458",
+   "code": "TL10050T",
+   "desc": "TL10050T CUSTOM TECH 100 PREMIUM SELF LEVELING UNDERLAYMENT",
+   "price": 23.74,
+   "uom": "ea"
+  },
+  {
+   "pid": "85347",
+   "code": "TL15050T",
+   "desc": "TL15050T CUSTOM TL-150 SELF-LEVELING UNDERLAYMENT 50lb",
+   "price": 29.67,
+   "uom": "ea"
+  },
+  {
+   "pid": "92459",
+   "code": "TECHAT1-4",
+   "desc": "TECHAT1-4 CUSTOM TECHPRIME \"A\" 1GAL",
+   "price": 37.0,
+   "uom": "ea"
+  },
+  {
+   "pid": "51495",
+   "code": "T1603",
+   "desc": "3.5 GALLON T1-60 CUSTOM WALL & FLOOR TILE ADHESIVE",
+   "price": 45.81,
+   "uom": "ea"
+  },
+  {
+   "pid": "51491",
+   "code": "CBTSG50",
+   "desc": "CBTSG50 CUSTOM \"CUSTOMBLEND\" GRAY STANDARD THIN SET #50",
+   "price": 10.92,
+   "uom": "ea"
+  },
+  {
+   "pid": "51492",
+   "code": "CBTSW50",
+   "desc": "CBTSW50 CUSTOM \"CUSTOMBLEND\" WHITE STANDARD THIN SET #50",
+   "price": 15.44,
+   "uom": "ea"
+  },
+  {
+   "pid": "59440",
+   "code": "MSMG50",
+   "desc": "MSMG50 MULTI-SET GRAY MODIFIED 50lb",
+   "price": 10.9,
+   "uom": "ea"
+  },
+  {
+   "pid": "59392",
+   "code": "MSMW50",
+   "desc": "MSMW50 MULTI-SET WHITE MODIFIED 50lb",
+   "price": 14.14,
+   "uom": "ea"
+  },
+  {
+   "pid": "86497",
+   "code": "VBLFTMG50",
+   "desc": "VBLFTMG50 CUSTOM VERSABOND LFT GRAY 50LB",
+   "price": 15.84,
+   "uom": "bg"
+  },
+  {
+   "pid": "86498",
+   "code": "VBLFTMW50",
+   "desc": "VBLFTMW50 CUSTOM VERSABOND LFT WHITE 50LB",
+   "price": 18.31,
+   "uom": "bg"
+  },
+  {
+   "pid": "61560",
+   "code": "PLMG30",
+   "desc": "PLMG30 CUSTOM PROLITE GRAY TILE & STONE MORTAR 30lb",
+   "price": 24.66,
+   "uom": "ea"
+  },
+  {
+   "pid": "59473",
+   "code": "PLMW30",
+   "desc": "PLMW30 CUSTOM PROLITE WHITE TILE & STONE MORTAR 30lb",
+   "price": 27.34,
+   "uom": "ea"
+  },
+  {
+   "pid": "51493",
+   "code": "SDS25",
+   "desc": "SDS25 CUSTOM SPEEDSET GRAY THIN SET MORTAR 25lb",
+   "price": 18.89,
+   "uom": "ea"
+  },
+  {
+   "pid": "57834",
+   "code": "SDSW25",
+   "desc": "SDSW25 CUSTOM SPEEDSET WHITE THINSET MORTAR 25lb",
+   "price": 22.7,
+   "uom": "ea"
+  },
+  {
+   "pid": "98453",
+   "code": "PBPGXX25",
+   "desc": "PBPGXX25 POLYBLEND PLUS 25lb SANDED GROUT",
+   "price": 19.27,
+   "uom": "bg"
+  },
+  {
+   "pid": "98494",
+   "code": "PBPGXX10",
+   "desc": "PBPGXX10 POLYBLEND PLUS 10lb NONSANDED GROUT",
+   "price": 20.03,
+   "uom": "bx"
+  },
+  {
+   "pid": "77774",
+   "code": "PGXX17",
+   "desc": "PGXX17 CUSTOM PRISM SURE COLOR GROUT 17lb",
+   "price": 34.79,
+   "uom": "bg"
+  },
+  {
+   "pid": "103845",
+   "code": "PSCGXXX-2T",
+   "desc": "PSCGXXX-2T CUSTOM PRISM SCG PREMIXED SINGLE COMPONENT GROUT 1GAL",
+   "price": 81.2,
+   "uom": "ea"
+  },
+  {
+   "pid": "82742",
+   "code": "LWCEGXXA-EA",
+   "desc": "LWCEGXXA-EA (PART A) CUSTOM COMMERCIAL EPOXY GROUT CEG-LITE GROUT COLOR + 1.125lb TUB",
+   "price": 25.29,
+   "uom": "ea"
+  },
+  {
+   "pid": "68431",
+   "code": "LWCEGB1-EA",
+   "desc": "LWCEGB1-EA PART B CUSTOM COMMERICIAL EPOXY GROUT CEG-LITE 1 GALLON (9.7LB)",
+   "price": 74.17,
+   "uom": "ea"
+  },
+  {
+   "pid": "68432",
+   "code": "LWCEGB2",
+   "desc": "LWCEGB2 PART B CUSTOMCOMMERICIAL EPOXY GROUT CEG-LITE 2 GALLON (19LB)",
+   "price": 111.51,
+   "uom": "ea"
+  },
+  {
+   "pid": "84848",
+   "code": "CEGIGB2",
+   "desc": "CEGIGB2 CUSTOM COMMERCIAL EPOXY GROUT INDUSTRIAL GRADE CEG-IG 2 GALLON",
+   "price": 184.78,
+   "uom": "ea"
+  },
+  {
+   "pid": "52870",
+   "code": "020372",
+   "desc": "020372 (20362) AQUA MIX PENETRATING SEALER QUART",
+   "price": 14.21,
+   "uom": "ea"
+  },
+  {
+   "pid": "50597",
+   "code": "020373",
+   "desc": "020373 (20363) AQUA MIX PENETRATING SEALER GALLON",
+   "price": 41.4,
+   "uom": "ea"
+  },
+  {
+   "pid": "65969",
+   "code": "030882",
+   "desc": "030882 AQUA MIX SEALERS CHOICE GOLD RAPID CURE QUART",
+   "price": 61.31,
+   "uom": "ea"
+  },
+  {
+   "pid": "65970",
+   "code": "030883",
+   "desc": "030883 AQUA MIX SEALERS CHOICE GOLD RAPID CURE GALLON",
+   "price": 180.59,
+   "uom": "ea"
+  },
+  {
+   "pid": "51482",
+   "code": "LQWAF1-2",
+   "desc": "CUSTOM REDGARD WATERPROOFING & ANTIFRACTURE MEMBRANE 1 GALLON",
+   "price": 85.43,
+   "uom": "ea"
+  },
+  {
+   "pid": "60419",
+   "code": "LQWAF3",
+   "desc": "CUSTOM REDGARD WATERPROOFING & ANTIFRACTURE MEMBRANE 3.5 GALLON",
+   "price": 154.9,
+   "uom": "ea"
+  },
+  {
+   "pid": "84906",
+   "code": "CPMBP1",
+   "desc": "CUSTOM MBP MULTI SURFACE BOND PROMOTING PRIMER 1 GALLON",
+   "price": 53.01,
+   "uom": "ea"
+  },
+  {
+   "pid": "84907",
+   "code": "CPMBP3",
+   "desc": "CUSTOM MBP MULTI SURFACE BONDING PRIMER 3.5gal",
+   "price": 176.31,
+   "uom": "ea"
+  }
+ ]
+}

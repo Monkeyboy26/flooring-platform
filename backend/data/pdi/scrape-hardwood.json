@@ -1,0 +1,10 @@
+{
+  "manhattan": {
+    "Cityscape": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/67771f6b81a19c5b5f84c809_cityscape_Angled_02-2.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/67771e0f15fdaf7e33a8e77f_cityscape.00-2.webp"},
+    "Urbanview": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6778268bec7266bd3a029cca_UrbanView_Angled_02.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/67772949a25534cbd5f443c5_UrbanView_01.webp"},
+    "Metrovista": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6776ec0c3aad8be126b05ee6_Metrovista.Angled.03-2-2.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6776ebfc57686586eed2dda5_Metrovista.01-2.webp"}
+  },
+  "riche": {
+    "Smeralda": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/67782d7cdc3657e68c8113f6_Smeralda.Angled_02.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6775bfb005670c1e5d3377ae_Smeralda.01.webp"}
+  }
+}

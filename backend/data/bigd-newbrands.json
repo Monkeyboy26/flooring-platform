@@ -1,0 +1,905 @@
+{
+ "source": "Big D CSP 10/1/2025 \u2014 tier-1 gap fill",
+ "lines": [
+  {
+   "brand": "W.F. Taylor",
+   "brandCode": "WFTAYLOR",
+   "product": "Taylor Dynamic Pressure-Sensitive LVT & Vinyl Adhesive",
+   "category": "adhesives-sealants",
+   "collection": "Dynamic",
+   "skus": [
+    {
+     "code": "DYNAMIC-1",
+     "variant": "1 Gallon",
+     "price": 24.85,
+     "desc": "DYNAMIC-1 TAYLOR DYNAMIC PRESSURE SENSITIVE LVT & VINYL ADHESIVE 1gal"
+    },
+    {
+     "code": "DYNAMIC-4",
+     "variant": "4 Gallon",
+     "price": 82.05,
+     "desc": "DYNAMIC-4 TAYLOR DYNAMIC PRESSURE SENSITIVE LVT & VINYL ADHESIVE 4gal"
+    }
+   ]
+  },
+  {
+   "brand": "W.F. Taylor",
+   "brandCode": "WFTAYLOR",
+   "product": "Taylor Pinnacle Premium Pressure-Sensitive Adhesive",
+   "category": "adhesives-sealants",
+   "collection": "Pinnacle",
+   "skus": [
+    {
+     "code": "PINNACLE-1",
+     "variant": "1 Gallon",
+     "price": 41.89,
+     "desc": "PINNACLE-1 TAYLOR PINNACLE PRESSURE SENSITIVE ADHESIVE 1gal"
+    },
+    {
+     "code": "PINNACLE-4",
+     "variant": "4 Gallon",
+     "price": 145.59,
+     "desc": "PINNACLE-4 TAYLOR PINNACLE PRESSURE SENSITIVE ADHESIVE 4gal"
+    }
+   ]
+  },
+  {
+   "brand": "W.F. Taylor",
+   "brandCode": "WFTAYLOR",
+   "product": "Taylor Resolute Premium Multi-Function Adhesive",
+   "category": "adhesives-sealants",
+   "collection": "Resolute",
+   "skus": [
+    {
+     "code": "RESOLUTE-2",
+     "variant": "2 Gallon",
+     "price": 144.35,
+     "desc": "RESOLUTE-2 TAYLOR RESOLUTE PREMIUM MULTI-FUNCTION ADHESIVE 2gal"
+    }
+   ]
+  },
+  {
+   "brand": "W.F. Taylor",
+   "brandCode": "WFTAYLOR",
+   "product": "Taylor Timberline Urethane Wood Flooring Adhesive",
+   "category": "adhesives-sealants",
+   "collection": "Timberline",
+   "skus": [
+    {
+     "code": "TIMBERLINE-4",
+     "variant": "4 Gallon",
+     "price": 81.08,
+     "desc": "TIMBERLINE-4 WF TAYLOR URETHANE WOOD FLOORING ADHESIVE- 4GAL"
+    }
+   ]
+  },
+  {
+   "brand": "W.F. Taylor",
+   "brandCode": "WFTAYLOR",
+   "product": "Taylor Alpine Moisture Vapor Barrier Urethane Wood Adhesive",
+   "category": "adhesives-sealants",
+   "collection": "Alpine",
+   "skus": [
+    {
+     "code": "ALPINE-4",
+     "variant": "4 Gallon",
+     "price": 116.85,
+     "desc": "ALPINE-4 WF TAYLOR UNLIMITED MOISTURE VAPOR BARRIER, URETHANE WOOD ADHESIVE- + 4GAL"
+    }
+   ]
+  },
+  {
+   "brand": "W.F. Taylor",
+   "brandCode": "WFTAYLOR",
+   "product": "Taylor Finale Premium Cove Base Adhesive",
+   "category": "adhesives-sealants",
+   "collection": "Finale",
+   "skus": [
+    {
+     "code": "FINALE-010",
+     "variant": "10 oz Cartridge",
+     "price": 3.51,
+     "desc": "FINALE-010 TAYLOR FINALE PREMIUM COVE BASE ADHESIVE 10oz"
+    },
+    {
+     "code": "FINALE-030",
+     "variant": "30 oz Cartridge",
+     "price": 4.1,
+     "desc": "FINALE-030 TAYLOR FINALE PREMIUM COVE BASE ADHESIVE 30oz"
+    },
+    {
+     "code": "FINALE-1",
+     "variant": "1 Gallon",
+     "price": 18.0,
+     "desc": "FINALE-1 TAYLOR FINALE PREMIUM COVE BASE ADHESIVE 1gal"
+    },
+    {
+     "code": "FINALE-4",
+     "variant": "4 Gallon",
+     "price": 54.99,
+     "desc": "FINALE-4 TAYLOR FINALE PREMIUM COVE BASE ADHESIVE 4gal"
+    }
+   ]
+  },
+  {
+   "brand": "W.F. Taylor",
+   "brandCode": "WFTAYLOR",
+   "product": "Taylor 900 Workhorse General Purpose Adhesive",
+   "category": "adhesives-sealants",
+   "collection": "Workhorse",
+   "skus": [
+    {
+     "code": "900-4",
+     "variant": "4 Gallon",
+     "price": 31.21,
+     "desc": "900-4 TAYLOR WORKHORSE GENERAL PURPOSE ADHESIVE 4gal"
+    }
+   ]
+  },
+  {
+   "brand": "W.F. Taylor",
+   "brandCode": "WFTAYLOR",
+   "product": "Taylor Agile Hard-Set Multi-Purpose Adhesive",
+   "category": "adhesives-sealants",
+   "collection": "Agile",
+   "skus": [
+    {
+     "code": "AGILE-4",
+     "variant": "4 Gallon",
+     "price": 54.0,
+     "desc": "AGILE-4 TAYLOR AGILE HARD-SET MULTI-PURPOSE ADHESIVE 4gal"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN KE 2000 S Premium Universal Flooring Adhesive",
+   "category": "adhesives-sealants",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "86011",
+     "variant": "3GAL",
+     "price": 103.2,
+     "desc": "UZIN KE 2000 S PREMIUM UNIVERSAL FLOORING ADHESIVE 1 COMP 3GAL"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN KR 430 2-Component Polyurethane Adhesive",
+   "category": "adhesives-sealants",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "89472",
+     "variant": "1.5gal",
+     "price": 96.84,
+     "desc": "UZIN KR 430 2-COMPONENT POLYURETHANE ADHESIVE 1.5gal"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN NC 886 Patch & Repair Compound",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "77352",
+     "variant": "10LB",
+     "price": 13.21,
+     "desc": "UZIN NC 886 PATCH & REPAIR COMPOUND 10LB BAG"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN NC 888 Turbo Patching Compound",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "77351",
+     "variant": "10LB",
+     "price": 15.67,
+     "desc": "UZIN NC 888 TURBO PATCHING COMPOUND 10LB BAG"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN NC 890 Hydropatch Moisture Resistant Patch",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "159352",
+     "variant": "10LB",
+     "price": 18.68,
+     "desc": "UZIN NC 890 HYDROPATCH MOISTURE RESISTANT PATCH 10LB BAG (160ea/plt)"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN NC 182 Low Slump Patching & Repair Compound",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "77350",
+     "variant": "20LB",
+     "price": 21.39,
+     "desc": "UZIN NC 182 LOW SLUMP PATCHING & REPAIR COMPOUND 20LB BAG"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN NC 147 Self-Leveler",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "UZIN-104314",
+     "variant": "50LB",
+     "price": 21.67,
+     "desc": "UZIN NC 147 SELF-LEVELER 50LB BAG"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN NC 157 Self-Leveler",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "77347",
+     "variant": "50LB",
+     "price": 28.95,
+     "desc": "UZIN NC 157 SELF-LEVELER 50LB BAG"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN NC 150 Self-Leveler",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "77346",
+     "variant": "50LB",
+     "price": 30.97,
+     "desc": "UZIN NC 150 SELF-LEVELER 50LB"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN NC 150F Fiber-Reinforced Self-Leveler",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "176193",
+     "variant": "50LB",
+     "price": 44.98,
+     "desc": "UZIN NC 150F FIBER-REINFORCED SELF-LEVELER 50LB"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN NC 170 Levelstar Self-Leveler",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "77348",
+     "variant": "50LB",
+     "price": 43.54,
+     "desc": "UZIN NC 170 LEVELSTAR SELF-LEVELER 50LB"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN PE 260 Multipurpose Primer",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "80478",
+     "variant": "1 GAL",
+     "price": 52.28,
+     "desc": "UZIN PE 260 1 GAL MULTIPURPOSE PRIMER"
+    },
+    {
+     "code": "79280",
+     "variant": "2.6 GAL",
+     "price": 126.01,
+     "desc": "UZIN PE 260 2.6 GAL MULTIPURPOSE PRIMER"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN PE 360 Plus Fast-Drying Primer",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "10580",
+     "variant": "1 GALLON",
+     "price": 47.92,
+     "desc": "UZIN PE 360 PLUS FAST DRYING PRIMER 1 GALLON"
+    },
+    {
+     "code": "10579",
+     "variant": "2.6 GALLON",
+     "price": 110.89,
+     "desc": "UZIN PE 360 PLUS FAST DRYING PRIMER 2.6 GALLON"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN PE 280 Super Fast Primer",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "79279",
+     "variant": "2.6 GALLON",
+     "price": 160.33,
+     "desc": "UZIN PE 280 2.6 GALLON SUPER FAST PRIMER"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN PE 414 Turbo Rapid Primer / Moisture Vapor Retarder",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "UZIN-85469",
+     "variant": "2.6 GAL",
+     "price": 307.62,
+     "desc": "UZIN PE 414 TURBO 2.6 GAL RAPID PRIMER/MOISTURE VAPOR RETARDER"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN PE 460 Moisture Vapor Retarder Epoxy",
+   "category": "surface-prep-levelers",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "UZIN-92350",
+     "variant": "1 GAL",
+     "price": 100.32,
+     "desc": "UZIN PE 460 1 GAL MOISTURE VAPOR RETARDER EPOXY"
+    },
+    {
+     "code": "UZIN-85470",
+     "variant": "2.5 GAL",
+     "price": 296.12,
+     "desc": "UZIN PE 460 2.5 GAL MOISTURE VAPOR RETARDER EPOXY"
+    },
+    {
+     "code": "UZIN-104621",
+     "variant": "2.5 GAL Kit",
+     "price": 12.82,
+     "desc": ""
+    },
+    {
+     "code": "UZIN-104622",
+     "variant": "2.5 GAL Kit",
+     "price": 14.13,
+     "desc": ""
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN CX 20 Grey Powerflex Project Professional Thinset Mortar",
+   "category": "adhesives-sealants",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "UZIN-93556",
+     "variant": "40LBS",
+     "price": 15.04,
+     "desc": "UZIN CX 20 GREY POWERFLEX PROJECTPROFESSIONAL THINSET MORTAR 40LBS"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN CX 20 White Powerflex Project Professional Thinset Mortar",
+   "category": "adhesives-sealants",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "UZIN-93557",
+     "variant": "40LBS",
+     "price": 18.2,
+     "desc": "UZIN CX 20 WHITE POWERFLEX PROJECTPROFESSIONAL THINSET MORTAR 40LBS"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN CX 30 Grey Powerflex Project Plus Advanced S1 Thinset Mortar",
+   "category": "adhesives-sealants",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "UZIN-93554",
+     "variant": "40LBS",
+     "price": 23.01,
+     "desc": "UZIN CX 30 GREY POWERFLEX PROJECTPLUS ADVANCED S1 THINSET MORTAR 40LBS"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN CX 30 White Powerflex Project Plus Advanced S1 Thinset Mortar",
+   "category": "adhesives-sealants",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "UZIN-93555",
+     "variant": "40LBS",
+     "price": 25.93,
+     "desc": "UZIN CX 30 WHITE POWERFLEX PROJECTPLUS ADVANCED S1 THINSET MORTAR 40LBS"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN CX 33 Grey Powerflex Plus Advanced Rapid Setting S1 Thinset Mortar",
+   "category": "adhesives-sealants",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "+",
+     "variant": "27.5LB",
+     "price": 19.04,
+     "desc": "UZIN CX 33 GREY POWERFLEX PLUSADVANCED RAPID SETTING S1 THINSET MORTAR 27.5LB"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN CX 33 White Powerflex Plus Advanced Rapid Setting S1 Thinset Mortar",
+   "category": "adhesives-sealants",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "UZIN-93553",
+     "variant": "27.5LB",
+     "price": 23.61,
+     "desc": "UZIN CX 33 WHITE POWERFLEX PLUSADVANCED RAPID SETTING S1 THINSET MORTAR 27.5LB"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN Xtracolor Premium Cement Grout 10 lb (All Colors)",
+   "category": "grout",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "UZIN-96748",
+     "variant": "10lb",
+     "price": 17.08,
+     "desc": "83364 UZIN Xtracolor Grout XXX COLOR 10lb"
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN HS 100 Tile Waterproofing Membrane",
+   "category": "underlayment",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "83741",
+     "variant": "1 GAL",
+     "price": 41.74,
+     "desc": "UZIN HS 100 TILE WATERPROOFING MEMBRANE 1 GAL"
+    },
+    {
+     "code": "82101",
+     "variant": "2.5 GAL",
+     "price": 91.88,
+     "desc": "UZIN HS 100 TILE WATERPROOFING MEMBRANE 2.5 GAL."
+    }
+   ]
+  },
+  {
+   "brand": "UZIN",
+   "brandCode": "UZIN",
+   "product": "UZIN HS 200 Tile Waterproofing Membrane",
+   "category": "underlayment",
+   "collection": "UZIN",
+   "skus": [
+    {
+     "code": "81088",
+     "variant": "27.5LBS",
+     "price": 71.5,
+     "desc": "UZIN HS 200 TILE WATERPROOFING MEMBRANE 27.5LBS"
+    }
+   ]
+  },
+  {
+   "brand": "James Hardie",
+   "brandCode": "JAMESHAR",
+   "product": "HardieBacker Cement Board",
+   "category": "underlayment",
+   "collection": "HardieBacker",
+   "skus": [
+    {
+     "code": "JAMESHAR-610",
+     "variant": "1/4\" x 3'x5'",
+     "price": 12.78,
+     "desc": "HARDIBACKER 1/4\"x3'x5' UNDERLAYMENT"
+    },
+    {
+     "code": "JAMESHAR-46451",
+     "variant": ".42\" x 3'x5'",
+     "price": 15.7,
+     "desc": "HARDIBACKER .42\"x3'x5' UNDERLAYMENT"
+    }
+   ]
+  },
+  {
+   "brand": "National Gypsum",
+   "brandCode": "NATGYP",
+   "product": "PermaBase Cement Board",
+   "category": "underlayment",
+   "collection": "PermaBase",
+   "skus": [
+    {
+     "code": "NATGYP-45366",
+     "variant": "1/4\" x 3'x5'",
+     "price": 16.03,
+     "desc": "1/4\" PERMABASE 3'x 5' CEMENT BOARD"
+    },
+    {
+     "code": "NATGYP-45570",
+     "variant": "1/2\" x 3'x5'",
+     "price": 16.45,
+     "desc": "1/2\" PERMABASE 3'x 5' CEMENT BOARD"
+    }
+   ]
+  },
+  {
+   "brand": "USG",
+   "brandCode": "USG",
+   "product": "Fiberock Aqua-Tough Underlayment",
+   "category": "underlayment",
+   "collection": "Fiberock",
+   "skus": [
+    {
+     "code": "USG-44208",
+     "variant": "1/4\" x 3'x5'",
+     "price": 10.96,
+     "desc": "FIBEROCK 1/4\" x 3' x 5' AQUA TOUGH"
+    },
+    {
+     "code": "USG-112023",
+     "variant": ".42 x 3'x5'",
+     "price": 19.32,
+     "desc": "FIBEROCK .42 x 3' x 5' AQUA SMART"
+    }
+   ]
+  },
+  {
+   "brand": "Georgia-Pacific",
+   "brandCode": "GEORGIAP",
+   "product": "DensShield Tile Backer",
+   "category": "underlayment",
+   "collection": "DensShield",
+   "skus": [
+    {
+     "code": "GEORGIA-43104",
+     "variant": "1/4\" x 4'x4'",
+     "price": 19.86,
+     "desc": "1/4\"x4'x4' DENS-SHIELD UNDERLAYMENT"
+    },
+    {
+     "code": "GEORGIA-43105",
+     "variant": "1/2\" x 4'x5'",
+     "price": 26.79,
+     "desc": "1/2\"x4'x5' DENS-SHIELD UNDERLAYMENT"
+    }
+   ]
+  },
+  {
+   "brand": "Bottini",
+   "brandCode": "BOTTINI",
+   "product": "Diamond Tough Cement Board Screws 1-5/8 in (200 ct)",
+   "category": "underlayment",
+   "collection": "Backer Board Screws",
+   "skus": [
+    {
+     "code": "SC-1-5-8",
+     "variant": "200 Count",
+     "price": 15.94,
+     "desc": "SC-1-5-8 DIAMOND TOUGH 8-15 x 1-5/8\" CEMENT BOARD SCREW 200ct SQUARE DRIVE"
+    }
+   ]
+  },
+  {
+   "brand": "QUIKRETE",
+   "brandCode": "QUIKRETE",
+   "product": "QUIKRETE Deck Mud Floor Mortar 75 lb",
+   "category": "shower-systems",
+   "collection": "QUIKRETE",
+   "skus": [
+    {
+     "code": "90778",
+     "variant": "75 lb Bag",
+     "price": 7.93,
+     "desc": "15476 QUIKRETE DECK MUD 75lb 42/pallet"
+    }
+   ]
+  },
+  {
+   "brand": "QUIKRETE",
+   "brandCode": "QUIKRETE",
+   "product": "QUIKRETE Wall Float Mortar 75 lb",
+   "category": "shower-systems",
+   "collection": "QUIKRETE",
+   "skus": [
+    {
+     "code": "99592",
+     "variant": "75 lb Bag",
+     "price": 9.61,
+     "desc": "15376 QUIKRETE WALL FLOAT 75lb 42/pallet"
+    }
+   ]
+  },
+  {
+   "brand": "Centaur",
+   "brandCode": "CENTAUR",
+   "product": "Centaur SR2 Sound Control Underlayment 2mm \u2014 4 ft x 75 ft (300 sq ft)",
+   "category": "underlayment",
+   "collection": "Centaur",
+   "skus": [
+    {
+     "code": "RBRL1-000226",
+     "variant": "Roll",
+     "price": 103.05,
+     "desc": "RBRL1-000226 CENTAUR SR2 2mmx4'x75' QTSCU SOUND CONTROL INSULATION (300sf)"
+    }
+   ]
+  },
+  {
+   "brand": "Centaur",
+   "brandCode": "CENTAUR",
+   "product": "Centaur SR5 Sound Control Underlayment 5mm \u2014 4 ft x 30 ft (120 sq ft)",
+   "category": "underlayment",
+   "collection": "Centaur",
+   "skus": [
+    {
+     "code": "RBRL1-000234",
+     "variant": "Roll",
+     "price": 91.4,
+     "desc": "RBRL1-000234 CENTAUR SR5 5mmx4'x30' QTSCU SOUND CONTROL INSULATION (120sf)"
+    }
+   ]
+  },
+  {
+   "brand": "Centaur",
+   "brandCode": "CENTAUR",
+   "product": "Centaur SR10 Sound Control Underlayment 10mm \u2014 4 ft x 15 ft (60 sq ft)",
+   "category": "underlayment",
+   "collection": "Centaur",
+   "skus": [
+    {
+     "code": "RBRL1-000241",
+     "variant": "Roll",
+     "price": 79.75,
+     "desc": "RBRL1-000241 CENTAUR SR10 10MMx4'x15' SOUND CONTROL UNDERLAYMENT (60sf)"
+    }
+   ]
+  },
+  {
+   "brand": "Pliteq",
+   "brandCode": "PLITEQ",
+   "product": "Pliteq GenieMat RST02 Sound Control Underlayment 2mm \u2014 4 ft x 75 ft",
+   "category": "underlayment",
+   "collection": "Pliteq",
+   "skus": [
+    {
+     "code": "RST02",
+     "variant": "Roll",
+     "price": 129.23,
+     "desc": "PLITEQ GENIEMAT UNDERLAYMENT 2MMx4'x75' GENIEMAT UNDERLAYMENT"
+    }
+   ]
+  },
+  {
+   "brand": "Pliteq",
+   "brandCode": "PLITEQ",
+   "product": "Pliteq GenieMat RST05 Sound Control Underlayment 5mm \u2014 4 ft x 30 ft",
+   "category": "underlayment",
+   "collection": "Pliteq",
+   "skus": [
+    {
+     "code": "RST05",
+     "variant": "Roll",
+     "price": 116.31,
+     "desc": "PLITEQ GENIEMAT UNDERLAYMENT 5MMx4'x30' GENIEMAT UNDERLAYMENT"
+    }
+   ]
+  },
+  {
+   "brand": "Pliteq",
+   "brandCode": "PLITEQ",
+   "product": "Pliteq GenieMat RST10 Sound Control Underlayment 10mm \u2014 4 ft x 15 ft",
+   "category": "underlayment",
+   "collection": "Pliteq",
+   "skus": [
+    {
+     "code": "RST10",
+     "variant": "Roll",
+     "price": 116.86,
+     "desc": "PLITEQ GENIEMAT UNDERLAYMENT 10MMx4'x15' GENIEMAT UNDERLAYMENT"
+    }
+   ]
+  },
+  {
+   "brand": "Roberts",
+   "brandCode": "ROBERTSF",
+   "product": "Roberts Black Jack Sound Reducing Underlayment \u2014 100 sq ft Roll",
+   "category": "underlayment",
+   "collection": "Roberts",
+   "skus": [
+    {
+     "code": "70-026",
+     "variant": "Roll",
+     "price": 29.43,
+     "desc": "ROBERTS BLACKJACK UNDERLAYMENT 100sf/rl - 43.5\"x27.5'"
+    }
+   ]
+  },
+  {
+   "brand": "Sponge Cushion",
+   "brandCode": "SPONGECU",
+   "product": "Sponge Cushion Moisture Barrier LVT Underlayment 42oz \u2014 22.2 yd Roll",
+   "category": "underlayment",
+   "collection": "Sponge Cushion",
+   "skus": [
+    {
+     "code": "BV0340",
+     "variant": "Roll",
+     "price": 100.75,
+     "desc": "SPONGE CUSHION D BARRIER 22.22yd/rl LVT UNDERLAYMENT 42oz BV0340"
+    }
+   ]
+  },
+  {
+   "brand": "Sponge Cushion",
+   "brandCode": "SPONGECU",
+   "product": "Sponge Cushion Soft Walk Hardwood Underlayment w/ Moisture Barrier 62oz \u2014 20 yd",
+   "category": "underlayment",
+   "collection": "Sponge Cushion",
+   "skus": [
+    {
+     "code": "BV0185",
+     "variant": "Roll",
+     "price": 112.7,
+     "desc": "SILENT WALK 20yd/rl w/MOISTURE BARRIER FOR HARDWOOD FLOORS 62oz BV0185"
+    }
+   ]
+  },
+  {
+   "brand": "Sponge Cushion",
+   "brandCode": "SPONGECU",
+   "product": "Sponge Cushion Tred-Mor Carpet Cushion 62oz \u2014 30 yd Roll",
+   "category": "underlayment",
+   "collection": "Sponge Cushion",
+   "skus": [
+    {
+     "code": "1562",
+     "variant": "Roll",
+     "price": 209.96,
+     "desc": "5/32\" TRED-MOR 30yd 62oz (GREEN WRAP)"
+    }
+   ]
+  },
+  {
+   "brand": "Sponge Cushion",
+   "brandCode": "SPONGECU",
+   "product": "Sponge Cushion Tred-Mor Carpet Cushion 68oz \u2014 30 yd Roll",
+   "category": "underlayment",
+   "collection": "Sponge Cushion",
+   "skus": [
+    {
+     "code": "2568",
+     "variant": "Roll",
+     "price": 230.66,
+     "desc": "1/4\" TRED-MOR 30yd 68oz (YELLOW WRAP)"
+    }
+   ]
+  },
+  {
+   "brand": "Sponge Cushion",
+   "brandCode": "SPONGECU",
+   "product": "Sponge Cushion Tred-Mor Carpet Cushion 80oz \u2014 30 yd Roll",
+   "category": "underlayment",
+   "collection": "Sponge Cushion",
+   "skus": [
+    {
+     "code": "2580",
+     "variant": "Roll",
+     "price": 248.89,
+     "desc": "1/4\" TRED-MOR 30yd 80oz (CLEAR WRAP) BV0180"
+    }
+   ]
+  },
+  {
+   "brand": "Sponge Cushion",
+   "brandCode": "SPONGECU",
+   "product": "Sponge Cushion Tred-Mor Commercial Cushion 100oz \u2014 15 yd Roll",
+   "category": "underlayment",
+   "collection": "Sponge Cushion",
+   "skus": [
+    {
+     "code": "3700",
+     "variant": "Roll",
+     "price": 153.28,
+     "desc": "3/8\" TRED-MOR 15yd 100oz (RED WRAP)"
+    }
+   ]
+  },
+  {
+   "brand": "National Gypsum",
+   "brandCode": "NATGYP",
+   "product": "PermaBase Cement Board Mesh Tape 2 in x 50 ft",
+   "category": "underlayment",
+   "collection": "PermaBase",
+   "skus": [
+    {
+     "code": "CB 0202",
+     "variant": "2 in x 50 ft",
+     "price": 7.21,
+     "desc": "CB 0202 PERMABASE 2\"x50' MESH TAPE ALKALI RESISTANT FIBERGLASS"
+    }
+   ]
+  }
+ ]
+}

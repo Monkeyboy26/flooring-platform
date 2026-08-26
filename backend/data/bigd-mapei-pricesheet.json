@@ -1,0 +1,580 @@
+{
+ "source": "Big D Floor Covering Supplies CSP \u2014 ROMA FLOORING, as of 10/1/2025 (SCA12 41515)",
+ "vendor": "MAPEI",
+ "items": [
+  {
+   "pid": "63646",
+   "code": "92064",
+   "subcat": "CARPET/MULTI",
+   "desc": "ECO 20 4 GAL MAPEI ULTRABOND STANDARD FLOORING ADH",
+   "price": 27.51
+  },
+  {
+   "pid": "800",
+   "code": "96518000",
+   "subcat": "CARPET",
+   "desc": "ECO 185 4 GAL MAPEI PROFESSIONAL CARPET ADHESIVE",
+   "price": 36.86
+  },
+  {
+   "pid": "46795",
+   "code": "92264000",
+   "subcat": "CARPET",
+   "desc": "ECO 220 4 GAL MAPEI ULTRA PREMIUM MULTI PURP ADHSV",
+   "price": 58.87
+  },
+  {
+   "pid": "49708",
+   "code": "1042002",
+   "subcat": "CARPET-OUTDOOR",
+   "desc": "ECO 420 1 GAL MAPEI PREMIUM OUTDOOR CARPET ADH",
+   "price": 20.27
+  },
+  {
+   "pid": "49534",
+   "code": "94264",
+   "subcat": "CARPET-OUTDOOR",
+   "desc": "ECO 420 4 GAL MAPEI PREMIUM OUTDOOR CARPET ADH",
+   "price": 72.89
+  },
+  {
+   "pid": "95090",
+   "code": "1949904",
+   "subcat": "CARPET TILE",
+   "desc": "ECO 811 1gal UNIVERSAL CARPET TILE ADHESIVE",
+   "price": 43.3
+  },
+  {
+   "pid": "94684",
+   "code": "1949915",
+   "subcat": "CARPET TILE",
+   "desc": "ECO 811 4 GAL MAPEI UNIVERSAL CARPET TILE ADHESIVE",
+   "price": 95.34
+  },
+  {
+   "pid": "60722",
+   "code": "1005002",
+   "subcat": "COVEBASE",
+   "desc": "ECO 575 MAPEI 11 OZ ACRYLIC COVE BASE ADHESIVE",
+   "price": 3.45
+  },
+  {
+   "pid": "804",
+   "code": "1005001",
+   "subcat": "COVEBASE",
+   "desc": "ECO 575 28.7 oz MAPEI ACRYLIC COVE BASE ADHESIVE",
+   "price": 4.0
+  },
+  {
+   "pid": "45525",
+   "code": "1005004",
+   "subcat": "COVEBASE",
+   "desc": "ECO 575 1 GAL MAPEI ACRYLIC COVE BASE ADHESIVE",
+   "price": 16.69
+  },
+  {
+   "pid": "805",
+   "code": "95764",
+   "subcat": "COVEBASE",
+   "desc": "ECO 575 4 GAL ACRYLIC COVE BASE ADH",
+   "price": 50.13
+  },
+  {
+   "pid": "54034",
+   "code": "97154",
+   "subcat": "VCT",
+   "desc": "ECO 711 1 GAL MAPEI VCT CLEAR THIN SPREAD ADHESIVE",
+   "price": 19.82
+  },
+  {
+   "pid": "54033",
+   "code": "97164",
+   "subcat": "VCT",
+   "desc": "ECO 711 4 GAL MAPEI VCT CLEAR THIN SPREAD ADHESIVE",
+   "price": 45.63
+  },
+  {
+   "pid": "82903",
+   "code": "93653",
+   "subcat": "VINYL",
+   "desc": "ECO 360 MAPEI PREMIUM HARD-SET 1GL ADHESIVE FOR SOLID VINYL",
+   "price": 39.34
+  },
+  {
+   "pid": "63815",
+   "code": "93664",
+   "subcat": "VINYL",
+   "desc": "ECO 360 MAPEI PREMIUM HARD-SET 4GL ADHESIVE FOR SOLID VINYL",
+   "price": 123.18
+  },
+  {
+   "pid": "99905",
+   "code": "",
+   "subcat": "VINYL",
+   "desc": "ECO 399 1 GAL MAPEI HEAVY-DUTY PRESSURE-SENSITIVE MULTI-FLOORING ADHESIVE",
+   "price": 25.79
+  },
+  {
+   "pid": "99904",
+   "code": "",
+   "subcat": "VINYL",
+   "desc": "ECO 399 4 GAL MAPEI HEAVY-DUTY PRESSURE-SENSITIVE MULTI-FLOORING ADHESIVE",
+   "price": 83.56
+  },
+  {
+   "pid": "44378",
+   "code": "3090007",
+   "subcat": "MULTI",
+   "desc": "G 21 MAPEI ULTRA/BOND POLYURETHANE ADH 2 GAL SOLVENT FREE",
+   "price": 193.55
+  },
+  {
+   "pid": "94650",
+   "code": "1947615",
+   "subcat": "WOOD",
+   "desc": "UB-977 4 gal MAPEI ULTRABOND FAST SET URETHANE WOOD ADHESIVE 1947615",
+   "price": 79.48
+  },
+  {
+   "pid": "102987",
+   "code": "1942715",
+   "subcat": "WOOD",
+   "desc": "UB-980 4gal MAPEI ULTRABOND PREMIUM MOISTURE CONTROL & WOOD FLOORING + ADHESIVE",
+   "price": 102.82
+  },
+  {
+   "pid": "102981",
+   "code": "1945815",
+   "subcat": "WOOD",
+   "desc": "UB-995 4 gal MAPEI ULTRABOND PREMIUM MOISTURE CONTROL & WOOD FLOORING + ADHESIVE",
+   "price": 143.03
+  },
+  {
+   "pid": "112183",
+   "code": "657815",
+   "subcat": "WOOD",
+   "desc": "UB-987 4 gal MAPEI ULTRABOND PREMIUM SILANE MOD. POLYMER WOOD-FLOORING + MEMBRANE",
+   "price": 129.49
+  },
+  {
+   "pid": "80840",
+   "code": "7378405",
+   "subcat": "PATCH",
+   "desc": "PLANIPREP SC HIGH PERFORMANCE SKIMCOAT 10lb MAPEI 7378405",
+   "price": 14.68
+  },
+  {
+   "pid": "100792",
+   "code": "7378305",
+   "subcat": "PATCH",
+   "desc": "MAPEI PLANIPREP PSC MOISTURE RESISTANT FAST DRYING SKIMCOATING COMPOUND + 10lb",
+   "price": 13.53
+  },
+  {
+   "pid": "112282",
+   "code": "1205611",
+   "subcat": "PATCH",
+   "desc": "MAPEI PLANIPREP RMP 25lb",
+   "price": 15.97
+  },
+  {
+   "pid": "764",
+   "code": "1203211",
+   "subcat": "PATCH",
+   "desc": "PLANIPATCH 25lb MAPEI 1203211",
+   "price": 15.01
+  },
+  {
+   "pid": "50752",
+   "code": "1785156",
+   "subcat": "SELF LEVELER",
+   "desc": "NOVOPLAN 2 PLUS MAPEI 50lb GREY SELF-LEVELING UNDERLAYMENT 1785156",
+   "price": 18.98
+  },
+  {
+   "pid": "99726",
+   "code": "",
+   "subcat": "SELF LEVELER",
+   "desc": "NOVOPLAN HFL MAPEI 50lb GREY HIGH-FLOW SELF-LEVELING COMPOUND",
+   "price": 25.55
+  },
+  {
+   "pid": "57831",
+   "code": "7492623",
+   "subcat": "SELF LEVELER",
+   "desc": "ULTRAPLAN 1 PLUS QUICK-SET 50 LB MAPEI SL 7492623",
+   "price": 27.79
+  },
+  {
+   "pid": "112252",
+   "code": "350956",
+   "subcat": "SELF LEVELER",
+   "desc": "ULTRAPLAN HFL MAPEI HIGH FLOW, FAST SETTING LEVELER 50lb",
+   "price": 30.37
+  },
+  {
+   "pid": "91707",
+   "code": "1162323",
+   "subcat": "SELF LEVELER",
+   "desc": "MAPEI PLANITEX SLF FIBER REINFORCED GYPSUM UNDERLAYMENT 50lb",
+   "price": 38.37
+  },
+  {
+   "pid": "50073",
+   "code": "36053000",
+   "subcat": "PRIMER",
+   "desc": "PRIMER L 1gal MAPEI ACRYLIC LATEX PRIMER FOR CONCRETE 36053000",
+   "price": 24.99
+  },
+  {
+   "pid": "52737",
+   "code": "36068000",
+   "subcat": "PRIMER",
+   "desc": "PRIMER L 5 GAL MAPEI ACRYLIC LATEX PRIMER FOR CONCRETE",
+   "price": 113.04
+  },
+  {
+   "pid": "66530",
+   "code": "36657",
+   "subcat": "PRIMER",
+   "desc": "PRIMER T MAPEI ALL PURPOSE PRIMER FOR SELF-LEVELING 2gal",
+   "price": 91.46
+  },
+  {
+   "pid": "97222",
+   "code": "1559508",
+   "subcat": "PRIMER",
+   "desc": "PRIMER X FAST DRY TEXTURED PRIMER 2gal MAPEI",
+   "price": 83.81
+  },
+  {
+   "pid": "81543",
+   "code": "2437111",
+   "subcat": "2437111",
+   "desc": "2.1gal MAPEI PLANISEAL VS FAST ALKALI RESISTANT MOISTURE REDUCTION BARRIER PART",
+   "price": 386.41
+  },
+  {
+   "pid": "81544",
+   "code": "2437211",
+   "subcat": "2437211",
+   "desc": "0.9gal MAPEI PLANISEAL VS FAST ALKALI RESISTANT MOISTURE REDUCTION BARRIER PART",
+   "price": 233.91
+  },
+  {
+   "pid": "81266",
+   "code": "2435511",
+   "subcat": "2435511",
+   "desc": "2.2gal MAPEI PLANISEAL VS ALKALI RESISTANT MOISTURE REDUCTION BARRIER PART A",
+   "price": 214.4
+  },
+  {
+   "pid": "81267",
+   "code": "2435611",
+   "subcat": "2435611",
+   "desc": "0.8gal MAPEI PLANISEAL VS ALKALI RESISTANT MOISTURE REDUCTION BARRIER PART B",
+   "price": 84.52
+  },
+  {
+   "pid": "111946",
+   "code": "183515",
+   "subcat": "183515",
+   "desc": "MAPEI PLANISEAL MAX 4gal ONE-COMPONENT VAPOR BARRIER & PRIMER",
+   "price": 297.5
+  },
+  {
+   "pid": "45306",
+   "code": "1040011",
+   "subcat": "1040011",
+   "desc": "TYPE 1 1gal MAPEI CERAMIC TILE ADHESIVE",
+   "price": 17.5
+  },
+  {
+   "pid": "51223",
+   "code": "1040016",
+   "subcat": "1040016",
+   "desc": "TYPE 1 3.5gal MAPEI CERAMIC TILE ADHESIVE",
+   "price": 43.4
+  },
+  {
+   "pid": "46799",
+   "code": "0020050",
+   "subcat": "0020050",
+   "desc": "MAPEI KERABOND GRAY 50lb DRY-SET MORTAR",
+   "price": 14.16
+  },
+  {
+   "pid": "46800",
+   "code": "0011523",
+   "subcat": "0011523",
+   "desc": "KERABOND WHITE 50lb MAPEI DRY-SET MORTAR",
+   "price": 17.42
+  },
+  {
+   "pid": "65984",
+   "code": "7489223BDF",
+   "subcat": "UTG Gray 50lb ULTRA TILE LATEX MODIFIED THINSET 7489223BDF",
+   "desc": "UTG Gray 50lb ULTRA TILE LATEX MODIFIED THINSET",
+   "price": 9.38
+  },
+  {
+   "pid": "66166",
+   "code": "",
+   "subcat": "UTW White 50lb ULTRA TILE LATEX MODIFIED THINSET",
+   "desc": "UTW White 50lb ULTRA TILE LATEX MODIFIED THINSET",
+   "price": 11.9
+  },
+  {
+   "pid": "98216",
+   "code": "2183323",
+   "subcat": "2183323",
+   "desc": "ULTRAFLEX LHT SG Gray 50lb MAPEI MODIFIED MEDIUM BED MORTAR",
+   "price": 10.22
+  },
+  {
+   "pid": "98215",
+   "code": "2183423",
+   "subcat": "2183423",
+   "desc": "ULTRAFLEX LHT SG White 50lb MAPEI MODIFIED MEDIUM BED MORTAR",
+   "price": 11.71
+  },
+  {
+   "pid": "99183",
+   "code": "1196120USA",
+   "subcat": "1196120USA",
+   "desc": "KERAFLEX SG Gray 44lb MAPEI STANDARD, EXTRA SMOOTH, LHT MORTAR WITH POLYMER",
+   "price": 10.56
+  },
+  {
+   "pid": "99184",
+   "code": "1196220USA",
+   "subcat": "1196220USA",
+   "desc": "KERAFLEX SG White 44lb MAPEI STANDARD, EXTRA SMOOTH, LHT MORTAR WITH POLYMER",
+   "price": 12.26
+  },
+  {
+   "pid": "99175",
+   "code": "1194720USA",
+   "subcat": "1194720USA",
+   "desc": "KERAFLEX PLUS Gray MAPEI PROFESSIONAL, EXTRA SMOOTH, LARGE AND HEAVY TILE +",
+   "price": 15.35
+  },
+  {
+   "pid": "99182",
+   "code": "1194820USA",
+   "subcat": "1194820USA",
+   "desc": "KERAFLEX PLUS White MAPEI PROFESSIONAL, EXTRA SMOOTH, LARGE AND HEAVY TILE +",
+   "price": 17.81
+  },
+  {
+   "pid": "98847",
+   "code": "1200120USA",
+   "subcat": "1200120USA",
+   "desc": "KERAFLEX SUPER GRAY 44lb PREMIUM, EXTRA SMOOTH, LARGE AND HEAVY TILE MORTAR",
+   "price": 24.72
+  },
+  {
+   "pid": "98848",
+   "code": "1200220USA",
+   "subcat": "1200220USA",
+   "desc": "KERAFLEX SUPER WHITE 44lb PREMIUM, EXTRA SMOOTH, LARGE AND HEAVY TILE MORTAR",
+   "price": 26.8
+  },
+  {
+   "pid": "42980",
+   "code": "",
+   "subcat": "ULTRAFLEX 1 GRAY MAPEI THINSET 50LB",
+   "desc": "ULTRAFLEX 1 GRAY MAPEI THINSET 50LB",
+   "price": 12.28
+  },
+  {
+   "pid": "42979",
+   "code": "",
+   "subcat": "ULTRAFLEX 1 WHITE MAPEI THINSET 50LB",
+   "desc": "ULTRAFLEX 1 WHITE MAPEI THINSET 50LB",
+   "price": 14.0
+  },
+  {
+   "pid": "45304",
+   "code": "",
+   "subcat": "ULTRAFLEX 2 GRAY MAPEI THINSET 50LB",
+   "desc": "ULTRAFLEX 2 GRAY MAPEI THINSET 50LB",
+   "price": 15.58
+  },
+  {
+   "pid": "45305",
+   "code": "",
+   "subcat": "ULTRAFLEX 2 WHITE MAPEI THINSET 50LB",
+   "desc": "ULTRAFLEX 2 WHITE MAPEI THINSET 50LB",
+   "price": 18.62
+  },
+  {
+   "pid": "99415",
+   "code": "1191720USA",
+   "subcat": "1191720USA",
+   "desc": "KERAFLEX RS Gray 44lb RAPID-SET MORTAR",
+   "price": 31.23
+  },
+  {
+   "pid": "102516",
+   "code": "1191820USA",
+   "subcat": "1191820USA",
+   "desc": "KERAFLEX RS White 44lb RAPID-SET MORTAR",
+   "price": 35.39
+  },
+  {
+   "pid": "90137",
+   "code": "6BU5XXX11",
+   "subcat": "PREMIUM CEMENT",
+   "desc": "6BU5XXX11 MAPEI ULTRACOLOR PLUS FA GROUT 25LB",
+   "price": 23.66
+  },
+  {
+   "pid": "84508",
+   "code": "4KA5XXX04",
+   "subcat": "PREMIXED",
+   "desc": "4KA5XXX04 MAPEI FLEXCOLOR CQ 1 GAL",
+   "price": 44.51
+  },
+  {
+   "pid": "84535",
+   "code": "4KA5XXX08",
+   "subcat": "PREMIXED",
+   "desc": "4KA5XXX08 MAPEI FLEXCOLOR CQ 2 GAL",
+   "price": 76.45
+  },
+  {
+   "pid": "82881",
+   "code": "5UB5XXX04",
+   "subcat": "EPOXY",
+   "desc": "5UB5XXX04 MAPEI KERAPOXY CQ 1 GAL",
+   "price": 80.67
+  },
+  {
+   "pid": "82880",
+   "code": "5UB5XXX08",
+   "subcat": "EPOXY",
+   "desc": "5UB5XXX08 MAPEI KERAPOXY CQ 2 GAL",
+   "price": 147.42
+  },
+  {
+   "pid": "85770",
+   "code": "5UA5XXX12",
+   "subcat": "INDUSTRIAL EPOXY",
+   "desc": "5UA5XXX12 MAPEI KERAPOXY IEG CQ PART C",
+   "price": 23.96
+  },
+  {
+   "pid": "85769",
+   "code": "5UA999812KIT",
+   "subcat": "INDUSTRIAL EPOXY",
+   "desc": "5UA999812KIT MAPEI KERAPOXY IEG CQ LARGE KIT- 3.6GAL",
+   "price": 309.07
+  },
+  {
+   "pid": "79238",
+   "code": "32110",
+   "subcat": "ANTIFRACTURE MEMBRANE",
+   "desc": "MAPELASTIC CI 1 gal MAPEI CRACK ISOLATION MEMBRANE",
+   "price": 34.78
+  },
+  {
+   "pid": "66901",
+   "code": "32163",
+   "subcat": "ANTIFRACTURE MEMBRANE",
+   "desc": "MAPELASTIC CI 3.5 gal MAPEI CRACK ISOLATION MEMBRANE",
+   "price": 83.08
+  },
+  {
+   "pid": "79249",
+   "code": "36153000",
+   "subcat": "BONDING PRIMER",
+   "desc": "ECO Prim Grip 1gal MAPEI MULTIPURPOSE BOND-PROMOTING PRIMER",
+   "price": 42.41
+  },
+  {
+   "pid": "79250",
+   "code": "36163000",
+   "subcat": "BONDING PRIMER",
+   "desc": "ECO Prim Grip 3.5gal MAPEI MULTIPURPOSE BOND-PROMOTING PRIMER",
+   "price": 134.89
+  },
+  {
+   "pid": "50858",
+   "code": "35553000",
+   "subcat": "WATERPROOF LIQUID",
+   "desc": "MAPELASTIC HPG WATERPROOF & CRACK ISOLATION MEMBRANE 1GAL",
+   "price": 44.39
+  },
+  {
+   "pid": "49735",
+   "code": "35568000",
+   "subcat": "WATERPROOF LIQUID",
+   "desc": "MAPELASTIC HPG WATERPROOF & CRACK ISOLATION MEMBRANE 5GAL",
+   "price": 170.75
+  },
+  {
+   "pid": "94520",
+   "code": "7345704",
+   "subcat": "WATERPROOF LIQUID",
+   "desc": "+ MAPELASTIC WATER STOP 1gal MAPEI WATERPROOFING AND CRACK ISOLATION MEMBRANE",
+   "price": 56.75
+  },
+  {
+   "pid": "93053",
+   "code": "7345713",
+   "subcat": "WATERPROOF LIQUID",
+   "desc": "MAPELASTIC WATER STOP 3.5 GAL MAPEI WATERPROOFING AND CRACK ISOLATION + MEMBRANE",
+   "price": 131.77
+  },
+  {
+   "pid": "63637",
+   "code": "01953",
+   "subcat": "WATERPROOF LIQUID",
+   "desc": "MAPEI AQUA DEFENSE 1 gal",
+   "price": 60.8
+  },
+  {
+   "pid": "63638",
+   "code": "01968",
+   "subcat": "WATERPROOF LIQUID",
+   "desc": "MAPEI AQUA DEFENSE 5 gal",
+   "price": 244.4
+  },
+  {
+   "pid": "50860",
+   "code": "8040003",
+   "subcat": "MESH TAPE",
+   "desc": "MAPELASTIC 1'x 50yd = 150sf ALKIALI-RESISTANT FIBER MESH FOR EMBEDMENT FOR 315+& HPG",
+   "price": 76.78
+  },
+  {
+   "pid": "102509",
+   "code": "1947955",
+   "subcat": "MULTI ADHESIVE",
+   "desc": "ULTRABOND ECO 907 10.5oz MAPEI FAST-CURING, SILANE-MODIFIED POLYMER ADHESIVE",
+   "price": 5.96
+  },
+  {
+   "pid": "97084",
+   "code": "1947958",
+   "subcat": "MULTI ADHESIVE",
+   "desc": "ULTRABOND ECO 907 29oz MAPEI FAST-CURING, SILANE-MODIFIED POLYMER ADHESIVE +1947958",
+   "price": 16.92
+  },
+  {
+   "pid": "99436",
+   "code": "FMS7506",
+   "subcat": "MESH TAPE",
+   "desc": "FMS7506 Flow Max Pro High Strength Reinforcement Mesh 6\"x75' (16rl/cs) (37.5 sqft/roll)",
+   "price": 9.81
+  },
+  {
+   "pid": "",
+   "code": "0170004",
+   "subcat": "",
+   "desc": "Reinforcing Fabric 6\"x 75ft (for optional use with Mapelastic AquaDefense)",
+   "price": 17.51
+  }
+ ]
+}

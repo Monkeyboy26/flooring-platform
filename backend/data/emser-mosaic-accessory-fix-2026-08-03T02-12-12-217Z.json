@@ -1,0 +1,1492 @@
+[
+  {
+    "sku_id": "5c9d132f-14f2-41c6-9a8b-220134b7f5b9",
+    "internal_sku": "EMSER-F19NOBLLU1012MHB",
+    "category": "mosaic-tile",
+    "product": "Nobleza Herringbone Matte Mosaic",
+    "variant_name": "LUGO",
+    "sell_by": "unit",
+    "sqft_per_box": "8.4280",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "49e3dea8-a512-442b-a1bb-eb5c82aedab0",
+    "internal_sku": "EMSER-F86LUNAMI1212MHAH",
+    "category": "mosaic-tile",
+    "product": "Lunara Honed Hatch Mosaic",
+    "variant_name": "MIRA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4300",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "75246439-fc9b-4e60-a4ce-f6677494949d",
+    "internal_sku": "EMSER-F86LUNAOR1212MHAH",
+    "category": "mosaic-tile",
+    "product": "Lunara Honed Hatch Mosaic",
+    "variant_name": "ORION",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4300",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "7b8fca33-ba0a-46a7-8337-104aac579f51",
+    "internal_sku": "EMSER-F86LUNAVE1212MHAH",
+    "category": "mosaic-tile",
+    "product": "Lunara Honed Hatch Mosaic",
+    "variant_name": "VEGA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4300",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "93f6db36-2991-4ba5-bfcc-bfc61ec9b8d5",
+    "internal_sku": "EMSER-F86LUNAAL1212MHAH",
+    "category": "mosaic-tile",
+    "product": "Lunara Honed Hatch Mosaic",
+    "variant_name": "ALCOR",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4300",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "9dedf98f-9c22-43c4-969f-6333fe8c9906",
+    "internal_sku": "EMSER-F58COSTGR1212MO2",
+    "category": "mosaic-tile",
+    "product": "Costa Original Finish Mosaic",
+    "variant_name": "GRAY",
+    "sell_by": "unit",
+    "sqft_per_box": "10.4800",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "20e0201f-a09a-4f95-8bd3-89ee078e9d80",
+    "internal_sku": "EMSER-F86MILETA1212MO2",
+    "category": "mosaic-tile",
+    "product": "Milestone Mosaic",
+    "variant_name": "TAUPE",
+    "sell_by": "unit",
+    "sqft_per_box": "10.6590",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "18b08c82-5a4c-493d-a42f-4f78870d5284",
+    "internal_sku": "EMSER-F86MILEWH1212MO2",
+    "category": "mosaic-tile",
+    "product": "Milestone Mosaic",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "10.6590",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "d1783c8c-5621-4ec8-81b8-8de3208c679c",
+    "internal_sku": "EMSER-F86MILEGR1212MO2",
+    "category": "mosaic-tile",
+    "product": "Milestone Mosaic",
+    "variant_name": "GRAY",
+    "sell_by": "unit",
+    "sqft_per_box": "10.6590",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "f9d08232-b0fc-4bc4-b5d6-3d2ee754a3ad",
+    "internal_sku": "EMSER-F86MILEDU1212MO2",
+    "category": "mosaic-tile",
+    "product": "Milestone Mosaic",
+    "variant_name": "DUST",
+    "sell_by": "unit",
+    "sqft_per_box": "10.6590",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "786bb87f-8316-4893-9f89-2df56ca9c3d2",
+    "internal_sku": "EMSER-F86MILEMO1212MO2",
+    "category": "mosaic-tile",
+    "product": "Milestone Mosaic",
+    "variant_name": "MOON",
+    "sell_by": "unit",
+    "sqft_per_box": "10.6590",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "dd48859f-4212-4c76-a082-e3dee1c1609f",
+    "internal_sku": "EMSER-I99FUSIGR1212MO2",
+    "category": "mosaic-tile",
+    "product": "Stone Fusion Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "GRAY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "9906b25f-b651-4ae9-9c77-5b2b24c16882",
+    "internal_sku": "EMSER-F44MOODIV1212MOF",
+    "category": "mosaic-tile",
+    "product": "Mood Mosaic",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "10.6590",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "9a52aa11-97c7-462c-b3a5-1f5d131b3604",
+    "internal_sku": "EMSER-F58TESOSI1212MO2V3",
+    "category": "mosaic-tile",
+    "product": "Tesola Matte/Satin Mosaic",
+    "variant_name": "SILVER",
+    "sell_by": "unit",
+    "sqft_per_box": "10.4800",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "530e38fe-0bb6-4cc0-83fa-7ed8a21fe8ee",
+    "internal_sku": "EMSER-F02ESPLAL1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Esplanade Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "ALLEY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "f434c2fa-a748-49df-98f4-7e2ed0e7e1ca",
+    "internal_sku": "EMSER-F02ESPLHA1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Esplanade Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "HALL",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "2bc324fd-10af-4dc2-b2f5-8652a3fa75ab",
+    "internal_sku": "EMSER-F02ESPLPA1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Esplanade Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "PASS",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "31167cd2-c221-45fc-8be7-1de8adf1aa8b",
+    "internal_sku": "EMSER-F02ESPLTR1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Esplanade Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "TRAIL",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "3b6d591c-fff5-4774-8edb-70deb607a537",
+    "internal_sku": "EMSER-F50TROVAL1313MO2",
+    "category": "mosaic-tile",
+    "product": "Trovata ii Mosaic/13x13",
+    "variant_name": "ALBUM",
+    "sell_by": "unit",
+    "sqft_per_box": "11.6900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "abd39c7a-4815-4a39-810b-f1c5d46cf12b",
+    "internal_sku": "EMSER-F50TROVDI1313MO2",
+    "category": "mosaic-tile",
+    "product": "Trovata ii Mosaic/13x13",
+    "variant_name": "DIARY",
+    "sell_by": "unit",
+    "sqft_per_box": "11.6900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "5fbb8c75-6c92-472a-a39d-961f82e28f88",
+    "internal_sku": "EMSER-I99SABLCH1212MO2",
+    "category": "porcelain-tile",
+    "product": "Sabe Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "CHARCOAL",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "eca6f173-1a71-4f25-8346-e681294365c8",
+    "internal_sku": "EMSER-I99SABLGS1212MO2",
+    "category": "porcelain-tile",
+    "product": "Sabe Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "GRIS",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "800304a9-6ab8-4d37-ad71-071ab2c94589",
+    "internal_sku": "EMSER-I99SABLIV1212MO2",
+    "category": "porcelain-tile",
+    "product": "Sabe Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "c135275f-8fba-4b58-aa6d-183388867ed2",
+    "internal_sku": "EMSER-F20VISCOR1212MSKM",
+    "category": "mosaic-tile",
+    "product": "Visconde Matte Stacked Mosaic",
+    "variant_name": "ORO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "9a63b91b-b942-4bab-a7e4-6abee0285911",
+    "internal_sku": "EMSER-F44JARGIV1212MSKH",
+    "category": "mosaic-tile",
+    "product": "Jargon Honed Stacked Mosaic",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "a4afc9af-e2c0-4e6c-807b-9e3083bd6c14",
+    "internal_sku": "EMSER-F84BROOCR1212MO2",
+    "category": "mosaic-tile",
+    "product": "Brook ii Matte Mosaic",
+    "variant_name": "CREAM",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "bbf479e6-6a22-4bb4-b6e3-9d8e720d31b6",
+    "internal_sku": "EMSER-F84BROOGT1212MO2",
+    "category": "mosaic-tile",
+    "product": "Brook ii Matte Mosaic",
+    "variant_name": "GRAPHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "1afdd1a6-07d3-4c61-b28c-fa2d0521832a",
+    "internal_sku": "EMSER-F84BROOWH1212MO2",
+    "category": "mosaic-tile",
+    "product": "Brook ii Matte Mosaic",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "70455c28-418d-45df-a201-448989ff55a0",
+    "internal_sku": "EMSER-F84BROOSI1212MO2",
+    "category": "mosaic-tile",
+    "product": "Brook ii Matte Mosaic",
+    "variant_name": "SILVER",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "4f2ad9a7-2a36-416a-955b-d8d1a6cf3ba5",
+    "internal_sku": "EMSER-F84CAVAWH1212MOF",
+    "category": "mosaic-tile",
+    "product": "Cavanite Matte Offset Mosaic",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5460",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "b431ce8f-6bdc-440e-80ff-448d3afb7084",
+    "internal_sku": "EMSER-F84CAVAIV1212MOF",
+    "category": "mosaic-tile",
+    "product": "Cavanite Matte Offset Mosaic",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5460",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "40784eb5-1f57-4a32-a6ab-937bd57cca8e",
+    "internal_sku": "EMSER-F84CAVAFA1212MOF",
+    "category": "mosaic-tile",
+    "product": "Cavanite Matte Offset Mosaic",
+    "variant_name": "FAWN",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5460",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "35847302-d62b-4905-8803-a4028c8ab1db",
+    "internal_sku": "EMSER-F26CITIPU1212MOMV2",
+    "category": "mosaic-tile",
+    "product": "Citizen Matte Mosaic/12x12 8.8 Mm 10 Pc/Ct",
+    "variant_name": "PUBLIC",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "94615774-9c6e-4329-9b3a-448bc69a1624",
+    "internal_sku": "EMSER-F26CITICI1212MOMV2",
+    "category": "mosaic-tile",
+    "product": "Citizen Matte Mosaic/12x12 8.8 Mm 10 Pc/Ct",
+    "variant_name": "CIVILIAN",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "43788df0-29ea-4e00-b2fc-57144e3dda6a",
+    "internal_sku": "EMSER-F26CITISU1212MOMV2",
+    "category": "mosaic-tile",
+    "product": "Citizen Matte Mosaic/12x12 8.8 Mm 10 Pc/Ct",
+    "variant_name": "SUBJECT",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "c0f354a3-ab2b-4a9d-bb19-86f7867b55c6",
+    "internal_sku": "EMSER-F26CITIRE1212MOMV2",
+    "category": "mosaic-tile",
+    "product": "Citizen Matte Mosaic/12x12 8.8 Mm 10 Pc/Ct",
+    "variant_name": "RESIDENT",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "de36429d-9da9-42e1-b82d-5199e89ed754",
+    "internal_sku": "EMSER-F26CITIEL1212MOMV2",
+    "category": "mosaic-tile",
+    "product": "Citizen Matte Mosaic/12x12 8.8 Mm 10 Pc/Ct",
+    "variant_name": "ELECTOR",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "e07efbca-c279-44a1-bdd2-e1d7611a5418",
+    "internal_sku": "EMSER-F20VISCOR1212MH2M",
+    "category": "mosaic-tile",
+    "product": "Visconde Matte 2in Hexagon Mosaic",
+    "variant_name": "ORO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.7520",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "bf499ca9-250f-4ee0-a120-9b84de0507e3",
+    "internal_sku": "EMSER-F84CAVAFA1212MO2",
+    "category": "mosaic-tile",
+    "product": "Cavanite Matte Mosaic",
+    "variant_name": "FAWN",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "b1a67645-8c98-4203-a3f7-f044a59d323d",
+    "internal_sku": "EMSER-F84CAVAIV1212MO2",
+    "category": "mosaic-tile",
+    "product": "Cavanite Matte Mosaic",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "a2533c80-8c86-4f72-a6a7-b6820cef3be7",
+    "internal_sku": "EMSER-F84CAVAWH1212MO2",
+    "category": "mosaic-tile",
+    "product": "Cavanite Matte Mosaic",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "24b62356-8373-4be4-ab52-2aec0d198537",
+    "internal_sku": "EMSER-F15CONTDA1313MO2V2",
+    "category": "mosaic-tile",
+    "product": "Contessa Matte Mosaic On 7.0 Mm",
+    "variant_name": "DAMA",
+    "sell_by": "unit",
+    "sqft_per_box": "11.7360",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "ebe1870c-aca5-4672-bd31-66d453600652",
+    "internal_sku": "EMSER-F02CHROER1212MO",
+    "category": "mosaic-tile",
+    "product": "Chronicle Mosaic",
+    "variant_name": "ERA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5000",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "a735031e-83d5-420a-b9b1-e26cd857b223",
+    "internal_sku": "EMSER-F02EURACA1212MOFV2",
+    "category": "mosaic-tile",
+    "product": "Eurasia Matte Offset Mosaic/12x12 7.0 Mm",
+    "variant_name": "CAFE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.3990",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "04cfea55-c5da-4f67-86da-26d58023e739",
+    "internal_sku": "EMSER-F86TERRAV1212MSKH",
+    "category": "mosaic-tile",
+    "product": "Terramor Honed Stacked Mosaic",
+    "variant_name": "AVORIO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4880",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "2e96c931-3b49-44c4-862a-e9aea90a49b7",
+    "internal_sku": "EMSER-F86TERRBI1212MSKH",
+    "category": "mosaic-tile",
+    "product": "Terramor Honed Stacked Mosaic",
+    "variant_name": "BIANCO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4880",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "efc26110-e341-4924-97da-afdd08f9770b",
+    "internal_sku": "EMSER-F86TERRFU1212MSKH",
+    "category": "mosaic-tile",
+    "product": "Terramor Honed Stacked Mosaic",
+    "variant_name": "FULVO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4880",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "b4321a03-a7e7-4f81-aaa2-2effeab55167",
+    "internal_sku": "EMSER-F86TERRGR1212MSKH",
+    "category": "mosaic-tile",
+    "product": "Terramor Honed Stacked Mosaic",
+    "variant_name": "GRIGIO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4880",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "68319198-15e7-487f-bcfd-3ae9331b95e0",
+    "internal_sku": "EMSER-F86TERRNE1212MSKH",
+    "category": "mosaic-tile",
+    "product": "Terramor Honed Stacked Mosaic",
+    "variant_name": "NERO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4880",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "6af11175-3dd6-4a83-80c2-2802e8556910",
+    "internal_sku": "EMSER-F45DUNHRA1212MO2",
+    "category": "mosaic-tile",
+    "product": "Dunham Mosaic",
+    "variant_name": "RAJMATA",
+    "sell_by": "unit",
+    "sqft_per_box": "10.3730",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "81dd9217-6756-4b50-8d9a-094bb7f1bf91",
+    "internal_sku": "EMSER-F45DUNHBU1212MO2",
+    "category": "mosaic-tile",
+    "product": "Dunham Mosaic",
+    "variant_name": "BUKHARA",
+    "sell_by": "unit",
+    "sqft_per_box": "10.3730",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "9020c0fe-b0c0-473c-80b2-216ab9ed0f49",
+    "internal_sku": "EMSER-F20STERIV1212MH2M",
+    "category": "mosaic-tile",
+    "product": "Sterlina ii Matte 2 Hexagon Mosaic",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.7500",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "a1d59e75-e2cc-4966-9089-5c75a5cb5918",
+    "internal_sku": "EMSER-F20STERWH1212MH2M",
+    "category": "mosaic-tile",
+    "product": "Sterlina ii Matte 2 Hexagon Mosaic",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.7500",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "192a3077-1326-4f52-8ec7-6b87bb4f6190",
+    "internal_sku": "EMSER-F20STERHE1212MH2M",
+    "category": "mosaic-tile",
+    "product": "Sterlina ii Matte 2 Hexagon Mosaic",
+    "variant_name": "HENNA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.7500",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "a538743e-718d-47af-8999-6449b5124b1d",
+    "internal_sku": "EMSER-F17GENEBK1212MSKM",
+    "category": "porcelain-tile",
+    "product": "Genesis Matte Stacked Mosaic",
+    "variant_name": "BLACK",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "a2bb3dac-575a-430a-8350-e66ee2084064",
+    "internal_sku": "EMSER-F17GENEDE1212MSKM",
+    "category": "porcelain-tile",
+    "product": "Genesis Matte Stacked Mosaic",
+    "variant_name": "DENIM",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "1faf2478-7f86-4098-b2ed-3691d241f3e7",
+    "internal_sku": "EMSER-F17GENEIV1212MSKM",
+    "category": "porcelain-tile",
+    "product": "Genesis Matte Stacked Mosaic",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "f0232377-c83c-4316-8c21-03723805eb59",
+    "internal_sku": "EMSER-F17GENEOC1212MSKM",
+    "category": "porcelain-tile",
+    "product": "Genesis Matte Stacked Mosaic",
+    "variant_name": "OCEAN",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "ce6f29f6-2dce-40f5-ab9d-4f9dc19e358e",
+    "internal_sku": "EMSER-F17GENEWH1212MSKM",
+    "category": "porcelain-tile",
+    "product": "Genesis Matte Stacked Mosaic",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "36e81746-e954-4920-9dc7-e9f3c44bc0ba",
+    "internal_sku": "EMSER-F04CHIAJE1212MO2",
+    "category": "mosaic-tile",
+    "product": "Chiado ii Matte/Satin Mosaic/12x12",
+    "variant_name": "JEROME",
+    "sell_by": "unit",
+    "sqft_per_box": "10.5820",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "4304636f-f576-4408-a396-9ee1fa04b5b5",
+    "internal_sku": "EMSER-F04CHIAAT1212MO2",
+    "category": "mosaic-tile",
+    "product": "Chiado ii Matte/Satin Mosaic/12x12",
+    "variant_name": "ATOLIA",
+    "sell_by": "unit",
+    "sqft_per_box": "10.5820",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "76d73935-96a6-4cd4-a247-791bed27673d",
+    "internal_sku": "EMSER-F04CHIALO1212MO2",
+    "category": "mosaic-tile",
+    "product": "Chiado ii Matte/Satin Mosaic/12x12",
+    "variant_name": "LORING",
+    "sell_by": "unit",
+    "sqft_per_box": "10.5820",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "b02ad53a-5418-4047-b94a-9becea8dbb81",
+    "internal_sku": "EMSER-F02REALAS1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Realm ii Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "ASSEMBLY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "7474227c-9938-450f-920a-1e76f7e5b518",
+    "internal_sku": "EMSER-F07JUTEIV1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Jute Matte Mosaic/12x12 7.5 Mm",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "783930af-3957-4045-9b47-5cec955e5c5d",
+    "internal_sku": "EMSER-F07JUTELI1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Jute Matte Mosaic/12x12 7.5 Mm",
+    "variant_name": "LINEN",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "7c327d5a-57f2-4bc0-99a4-b06b24b8167f",
+    "internal_sku": "EMSER-F07JUTEGR1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Jute Matte Mosaic/12x12 7.5 Mm",
+    "variant_name": "GRAY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "66083a7d-fa01-4660-8690-e9615c53d753",
+    "internal_sku": "EMSER-F07JUTECH1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Jute Matte Mosaic/12x12 7.5 Mm",
+    "variant_name": "CHARCOAL",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "c6f58cd7-963c-4035-ab4f-ae53b0dd1af6",
+    "internal_sku": "EMSER-F20TIMEBK1013MH4P",
+    "category": "mosaic-tile",
+    "product": "Times Square Polished 4 Hexagon Mosaic",
+    "variant_name": "BLACK",
+    "sell_by": "unit",
+    "sqft_per_box": "8.8500",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "8e273cd8-2c7c-4c1d-8a39-288d8770bc9d",
+    "internal_sku": "EMSER-F20TIMEWH1013MH4P",
+    "category": "mosaic-tile",
+    "product": "Times Square Polished 4 Hexagon Mosaic",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "8.8500",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "0effe999-4a9c-48ae-9fa5-60ef506ea624",
+    "internal_sku": "EMSER-F07SERELU1212MOFP",
+    "category": "mosaic-tile",
+    "product": "Serendra Polished Offset Mosaic",
+    "variant_name": "LUNA",
+    "sell_by": "unit",
+    "sqft_per_box": "7.5920",
+    "pieces_per_box": 8
+  },
+  {
+    "sku_id": "1fe4f4b6-9f0b-4acb-9af6-bf26933e2472",
+    "internal_sku": "EMSER-F07SEREMI1212MOFP",
+    "category": "mosaic-tile",
+    "product": "Serendra Polished Offset Mosaic",
+    "variant_name": "MILA",
+    "sell_by": "unit",
+    "sqft_per_box": "7.5920",
+    "pieces_per_box": 8
+  },
+  {
+    "sku_id": "d606a159-e0e2-439d-a0e9-812fd02a6239",
+    "internal_sku": "EMSER-F07SEREZA1212MOFP",
+    "category": "mosaic-tile",
+    "product": "Serendra Polished Offset Mosaic",
+    "variant_name": "ZARA",
+    "sell_by": "unit",
+    "sqft_per_box": "7.5920",
+    "pieces_per_box": 8
+  },
+  {
+    "sku_id": "6e029516-d7f8-4d04-bd5c-17fda2cc05af",
+    "internal_sku": "EMSER-F20STERSI1212MO2M",
+    "category": "mosaic-tile",
+    "product": "Sterlina ii Matte Mosaic",
+    "variant_name": "SILVER",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "b3f8dc71-c434-49cd-88a9-d658373f0ed8",
+    "internal_sku": "EMSER-A86PARKAS1212MSKP",
+    "category": "mosaic-tile",
+    "product": "Parkview Polished Stacked Mosaic/12x12",
+    "variant_name": "ASTRAL",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4690",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "18f14dd9-c981-4275-98c8-ceb6c43a3281",
+    "internal_sku": "EMSER-A86PARKWH1212MSKP",
+    "category": "mosaic-tile",
+    "product": "Parkview Polished Stacked Mosaic/12x12",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4690",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "55da9a6b-18bb-4bf4-93f1-39bc21f6f9dc",
+    "internal_sku": "EMSER-A86PARKBR1212MSKP",
+    "category": "mosaic-tile",
+    "product": "Parkview Polished Stacked Mosaic/12x12",
+    "variant_name": "BROWN",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4690",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "ef3202f2-41f7-497f-ba04-0d8817efb0f1",
+    "internal_sku": "EMSER-A86PARKBL1212MSKP",
+    "category": "mosaic-tile",
+    "product": "Parkview Polished Stacked Mosaic/12x12",
+    "variant_name": "BLUE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4690",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "bbb8fe61-56b5-4489-83f8-d86348e8640b",
+    "internal_sku": "EMSER-F19NOBLAS1212MO2",
+    "category": "mosaic-tile",
+    "product": "Nobleza Matte Mosaic",
+    "variant_name": "ASTORGA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "8f241b5f-1d48-4a43-953e-d8fa6f1a75b0",
+    "internal_sku": "EMSER-F19NOBLLU1212MO2",
+    "category": "mosaic-tile",
+    "product": "Nobleza Matte Mosaic",
+    "variant_name": "LUGO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "91de8dc3-df6a-46e1-a12c-76e6bd25e512",
+    "internal_sku": "EMSER-F70ACCEPA1212MO",
+    "category": "mosaic-tile",
+    "product": "Access Mosaic",
+    "variant_name": "PATH",
+    "sell_by": "unit",
+    "sqft_per_box": "10.5160",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "8e19fc66-7e02-4742-ab34-b8406456f0cc",
+    "internal_sku": "EMSER-F70ACCERO1212MO",
+    "category": "mosaic-tile",
+    "product": "Access Mosaic",
+    "variant_name": "ROUTE",
+    "sell_by": "unit",
+    "sqft_per_box": "10.5160",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "465389b0-bab0-4b62-bbda-448b113d6685",
+    "internal_sku": "EMSER-F07SEREMI1212MO2MV2",
+    "category": "mosaic-tile",
+    "product": "Serendra Matte Mosaic/12x12 7.5 Mm",
+    "variant_name": "MILA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "b7a4ee28-c1a1-4178-8af2-50784ddaadfd",
+    "internal_sku": "EMSER-F07SERELU1212MO2MV2",
+    "category": "mosaic-tile",
+    "product": "Serendra Matte Mosaic/12x12 7.5 Mm",
+    "variant_name": "LUNA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "294170eb-8ff6-41b7-b35b-b66b365cba0c",
+    "internal_sku": "EMSER-F84CARURE1313MO2M",
+    "category": "functional-hardware",
+    "product": "Caru Matte Mosaic/13x13",
+    "variant_name": "RENGO",
+    "sell_by": "unit",
+    "sqft_per_box": "11.7400",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "19a8ed21-f6c2-4b47-90dc-d632cfb940f9",
+    "internal_sku": "EMSER-F84CARUCO1313MO2M",
+    "category": "functional-hardware",
+    "product": "Caru Matte Mosaic/13x13",
+    "variant_name": "COLINA",
+    "sell_by": "unit",
+    "sqft_per_box": "11.7400",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "3c1c837b-3392-43d7-844a-ddea41097b23",
+    "internal_sku": "EMSER-F84CARULA1313MO2M",
+    "category": "functional-hardware",
+    "product": "Caru Matte Mosaic/13x13",
+    "variant_name": "LAMPA",
+    "sell_by": "unit",
+    "sqft_per_box": "11.7400",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "c44d7f07-074f-430a-b75b-becd00020f1e",
+    "internal_sku": "EMSER-F84CIUDAS1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Ciudad 8.5mm Matte/Satin Mosaic/12x12",
+    "variant_name": "ASH",
+    "sell_by": "unit",
+    "sqft_per_box": "6.7340",
+    "pieces_per_box": 7
+  },
+  {
+    "sku_id": "75cc8d55-809f-46e6-a7c0-543bf532e7c8",
+    "internal_sku": "EMSER-F84CIUDCR1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Ciudad 8.5mm Matte/Satin Mosaic/12x12",
+    "variant_name": "CREAM",
+    "sell_by": "unit",
+    "sqft_per_box": "6.7340",
+    "pieces_per_box": 7
+  },
+  {
+    "sku_id": "cfb9700b-21c8-456c-999c-bc327ee57ad8",
+    "internal_sku": "EMSER-F84CIUDGR1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Ciudad 8.5mm Matte/Satin Mosaic/12x12",
+    "variant_name": "GRAY",
+    "sell_by": "unit",
+    "sqft_per_box": "6.7340",
+    "pieces_per_box": 7
+  },
+  {
+    "sku_id": "107cc736-5600-46f4-854f-2d488cd78b0a",
+    "internal_sku": "EMSER-F15CONTOR1313MO2",
+    "category": "porcelain-tile",
+    "product": "Contessa Matte/Satin Mosaic/13x13",
+    "variant_name": "ORO",
+    "sell_by": "unit",
+    "sqft_per_box": "11.0200",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "4c17e2dc-0c49-410e-a600-d4f7f053c395",
+    "internal_sku": "EMSER-F02COSMEC1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Cosmopolitan Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "ECRU",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "18377cdf-ad21-4500-9491-a2cdd537ff75",
+    "internal_sku": "EMSER-F02COSMST1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Cosmopolitan Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "STEEL",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "5a348d1b-c6be-410c-8005-d10ce9ea6ae4",
+    "internal_sku": "EMSER-F02COSMCH1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Cosmopolitan Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "CHARCOAL",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "a81840c6-a286-43f0-ac34-4cc08667ecc4",
+    "internal_sku": "EMSER-F02COSMCR1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Cosmopolitan Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "CRYSTAL",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "0f1f3212-4768-45f6-acc2-37bffcb93cf3",
+    "internal_sku": "EMSER-F02CHROER1212MOV2",
+    "category": "mosaic-tile",
+    "product": "Chronicle Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "ERA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "955c6e43-088b-4f1a-9fc1-47ec096a6178",
+    "internal_sku": "EMSER-F02SILHCO1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Silhouette Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "CONTOUR",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "47720996-c2d9-4783-8518-e2fc4fb988a0",
+    "internal_sku": "EMSER-F02SILHSH1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Silhouette Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "SHADOW",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "855a8814-11d2-4d63-b590-a6f0e00e828e",
+    "internal_sku": "EMSER-F02SILHFI1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Silhouette Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "FIGURE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "2ccb946b-9e04-4388-bbc4-6cf8ace943a3",
+    "internal_sku": "EMSER-F02SILHPR1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Silhouette Matte Mosaic/12x12 7.0 Mm",
+    "variant_name": "PROFILE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "879311e5-4ea6-43a6-81a3-bb25fa3a316d",
+    "internal_sku": "EMSER-A41BORIBK1212MO2",
+    "category": "mosaic-tile",
+    "product": "Borigni Mosaic",
+    "variant_name": "BLACK",
+    "sell_by": "unit",
+    "sqft_per_box": "5.6760",
+    "pieces_per_box": 6
+  },
+  {
+    "sku_id": "79ec614a-d95f-49df-814a-64040b6961bb",
+    "internal_sku": "EMSER-A41BORIWH1212MO2",
+    "category": "mosaic-tile",
+    "product": "Borigni Mosaic",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "5.6760",
+    "pieces_per_box": 6
+  },
+  {
+    "sku_id": "04f8d961-d86e-4033-bbb1-7d7bef59730e",
+    "internal_sku": "EMSER-A41BORIGR1212MO2",
+    "category": "mosaic-tile",
+    "product": "Borigni Mosaic",
+    "variant_name": "GRAY",
+    "sell_by": "unit",
+    "sqft_per_box": "5.6760",
+    "pieces_per_box": 6
+  },
+  {
+    "sku_id": "713bed08-59e4-4dbb-8383-13e269acc59e",
+    "internal_sku": "EMSER-F20FRAGLGSI1012MH3M",
+    "category": "mosaic-tile",
+    "product": "Fragmento 3in Large Speckle Hexagon Mosaic Matte",
+    "variant_name": "SILVER",
+    "sell_by": "unit",
+    "sqft_per_box": "8.9430",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "5e164478-e3fa-4eec-8ae2-577a6d539986",
+    "internal_sku": "EMSER-F20FRAGLGBK1012MH3M",
+    "category": "mosaic-tile",
+    "product": "Fragmento 3in Large Speckle Hexagon Mosaic Matte",
+    "variant_name": "BLACK",
+    "sell_by": "unit",
+    "sqft_per_box": "8.9430",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "f629947c-652f-4de3-92c4-4a4c7b5bd588",
+    "internal_sku": "EMSER-F20FRAGLGPE1012MH3M",
+    "category": "mosaic-tile",
+    "product": "Fragmento 3in Large Speckle Hexagon Mosaic Matte",
+    "variant_name": "PEARL",
+    "sell_by": "unit",
+    "sqft_per_box": "8.9430",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "1d5992ed-7ac6-403c-b3f1-50bd9493443f",
+    "internal_sku": "EMSER-F83SOLACA1011MH2V2",
+    "category": "mosaic-tile",
+    "product": "Solara Matte 2in Hexagon Mosaic 8.4mm",
+    "variant_name": "CABRIO",
+    "sell_by": "unit",
+    "sqft_per_box": "7.8150",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "29333722-6fab-4a5b-ad7f-82acf4e3f5e3",
+    "internal_sku": "EMSER-F83SOLAFI1011MH2V2",
+    "category": "mosaic-tile",
+    "product": "Solara Matte 2in Hexagon Mosaic 8.4mm",
+    "variant_name": "FIRENZA",
+    "sell_by": "unit",
+    "sqft_per_box": "7.8150",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "984a0f96-7e6e-4722-a5d1-a1309af05178",
+    "internal_sku": "EMSER-F83SOLAME1011MH2V2",
+    "category": "mosaic-tile",
+    "product": "Solara Matte 2in Hexagon Mosaic 8.4mm",
+    "variant_name": "MERIVA",
+    "sell_by": "unit",
+    "sqft_per_box": "7.8150",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "6110500a-f114-4d44-9c4d-d823db35d764",
+    "internal_sku": "EMSER-F83SOLAYA1011MH2V2",
+    "category": "mosaic-tile",
+    "product": "Solara Matte 2in Hexagon Mosaic 8.4mm",
+    "variant_name": "YARIS",
+    "sell_by": "unit",
+    "sqft_per_box": "7.8150",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "bdb3f5ca-88f4-4300-842f-27917eb88c05",
+    "internal_sku": "EMSER-A86UPTOMA1212MO2",
+    "category": "mosaic-tile",
+    "product": "Uptown Mosaic",
+    "variant_name": "MANHATTAN",
+    "sell_by": "unit",
+    "sqft_per_box": "9.6900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "2373c571-21be-401a-b572-5cbebf9b5864",
+    "internal_sku": "EMSER-A86UPTOMO1212MO2",
+    "category": "mosaic-tile",
+    "product": "Uptown Mosaic",
+    "variant_name": "MORNINGSIDE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.6900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "922497f0-70df-4e3e-9054-7dbbb15ecf05",
+    "internal_sku": "EMSER-A86UPTOSU1212MO2",
+    "category": "mosaic-tile",
+    "product": "Uptown Mosaic",
+    "variant_name": "SUGAR HILL",
+    "sell_by": "unit",
+    "sqft_per_box": "9.6900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "54ab010c-764d-4d87-831d-209c7088d03c",
+    "internal_sku": "EMSER-A86UPTOWA1212MO2",
+    "category": "mosaic-tile",
+    "product": "Uptown Mosaic",
+    "variant_name": "WASHINGTON",
+    "sell_by": "unit",
+    "sqft_per_box": "9.6900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "ed07c4df-cba3-457d-b879-c20bbe43a858",
+    "internal_sku": "EMSER-A86UPTOHA1212MO2",
+    "category": "mosaic-tile",
+    "product": "Uptown Mosaic",
+    "variant_name": "HAMILTON",
+    "sell_by": "unit",
+    "sqft_per_box": "9.6900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "98eb0d1f-96e7-40c9-af5e-85c4e279c417",
+    "internal_sku": "EMSER-F02RESEPA1313MOF",
+    "category": "mosaic-tile",
+    "product": "Reserva Mosaic",
+    "variant_name": "PAMPA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.9810",
+    "pieces_per_box": 9
+  },
+  {
+    "sku_id": "bacd119c-581f-4bfc-85b5-3c30bf880722",
+    "internal_sku": "EMSER-F63THRESI1212MO2",
+    "category": "mosaic-tile",
+    "product": "Thread ii Mosaic/1212",
+    "variant_name": "SILVER",
+    "sell_by": "unit",
+    "sqft_per_box": "10.3400",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "c491ae57-d4c7-42f6-a89f-a6eccea2454d",
+    "internal_sku": "EMSER-F13EROSRO1212MSK",
+    "category": "mosaic-tile",
+    "product": "Erosion Stacked Mosaic",
+    "variant_name": "ROCK",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "06ab8500-88cb-4287-b2bc-11dae7f37848",
+    "internal_sku": "EMSER-F12POTEDO1313MO2",
+    "category": "mosaic-tile",
+    "product": "Potenza Matte/Satin Mosaic",
+    "variant_name": "DOVE",
+    "sell_by": "unit",
+    "sqft_per_box": "11.0200",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "a6131862-f613-4f56-b0db-1a5200e6715d",
+    "internal_sku": "EMSER-F16PORTIV1212MOMV3",
+    "category": "mosaic-tile",
+    "product": "Porto ii Matte Mosaic On 8.8 Mm",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "945410b1-2a60-4e8b-8d9e-d08a0ef26995",
+    "internal_sku": "EMSER-F04THREWH1212MO2",
+    "category": "mosaic-tile",
+    "product": "Thread ii Matte Mosaic/1212",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "10.5820",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "9d7468b2-ad1d-4ad2-9ec9-fd85670e2099",
+    "internal_sku": "EMSER-F16PORTIV1212MOM",
+    "category": "mosaic-tile",
+    "product": "Porto ii Matte/Satin Mosaic/12x12",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "d7f959b5-588c-4db4-ba2e-333dd0ed5924",
+    "internal_sku": "EMSER-F16PORTWH1212MOM",
+    "category": "mosaic-tile",
+    "product": "Porto ii Matte/Satin Mosaic/12x12",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "32f69695-9d6e-4ad8-b393-ad384a9853b2",
+    "internal_sku": "EMSER-F16PORTFA1212MOM",
+    "category": "mosaic-tile",
+    "product": "Porto ii Matte/Satin Mosaic/12x12",
+    "variant_name": "FAWN",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "42749779-78ad-4587-8832-c90e68396d84",
+    "internal_sku": "EMSER-F39PIENSE1212MO2",
+    "category": "mosaic-tile",
+    "product": "Pienza Mosaic",
+    "variant_name": "SECCO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.6200",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "a0df10ad-9f26-4bf8-885c-73e02527cda2",
+    "internal_sku": "EMSER-F02SILHPR1313MO2",
+    "category": "mosaic-tile",
+    "product": "Silhouette Mosaic",
+    "variant_name": "PROFILE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4880",
+    "pieces_per_box": 8
+  },
+  {
+    "sku_id": "1db0a87f-bb20-42b7-aee9-648cc0bee799",
+    "internal_sku": "EMSER-F02RESEMA1212MOFV3",
+    "category": "mosaic-tile",
+    "product": "Reserva Matte Offset Mosaic/12x12 7.5 Mm",
+    "variant_name": "MANU",
+    "sell_by": "unit",
+    "sqft_per_box": "9.3990",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "af9494c4-121d-4397-b7a0-e57b02df519d",
+    "internal_sku": "EMSER-F02RESEAL1212MOFV3",
+    "category": "mosaic-tile",
+    "product": "Reserva Matte Offset Mosaic/12x12 7.5 Mm",
+    "variant_name": "ALTO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.3990",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "de28a7c2-72bc-4cf2-99f4-54720ec1f60c",
+    "internal_sku": "EMSER-F12POTEGR1212MO2V3",
+    "category": "mosaic-tile",
+    "product": "Potenza Matte Mosaic 7.0 Mm",
+    "variant_name": "GRAY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "e83d7e0d-5913-4204-85e3-bd47af5551a3",
+    "internal_sku": "EMSER-F12POTEDO1212MO2V3",
+    "category": "mosaic-tile",
+    "product": "Potenza Matte Mosaic 7.0 Mm",
+    "variant_name": "DOVE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "35fb24e5-0b1d-4e47-8eb9-0aefe8eb05c0",
+    "internal_sku": "EMSER-F12POTEIV1212MO2V3",
+    "category": "mosaic-tile",
+    "product": "Potenza Matte Mosaic 7.0 Mm",
+    "variant_name": "IVORY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4950",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "27905a7a-2a26-48c3-91a2-122a08f56ac6",
+    "internal_sku": "EMSER-F84CABOOC1313MO2",
+    "category": "mosaic-tile",
+    "product": "Cabo Mosaic",
+    "variant_name": "OCEAN",
+    "sell_by": "unit",
+    "sqft_per_box": "8.3580",
+    "pieces_per_box": 7
+  },
+  {
+    "sku_id": "2c8dce4c-cda4-42ac-a7d6-6ea8f0a8e42b",
+    "internal_sku": "EMSER-F71COGESI1212MOF",
+    "category": "mosaic-tile",
+    "product": "Cogent Matte Offset Mosaic",
+    "variant_name": "SILVER",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4000",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "36ca71e1-6f3d-45da-8464-9eadf8088607",
+    "internal_sku": "EMSER-F71COGEWH1212MOF",
+    "category": "mosaic-tile",
+    "product": "Cogent Matte Offset Mosaic",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4000",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "9982447c-60dc-4b66-aef0-cf8b87de8920",
+    "internal_sku": "EMSER-F71COGEGR1212MOF",
+    "category": "mosaic-tile",
+    "product": "Cogent Matte Offset Mosaic",
+    "variant_name": "GRAY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4000",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "067045a2-4190-46f9-bf1b-9a439e3cd116",
+    "internal_sku": "EMSER-F20FRAGSMBK1012MH3M",
+    "category": "mosaic-tile",
+    "product": "Fragmento 3in Small Speckle Hexagon Mosaic Matte",
+    "variant_name": "BLACK",
+    "sell_by": "unit",
+    "sqft_per_box": "8.9430",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "c29e0a1e-2de4-49b9-a031-c6a2fdb534a9",
+    "internal_sku": "EMSER-F20FRAGSMSI1012MH3M",
+    "category": "mosaic-tile",
+    "product": "Fragmento 3in Small Speckle Hexagon Mosaic Matte",
+    "variant_name": "SILVER",
+    "sell_by": "unit",
+    "sqft_per_box": "8.9430",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "960239d6-b65e-416d-ba21-b99ba4622e33",
+    "internal_sku": "EMSER-F20FRAGSMFA1012MH3M",
+    "category": "mosaic-tile",
+    "product": "Fragmento 3in Small Speckle Hexagon Mosaic Matte",
+    "variant_name": "FAWN",
+    "sell_by": "unit",
+    "sqft_per_box": "8.9430",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "50719516-5961-464d-add8-6bf6d3de8ace",
+    "internal_sku": "EMSER-F20FRAGSMPE1012MH3M",
+    "category": "mosaic-tile",
+    "product": "Fragmento 3in Small Speckle Hexagon Mosaic Matte",
+    "variant_name": "PEARL",
+    "sell_by": "unit",
+    "sqft_per_box": "8.9430",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "686b89fc-64fc-4441-8fd0-d2804c318b92",
+    "internal_sku": "EMSER-F07VERNSI1212MSK",
+    "category": "mosaic-tile",
+    "product": "Vernon Matte Stacked Mosaic",
+    "variant_name": "SILVER",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "daaac62f-4899-4494-a530-9ab84a3e9fca",
+    "internal_sku": "EMSER-F07VERNWH1212MSK",
+    "category": "mosaic-tile",
+    "product": "Vernon Matte Stacked Mosaic",
+    "variant_name": "WHITE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5600",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "6790619d-bc54-4cad-acf1-145e7019569c",
+    "internal_sku": "EMSER-F16NEWPFE1212MO2",
+    "category": "mosaic-tile",
+    "product": "Newport Matte/Satin Mosaic",
+    "variant_name": "FERRY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "093f8646-77c6-476e-9d47-0c9a1e19ae34",
+    "internal_sku": "EMSER-F16NEWPBA1212MO2",
+    "category": "mosaic-tile",
+    "product": "Newport Matte/Satin Mosaic",
+    "variant_name": "BAY",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "c6210f5b-6c6f-4400-839c-6b9fc4730617",
+    "internal_sku": "EMSER-F16TECHBI1212MO",
+    "category": "mosaic-tile",
+    "product": "Technique Matte/Satin Mosaic",
+    "variant_name": "BIANCO",
+    "sell_by": "unit",
+    "sqft_per_box": "9.5300",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "6189c093-8cce-4ec6-8c77-b75db4c5d1c5",
+    "internal_sku": "EMSER-F84TOLEBE1313MO2",
+    "category": "mosaic-tile",
+    "product": "Toledo Mosaic",
+    "variant_name": "BEIGE",
+    "sell_by": "unit",
+    "sqft_per_box": "8.3580",
+    "pieces_per_box": 7
+  },
+  {
+    "sku_id": "223d5278-3583-456f-888d-f9beaeb535a0",
+    "internal_sku": "EMSER-F84TOLESI1313MO2",
+    "category": "mosaic-tile",
+    "product": "Toledo Mosaic",
+    "variant_name": "SILVER",
+    "sell_by": "unit",
+    "sqft_per_box": "8.3580",
+    "pieces_per_box": 7
+  },
+  {
+    "sku_id": "81b1b9b2-9eda-43b6-b160-c0f4089ad415",
+    "internal_sku": "EMSER-F15CONTOR0911MHB",
+    "category": "mosaic-tile",
+    "product": "Contessa Herringbone Mosaic",
+    "variant_name": "ORO",
+    "sell_by": "unit",
+    "sqft_per_box": "5.6804",
+    "pieces_per_box": 11
+  },
+  {
+    "sku_id": "7787a22f-da04-43a2-90e8-d4e8bd6de5e5",
+    "internal_sku": "EMSER-F83NOVAAS1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Novales Matte Mosaic/12x12 7.5 Mm",
+    "variant_name": "ASTRA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "092a1be4-8ed8-49f8-8830-4a87c87bab65",
+    "internal_sku": "EMSER-F83NOVAEC1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Novales Matte Mosaic/12x12 7.5 Mm",
+    "variant_name": "ECLIPSE",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  },
+  {
+    "sku_id": "03f8a1d7-0695-4d88-927e-61131a928dcc",
+    "internal_sku": "EMSER-F83NOVALU1212MO2V2",
+    "category": "mosaic-tile",
+    "product": "Novales Matte Mosaic/12x12 7.5 Mm",
+    "variant_name": "LUNA",
+    "sell_by": "unit",
+    "sqft_per_box": "9.4900",
+    "pieces_per_box": 10
+  }
+]

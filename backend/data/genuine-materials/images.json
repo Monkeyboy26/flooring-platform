@@ -1,0 +1,893 @@
+{
+  "gq-calacattadelsol": {
+    "primary": "https://static.wixstatic.com/media/d36486_e8c151ec1989400bae7ae7a94c24e1a4~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_e8c151ec1989400bae7ae7a94c24e1a4~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_9668b272b32b40a5b471ac0ef86c3b11~mv2.jpg"
+    ]
+  },
+  "gq-calacattadeoro": {
+    "primary": "https://static.wixstatic.com/media/d36486_42dad5a171b84751b56e282bd8787d39~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_42dad5a171b84751b56e282bd8787d39~mv2.png"
+    ]
+  },
+  "gq-calacattalamiel": {
+    "primary": "https://static.wixstatic.com/media/d36486_0b09ec30f53d47bc9f0600dcf16ec097~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_0b09ec30f53d47bc9f0600dcf16ec097~mv2.png",
+      "https://static.wixstatic.com/media/d36486_fb599e0f843145febf8a86b930bbb3d3~mv2.jpg"
+    ]
+  },
+  "gq-minadeoro": {
+    "primary": "https://static.wixstatic.com/media/d36486_b5d0b03c8aa5446089f02e948ae22045~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_b5d0b03c8aa5446089f02e948ae22045~mv2.png",
+      "https://static.wixstatic.com/media/d36486_5bb601db8a94462bae08ec733214d038~mv2.png"
+    ]
+  },
+  "gq-labrisa": {
+    "primary": "https://static.wixstatic.com/media/d36486_f62182925ec849a482a4a20e3dbd235d~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_f62182925ec849a482a4a20e3dbd235d~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_776518d9b07f4ee4b37447f5a8297ec6~mv2.jpg"
+    ]
+  },
+  "gq-olablanca": {
+    "primary": "https://static.wixstatic.com/media/d36486_779e56319fb3470cb25f6d10d8a0414f~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_779e56319fb3470cb25f6d10d8a0414f~mv2.jpg"
+    ]
+  },
+  "gq-calacattamelaza": {
+    "primary": "https://static.wixstatic.com/media/d36486_405bd708c01d4879a59cb522799801c4~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_405bd708c01d4879a59cb522799801c4~mv2.jpg"
+    ]
+  },
+  "gq-calacattacima": {
+    "primary": "https://static.wixstatic.com/media/d36486_dec737d43749444784bf757f3370a16b~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_dec737d43749444784bf757f3370a16b~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_e0f299bee6854273852a3dc1da31fcdf~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_de80b02baf3449aa883e5ae871d009c0~mv2.jpg"
+    ]
+  },
+  "zs-calacattahorizonte": {
+    "primary": "https://static.wixstatic.com/media/d36486_e5439f9f39324a76b2170d77721df8c7~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_e5439f9f39324a76b2170d77721df8c7~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_17c646b47e814dc8b69a07e197d7fd35~mv2.jpg"
+    ]
+  },
+  "gq-elconcreto": {
+    "primary": "https://static.wixstatic.com/media/d36486_db410f7964ac412fb106118990bcda23~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_db410f7964ac412fb106118990bcda23~mv2.jpg"
+    ]
+  },
+  "gq-playabahamas": {
+    "primary": "https://static.wixstatic.com/media/d36486_714f4d137ed14b2e9eded4d7930dfec0~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_714f4d137ed14b2e9eded4d7930dfec0~mv2.jpg"
+    ]
+  },
+  "zs-cafeconleche": {
+    "primary": "https://static.wixstatic.com/media/d36486_ff60628a1a3f4e48ae85d3399ab95388~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_ff60628a1a3f4e48ae85d3399ab95388~mv2.png"
+    ]
+  },
+  "zs-cementoblanco": {
+    "primary": "https://static.wixstatic.com/media/d36486_8d82744dff1646dfb888dbfa9ec4307c~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_8d82744dff1646dfb888dbfa9ec4307c~mv2.png",
+      "https://static.wixstatic.com/media/d36486_a689bc8d22cd482dba4440b304b34616~mv2.png"
+    ]
+  },
+  "gq-superwhite": {
+    "primary": "https://static.wixstatic.com/media/d36486_9370ab05bb5d4089981fd56ebe23d3ee~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_9370ab05bb5d4089981fd56ebe23d3ee~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_730e2994543a4d10acd80d0d6b4649a1~mv2.jpg"
+    ]
+  },
+  "sintera-purewhite": {
+    "primary": "https://static.wixstatic.com/media/d36486_730e2994543a4d10acd80d0d6b4649a1~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_730e2994543a4d10acd80d0d6b4649a1~mv2.jpg"
+    ]
+  },
+  "sintera-whitevenatino": {
+    "primary": "https://static.wixstatic.com/media/d36486_3062ac83f2f546658b1958e8a9280f0a~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_3062ac83f2f546658b1958e8a9280f0a~mv2.png"
+    ]
+  },
+  "gq-carraragold": {
+    "primary": "https://static.wixstatic.com/media/d36486_fadbc4b130a14f3b8aa812207d4d955d~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_fadbc4b130a14f3b8aa812207d4d955d~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_3345e34be8814c1ca0e084751ce2cc22~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_b35e45c32d924caab790173d7bfcf401~mv2.jpg"
+    ]
+  },
+  "pt-crameprestige": {
+    "primary": "https://static.wixstatic.com/media/d36486_7d7bd5c983d94acc82e3984d00c580c3~mv2.webp",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_7d7bd5c983d94acc82e3984d00c580c3~mv2.webp",
+      "https://static.wixstatic.com/media/d36486_54d635f303ea462f8d600bd53d76a5d9~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_1b06602e467b41a7bef4944453fa69c3~mv2.webp"
+    ]
+  },
+  "pt-dune": {
+    "primary": "https://static.wixstatic.com/media/d36486_0f07fbceb77d4a3ea7536635104464df~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_0f07fbceb77d4a3ea7536635104464df~mv2.png",
+      "https://static.wixstatic.com/media/d36486_fa943a0bab6e4c62827e191864a6ca70~mv2.png"
+    ]
+  },
+  "pt-bone": {
+    "primary": "https://static.wixstatic.com/media/d36486_0b6c5834133044c396b1d5862be20ade~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_0b6c5834133044c396b1d5862be20ade~mv2.png",
+      "https://static.wixstatic.com/media/d36486_3fdf110f2bb742d2a189d0f07d52bbd4~mv2.png"
+    ]
+  },
+  "pt-statuariosupremo": {
+    "primary": "https://static.wixstatic.com/media/d36486_ddb9c47dbf4945d9833b213e9b9243a3~mv2.jpeg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_ddb9c47dbf4945d9833b213e9b9243a3~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_3d61245922d54814abe22ec670a17620~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_76273c104b1848fdb7fd9f42ceb94764~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_08f91035d9cb45a7854ea8b2bf0de6a5~mv2.jpeg"
+    ]
+  },
+  "pt-konemix": {
+    "primary": "https://static.wixstatic.com/media/d36486_00e96daf787146fb9b5c65f5883f8b6f~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_00e96daf787146fb9b5c65f5883f8b6f~mv2.png",
+      "https://static.wixstatic.com/media/d36486_c6d54f3dc9e540c3a764eb600106bcd1~mv2.jpg"
+    ]
+  },
+  "pt-lightgreystone": {
+    "primary": "https://static.wixstatic.com/media/d36486_f6d28d374845488ea534d25964443dfb~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_f6d28d374845488ea534d25964443dfb~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_b9f9c1ce21f14559aa8b357f3fb78b04~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_c8038aa0081446438a269c6fb0b49f61~mv2.png"
+    ]
+  },
+  "pt-boostwhite": {
+    "primary": "https://static.wixstatic.com/media/d36486_4749c1efdfcf41dda246edcfc52b2bb2~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_4749c1efdfcf41dda246edcfc52b2bb2~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_c11dc5507933432781cec3695810bc37~mv2.png",
+      "https://static.wixstatic.com/media/d36486_4dc4f52ec6f74e30bb66f573ebf6a623~mv2.png"
+    ]
+  },
+  "pt-nocecanaletto": {
+    "primary": "https://static.wixstatic.com/media/d36486_00896ebc701d4d98a15f895e94e6ea13~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_00896ebc701d4d98a15f895e94e6ea13~mv2.png"
+    ]
+  },
+  "pt-absoluteblack": {
+    "primary": "https://static.wixstatic.com/media/d36486_653095ed838246019b4d8f885c2af9f9~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_653095ed838246019b4d8f885c2af9f9~mv2.png",
+      "https://static.wixstatic.com/media/d36486_1fd7ea0573f44b01a64360e189f61c5a~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_2ee540f10cb6476cbdfa6d3e2a02d6b4~mv2.png"
+    ]
+  },
+  "copy-of-gmp013-noce-canaletto": {
+    "primary": "https://static.wixstatic.com/media/d36486_bdae7206fefe42f19ba8d9c67027235a~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_bdae7206fefe42f19ba8d9c67027235a~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_b970dac9b38b4ccaba8699f94a5be0b7~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_f50a93ffcf0d4ca3a2f8889e0cc8e8d2~mv2.jpg"
+    ]
+  },
+  "pt-travertinowhite": {
+    "primary": "https://static.wixstatic.com/media/d36486_1fd50bff612845a9bfa66aa1c448ffe0~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_1fd50bff612845a9bfa66aa1c448ffe0~mv2.jpg"
+    ]
+  },
+  "pt-apuanosilk": {
+    "primary": "https://static.wixstatic.com/media/d36486_cce977e374104370ba4c58bf313e23c9~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_cce977e374104370ba4c58bf313e23c9~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_1c1f70d6c9e34cf0ab284303a4be8ccd~mv2.jpg"
+    ]
+  },
+  "pt-apuano": {
+    "primary": "https://static.wixstatic.com/media/d36486_1b69478cde984e03993c7a8af44a50e0~mv2.jpeg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_1b69478cde984e03993c7a8af44a50e0~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_f6fc4e2b9f3e41238be1fc1b1bfebaeb~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_6101fa6458954769aa2813f6cc4db1ea~mv2.webp"
+    ]
+  },
+  "pt-icecrystalsilk": {
+    "primary": "https://static.wixstatic.com/media/d36486_e370496ea2fa4194b2ab39319c2396da~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_e370496ea2fa4194b2ab39319c2396da~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_9cb79f9927494b74be0943339779413f~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_c7dad98aefd24e15ba40f85a541fd23b~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_98c7e29332f3455ca3ad207c70c15705~mv2.jpg"
+    ]
+  },
+  "pt-icecrystal": {
+    "primary": "https://static.wixstatic.com/media/d36486_dae22c5e7d4440a488e833972fd5afa1~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_dae22c5e7d4440a488e833972fd5afa1~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_8f8346c027794da0a76a2b4ba5ae59e1~mv2.png",
+      "https://static.wixstatic.com/media/d36486_36b54df1121e42a3a5b34a83e362dd11~mv2.jpg"
+    ]
+  },
+  "pt-fiordibosco": {
+    "primary": "https://static.wixstatic.com/media/d36486_0f5fbc4bae8b4caa97d475e7a8e40814~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_0f5fbc4bae8b4caa97d475e7a8e40814~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_cce0ab0d01644e09ab93ef3757b6c060~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_165adb4a819a45e389a45c8b8d9b5f23~mv2.png",
+      "https://static.wixstatic.com/media/d36486_bce911b011674bd38247dfaacacc8010~mv2.png"
+    ]
+  },
+  "pt-imperiale": {
+    "primary": "https://static.wixstatic.com/media/d36486_34cb47df91b74a9db28eb8b3eb2debb1~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_34cb47df91b74a9db28eb8b3eb2debb1~mv2.png"
+    ]
+  },
+  "pt-calacattaroyal": {
+    "primary": "https://static.wixstatic.com/media/d36486_209dfb01925a49dcb7b6f9ccaf01fbc3~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_209dfb01925a49dcb7b6f9ccaf01fbc3~mv2.png",
+      "https://static.wixstatic.com/media/d36486_cfd0fd3f2b494907b059531c92bfd403~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_81a14f129af84838897c4491b295c545~mv2.png",
+      "https://static.wixstatic.com/media/d36486_e06ae650aa164d2bb0e7c503c0fa1704~mv2.png"
+    ]
+  },
+  "pt-neromarquina": {
+    "primary": "https://static.wixstatic.com/media/d36486_60ed900cdb3e4ee7becf58a815c1cd34~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_60ed900cdb3e4ee7becf58a815c1cd34~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_b8a6e36839e942e3ae10b2c79830ac5f~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_b360e9fba1604291ae422df18b5b34cf~mv2.webp"
+    ]
+  },
+  "pt-exoticwave": {
+    "primary": "https://static.wixstatic.com/media/d36486_5c2c333c8e4a4849a55a4d6d6082dd77f003.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_5c2c333c8e4a4849a55a4d6d6082dd77f003.jpg",
+      "https://static.wixstatic.com/media/d36486_3d554746496f47bf982a13c7708ccbf7~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_706d55bd2fc44c2eaa0f07702f7c4cc7~mv2.jpeg"
+    ]
+  },
+  "pt-desertsoul": {
+    "primary": "https://static.wixstatic.com/media/d36486_d6167ce82b444b38bdf248274ae31569f003.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_d6167ce82b444b38bdf248274ae31569f003.jpg",
+      "https://static.wixstatic.com/media/d36486_d4aeb1aebd974a1cb289bd9406c765df~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_43e0a910bb63433787d0901174d03992f003.jpg",
+      "https://static.wixstatic.com/media/d36486_25187382210943e6823a70195a647ac7~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_b4aa4d2e15f842b3b2751e89a72703c3~mv2.jpg"
+    ]
+  },
+  "pt-exoticgreen": {
+    "primary": "https://static.wixstatic.com/media/d36486_8656c12c27f8410791cb149c7d4ee4ae~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_8656c12c27f8410791cb149c7d4ee4ae~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_242477c160b348cc8ba366f6df138564~mv2.jpeg"
+    ]
+  },
+  "pt-calacattaextra": {
+    "primary": "https://static.wixstatic.com/media/d36486_7c715cf8eef64d86962d3ef5f9d59712~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_7c715cf8eef64d86962d3ef5f9d59712~mv2.png",
+      "https://static.wixstatic.com/media/d36486_1747f508e5e142f7a0f5f5579f4c936c~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_eb7fb805ef0644dc8a1d503db7bb3839~mv2.png"
+    ]
+  },
+  "pt-tajmahalap": {
+    "primary": "https://static.wixstatic.com/media/d36486_2ba79769ab9641098215e53a5cefc54e~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_2ba79769ab9641098215e53a5cefc54e~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_576448a5cb5d45b0810b098592f6ee4e~mv2.png"
+    ]
+  },
+  "pt-baobab": {
+    "primary": "https://static.wixstatic.com/media/d36486_b8b8cec4cb53461886649a069a457661f003.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_b8b8cec4cb53461886649a069a457661f003.jpg",
+      "https://static.wixstatic.com/media/d36486_1afd77c5be504c8ba51509a9184a8132~mv2.png"
+    ]
+  },
+  "pt-calacattaviola": {
+    "primary": "https://static.wixstatic.com/media/d36486_f882123ac26e4fd8a55372c5cfb41ae2~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_f882123ac26e4fd8a55372c5cfb41ae2~mv2.png",
+      "https://static.wixstatic.com/media/d36486_6ea990e321a142729c68f26ba0cfb9f2~mv2.jpg"
+    ]
+  },
+  "marblebreach": {
+    "primary": "https://static.wixstatic.com/media/d36486_48c3b0163c95431c9e333d2916334597f003.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_48c3b0163c95431c9e333d2916334597f003.jpg"
+    ]
+  },
+  "calacattagold": {
+    "primary": "https://static.wixstatic.com/media/d36486_efa79d376a25482989bdd73de70d7361~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_efa79d376a25482989bdd73de70d7361~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_4739276f380344e7ade72d6c7ca7269e~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_34923d92795e420aba307fca802907c5f003.jpg",
+      "https://static.wixstatic.com/media/d36486_3198972ac01d44fda43e2ddadc001aea~mv2.jpg"
+    ]
+  },
+  "marble-calacatta": {
+    "primary": "https://static.wixstatic.com/media/d36486_ee5ead0833c14edcace4a0f99ed2290ff003.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_ee5ead0833c14edcace4a0f99ed2290ff003.jpg",
+      "https://static.wixstatic.com/media/d36486_8248ca11ce1241f4b9483e9c8fff06ec~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_38a7244d55564aacaac634af4d4f029b~mv2.jpg"
+    ]
+  },
+  "pt-yumuna-taimahal": {
+    "primary": "https://static.wixstatic.com/media/d36486_5b10a880ed2c4054ad38c54cc8c37bdbf003.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_5b10a880ed2c4054ad38c54cc8c37bdbf003.jpg",
+      "https://static.wixstatic.com/media/d36486_2610002c2689429099476bce3ac34517~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_6bf089a9bf084c8ea44c3ccece361f4a~mv2.jpg"
+    ]
+  },
+  "pt-calacattalasa": {
+    "primary": "https://static.wixstatic.com/media/d36486_c767874ed5924fd6b2685358c31c3a77~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_c767874ed5924fd6b2685358c31c3a77~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_8ca6be24a6044f3f871a0469038dc163~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_4277618b32264cd9aed90289366ea7e6f003.jpg"
+    ]
+  },
+  "marblemahal": {
+    "primary": "https://static.wixstatic.com/media/d36486_c9f322366c5c4c33ad909d9a06084aac~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_c9f322366c5c4c33ad909d9a06084aac~mv2.png",
+      "https://static.wixstatic.com/media/d36486_088eb01001d6477da23c4046dd3ae52d~mv2.jpg"
+    ]
+  },
+  "stonegris": {
+    "primary": "https://static.wixstatic.com/media/d36486_1a354a32356b4492a36b6e45e27e7a80~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_1a354a32356b4492a36b6e45e27e7a80~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_7f86ba6c19c742739ea8f03665a6f25b~mv2.png",
+      "https://static.wixstatic.com/media/d36486_26f02b8d768d4b29b1a76ce32b37d076~mv2.jpg"
+    ]
+  },
+  "stonenoir": {
+    "primary": "https://static.wixstatic.com/media/d36486_26f02b8d768d4b29b1a76ce32b37d076~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_26f02b8d768d4b29b1a76ce32b37d076~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_454fbe311bfb4dcbbb2ed109809e171d~mv2.png",
+      "https://static.wixstatic.com/media/d36486_1a354a32356b4492a36b6e45e27e7a80~mv2.jpg"
+    ]
+  },
+  "hs-boostwhite": {
+    "primary": "https://static.wixstatic.com/media/d36486_be3bee68195c4c4eb3df454443bd342c~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_be3bee68195c4c4eb3df454443bd342c~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_bb9312797fca4463ba7c31286cfe8c10~mv2.jpg"
+    ]
+  },
+  "hs-boostproivory": {
+    "primary": "https://static.wixstatic.com/media/d36486_f9d77ee352e744a1aad4165868dcf3d8~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_f9d77ee352e744a1aad4165868dcf3d8~mv2.jpg"
+    ]
+  },
+  "hs-boostprocream": {
+    "primary": "https://static.wixstatic.com/media/d36486_dabe91d44912456fb110253ecf686f0f~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_dabe91d44912456fb110253ecf686f0f~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_fe86ba78f80e48cea78c72b0c9f1d854~mv2.jpg"
+    ]
+  },
+  "hs-boostpropearl": {
+    "primary": "https://static.wixstatic.com/media/d36486_510ff6125de0405399b6f03e7932f78f~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_510ff6125de0405399b6f03e7932f78f~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_33a861ce9a9c497c8f4dc08f3245816c~mv2.jpg"
+    ]
+  },
+  "hs-boneicor": {
+    "primary": "https://static.wixstatic.com/media/d36486_9fc37d6ade7a4146a87a1e30b3d318df~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_9fc37d6ade7a4146a87a1e30b3d318df~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_313de1d4a4464aeb9a94100a5b51b5c6~mv2.jpeg"
+    ]
+  },
+  "hs-duneicor": {
+    "primary": "https://static.wixstatic.com/media/d36486_1f2538e564e5426a90574b6e02f1172b~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_1f2538e564e5426a90574b6e02f1172b~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_f1226158db9b4651bd9e471ad64ea8ff~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_47c85d8cf1884f8bb813e9329b26180a~mv2.jpeg"
+    ]
+  },
+  "hs-boostshell": {
+    "primary": "https://static.wixstatic.com/media/d36486_259467d4b7da466ea42128185ff918c5~mv2.jpeg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_259467d4b7da466ea42128185ff918c5~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_4f10dbc36815492d9ab7524b6d5d6068~mv2.jpeg"
+    ]
+  },
+  "hs-boostglow": {
+    "primary": "https://static.wixstatic.com/media/d36486_260c5987bcd849b5bc109bf060c56b01~mv2.jpeg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_260c5987bcd849b5bc109bf060c56b01~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_692072f623e44509af59224e9abee1d1~mv2.jpeg"
+    ]
+  },
+  "hs-boostmixpearl": {
+    "primary": "https://static.wixstatic.com/media/d36486_53df078c6343497fabf1a404c2f75103~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_53df078c6343497fabf1a404c2f75103~mv2.jpg"
+    ]
+  },
+  "hs-boostmixivory": {
+    "primary": "https://static.wixstatic.com/media/d36486_524e0f727065490d8e5b3ddc2982e417~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_524e0f727065490d8e5b3ddc2982e417~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_020d76ac818741c8aefb1489f42e0b5c~mv2.jpg"
+    ]
+  },
+  "hs-travertinowhite": {
+    "primary": "https://static.wixstatic.com/media/d36486_bf82e4fbbe394e699a6a3ba1ac7d3cc9~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_bf82e4fbbe394e699a6a3ba1ac7d3cc9~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_9822dcdce54f448e96190273b3335742~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_ec7c7019eed94595b382e94d3376a46c~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_fb0b7c9c7be94066a987d5546c79d461~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_a755991a4f0f495cb2fb2c94ffd07a45~mv2.jpg"
+    ]
+  },
+  "hs-travertinosand": {
+    "primary": "https://static.wixstatic.com/media/d36486_f50a93ffcf0d4ca3a2f8889e0cc8e8d2~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_f50a93ffcf0d4ca3a2f8889e0cc8e8d2~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_a66f888853ab446c95c7f1149888e9d9~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_e3af8239eb6147109bd84a614ffe2dbb~mv2.png"
+    ]
+  },
+  "hs-travertinopearl": {
+    "primary": "https://static.wixstatic.com/media/d36486_5b335a2992174fe081c28d05fa99031c~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_5b335a2992174fe081c28d05fa99031c~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_98d99c6f0cb24bad9e9bed5d8cccfdb6~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_eeb3afd215204c75849a429f86fd770d~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_10cc177b72f0428eab758b83ead66544~mv2.jpg"
+    ]
+  },
+  "hs-iconoak": {
+    "primary": "https://static.wixstatic.com/media/d36486_7bf45ed9c2ca414caa45d369997db7ea~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_7bf45ed9c2ca414caa45d369997db7ea~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_ba38ad1353db44948fb07be4ed3e7b6b~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_3c6a23b7682743fbb1646581e7c5236c~mv2.jpg"
+    ]
+  },
+  "hs-iconoakline": {
+    "primary": "https://static.wixstatic.com/media/d36486_3e42e6303c234cbfa61858c1efb75a4d~mv2.jpeg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_3e42e6303c234cbfa61858c1efb75a4d~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_12f1971a11eb47c3912c2b8b9dda2cb2~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_a1e0691cf83645039a71103866d07c83f003.jpg"
+    ]
+  },
+  "hs-brightoakwoodeffect": {
+    "primary": "https://static.wixstatic.com/media/d36486_0eb760b14ced41c3bbc0ab0fdf539626~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_0eb760b14ced41c3bbc0ab0fdf539626~mv2.jpg"
+    ]
+  },
+  "hs-brightoakline": {
+    "primary": "https://static.wixstatic.com/media/d36486_215cc04ba0ef41128666a29185d7f945~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_215cc04ba0ef41128666a29185d7f945~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_2bd8d60714ce4869902978522e67ab33~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_869f0f2eb92f43e786b9371691b20da0~mv2.jpg"
+    ]
+  },
+  "hs-amazzonite": {
+    "primary": "https://static.wixstatic.com/media/d36486_25bc283e0a1e499abdedf8405ff5f54c~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_25bc283e0a1e499abdedf8405ff5f54c~mv2.jpg"
+    ]
+  },
+  "hs-ultramarine": {
+    "primary": "https://static.wixstatic.com/media/d36486_e2e122dc87da476cb843d4746ad1d65b~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_e2e122dc87da476cb843d4746ad1d65b~mv2.jpg"
+    ]
+  },
+  "hs-desertdoul": {
+    "primary": "https://static.wixstatic.com/media/d36486_bf33bc31e7b94455ae05a2c690a054f5~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_bf33bc31e7b94455ae05a2c690a054f5~mv2.jpg"
+    ]
+  },
+  "hs-exoticgreen": {
+    "primary": "https://static.wixstatic.com/media/d36486_fe19dab22b7b450795ba9e144c1b19ed~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_fe19dab22b7b450795ba9e144c1b19ed~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_8041087b173f46e39b76a898bef46080~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_08f3c22e53814f7ebe222abc53aed305~mv2.jpg"
+    ]
+  },
+  "hs-calacattablack": {
+    "primary": "https://static.wixstatic.com/media/d36486_352044e829bb4bf0adc00bc2e5ed5a79f003.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_352044e829bb4bf0adc00bc2e5ed5a79f003.jpg",
+      "https://static.wixstatic.com/media/d36486_5bd4ccb0ad4b4ac398d65acc14221fddf003.jpg"
+    ]
+  },
+  "hs-fiordibosco": {
+    "primary": "https://static.wixstatic.com/media/d36486_7a2b7720700841f8804296a29b2080dc~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_7a2b7720700841f8804296a29b2080dc~mv2.png",
+      "https://static.wixstatic.com/media/d36486_949c7e4e7aff4eaab52a2071bb4a5635~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_af1264cf6df54ac5bcd8cbd15e057854~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_1213339b42194afab6040f553f52b56a~mv2.png",
+      "https://static.wixstatic.com/media/d36486_58b06cb7ccb94f419d6c571bf2a4daf2~mv2.jpg"
+    ]
+  },
+  "hs-greycloud": {
+    "primary": "https://static.wixstatic.com/media/d36486_b56c40f933c44d47a4a74b995b87df9af003.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_b56c40f933c44d47a4a74b995b87df9af003.jpg"
+    ]
+  },
+  "hs-imperiale": {
+    "primary": "https://static.wixstatic.com/media/d36486_13642f42139b412c993a1ed693e494ed~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_13642f42139b412c993a1ed693e494ed~mv2.png"
+    ]
+  },
+  "hs-staturiosupremo": {
+    "primary": "https://static.wixstatic.com/media/d36486_2f51cb46e1fc464e9ed4e68f78cadba5~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_2f51cb46e1fc464e9ed4e68f78cadba5~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_36750c0b32544d7b85663de416ad8634~mv2.jpg"
+    ]
+  },
+  "hs-crystalwhite": {
+    "primary": "https://static.wixstatic.com/media/d36486_3b3ed5c0960d49fcbc721663ede4824a~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_3b3ed5c0960d49fcbc721663ede4824a~mv2.png",
+      "https://static.wixstatic.com/media/d36486_42b33237d9b648a28ac5afdfa1853b12f003.jpg"
+    ]
+  },
+  "hs-apuano": {
+    "primary": "https://static.wixstatic.com/media/d36486_cd4b89783c5d4c5aa5e280268153cb48~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_cd4b89783c5d4c5aa5e280268153cb48~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_0a11dfdf3a8a41e9b35abc28a41d5a27~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_80269c67c27d466e8d3cd354640cbc58~mv2.jpg"
+    ]
+  },
+  "hs-calacattaextra": {
+    "primary": "https://static.wixstatic.com/media/d36486_ba780088b0cf409e8a7f9997cbc7a248f003.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_ba780088b0cf409e8a7f9997cbc7a248f003.jpg",
+      "https://static.wixstatic.com/media/d36486_1715efa39cb344759e8cb4c52aeddad9~mv2.png"
+    ]
+  },
+  "hs-delicato": {
+    "primary": "https://static.wixstatic.com/media/d36486_5338c942eb494984b0c9781af4aa2004~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_5338c942eb494984b0c9781af4aa2004~mv2.png",
+      "https://static.wixstatic.com/media/d36486_70af92c90b8149409432803af96dbbec~mv2.webp",
+      "https://static.wixstatic.com/media/d36486_4ea074a82a674ad1a64abd9c8131dda8~mv2.png"
+    ]
+  },
+  "hs-onyxrose": {
+    "primary": "https://static.wixstatic.com/media/d36486_2a5c34f82d184bf0834df1ee4a5c4808~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_2a5c34f82d184bf0834df1ee4a5c4808~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_70845316f6844ae09c25593138b116ba~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_645e97c5e1584b0dad0badcc746f6009~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_761719e1f8d84fc8a8fd1b10116d9385~mv2.jpg"
+    ]
+  },
+  "hs-onyxwhite": {
+    "primary": "https://static.wixstatic.com/media/d36486_19ab9caf2b434e8c801be4790bf29eca~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_19ab9caf2b434e8c801be4790bf29eca~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_91e0e4683e8b487691196f46cc027ed0~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_c289471ae124438091fa1c59bfd189a9~mv2.png",
+      "https://static.wixstatic.com/media/d36486_6fe4a1ed2f7c4e24bc4a249d61f9efce~mv2.jpg"
+    ]
+  },
+  "hs-onyxsky": {
+    "primary": "https://static.wixstatic.com/media/d36486_8b27abdb8b9b4b63b51f9b6479b1b059~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_8b27abdb8b9b4b63b51f9b6479b1b059~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_4118bd5ab6844a949e6d8d7286ef52e4~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_6c4423fe58724ca08fec1f2518f39d8d~mv2.png"
+    ]
+  },
+  "hs-calacattabernini": {
+    "primary": "https://static.wixstatic.com/media/d36486_47df7ac9858d4625b210a630ea138ec7~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_47df7ac9858d4625b210a630ea138ec7~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_882932587cf947eca2260fcd80f6d82e~mv2.png",
+      "https://static.wixstatic.com/media/d36486_90b7359eb69a4aa798cf92f6b762a40f~mv2.png"
+    ]
+  },
+  "hs-blackorigin": {
+    "primary": "https://static.wixstatic.com/media/d36486_bed1e102ff674bcbb3a54bdc30b892f8~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_bed1e102ff674bcbb3a54bdc30b892f8~mv2.jpg"
+    ]
+  },
+  "hs-tajmahalac": {
+    "primary": "https://static.wixstatic.com/media/d36486_924cb1996fb84dff978ffe7ee580ef2c~mv2.jpeg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_924cb1996fb84dff978ffe7ee580ef2c~mv2.jpeg",
+      "https://static.wixstatic.com/media/d36486_3377ca1e337e45e395efc260a09f1ba7~mv2.png",
+      "https://static.wixstatic.com/media/d36486_0b7ee2ea0f634a01acf207579a79e7f9~mv2.jpg"
+    ]
+  },
+  "hs-baobab": {
+    "primary": "https://static.wixstatic.com/media/d36486_1afd77c5be504c8ba51509a9184a8132~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_1afd77c5be504c8ba51509a9184a8132~mv2.png",
+      "https://static.wixstatic.com/media/d36486_d74a22b22cad40689651f48c0afdfa0e~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_4381a1dffba1444ca11d01e68cfc93af~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_ee30620fb85e4894ad80a23f9b10e039~mv2.jpg"
+    ]
+  },
+  "hs-icecrystal": {
+    "primary": "https://static.wixstatic.com/media/d36486_36b54df1121e42a3a5b34a83e362dd11~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_36b54df1121e42a3a5b34a83e362dd11~mv2.jpg"
+    ]
+  },
+  "3296-adagiowhite": {
+    "primary": "https://static.wixstatic.com/media/d36486_348804cfef954cca88f11b70f425efe6~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_348804cfef954cca88f11b70f425efe6~mv2.jpg"
+    ]
+  },
+  "3296-ariagold": {
+    "primary": "https://static.wixstatic.com/media/d36486_f1b2efb6175641e8935082fe8d002a65~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_f1b2efb6175641e8935082fe8d002a65~mv2.jpg"
+    ]
+  },
+  "3296-fossilcrosscut": {
+    "primary": "https://static.wixstatic.com/media/d36486_c3594ed3e24e4c5dab3c8b0d75834700~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_c3594ed3e24e4c5dab3c8b0d75834700~mv2.png",
+      "https://static.wixstatic.com/media/d36486_76571664f7544264944d808845423658~mv2.jpg"
+    ]
+  },
+  "3296-alabaster": {
+    "primary": "https://static.wixstatic.com/media/d36486_2ddff68744d04752992caab9c94fcd16~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_2ddff68744d04752992caab9c94fcd16~mv2.png",
+      "https://static.wixstatic.com/media/d36486_88c33a6554b94264be968caa92342997~mv2.jpg"
+    ]
+  },
+  "3296-fogcrosscut": {
+    "primary": "https://static.wixstatic.com/media/d36486_8eeb3fec868049adbe6cbeeea4f1e33c~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_8eeb3fec868049adbe6cbeeea4f1e33c~mv2.jpg"
+    ]
+  },
+  "3296-kaolin": {
+    "primary": "https://static.wixstatic.com/media/d36486_2db61532a9a44ad6b431f32760ca2eb6~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_2db61532a9a44ad6b431f32760ca2eb6~mv2.png",
+      "https://static.wixstatic.com/media/d36486_265fe6cb74d346f783fb7d286d1402f4~mv2.jpg"
+    ]
+  },
+  "3296milestone": {
+    "primary": "https://static.wixstatic.com/media/d36486_d30b40cac255492eb5e01080dbbeecc5~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_d30b40cac255492eb5e01080dbbeecc5~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_6ba948eaea4045c7a5a4695e4c9160fb~mv2.png",
+      "https://static.wixstatic.com/media/d36486_b75630766fe7463cb9487de2071a091e~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_fbd9aaea1d62488391fa16fdc845cf07~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_73f2a6f1767f4136b82554a503aa0157~mv2.png"
+    ]
+  },
+  "gq-calacattaluna": {
+    "primary": "https://static.wixstatic.com/media/d36486_7994e1db7a0648e486b908db6f48fd2f~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_7994e1db7a0648e486b908db6f48fd2f~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_ffc0488f96fc4f96b739ec885bf56f14~mv2.jpg"
+    ]
+  },
+  "gq-calacattavene": {
+    "primary": "https://static.wixstatic.com/media/d36486_d6992ebfe21c46d5b7c1e272890dc3a0~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_d6992ebfe21c46d5b7c1e272890dc3a0~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_9a740b54235940c29fe333b4c37e4f4d~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_a891135ec6d2464fa458b487ae9f8ed2~mv2.jpg"
+    ]
+  },
+  "gq-calacattarayo": {
+    "primary": "https://static.wixstatic.com/media/d36486_3d8e8e872a624d21ad71776bb1c0cb67~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_3d8e8e872a624d21ad71776bb1c0cb67~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_ccb2ec337f284969b89c34eef4e7831a~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_02a097d616d64116967a9d4a9889056e~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_1bb9628e7d0540b9865edc05c7d3f755~mv2.jpg"
+    ]
+  },
+  "gq-decascada": {
+    "primary": "https://static.wixstatic.com/media/d36486_7991a8b1054941eda1eaaaafacc47d68~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_7991a8b1054941eda1eaaaafacc47d68~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_db3074bc234a406c895a93651f94e88a~mv2.jpg"
+    ]
+  },
+  "gq-calacattadelmar": {
+    "primary": "https://static.wixstatic.com/media/d36486_39b1e93d000d485cbcf952b7e85d36e0~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_39b1e93d000d485cbcf952b7e85d36e0~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_e4d8a9aefca04f8bb4bbddae61979e6f~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_be7f75ff0fd5478d8eb85ff06e77c5d6~mv2.jpg"
+    ]
+  },
+  "gq-calacattaaurora": {
+    "primary": "https://static.wixstatic.com/media/d36486_342e7477076140eea9a7bfa0ad74c971f003.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_342e7477076140eea9a7bfa0ad74c971f003.jpg",
+      "https://static.wixstatic.com/media/d36486_02f0061ec7c7484a84c50f9d614747a6~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_fea10641f4804e17a013639318ec1d61~mv2.jpg"
+    ]
+  },
+  "gq-calacattario": {
+    "primary": "https://static.wixstatic.com/media/d36486_ff95809eaf0045428a19ad623d4c9913~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_ff95809eaf0045428a19ad623d4c9913~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_9ec7653a3b684b0ba540d7de634aa03f~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_9d0ea14fde6841e884d2b5b2ab9331de~mv2.jpg"
+    ]
+  },
+  "gq-calacattarama": {
+    "primary": "https://static.wixstatic.com/media/d36486_0df35d11118a4c67a9bb45462829d824~mv2.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_0df35d11118a4c67a9bb45462829d824~mv2.png",
+      "https://static.wixstatic.com/media/d36486_5d24df3b25424e92a5a2b20385b8b83a~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_ea54bbbef49e4cd192694e94b332b2b1~mv2.jpg"
+    ]
+  },
+  "gq-blingblingblack": {
+    "primary": "https://static.wixstatic.com/media/d36486_406306da65304c339b12749dda198d16~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_406306da65304c339b12749dda198d16~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_a43f77c67ce144608d3e59a924457bc8~mv2.jpg"
+    ]
+  },
+  "gq-sapphireblue": {
+    "primary": "https://static.wixstatic.com/media/d36486_a931c0291f464603b1e978830bae1ab1~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_a931c0291f464603b1e978830bae1ab1~mv2.jpg"
+    ]
+  },
+  "gq-cafetierra": {
+    "primary": "https://static.wixstatic.com/media/d36486_0f72d158e8f24f759ded1855af1e9a14~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_0f72d158e8f24f759ded1855af1e9a14~mv2.jpg"
+    ]
+  },
+  "gq-fossilbrown": {
+    "primary": "https://static.wixstatic.com/media/d36486_74b5b6358a07445b949cf375865bf0fe~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_74b5b6358a07445b949cf375865bf0fe~mv2.jpg"
+    ]
+  },
+  "gq-opalbrown": {
+    "primary": "https://static.wixstatic.com/media/d36486_16257afd685d44a2a872a25565744edb.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_16257afd685d44a2a872a25565744edb.png"
+    ]
+  },
+  "gq-fedorawhite": {
+    "primary": "https://static.wixstatic.com/media/d36486_633c9b0b50e34b39bd22b4b8ef707ce1~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_633c9b0b50e34b39bd22b4b8ef707ce1~mv2.jpg"
+    ]
+  },
+  "gq-hermosawave": {
+    "primary": "https://static.wixstatic.com/media/d36486_73a7d8c08bf840d0b6e0efe44ffee37c~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_73a7d8c08bf840d0b6e0efe44ffee37c~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_8842dc1ce76d44418bdfc7fd28ae1485~mv2.jpg"
+    ]
+  },
+  "gq-doradowave": {
+    "primary": "https://static.wixstatic.com/media/d36486_56173770e8424480bd39f59d893f9a75~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_56173770e8424480bd39f59d893f9a75~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_8cdd16cc715e4f77a6ba050dd6233325~mv2.jpg"
+    ]
+  },
+  "gq-carraragrey": {
+    "primary": "https://static.wixstatic.com/media/d36486_35df5d66ae2f4ef38aebe83d447e1f38~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_35df5d66ae2f4ef38aebe83d447e1f38~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_5e21d1f64a6946b19b496d78a379a74a~mv2.jpg"
+    ]
+  },
+  "gq-greystar": {
+    "primary": "https://static.wixstatic.com/media/d36486_bf034e98e0c046f19254c85b985c23cb.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_bf034e98e0c046f19254c85b985c23cb.jpg"
+    ]
+  },
+  "gq-bronze": {
+    "primary": "https://static.wixstatic.com/media/d36486_a6b91373ac7d4b7bbd2160552f83ddf1~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_a6b91373ac7d4b7bbd2160552f83ddf1~mv2.jpg"
+    ]
+  },
+  "gq-sahara": {
+    "primary": "https://static.wixstatic.com/media/d36486_0cfe050997374771ae0b67245a7a0db7~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_0cfe050997374771ae0b67245a7a0db7~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_c74e6ad8102f4605924fb144b3c37519.jpg"
+    ]
+  },
+  "gq-whitedesert": {
+    "primary": "https://static.wixstatic.com/media/d36486_3793226b10274be891ce1ac4c1cabd15~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_3793226b10274be891ce1ac4c1cabd15~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_d59486a1383342989c16b7314c0a3293~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_1c61b24709344a95a7a9e6c066380c16~mv2_d_1438_1450_s_2.jpg"
+    ]
+  },
+  "gq-mocha": {
+    "primary": "https://static.wixstatic.com/media/d36486_c4641aaedb3248a89f564af9afae61bc~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_c4641aaedb3248a89f564af9afae61bc~mv2.jpg"
+    ]
+  },
+  "gq-harvestgrain": {
+    "primary": "https://static.wixstatic.com/media/d36486_d99bf28afce04be4a17746b8bcbd368f.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_d99bf28afce04be4a17746b8bcbd368f.jpg",
+      "https://static.wixstatic.com/media/d36486_a9ba1c4476194b6884dcac4e28d290bf~mv2_d_2100_1575_s_2.jpeg"
+    ]
+  },
+  "gq-frozenleaf": {
+    "primary": "https://static.wixstatic.com/media/d36486_299eb44a97f04df58400a2e7214d1233~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_299eb44a97f04df58400a2e7214d1233~mv2.jpg"
+    ]
+  },
+  "gq-newnavajo": {
+    "primary": "https://static.wixstatic.com/media/d36486_bf1ab8ce26c64e558026acf4ef96ba86~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_bf1ab8ce26c64e558026acf4ef96ba86~mv2.jpg",
+      "https://static.wixstatic.com/media/d36486_c6b38399435f498eb5f4c27d1b571b72~mv2_d_2000_1500_s_2.jpeg"
+    ]
+  },
+  "gq-beachpearl": {
+    "primary": "https://static.wixstatic.com/media/d36486_f71cffefeb0b4fffa604d92b1b168c2e.png",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_f71cffefeb0b4fffa604d92b1b168c2e.png"
+    ]
+  },
+  "gq-whitearena": {
+    "primary": "https://static.wixstatic.com/media/d36486_14da85191b074978a7ad8de23834eca9~mv2.jpg",
+    "gallery": [
+      "https://static.wixstatic.com/media/d36486_14da85191b074978a7ad8de23834eca9~mv2.jpg"
+    ]
+  }
+}

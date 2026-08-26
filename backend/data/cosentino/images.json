@@ -1,0 +1,1419 @@
+{
+  "COSN-silestone-calacatta-themis": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/TTH/tablahd/TTH-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/TTH/detalle/TTH-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/844B7187-BAD6-413E-9E9B7A1459A5A62E/kitchen-calacatta-themis-02-v6.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/35BC0E5D-5E0E-4780-B89D2979A401737F/bathroom-space-calacatta-themis-v4.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/7F273CB2-57B3-47DE-831B4D819A07443A/kitchen-calacatta-themis-01-v6.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/E51B6ACF-9611-4200-9D277B686AA43ED6/mood-board-calacatta-themis-v2.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-calacatta-tova": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/TTT/tablahd/TTT-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/TTT/detalle/TTT-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/668E700C-D174-4A31-824D95C4FF9EB53B/calacatta-tova-polished-01.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/2C51A4A0-8EB5-42D8-A529389ED83829DA/calacatta-tova-polished-02.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/8CA2B014-E055-44C3-87EB29F82254BD62/bathroom-calacatta-tova-polished-moodboard-v04.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/AECFB2F1-AE99-4266-929FEFAD55F565C5/bathroom-calacatta-tova-polished-v04.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-bronze-rivers": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BNR/tablahd/BNR-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BNR/detalle/BNR-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0CAC8831-1F57-44A2-80644113DE237527/silestone-kitchen-bronze-rivers.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/525D8D2B-5329-413C-BEC59FC2186BEF56/silestone-kitchen-closeup-bronze-rivers.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/B1F4D417-3A23-4519-A10724AA7F4B5F6E/silestone-bathroom-bronze-rivers.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-linen-cream": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MTJ/tablahd/MTJ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MTJ/detalle/MTJ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0AC385B5-7F8A-490B-9BBC757F60E6F856/silestone-kitchen-linen-cream-01.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/1890484C-01CD-40AF-94FF8146031CA87D/silestone-kitchen-detalle-linen-cream-02.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/BF8385C2-793D-4CA5-B6F4667533C2CA65/silestone-bathroom-linen-cream.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/248D771B-AD20-4888-86EA400720548321/240923-cocina-linen-cream-cmgeneral-v2.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-motion-grey": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LJU/tablahd/LJU-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LJU/detalle/LJU-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/967AB0C0-D1E3-4CCF-BE03792EBCBB22EE/240923-cocina-motion-grey-cmgeneral.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-siberian": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PRJ/tablahd/PRJ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PRJ/detalle/PRJ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/F6505FC8-197C-43FA-8008BA6B7E19CA24/silestone-kitchen-siberian-frost-01-v4.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/3B484F64-F272-4441-9B41C10261A32E1C/silestone-kitchen-detalle-siberian-frost-02-v4.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6158BC03-EE86-4CD7-BADCA06331E32116/silestone-bathroom-siberian-frost-v3e.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/7F0073AD-37E8-4688-BD9B867CB43CFA54/240923-bano-siberian-frost-cmgeneral.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-persian-white": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ALT/tablahd/ALT-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ALT/detalle/ALT-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6F527C88-6479-4378-BE0732D70E496A78/silestone-kitchen-persian-white-polished.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0855149A-7D2A-4D1A-9827FC6924F96440/silestone-kitchen-detalle-persian-white-polished-01.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/5CAD3598-01E7-4387-995ADE30C35BCB80/silestone-bathroom-persian-white-polished-b.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/EAEED3E8-6589-42BE-8584D5B559F39F37/240923-bano-persian-white-cmgeneral.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-blanc-elysee": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PI2/tablahd/PI2-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PI2/detalle/PI2-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/305F0B97-6AAF-47A4-B0B819867BBE9ED3/sin-juntas-silestonexm-le-chic-boheme-bano-ukiyo-gv3-blanc-elysee.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/ED6E858F-ECDC-4099-840CFC8662D38B0F/silestone-xm-european-kitchen-le-chic-boheme-blanc-elysee-4.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/3F3EC4FE-DF2E-4D22-83EE6310B92E7476/silestone-xm-european-kitchen-le-chic-boheme-blanc-elysee-2.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/81517947-9851-49E1-8B225E576EDD18EE/silestone-xm-european-kitchen-le-chic-boheme-blanc-elysee-3.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-jardin-emerald": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/DGJ/tablahd/DGJ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/DGJ/detalle/DGJ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/FB451AAA-4308-499F-9C46DBBA5CE81C5E/silestone-xm-european-kitchen-le-chic-boheme-jardin-emerald.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/2C4A0698-4FBD-4A55-A35D97D66519A0E7/silestone-xm-european-kitchen-le-chic-boheme-jardin-emerald-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/319D1C77-9F67-4C0C-B63BCE25264FB838/silestone-xm-european-kitchen-le-chic-boheme-jardin-emerald-camara-2.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0631C9A9-9278-430C-B821668481CA5F6A/silestone-xm-bathroom-usa-le-chic-boheme-jardin-emerald-detalle-2.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-riviere-rose": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PI1/tablahd/PI1-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PI1/detalle/PI1-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/58872FB3-A96F-4667-B8B0A4C77AE7F647/silestone-xm-european-kitchen-le-chic-boheme-riviere-rose-3-v2.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/80C2452A-E4D6-42A9-8135B3E4F204115F/silestone-xm-european-kitchen-le-chic-boheme-riviere-rose-2-v2.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/F92879FF-FA8F-4530-8D14ABFA6D0AF2AA/silestone-xm-european-kitchen-le-chic-boheme-riviere-rose-1-v2.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/5AFF3BA0-5CAE-426B-A6D315C288E38571/silestone-xm-kitchen-usa-le-chic-boheme-riviere-rose-detalle-3.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-calacatta-west": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/CWC/tablahd/CWC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/CWC/detalle/CWC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/CEFC3E7D-A848-4043-9252F9D043044212/silestone-kitchen-calacatta-west.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-ffrom02": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PI9/tablahd/PI9-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PI9/detalle/PI9-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-ffrom03": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PI8/tablahd/PI8-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PI8/detalle/PI8-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-raw-d": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PI5/tablahd/PI5-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PI5/detalle/PI5-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/4452CBEB-0506-4119-B22BC6E7DD9058F5/earthic-kitchen-eu-raw-d.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/46D8D4B1-5855-494D-AE2B6BD8A0CE6E2C/earthic-kitchen-eu-raw-d-detalle-b.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-raw-a": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PI4/tablahd/PI4-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PI4/detalle/PI4-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0C16BF86-4A12-427F-BEEF14EB6CA0FB51/earthic-kitchen-raw-a.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6563084C-1597-451A-BD889D61BDEF4E7C/earthic-kitchen-raw-a-detalle-isla-limpio.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-ffrom01": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PI7/tablahd/PI7-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PI7/detalle/PI7-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-miami-oro": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MIM/tablahd/MIM-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MIM/detalle/MIM-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-bohemian-flame": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/OM3/tablahd/OM3-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/OM3/detalle/OM3-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/3F1C1FAA-70B8-4DD2-B5688EC5C737D161/silestone-bathroom-eu-le-chic-bohemian-flame-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/852ED4C5-8DFF-48D8-B1683A199612AFE4/silestone-bathroom-eu-le-chic-bohemian-flame-plano-detalle.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-victorian-silver": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/OM4/tablahd/OM4-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/OM4/detalle/OM4-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/F1C09736-2F17-4D8B-84F00FCD123B52D7/silestone-kitchen-na-lechic-victorian-silver-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/3E0F9879-3C14-48C3-979A64D22E301FF5/silestone-kitchen-na-lechic-victorian-silver-plano-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/23DC4908-B7F6-480D-B05764400B9309B6/silestone-living-room-eu-victorian-silver-romantic-ash-table-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/DB7827D2-C468-4FC7-BEC68B241245B216/silestone-living-room-eu-victorian-silver-romantic-ash-furniture-plano-detalle-1.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-versailles-ivory": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/OM2/tablahd/OM2-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/OM2/detalle/OM2-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/5A811935-8CCE-4C1F-8D52662153E50EC5/silestone-kitchen-na-le-chic-versailles-ivory-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/78B8768D-E2FC-402B-AA56A75BFDFF606A/silestone-kitchen-na-le-chic-versailles-ivory-plano-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6ACA4332-5C01-497C-BBABA9CF139974CE/silestone-living-room-eu-le-chic-versailles-ivory-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/7CA6AAFE-CD24-4C57-8D0545C9DBAC4326/silestone-living-room-eu-le-chic-versailles-ivory-detalle-2.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-parisien-bleu": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/OM5/tablahd/OM5-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/OM5/detalle/OM5-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/9C3FF892-6E4C-4926-875AE40BA61F14DA/silestone-bathroom-na-le-chic-parisien-bleu-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/D95521DA-45B1-4D8D-8A3AB20F7E9AF7AD/silestone-bathroom-na-le-chic-parisien-bleu-plano-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/C0274A73-8FAA-4966-9CEA2C4563A271FD/silestone-kitchen-eu-le-chic-parisien-bleu-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/D5AD00B6-294F-4EFB-BE686A2AAF49A258/silestone-kitchen-eu-le-chic-parisien-bleu-plano-detalle.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-romantic-ash": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/OM6/tablahd/OM6-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/OM6/detalle/OM6-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/3CD03BF3-7578-478C-BB041C3D544C2122/silestone-kitchen-na-le-chic-romantic-ash-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/A3B4B287-98C6-4C50-B2CC260F66332ED1/silestone-living-room-eu-victorian-silver-romantic-ash-table-plano-detalle-table.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/60DFD80B-5820-4976-8B14F38DF78A32AB/silestone-kitchen-na-le-chic-romantic-ash-plano-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/57DE465F-94AD-420F-852E801439C179D8/silestone-kitchen-eu-le-chic-romantic-ash-plano-medio.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-eclectic-pearl": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/OM1/tablahd/OM1-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/OM1/detalle/OM1-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/8C258787-B271-47C7-A7725B13142F3EE7/230313-eclectic-pearl-cocina-americanacmdetalle-copia.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-lime-delight": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/L1J/tablahd/L1J-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/L1J/detalle/L1J-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/AACC45AD-7296-4256-A2E6D05B4C1953BE/sil-lime-delight-european-kitchen-detail-view.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-concrete-pulse": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/L2J/tablahd/L2J-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/L2J/detalle/L2J-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/A922FBA2-AFD1-40A9-B9917ADE25FB7624/230302-concrete-pulse-cocina-europeadetalle.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-brass-relish": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/L4J/tablahd/L4J-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/L4J/detalle/L4J-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-cinder-craze": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/L3J/tablahd/L3J-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/L3J/detalle/L3J-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0005B373-C3F9-4AF3-AEF6E55ECFF43F48/sil-cinder-craze-european-kitchen-detail-view.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-ethereal-indigo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/HDA/tablahd/HDA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/HDA/detalle/HDA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-ethereal-glow": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MR1/tablahd/MR1-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MR1/detalle/MR1-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/8C495552-E549-495D-A18EFB8B9680F638/silestone-kitchen-ethereal-glow.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-ethereal-noctis": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MR4/tablahd/MR4-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MR4/detalle/MR4-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0139BE68-9300-4A2F-954F6A52150D4CE9/kitchen-silestone-ethereal-noctis-11.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/8D47D967-5843-4512-81869FBE20B83FF7/silestone-kitchen-ethereal-noctis.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-toscana-cream": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LC2/tablahd/LC2-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LC2/detalle/LC2-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/D9E09454-D048-4350-B25DD667BF1A9532/silestone-kitchen-hd-toscana-cream.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-miami-vena": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MVN/tablahd/MVN-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MVN/detalle/MVN-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/507DE2DE-DA81-49DE-B369D24915D41B5D/miami-vena-2e.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-halcyon": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LC1/tablahd/LC1-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LC1/detalle/LC1-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/A01F4EBB-90C1-468E-8D9BC95EB5ED43F5/silestone-halcyon.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/13F0A227-F08A-4F2C-84693240678F64A9/silestone-halcyon-detalle.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-et-dor": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/NMB/tablahd/NMB-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/NMB/detalle/NMB-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-poblenou": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/C10/tablahd/C10-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/C10/detalle/C10-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/CAB6E511-9FA4-41C6-A51A1E2182D64BB1/silestone-kitchen-loft-poblenou.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-nolita": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/N23/tablahd/N23-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/N23/detalle/N23-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/1C8483BB-62C9-4790-9B22E234AEB01BA0/nolita-light.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/BF5F539E-A4CC-4050-BF3B95CC7C1C0E43/nolita-light.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/81DC7BE9-9514-4B06-BBA9D27A8ADE9900/silestone-kitchen-loft-nolita-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/AF18E211-1A3E-4130-ADAB4510C8F1A51A/silestone-kitchen-loft-nolita.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-et-bella": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/NWH/tablahd/NWH-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/NWH/detalle/NWH-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-ocean-storm": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/OJU/tablahd/OJU-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/OJU/detalle/OJU-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/9A5B23AB-3453-46DC-AACFB02298335FFB/ocean-storm-install.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-desert-silver": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/GVX/tablahd/GVX-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/GVX/detalle/GVX-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/C6BC4309-3E74-4767-B456D7CF7A499AB0/silestone-kitchen-eu-desert-silver.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/16915D97-8D18-48B7-ACEE612CFECCC755/silestone-kitchen-hd-desert-silver.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-night-tebas18": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/GV2/tablahd/GV2-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/GV2/detalle/GV2-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-white-arabesque": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LG2/tablahd/LG2-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LG2/detalle/LG2-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/D11853C7-94D5-4F74-AD5C8E40194C721A/white-arabesque.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-pietra": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SL8/tablahd/SL8-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SL8/detalle/SL8-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/2B7B909B-7684-4294-802DE7E7E032FC33/atlhome-modern-show-house-bathroom-countertop-and-cladding-silestone-pietra.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-bianco-calacatta": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BCA/tablahd/BCA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BCA/detalle/BCA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/54DA328A-4142-4145-AF2958A5B7BEB5CE/silestone-kitchen-bianco-calacatta.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-pearl-jasmine": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/JAP/tablahd/JAP-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/JAP/detalle/JAP-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/AB3C7C71-AF5B-49D6-BAAE349FACA22BD5/pearl-jasmine.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-classic-calacatta": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/53C/tablahd/53C-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/53C/detalle/53C-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-et-marquina": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ETM/tablahd/ETM-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ETM/detalle/ETM-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-charcoal-soapstone": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/CHD/tablahd/CHD-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/CHD/detalle/CHD-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/D6FBDC6B-BAC7-414A-8EEDFFEE0152EF72/charcoal-soapstone.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-et-statuario": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ETS/tablahd/ETS-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ETS/detalle/ETS-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-et-calacatta-gold": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/52C/tablahd/52C-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/52C/detalle/52C-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-ocean-jasper-f": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/OJF/tablahd/OJF-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/OJF/detalle/OJF-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-miami-white": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/M7J/tablahd/M7J-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/M7J/detalle/M7J-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-snowy-ibiza": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LG1/tablahd/LG1-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LG1/detalle/LG1-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6EFD06FA-8EE5-4CF3-9258F2CC4B6F70BE/visee-silestone-snowy-ibiza.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0A3B359D-7A8A-4547-B722F38972AAE2A6/snowy-ibiza.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-lusso": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LSJ/tablahd/LSJ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LSJ/detalle/LSJ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-copper-mist": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ICM/tablahd/ICM-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ICM/detalle/ICM-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/F843942C-F776-46B3-B58284A9434F7383/copper-mist.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-coral-clay-colour": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BCR/tablahd/BCR-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BCR/detalle/BCR-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-calypso": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/CYJ/tablahd/CYJ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/CYJ/detalle/CYJ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/31E13705-6E4C-4D6F-96BE6CE84CAA8CEB/kjokken-hyttemobler-silestone-calypso.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/142C8047-8E03-4032-A9357DEB470C8D8D/kjokken-hyttemobler-silestone-calypso.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-blanco-maple": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/M1J/tablahd/M1J-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/M1J/detalle/M1J-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-white-north": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BN2/tablahd/BN2-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BN2/detalle/BN2-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-white-storm14": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/WS2/tablahd/WS2-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/WS2/detalle/WS2-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-stellar-snow": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BS3/tablahd/BS3-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BS3/detalle/BS3-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-helix": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/HXJ/tablahd/HXJ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/HXJ/detalle/HXJ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-sienna-ridge-12": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MOS/tablahd/MOS-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MOS/detalle/MOS-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-lyra": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/VLI/tablahd/VLI-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/VLI/detalle/VLI-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/B6AB66C9-8B5F-453A-9DBE545F19103159/silestone-kitchen-usa-lyra-suede.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-lagoon": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/VLG/tablahd/VLG-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/VLG/detalle/VLG-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/298535CF-D920-4CF3-9EAB3C7012413D20/lagoon.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/DAA84A5C-10AB-42FD-9109D34862297655/projet-darling-silestone-lagoon.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/DFC7F1F2-0126-445C-A00DBC9BE886DC94/lost-lagoon.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-silestone-yukon": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/YKM/tablahd/YKM-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/YKM/detalle/YKM-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-grey-expo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/GEJ/tablahd/GEJ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/GEJ/detalle/GEJ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-white-zeus": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BZJ/tablahd/BZJ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BZJ/detalle/BZJ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-silestone-marengo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MAJ/tablahd/MAJ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MAJ/detalle/MAJ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6D4E7DE9-A37B-4496-943C2C3CC2F2981A/marengo.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-bering": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BGK/tablahd/BGK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BGK/detalle/BGK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-borealis": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BOK/tablahd/BOK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BOK/detalle/BOK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-inuk": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/NUK/tablahd/NUK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/NUK/detalle/NUK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-evok": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PWK/tablahd/PWK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PWK/detalle/PWK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/1B604485-7944-4C10-985039A1710F9F8C/bano-thalaevok-ducha.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/FADA9C51-567E-40FB-887346DBF2835F98/bano-thalaevok-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/2B56C3BC-EA79-4CC6-9B28D6376A4D025C/bano-evokthalakedar-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/DEE2B30F-CA18-40BF-83197ED028FE4609/bano-evokthalakedar-general.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-thala": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/DVK/tablahd/DVK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/DVK/detalle/DVK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/4174B999-5495-45D8-983CC667D4AFBC84/cocina-thala-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/4E1B2EAA-5066-47AE-B56FAAAD440D3D45/cocina-thala-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/65A7E3C2-6EE3-4A6F-81F644574E18D0D8/cocina-thala-cenital.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-keena": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/WMK/tablahd/WMK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/WMK/detalle/WMK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0B840311-F9A7-4B82-919807F94A4EAC2A/cocina-keena-general.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-zira": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BQK/tablahd/BQK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BQK/detalle/BQK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/69473B33-65D3-4077-80D221782639DE9F/04-soleria-bano-zira-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/E8730533-18BC-4FE1-843E5FC4E9C82872/04-soleria-bano-zira-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/8A274EDA-708B-405B-926CD0F1C5ABBFAB/03-cocina-keena-zira-general-1.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/AEE85989-B3C1-4CD7-AA50AD2CA2F62253/04-dekton-living-4-zira.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-kedar": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/NRL/tablahd/NRL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/NRL/detalle/NRL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0240FC57-4E4E-4F2D-84694F4B60D09E0C/06-dekton-floor-kedar.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/C5E8BE54-DA38-4CD6-AB3FF1DB75CA9089/04-soleria-bano-kedar-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/EC27D0AF-D446-4B02-AC195B3598A4A9CB/05-soleria-bano-kedar-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/251CBFDC-112F-4432-89E732256FB27BC7/03-soleria-cocina-kedar-detalle-silla-cmdetallesuelo.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-nara": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/NAK/tablahd/NAK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/NAK/detalle/NAK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/39DEB19E-5822-42A5-BD3DC645A0AD7340/dekton-nara-outdoor-closeup-a.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/34EAC6B1-4685-47D0-BF9CCD3BE8F9D690/dekton-nara-outdoor.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/624ABDAD-2DC2-4DE8-B32CEA550D3099AB/dekton-nara-kitchen-cna-closeup-a.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/A85F5F97-A7EA-4E00-8FA1A5F07CBA7151/dekton-nara-kitchen-cna-closeup-b.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-ava": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/VTP/tablahd/VTP-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/VTP/detalle/VTP-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/9EAE1D62-CFF2-463F-80C607BD5EB14DB9/dekton-pietra-edition-exterior-sandik-ava.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/D273DD18-3F18-41F5-BD0271116C7F7ABE/dekton-pietra-edition-exterior-sandik-ava-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/86BA853A-9BE7-44CB-AEDFBBDF3ACF3C30/dekton-pietra-edition-cocina-3-ava-polar-4.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/BD99E8AA-3203-49FA-A42B9288F82D0AC5/dekton-pietra-edition-cocina-ava-detalle.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-polar": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/CPO/tablahd/CPO-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/CPO/detalle/CPO-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/3176BDAD-CA08-4850-ADBC62A18FB5DD3C/dekton-pietra-edition-exterior-trevi-polar.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/73E32D10-6F83-4C3F-AED3C23955CDDA3E/dekton-pietra-edition-spa-polar-3.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/EC463BC3-1468-41F3-932D1D59A8755A22/dekton-pietra-edition-spa-polar-1.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/F2DF259C-EC76-4024-91426C3E9B66B208/dekton-pietra-edition-living-room-polar-adia.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-adia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PIT/tablahd/PIT-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PIT/detalle/PIT-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/C3441F25-4C11-431E-89C3EDB333EF307A/dekton-pietra-edition-exterior-adia-ava.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/D5E687B2-6944-4FD7-8F62D8D4EC839A04/dekton-pietra-edition-living-room-polar-adia-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/25DF7FC1-8781-4C24-B53EC6646E2D9481/dekton-pietra-edition-cocina-ava-sandik-adia-3.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6B11E9F8-5529-4552-9F1CB5A11DDE4366/dekton-pietra-edition-cocina-ava-sandik-adia-1.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-nebu": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/WCP/tablahd/WCP-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/WCP/detalle/WCP-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/2119EBCA-D7CF-4FAC-ACD519304CF2C819/dekton-pietra-edition-exterior-nebu.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/25B45961-255F-4F4A-B50AA5244BDAC1B8/dekton-pietra-edition-cocina-nebu-1.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/91BFC158-482F-4D08-814FEBEF35816571/dekton-pietra-edition-cocina-nebu-3.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/EB5C7CD6-396B-4061-9835933A20160AC7/dekton-pietra-edition-cocina-nebu-2.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-trevi": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/TVG/tablahd/TVG-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/TVG/detalle/TVG-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/3176BDAD-CA08-4850-ADBC62A18FB5DD3C/dekton-pietra-edition-exterior-trevi-polar.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/7FEBB76B-0635-45BF-9B761462DAAB5166/dekton-pietra-edition-vestidor-sandik-trevi-1.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/B57DD8FA-BA3A-440D-877E510A454AE77B/dekton-pietra-edition-vestidor-sandik-trevi-2.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/944DAA00-7B33-49B1-B9F39BEA91FC4402/dekton-pietra-edition-living-cocina-trevi-sandik.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-sabbia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ICK/tablahd/ICK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ICK/detalle/ICK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-avorio": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/VCK/tablahd/VCK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/VCK/detalle/VCK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/D217B731-0945-477C-AD5831064528AD6F/amb04-kitchen-dekton-vk02-avorio.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-grigio": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/GCK/tablahd/GCK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/GCK/detalle/GCK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/5AB9122D-A97B-40B6-B51426B11328A06F/amb04-kitchen-dekton-vk03-grigio.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/F69BD83F-FD77-4B84-BABB0715DC7DC117/vk03-grigio-c1-5120h2880-300dpi.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-sandik": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MRL/tablahd/MRL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MRL/detalle/MRL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/4BDAA9A2-7D16-4B60-BF4A05A39DAA2459/dekton-pietra-edition-vestidor-sandik-trevi-3.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/7FEBB76B-0635-45BF-9B761462DAAB5166/dekton-pietra-edition-vestidor-sandik-trevi-1.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/944DAA00-7B33-49B1-B9F39BEA91FC4402/dekton-pietra-edition-living-cocina-trevi-sandik.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/E497A349-31A8-4957-9D076C3D650CD897/dekton-pietra-edition-living-cocina-trevi-sandik-detalle.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-marmorio": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/RCK/tablahd/RCK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/RCK/detalle/RCK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-nebbia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ECK/tablahd/ECK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ECK/detalle/ECK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-ceppo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PCK/tablahd/PCK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PCK/detalle/PCK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-grafite": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/P5C/tablahd/P5C-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/P5C/detalle/P5C-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/C9D9E044-662D-4E17-AC0786A62234A4A6/vk04-grafite-furniture-desk-final-001.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-salina": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/AAI/tablahd/AAI-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/AAI/detalle/AAI-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/88EF56E0-01FC-437C-9DE32A1DC404CCD1/salina-bathroom.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-marina": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/RMR/tablahd/RMR-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/RMR/detalle/RMR-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/2A719AAF-5744-417C-B82033717B491E01/marina-outdoor-fireplace-and-flooring-3.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-albarium": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/RLM/tablahd/RLM-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/RLM/detalle/RLM-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-nacre": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/CKC/tablahd/CKC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/CKC/detalle/CKC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-awake": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/DSV/tablahd/DSV-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/DSV/detalle/DSV-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/7DB7303D-23EC-4660-9077376EC16A954A/ambiences-onirika-awake-01.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-somnia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BMT/tablahd/BMT-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BMT/detalle/BMT-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/E3A46C04-FB9E-43EB-BBE72076E47414BB/ambiences-onirika-somnia-02.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-trance": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MCA/tablahd/MCA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MCA/detalle/MCA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6D6A6F47-9E88-4AFE-87D3109CE0249DE4/ambiences-onirika-trance-01.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-neural": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/VGL/tablahd/VGL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/VGL/detalle/VGL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/8E5D0B92-2A9C-44D8-8A420C6629EF1E09/ambiences-onirika-neural-01.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-lucid": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/RBL/tablahd/RBL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/RBL/detalle/RBL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/7F4ED957-892E-404D-BB79167464AFF2A8/ambiences-onirika-lucid-02.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-morpheus": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MSC/tablahd/MSC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MSC/detalle/MSC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0FD6C3F8-B898-4A80-8120EC4CCA534E17/ambiences-onirika-morpheus-01.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-argentium": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/NMK/tablahd/NMK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/NMK/detalle/NMK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-umber": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/T2A/tablahd/T2A-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/T2A/detalle/T2A-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/90882BCC-CE27-4E4D-893213DCDF89A9E0/ambiences-kraftizen-umber-05.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-kovik": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SVA/tablahd/SVA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SVA/detalle/SVA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/A7865DA0-39D3-48A3-BE64F3D90EE5DECA/dekton-living-room-kovik.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-helena": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/HCK/tablahd/HCK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/HCK/detalle/HCK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/C7761EEC-327F-4CF9-8F707A1C0A1EFE4B/dekton-stonikaxgloss-helena.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-khalo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/HLC/tablahd/HLC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/HLC/detalle/HLC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-aeris": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/IKC/tablahd/IKC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/IKC/detalle/IKC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-rem": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/RKC/tablahd/RKC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/RKC/detalle/RKC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/4322783F-38DE-409A-93986B9C9109CB10/rem-kc.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-laurent": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PTL/tablahd/PTL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PTL/detalle/PTL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/337623DC-428F-4349-9FD78A04B87FA0CB/dekton-kitchen-laurent.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-taga": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/GKC/tablahd/GKC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/GKC/detalle/GKC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-arga": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/RGC/tablahd/RGC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/RGC/detalle/RGC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-bromo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BRM/tablahd/BRM-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BRM/detalle/BRM-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-lunar": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/UKC/tablahd/UKC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/UKC/detalle/UKC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-kreta": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/KRE/tablahd/KRE-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/KRE/detalle/KRE-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/5487DDF5-DF02-4ABF-912305AC91D8EAEB/dekton-kreta-kitchen-crop.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-kira": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PU4/tablahd/PU4-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PU4/detalle/PU4-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0EA0E510-578C-40A2-B76CE0143A1469C7/dekton-kitchen-kira.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/F802C87C-C944-4D33-82B5BC581E9798C7/dekton-kitchen-hd-kira-3.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-laos": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LOS/tablahd/LOS-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LOS/detalle/LOS-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/8C058773-A079-4723-860F6FF885A74C3B/dekton-kitchen-laos.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-soke": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/CV5/tablahd/CV5-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/CV5/detalle/CV5-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/EB889CDD-51DA-495F-BECAEA58066217B7/dekton-kitchen-soke.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-natura": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/NKC/tablahd/NKC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/NKC/detalle/NKC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/A1DA6E0B-1CD8-4865-AB6945DA838D3686/dekton-kitchen-natura.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-halo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/HKC/tablahd/HKC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/HKC/detalle/HKC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/8D53FF39-E79B-48F4-BC87598D61ECA9FE/rockinteriors-dekton-halo-countertop-and-kitchen-islands-5.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-entzo22": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/EKC/tablahd/EKC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/EKC/detalle/EKC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-trilium": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LD2/tablahd/LD2-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LD2/detalle/LD2-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/39A0E051-F998-40A6-BD9983A84B28D7AC/trilium-bathroom.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6FD057EF-A60C-4E1F-96B18E098E31E771/dekton-bar-trilium-orix.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-kelya": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/DKL/tablahd/DKL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/DKL/detalle/DKL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-bergen": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BEK/tablahd/BEK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BEK/detalle/BEK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/8F37BDAA-DC8F-472E-BC62CD379E6DC778/bergen-dekton-kitchen.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-keon": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/DCC/tablahd/DCC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/DCC/detalle/DCC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/4A74B704-26A8-494E-86D68D17736D5114/zeek-living-dekton-keon-steps-2.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/F15E2161-24BC-4F8F-A347F9CF968FA280/keon-sheffield-kitchen.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-dekton-sirius": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/RS5/tablahd/RS5-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/RS5/detalle/RS5-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-domoos": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/OMD/tablahd/OMD-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/OMD/detalle/OMD-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-aura": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/AKC/tablahd/AKC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/AKC/detalle/AKC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-danae": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/KAC/tablahd/KAC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/KAC/detalle/KAC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-dekton-zenith": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ZKC/tablahd/ZKC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ZKC/detalle/ZKC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-itara": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/TIZ/tablahd/TIZ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/TIZ/detalle/TIZ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/3A4ED064-76CF-487C-868985CF88075CF3/cocina-general-itara.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-marau": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/RUA/tablahd/RUA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/RUA/detalle/RUA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-oihana": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/OHN/tablahd/OHN-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/OHN/detalle/OHN-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/16D04860-C8B4-4E23-92068DFF9E1AD93D/bathroom-sensa-oihana-v3.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-cristalo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ZIA/tablahd/ZIA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ZIA/detalle/ZIA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0D595380-E05D-4413-8382AC59B750A55F/cocina-general-cristalo.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-kaira": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/KAD/tablahd/KAD-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/KAD/detalle/KAD-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-ketzia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/KTZ/tablahd/KTZ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/KTZ/detalle/KTZ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/898B11DD-AB3A-43D2-85A48DBE62EB1814/kitchen2-sensa-ketzia-2025-03-04.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-naori": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/MAO/tablahd/MAO-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/MAO/detalle/MAO-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/5520175E-3E34-46A6-995F92C2DFF0910F/naori-cmgeneral.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-nahoa": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/NAH/tablahd/NAH-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/NAH/detalle/NAH-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/14A422AE-7370-468A-8C845DA9F6DE00FC/221019-nahoacmgeneral.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-dakar": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/DKR/tablahd/DKR-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/DKR/detalle/DKR-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-vancouver": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/VNC/tablahd/VNC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/VNC/detalle/VNC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/7012FF35-0FE4-44FA-8429997E0386C441/sensa-vancouver.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-via-lattea": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/VLA/tablahd/VLA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/VLA/detalle/VLA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/09F9A964-3CB6-4808-90C58715C0EE22FA/sensa-via-lattea.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/29D04003-084B-4404-BF6C4ADBBD5FA1CB/via-lattea.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-platino": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PTN/tablahd/PTN-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PTN/detalle/PTN-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-siberia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SBE/tablahd/SBE-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SBE/detalle/SBE-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/157DB265-9D57-4ED3-8A96ECFEC157E617/sensa-siberia.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-delicatus-ice19": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/IBL/tablahd/IBL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/IBL/detalle/IBL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-white-lava": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/WLV/tablahd/WLV-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/WLV/detalle/WLV-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/ED7E4E25-3BFF-4237-BACD81A30473430C/white-lava-sensa-kitchen.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-smoky-white": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SMW/tablahd/SMW-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SMW/detalle/SMW-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/C17671D3-316D-4F52-8A1C7DE6029BCCAB/sensa-smoky-white-kitchen-countertop.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-blue-jeans": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BLJ/tablahd/BLJ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BLJ/detalle/BLJ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-white-alamo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/WHA/tablahd/WHA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/WHA/detalle/WHA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/4697980C-A3AC-4F78-8C84C9E9E4B0F6AD/white-alamo-real-view.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-nilo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/NIL/tablahd/NIL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/NIL/detalle/NIL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/ACF9BC13-E9B9-46B9-855E4B9586627EA3/sensa-kitchen-nilo.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/5BA260B2-680C-4A87-A0A61D87794C6B02/sensa-kitchen-nilo.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-graphite-grey": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/YB1/tablahd/YB1-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/YB1/detalle/YB1-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/AD7CEB43-76EF-4160-97D1146CC0E0C062/sensa-by-cosentino-graphite-grey.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-snowfall": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ANO/tablahd/ANO-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ANO/detalle/ANO-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6B3DE9BD-A42C-4115-A4FC7CEA4428057C/sensa-snowfall-kitchen-countertop.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-dawn-mist": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/DWM/tablahd/DWM-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/DWM/detalle/DWM-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-crescent-veil": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/CRV/tablahd/CRV-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/CRV/detalle/CRV-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/3D3BDFF6-3BE2-4BE6-8E36FEFF699B19F6/crescent-veil-sensa-kitchen.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-tangier": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/GIE/tablahd/GIE-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/GIE/detalle/GIE-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-white-napoli": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/WHN/tablahd/WHN-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/WHN/detalle/WHN-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-blue-pearl": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LC/tablahd/LC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LC/detalle/LC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-argenti-grey": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SVG/tablahd/SVG-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SVG/detalle/SVG-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/BA47FCA9-C4B2-4A4F-BC6DE21219362520/sensa-argenti-grey.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-white-egeo": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BI1/tablahd/BI1-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BI1/detalle/BI1-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-blanco-gabriele": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BGA/tablahd/BGA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BGA/detalle/BGA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-brown-persa": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BPE/tablahd/BPE-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BPE/detalle/BPE-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/580B88D8-0E0F-4536-85BE2F0ACFE9EE30/sensa-brown-persa-kitchen-countertop.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-caroline-summer": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/CSU/tablahd/CSU-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/CSU/detalle/CSU-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-amelia-ridge": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/132/tablahd/132-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/132/detalle/132-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-new-caledonia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/5A/tablahd/5A-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/5A/detalle/5A-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-orinoco": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/JPB/tablahd/JPB-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/JPB/detalle/JPB-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/0B7F45EE-EB5E-4B6D-95525A47B0125573/orinoco.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-white-macaubas": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/181/tablahd/181-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/181/detalle/181-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/14691B80-EC21-4935-957454AB438BC5A4/white-macaubas-fireplace.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-crema-pearl": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/119/tablahd/119-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/119/detalle/119-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-thailand": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/THA/tablahd/THA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/THA/detalle/THA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-waterfall": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PWA/tablahd/PWA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PWA/detalle/PWA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-taj-mahal": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/TAK/tablahd/TAK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/TAK/detalle/TAK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/C52746D5-09D2-4880-8EA3F1FF92FD1EA7/sensa-kitchen-taj-mahal.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-sensa-san-benedito": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LA/tablahd/LA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LA/detalle/LA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-iberian-sunset": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/C9/tablahd/C9-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/C9/detalle/C9-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-silver-blue": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SVB/tablahd/SVB-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SVB/detalle/SVB-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-juparana-cathedral": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/L3/tablahd/L3-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/L3/detalle/L3-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-sensa-majestic-white19": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/M19/tablahd/M19-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/M19/detalle/M19-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-athiri-white": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ATW/tablahd/ATW-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ATW/detalle/ATW-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-soapstone-barroca": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/186/tablahd/186-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/186/detalle/186-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-soapstone-fumaca": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/187/tablahd/187-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/187/detalle/187-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-delicatus-ice19": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/IBL/tablahd/IBL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/IBL/detalle/IBL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-silver-grey": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SVG/tablahd/SVG-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SVG/detalle/SVG-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-white-macaubas": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/181/tablahd/181-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/181/detalle/181-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/14691B80-EC21-4935-957454AB438BC5A4/white-macaubas-fireplace.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-scalea-white-bahia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/1BH/tablahd/1BH-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/1BH/detalle/1BH-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-bianco-olinda": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/2BO/tablahd/2BO-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/2BO/detalle/2BO-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-siberia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SBE/tablahd/SBE-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SBE/detalle/SBE-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/157DB265-9D57-4ED3-8A96ECFEC157E617/sensa-siberia.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-scalea-amarillo-catedral": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/AT/tablahd/AT-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/AT/detalle/AT-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-white-ice": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/WIC/tablahd/WIC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/WIC/detalle/WIC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-waterfall": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PWA/tablahd/PWA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PWA/detalle/PWA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-white-napoli": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/WHN/tablahd/WHN-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/WHN/detalle/WHN-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-azul-platino": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/AZ/tablahd/AZ-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/AZ/detalle/AZ-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-caroline-summer": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/CSU/tablahd/CSU-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/CSU/detalle/CSU-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-arabescato-a1": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/AR1/tablahd/AR1-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/AR1/detalle/AR1-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-viscount-white": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/VCU/tablahd/VCU-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/VCU/detalle/VCU-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-star-white": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/STW/tablahd/STW-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/STW/detalle/STW-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-amarillo-santa-cecilia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SC/tablahd/SC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SC/detalle/SC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-iberian-white": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/IBW/tablahd/IBW-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/IBW/detalle/IBW-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-fantasy-brown": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/QFB/tablahd/QFB-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/QFB/detalle/QFB-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-crema-pearl": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/119/tablahd/119-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/119/detalle/119-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-brown-persa": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BPE/tablahd/BPE-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BPE/detalle/BPE-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/580B88D8-0E0F-4536-85BE2F0ACFE9EE30/sensa-brown-persa-kitchen-countertop.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-scalea-new-caledonia": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/5A/tablahd/5A-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/5A/detalle/5A-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-blanco-cachoeiro": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/160/tablahd/160-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/160/detalle/160-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-black-pearl": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BLP/tablahd/BLP-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BLP/detalle/BLP-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-colonial-white": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/COW/tablahd/COW-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/COW/detalle/COW-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/3CACBABD-C7C9-4E3A-A27C1C70B672FF6D/colonial-white-villaroel-07.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-scalea-blue-pearl": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/LC/tablahd/LC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/LC/detalle/LC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-blanco-gabriele": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BGA/tablahd/BGA-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BGA/detalle/BGA-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-blanco-perla": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BP/tablahd/BP-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BP/detalle/BP-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-iberian-sunset": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/C9/tablahd/C9-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/C9/detalle/C9-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-santa-cecilia-light": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/G6/tablahd/G6-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/G6/detalle/G6-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-verde-ubatuba": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/VU/tablahd/VU-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/VU/detalle/VU-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-venato-carrara": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/VC/tablahd/VC-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/VC/detalle/VC-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-typhoon-bordeaux": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/146/tablahd/146-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/146/detalle/146-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-negro-san-benedito": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SB/tablahd/SB-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SB/detalle/SB-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-blanco-leblon": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/BLB/tablahd/BLB-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/BLB/detalle/BLB-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-black-indiano": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/132/tablahd/132-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/132/detalle/132-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-black-pencil": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/ACK/tablahd/ACK-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/ACK/detalle/ACK-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-scalea-majestic-white19": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/M19/tablahd/M19-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/M19/detalle/M19-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": []
+  },
+  "COSN-eclos-ivora": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/DAV/tablahd/DAV-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/DAV/detalle/DAV-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/29BD333E-1AF8-4F66-87415E7BEA04B84E/eclos-kitchen-2-ivora-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/CF4B406C-751E-4B73-B787400F32739E23/eclos-kitchen-2-ivora-plano-detalle-b.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/80C032A2-0958-47EA-9FD760D18F169E65/eclos-kitchen-1-ivora-plano-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/DB77702F-5A32-4B53-B66A4E41D6448C7A/eclos-kitchen-1-ivora-plano-general.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-eclos-wondr": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/WON/tablahd/WON-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/WON/detalle/WON-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/6291FA69-D7F8-41B8-92F68819E0C117D1/eclos-living-wondr-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/672A781D-006A-4E8E-A0DE3AF938A03A7D/eclos-kitchen-2-wondr-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/B1F4F7B8-3C42-439E-B987B0094581BD65/eclos-living-wondr-plano-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/EAB2E081-54DA-4A8F-8B6A7F3E01617D61/eclos-kitchen-2-wondr-plano-detalle.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-eclos-phantome": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/PHM/tablahd/PHM-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/PHM/detalle/PHM-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/024DEDC8-09D6-4211-82374E3559EE0C7D/eclos-kitchen-2-phantome-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/5BC27D25-9200-423E-83F28743ADAFFBD5/eclos-kitchen-2-phantome-plano-medio.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/A833C193-349D-4747-A2BBFE87CD692BD3/eclos-kitchen-1-phantome-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/5048DE19-ECE9-419F-9EA316BC31EDBBE3/eclos-kitchen-1-phantome-plano-detalle.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-eclos-tajnar": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/SYL/tablahd/SYL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/SYL/detalle/SYL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/EC2DDB81-219D-4EB0-9F8DAE56E7D36500/eclos-kitchen-2-tajnar-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/69590E68-A65F-4CA1-83CF827FD943666F/eclos-kitchen-1-tajnar-plano-medio.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/14AC48C4-9966-454A-8AFD317BFFF0CCFD/eclos-kitchen-1-tajnar-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/8B615176-C0EB-4954-83A6A39ED56CEE16/eclos-kitchen-1-tajnar-plano-detalle.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-eclos-legnd": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/EMO/tablahd/EMO-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/EMO/detalle/EMO-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/089981D0-9495-42DF-AAA852D58A152BB3/eclos-kitchen-legnd-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/68B5BE7F-A633-4402-A92084C62FCBFC38/eclos-kitchen-legnd-plano-medio.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/7DBA413D-86A2-49C9-A53ED26EE783A911/eclos-kitchen-legnd-plano-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/B3148119-0ADB-45C7-AB473F2EC10B5EE5/eclos-bathroom-legnd-plano-detalle.jpg?w=1600&q=80&auto=format"
+    ]
+  },
+  "COSN-eclos-landr": {
+    "primary": "https://assetstools.cosentino.com/api/v1/bynder/color/RAL/tablahd/RAL-fullslab.jpg?w=1600&q=80&auto=format",
+    "swatch": "https://assetstools.cosentino.com/api/v1/bynder/color/RAL/detalle/RAL-thumb.jpg?w=900&q=80&auto=format",
+    "lifestyle": [
+      "https://assetstools.cosentino.com/api/v1/bynder/image/BC13313F-2487-4A9E-B8D5D7F7CD077BCD/eclos-mobiliario-landr-plano-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/72974B96-7B73-43BA-8AD50EB496AC676D/eclos-kitchen-2-landr-plano-general.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/7EB741CA-F716-4D79-992C764DE92DAA93/eclos-kitchen-2-landr-plano-detalle.jpg?w=1600&q=80&auto=format",
+      "https://assetstools.cosentino.com/api/v1/bynder/image/23BD1EAF-588D-46B4-BEB558BC726C7EE9/eclos-kitchen-1-landr-plano-general.jpg?w=1600&q=80&auto=format"
+    ]
+  }
+}

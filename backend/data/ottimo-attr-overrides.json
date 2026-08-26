@@ -1,0 +1,83 @@
+{
+  "_comment": "Ottimo per-SKU attribute corrections. Vendor Shopify bakes mosaic chip geometry (and sometimes finish) into the color option, inconsistently. This map is the reviewed, authoritative end-state for color/finish/pattern on the affected SKUs. Consumed by scripts/fix-ottimo-naming.mjs (backfill) AND scrapers/ottimo.js (go-forward, so re-imports don't reintroduce the mess). Rules: color is always set; finish/pattern of \"\" means clear/none; a value is set verbatim. Do NOT drive this with a regex — 'Arabesque' is a COLOR in True/Marmi but a SHAPE in Peak.",
+
+  "GATD014": { "color": "Black", "finish": "", "pattern": "Diamond" },
+  "GAT014":  { "color": "Black", "finish": "", "pattern": "Rectangle" },
+  "GATD011": { "color": "Grey",  "finish": "", "pattern": "Diamond" },
+  "GAT011":  { "color": "Grey",  "finish": "", "pattern": "Rectangle" },
+  "GATD010": { "color": "White", "finish": "", "pattern": "Diamond" },
+  "GAT010":  { "color": "White", "finish": "Glossy", "pattern": "Rectangle" },
+
+  "LYDG014L": { "color": "Black", "finish": "Glossy", "pattern": "Left" },
+  "LYDG014R": { "color": "Black", "finish": "Glossy", "pattern": "Right" },
+  "LYDM014L": { "color": "Black", "finish": "Matte",  "pattern": "Left" },
+  "LYDM014R": { "color": "Black", "finish": "Matte",  "pattern": "Right" },
+  "LYDG011L": { "color": "Grey",  "finish": "Glossy", "pattern": "Left" },
+  "LYDG011R": { "color": "Grey",  "finish": "Glossy", "pattern": "Right" },
+  "LYDG010L": { "color": "White", "finish": "Glossy", "pattern": "Left" },
+  "LYDG010R": { "color": "White", "finish": "Glossy", "pattern": "Right" },
+  "LYDM010L": { "color": "White", "finish": "Matte",  "pattern": "Left" },
+  "LYDM010R": { "color": "White", "finish": "Matte",  "pattern": "Right" },
+
+  "MBL550G":  { "color": "Calacatta", "finish": "Glossy",    "pattern": "" },
+  "MBL550M":  { "color": "Calacatta", "finish": "3D Matte",  "pattern": "Lines" },
+  "MBL550S":  { "color": "Calacatta", "finish": "Silk",      "pattern": "" },
+  "MBL550GC": { "color": "Calacatta", "finish": "3D Glossy", "pattern": "Wave" },
+
+  "G93159F": { "color": "Beige", "finish": "Glossy", "pattern": "Flat" },
+  "G93159W": { "color": "Beige", "finish": "",       "pattern": "Wave" },
+
+  "MOH154": { "color": "Gold Calacatta", "finish": "",      "pattern": "Hexagon" },
+  "MOH550": { "color": "Grey Calacatta", "finish": "Matte", "pattern": "Hexagon" },
+  "MOS154": { "color": "Gold Calacatta", "finish": "",      "pattern": "Square" },
+  "MOS550": { "color": "Grey Calacatta", "finish": "",      "pattern": "Square" },
+
+  "NARA10": { "color": "Carrara",     "finish": "Honed", "pattern": "Arc" },
+  "NARA12": { "color": "Beige Stone", "finish": "",      "pattern": "Arc" },
+  "NARO10": { "color": "Carrara",     "finish": "",      "pattern": "Offset" },
+  "NARO12": { "color": "Beige Stone", "finish": "",      "pattern": "Offset" },
+
+  "NB020": { "color": "Gold Marble", "finish": "", "pattern": "Chevron" },
+
+  "TRUA01": { "color": "Carrara",   "finish": "Honed", "pattern": "Arc" },
+  "TRUA02": { "color": "Arabesque", "finish": "",      "pattern": "Arc" },
+  "TRUA03": { "color": "Beige",     "finish": "",      "pattern": "Arc" },
+  "TRUC01": { "color": "Carrara",   "finish": "",      "pattern": "Concave" },
+  "TRUC02": { "color": "Arabesque", "finish": "",      "pattern": "Concave" },
+  "TRUC03": { "color": "Beige",     "finish": "",      "pattern": "Concave" },
+
+  "VERO10": { "color": "Carrara",         "finish": "Honed", "pattern": "Offset" },
+  "VERO11": { "color": "Cinderella Grey", "finish": "",      "pattern": "Offset" },
+  "VERO12": { "color": "Beige Stone",     "finish": "",      "pattern": "Offset" },
+  "VERS10": { "color": "Carrara",         "finish": "",      "pattern": "Stacked" },
+  "VERS11": { "color": "Cinderella Grey", "finish": "",      "pattern": "Stacked" },
+  "VERS12": { "color": "Beige Stone",     "finish": "",      "pattern": "Stacked" },
+
+  "NRA010": { "color": "Snow", "finish": "Satin",  "pattern": "Aura" },
+  "NRL010": { "color": "Snow", "finish": "Glossy", "pattern": "Lines" },
+  "NRS010": { "color": "Snow", "finish": "Satin",  "pattern": "Strokes" },
+
+  "OPAP02": { "color": "Beige", "finish": "",       "pattern": "Picket" },
+  "OPAR02": { "color": "Beige", "finish": "",       "pattern": "Rectangle" },
+  "OPAP01": { "color": "White", "finish": "",       "pattern": "Picket" },
+  "OPAR01": { "color": "White", "finish": "Glossy", "pattern": "Rectangle" },
+
+  "PKS14": { "color": "Black", "finish": "",             "pattern": "Arabesque" },
+  "PKS10": { "color": "White", "finish": "Matte/Glossy", "pattern": "Arabesque" },
+  "PKT14": { "color": "Black", "finish": "",             "pattern": "Triangle" },
+  "PKT10": { "color": "White", "finish": "",             "pattern": "Triangle" },
+
+  "SM11": { "color": "White", "finish": "",       "pattern": "Circle" },
+  "SM21": { "color": "White", "finish": "",       "pattern": "Rhombus" },
+  "SM31": { "color": "White", "finish": "",       "pattern": "Fish Scale" },
+  "SM01": { "color": "White", "finish": "Glossy", "pattern": "Square" },
+
+  "SGCVM": { "color": "Mix", "finish": "", "pattern": "Herringbone" },
+
+  "YA015": { "color": "Steel", "finish": "", "pattern": "Square" },
+
+  "FAS003": { "color": "Black",        "finish": "", "pattern": "Lines" },
+  "FAS004": { "color": "Grey & White", "finish": "", "pattern": "Lines" },
+  "FAS001": { "color": "White & Black", "finish": "", "pattern": "Lines" },
+  "FAS002": { "color": "White & Grey", "finish": "", "pattern": "Lines" }
+}

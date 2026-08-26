@@ -1,0 +1,1161 @@
+{
+ "source": "Big D Floor Covering Supplies CSP \u2014 ROMA FLOORING, as of 10/1/2025 (SCA12 41515)",
+ "vendor": "SCHLUTER",
+ "items": [
+  {
+   "pid": "102997",
+   "code": "J80ACGB",
+   "desc": "J80ACGB SCHLUTER JOLLY 5/16\" BRUSHED CHROME ANODIZED ALUMINUM",
+   "price": 12.79,
+   "uom": "pc"
+  },
+  {
+   "pid": "102859",
+   "code": "J80AE",
+   "desc": "J80AE SCHLUTER JOLLY 5/16\" SATIN ANODIZED ALUMINUM",
+   "price": 9.9,
+   "uom": "pc"
+  },
+  {
+   "pid": "102995",
+   "code": "J80ATGB",
+   "desc": "J80ATGB SCHLUTER JOLLY 5/16\" BRUSHED NICKEL ANODIZED ALUMINUM",
+   "price": 13.93,
+   "uom": "pc"
+  },
+  {
+   "pid": "103431",
+   "code": "J80BW",
+   "desc": "J80BW SCHLUTER JOLLY 5/16\" BRIGHT WHITE COLOR COATED ALUMINUM",
+   "price": 12.12,
+   "uom": "pc"
+  },
+  {
+   "pid": "103594",
+   "code": "J80MBW",
+   "desc": "J80MBW SCHLUTER JOLLY 5/16\" MATTE WHITE COLOR COATED ALUMINUM",
+   "price": 17.18,
+   "uom": "pc"
+  },
+  {
+   "pid": "103633",
+   "code": "J80MGS",
+   "desc": "J80MGS SCHLUTER JOLLY 5/16\" MATTE BLACK COLOR COATED ALUMINUM",
+   "price": 17.16,
+   "uom": "pc"
+  },
+  {
+   "pid": "102891",
+   "code": "J100ABGB",
+   "desc": "J100ABGB SCHLUTER JOLLY 3/8\" BRUSHED ANTIQUE BRONZE ANOD ALUM",
+   "price": 15.95,
+   "uom": "pc"
+  },
+  {
+   "pid": "102892",
+   "code": "J100ACG",
+   "desc": "J100ACG SCHLUTER JOLLY 3/8\" POLISHED CHROME ANOD ALUM",
+   "price": 13.8,
+   "uom": "pc"
+  },
+  {
+   "pid": "102996",
+   "code": "J100ACGB",
+   "desc": "J100ACGB SCHLUTER JOLLY 3/8\" BRUSHED CHROME ANOD ALUM",
+   "price": 14.18,
+   "uom": "pc"
+  },
+  {
+   "pid": "102951",
+   "code": "J100AE",
+   "desc": "J100AE SCHLUTER JOLLY 3/8\" SATIN ANODIZED ALUMINUM",
+   "price": 10.48,
+   "uom": "pc"
+  },
+  {
+   "pid": "103020",
+   "code": "J100AGRB",
+   "desc": "J100AGRB SCHLUTER JOLLY 3/8\" BRUSHED GRAPHITE ANOD ALUM",
+   "price": 16.21,
+   "uom": "pc"
+  },
+  {
+   "pid": "102948",
+   "code": "J100AT",
+   "desc": "J100AT SCHLUTER JOLLY 3/8\" SATIN NICKEL ANOD ALUM",
+   "price": 12.35,
+   "uom": "pc"
+  },
+  {
+   "pid": "102994",
+   "code": "J100ATGB",
+   "desc": "J100ATGB SCHLUTER JOLLY 3/8\" BRUSHED NICKEL ANODIZED ALUMINUM",
+   "price": 14.22,
+   "uom": "pc"
+  },
+  {
+   "pid": "103262",
+   "code": "J100BW",
+   "desc": "J100BW SCHLUTER JOLLY 3/8\" COLOR COATED ALUM BRIGHT WHITE",
+   "price": 13.01,
+   "uom": "pc"
+  },
+  {
+   "pid": "102937",
+   "code": "J100MBW",
+   "desc": "J100MBW SCHLUTER JOLLY 3/8\" COLOR COATED ALUM MATTE WHITE",
+   "price": 17.49,
+   "uom": "pc"
+  },
+  {
+   "pid": "102912",
+   "code": "J100MGS",
+   "desc": "J100MGS SCHLUTER JOLLY 3/8\" COLOR COATED ALUM MATTE BLACK",
+   "price": 17.51,
+   "uom": "pc"
+  },
+  {
+   "pid": "103028",
+   "code": "J100PG",
+   "desc": "J100PG SCHLUTER JOLLY 3/8\" COLOR COATED ALUM",
+   "price": 13.01,
+   "uom": "pc"
+  },
+  {
+   "pid": "102907",
+   "code": "J100TSBG",
+   "desc": "J100TSBG SCHLUTER JOLLY 3/8\" GREIGE COLOR COATED ALUMINUM",
+   "price": 21.89,
+   "uom": "pc"
+  },
+  {
+   "pid": "103034",
+   "code": "J100TSC",
+   "desc": "J100TSC SCHLUTER JOLLY 3/8\" CREAM COLOR COATED ALUMINUM",
+   "price": 21.87,
+   "uom": "pc"
+  },
+  {
+   "pid": "102990",
+   "code": "J100TSOB",
+   "desc": "J100TSOB SCHLUTER JOLLY 3/8\" BRONZE COLOR COATED ALUMINUM",
+   "price": 21.89,
+   "uom": "pc"
+  },
+  {
+   "pid": "102908",
+   "code": "J100TSSG",
+   "desc": "J100TSSG SCHLUTER JOLLY 3/8\" STONE GREY COLOR COATED ALUMINUM",
+   "price": 21.89,
+   "uom": "pc"
+  },
+  {
+   "pid": "103239",
+   "code": "J100W",
+   "desc": "J100W SCHLUTER JOLLY 3/8\" COLOR COATED ALUM WHITE",
+   "price": 13.01,
+   "uom": "pc"
+  },
+  {
+   "pid": "103474",
+   "code": "J125ATGB",
+   "desc": "J125ATGB SCHLUTER JOLLY 1/2\" BRUSHED NICKEL ANODIZED ALUMINUM",
+   "price": 14.87,
+   "uom": "pc"
+  },
+  {
+   "pid": "103461",
+   "code": "J125BW",
+   "desc": "J125BW SCHLUTER JOLLY 1/2\" COLOR COATED ALUM BRIGHT WHITE",
+   "price": 13.38,
+   "uom": "pc"
+  },
+  {
+   "pid": "103030",
+   "code": "J125MGS",
+   "desc": "J125MGS SCHLUTER JOLLY 1/2\" COLOR COATED ALUM MATTE BLACK",
+   "price": 18.0,
+   "uom": "pc"
+  },
+  {
+   "pid": "53583",
+   "code": "AHK1S100AE",
+   "desc": "AHK1S100AE SCHLUTER DILEX-AHK 3/8\" SATIN ANODIZED ALUMINUM",
+   "price": 20.83,
+   "uom": "pc"
+  },
+  {
+   "pid": "67322",
+   "code": "AHK1S100AT",
+   "desc": "AHK1S100AT SCHLUTER DILEX-AHK 3/8\" SATIN NICKEL ANOD. ALU.",
+   "price": 24.01,
+   "uom": "pc"
+  },
+  {
+   "pid": "60649",
+   "code": "AHK1S100ATGB",
+   "desc": "AHK1S100ATGB SCHLUTER DILEX-AHK 3/8\" BRUSHED NICKEL ANOD. ALU.",
+   "price": 34.25,
+   "uom": "pc"
+  },
+  {
+   "pid": "57232",
+   "code": "AHK1S125AE",
+   "desc": "AHK1S125AE SCHLUTER DILEX-AHK 1/2\" SATIN ANODIZED ALUMINUM",
+   "price": 21.83,
+   "uom": "pc"
+  },
+  {
+   "pid": "61205",
+   "code": "AHK1S125AT",
+   "desc": "AHK1S125AT SCHLUTER DILEX-AHK 1/2\" SATIN NICKEL ANOD. ALU.",
+   "price": 25.01,
+   "uom": "pc"
+  },
+  {
+   "pid": "61883",
+   "code": "AHK1S80AE",
+   "desc": "AHK1S80AE SCHLUTER DILEX-AHK 5/16\" Satin Anod. Alu.",
+   "price": 20.02,
+   "uom": "pc"
+  },
+  {
+   "pid": "68028",
+   "code": "AHKA100AE",
+   "desc": "AHKA100AE SCHLUTER DILEX-AHKA 3/8\" SATIN ANODIZED ALUMINUM",
+   "price": 20.87,
+   "uom": "pc"
+  },
+  {
+   "pid": "80886",
+   "code": "AHKA125AE",
+   "desc": "AHKA125AE SCHLUTER DILEX-AHKA 1/2\" SATIN ANODIZED ALUMINUM",
+   "price": 21.82,
+   "uom": "pc"
+  },
+  {
+   "pid": "78385",
+   "code": "AHKA80AE",
+   "desc": "AHKA80AE SCHLUTER DILEX-AHKA 5/16\" SATIN ANODIZED ALUMINUM",
+   "price": 20.05,
+   "uom": "pc"
+  },
+  {
+   "pid": "46737",
+   "code": "BW100",
+   "desc": "BW100 SCHLUTER JOLLY-P 3/8\" COLOR-COATED PVC BRIGHT WHITE",
+   "price": 4.19,
+   "uom": "pc"
+  },
+  {
+   "pid": "47742",
+   "code": "BW125",
+   "desc": "BW125 SCHLUTER JOLLY-P 1/2\" COLOR-COATED PVC BRIGHT WHITE",
+   "price": 4.42,
+   "uom": "pc"
+  },
+  {
+   "pid": "43082",
+   "code": "BW80",
+   "desc": "BW80 SCHLUTER JOLLY-P 5/16\" COLOR-COATED PVC BRIGHT WHITE",
+   "price": 4.1,
+   "uom": "pc"
+  },
+  {
+   "pid": "52542",
+   "code": "GS100",
+   "desc": "GS100 SCHLUTER JOLLY-P 3/8\" COLOR-COATED PVC BLACK",
+   "price": 4.19,
+   "uom": "pc"
+  },
+  {
+   "pid": "49084",
+   "code": "PG100",
+   "desc": "PG100 SCHLUTER JOLLY-P 3/8\" COLOR-COATED PVC CLASSIC GREY",
+   "price": 4.19,
+   "uom": "pc"
+  },
+  {
+   "pid": "88589",
+   "code": "PG125",
+   "desc": "PG125 SCHLUTER JOLLY-P 1/2\" CLASSIC GREY EDGING",
+   "price": 4.42,
+   "uom": "pc"
+  },
+  {
+   "pid": "68301",
+   "code": "Q100ABGB",
+   "desc": "Q100ABGB SCHLUTER QUADEC 3/8\" BRUSHED ANTIQUE BRONZE ANOD. ALU.",
+   "price": 18.95,
+   "uom": "pc"
+  },
+  {
+   "pid": "65661",
+   "code": "Q100ACG",
+   "desc": "Q100ACG SCHLUTER QUADEC 3/8\" POLISHED CHROME ANOD ALU.",
+   "price": 19.23,
+   "uom": "pc"
+  },
+  {
+   "pid": "61080",
+   "code": "Q100AE",
+   "desc": "Q100AE SCHLUTER QUADEC 3/8\" SATIN ANODIZED ALUMINUM",
+   "price": 13.9,
+   "uom": "pc"
+  },
+  {
+   "pid": "60565",
+   "code": "Q100AT",
+   "desc": "Q100AT SCHLUTER QUADEC 3/8\" SATIN NICKEL ANOD. ALU.",
+   "price": 14.78,
+   "uom": "pc"
+  },
+  {
+   "pid": "92865",
+   "code": "Q100MBW",
+   "desc": "Q100MBW SCHLUTER QUADEC 3/8\" TEXTURED COLOR COATED ALUMINUM MATTE WHITE",
+   "price": 22.56,
+   "uom": "pc"
+  },
+  {
+   "pid": "100778",
+   "code": "Q100MBW/300",
+   "desc": "Q100MBW/300 SCHLUTER QUADEC 3/8\" TEXTURED COLOR COATED ALUMINUM MATTE WHITE 10'",
+   "price": 28.19,
+   "uom": "pc"
+  },
+  {
+   "pid": "92380",
+   "code": "Q100MGS",
+   "desc": "Q100MGS SCHLUTER QUADEC 3/8\" TEXTURED COLOR COATED ALUMINUM MATTE BLACK",
+   "price": 22.55,
+   "uom": "pc"
+  },
+  {
+   "pid": "64585",
+   "code": "Q125ACG",
+   "desc": "Q125ACG SCHLUTER QUADEC 1/2\" POLISHED CHROME ANOD. ALU.",
+   "price": 22.58,
+   "uom": "pc"
+  },
+  {
+   "pid": "62239",
+   "code": "Q125AE",
+   "desc": "Q125AE SCHLUTER QUADEC 1/2\" SATIN ANODIZED ALUMINUM",
+   "price": 15.52,
+   "uom": "pc"
+  },
+  {
+   "pid": "61415",
+   "code": "Q125AT",
+   "desc": "Q125AT SCHLUTER QUADEC 1/2\" SATIN NICKEL ANOD. ALU.",
+   "price": 16.48,
+   "uom": "pc"
+  },
+  {
+   "pid": "101013",
+   "code": "Q125MGS/300",
+   "desc": "Q125MGS/300 SCHLUTER QUADEC 10' 1/2\" TEXTURED COLOR COATED ALUMINUM MATTE BLACK",
+   "price": 28.76,
+   "uom": "pc"
+  },
+  {
+   "pid": "60793",
+   "code": "Q80AE",
+   "desc": "Q80AE SCHLUTER QUADEC 5/16\" SATIN ANODIZED ALUMINUM",
+   "price": 12.82,
+   "uom": "pc"
+  },
+  {
+   "pid": "79356",
+   "code": "Q80AT",
+   "desc": "Q80AT SCHLUTER QUADEC 5/16\" SATIN NICKEL ANOD. ALU.",
+   "price": 13.87,
+   "uom": "pc"
+  },
+  {
+   "pid": "94290",
+   "code": "Q80MBW",
+   "desc": "Q80MBW SCHLUTER QUADEC 5/16\" TEXTURED COLOR COATED ALUMINUM MATTE WHITE",
+   "price": 21.84,
+   "uom": "pc"
+  },
+  {
+   "pid": "48697",
+   "code": "AERP100B65",
+   "desc": "AERP100B65 SCHLUTER RENO-RAMP 3/8\" SATIN ANODIZED ALUMINUM",
+   "price": 32.0,
+   "uom": "pc"
+  },
+  {
+   "pid": "57079",
+   "code": "AERP125B65",
+   "desc": "AERP125B65 SCHLUTER RENO-RAMP 1/2\" SATIN ANODIZED ALUMINUM",
+   "price": 33.42,
+   "uom": "pc"
+  },
+  {
+   "pid": "51375",
+   "code": "AERP125B90",
+   "desc": "AERP125B90 SCHLUTER RENO-RAMP 1/2\" SATIN ANODIZED ALUMINUM",
+   "price": 42.97,
+   "uom": "pc"
+  },
+  {
+   "pid": "43099",
+   "code": "AETK100",
+   "desc": "AETK100 SCHLUTER RENO-TK 3/8\" SATIN ANODIZED ALUMINUM",
+   "price": 13.78,
+   "uom": "pc"
+  },
+  {
+   "pid": "46035",
+   "code": "AETK125",
+   "desc": "AETK125 SCHLUTER RENO-TK 1/2\" SATIN ANODIZED ALUMINUM",
+   "price": 17.75,
+   "uom": "pc"
+  },
+  {
+   "pid": "45625",
+   "code": "AEU100",
+   "desc": "AEU100 SCHLUTER RENO-U 3/8\" SATIN ANODIZED ALUMINUM",
+   "price": 13.07,
+   "uom": "pc"
+  },
+  {
+   "pid": "49902",
+   "code": "AEU125",
+   "desc": "AEU125 SCHLUTER RENO-U 1/2\" SATIN ANODIZED ALUMINUM",
+   "price": 17.34,
+   "uom": "pc"
+  },
+  {
+   "pid": "49501",
+   "code": "AEU35",
+   "desc": "AEU35 SCHLUTER RENO-U 1/8\" SATIN ANODIZED ALUMINUM",
+   "price": 10.31,
+   "uom": "pc"
+  },
+  {
+   "pid": "45624",
+   "code": "AEU80",
+   "desc": "AEU80 SCHLUTER RENO-U 5/16\" SATIN ANODIZED ALUMINUM 1",
+   "price": 12.43,
+   "uom": "pc"
+  },
+  {
+   "pid": "60380",
+   "code": "EBU100",
+   "desc": "EBU100 SCHLUTER RENO-U 3/8\" BRUSHED STAINLESS STEEL",
+   "price": 56.6,
+   "uom": "pc"
+  },
+  {
+   "pid": "52719",
+   "code": "T9/14AE",
+   "desc": "T9/14AE SCHLUTER RENO-T 17/32\" SATIN ANODIZED ALUMINUM",
+   "price": 7.82,
+   "uom": "pc"
+  },
+  {
+   "pid": "68223",
+   "code": "RO100ABGB",
+   "desc": "RO100ABGB SCHLUTER RONDEC 3/8\" BRUSHED ANTIQUE BRONZE ANOD. ALU.",
+   "price": 20.49,
+   "uom": "pc"
+  },
+  {
+   "pid": "55239",
+   "code": "RO100ACG",
+   "desc": "RO100ACG SCHLUTER RONDEC 3/8\" POLISH CHROME ANOD ALUMINUM",
+   "price": 17.89,
+   "uom": "pc"
+  },
+  {
+   "pid": "78576",
+   "code": "RO100ACGB",
+   "desc": "RO100ACGB SCHLUTER RONDEC 3/8\" BRUSHED CHROME ANOD. ALU.",
+   "price": 18.75,
+   "uom": "pc"
+  },
+  {
+   "pid": "47301",
+   "code": "RO100AE",
+   "desc": "RO100AE SCHLUTER RONDEC 3/8\" SATIN ANODIZED ALUMINUM",
+   "price": 13.27,
+   "uom": "pc"
+  },
+  {
+   "pid": "59282",
+   "code": "RO100AT",
+   "desc": "RO100AT SCHLUTER RONDEC 3/8\" SATIN NICKEL ANOD. ALU.",
+   "price": 13.46,
+   "uom": "pc"
+  },
+  {
+   "pid": "61542",
+   "code": "RO100ATGB",
+   "desc": "RO100ATGB SCHLUTER RONDEC 3/8\" BRUSHED NICKEL ANOD. ALU.",
+   "price": 20.11,
+   "uom": "pc"
+  },
+  {
+   "pid": "68932",
+   "code": "RO125ABGB",
+   "desc": "RO125ABGB SCHLUTER RONDEC 1/2\" BRUSHED ANTIQUE BRONZE ANOD. ALU.",
+   "price": 23.34,
+   "uom": "pc"
+  },
+  {
+   "pid": "64645",
+   "code": "RO125ACG",
+   "desc": "RO125ACG SCHLUTER RONDEC 1/2\" POLISHED CHROME ANODIZED ALUMINUM",
+   "price": 20.93,
+   "uom": "pc"
+  },
+  {
+   "pid": "61218",
+   "code": "RO125ACGB",
+   "desc": "RO125ACGB SCHLUTER RONDEC 1/2\" BRUSHED CHROME ANOD. ALU.",
+   "price": 21.82,
+   "uom": "pc"
+  },
+  {
+   "pid": "50089",
+   "code": "RO125AE",
+   "desc": "RO125AE SCHLUTER RONDEC 1/2\" SATIN ANODIZED ALUMINUM",
+   "price": 14.83,
+   "uom": "pc"
+  },
+  {
+   "pid": "59130",
+   "code": "RO125AT",
+   "desc": "RO125AT SCHLUTER RONDEC 1/2\" SATIN NICKEL ANOD. ALU.",
+   "price": 15.28,
+   "uom": "pc"
+  },
+  {
+   "pid": "59053",
+   "code": "RO125ATGB",
+   "desc": "RO125ATGB SCHLUTER RONDEC 1/2\" BRUSHED NICKEL ANOD. ALU.",
+   "price": 23.35,
+   "uom": "pc"
+  },
+  {
+   "pid": "50543",
+   "code": "RO80AE",
+   "desc": "RO80AE SCHLUTER RONDEC 5/16\" SATIN ANODIZED ALUMINUM",
+   "price": 12.24,
+   "uom": "pc"
+  },
+  {
+   "pid": "67731",
+   "code": "RS100AE39",
+   "desc": "RS100AE39 SCHLUTER RONDEC-STEP 3/8\" SATIN ANODIZED ALUMINUM",
+   "price": 30.75,
+   "uom": "pc"
+  },
+  {
+   "pid": "46268",
+   "code": "A100",
+   "desc": "A100 SCHLUTER SCHIENE 3/8\" ALUMINUM",
+   "price": 6.88,
+   "uom": "pc"
+  },
+  {
+   "pid": "59486",
+   "code": "A100ABGB",
+   "desc": "A100ABGB SCHLUTER SCHIENE 3/8\" BRUSHED ANTIQUE BRONZE ANOD. ALU.",
+   "price": 15.64,
+   "uom": "pc"
+  },
+  {
+   "pid": "96813",
+   "code": "A100ABGB/300",
+   "desc": "A100ABGB/300 SCHLUTER SCHIENE 3/8\" BRUSHED ANTIQUE BRONZE ANOD. ALU. 10'",
+   "price": 19.55,
+   "uom": "pc"
+  },
+  {
+   "pid": "59263",
+   "code": "A100ACG",
+   "desc": "A100ACG SCHLUTER SCHIENE 3/8\" POLISHED CHROME ANOD. ALU.",
+   "price": 13.52,
+   "uom": "pc"
+  },
+  {
+   "pid": "96392",
+   "code": "A100ACG/300",
+   "desc": "A100ACG/300 SCHLUTER SCHIENE 3/8\" POLISHED CHROME ANOD. ALU. 10'",
+   "price": 16.9,
+   "uom": "pc"
+  },
+  {
+   "pid": "50859",
+   "code": "A100ACGB",
+   "desc": "A100ACGB SCHLUTER SCHIENE 3/8\" BRUSHED CHROME ANOD. ALU.",
+   "price": 13.9,
+   "uom": "pc"
+  },
+  {
+   "pid": "65832",
+   "code": "A100AGRB",
+   "desc": "A100AGRB SCHLUTER SCHIENE 3/8\" BRUSHED GRAPHITE ANOD. ALU.",
+   "price": 15.95,
+   "uom": "pc"
+  },
+  {
+   "pid": "50549",
+   "code": "A100AGSG",
+   "desc": "A100AGSG SCHLUTER SCHIENE 3/8\" BRIGHT BLACK ANOD. ALU.",
+   "price": 12.76,
+   "uom": "pc"
+  },
+  {
+   "pid": "54412",
+   "code": "A100AM",
+   "desc": "A100AM SCHLUTER SCHIENE 3/8\" SATIN BRASS ANODIZED ALUMINUM",
+   "price": 11.28,
+   "uom": "pc"
+  },
+  {
+   "pid": "87358",
+   "code": "A100AMGB",
+   "desc": "A100AMGB SCHLUTER SCHIENE 3/8\" BRUSHED BRASS ANODIZED ALUMINUM",
+   "price": 14.44,
+   "uom": "pc"
+  },
+  {
+   "pid": "64347",
+   "code": "A100AT",
+   "desc": "A100AT SCHLUTER SCHIENE 3/8\" SATIN NICKEL ANOD. ALU.",
+   "price": 12.11,
+   "uom": "pc"
+  },
+  {
+   "pid": "96417",
+   "code": "A100AT/300",
+   "desc": "A100AT/300 SCHLUTER SCHIENE SCHIENE 3/8\" SATIN NICKEL ANODIZED ALUMINUM 10' PROFILE",
+   "price": 15.14,
+   "uom": "pc"
+  },
+  {
+   "pid": "60322",
+   "code": "A100ATGB",
+   "desc": "A100ATGB SCHLUTER SCHIENE 3/8\" BRUSHED NICKEL ANOD. ALU.",
+   "price": 13.95,
+   "uom": "pc"
+  },
+  {
+   "pid": "43091",
+   "code": "A100BW",
+   "desc": "A100BW SCHLUTER SCHIENE 3/8\" COLOR-COATED ALUMINUM BRIGHT WHITE",
+   "price": 12.76,
+   "uom": "pc"
+  },
+  {
+   "pid": "93004",
+   "code": "A100MBW",
+   "desc": "A100MBW SCHLUTER SCHIENE 3/8\" MATTE WHITE COLR COATED ALUM.",
+   "price": 17.12,
+   "uom": "pc"
+  },
+  {
+   "pid": "92716",
+   "code": "A100MGS",
+   "desc": "A100MGS SCHLUTER SCHIENE 3/8\" MATTE BLACK TEXTURED COLOR COATED ALUMINUM",
+   "price": 17.16,
+   "uom": "pc"
+  },
+  {
+   "pid": "88122",
+   "code": "A100PG",
+   "desc": "A100PG SCHLUTER SCHIENE 3/8\" COLOR-COATED ALUMINUM CLASSIC GREY",
+   "price": 12.76,
+   "uom": "pc"
+  },
+  {
+   "pid": "90937",
+   "code": "A100TSB",
+   "desc": "A100TSB SCHLUTER SCHIENE 3/8\" TEXTURED COATED ALUMINUM BEIGE",
+   "price": 21.46,
+   "uom": "pc"
+  },
+  {
+   "pid": "92292",
+   "code": "A100TSBG",
+   "desc": "A100TSBG SCHLUTER SCHIENE 3/8\" TEXTURED COATED ALUMINUM GREIGE",
+   "price": 21.46,
+   "uom": "pc"
+  },
+  {
+   "pid": "90466",
+   "code": "A100TSC",
+   "desc": "A100TSC SCHLUTER SCHIENE 3/8\" TEXTURED COATED ALUMINUM CREAM",
+   "price": 21.46,
+   "uom": "pc"
+  },
+  {
+   "pid": "90464",
+   "code": "A100TSDA",
+   "desc": "A100TSDA SCHLUTER SCHIENE 3/8\" TEXTURED COATED ALUMINUM DARK ANTHRACITE",
+   "price": 21.46,
+   "uom": "pc"
+  },
+  {
+   "pid": "90227",
+   "code": "A100TSG",
+   "desc": "A100TSG SCHLUTER SCHIENE 3/8\" COLOR COATED ALUMINUM PEWTER",
+   "price": 21.46,
+   "uom": "pc"
+  },
+  {
+   "pid": "90465",
+   "code": "A100TSI",
+   "desc": "A100TSI SCHLUTER SCHIENE 3/8\" TEXTURED COATED ALUMINUM IVORY",
+   "price": 21.46,
+   "uom": "pc"
+  },
+  {
+   "pid": "90173",
+   "code": "A100TSOB",
+   "desc": "A100TSOB SCHLUTER SCHIENE 3/8\" TEXTURED COATED ALUMINUM BRONZE",
+   "price": 21.46,
+   "uom": "pc"
+  },
+  {
+   "pid": "91242",
+   "code": "A100TSSG",
+   "desc": "A100TSSG SCHLUTER SCHIENE 3/8\" TEXTURED COATED ALUMINUM STONE GREY",
+   "price": 21.46,
+   "uom": "pc"
+  },
+  {
+   "pid": "80292",
+   "code": "A100W",
+   "desc": "A100W SCHLUTER SCHIENE ALUM EDGING 3/8\" WHITE",
+   "price": 12.76,
+   "uom": "pc"
+  },
+  {
+   "pid": "49764",
+   "code": "A125",
+   "desc": "A125 SCHLUTER SCHIENE 1/2\" ALUMINUM",
+   "price": 7.17,
+   "uom": "pc"
+  },
+  {
+   "pid": "64150",
+   "code": "A125ABGB",
+   "desc": "A125ABGB SCHLUTER SCHIENE 1/2\" BRUSHED ANTIQUE BRONZE ANOD. ALU.",
+   "price": 16.95,
+   "uom": "pc"
+  },
+  {
+   "pid": "61385",
+   "code": "A125ACG",
+   "desc": "A125ACG SCHLUTER SCHIENE 1/2\" POLISHED CHROME ANOD. ALU.",
+   "price": 14.3,
+   "uom": "pc"
+  },
+  {
+   "pid": "97927",
+   "code": "A125ACG/300",
+   "desc": "A125ACG/300 SCHLUTER SCHIENE POLISHED CHROME ANOD. ALU. 10' LENGTH",
+   "price": 17.76,
+   "uom": "pc"
+  },
+  {
+   "pid": "61900",
+   "code": "A125ACGB",
+   "desc": "A125ACGB SCHLUTER SCHIENE 1/2\" BRUSHED CHROME ANOD. ALU.",
+   "price": 14.67,
+   "uom": "pc"
+  },
+  {
+   "pid": "67733",
+   "code": "A125AGRB",
+   "desc": "A125AGRB SCHLUTER SCHIENE 1/2\" BRUSHED GRAPHITE ANOD. ALU.",
+   "price": 16.91,
+   "uom": "pc"
+  },
+  {
+   "pid": "49096",
+   "code": "A125AGSG",
+   "desc": "A125AGSG SCHLUTER SCHIENE 1/2\" BRIGHT BLACK ANOD. ALU.",
+   "price": 13.16,
+   "uom": "pc"
+  },
+  {
+   "pid": "53914",
+   "code": "A125AM",
+   "desc": "A125AM SCHLUTER SCHIENE 1/2\" SATIN BRASS ANODIZED ALUMINUM",
+   "price": 12.07,
+   "uom": "pc"
+  },
+  {
+   "pid": "69237",
+   "code": "A125AMGB",
+   "desc": "A125AMGB SCHLUTER SCHIENE 1/2\" BRUSHED BRASS ANOD. ALU.",
+   "price": 15.2,
+   "uom": "pc"
+  },
+  {
+   "pid": "60815",
+   "code": "A125AT",
+   "desc": "A125AT SCHLUTER SCHIENE 1/2\" SATIN NICKEL ANOD. ALUM.",
+   "price": 12.49,
+   "uom": "pc"
+  },
+  {
+   "pid": "96418",
+   "code": "A125AT/300",
+   "desc": "A125AT/300 SCHLUTER SCHIENE SCHIENE 1/2\" SATIN NICKEL ANODIZED ALUMINUM 10' PROFILE",
+   "price": 15.63,
+   "uom": "pc"
+  },
+  {
+   "pid": "53270",
+   "code": "A125ATGB",
+   "desc": "A125ATGB SCHLUTER SCHIENE 1/2\" BRUSHED NICKEL ANOD. ALU.",
+   "price": 14.58,
+   "uom": "pc"
+  },
+  {
+   "pid": "82440",
+   "code": "A125BW",
+   "desc": "A125BW SCHLUTER SCHIENE 1/2\" COLOR-COATED ALUMINUM BRIGHT WHITE",
+   "price": 13.16,
+   "uom": "pc"
+  },
+  {
+   "pid": "93218",
+   "code": "A125MBW",
+   "desc": "A125MBW SCHLUTER SCHIENE 1/2\" MATTE WHITE TEXTURED COLOR COATED ALUMINUM",
+   "price": 17.69,
+   "uom": "pc"
+  },
+  {
+   "pid": "92233",
+   "code": "A125MGS",
+   "desc": "A125MGS SCHLUTER SCHIENE 1/2\" MATTE BLACK TEXTURED COLOR COATED ALUMINUM",
+   "price": 17.69,
+   "uom": "pc"
+  },
+  {
+   "pid": "92278",
+   "code": "A125TSBG",
+   "desc": "A125TSBG SCHLUTER SCHIENE 1/2\" GREIGE TEXTURED COLOR COATED ALUMINUM",
+   "price": 22.11,
+   "uom": "pc"
+  },
+  {
+   "pid": "91539",
+   "code": "A125TSC",
+   "desc": "A125TSC SCHLUTER SCHIENE 1/2\" TEXTURED COATED ALUMINUM CREAM",
+   "price": 22.11,
+   "uom": "pc"
+  },
+  {
+   "pid": "90345",
+   "code": "A125TSDA",
+   "desc": "A125TSDA SCHLUTER SCHIENE 1/2\" DARK ANTHRACITE TEXTURED COLOR COATED ALUMINUM",
+   "price": 22.11,
+   "uom": "pc"
+  },
+  {
+   "pid": "89905",
+   "code": "A125TSG",
+   "desc": "A125TSG SCHLUTER SCHIENE 1/2\" PEWTER TEXTURED COLOR COATED ALUMINUM",
+   "price": 22.11,
+   "uom": "pc"
+  },
+  {
+   "pid": "91399",
+   "code": "A125TSI",
+   "desc": "A125TSI SCHLUTER SCHIENE 1/2\" TUSCAN IVORY TEXTURED COLOR COATED ALUMINUM",
+   "price": 22.12,
+   "uom": "pc"
+  },
+  {
+   "pid": "92286",
+   "code": "A125TSOB",
+   "desc": "A125TSOB SCHLUTER SCHIENE 1/2\" BRONZE TEXTURED COLOR COATED ALUMINUM",
+   "price": 22.11,
+   "uom": "pc"
+  },
+  {
+   "pid": "92406",
+   "code": "A125TSSG",
+   "desc": "A125TSSG SCHLUTER SCHIENE 1/2\" TEXTURED COATED ALUMINUM STONE GREY",
+   "price": 22.11,
+   "uom": "pc"
+  },
+  {
+   "pid": "82216",
+   "code": "A125W",
+   "desc": "A125W SCHLUTER SCHIENE 1/2\" COLOR-COATED ALUMINUM WHITE",
+   "price": 13.16,
+   "uom": "pc"
+  },
+  {
+   "pid": "68197",
+   "code": "A60ABGB",
+   "desc": "A60ABGB SCHLUTER SCHIENE 1/4\" BRUSHED ANTIQUE BRONZE ANOD. ALU.",
+   "price": 14.43,
+   "uom": "pc"
+  },
+  {
+   "pid": "51209",
+   "code": "A60ACG",
+   "desc": "A60ACG SCHLUTER SCHIENE 1/4\" POLISHED CHROME ANOD. ALU.",
+   "price": 11.41,
+   "uom": "pc"
+  },
+  {
+   "pid": "58963",
+   "code": "A60ACGB",
+   "desc": "A60ACGB SCHLUTER SCHIENE 1/4\" BRUSHED CHROME ANOD. ALU.",
+   "price": 12.23,
+   "uom": "pc"
+  },
+  {
+   "pid": "52602",
+   "code": "A60AT",
+   "desc": "A60AT SCHLUTER SCHIENE 1/4\" SATIN NICKEL ANOD ALUM",
+   "price": 11.64,
+   "uom": "pc"
+  },
+  {
+   "pid": "54306",
+   "code": "A60ATGB",
+   "desc": "A60ATGB SCHLUTER SCHIENE 1/4\"x 8' BRUSHED NICKEL ANODIZED ALUMINUM",
+   "price": 13.52,
+   "uom": "pc"
+  },
+  {
+   "pid": "94561",
+   "code": "A60MGS",
+   "desc": "A60MGS SCHLUTER SCHIENE 1/4\" MATTE BLACK TEXTURED COLOR COATED ALUMINUM",
+   "price": 16.48,
+   "uom": "pc"
+  },
+  {
+   "pid": "49208",
+   "code": "A80",
+   "desc": "A80 SCHLUTER SCHIENE 5/16\" ALUMINUM",
+   "price": 6.56,
+   "uom": "pc"
+  },
+  {
+   "pid": "69100",
+   "code": "A80ABGB",
+   "desc": "A80ABGB SCHLUTER SCHIENE 5/16\" BRUSHED ANTIQUE BRONZE ANOD. ALU.",
+   "price": 15.19,
+   "uom": "pc"
+  },
+  {
+   "pid": "59698",
+   "code": "A80ACG",
+   "desc": "A80ACG SCHLUTER SCHIENE 5/16\" POLISHED CHROME ANOD. ALU.",
+   "price": 12.23,
+   "uom": "pc"
+  },
+  {
+   "pid": "48559",
+   "code": "A80ACGB",
+   "desc": "A80ACGB SCHLUTER SCHIENE 5/16\" BRUSHED CHROME ANOD. ALU.",
+   "price": 12.52,
+   "uom": "pc"
+  },
+  {
+   "pid": "69443",
+   "code": "A80AGRB",
+   "desc": "A80AGRB SCHLUTER SCHIENE 5/16\"x 8' BRUSHED GRAPHITE ANODIZED ALUMINUM",
+   "price": 15.17,
+   "uom": "pc"
+  },
+  {
+   "pid": "63819",
+   "code": "A80AGSG",
+   "desc": "A80AGSG SCHLUTER SCHIENE 5/16\" BRIGHT BLACK ANOD. ALU.",
+   "price": 11.89,
+   "uom": "pc"
+  },
+  {
+   "pid": "65504",
+   "code": "A80AT",
+   "desc": "A80AT SCHLUTER SCHIENE 5/16\" SATIN NICKEL ANOD. ALU.",
+   "price": 11.89,
+   "uom": "pc"
+  },
+  {
+   "pid": "60778",
+   "code": "A80ATGB",
+   "desc": "A80ATGB SCHLUTER SCHIENE 5/16\" BRUSHED NICKEL ANOD. ALU.",
+   "price": 13.63,
+   "uom": "pc"
+  },
+  {
+   "pid": "43090",
+   "code": "A80BW",
+   "desc": "A80BW SCHLUTER SCHIENE 5/16\" COLOR-COATED ALUMINUM BRIGHT WHITE",
+   "price": 11.89,
+   "uom": "pc"
+  },
+  {
+   "pid": "94562",
+   "code": "A80MBW",
+   "desc": "A80MBW SCHLUTER SCHIENE 5/16\" MATTE WHITE COLR COATED ALUM.",
+   "price": 16.8,
+   "uom": "pc"
+  },
+  {
+   "pid": "92707",
+   "code": "A80MGS",
+   "desc": "A80MGS SCHLUTER SCHIENE 5/16\" MATTE BLACK TEXTURED COLOR COATED ALUMINUM",
+   "price": 16.83,
+   "uom": "pc"
+  },
+  {
+   "pid": "95586",
+   "code": "A80TSBG",
+   "desc": "A80TSBG SCHLUTER SCHIENE 5/16\" TEXTURED COLOR-COATED ALUMINUM GREIGE",
+   "price": 21.05,
+   "uom": "pc"
+  },
+  {
+   "pid": "60192",
+   "code": "A80W",
+   "desc": "A80W SCHLUTER SCHIENE 5/16\" WHITE COLOR COATED ALUMINUM",
+   "price": 11.88,
+   "uom": "pc"
+  },
+  {
+   "pid": "43093",
+   "code": "AE100",
+   "desc": "AE100 SCHLUTER SCHIENE 3/8\" SATIN ANODIZED ALUMINUM",
+   "price": 10.31,
+   "uom": "pc"
+  },
+  {
+   "pid": "96077",
+   "code": "AE100/300",
+   "desc": "AE100/300 SCHLUTER SCHIENE 3/8\" SATIN ANODIZED ALUMINUM 10' PROFILE",
+   "price": 12.88,
+   "uom": "pc"
+  },
+  {
+   "pid": "60865",
+   "code": "AE110",
+   "desc": "AE110 SCHLUTER SCHIENE 7/16\" SATIN ANODIZED ALUMINUM",
+   "price": 10.91,
+   "uom": "pc"
+  },
+  {
+   "pid": "43094",
+   "code": "AE125",
+   "desc": "AE125 SCHLUTER SCHIENE 1/2\" SATIN ANODIZED ALUMINUM",
+   "price": 11.04,
+   "uom": "pc"
+  },
+  {
+   "pid": "97820",
+   "code": "AE125/300",
+   "desc": "AE125/300 SCHLUTER SCHIENE 1/2\" SATIN ANODIZED ALUMINUM 10' LENGTH",
+   "price": 13.82,
+   "uom": "pc"
+  },
+  {
+   "pid": "55685",
+   "code": "AE150",
+   "desc": "AE150 SCHLUTER SCHIENE 9/16\" SATIN ANODIZED ALUMINUM",
+   "price": 12.44,
+   "uom": "pc"
+  },
+  {
+   "pid": "46329",
+   "code": "AE160",
+   "desc": "AE160 SCHLUTER SCHIENE 5/8\" SATIN ANODIZED ALUMINUM",
+   "price": 13.52,
+   "uom": "pc"
+  },
+  {
+   "pid": "48622",
+   "code": "AE200",
+   "desc": "AE200 SCHLUTER SCHIENE 3/4\" SATIN ANODIZED ALUMINUM",
+   "price": 15.49,
+   "uom": "pc"
+  },
+  {
+   "pid": "56481",
+   "code": "AE30",
+   "desc": "AE30 SCHLUTER SCHIENE 1/8\" SATIN ANODIZED ALUMINUM",
+   "price": 9.04,
+   "uom": "pc"
+  },
+  {
+   "pid": "47615",
+   "code": "AE45",
+   "desc": "AE45 SCHLUTER SCHIENE 3/16\" SATIN ANODIZED ALUMINUM",
+   "price": 9.35,
+   "uom": "pc"
+  },
+  {
+   "pid": "46258",
+   "code": "AE60",
+   "desc": "AE60 SCHLUTER SCHIENE 1/4\" SATIN ANODIZED ALUMINUM",
+   "price": 9.76,
+   "uom": "pc"
+  },
+  {
+   "pid": "43092",
+   "code": "AE80",
+   "desc": "AE80 SCHLUTER SCHIENE 5/16\" SATIN ANODIZED ALUMINUM",
+   "price": 9.73,
+   "uom": "pc"
+  },
+  {
+   "pid": "45831",
+   "code": "E100",
+   "desc": "E100 SCHLUTER SCHIENE 3/8\" STAINLESS STEEL",
+   "price": 24.79,
+   "uom": "pc"
+  },
+  {
+   "pid": "61163",
+   "code": "E100EB",
+   "desc": "E100EB SCHLUTER SCHIENE 3/8\" BRUSHED STAINLESS STEEL",
+   "price": 30.65,
+   "uom": "pc"
+  },
+  {
+   "pid": "50725",
+   "code": "E125",
+   "desc": "E125 SCHLUTER SCHIENE 1/2\" STAINLESS STEEL",
+   "price": 25.64,
+   "uom": "pc"
+  },
+  {
+   "pid": "58648",
+   "code": "E125EB",
+   "desc": "E125EB SCHLUTER SCHIENE 1/2\" BRUSHED STAINLESS STEEL",
+   "price": 31.71,
+   "uom": "pc"
+  },
+  {
+   "pid": "58492",
+   "code": "E80",
+   "desc": "E80 SCHLUTER SCHIENE 5/16\" STAINLESS STEEL",
+   "price": 23.5,
+   "uom": "pc"
+  },
+  {
+   "pid": "48338",
+   "code": "R/AE100",
+   "desc": "R/AE100 SCHLUTER SCHIENE 3/8\" RADIUS SATIN ANODIZED ALUMINUM",
+   "price": 13.62,
+   "uom": "pc"
+  }
+ ]
+}

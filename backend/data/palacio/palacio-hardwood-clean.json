@@ -1,0 +1,438 @@
+{
+ "Amora": [
+  {
+   "color": "Adirondack",
+   "sku": "MFPAMO5886AD",
+   "species": "European Oak",
+   "width": "8.66\u201d",
+   "length": "random up to 87\u201d",
+   "thickness": "5/8\u201d",
+   "coverage": "31.25",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": false,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Adirondack.webp",
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Adirondack_1.webp"
+   ]
+  },
+  {
+   "color": "Brownstone",
+   "sku": "MFPAMO5886BS",
+   "species": "European Oak",
+   "width": "8.66\u201d",
+   "length": "random up to 87\u201d",
+   "thickness": "5/8\u201d",
+   "coverage": "31.25",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": false,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Brownstone.webp",
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Brownstone_1.webp"
+   ]
+  },
+  {
+   "color": "Cotswold",
+   "sku": "MFPAMO5886CW",
+   "species": "European Oak",
+   "width": "8.66\u201d",
+   "length": "random up to 87\u201d",
+   "thickness": "5/8\u201d",
+   "coverage": "31.25",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": false,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Cotswold.webp",
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Cotswold_1.webp"
+   ]
+  },
+  {
+   "color": "Dakota Trail",
+   "sku": "MFPAMO5886DT",
+   "species": "European Oak",
+   "width": "8.66\u201d",
+   "length": "random up to 87\u201d",
+   "thickness": "5/8\u201d",
+   "coverage": "31.25",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": false,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/DakotaTrail.webp",
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Dakota_Trail_1.webp"
+   ]
+  },
+  {
+   "color": "Frolic",
+   "sku": "MFPAMO5886FL",
+   "species": "European Oak",
+   "width": "8.66\u201d",
+   "length": "random up to 87\u201d",
+   "thickness": "5/8\u201d",
+   "coverage": "31.25",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": false,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Frolic.webp",
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Frolic_1.webp"
+   ]
+  },
+  {
+   "color": "Gentle Shadows",
+   "sku": "MFPAMO5886GS",
+   "species": "European Oak",
+   "width": "8.66\u201d",
+   "length": "random up to 87\u201d",
+   "thickness": "5/8\u201d",
+   "coverage": "31.25",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": false,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/GentleShadows.webp",
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Gentle_Shadows_1.webp"
+   ]
+  },
+  {
+   "color": "Sonnet",
+   "sku": "MFPAMO5886SN",
+   "species": "European Oak",
+   "width": "8.66\u201d",
+   "length": "random up to 87\u201d",
+   "thickness": "5/8\u201d",
+   "coverage": "31.25",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": false,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Sonnet.webp",
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Sonnet_1.webp"
+   ]
+  },
+  {
+   "color": "Squire Hill",
+   "sku": "MFPAMO5886SH",
+   "species": "European Oak",
+   "width": "8.66\u201d",
+   "length": "random up to 87\u201d",
+   "thickness": "5/8\u201d",
+   "coverage": "31.25",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": false,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/SquireHill.webp",
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Squire_Hill_1.webp"
+   ]
+  },
+  {
+   "color": "Totten's Inlet",
+   "sku": "MFPAMO5886TI",
+   "species": "European Oak",
+   "width": "8.66\u201d",
+   "length": "random up to 87\u201d",
+   "thickness": "5/8\u201d",
+   "coverage": "31.25",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": false,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Totten_sInlet.webp",
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Totten_s_Inlet_1.webp"
+   ]
+  },
+  {
+   "color": "Warm Nutmeg",
+   "sku": "MFPAMO5886WN",
+   "species": "European Oak",
+   "width": "8.66\u201d",
+   "length": "random up to 87\u201d",
+   "thickness": "5/8\u201d",
+   "coverage": "31.25",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": false,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/WarmNutmeg.webp",
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Warm_Nutmeg_1.webp"
+   ]
+  }
+ ],
+ "Aragon": [
+  {
+   "color": "Ashen Fossil",
+   "sku": "FTOAK95TTAF2",
+   "species": "European Oak",
+   "width": "",
+   "length": "random up to 86\"",
+   "thickness": "9/16\"",
+   "coverage": "28.42",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/ashen-fossil.webp"
+   ]
+  },
+  {
+   "color": "Barren Plain",
+   "sku": "FTOAK95SMBP2",
+   "species": "European Oak",
+   "width": "",
+   "length": "random up to 86\"",
+   "thickness": "9/16\"",
+   "coverage": "28.42",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/barren-plain.webp"
+   ]
+  },
+  {
+   "color": "Brandy Cream",
+   "sku": "FTOAK95CBBC2",
+   "species": "European Oak",
+   "width": "",
+   "length": "random up to 86\"",
+   "thickness": "9/16\"",
+   "coverage": "28.42",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/brandy-cream.webp"
+   ]
+  },
+  {
+   "color": "French Grey",
+   "sku": "FTOAK95BLFG2",
+   "species": "European Oak",
+   "width": "",
+   "length": "random up to 86\"",
+   "thickness": "9/16\"",
+   "coverage": "28.42",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/french-gray.webp"
+   ]
+  },
+  {
+   "color": "Pashmina",
+   "sku": "FTOAK95SHPA2",
+   "species": "European Oak",
+   "width": "",
+   "length": "random up to 86\"",
+   "thickness": "9/16\"",
+   "coverage": "28.42",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/pashmina.webp"
+   ]
+  },
+  {
+   "color": "Smoked Oyster",
+   "sku": "FTOAK95STSO2",
+   "species": "European Oak",
+   "width": "",
+   "length": "random up to 86\"",
+   "thickness": "9/16\"",
+   "coverage": "28.42",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/smoked-oyster.webp"
+   ]
+  },
+  {
+   "color": "Stone Hearth",
+   "sku": "FTOAK95BBSH2",
+   "species": "European Oak",
+   "width": "",
+   "length": "random up to 86\"",
+   "thickness": "9/16\"",
+   "coverage": "28.42",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/stone-hearth.webp"
+   ]
+  },
+  {
+   "color": "Willow Creek",
+   "sku": "FTOAK95RRWC2",
+   "species": "European Oak",
+   "width": "",
+   "length": "random up to 86\"",
+   "thickness": "9/16\"",
+   "coverage": "28.42",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/willow-creek.webp"
+   ]
+  },
+  {
+   "color": "Wood Acres",
+   "sku": "FTOAK95RPWA2",
+   "species": "European Oak",
+   "width": "",
+   "length": "random up to 86\"",
+   "thickness": "9/16\"",
+   "coverage": "28.42",
+   "finish": "UV-Cured Acrylic Urethane",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/products/wood-acres.webp"
+   ]
+  }
+ ],
+ "Villoria": [
+  {
+   "color": "Baronian Tan",
+   "sku": "MFPEK9PL107W",
+   "species": "European Oak",
+   "width": "8.65\u201d",
+   "length": "random up to 86\u201d",
+   "thickness": "9/16\u201d",
+   "coverage": "19",
+   "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-baronian-tan.webp"
+   ]
+  },
+  {
+   "color": "Brazilia Grey",
+   "sku": "MFPEK9PL177W",
+   "species": "European Oak",
+   "width": "8.65\u201d",
+   "length": "random up to 86\u201d",
+   "thickness": "9/16\u201d",
+   "coverage": "19",
+   "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-brazilia-grey-_2.webp"
+   ]
+  },
+  {
+   "color": "Dove Tail",
+   "sku": "MFPEK9PL117W",
+   "species": "European Oak",
+   "width": "8.65\u201d",
+   "length": "random up to 86\u201d",
+   "thickness": "9/16\u201d",
+   "coverage": "19",
+   "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-dove-tail-_2.webp"
+   ]
+  },
+  {
+   "color": "Manor House",
+   "sku": "MFPEK9PL137W",
+   "species": "European Oak",
+   "width": "8.65\u201d",
+   "length": "random up to 86\u201d",
+   "thickness": "9/16\u201d",
+   "coverage": "19",
+   "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-manor-house-_2.webp"
+   ]
+  },
+  {
+   "color": "Natural Crest",
+   "sku": "MFPEK9PL167W",
+   "species": "European Oak",
+   "width": "8.65\u201d",
+   "length": "random up to 86\u201d",
+   "thickness": "9/16\u201d",
+   "coverage": "19",
+   "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-natural-crest-_2.webp"
+   ]
+  },
+  {
+   "color": "Oxford Shade",
+   "sku": "MFPEK9PL187W",
+   "species": "European Oak",
+   "width": "8.65\u201d",
+   "length": "random up to 86\u201d",
+   "thickness": "9/16\u201d",
+   "coverage": "19",
+   "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-oxford-shade-_2.webp"
+   ]
+  },
+  {
+   "color": "Patridge Knoll",
+   "sku": "MFPEK9PL157W",
+   "species": "European Oak",
+   "width": "8.65\u201d",
+   "length": "random up to 86\u201d",
+   "thickness": "9/16\u201d",
+   "coverage": "19",
+   "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-partridge-knoll-_2.webp"
+   ]
+  },
+  {
+   "color": "Sacred Ground",
+   "sku": "MFPEK9PL147W",
+   "species": "European Oak",
+   "width": "8.65\u201d",
+   "length": "random up to 86\u201d",
+   "thickness": "9/16\u201d",
+   "coverage": "19",
+   "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-sacred-ground-_2.webp"
+   ]
+  },
+  {
+   "color": "Spun Sugar",
+   "sku": "MFPEK9PL127W",
+   "species": "European Oak",
+   "width": "8.65\u201d",
+   "length": "random up to 86\u201d",
+   "thickness": "9/16\u201d",
+   "coverage": "19",
+   "finish": "UV-Cured Acrylic Urethane w/ Aluminium Oxide",
+   "construction": "Engineered Hardwood",
+   "discontinued": true,
+   "images": [
+    "https://cdn.shopify.com/s/files/1/0549/2772/0647/files/Villoria-spun-sugar-_2.webp"
+   ]
+  }
+ ]
+}

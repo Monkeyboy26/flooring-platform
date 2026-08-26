@@ -1,0 +1,692 @@
+{
+ "AKM3": {
+  "field": {
+   "primary": "/uploads/moma/alaska/alaska_grey_mur.jpg",
+   "alternates": []
+  },
+  "lifestyle": [
+   "/uploads/moma/alaska/alaska_1.jpg",
+   "/uploads/moma/alaska/alaska_2.jpg",
+   "/uploads/moma/alaska/alaska_3.jpg",
+   "/uploads/moma/alaska/alaska_4.jpg"
+  ]
+ },
+ "AKS3": {
+  "field": {
+   "primary": "/uploads/moma/alaska/alaska_grey_str.jpg",
+   "alternates": []
+  },
+  "lifestyle": [
+   "/uploads/moma/alaska/alaska_1.jpg",
+   "/uploads/moma/alaska/alaska_2.jpg",
+   "/uploads/moma/alaska/alaska_3.jpg",
+   "/uploads/moma/alaska/alaska_4.jpg"
+  ]
+ },
+ "AK01": {
+  "field": {
+   "primary": "/uploads/moma/alaska/alaska_ivory.jpg",
+   "alternates": []
+  },
+  "lifestyle": [
+   "/uploads/moma/alaska/alaska_1.jpg",
+   "/uploads/moma/alaska/alaska_2.jpg",
+   "/uploads/moma/alaska/alaska_3.jpg",
+   "/uploads/moma/alaska/alaska_4.jpg"
+  ]
+ },
+ "AK02": {
+  "field": {
+   "primary": "/uploads/moma/alaska/alaska_sand.jpg",
+   "alternates": []
+  },
+  "lifestyle": [
+   "/uploads/moma/alaska/alaska_1.jpg",
+   "/uploads/moma/alaska/alaska_2.jpg",
+   "/uploads/moma/alaska/alaska_3.jpg",
+   "/uploads/moma/alaska/alaska_4.jpg"
+  ]
+ },
+ "AKM2": {
+  "field": {
+   "primary": "/uploads/moma/alaska/alaska_sand_mur.jpg",
+   "alternates": []
+  },
+  "lifestyle": [
+   "/uploads/moma/alaska/alaska_1.jpg",
+   "/uploads/moma/alaska/alaska_2.jpg",
+   "/uploads/moma/alaska/alaska_3.jpg",
+   "/uploads/moma/alaska/alaska_4.jpg"
+  ]
+ },
+ "AKS2": {
+  "field": {
+   "primary": "/uploads/moma/alaska/alaska_sand_str.jpg",
+   "alternates": []
+  },
+  "lifestyle": [
+   "/uploads/moma/alaska/alaska_1.jpg",
+   "/uploads/moma/alaska/alaska_2.jpg",
+   "/uploads/moma/alaska/alaska_3.jpg",
+   "/uploads/moma/alaska/alaska_4.jpg"
+  ]
+ },
+ "CH00": {
+  "field": {
+   "primary": "/uploads/moma/chalet/Chalet_Almond@1.jpg",
+   "alternates": [
+    "/uploads/moma/chalet/Chalet_Almond@2.jpg",
+    "/uploads/moma/chalet/Chalet_Almond@3.jpg",
+    "/uploads/moma/chalet/Chalet_Almond@4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/chalet/CH_almond.jpg",
+   "/uploads/moma/chalet/CH_almond_out.jpg",
+   "/uploads/moma/chalet/CH_almond_out_2.jpg"
+  ]
+ },
+ "CH01": {
+  "field": {
+   "primary": "/uploads/moma/chalet/Chalet_Brown@1.jpg",
+   "alternates": [
+    "/uploads/moma/chalet/Chalet_Brown@2.jpg",
+    "/uploads/moma/chalet/Chalet_Brown@3.jpg",
+    "/uploads/moma/chalet/Chalet_Brown@4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/chalet/CH_brown.jpg",
+   "/uploads/moma/chalet/CH_brown_out.jpg"
+  ]
+ },
+ "CH02": {
+  "field": {
+   "primary": "/uploads/moma/chalet/Chalet_Honey@1.jpg",
+   "alternates": [
+    "/uploads/moma/chalet/Chalet_Honey@2.jpg",
+    "/uploads/moma/chalet/Chalet_Honey@3.jpg",
+    "/uploads/moma/chalet/Chalet_Honey@4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/chalet/CH_honey.jpg",
+   "/uploads/moma/chalet/CH_honey_2.jpg"
+  ]
+ },
+ "DE12": {
+  "field": {
+   "primary": "/uploads/moma/dea/dea_gold@1.jpg",
+   "alternates": [
+    "/uploads/moma/dea/dea_gold@2.jpg",
+    "/uploads/moma/dea/dea_gold@3.jpg",
+    "/uploads/moma/dea/dea_gold@4.jpg",
+    "/uploads/moma/dea/dea_gold@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/dea/DE_gold_1.jpg",
+   "/uploads/moma/dea/DE_gold_2.jpg"
+  ]
+ },
+ "DE11": {
+  "field": {
+   "primary": "/uploads/moma/dea/dea_ivory@1.jpg",
+   "alternates": [
+    "/uploads/moma/dea/dea_ivory@2.jpg",
+    "/uploads/moma/dea/dea_ivory@3.jpg",
+    "/uploads/moma/dea/dea_ivory@4.jpg",
+    "/uploads/moma/dea/dea_ivory@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/dea/DE_ivory.jpg"
+  ]
+ },
+ "ES02": {
+  "field": {
+   "primary": "/uploads/moma/ecoslate/ecoslate_beige@1.jpg",
+   "alternates": [
+    "/uploads/moma/ecoslate/ecoslate_beige@2.jpg",
+    "/uploads/moma/ecoslate/ecoslate_beige@3.jpg",
+    "/uploads/moma/ecoslate/ecoslate_beige@4.jpg",
+    "/uploads/moma/ecoslate/ecoslate_beige@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/ecoslate/ecoslate_beige_90x90.jpg",
+   "/uploads/moma/ecoslate/ecoslate_beige_out_60x60.jpg"
+  ]
+ },
+ "ES03": {
+  "field": {
+   "primary": "/uploads/moma/ecoslate/ecoslate_grey@1.jpg",
+   "alternates": [
+    "/uploads/moma/ecoslate/ecoslate_grey@2.jpg",
+    "/uploads/moma/ecoslate/ecoslate_grey@3.jpg",
+    "/uploads/moma/ecoslate/ecoslate_grey@4.jpg",
+    "/uploads/moma/ecoslate/ecoslate_grey@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/ecoslate/ecoslate_foto_grey_90x90_s.jpg",
+   "/uploads/moma/ecoslate/ecoslate_grey_60x120.jpg",
+   "/uploads/moma/ecoslate/ecoslate_grey_60x120_3_3.jpg"
+  ]
+ },
+ "ES01": {
+  "field": {
+   "primary": "/uploads/moma/ecoslate/ecoslate_white@1.jpg",
+   "alternates": [
+    "/uploads/moma/ecoslate/ecoslate_white@2.jpg",
+    "/uploads/moma/ecoslate/ecoslate_white@3.jpg",
+    "/uploads/moma/ecoslate/ecoslate_white@4.jpg",
+    "/uploads/moma/ecoslate/ecoslate_white@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/ecoslate/ecoslate_foto_white_90x90.jpg",
+   "/uploads/moma/ecoslate/ecoslate_white_30x60.jpg",
+   "/uploads/moma/ecoslate/ecoslate_white_batik_60x120.jpg",
+   "/uploads/moma/ecoslate/ecoslate_white_out_60x60.jpg"
+  ]
+ },
+ "IS63": {
+  "field": {
+   "primary": "/uploads/moma/italian-stones/italian_stones_cervino.jpg",
+   "alternates": []
+  },
+  "lifestyle": [
+   "/uploads/moma/italian-stones/italian_stones_cervino_1.jpg"
+  ]
+ },
+ "IS62": {
+  "field": {
+   "primary": "/uploads/moma/italian-stones/italian_stones_stelvio.jpg",
+   "alternates": []
+  },
+  "lifestyle": [
+   "/uploads/moma/italian-stones/italian_stones_stelvio_1.jpg",
+   "/uploads/moma/italian-stones/italian_stones_stelvio_2.jpg",
+   "/uploads/moma/italian-stones/italian_stones_stelvio_3.jpg",
+   "/uploads/moma/italian-stones/italian_stones_stelvio_4.jpg"
+  ]
+ },
+ "LV01": {
+  "field": {
+   "primary": "/uploads/moma/levante/levante.jpg",
+   "alternates": [
+    "/uploads/moma/levante/levante_0.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/levante/levante_1.jpg",
+   "/uploads/moma/levante/levante_2.jpg",
+   "/uploads/moma/levante/levante_3.jpg",
+   "/uploads/moma/levante/levante_4.jpg",
+   "/uploads/moma/levante/levante_5.jpg",
+   "/uploads/moma/levante/levante_6.jpg",
+   "/uploads/moma/levante/levante_7.jpg",
+   "/uploads/moma/levante/levante_8.jpg"
+  ]
+ },
+ "LS00": {
+  "field": {
+   "primary": "/uploads/moma/limestone/MLIP01_white_90x90_1.jpg",
+   "alternates": [
+    "/uploads/moma/limestone/MLIP06_white_60x120_1.jpg",
+    "/uploads/moma/limestone/MLIP11_white_60x60_1.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/limestone/limestone_grey_90x90_white_str.jpg",
+   "/uploads/moma/limestone/limestone_white_30x60_SV.jpg",
+   "/uploads/moma/limestone/limestone_white_90x90_str.jpg"
+  ],
+  "wall": {
+   "primary": "/uploads/moma/limestone/MLIP16_white_str_60x120_1.jpg",
+   "alternates": []
+  }
+ },
+ "LS01": {
+  "field": {
+   "primary": "/uploads/moma/limestone/MLIP02_beige_90x90_2.jpg",
+   "alternates": [
+    "/uploads/moma/limestone/MLIP07_beige_60x120_2.jpg",
+    "/uploads/moma/limestone/MLIP12_beige_60x60_2.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/limestone/limestone_beige_60x120_SV.jpg",
+   "/uploads/moma/limestone/limestone_beige_90x90.jpg"
+  ],
+  "wall": {
+   "primary": "/uploads/moma/limestone/MLIP17_beige_str_60x120_2.jpg",
+   "alternates": []
+  }
+ },
+ "LS03": {
+  "field": {
+   "primary": "/uploads/moma/limestone/MLIP03_grey_90x90_3.jpg",
+   "alternates": [
+    "/uploads/moma/limestone/MLIP08_grey_60x120_3.jpg",
+    "/uploads/moma/limestone/MLIP13_grey_60x60_3.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/limestone/limestone_grey_60x60_SV.jpg",
+   "/uploads/moma/limestone/limestone_grey_90x90.jpg",
+   "/uploads/moma/limestone/limestone_grigio_taupe_60x120_SV.jpg"
+  ],
+  "wall": {
+   "primary": "/uploads/moma/limestone/MLIP18_grey_str_60x120_3.jpg",
+   "alternates": []
+  }
+ },
+ "LS02": {
+  "field": {
+   "primary": "/uploads/moma/limestone/MLIP04_taupe_90x90_5.jpg",
+   "alternates": [
+    "/uploads/moma/limestone/MLIP09_taupe_60x120_5.jpg",
+    "/uploads/moma/limestone/MLIP14_taupe_60x60_5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/limestone/limestone_taupe_60x120.jpg",
+   "/uploads/moma/limestone/limestone_taupe_90x90_ID.jpg",
+   "/uploads/moma/limestone/limestone_taupe_90x90_str.jpg",
+   "/uploads/moma/limestone/limestone_taupe_90x90_white_60x120_SV.jpg"
+  ],
+  "wall": {
+   "primary": "/uploads/moma/limestone/MLIP19_taupe_str_60x120_5.jpg",
+   "alternates": []
+  }
+ },
+ "LS04": {
+  "field": {
+   "primary": "/uploads/moma/limestone/MLIP05_anthracite_90x90_4.jpg",
+   "alternates": [
+    "/uploads/moma/limestone/MLIP10_anthracite_60x120_4.jpg",
+    "/uploads/moma/limestone/MLIP15_anthracite_60x60_4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/limestone/limestone_anthracite_60x120.jpg",
+   "/uploads/moma/limestone/limestone_anthracite_90x90_SV.jpg",
+   "/uploads/moma/limestone/limestone_anthracite_90x90_str.jpg",
+   "/uploads/moma/limestone/limestone_beige_30x60_anthracite_60x60_SV.jpg",
+   "/uploads/moma/limestone/limestone_taupe_anthracite_60x60_SV.jpg"
+  ],
+  "wall": {
+   "primary": "/uploads/moma/limestone/MLIP20_anthracite_str_60x120_4.jpg",
+   "alternates": []
+  }
+ },
+ "MCG1": {
+  "field": {
+   "primary": "/uploads/moma/marmi-lux/Calacatta_Gold@1.jpg",
+   "alternates": [
+    "/uploads/moma/marmi-lux/Calacatta_Gold@2.jpg",
+    "/uploads/moma/marmi-lux/Calacatta_Gold@3.jpg",
+    "/uploads/moma/marmi-lux/Calacatta_Gold@4.jpg",
+    "/uploads/moma/marmi-lux/Calacatta_Gold@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/marmi-lux/A_calacatta.jpg",
+   "/uploads/moma/marmi-lux/CD_calacatta.jpg",
+   "/uploads/moma/marmi-lux/MP_calacatta_1.jpg",
+   "/uploads/moma/marmi-lux/MP_calacatta_2.jpg",
+   "/uploads/moma/marmi-lux/MP_calacatta_3.jpg"
+  ]
+ },
+ "MPI1": {
+  "field": {
+   "primary": "/uploads/moma/marmi-lux/Pulpis_Ivoire@1.jpg",
+   "alternates": [
+    "/uploads/moma/marmi-lux/Pulpis_Ivoire@2.jpg",
+    "/uploads/moma/marmi-lux/Pulpis_Ivoire@3.jpg",
+    "/uploads/moma/marmi-lux/Pulpis_Ivoire@4.jpg",
+    "/uploads/moma/marmi-lux/Pulpis_Ivoire@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/marmi-lux/CD_pulpis_ivoire.jpg",
+   "/uploads/moma/marmi-lux/MP_pulpis.jpg",
+   "/uploads/moma/marmi-lux/MP_pulpis_ivoire.jpg"
+  ]
+ },
+ "MSN3": {
+  "field": {
+   "primary": "/uploads/moma/marmi-lux/Sahara_Noir@1.jpg",
+   "alternates": [
+    "/uploads/moma/marmi-lux/Sahara_Noir@2.jpg",
+    "/uploads/moma/marmi-lux/Sahara_Noir@3.jpg",
+    "/uploads/moma/marmi-lux/Sahara_Noir@4.jpg",
+    "/uploads/moma/marmi-lux/Sahara_Noir@5.jpg"
+   ]
+  },
+  "lifestyle": []
+ },
+ "MSB1": {
+  "field": {
+   "primary": "/uploads/moma/marmi-lux/Soveraia_Beige@1.jpg",
+   "alternates": [
+    "/uploads/moma/marmi-lux/Soveraia_Beige@2.jpg",
+    "/uploads/moma/marmi-lux/Soveraia_Beige@3.jpg",
+    "/uploads/moma/marmi-lux/Soveraia_Beige@4.jpg",
+    "/uploads/moma/marmi-lux/Soveraia_Beige@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/marmi-lux/CD_soveraia_beige.jpg",
+   "/uploads/moma/marmi-lux/MP_soveraia_beige.jpg"
+  ]
+ },
+ "MSG3": {
+  "field": {
+   "primary": "/uploads/moma/marmi-lux/Soveraia_Grey@1.jpg",
+   "alternates": [
+    "/uploads/moma/marmi-lux/Soveraia_Grey@2.jpg",
+    "/uploads/moma/marmi-lux/Soveraia_Grey@3.jpg",
+    "/uploads/moma/marmi-lux/Soveraia_Grey@4.jpg",
+    "/uploads/moma/marmi-lux/Soveraia_Grey@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/marmi-lux/CD_soveraia_grey.jpg"
+  ]
+ },
+ "PL03": {
+  "field": {
+   "primary": "/uploads/moma/pl-stone/antracite@1.jpg",
+   "alternates": [
+    "/uploads/moma/pl-stone/antracite@2.jpg",
+    "/uploads/moma/pl-stone/antracite@3.jpg",
+    "/uploads/moma/pl-stone/antracite@4.jpg",
+    "/uploads/moma/pl-stone/antracite@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/pl-stone/PL_antracite.jpg",
+   "/uploads/moma/pl-stone/PL_antracite_p.jpg"
+  ]
+ },
+ "PL00": {
+  "field": {
+   "primary": "/uploads/moma/pl-stone/avorio@1.jpg",
+   "alternates": [
+    "/uploads/moma/pl-stone/avorio@2.jpg",
+    "/uploads/moma/pl-stone/avorio@3.jpg",
+    "/uploads/moma/pl-stone/avorio@4.jpg",
+    "/uploads/moma/pl-stone/avorio@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/pl-stone/PL_avorio.jpg"
+  ]
+ },
+ "PL02": {
+  "field": {
+   "primary": "/uploads/moma/pl-stone/grigio@1.jpg",
+   "alternates": [
+    "/uploads/moma/pl-stone/grigio@2.jpg",
+    "/uploads/moma/pl-stone/grigio@3.jpg",
+    "/uploads/moma/pl-stone/grigio@4.jpg",
+    "/uploads/moma/pl-stone/grigio@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/pl-stone/PL_grigio.jpg",
+   "/uploads/moma/pl-stone/PL_grigio_2.jpg"
+  ]
+ },
+ "PL01": {
+  "field": {
+   "primary": "/uploads/moma/pl-stone/sabbia@1.jpg",
+   "alternates": [
+    "/uploads/moma/pl-stone/sabbia@2.jpg",
+    "/uploads/moma/pl-stone/sabbia@3.jpg",
+    "/uploads/moma/pl-stone/sabbia@4.jpg",
+    "/uploads/moma/pl-stone/sabbia@5.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/pl-stone/PL_sabbia.jpg",
+   "/uploads/moma/pl-stone/PL_sabbia_out.jpg"
+  ]
+ },
+ "SV03": {
+  "field": {
+   "primary": "/uploads/moma/savage/almond@1.jpg",
+   "alternates": [
+    "/uploads/moma/savage/almond@2.jpg",
+    "/uploads/moma/savage/almond@3.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/savage/savage_almond_1.jpg",
+   "/uploads/moma/savage/savage_almond_2.jpg"
+  ]
+ },
+ "SV04": {
+  "field": {
+   "primary": "/uploads/moma/savage/caramel@1.jpg",
+   "alternates": [
+    "/uploads/moma/savage/caramel@2.jpg",
+    "/uploads/moma/savage/caramel@3.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/savage/savage_caramel_1.jpg"
+  ]
+ },
+ "SV02": {
+  "field": {
+   "primary": "/uploads/moma/savage/cognac@1.jpg",
+   "alternates": [
+    "/uploads/moma/savage/cognac@2.jpg",
+    "/uploads/moma/savage/cognac@3.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/savage/savage_cognac_1.jpg"
+  ]
+ },
+ "SV01": {
+  "field": {
+   "primary": "/uploads/moma/savage/natural@1.jpg",
+   "alternates": [
+    "/uploads/moma/savage/natural@2.jpg",
+    "/uploads/moma/savage/natural@3.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/savage/savage_natural_1.jpg",
+   "/uploads/moma/savage/savage_natural_2.jpg"
+  ]
+ },
+ "TR01": {
+  "field": {
+   "primary": "/uploads/moma/travertine/bone@1.jpg",
+   "alternates": [
+    "/uploads/moma/travertine/bone@2.jpg",
+    "/uploads/moma/travertine/bone@3.jpg",
+    "/uploads/moma/travertine/bone@4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/travertine/travertine_bone.jpg",
+   "/uploads/moma/travertine/travertine_bone_2.jpg",
+   "/uploads/moma/travertine/travertine_bone_3.jpg",
+   "/uploads/moma/travertine/travertine_bone_lineal.jpg"
+  ],
+  "wall": {
+   "primary": "/uploads/moma/travertine/lineal_bone.jpg",
+   "alternates": []
+  }
+ },
+ "TR02": {
+  "field": {
+   "primary": "/uploads/moma/travertine/cream@1.jpg",
+   "alternates": [
+    "/uploads/moma/travertine/cream@2.jpg",
+    "/uploads/moma/travertine/cream@3.jpg",
+    "/uploads/moma/travertine/cream@4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/travertine/travertine_cream.jpg",
+   "/uploads/moma/travertine/travertine_cream_2.jpg",
+   "/uploads/moma/travertine/travertine_cream_3.jpg"
+  ],
+  "wall": {
+   "primary": "/uploads/moma/travertine/lineal_cream.jpg",
+   "alternates": []
+  }
+ },
+ "TR03": {
+  "field": {
+   "primary": "/uploads/moma/travertine/silver@1.jpg",
+   "alternates": [
+    "/uploads/moma/travertine/silver@2.jpg",
+    "/uploads/moma/travertine/silver@3.jpg",
+    "/uploads/moma/travertine/silver@4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/travertine/travertine_silver.jpg",
+   "/uploads/moma/travertine/travertine_silver_2.jpg",
+   "/uploads/moma/travertine/travertine_silver_lineal.jpg"
+  ],
+  "wall": {
+   "primary": "/uploads/moma/travertine/lineal_silver.jpg",
+   "alternates": []
+  }
+ },
+ "TX03": {
+  "field": {
+   "primary": "/uploads/moma/trex/grey@1.jpg",
+   "alternates": [
+    "/uploads/moma/trex/grey@2.jpg",
+    "/uploads/moma/trex/grey@3.jpg",
+    "/uploads/moma/trex/grey@4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/trex/trex_foto_grey.jpg",
+   "/uploads/moma/trex/trex_grey@2.jpg",
+   "/uploads/moma/trex/trex_grey_120.jpg",
+   "/uploads/moma/trex/trex_grey_60.jpg"
+  ]
+ },
+ "TX01": {
+  "field": {
+   "primary": "/uploads/moma/trex/ice@1.jpg",
+   "alternates": [
+    "/uploads/moma/trex/ice@2.jpg",
+    "/uploads/moma/trex/ice@3.jpg",
+    "/uploads/moma/trex/ice@4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/trex/trex_foto_ice.jpg",
+   "/uploads/moma/trex/trex_foto_ice_ravv.jpg",
+   "/uploads/moma/trex/trex_ice@1.jpg",
+   "/uploads/moma/trex/trex_ice_120.jpg",
+   "/uploads/moma/trex/trex_ice_60.jpg"
+  ]
+ },
+ "TX02": {
+  "field": {
+   "primary": "/uploads/moma/trex/ivory@1.jpg",
+   "alternates": [
+    "/uploads/moma/trex/ivory@2.jpg",
+    "/uploads/moma/trex/ivory@3.jpg",
+    "/uploads/moma/trex/ivory@4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/trex/trex_foto_ivory.jpg",
+   "/uploads/moma/trex/trex_foto_ivory_ravv.jpg",
+   "/uploads/moma/trex/trex_ivory@3.jpg",
+   "/uploads/moma/trex/trex_ivory_120.jpg",
+   "/uploads/moma/trex/trex_ivory_60.jpg"
+  ]
+ },
+ "TX04": {
+  "field": {
+   "primary": "/uploads/moma/trex/sand@1.jpg",
+   "alternates": [
+    "/uploads/moma/trex/sand@2.jpg",
+    "/uploads/moma/trex/sand@3.jpg",
+    "/uploads/moma/trex/sand@4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/trex/trex_foto_sand.jpg",
+   "/uploads/moma/trex/trex_foto_sand_ravv.jpg",
+   "/uploads/moma/trex/trex_sand@4.jpg",
+   "/uploads/moma/trex/trex_sand_120.jpg",
+   "/uploads/moma/trex/trex_sand_30.jpg",
+   "/uploads/moma/trex/trex_sand_60.jpg"
+  ]
+ },
+ "VE60": {
+  "field": {
+   "primary": "/uploads/moma/vintage/Vintage_Bianco_1.jpg",
+   "alternates": [
+    "/uploads/moma/vintage/Vintage_Bianco_2.jpg",
+    "/uploads/moma/vintage/Vintage_Bianco_3.jpg",
+    "/uploads/moma/vintage/Vintage_Bianco_4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/vintage/vintage_bianco_20x120.jpg",
+   "/uploads/moma/vintage/vintage_bianco_20x120_2cm.jpg",
+   "/uploads/moma/vintage/vintage_bianco_30x122_r11.jpg"
+  ]
+ },
+ "VE62": {
+  "field": {
+   "primary": "/uploads/moma/vintage/Vintage_Marrone_1.jpg",
+   "alternates": [
+    "/uploads/moma/vintage/Vintage_Marrone_2.jpg",
+    "/uploads/moma/vintage/Vintage_Marrone_3.jpg",
+    "/uploads/moma/vintage/Vintage_Marrone_4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/vintage/vintage_marrone_20x120.jpg",
+   "/uploads/moma/vintage/vintage_marrone_20x120_2.jpg"
+  ]
+ },
+ "VE64": {
+  "field": {
+   "primary": "/uploads/moma/vintage/Vintage_Miele_1.jpg",
+   "alternates": [
+    "/uploads/moma/vintage/Vintage_Miele_2.jpg",
+    "/uploads/moma/vintage/Vintage_Miele_3.jpg",
+    "/uploads/moma/vintage/Vintage_Miele_4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/vintage/vintage_miele_20x120.jpg",
+   "/uploads/moma/vintage/vintage_miele_20x120_2cm.jpg",
+   "/uploads/moma/vintage/vintage_miele_30x122_2cm.jpg"
+  ]
+ },
+ "VE63": {
+  "field": {
+   "primary": "/uploads/moma/vintage/Vintage_Sbiancato_1.jpg",
+   "alternates": [
+    "/uploads/moma/vintage/Vintage_Sbiancato_2.jpg",
+    "/uploads/moma/vintage/Vintage_Sbiancato_3.jpg",
+    "/uploads/moma/vintage/Vintage_Sbiancato_4.jpg"
+   ]
+  },
+  "lifestyle": [
+   "/uploads/moma/vintage/vintage_sbiancato_30x120.jpg"
+  ]
+ }
+}

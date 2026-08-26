@@ -1,0 +1,756 @@
+[
+  {
+    "slug": "haleo",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/haleo/",
+    "name": "Haleo",
+    "sku": "PQ5340",
+    "collection": "Radiant Opulence",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [],
+    "size": "138x79",
+    "description": "Haleo PentalQuartz® feature wall backsplash panels in a crisp white base with delicate taupe veining. Pairs beautifully with quartz kitchen countertops and vanity tops.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Haleo-2.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/373808/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/373804/slab.jpg"
+    ]
+  },
+  {
+    "slug": "venoso-pq",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/venoso-pq/",
+    "name": "Venoso",
+    "sku": "PQ5193",
+    "collection": null,
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [],
+    "size": "130x65",
+    "description": "Venoso quartz kitchen countertops stone in showcase soft veining and neutral tones. Equally durable as PentalQuartz® walls slabs or a bathroom vanity surface.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Venoso-Slab.jpg",
+    "lifestyle": [],
+    "jumbo": []
+  },
+  {
+    "slug": "pearl-white",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/pearl-white/",
+    "name": "Pearl White",
+    "sku": "PQ1002",
+    "collection": "Core Classics",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [],
+    "size": "130x65",
+    "description": "Pearl White PentalQuartz® kitchen countertops offer a clean tone for modern homes. Equally striking as a waterfall island kitchen or quartz bathroom slabs.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Pearl-White-PQ1002.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/315816/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317562/slab.jpg"
+    ]
+  },
+  {
+    "slug": "oceanus",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/oceanus/",
+    "name": "Oceanus",
+    "sku": "PQ5173",
+    "collection": "Next Generation",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "grey-taupe",
+      "white-light"
+    ],
+    "features": [
+      "quartzite-looks"
+    ],
+    "size": "137x79",
+    "description": "Oceanus quartz stone blend luxury looks with everyday durability. Trusted PentalQuartz® for commercial surfaces, kitchen countertops and bathroom slabs as well.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Oceanus-Slab-e1750683747432.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/330588/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/330589/slab.jpg"
+    ]
+  },
+  {
+    "slug": "nightfall-honed",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/nightfall-honed/",
+    "name": "Nightfall Honed",
+    "sku": "PQ8031",
+    "collection": "Next Generation",
+    "finish": [
+      "Honed"
+    ],
+    "colorFamily": [
+      "brown-black"
+    ],
+    "features": [],
+    "size": "130x65",
+    "description": "Nightfall Honed quartz offer durable, low-maintenance matte surface stone. Equally suited PentalQuartz® for kitchen countertops, fireplace, and bathroom slabs.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Nightfall-Honed-PQ8031.jpg",
+    "lifestyle": [],
+    "jumbo": []
+  },
+  {
+    "slug": "myora",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/myora/",
+    "name": "Myora®",
+    "sku": "PQ5185",
+    "collection": "Radiant Opulence",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "grey-taupe",
+      "white-light"
+    ],
+    "features": [
+      "marble-looks"
+    ],
+    "size": "130x65",
+    "description": "Myora quartz kitchen slabs showcase an ivory base with soft blue veining evenly dispersed. Striking as PentalQuartz® kitchen island and bathroom countertops too",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/myora-PQ5185.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/332668/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/336701/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/747909/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317407/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317403/slab.jpg"
+    ]
+  },
+  {
+    "slug": "myora-gold",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/myora-gold/",
+    "name": "Myora Gold",
+    "sku": "PQ5186",
+    "collection": "Radiant Opulence",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "beige-tan",
+      "white-light"
+    ],
+    "features": [
+      "marble-looks"
+    ],
+    "size": "130x65",
+    "description": "Myora Gold quartz introduce warm veining over a creamy surface. low-maintenance PentalQuartz® equally suited to wall surface, kitchen countertops slabs.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Mystere-Gold-Slab-1.jpg",
+    "lifestyle": [
+      "https://arcsurfaces.com/wp-content/uploads/Mystere-Gold-Slab-1-scaled.jpg"
+    ],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317508/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/324919/slab.jpg"
+    ]
+  },
+  {
+    "slug": "midnight-mist-honed",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/midnight-mist-honed/",
+    "name": "Midnight Mist Honed",
+    "sku": "PQ5191",
+    "collection": "Contemporary Keystones",
+    "finish": [
+      "Honed"
+    ],
+    "colorFamily": [
+      "brown-black",
+      "grey-taupe"
+    ],
+    "features": [],
+    "size": "130x65",
+    "description": "Midnight Mist Honed PentalQuartz® Fireplace surrounds bring a soft matte finish with deep charcoal tones. Bold enough for quartz kitchen countertops & slabs.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Midnight-Mist-Honed-PQ5191.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/319422/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/319425/slab.jpg"
+    ]
+  },
+  {
+    "slug": "marestar",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/marestar/",
+    "name": "Marestar®",
+    "sku": "PQ5177",
+    "collection": "Tranquil Heights",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "beige-tan",
+      "brown-black"
+    ],
+    "features": [
+      "bookmatched"
+    ],
+    "size": "137x79",
+    "description": "MareStar PentalQuartz® feature walls showcase bold veining with low-maintenance beauty. Equally striking as quartz backsplash, kitchen countertops or slab.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Marestar-2.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317343/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317342/slab.jpg"
+    ]
+  },
+  {
+    "slug": "malana",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/malana/",
+    "name": "Malana",
+    "sku": "PQ5380",
+    "collection": "Rivaling Nature",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "grey-taupe",
+      "white-light"
+    ],
+    "features": [
+      "bookmatched",
+      "marble-looks"
+    ],
+    "size": "130x65",
+    "description": "Malana quartz Feature walls showcase bold blue and rust veins on a misty base. Striking PentalQuartz® as kitchen countertops and bathroom vanity tops slabs.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Malana-Pattern-Bluish-1.jpeg",
+    "lifestyle": [],
+    "jumbo": []
+  },
+  {
+    "slug": "illennia",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/illennia/",
+    "name": "Illennia",
+    "sku": "PQ5351",
+    "collection": "Rivaling Nature",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "beige-tan",
+      "white-light"
+    ],
+    "features": [
+      "bookmatched",
+      "quartzite-looks"
+    ],
+    "size": "126x63",
+    "description": "Illennia quartz feature pale blue hues with subtle movement. A fresh, airy pick for backsplash panels, kitchen countertops fireplace surround, and vanity tops.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Illennia.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/608290/slab.jpg"
+    ]
+  },
+  {
+    "slug": "enza-oro",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/enza-oro/",
+    "name": "Enza Oro",
+    "sku": "PQ5220",
+    "collection": "Contemporary Keystones",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [],
+    "size": "137x79",
+    "description": "Enza Oro quartz kitchen islands showcase golden veining over a creamy base. Elegant PentalQuartz® as kitchen countertops, bathroom slabs or living room surface.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Enza-Oro-8.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/354449/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/354450/slab.jpg"
+    ]
+  },
+  {
+    "slug": "costa-bella",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/costa-bella/",
+    "name": "Costa Bella®",
+    "sku": "PQ5367",
+    "collection": "Rivaling Nature",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "beige-tan",
+      "white-light"
+    ],
+    "features": [
+      "bookmatched",
+      "marble-looks"
+    ],
+    "size": "126x63",
+    "description": "Costa Bella quartz kitchen Island countertops bring coastal beauty with sand-toned veins and blue touches. Calming PentalQuartz® bathroom vanity, & feature wall",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Costa-Bella-100-Edit-V1-1.jpg",
+    "lifestyle": [],
+    "jumbo": []
+  },
+  {
+    "slug": "cielo-sky",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/cielo-sky/",
+    "name": "Cielo Sky®",
+    "sku": "PQ5253",
+    "collection": "Contemporary Keystones",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "grey-taupe"
+    ],
+    "features": [],
+    "size": "137x79",
+    "description": "Cielo Sky quartz kitchen countertops showcase a white base with grey movement. Calming PentalQuartz® as kitchen countertops and living room flooring slab",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Cielo-Sky-6.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/365922/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/365926/slab.jpg"
+    ]
+  },
+  {
+    "slug": "cielo-blue",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/cielo-blue/",
+    "name": "Cielo Blue",
+    "sku": "PQ5368",
+    "collection": "Contemporary Keystones",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-blue"
+    ],
+    "features": [],
+    "size": "137x79",
+    "description": "Cielo Blue quartz Outdoor kitchen counters bring sky-inspired white and soft blue veining. Elegant PentalQuartz® kitchen island and bathroom surface & wall slab",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Cielo-Blue-Edit.jpg",
+    "lifestyle": [],
+    "jumbo": []
+  },
+  {
+    "slug": "blossom-mist",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/blossom-mist/",
+    "name": "Blossom Mist®",
+    "sku": "PQ5231",
+    "collection": "Contemporary Keystones",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [],
+    "size": "137x79",
+    "description": "Blossom Mist quartz kitchen countertops feature luminous white tones with soft grey veining. A best PentalQuartz® slabs pick for outdoor kitchen, wall slabs.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Blossom-Mist-4-1.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/358383/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/358381/slab.jpg"
+    ]
+  },
+  {
+    "slug": "bianco-sol",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/bianco-sol/",
+    "name": "Bianco Sol®",
+    "sku": "PQ5194",
+    "collection": "Core Classics",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [
+      "marble-looks"
+    ],
+    "size": "137x79",
+    "description": "Bianco Sol quartz kitchen countertops brings white tones with lasting durability. A clean PentalQuartz® match for living room flooring and bathroom vanity tops.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Bianco-Sol-10.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/345499/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/345497/slab.jpg"
+    ]
+  },
+  {
+    "slug": "bianco-aspen",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/bianco-aspen/",
+    "name": "Bianco Aspen",
+    "sku": "PQ2005",
+    "collection": "Core Classics",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "grey-taupe",
+      "white-light"
+    ],
+    "features": [
+      "marble-looks"
+    ],
+    "size": "130x79",
+    "description": "Bianco Aspen quartz kitchen countertops offer a clean surface with minimal patterning. A timeless PentalQuartz® choice for fireplace slabs & countertops too.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Bianco-Aspen-1.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317288/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317286/slab.jpg"
+    ]
+  },
+  {
+    "slug": "aura-gold",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/aura-gold/",
+    "name": "Aura Gold",
+    "sku": "PQ5184",
+    "collection": "Tranquil Heights",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "beige-tan",
+      "white-light"
+    ],
+    "features": [
+      "marble-looks"
+    ],
+    "size": "130x65",
+    "description": "Aura Gold quartz kitchen countertops combine refined gold veining with a warm base. A striking pick for PentalQuartz® fireplace & bathroom vanity tops.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Aura-Gold-PQ5184.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/326241/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/326248/slab.jpg"
+    ]
+  },
+  {
+    "slug": "venus",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/venus/",
+    "name": "Venus",
+    "sku": "PQ5170",
+    "collection": "Next Generation",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "beige-tan"
+    ],
+    "features": [
+      "quartzite-looks"
+    ],
+    "size": "137x79",
+    "description": "Affordable Venus Quartz Countertops features a serene white finish with subtle movement, ideal for light, bright interiors and luxurious quartz applications.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Venus-Slab.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/330584/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/330586/slab.jpg"
+    ]
+  },
+  {
+    "slug": "unique-calacatta-macchia-vecchia",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/unique-calacatta-macchia-vecchia/",
+    "name": "Unique Calacatta Macchia Vecchia",
+    "sku": "PQ5118",
+    "collection": "Contemporary Keystones",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "beige-tan",
+      "white-light"
+    ],
+    "features": [
+      "marble-looks"
+    ],
+    "size": "130x64",
+    "description": "Unique Calacatta Macchia Vecchia quartz deliver golden and grey veining with classic depth. Refined PentalQuartz® for kitchen countertops & bathroom slabs too.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-Macchia-Vecchia-3.jpg",
+    "lifestyle": [
+      "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-Macchia-Vecchia-3-scaled.jpg"
+    ],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/319075/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/354587/slab.jpg"
+    ]
+  },
+  {
+    "slug": "unique-calacatta-gold",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/unique-calacatta-gold/",
+    "name": "Unique Calacatta Gold",
+    "sku": "PQ5117",
+    "collection": "Contemporary Keystones",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "beige-tan",
+      "white-light"
+    ],
+    "features": [
+      "marble-looks"
+    ],
+    "size": "130x64",
+    "description": "Unique Calacatta Gold quartz islands kitchen feature striking gold veining look. PentalQuartz® Equally bold as kitchen countertops and bathroom stone.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-Gold-corrected.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/318330/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/318332/slab.jpg"
+    ]
+  },
+  {
+    "slug": "unique-calacatta-blue",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/unique-calacatta-blue/",
+    "name": "Unique Calacatta Blue",
+    "sku": "PQ5152",
+    "collection": "Contemporary Keystones",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "grey-taupe",
+      "white-light"
+    ],
+    "features": [
+      "marble-looks"
+    ],
+    "size": "130x64",
+    "description": "Unique Calacatta Blue quartz feature walls stone bring bold blue veining inspired by Italian marble. Distinctive PentalQuartz® kitchen island & wall slabs too.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-Blue-2.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/352309/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/370160/slab.jpg"
+    ]
+  },
+  {
+    "slug": "unique-calacatta",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/unique-calacatta/",
+    "name": "Unique Calacatta",
+    "sku": "PQ5113",
+    "collection": "Contemporary Keystones",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "grey-taupe",
+      "white-light"
+    ],
+    "features": [
+      "marble-looks"
+    ],
+    "size": "130x64",
+    "description": "Unique Calacatta quartz Kitchen countertops feature a white base with bold grey veining inspired by marble. Elegant PentalQuartz® for fireplace & bathroom tops",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-5.jpg",
+    "lifestyle": [
+      "https://arcsurfaces.com/wp-content/uploads/Unique-Calacatta-5-scaled.jpg"
+    ],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/319085/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317429/slab.jpg"
+    ]
+  },
+  {
+    "slug": "terra-sky-gold",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/terra-sky-gold/",
+    "name": "Terra Sky Gold",
+    "sku": "PQ5361",
+    "collection": "Radiant Opulence",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [],
+    "size": "137x79",
+    "description": "Terra Sky Gold quartz kitchen countertops feature warm veining inspired by Calacatta marble. A refined PentalQuartz® pick for bathroom vanity slabs as well.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Terra-Sky-Gold-Approved.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/722205/slab.jpg"
+    ]
+  },
+  {
+    "slug": "terra-sky",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/terra-sky/",
+    "name": "Terra Sky",
+    "sku": "PQ5360",
+    "collection": "Radiant Opulence",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [],
+    "size": "137x79",
+    "description": "Terra Sky quartz kitchen countertops deliver white tones with soft grey veining. Stain-resistant Pentalquartz for bathroom vanity tops & living room slab too.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Terra-Sky-Approved.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/614706/slab.jpg"
+    ]
+  },
+  {
+    "slug": "super-white",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/super-white/",
+    "name": "Super White",
+    "sku": "PQ2000",
+    "collection": "Core Classics",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [],
+    "size": "130x65",
+    "description": "Super White PentalQuartz® waterfall islands in deliver a luminous, clean surface with minimal patterning. A crisp choice for quartz kitchen countertops & slab.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Super-White-3Cm.jpg",
+    "lifestyle": [
+      "https://arcsurfaces.com/wp-content/uploads/Super-White-3Cm-scaled.jpg"
+    ],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/316159/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/317252/slab.jpg"
+    ]
+  },
+  {
+    "slug": "seashell",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/seashell/",
+    "name": "Seashell",
+    "sku": "PQ1001",
+    "collection": "Core Classics",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [],
+    "size": "130x65",
+    "description": "Seashell PentalQuartz® bathroom surface showcase a classic solid white hue built to last. Equally durable as kitchen countertops or quartz wall slab surface.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Seashell-color-corrected.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/316621/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/318208/slab.jpg"
+    ]
+  },
+  {
+    "slug": "salora-grey",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/salora-grey/",
+    "name": "Salora Grey",
+    "sku": "PQ3111",
+    "collection": "Radiant Opulence",
+    "finish": [],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [
+      "bookmatched",
+      "marble-looks"
+    ],
+    "size": null,
+    "description": "Salora Grey quartz offers a stain-resistant surface built for daily use. PentalQuartz® for living room flooring, kitchen countertops and bathroom slabs.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Salora-Grey-5-e1752666832447.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/376825/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/376826/slab.jpg"
+    ]
+  },
+  {
+    "slug": "salora-gold",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/salora-gold/",
+    "name": "Salora Gold",
+    "sku": "PQ3001",
+    "collection": "Radiant Opulence",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "white-light"
+    ],
+    "features": [
+      "bookmatched",
+      "marble-looks"
+    ],
+    "size": null,
+    "description": "Salora Gold quartz offer a white surface with rich golden veins. A refined PentalQuartz® choice for fireplace surround, Kitchen countertops & bathroom slabs.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Salora-Gold-7-e1752666898635.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/376790/slab.jpg",
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/376789/slab.jpg"
+    ]
+  },
+  {
+    "slug": "revelry-storm",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/revelry-storm/",
+    "name": "Revelry Storm",
+    "sku": "PQ5364",
+    "collection": "Rivaling Nature",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "grey-taupe",
+      "white-light"
+    ],
+    "features": [
+      "bookmatched",
+      "marble-looks"
+    ],
+    "size": "126x63",
+    "description": "Revelry Storm quartz kitchen countertops offer a stunning look with dramatic veining. Bold PentalQuartz® for fireplace and bathroom slabs & outdoor kitchen too.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Revelry-Storm.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/611744/slab.jpg"
+    ]
+  },
+  {
+    "slug": "revelry-macchia",
+    "url": "https://arcsurfaces.com/quartz/pentalquartz/revelry-macchia/",
+    "name": "Revelry Macchia",
+    "sku": "PQ5358",
+    "collection": "Rivaling Nature",
+    "finish": [
+      "Polished"
+    ],
+    "colorFamily": [
+      "beige-tan",
+      "white-light"
+    ],
+    "features": [
+      "bookmatched",
+      "marble-looks"
+    ],
+    "size": "126x63",
+    "description": "Revelry Macchia quartz kitchen countertops feature radiant golden veining on a creamy base. A bright PentalQuartz® for wall slabs & kitchen island as well.",
+    "primary": "https://arcsurfaces.com/wp-content/uploads/Reverly-Macchia-Approved.jpg",
+    "lifestyle": [],
+    "jumbo": [
+      "https://materialmatrix.nyc3.digitaloceanspaces.com/images/bundle/733771/slab.jpg"
+    ]
+  }
+]

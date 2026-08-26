@@ -1,0 +1,1236 @@
+{
+  "vendor": {
+    "name": "Moma Ceramiche Group",
+    "code": "MOMA",
+    "website": "https://www.momaceramichegroup.com",
+    "email": "orders@momaceramichegroup.com",
+    "phone": "(714) 525-7770",
+    "address": "301 S State College Blvd, Fullerton, CA 92831",
+    "notes": "Italian porcelain tile importer/distributor — MCG Los Angeles division of Moma Gruppo Ceramiche (Italy), stocked in Fullerton, CA. Interior/exterior porcelain, wall tile and 2cm pavers in wood, stone, cement and marble looks. Onboarded 2026-08-01 from the MCG Los Angeles May 2025 price list. Pricelist Net Price = Roma COST; retail = cost x1.6 keystone. Photos self-hosted under /uploads/moma from the site's per-collection Product Images + Room Settings HD zips (files are color-named, so room scenes are matched to the correct variant). Slabs (63x126) are carried but unpriced (contact territory manager) — imported as draft."
+  },
+  "brand": {
+    "name": "Moma Ceramiche Group",
+    "code": "MOMA",
+    "website": "https://www.momaceramichegroup.com"
+  },
+  "markup": 1.6,
+  "accessories": {
+    "bullnose": {
+      "label": "Bullnose 3x24 (SBN)",
+      "size": "3\"x24\"",
+      "retail": 12.99,
+      "note": "Matching single-bullnose trim, sourced locally as a courtesy. Minimum 10 pieces, allow 2-3 weeks."
+    },
+    "mosaic": {
+      "label": "Mosaic 2x2 on 12x12 sheet",
+      "size": "12\"x12\" sheet",
+      "retail": 14.99,
+      "note": "Matching 2x2 mosaic on 12x12 mesh sheet, sourced locally as a courtesy. Minimum 10 pieces, allow 2-3 weeks."
+    }
+  },
+  "collections": [
+    {
+      "slug": "alaska",
+      "name": "Alaska",
+      "code": "AK",
+      "look": "Stone",
+      "category": "backsplash-wall",
+      "shade": null,
+      "pei": null,
+      "mohs": null,
+      "dcof": null,
+      "frost": "Yes",
+      "acid": null,
+      "accessories": false,
+      "generic_rooms": true,
+      "description_short": "Elegant stone-look Italian porcelain wall tile in a 10x30 format, with flat, brick (Muretto) and structured (Struttura) faces.",
+      "description_long": "Alaska is a refined stone-look wall tile, offered in a 10\"x30\" natural (matte) finish. The range spans smooth Ivory and Sand fields, a brick-effect Muretto face and a textured Struttura face for feature walls. Rectified porcelain, made in Italy and stocked in Fullerton.",
+      "colors": [
+        {
+          "name": "Ivory",
+          "code": "AK01"
+        },
+        {
+          "name": "Sand",
+          "code": "AK02"
+        },
+        {
+          "name": "Muretto Sand",
+          "code": "AKM2"
+        },
+        {
+          "name": "Muretto Grey",
+          "code": "AKM3"
+        },
+        {
+          "name": "Struttura Sand",
+          "code": "AKS2"
+        },
+        {
+          "name": "Struttura Grey",
+          "code": "AKS3"
+        }
+      ],
+      "products": [
+        {
+          "role": "wall",
+          "size": "10x30",
+          "finish": "Natural",
+          "format_label": "10x30 Wall",
+          "cost": 3.57,
+          "pkg": {
+            "sqft_box": 16.15,
+            "pcs_box": 8,
+            "lbs_box": 45.19,
+            "boxes_pallet": 45,
+            "sqft_pallet": 726
+          },
+          "colors": [
+            "Ivory",
+            "Sand",
+            "Muretto Sand",
+            "Muretto Grey",
+            "Struttura Sand",
+            "Struttura Grey"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "chalet",
+      "name": "Chalet",
+      "code": "CH",
+      "look": "Wood",
+      "category": "wood-look-tile",
+      "shade": "V2",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Reclaimed-wood-look Italian porcelain plank in 12x48 and an 8x48 R11 anti-slip.",
+      "description_long": "Inspired by reclaimed wood, Chalet is a warm wood-look porcelain plank. Offered as a 12\"x48\" rectified field plank (Almond, Brown, Honey) and an 8\"x48\" R11 anti-slip press plank (Almond, Brown). Shade variation V2, PEI 4, frost and acid resistant. Made in Italy.",
+      "colors": [
+        {
+          "name": "Almond",
+          "code": "CH00"
+        },
+        {
+          "name": "Brown",
+          "code": "CH01"
+        },
+        {
+          "name": "Honey",
+          "code": "CH02"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "12x48",
+          "finish": "Natural",
+          "format_label": "12x48",
+          "cost": 3.94,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 4,
+            "lbs_box": 57.5,
+            "boxes_pallet": 18,
+            "sqft_pallet": 279
+          },
+          "colors": [
+            "Almond",
+            "Brown",
+            "Honey"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "8x48",
+          "finish": "R11",
+          "format_label": "8x48 R11",
+          "cost": 4.28,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 6,
+            "lbs_box": 57.5,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Almond",
+            "Brown"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "dea",
+      "name": "Dea",
+      "code": "DE",
+      "look": "Stone",
+      "category": "porcelain-tile",
+      "shade": "V3",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Cross-cut travertine-look porcelain in a large 24x48 format, two soft colors.",
+      "description_long": "Dea reproduces the serene look of cross-cut travertine in large 24\"x48\" rectified porcelain. Offered in Ivory and Gold with a natural (matte) finish, shade variation V3, PEI 4. A calm, classic surface for floors and walls. Made in Italy.",
+      "colors": [
+        {
+          "name": "Ivory",
+          "code": "DE11"
+        },
+        {
+          "name": "Gold",
+          "code": "DE12"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "24x48",
+          "finish": "Natural",
+          "format_label": "24x48",
+          "cost": 3.95,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 2,
+            "lbs_box": 66.14,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Ivory",
+            "Gold"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "ecoslate",
+      "name": "Ecoslate",
+      "code": "ES",
+      "look": "Stone",
+      "category": "porcelain-tile",
+      "shade": "V3",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Soft slate-look Italian porcelain in three colors and three sizes.",
+      "description_long": "Ecoslate captures the timeless appearance and durability of natural slate in eco-sustainable porcelain stoneware. Three colors (White, Beige, Grey) across 12\"x24\", 24\"x48\" and 36\"x36\" rectified sizes, natural finish, shade variation V3. Suitable for floors and walls. Made in Italy.",
+      "colors": [
+        {
+          "name": "White",
+          "code": "ES01"
+        },
+        {
+          "name": "Beige",
+          "code": "ES02"
+        },
+        {
+          "name": "Grey",
+          "code": "ES03"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "12x24",
+          "finish": "Natural",
+          "format_label": "12x24",
+          "cost": 3.18,
+          "pkg": {
+            "sqft_box": 13.563,
+            "pcs_box": 7,
+            "lbs_box": 54.52,
+            "boxes_pallet": 40,
+            "sqft_pallet": 542.4
+          },
+          "colors": [
+            "White",
+            "Beige",
+            "Grey"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "24x48",
+          "finish": "Natural",
+          "format_label": "24x48",
+          "cost": 3.95,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 2,
+            "lbs_box": 66.14,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "White",
+            "Beige",
+            "Grey"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "36x36",
+          "finish": "Natural",
+          "format_label": "36x36",
+          "cost": 4.28,
+          "pkg": {
+            "sqft_box": 17.438,
+            "pcs_box": 2,
+            "lbs_box": 71.43,
+            "boxes_pallet": 20,
+            "sqft_pallet": 348.8
+          },
+          "colors": [
+            "White",
+            "Beige",
+            "Grey"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "italian-stones",
+      "name": "Italian Stones",
+      "code": "IS",
+      "look": "Stone",
+      "category": "porcelain-tile",
+      "shade": "V4",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Quartz-slate-look porcelain in 12x24, with an R11 anti-slip option.",
+      "description_long": "Italian Stones reproduces the beauty of quartz-slate with rich, multi-tonal movement (shade variation V4). Offered in 12\"x24\" pressed porcelain — Stelvio and Cervino in natural finish, plus an R11 anti-slip Stelvio for wet and outdoor areas. Made in Italy.",
+      "colors": [
+        {
+          "name": "Stelvio",
+          "code": "IS62"
+        },
+        {
+          "name": "Cervino",
+          "code": "IS63"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "12x24",
+          "finish": "Natural",
+          "format_label": "12x24",
+          "cost": 3.18,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 8,
+            "lbs_box": 54.52,
+            "boxes_pallet": 40,
+            "sqft_pallet": 620
+          },
+          "colors": [
+            "Stelvio",
+            "Cervino"
+          ],
+          "color_overrides": {
+            "Cervino": {
+              "pkg": {
+                "sqft_box": 13.563,
+                "pcs_box": 7,
+                "lbs_box": 54.52,
+                "boxes_pallet": 40,
+                "sqft_pallet": 542.4
+              }
+            }
+          }
+        },
+        {
+          "role": "field",
+          "size": "12x24",
+          "finish": "R11",
+          "format_label": "12x24 R11",
+          "cost": 3.47,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 8,
+            "lbs_box": 54.52,
+            "boxes_pallet": 40,
+            "sqft_pallet": 620
+          },
+          "colors": [
+            "Stelvio"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "levante",
+      "name": "Levante",
+      "code": "LV",
+      "look": "Stone",
+      "category": "porcelain-tile",
+      "shade": "V4",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "generic_rooms": true,
+      "description_short": "Mediterranean stone-look porcelain in three sizes, natural and R11 finishes.",
+      "description_long": "Levante evokes sun-washed Mediterranean stone with soft, layered veining (shade variation V4). A single Naturale color offered across 12\"x24\", 16\"x24\" and 24\"x24\" in both natural and R11 anti-slip finishes — ideal for indoor/outdoor continuity and pattern layouts. Made in Italy.",
+      "colors": [
+        {
+          "name": "Naturale",
+          "code": "LV01"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "12x24",
+          "finish": "Natural",
+          "format_label": "12x24",
+          "cost": 3.72,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 8,
+            "lbs_box": 60.32,
+            "boxes_pallet": 40,
+            "sqft_pallet": 620
+          },
+          "colors": [
+            "Naturale"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "16x24",
+          "finish": "Natural",
+          "format_label": "16x24",
+          "cost": 3.72,
+          "pkg": {
+            "sqft_box": 12.91,
+            "pcs_box": 5,
+            "lbs_box": 50.93,
+            "boxes_pallet": 48,
+            "sqft_pallet": 620
+          },
+          "colors": [
+            "Naturale"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "24x24",
+          "finish": "Natural",
+          "format_label": "24x24",
+          "cost": 3.72,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 4,
+            "lbs_box": 62.39,
+            "boxes_pallet": 30,
+            "sqft_pallet": 465
+          },
+          "colors": [
+            "Naturale"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "12x24",
+          "finish": "R11",
+          "format_label": "12x24 R11",
+          "cost": 3.94,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 8,
+            "lbs_box": 60.32,
+            "boxes_pallet": 40,
+            "sqft_pallet": 620
+          },
+          "colors": [
+            "Naturale"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "16x24",
+          "finish": "R11",
+          "format_label": "16x24 R11",
+          "cost": 3.94,
+          "pkg": {
+            "sqft_box": 12.91,
+            "pcs_box": 5,
+            "lbs_box": 50.93,
+            "boxes_pallet": 48,
+            "sqft_pallet": 620
+          },
+          "colors": [
+            "Naturale"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "24x24",
+          "finish": "R11",
+          "format_label": "24x24 R11",
+          "cost": 3.94,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 4,
+            "lbs_box": 62.39,
+            "boxes_pallet": 30,
+            "sqft_pallet": 465
+          },
+          "colors": [
+            "Naturale"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "limestone",
+      "name": "Limestone",
+      "code": "LS",
+      "look": "Stone",
+      "category": "porcelain-tile",
+      "wall_category": "backsplash-wall",
+      "shade": "V1",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Natural limestone-look porcelain in five colors, large sizes and a matching structured wall.",
+      "description_long": "Limestone offers the quiet, uniform look of natural limestone (shade variation V1) in five colors — White, Beige, Taupe, Grey, Anthracite. Field tile in 24\"x48\" and 36\"x36\", plus a coordinated 24\"x48\" structured wall tile. Rectified porcelain, made in Italy.",
+      "colors": [
+        {
+          "name": "White",
+          "code": "LS00"
+        },
+        {
+          "name": "Beige",
+          "code": "LS01"
+        },
+        {
+          "name": "Taupe",
+          "code": "LS02"
+        },
+        {
+          "name": "Grey",
+          "code": "LS03"
+        },
+        {
+          "name": "Anthracite",
+          "code": "LS04"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "24x48",
+          "finish": "Natural",
+          "format_label": "24x48",
+          "cost": 3.95,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 2,
+            "lbs_box": 64.44,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "White",
+            "Beige",
+            "Taupe",
+            "Grey",
+            "Anthracite"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "36x36",
+          "finish": "Natural",
+          "format_label": "36x36",
+          "cost": 4.28,
+          "pkg": {
+            "sqft_box": 17.44,
+            "pcs_box": 2,
+            "lbs_box": 79.28,
+            "boxes_pallet": 21,
+            "sqft_pallet": 366.24
+          },
+          "colors": [
+            "White",
+            "Beige",
+            "Taupe",
+            "Grey",
+            "Anthracite"
+          ]
+        },
+        {
+          "role": "wall",
+          "size": "24x48",
+          "finish": "Structured",
+          "format_label": "24x48 Structured Wall",
+          "cost": 4.39,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 2,
+            "lbs_box": 64.44,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "White",
+            "Beige",
+            "Taupe",
+            "Grey",
+            "Anthracite"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "marmi-lux",
+      "name": "Marmi Lux",
+      "code": "ML",
+      "look": "Marble",
+      "category": "porcelain-tile",
+      "shade": "V2",
+      "pei": "IV",
+      "mohs": "6",
+      "dcof": ">0.42 Nat / <0.42 Pol",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Marble-effect Italian porcelain in five marbles, natural and polished, up to 48x48.",
+      "description_long": "Marmi Lux is an enriched marble collection — the beauty of natural marble in bright, practical porcelain stoneware. Five marbles (Calacatta Gold, Pulpis Ivoire, Soveraia Beige, Soveraia Grey, Sahara Noir) in natural and polished finishes. Calacatta Gold in 12x24/24x48/48x48; all colors in 24x48; Calacatta Gold and Sahara Noir in 48x48. Made in Italy.",
+      "colors": [
+        {
+          "name": "Calacatta Gold",
+          "code": "MCG1"
+        },
+        {
+          "name": "Pulpis Ivoire",
+          "code": "MPI1"
+        },
+        {
+          "name": "Soveraia Beige",
+          "code": "MSB1"
+        },
+        {
+          "name": "Soveraia Grey",
+          "code": "MSG3"
+        },
+        {
+          "name": "Sahara Noir",
+          "code": "MSN3"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "12x24",
+          "finish": "Natural",
+          "format_label": "12x24",
+          "cost": 3.84,
+          "pkg": {
+            "sqft_box": 11.62,
+            "pcs_box": 6,
+            "lbs_box": 56.0,
+            "boxes_pallet": 40,
+            "sqft_pallet": 465
+          },
+          "colors": [
+            "Calacatta Gold"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "12x24",
+          "finish": "Polished",
+          "format_label": "12x24 Polished",
+          "cost": 5.26,
+          "pkg": {
+            "sqft_box": 11.62,
+            "pcs_box": 6,
+            "lbs_box": 56.0,
+            "boxes_pallet": 40,
+            "sqft_pallet": 465
+          },
+          "colors": [
+            "Calacatta Gold"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "24x48",
+          "finish": "Natural",
+          "format_label": "24x48",
+          "cost": 4.28,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 2,
+            "lbs_box": 66.14,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Calacatta Gold",
+            "Pulpis Ivoire",
+            "Soveraia Beige",
+            "Soveraia Grey",
+            "Sahara Noir"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "24x48",
+          "finish": "Polished",
+          "format_label": "24x48 Polished",
+          "cost": 5.48,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 2,
+            "lbs_box": 66.14,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Calacatta Gold",
+            "Pulpis Ivoire",
+            "Soveraia Beige",
+            "Soveraia Grey",
+            "Sahara Noir"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "48x48",
+          "finish": "Natural",
+          "format_label": "48x48",
+          "cost": 5.44,
+          "pkg": {
+            "sqft_box": 31.0,
+            "pcs_box": 2,
+            "lbs_box": 132.28,
+            "boxes_pallet": 18,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Calacatta Gold",
+            "Sahara Noir"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "48x48",
+          "finish": "Polished",
+          "format_label": "48x48 Polished",
+          "cost": 6.59,
+          "pkg": {
+            "sqft_box": 31.0,
+            "pcs_box": 2,
+            "lbs_box": 132.28,
+            "boxes_pallet": 18,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Calacatta Gold",
+            "Sahara Noir"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "pl-stone",
+      "name": "Pietra Ligure",
+      "code": "PL",
+      "look": "Stone",
+      "category": "porcelain-tile",
+      "paver_category": "pavers",
+      "shade": "V3",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Warm-toned stone-look porcelain in four colors, three sizes, plus a 2cm paver.",
+      "description_long": "Pietra Ligure is a popular warm-toned stone look (shade variation V3) in four colors — Avorio, Sabbia, Grigio, Anthracite. Field tile in 12\"x24\", 24\"x48\" and 48\"x48\", with a 2cm 24\"x24\" R11 porcelain paver in Sabbia for outdoor installations. Made in Italy.",
+      "colors": [
+        {
+          "name": "Avorio",
+          "code": "PL00"
+        },
+        {
+          "name": "Sabbia",
+          "code": "PL01"
+        },
+        {
+          "name": "Grigio",
+          "code": "PL02"
+        },
+        {
+          "name": "Anthracite",
+          "code": "PL03"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "12x24",
+          "finish": "Natural",
+          "format_label": "12x24",
+          "cost": 3.29,
+          "pkg": {
+            "sqft_box": 13.563,
+            "pcs_box": 7,
+            "lbs_box": 70.77,
+            "boxes_pallet": 40,
+            "sqft_pallet": 542.3
+          },
+          "colors": [
+            "Avorio",
+            "Sabbia",
+            "Grigio",
+            "Anthracite"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "24x48",
+          "finish": "Natural",
+          "format_label": "24x48",
+          "cost": 3.94,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 2,
+            "lbs_box": 66.14,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Avorio",
+            "Sabbia",
+            "Grigio",
+            "Anthracite"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "48x48",
+          "finish": "Natural",
+          "format_label": "48x48",
+          "cost": 5.45,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 1,
+            "lbs_box": 74.41,
+            "boxes_pallet": 40,
+            "sqft_pallet": 619.6
+          },
+          "colors": [
+            "Avorio",
+            "Sabbia",
+            "Grigio",
+            "Anthracite"
+          ]
+        },
+        {
+          "role": "paver",
+          "size": "24x24",
+          "finish": "R11",
+          "format_label": "2cm Paver 24x24 R11",
+          "cost": 6.22,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 1,
+            "lbs_box": 74.41,
+            "boxes_pallet": 40,
+            "sqft_pallet": 619.6
+          },
+          "colors": [
+            "Sabbia"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "savage",
+      "name": "Savage",
+      "code": "SV",
+      "look": "Wood",
+      "category": "wood-look-tile",
+      "shade": "V3",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Wood-parquet-look Italian porcelain plank, 8x48, four rich colors.",
+      "description_long": "Savage is inspired by wood parquet — a warm 8\"x48\" wood-look porcelain plank (shade variation V3) in four rich colors: Natural, Cognac, Almond, Caramel. Rectified, frost and acid resistant. Made in Italy.",
+      "colors": [
+        {
+          "name": "Natural",
+          "code": "SV01"
+        },
+        {
+          "name": "Cognac",
+          "code": "SV02"
+        },
+        {
+          "name": "Almond",
+          "code": "SV03"
+        },
+        {
+          "name": "Caramel",
+          "code": "SV04"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "8x48",
+          "finish": "Natural",
+          "format_label": "8x48",
+          "cost": 3.94,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 6,
+            "lbs_box": 57.5,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Natural",
+            "Cognac",
+            "Almond",
+            "Caramel"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "travertine",
+      "name": "Travertine",
+      "code": "TR",
+      "look": "Stone",
+      "category": "porcelain-tile",
+      "wall_category": "backsplash-wall",
+      "shade": "V3",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Vein-cut travertine-look porcelain in three colors, with a coordinated lineal wall and R11 option.",
+      "description_long": "Travertine reproduces vein-cut travertine (shade variation V3) in three colors — Bone, Cream, Silver. Field tile in 12\"x24\" and 24\"x48\", a coordinated 12\"x24\" lineal wall tile, and a 24\"x48\" R11 anti-slip in Cream. Made in Italy.",
+      "colors": [
+        {
+          "name": "Bone",
+          "code": "TR01"
+        },
+        {
+          "name": "Cream",
+          "code": "TR02"
+        },
+        {
+          "name": "Silver",
+          "code": "TR03"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "12x24",
+          "finish": "Natural",
+          "format_label": "12x24",
+          "cost": 3.47,
+          "pkg": {
+            "sqft_box": 13.563,
+            "pcs_box": 7,
+            "lbs_box": 54.52,
+            "boxes_pallet": 40,
+            "sqft_pallet": 542.4
+          },
+          "colors": [
+            "Bone",
+            "Cream",
+            "Silver"
+          ]
+        },
+        {
+          "role": "wall",
+          "size": "12x24",
+          "finish": "Lineal",
+          "format_label": "12x24 Lineal Wall",
+          "cost": 3.89,
+          "pkg": {
+            "sqft_box": 13.563,
+            "pcs_box": 7,
+            "lbs_box": 54.52,
+            "boxes_pallet": 40,
+            "sqft_pallet": 542.4
+          },
+          "colors": [
+            "Bone",
+            "Cream",
+            "Silver"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "24x48",
+          "finish": "Natural",
+          "format_label": "24x48",
+          "cost": 4.31,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 2,
+            "lbs_box": 66.14,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Bone",
+            "Cream",
+            "Silver"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "24x48",
+          "finish": "R11",
+          "format_label": "24x48 R11",
+          "cost": 4.67,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 2,
+            "lbs_box": 66.14,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Cream"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "trex",
+      "name": "Trex",
+      "code": "TX",
+      "look": "Stone",
+      "category": "porcelain-tile",
+      "shade": "V4",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Warm sandstone-look porcelain in four colors, with coordinated wall tiles.",
+      "description_long": "Trex offers the warmth of sandstone (shade variation V4) in four field colors — Ice, Ivory, Grey, Sand — in 24\"x24\" and 24\"x48\". A coordinated 10\"x30\" wall tile extends the range with Traces and Brick faces (Traces Ice, Traces Ivory, Brick Grey, Brick Sand). Made in Italy.",
+      "colors": [
+        {
+          "name": "Ice",
+          "code": "TX01"
+        },
+        {
+          "name": "Ivory",
+          "code": "TX02"
+        },
+        {
+          "name": "Grey",
+          "code": "TX03"
+        },
+        {
+          "name": "Sand",
+          "code": "TX04"
+        },
+        {
+          "name": "Traces Ice",
+          "code": "TC01"
+        },
+        {
+          "name": "Traces Ivory",
+          "code": "TC02"
+        },
+        {
+          "name": "Brick Grey",
+          "code": "TXB3"
+        },
+        {
+          "name": "Brick Sand",
+          "code": "TXB4"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "24x24",
+          "finish": "Natural",
+          "format_label": "24x24",
+          "cost": 3.84,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 4,
+            "lbs_box": 66.14,
+            "boxes_pallet": 30,
+            "sqft_pallet": 465
+          },
+          "colors": [
+            "Ice",
+            "Ivory",
+            "Grey",
+            "Sand"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "24x48",
+          "finish": "Natural",
+          "format_label": "24x48",
+          "cost": 3.95,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 2,
+            "lbs_box": 66.14,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "Ice",
+            "Ivory",
+            "Grey",
+            "Sand"
+          ]
+        },
+        {
+          "role": "field",
+          "size": "10x30",
+          "finish": "Natural",
+          "format_label": "10x30",
+          "cost": 3.57,
+          "pkg": {
+            "sqft_box": 16.15,
+            "pcs_box": 8,
+            "lbs_box": 47.55,
+            "boxes_pallet": 45,
+            "sqft_pallet": 726.8
+          },
+          "colors": [
+            "Ice",
+            "Ivory",
+            "Grey",
+            "Sand",
+            "Traces Ice",
+            "Traces Ivory",
+            "Brick Grey",
+            "Brick Sand"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "vintage",
+      "name": "Vintage",
+      "code": "VE",
+      "look": "Wood",
+      "category": "wood-look-tile",
+      "shade": "V4",
+      "pei": "4",
+      "mohs": "6",
+      "dcof": ">0.42",
+      "frost": "Yes",
+      "acid": "Yes",
+      "accessories": true,
+      "description_short": "Rustic wood-look Italian porcelain plank, 8x48, four colors.",
+      "description_long": "Vintage is a rustic wood-look porcelain plank (shade variation V4) with pronounced grain and character. Offered in an 8\"x48\" pressed plank in four colors: White, Brown, Bleached, Honey. Made in Italy.",
+      "colors": [
+        {
+          "name": "White",
+          "code": "VE60"
+        },
+        {
+          "name": "Brown",
+          "code": "VE62"
+        },
+        {
+          "name": "Bleached",
+          "code": "VE63"
+        },
+        {
+          "name": "Honey",
+          "code": "VE64"
+        }
+      ],
+      "products": [
+        {
+          "role": "field",
+          "size": "8x48",
+          "finish": "Natural",
+          "format_label": "8x48",
+          "cost": 3.73,
+          "pkg": {
+            "sqft_box": 15.5,
+            "pcs_box": 6,
+            "lbs_box": 57.5,
+            "boxes_pallet": 36,
+            "sqft_pallet": 558
+          },
+          "colors": [
+            "White",
+            "Brown",
+            "Bleached",
+            "Honey"
+          ]
+        }
+      ]
+    }
+  ],
+  "slabs": {
+    "slug": "slabs",
+    "name": "Slabs",
+    "category": "porcelain-slabs",
+    "look": "Marble",
+    "size": "63x126",
+    "finishes": [
+      "Natural",
+      "Polished"
+    ],
+    "note": "Porcelain stoneware slabs (63x126) locally stocked in Fullerton. Unpriced in the LA price list (contact territory manager) — imported as DRAFT, no pricing.",
+    "colors": [
+      "Monte Bianco",
+      "Calacatta Oro",
+      "Marmo Antico",
+      "Wave",
+      "Emotion Wonder",
+      "Taj Mahal",
+      "Sahara Noir",
+      "Calacatta Light",
+      "Statuario Extra",
+      "Chianca",
+      "Travertino",
+      "Fior Di Bosco"
+    ]
+  }
+}

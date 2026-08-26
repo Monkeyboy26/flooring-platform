@@ -1,0 +1,1175 @@
+{
+  "vendor": {
+    "name": "Pental Surfaces",
+    "code": "PENT",
+    "website": "https://arcsurfaces.com/quartz/pentalquartz/",
+    "email": null,
+    "phone": "(206) 768-3200",
+    "address": "713 S Fidalgo St, Seattle, WA 98108",
+    "notes": "PentalQuartz — engineered quartz surfaces (originally Pental Surfaces, now distributed by Architectural Surfaces Group; pentalquartz.com redirects to arcsurfaces.com). 32 current colors across ~8 collections, scraped from arcsurfaces.com. No published per-slab retail → all products imported as DRAFT with no pricing (add costs + activate on price sheet). Finish per color (Polished/Honed); thickness is brand-level (standard 2cm + 3cm gauges applied to every color) and SPLIT into separate SKUs. Slabs sell_by unit."
+  },
+  "brand": {
+    "name": "PentalQuartz",
+    "code": "PQ",
+    "website": "https://arcsurfaces.com/quartz/pentalquartz/"
+  },
+  "markup": 1.6,
+  "brandPdfs": [
+    "https://arcsurfaces.com/wp-content/uploads/2022/08/PQ-ARCHITECTURAL-SPECIFICATION.pdf",
+    "https://arcsurfaces.com/wp-content/uploads/Terms-Conditions-Updated-4.24.25.pdf"
+  ],
+  "products": [
+    {
+      "pkey": "PENT-haleo",
+      "name": "Haleo",
+      "color": "Haleo",
+      "collection": "Radiant Opulence",
+      "collectionSlug": "radiant-opulence",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ5340",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Haleo PentalQuartz® feature wall backsplash panels in a crisp white base with delicate taupe veining. Pairs beautifully with quartz kitchen countertops and vanity tops.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "138\" x 79\"",
+          "vendor_sku": "PQ5340-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "138\" x 79\"",
+          "vendor_sku": "PQ5340-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-venoso-pq",
+      "name": "Venoso",
+      "color": "Venoso",
+      "collection": "PentalQuartz",
+      "collectionSlug": "pentalquartz",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ5193",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Venoso quartz kitchen countertops stone in showcase soft veining and neutral tones. Equally durable as PentalQuartz® walls slabs or a bathroom vanity surface.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5193-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5193-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-pearl-white",
+      "name": "Pearl White",
+      "color": "Pearl White",
+      "collection": "Core Classics",
+      "collectionSlug": "core-classics",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ1002",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Pearl White PentalQuartz® kitchen countertops offer a clean tone for modern homes. Equally striking as a waterfall island kitchen or quartz bathroom slabs.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ1002-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ1002-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-oceanus",
+      "name": "Oceanus",
+      "color": "Oceanus",
+      "collection": "Next Generation",
+      "collectionSlug": "next-generation",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Quartzite",
+      "sku": "PQ5173",
+      "colorFamily": "Grey Taupe, White Light",
+      "status": "draft",
+      "description": "Oceanus quartz stone blend luxury looks with everyday durability. Trusted PentalQuartz® for commercial surfaces, kitchen countertops and bathroom slabs as well.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5173-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5173-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-nightfall-honed",
+      "name": "Nightfall Honed",
+      "color": "Nightfall Honed",
+      "collection": "Next Generation",
+      "collectionSlug": "next-generation",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ8031",
+      "colorFamily": "Brown Black",
+      "status": "draft",
+      "description": "Nightfall Honed quartz offer durable, low-maintenance matte surface stone. Equally suited PentalQuartz® for kitchen countertops, fireplace, and bathroom slabs.",
+      "skus": [
+        {
+          "suffix": "honed-2cm",
+          "variant_name": "Honed · 2 cm",
+          "finish": "Honed",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ8031-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "honed-3cm",
+          "variant_name": "Honed · 3 cm",
+          "finish": "Honed",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ8031-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-myora",
+      "name": "Myora",
+      "color": "Myora",
+      "collection": "Radiant Opulence",
+      "collectionSlug": "radiant-opulence",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5185",
+      "colorFamily": "Grey Taupe, White Light",
+      "status": "draft",
+      "description": "Myora quartz kitchen slabs showcase an ivory base with soft blue veining evenly dispersed. Striking as PentalQuartz® kitchen island and bathroom countertops too",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5185-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5185-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-myora-gold",
+      "name": "Myora Gold",
+      "color": "Myora Gold",
+      "collection": "Radiant Opulence",
+      "collectionSlug": "radiant-opulence",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5186",
+      "colorFamily": "Beige Tan, White Light",
+      "status": "draft",
+      "description": "Myora Gold quartz introduce warm veining over a creamy surface. low-maintenance PentalQuartz® equally suited to wall surface, kitchen countertops slabs.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5186-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5186-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-midnight-mist-honed",
+      "name": "Midnight Mist Honed",
+      "color": "Midnight Mist Honed",
+      "collection": "Contemporary Keystones",
+      "collectionSlug": "contemporary-keystones",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ5191",
+      "colorFamily": "Brown Black, Grey Taupe",
+      "status": "draft",
+      "description": "Midnight Mist Honed PentalQuartz® Fireplace surrounds bring a soft matte finish with deep charcoal tones. Bold enough for quartz kitchen countertops & slabs.",
+      "skus": [
+        {
+          "suffix": "honed-2cm",
+          "variant_name": "Honed · 2 cm",
+          "finish": "Honed",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5191-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "honed-3cm",
+          "variant_name": "Honed · 3 cm",
+          "finish": "Honed",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5191-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-marestar",
+      "name": "Marestar",
+      "color": "Marestar",
+      "collection": "Tranquil Heights",
+      "collectionSlug": "tranquil-heights",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ5177",
+      "colorFamily": "Beige Tan, Brown Black",
+      "status": "draft",
+      "description": "MareStar PentalQuartz® feature walls showcase bold veining with low-maintenance beauty. Equally striking as quartz backsplash, kitchen countertops or slab.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5177-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5177-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-malana",
+      "name": "Malana",
+      "color": "Malana",
+      "collection": "Rivaling Nature",
+      "collectionSlug": "rivaling-nature",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5380",
+      "colorFamily": "Grey Taupe, White Light",
+      "status": "draft",
+      "description": "Malana quartz Feature walls showcase bold blue and rust veins on a misty base. Striking PentalQuartz® as kitchen countertops and bathroom vanity tops slabs.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5380-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5380-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-illennia",
+      "name": "Illennia",
+      "color": "Illennia",
+      "collection": "Rivaling Nature",
+      "collectionSlug": "rivaling-nature",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Quartzite",
+      "sku": "PQ5351",
+      "colorFamily": "Beige Tan, White Light",
+      "status": "draft",
+      "description": "Illennia quartz feature pale blue hues with subtle movement. A fresh, airy pick for backsplash panels, kitchen countertops fireplace surround, and vanity tops.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "126\" x 63\"",
+          "vendor_sku": "PQ5351-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "126\" x 63\"",
+          "vendor_sku": "PQ5351-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-enza-oro",
+      "name": "Enza Oro",
+      "color": "Enza Oro",
+      "collection": "Contemporary Keystones",
+      "collectionSlug": "contemporary-keystones",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ5220",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Enza Oro quartz kitchen islands showcase golden veining over a creamy base. Elegant PentalQuartz® as kitchen countertops, bathroom slabs or living room surface.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5220-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5220-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-costa-bella",
+      "name": "Costa Bella",
+      "color": "Costa Bella",
+      "collection": "Rivaling Nature",
+      "collectionSlug": "rivaling-nature",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5367",
+      "colorFamily": "Beige Tan, White Light",
+      "status": "draft",
+      "description": "Costa Bella quartz kitchen Island countertops bring coastal beauty with sand-toned veins and blue touches. Calming PentalQuartz® bathroom vanity, & feature wall",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "126\" x 63\"",
+          "vendor_sku": "PQ5367-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "126\" x 63\"",
+          "vendor_sku": "PQ5367-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-cielo-sky",
+      "name": "Cielo Sky",
+      "color": "Cielo Sky",
+      "collection": "Contemporary Keystones",
+      "collectionSlug": "contemporary-keystones",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ5253",
+      "colorFamily": "Grey Taupe",
+      "status": "draft",
+      "description": "Cielo Sky quartz kitchen countertops showcase a white base with grey movement. Calming PentalQuartz® as kitchen countertops and living room flooring slab",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5253-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5253-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-cielo-blue",
+      "name": "Cielo Blue",
+      "color": "Cielo Blue",
+      "collection": "Contemporary Keystones",
+      "collectionSlug": "contemporary-keystones",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ5368",
+      "colorFamily": "White Blue",
+      "status": "draft",
+      "description": "Cielo Blue quartz Outdoor kitchen counters bring sky-inspired white and soft blue veining. Elegant PentalQuartz® kitchen island and bathroom surface & wall slab",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5368-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5368-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-blossom-mist",
+      "name": "Blossom Mist",
+      "color": "Blossom Mist",
+      "collection": "Contemporary Keystones",
+      "collectionSlug": "contemporary-keystones",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ5231",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Blossom Mist quartz kitchen countertops feature luminous white tones with soft grey veining. A best PentalQuartz® slabs pick for outdoor kitchen, wall slabs.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5231-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5231-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-bianco-sol",
+      "name": "Bianco Sol",
+      "color": "Bianco Sol",
+      "collection": "Core Classics",
+      "collectionSlug": "core-classics",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5194",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Bianco Sol quartz kitchen countertops brings white tones with lasting durability. A clean PentalQuartz® match for living room flooring and bathroom vanity tops.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5194-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5194-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-bianco-aspen",
+      "name": "Bianco Aspen",
+      "color": "Bianco Aspen",
+      "collection": "Core Classics",
+      "collectionSlug": "core-classics",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ2005",
+      "colorFamily": "Grey Taupe, White Light",
+      "status": "draft",
+      "description": "Bianco Aspen quartz kitchen countertops offer a clean surface with minimal patterning. A timeless PentalQuartz® choice for fireplace slabs & countertops too.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 79\"",
+          "vendor_sku": "PQ2005-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 79\"",
+          "vendor_sku": "PQ2005-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-aura-gold",
+      "name": "Aura Gold",
+      "color": "Aura Gold",
+      "collection": "Tranquil Heights",
+      "collectionSlug": "tranquil-heights",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5184",
+      "colorFamily": "Beige Tan, White Light",
+      "status": "draft",
+      "description": "Aura Gold quartz kitchen countertops combine refined gold veining with a warm base. A striking pick for PentalQuartz® fireplace & bathroom vanity tops.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5184-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ5184-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-venus",
+      "name": "Venus",
+      "color": "Venus",
+      "collection": "Next Generation",
+      "collectionSlug": "next-generation",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Quartzite",
+      "sku": "PQ5170",
+      "colorFamily": "Beige Tan",
+      "status": "draft",
+      "description": "Affordable Venus Quartz Countertops features a serene white finish with subtle movement, ideal for light, bright interiors and luxurious quartz applications.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5170-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5170-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-unique-calacatta-macchia-vecchia",
+      "name": "Unique Calacatta Macchia Vecchia",
+      "color": "Unique Calacatta Macchia Vecchia",
+      "collection": "Contemporary Keystones",
+      "collectionSlug": "contemporary-keystones",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5118",
+      "colorFamily": "Beige Tan, White Light",
+      "status": "draft",
+      "description": "Unique Calacatta Macchia Vecchia quartz deliver golden and grey veining with classic depth. Refined PentalQuartz® for kitchen countertops & bathroom slabs too.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 64\"",
+          "vendor_sku": "PQ5118-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 64\"",
+          "vendor_sku": "PQ5118-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-unique-calacatta-gold",
+      "name": "Unique Calacatta Gold",
+      "color": "Unique Calacatta Gold",
+      "collection": "Contemporary Keystones",
+      "collectionSlug": "contemporary-keystones",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5117",
+      "colorFamily": "Beige Tan, White Light",
+      "status": "draft",
+      "description": "Unique Calacatta Gold quartz islands kitchen feature striking gold veining look. PentalQuartz® Equally bold as kitchen countertops and bathroom stone.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 64\"",
+          "vendor_sku": "PQ5117-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 64\"",
+          "vendor_sku": "PQ5117-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-unique-calacatta-blue",
+      "name": "Unique Calacatta Blue",
+      "color": "Unique Calacatta Blue",
+      "collection": "Contemporary Keystones",
+      "collectionSlug": "contemporary-keystones",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5152",
+      "colorFamily": "Grey Taupe, White Light",
+      "status": "draft",
+      "description": "Unique Calacatta Blue quartz feature walls stone bring bold blue veining inspired by Italian marble. Distinctive PentalQuartz® kitchen island & wall slabs too.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 64\"",
+          "vendor_sku": "PQ5152-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 64\"",
+          "vendor_sku": "PQ5152-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-unique-calacatta",
+      "name": "Unique Calacatta",
+      "color": "Unique Calacatta",
+      "collection": "Contemporary Keystones",
+      "collectionSlug": "contemporary-keystones",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5113",
+      "colorFamily": "Grey Taupe, White Light",
+      "status": "draft",
+      "description": "Unique Calacatta quartz Kitchen countertops feature a white base with bold grey veining inspired by marble. Elegant PentalQuartz® for fireplace & bathroom tops",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 64\"",
+          "vendor_sku": "PQ5113-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 64\"",
+          "vendor_sku": "PQ5113-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-terra-sky-gold",
+      "name": "Terra Sky Gold",
+      "color": "Terra Sky Gold",
+      "collection": "Radiant Opulence",
+      "collectionSlug": "radiant-opulence",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ5361",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Terra Sky Gold quartz kitchen countertops feature warm veining inspired by Calacatta marble. A refined PentalQuartz® pick for bathroom vanity slabs as well.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5361-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5361-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-terra-sky",
+      "name": "Terra Sky",
+      "color": "Terra Sky",
+      "collection": "Radiant Opulence",
+      "collectionSlug": "radiant-opulence",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ5360",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Terra Sky quartz kitchen countertops deliver white tones with soft grey veining. Stain-resistant Pentalquartz for bathroom vanity tops & living room slab too.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5360-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "137\" x 79\"",
+          "vendor_sku": "PQ5360-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-super-white",
+      "name": "Super White",
+      "color": "Super White",
+      "collection": "Core Classics",
+      "collectionSlug": "core-classics",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ2000",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Super White PentalQuartz® waterfall islands in deliver a luminous, clean surface with minimal patterning. A crisp choice for quartz kitchen countertops & slab.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ2000-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ2000-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-seashell",
+      "name": "Seashell",
+      "color": "Seashell",
+      "collection": "Core Classics",
+      "collectionSlug": "core-classics",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Stone",
+      "sku": "PQ1001",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Seashell PentalQuartz® bathroom surface showcase a classic solid white hue built to last. Equally durable as kitchen countertops or quartz wall slab surface.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ1001-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "130\" x 65\"",
+          "vendor_sku": "PQ1001-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-salora-grey",
+      "name": "Salora Grey",
+      "color": "Salora Grey",
+      "collection": "Radiant Opulence",
+      "collectionSlug": "radiant-opulence",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ3111",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Salora Grey quartz offers a stain-resistant surface built for daily use. PentalQuartz® for living room flooring, kitchen countertops and bathroom slabs.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": null,
+          "vendor_sku": "PQ3111-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": null,
+          "vendor_sku": "PQ3111-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-salora-gold",
+      "name": "Salora Gold",
+      "color": "Salora Gold",
+      "collection": "Radiant Opulence",
+      "collectionSlug": "radiant-opulence",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ3001",
+      "colorFamily": "White Light",
+      "status": "draft",
+      "description": "Salora Gold quartz offer a white surface with rich golden veins. A refined PentalQuartz® choice for fireplace surround, Kitchen countertops & bathroom slabs.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": null,
+          "vendor_sku": "PQ3001-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": null,
+          "vendor_sku": "PQ3001-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-revelry-storm",
+      "name": "Revelry Storm",
+      "color": "Revelry Storm",
+      "collection": "Rivaling Nature",
+      "collectionSlug": "rivaling-nature",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5364",
+      "colorFamily": "Grey Taupe, White Light",
+      "status": "draft",
+      "description": "Revelry Storm quartz kitchen countertops offer a stunning look with dramatic veining. Bold PentalQuartz® for fireplace and bathroom slabs & outdoor kitchen too.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "126\" x 63\"",
+          "vendor_sku": "PQ5364-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "126\" x 63\"",
+          "vendor_sku": "PQ5364-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    },
+    {
+      "pkey": "PENT-revelry-macchia",
+      "name": "Revelry Macchia",
+      "color": "Revelry Macchia",
+      "collection": "Rivaling Nature",
+      "collectionSlug": "rivaling-nature",
+      "category": "quartz-countertops",
+      "material": "Quartz",
+      "look": "Marble",
+      "sku": "PQ5358",
+      "colorFamily": "Beige Tan, White Light",
+      "status": "draft",
+      "description": "Revelry Macchia quartz kitchen countertops feature radiant golden veining on a creamy base. A bright PentalQuartz® for wall slabs & kitchen island as well.",
+      "skus": [
+        {
+          "suffix": "polished-2cm",
+          "variant_name": "Polished · 2 cm",
+          "finish": "Polished",
+          "thickness": "2 cm",
+          "size_nominal": "126\" x 63\"",
+          "vendor_sku": "PQ5358-2cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        },
+        {
+          "suffix": "polished-3cm",
+          "variant_name": "Polished · 3 cm",
+          "finish": "Polished",
+          "thickness": "3 cm",
+          "size_nominal": "126\" x 63\"",
+          "vendor_sku": "PQ5358-3cm",
+          "sell_by": "unit",
+          "price_basis": "per_unit"
+        }
+      ]
+    }
+  ]
+}

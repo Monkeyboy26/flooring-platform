@@ -1,0 +1,36 @@
+{
+  "poseidon": {
+    "Hermes": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac24c22ce8902e7c0ae_664b815d72a4bee2c6fd3472_Hermes%25201.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac24c22ce8902e7c0d9_66039242f40263d55c8c1374_Hermes%2520Final.webp"},
+    "Lindos": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac27f65c91ff1856fb7_660b846f339b1e206cade7be_Lindos%25201.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac27f65c91ff1856fe3_6603932a4ba3de9a36f90a92_Lindos_Render-brighter.webp"},
+    "Jupiter": {"primary": null, "lifestyle": null},
+    "Pegasus": {"primary": null, "lifestyle": null},
+    "Hydra": {"primary": null, "lifestyle": null},
+    "Kraken": {"primary": null, "lifestyle": null},
+    "Aegen": {"primary": null, "lifestyle": null},
+    "Adonis": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac0c0b9f0b2dee55a3c_661b8dc60db9efe63947eaa4_Adonis%2520B-2.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac0c0b9f0b2dee55a50_661b8dddcb60f1919a049308_Adonis-room-scene2.webp"},
+    "Apollo": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/64516eb7fb0f814229cecaa6_6440d290210933d12ee6818f_Apallo%2520B.jpeg", "lifestyle": null},
+    "Iris": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac31a8ecd7dd4692061_664b7375360077be415fd318_Iris%2520B.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/67a12f0d88e6a2477d8df03d_Iris_Render_Optimized.webp"},
+    "Maia": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/64516eb73a6c9baf50e4d8b3_6440dda32109336c98e757a1_Maia%2520B.jpeg", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac2843cb1cadf2b2696_664d0ecb37fcf6d4ee9244bf_Maia%2520Room%2520color%2520correct.webp"},
+    "Zephyr": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac4f79b15bb1a4e929d_6647d7b6fff33167b3a716ef_Zephyr%2520B.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac4f79b15bb1a4e92ae_6647d7c1ac3ba997dd8fcd20_Zephyr%2520A.webp"},
+    "Eros": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac1c896545dbfb489ef_65120da6f41c615d8777857e_Eros%2520tight%2520shot.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac1c896545dbfb48a05_65120daa264c5a67942f5f9b_Eros%2520wide%2520shot.webp"},
+    "Artemis": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/660ed45f31deb7dc84644493_65120dcd925234514de2ef5d_Artemis%2520tight%2520shot.jpeg", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac0df7e3e9b490fa44f_6632404b84b902772b11604d_artemis-final.webp"},
+    "Corfu": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac1f16ce06e79582445_66065b5dbdd43a51ba6542a8_Corfu%2520%25201.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac1f16ce06e7958242e_660394d459194dbfe1d8ac10_Corfu_01.png"},
+    "Hades": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac17dff23587c5a7d09_664b8719818a0ec8c59c8916_Hades%2520%25201-2.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac17dff23587c5a7d29_66039744deec2b26f53fc273_Hades_C-Edited-small.webp"},
+    "Hercules": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac140f9e5fcebba48fe_66065e6836c2cda4c18f8725_Hercules%25201.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac140f9e5fcebba4907_660398010e1de6da3a282f17_Hercules-Room-lighter.webp"},
+    "Morpheus": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac321d8113c576daaff_666b7c793855f4decaa5bcf5_Morpheus_topDown-2.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac321d8113c576daae8_666b7aeb75d6720e07cb17b4_Morpheus%2520Room%2520Color%2520correct.webp"},
+    "Chariot": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac121d8113c576da9c8_666b87e15cbb7282a96aaf2e_Chariot_topDown-2.webp", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac121d8113c576da9d6_666d2909383f46e4eb5b97ae_Chariot%2520Room%2520Scene.webp"},
+    "Odyssey": {"primary": null, "lifestyle": null},
+    "Thalassa": {"primary": null, "lifestyle": null}
+  },
+  "poseidon_xl": {
+    "Vulcan": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac65a7c85e8945075ee_666147895e9fe8f3293e8c65_vulcan_TopDown-2.jpeg", "lifestyle": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/667c4ac65a7c85e8945075f2_665ec1e4b53d86e3f9c7b07e_vulcan-room-scene.jpeg"},
+    "Selene": {"primary": null, "lifestyle": null},
+    "Pluto": {"primary": null, "lifestyle": null},
+    "Leto": {"primary": null, "lifestyle": null}
+  },
+  "herringbone": {
+    "Hermes": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/67776697482715b8bf6d4948_Hermes_HB_Angled_colorMatched_0003-2.webp", "lifestyle": null},
+    "Vulcan": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/677768b53b13adb6ed8b3e2f_New_Vulcan.0001-2.webp", "lifestyle": null},
+    "Morpheus": {"primary": "https://cdn.prod.website-files.com/63ffc9244e1e8c3ec2170c3e/6781c1d76bb14b834ab50a83_Morpheus%20HB.0004-2.webp", "lifestyle": null}
+  }
+}
