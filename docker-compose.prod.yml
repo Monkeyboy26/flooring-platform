@@ -9,10 +9,14 @@ services:
     environment:
       POSTGRES_USER: ${DB_USER:?DB_USER must be set in prod}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in prod}
+    # Tuned for the t3.large (8GB host): postgres:14 defaults (128MB
+    # shared_buffers) starve the 42k-product catalog queries. random_page_cost
+    # lowered for gp3 SSD.
+    command: postgres -c shared_buffers=512MB -c effective_cache_size=2GB -c work_mem=32MB -c maintenance_work_mem=128MB -c random_page_cost=1.1 -c max_wal_size=2GB
     deploy:
       resources:
         limits:
-          memory: 1G
+          memory: 2G
     logging:
       driver: json-file
       options:

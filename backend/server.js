@@ -1598,6 +1598,12 @@ class SearchCache {
 }
 
 const suggestCache = new SearchCache(500, 5 * 60 * 1000); // 5 min TTL
+// Browse-surface caches: both endpoints return identical payloads for every
+// visitor (grid shows retail pricing only; facets carry no pricing), so a
+// URL-keyed in-process cache is safe. Facets is the expensive one (10s+ on
+// prod under scraper load) and changes only when scrapers write.
+const facetsCache = new SearchCache(300, 10 * 60 * 1000); // 10 min TTL
+const browseCache = new SearchCache(500, 2 * 60 * 1000);  // 2 min TTL
 const popularCache = new SearchCache(1, 10 * 60 * 1000); // 10 min TTL
 
 function clearSearchCaches() {
@@ -2061,6 +2067,11 @@ app.get('/api/storefront/search/related', async (req, res) => {
 
 app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
   try {
+    const cacheKey = req.originalUrl;
+    const cached = browseCache.get(cacheKey);
+    if (cached) { res.set('X-Api-Cache', 'HIT'); return res.json(cached); }
+    const origJson = res.json.bind(res);
+    res.json = (body) => { if (res.statusCode === 200) browseCache.set(cacheKey, body); return origJson(body); };
     const skuBrowseStartTime = Date.now();
     const { category, collection, search, sort, q } = req.query;
     const limit = Math.min(parseInt(req.query.limit) || 24, 100);
@@ -3742,6 +3753,11 @@ app.get('/api/storefront/sale/stats', async (req, res) => {
 
 app.get('/api/storefront/facets', async (req, res) => {
   try {
+    const cacheKey = req.originalUrl;
+    const cached = facetsCache.get(cacheKey);
+    if (cached) { res.set('X-Api-Cache', 'HIT'); return res.json(cached); }
+    const origJson = res.json.bind(res);
+    res.json = (body) => { if (res.statusCode === 200) facetsCache.set(cacheKey, body); return origJson(body); };
     const { category, collection, search, q } = req.query;
     const searchTerm = search || q;
 
