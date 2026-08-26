@@ -323,6 +323,16 @@ async function main() {
       (genericByStyle[style] = genericByStyle[style] || []).push(url);
       continue;
     }
+    // Same mislabel guard as swatches: RS filenames encode the color as
+    // {style}_{Name}_{color}_{ColorName}_RS — when it contradicts metadata,
+    // the asset is mislabeled on EF's side (Kyoto scenes tagged Easter
+    // Island). Trust the filename and skip.
+    const rsFn = String(img.public_id || '').match(/^[A-Z0-9]+_[A-Za-z_]+?_(\d{2,5})_/i);
+    if (rsFn && rsFn[1].replace(/^0+/, '') !== String(colorCode).replace(/^0+/, '')) {
+      console.log(`  [SKIP mislabeled RS] ${img.public_id}: filename color ${rsFn[1]} != metadata ${colorCode}`);
+      rsDropped++;
+      continue;
+    }
     const matchedSkus = (skuIndex[style] || {})[colorCode] || [];
     if (matchedSkus.length === 0) { rsDropped++; continue; }
     for (const sku of matchedSkus) {
