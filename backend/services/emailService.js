@@ -483,6 +483,139 @@ export async function sendNewOrderStaffAlert(order) {
 }
 
 /**
+ * Personal new-order alert to the assigned sales rep. Complements the shared
+ * staff alert: sent only when the order carries a rep (rep_email attached via
+ * attachRep). Reply-To is the customer so the rep can respond in one step.
+ */
+export async function sendNewOrderRepAlert(order) {
+  if (!order.rep_email) return;
+  if (!transporter) {
+    console.log(`[Email] Skipping new-order rep alert for ${order.order_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const items = Array.isArray(order.items) ? order.items : [];
+    const itemRows = items.slice(0, 12).map(i =>
+      `<tr><td style="padding:4px 12px 4px 0;color:#44403c;">${i.product_name || i.name || 'Item'}${i.variant_name ? ' — ' + i.variant_name : ''}</td>` +
+      `<td style="padding:4px 0;color:#78716c;white-space:nowrap;">×${i.quantity || i.num_boxes || 1}</td></tr>`
+    ).join('');
+    const more = items.length > 12 ? `<p style="color:#78716c;">…and ${items.length - 12} more line(s)</p>` : '';
+    const method = order.delivery_method === 'pickup' ? 'Pickup' : (order.delivery_method || 'Delivery');
+    const html = `
+      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;">
+        <p style="margin:0 0 12px;color:#44403c;">Hi ${escapeHtml(order.rep_first_name || 'there')},</p>
+        <p style="margin:0 0 16px;color:#44403c;">Your customer just placed an order online — it's assigned to you.</p>
+        <h2 style="color:#1c1917;margin:0 0 4px;">Order ${order.order_number}</h2>
+        <p style="font-size:22px;margin:0 0 16px;color:#1c1917;"><strong>$${parseFloat(order.total || 0).toFixed(2)}</strong> · ${method}</p>
+        <p style="margin:0 0 16px;color:#44403c;">
+          ${escapeHtml(order.customer_name || 'Guest')} · ${escapeHtml(order.customer_email || '')}${order.phone ? ' · ' + escapeHtml(order.phone) : ''}
+        </p>
+        <table style="border-collapse:collapse;font-size:14px;">${itemRows}</table>${more}
+        <p style="margin:20px 0 0;">
+          <a href="https://romaflooringdesigns.com/rep" style="color:#8a6d3b;">Open in rep portal</a>
+        </p>
+      </div>`;
+    await deliver({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: order.rep_email,
+      replyTo: order.customer_email || undefined,
+      subject: `Your customer placed order ${order.order_number} — $${parseFloat(order.total || 0).toFixed(2)} — ${order.customer_name || 'Guest'}`,
+      html
+    });
+    console.log(`[Email] New-order rep alert sent to ${order.rep_email} for ${order.order_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send new-order rep alert for ${order.order_number}:`, err.message);
+  }
+}
+
+/**
+ * Personal sample-request alert to the customer's dedicated rep. Same contract
+ * as sendNewOrderRepAlert: silently skipped unless rep_email is attached.
+ */
+export async function sendNewSampleRequestRepAlert(sr) {
+  if (!sr.rep_email) return;
+  if (!transporter) {
+    console.log(`[Email] Skipping sample-request rep alert for ${sr.request_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const items = Array.isArray(sr.items) ? sr.items : [];
+    const itemRows = items.slice(0, 12).map(i =>
+      `<tr><td style="padding:4px 12px 4px 0;color:#44403c;">${i.product_name || 'Item'}${i.variant_name ? ' — ' + i.variant_name : ''}</td></tr>`
+    ).join('');
+    const more = items.length > 12 ? `<p style="color:#78716c;">…and ${items.length - 12} more sample(s)</p>` : '';
+    const method = sr.delivery_method === 'pickup' ? 'Pickup' : 'Shipping';
+    const html = `
+      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;">
+        <p style="margin:0 0 12px;color:#44403c;">Hi ${escapeHtml(sr.rep_first_name || 'there')},</p>
+        <p style="margin:0 0 16px;color:#44403c;">Your customer just requested samples online.</p>
+        <h2 style="color:#1c1917;margin:0 0 4px;">Sample request ${sr.request_number}</h2>
+        <p style="font-size:18px;margin:0 0 16px;color:#1c1917;">${items.length} sample${items.length === 1 ? '' : 's'} · ${method}</p>
+        <p style="margin:0 0 16px;color:#44403c;">
+          ${escapeHtml(sr.customer_name || 'Guest')} · ${escapeHtml(sr.customer_email || '')}${sr.phone ? ' · ' + escapeHtml(sr.phone) : ''}
+        </p>
+        <table style="border-collapse:collapse;font-size:14px;">${itemRows}</table>${more}
+        <p style="margin:20px 0 0;">
+          <a href="https://romaflooringdesigns.com/rep" style="color:#8a6d3b;">Open in rep portal</a>
+        </p>
+      </div>`;
+    await deliver({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: sr.rep_email,
+      replyTo: sr.customer_email || undefined,
+      subject: `Your customer requested samples — ${sr.request_number} — ${sr.customer_name || 'Guest'}`,
+      html
+    });
+    console.log(`[Email] Sample-request rep alert sent to ${sr.rep_email} for ${sr.request_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send sample-request rep alert for ${sr.request_number}:`, err.message);
+  }
+}
+
+/**
+ * Personal installation-inquiry alert to the customer's dedicated rep. Same
+ * contract as sendNewOrderRepAlert: silently skipped unless rep_email is attached.
+ */
+export async function sendNewInstallInquiryRepAlert(inquiry) {
+  if (!inquiry.rep_email) return;
+  if (!transporter) {
+    console.log(`[Email] Skipping install-inquiry rep alert for ${inquiry.customer_email} — SMTP not configured`);
+    return;
+  }
+  try {
+    const facts = [];
+    if (inquiry.product_name) facts.push(escapeHtml(inquiry.product_name + (inquiry.collection ? ' (' + inquiry.collection + ')' : '')));
+    const sqft = parseFloat(inquiry.estimated_sqft);
+    if (!isNaN(sqft) && sqft > 0) facts.push(sqft.toFixed(0) + ' sqft');
+    if (inquiry.zip_code) facts.push('zip ' + escapeHtml(inquiry.zip_code));
+    const html = `
+      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;">
+        <p style="margin:0 0 12px;color:#44403c;">Hi ${escapeHtml(inquiry.rep_first_name || 'there')},</p>
+        <p style="margin:0 0 16px;color:#44403c;">Your customer just sent an installation inquiry.</p>
+        <h2 style="color:#1c1917;margin:0 0 4px;">Installation inquiry</h2>
+        ${facts.length ? `<p style="font-size:18px;margin:0 0 16px;color:#1c1917;">${facts.join(' · ')}</p>` : ''}
+        <p style="margin:0 0 16px;color:#44403c;">
+          ${escapeHtml(inquiry.customer_name || '')} · ${escapeHtml(inquiry.customer_email || '')}${inquiry.phone ? ' · ' + escapeHtml(inquiry.phone) : ''}
+        </p>
+        ${inquiry.message ? `<p style="margin:0 0 16px;color:#44403c;border-left:3px solid #e7e5e4;padding-left:12px;">${escapeHtml(inquiry.message)}</p>` : ''}
+        <p style="margin:20px 0 0;">
+          <a href="https://romaflooringdesigns.com/rep" style="color:#8a6d3b;">Open in rep portal</a>
+        </p>
+      </div>`;
+    await deliver({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: inquiry.rep_email,
+      replyTo: inquiry.customer_email || undefined,
+      subject: `Your customer sent an installation inquiry — ${inquiry.customer_name || ''}`,
+      html
+    });
+    console.log(`[Email] Install-inquiry rep alert sent to ${inquiry.rep_email} for ${inquiry.customer_email}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send install-inquiry rep alert for ${inquiry.customer_email}:`, err.message);
+  }
+}
+
+/**
  * Send installation inquiry notification to staff.
  */
 export async function sendInstallationInquiryNotification(inquiry) {

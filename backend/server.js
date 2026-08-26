@@ -9,7 +9,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -58,6 +58,36 @@ async function attachRep(obj) {
     }
   } catch (err) { /* non-fatal — fall back to brand From */ }
   return obj;
+}
+
+// Resolve the rep who owns a storefront event: explicit order rep first, then
+// the trade account's assigned rep, then the retail customer's (by id, then by
+// email — the only key installation inquiries have). Only active reps are
+// returned so dedicated alerts never target a deactivated account; null means
+// nobody owns the customer and callers fall back to the all-rep broadcast.
+async function resolveCustomerRep({ sales_rep_id, trade_customer_id, customer_id, customer_email } = {}) {
+  const SEL = 'SELECT sa.id, sa.email, sa.first_name, sa.last_name FROM staff_accounts sa';
+  try {
+    if (sales_rep_id) {
+      const r = await pool.query(`${SEL} WHERE sa.id = $1 AND sa.is_active = true`, [sales_rep_id]);
+      if (r.rows.length) return r.rows[0];
+    }
+    if (trade_customer_id) {
+      const r = await pool.query(`${SEL} JOIN trade_customers tc ON tc.assigned_rep_id = sa.id WHERE tc.id = $1 AND sa.is_active = true`, [trade_customer_id]);
+      if (r.rows.length) return r.rows[0];
+    }
+    if (customer_id) {
+      const r = await pool.query(`${SEL} JOIN customers c ON c.assigned_rep_id = sa.id WHERE c.id = $1 AND sa.is_active = true`, [customer_id]);
+      if (r.rows.length) return r.rows[0];
+    }
+    if (customer_email) {
+      const r = await pool.query(`${SEL} JOIN customers c ON c.assigned_rep_id = sa.id WHERE LOWER(c.email) = LOWER($1) AND sa.is_active = true`, [customer_email]);
+      if (r.rows.length) return r.rows[0];
+      const t = await pool.query(`${SEL} JOIN trade_customers tc ON tc.assigned_rep_id = sa.id WHERE LOWER(tc.email) = LOWER($1) AND sa.is_active = true`, [customer_email]);
+      if (t.rows.length) return t.rows[0];
+    }
+  } catch (err) { console.error('[resolveCustomerRep]', err.message); }
+  return null;
 }
 
 // Shared email-format check for all customer entry endpoints
@@ -6065,10 +6095,22 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       }));
     }
 
-    // Fire-and-forget: notify all active reps about new storefront order
+    // Fire-and-forget: rep alerts. A customer dedicated to a rep alerts ONLY
+    // that rep (personal email + in-app); unowned customers broadcast the
+    // in-app note to all active reps as before (no rep email).
     const repNotifTitle = isBankTransfer ? 'New Bank Transfer Order ' + order.order_number : 'New Order ' + order.order_number;
     const repNotifBody = order.customer_name + ' placed order ' + order.order_number + ' ($' + parseFloat(order.total).toFixed(2) + ')' + (isBankTransfer ? ' — awaiting bank transfer' : '');
-    setImmediate(() => notifyAllActiveReps(pool, 'new_order', repNotifTitle, repNotifBody, 'order', order.id));
+    setImmediate(async () => {
+      const rep = await resolveCustomerRep(order);
+      if (rep) {
+        const repFields = { rep_email: rep.email, rep_first_name: rep.first_name, rep_last_name: rep.last_name };
+        sendNewOrderRepAlert({ ...emailOrder, ...repFields });
+        if (sampleRequest) sendNewSampleRequestRepAlert({ ...sampleRequest, phone: sampleRequest.customer_phone, ...repFields });
+        createRepNotification(pool, rep.id, 'new_order', repNotifTitle, repNotifBody, 'order', order.id);
+      } else {
+        notifyAllActiveReps(pool, 'new_order', repNotifTitle, repNotifBody, 'order', order.id);
+      }
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     // Unique-violation on stripe_payment_intent_id: a concurrent request for
@@ -32537,16 +32579,24 @@ app.post('/api/installation-inquiries', async (req, res) => {
     sendInstallationInquiryNotification(inquiry).catch(err => console.error('[Install Inquiry] Staff email error:', err.message));
     sendInstallationInquiryConfirmation(inquiry).catch(err => console.error('[Install Inquiry] Confirmation email error:', err.message));
 
-    // Fire-and-forget: notify all active reps in the rep portal
+    // Fire-and-forget: a customer dedicated to a rep alerts ONLY that rep
+    // (personal email + in-app); unowned customers broadcast to all active reps.
     const inqDetails = [];
     if (product_name) inqDetails.push(product_name + (collection ? ' (' + collection + ')' : ''));
     const inqSqft = parseFloat(estimated_sqft);
     if (!isNaN(inqSqft) && inqSqft > 0) inqDetails.push(inqSqft.toFixed(0) + ' sqft');
     if (zip_code) inqDetails.push('zip ' + zip_code);
-    setImmediate(() => notifyAllActiveReps(pool, 'installation_inquiry',
-      'Installation inquiry from ' + customer_name,
-      inqDetails.join(' · ') || null,
-      'installation_inquiry', result.rows[0].id));
+    const inqTitle = 'Installation inquiry from ' + customer_name;
+    const inqBody = inqDetails.join(' · ') || null;
+    setImmediate(async () => {
+      const rep = await resolveCustomerRep({ customer_email });
+      if (rep) {
+        sendNewInstallInquiryRepAlert({ ...inquiry, rep_email: rep.email, rep_first_name: rep.first_name, rep_last_name: rep.last_name });
+        createRepNotification(pool, rep.id, 'installation_inquiry', inqTitle, inqBody, 'installation_inquiry', result.rows[0].id);
+      } else {
+        notifyAllActiveReps(pool, 'installation_inquiry', inqTitle, inqBody, 'installation_inquiry', result.rows[0].id);
+      }
+    });
 
     res.json({ success: true, inquiry_id: result.rows[0].id });
   } catch (err) {
