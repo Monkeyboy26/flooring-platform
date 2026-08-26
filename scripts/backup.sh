@@ -41,4 +41,12 @@ fi
 echo "Cleaning local backups older than ${LOCAL_RETENTION_DAYS} days..."
 find "${BACKUP_DIR}" -name "flooring_pim_backup_*.sql.gz" -mtime +${LOCAL_RETENTION_DAYS} -delete
 
+# Media backup — product images in uploads/ (mounted ro). s3 sync is
+# incremental, so after the initial seed each nightly run only uploads
+# new/changed files. No --delete: the bucket keeps files removed locally.
+if [ -n "${S3_BACKUP_BUCKET:-}" ] && [ -d /uploads ]; then
+    echo "Syncing uploads/ media to S3..."
+    aws s3 sync /uploads "s3://${S3_BACKUP_BUCKET}/uploads/" --only-show-errors || echo "WARN: media sync failed"
+fi
+
 echo "Backup complete"

@@ -119,6 +119,7 @@ services:
       - ./scripts/backup.sh:/backup.sh:ro
       - ./scripts/backup-cron:/etc/crontabs/root:ro
       - backup_data:/backups
+      - ./uploads:/uploads:ro
     entrypoint: "/bin/sh -c 'apk add --no-cache aws-cli && crond -f -l 2'"
     logging:
       driver: json-file
