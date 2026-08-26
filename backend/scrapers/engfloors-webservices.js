@@ -108,7 +108,11 @@ function httpsGet(url, timeoutMs = 15000, deadlineMs = 30000, agent = undefined)
         req.destroy();
         return;
       }
-      if (sock && sock.authorizationError === 'CERT_HAS_EXPIRED') {
+      if (sock && sock.authorizationError === 'CERT_HAS_EXPIRED' && !sock.__efIdentityOk) {
+        // Verify identity once per socket: on keep-alive REUSED sockets Node
+        // returns an empty object from getPeerCertificate(), which would fail
+        // the check spuriously. TLS guarantees the peer cannot change on an
+        // established connection, so a socket that passed once stays trusted.
         const cert = sock.getPeerCertificate();
         const cn = (cert && cert.subject && cert.subject.CN) || '';
         const issuerO = (cert && cert.issuer && cert.issuer.O) || '';
@@ -117,6 +121,7 @@ function httpsGet(url, timeoutMs = 15000, deadlineMs = 30000, agent = undefined)
           req.destroy();
           return;
         }
+        sock.__efIdentityOk = true;
       }
       let data = '';
       res.on('data', (c) => {
