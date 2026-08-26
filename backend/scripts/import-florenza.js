@@ -38,11 +38,32 @@ try { images = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'images.json'), 'u
 catch { console.warn('! images.json not found — importing without photos'); }
 
 const MARKUP = catalog.markup || 1.6;
-const keystone = (cost) => parseFloat((Math.round(cost * MARKUP / 0.05) * 0.05).toFixed(2));
+// Round DOWN to the nearest .x9 with the covering floor (cost + $0.99) for
+// per_sqft rows — matches platform-wide charm pricing (see [[nine-ending-prices]]
+// and backfill-round-down-nine.mjs; this importer predated that rule).
+const nineDown = (v) => {
+  const cents = Math.round(Number(v) * 100);
+  const k = Math.floor((cents - 9) / 10);
+  return Math.max(9, k * 10 + 9) / 100;
+};
+const keystone = (cost, basis) => {
+  const base = cost * MARKUP;
+  const floorMin = (basis === 'per_sqft' || basis === 'sqft') ? cost + 0.99 : 0;
+  let nine = nineDown(Math.max(base, floorMin));
+  if (floorMin > 0 && nine < floorMin - 1e-9) nine = Math.round((nine + 0.10) * 100) / 100;
+  return nine;
+};
 const SOURCE = 'florenzaceramic.com';
 
 // ==================== DB helpers ====================
 async function upsertVendor(v) {
+  // Resolve by name OR code first — the live vendor's code drifted to a numeric
+  // public code ('548'), so an ON CONFLICT (code) upsert with 'FLZ' would
+  // silently create a DUPLICATE vendor and orphan every product under the old
+  // one (happened 2026-08-26; repaired by hand).
+  const existing = await pool.query(
+    `SELECT id FROM vendors WHERE name=$1 OR code=$2 LIMIT 1`, [v.name, v.code]);
+  if (existing.rows.length) return existing.rows[0].id;
   const r = await pool.query(`
     INSERT INTO vendors (name, code, website, email, phone, address, notes)
     VALUES ($1,$2,$3,$4,$5,$6,$7)
@@ -214,7 +235,7 @@ async function importProduct(p, vendorId, brandId, catId) {
       variant_name: s.variant_name, sell_by: s.sell_by, variant_type: s.variant_type,
       accessory_label: s.accessory_label, status: 'active',
     });
-    await upsertPricing(skuId, s.cost, keystone(s.cost), s.price_basis);
+    await upsertPricing(skuId, s.cost, keystone(s.cost, s.price_basis), s.price_basis);
     await upsertPackaging(skuId, { sqft_box: s.sqft_box, pcs_box: s.pcs_box, boxes_pallet: s.boxes_pallet });
 
     // SKU-specific photos (size/finish/surface/accessory matched from the filename)

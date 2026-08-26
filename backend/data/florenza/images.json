@@ -312,6 +312,23 @@
       }
     }
   },
+  "FLZ-chianca-avorio-ch-outdoor-r11": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/ch_avorio-12x24-1.jpeg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/ch_avorio.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_chb_avorio_24x48-e1778094914246.jpeg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/Chianca_Chb_Avorio_24x48.jpg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/ch_avorio-24x241-1.jpeg"
+      ]
+    },
+    "skus": {
+      "24x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/ch_avorio-24x241-1.jpeg",
+        "alternates": []
+      }
+    }
+  },
   "FLZ-chianca-beige": {
     "product": {
       "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_ch_beige_-12x24-1.jpeg",
@@ -331,6 +348,21 @@
       },
       "24x48": {
         "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_chb_beige_24x48a.jpeg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-chianca-beige-ch-outdoor-r11": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_ch_beige_-12x24-1.jpeg",
+      "alternates": [
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_chb_beige_24x48a.jpeg",
+        "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_ch_beige_-24x24-1.jpeg"
+      ]
+    },
+    "skus": {
+      "24x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/05/chianca_ch_beige_-24x24-1.jpeg",
         "alternates": []
       }
     }
@@ -926,6 +958,20 @@
     },
     "skus": {}
   },
+  "FLZ-rustic-cotto-anti-slip": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/03/RUSTIC-COTTO.jpeg",
+      "alternates": []
+    },
+    "skus": {}
+  },
+  "FLZ-rustic-natura-anti-slip": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/03/RUSTIC-NATURA.jpeg",
+      "alternates": []
+    },
+    "skus": {}
+  },
   "FLZ-safari-gris": {
     "product": {
       "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/safari-gris.jpg",
@@ -996,13 +1042,6 @@
         "alternates": []
       }
     }
-  },
-  "FLZ-solna-blanco": {
-    "product": {
-      "primary": "https://florenzaceramic.com/wp-content/uploads/2018/11/solna-blanco.jpg",
-      "alternates": []
-    },
-    "skus": {}
   },
   "FLZ-sorano-rosso": {
     "product": {
@@ -1160,6 +1199,42 @@
     "skus": {
       "12x24": {
         "primary": "https://florenzaceramic.com/wp-content/uploads/2017/05/Umbria-Brown-12x24-1-scaled.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-venetian-stone-white": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/07/venetian-stone-white-24x24-1.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "24x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/07/venetian-stone-white-24x24-1.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-venetian-stone-beige": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/07/venetian-stone-beige-24x24-1.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "24x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/07/venetian-stone-beige-24x24-1.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "FLZ-venetian-stone-gris": {
+    "product": {
+      "primary": "https://florenzaceramic.com/wp-content/uploads/2026/07/venetian-stone-gris-24x24-1.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "24x24": {
+        "primary": "https://florenzaceramic.com/wp-content/uploads/2026/07/venetian-stone-gris-24x24-1.jpg",
         "alternates": []
       }
     }

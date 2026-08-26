@@ -464,7 +464,7 @@
           "thickness": null,
           "finish": null,
           "surface": null,
-          "cost": 3.25,
+          "cost": 3.75,
           "uom": "SF",
           "sqft_box": 15.5,
           "pcs_box": 6,
@@ -2411,6 +2411,64 @@
       "color": "Avorio"
     },
     {
+      "pkey": "FLZ-chianca-avorio-ch-outdoor-r11",
+      "key": "chianca avorio outdoor r11",
+      "kind": "field",
+      "name": "Chianca Avorio CH, Outdoor, R11",
+      "collection": "Chianca Avorio CH, Outdoor, R11",
+      "category": "porcelain-tile",
+      "material": "Porcelain",
+      "look": null,
+      "origin": "Italy",
+      "origins": [
+        "Italy"
+      ],
+      "status": "active",
+      "skus": [
+        {
+          "variant_name": "12\"x12\"",
+          "size": "12x12",
+          "size_nominal": "12\"x12\"",
+          "thickness": null,
+          "finish": null,
+          "surface": null,
+          "cost": 4.19,
+          "uom": "SF",
+          "sqft_box": 13,
+          "pcs_box": 13,
+          "boxes_pallet": 40,
+          "type": "Porcelain",
+          "origin": "Italy",
+          "sell_by": "box",
+          "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null,
+          "suffix": "12x12"
+        },
+        {
+          "variant_name": "24\"x24\"",
+          "size": "24x24",
+          "size_nominal": "24\"x24\"",
+          "thickness": null,
+          "finish": null,
+          "surface": null,
+          "cost": 4.49,
+          "uom": "SF",
+          "sqft_box": 16.04,
+          "pcs_box": 4,
+          "boxes_pallet": 30,
+          "type": "Porcelain",
+          "origin": "Italy",
+          "sell_by": "box",
+          "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null,
+          "suffix": "24x24"
+        }
+      ],
+      "color": null
+    },
+    {
       "pkey": "FLZ-chianca-beige",
       "key": "chianca beige",
       "kind": "field",
@@ -2507,6 +2565,64 @@
         }
       ],
       "color": "Beige"
+    },
+    {
+      "pkey": "FLZ-chianca-beige-ch-outdoor-r11",
+      "key": "chianca beige outdoor r11",
+      "kind": "field",
+      "name": "Chianca Beige CH, Outdoor, R11",
+      "collection": "Chianca Beige CH, Outdoor, R11",
+      "category": "porcelain-tile",
+      "material": "Porcelain",
+      "look": null,
+      "origin": "Italy",
+      "origins": [
+        "Italy"
+      ],
+      "status": "active",
+      "skus": [
+        {
+          "variant_name": "12\"x12\"",
+          "size": "12x12",
+          "size_nominal": "12\"x12\"",
+          "thickness": null,
+          "finish": null,
+          "surface": null,
+          "cost": 4.19,
+          "uom": "SF",
+          "sqft_box": 13,
+          "pcs_box": 13,
+          "boxes_pallet": 40,
+          "type": "Porcelain",
+          "origin": "Italy",
+          "sell_by": "box",
+          "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null,
+          "suffix": "12x12"
+        },
+        {
+          "variant_name": "24\"x24\"",
+          "size": "24x24",
+          "size_nominal": "24\"x24\"",
+          "thickness": null,
+          "finish": null,
+          "surface": null,
+          "cost": 4.49,
+          "uom": "SF",
+          "sqft_box": 16.04,
+          "pcs_box": 4,
+          "boxes_pallet": 30,
+          "type": "Porcelain",
+          "origin": "Italy",
+          "sell_by": "box",
+          "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null,
+          "suffix": "24x24"
+        }
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-chestnut-fiber",
@@ -4314,7 +4430,7 @@
           "thickness": null,
           "finish": null,
           "surface": null,
-          "cost": 3.25,
+          "cost": 3.75,
           "uom": "SF",
           "sqft_box": 15.5,
           "pcs_box": 6,
@@ -7049,6 +7165,82 @@
       "color": "Natura"
     },
     {
+      "pkey": "FLZ-rustic-cotto-anti-slip",
+      "key": "rustic cotto anti slip",
+      "kind": "field",
+      "name": "Rustic Cotto Anti-Slip",
+      "collection": "Rustic Cotto Anti-Slip",
+      "category": "porcelain-tile",
+      "material": "Porcelain",
+      "look": "Stone",
+      "origin": "Spain",
+      "origins": [
+        "Spain"
+      ],
+      "status": "active",
+      "skus": [
+        {
+          "variant_name": "13\"x13\"",
+          "size": "13x13",
+          "size_nominal": "13\"x13\"",
+          "thickness": null,
+          "finish": null,
+          "surface": null,
+          "cost": 3.49,
+          "uom": "SF",
+          "sqft_box": 14.21,
+          "pcs_box": 12,
+          "boxes_pallet": 48,
+          "type": "Porcelain",
+          "origin": "Spain",
+          "sell_by": "box",
+          "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null,
+          "suffix": "13x13"
+        }
+      ],
+      "color": null
+    },
+    {
+      "pkey": "FLZ-rustic-natura-anti-slip",
+      "key": "rustic natura anti slip",
+      "kind": "field",
+      "name": "Rustic Natura Anti-Slip",
+      "collection": "Rustic Natura Anti-Slip",
+      "category": "porcelain-tile",
+      "material": "Porcelain",
+      "look": "Stone",
+      "origin": "Spain",
+      "origins": [
+        "Spain"
+      ],
+      "status": "active",
+      "skus": [
+        {
+          "variant_name": "13\"x13\"",
+          "size": "13x13",
+          "size_nominal": "13\"x13\"",
+          "thickness": null,
+          "finish": null,
+          "surface": null,
+          "cost": 3.49,
+          "uom": "SF",
+          "sqft_box": 14.21,
+          "pcs_box": 12,
+          "boxes_pallet": 48,
+          "type": "Porcelain",
+          "origin": "Spain",
+          "sell_by": "box",
+          "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null,
+          "suffix": "13x13"
+        }
+      ],
+      "color": null
+    },
+    {
       "pkey": "FLZ-safari-crema",
       "key": "safari crema",
       "kind": "field",
@@ -7713,44 +7905,6 @@
         }
       ],
       "color": "white"
-    },
-    {
-      "pkey": "FLZ-solna-blanco",
-      "key": "solna blanco",
-      "kind": "field",
-      "name": "Solna Blanco",
-      "collection": "Solna Blanco",
-      "category": "porcelain-tile",
-      "material": "Porcelain",
-      "look": null,
-      "origin": "Spain",
-      "origins": [
-        "Spain"
-      ],
-      "status": "active",
-      "skus": [
-        {
-          "variant_name": "6\"x36\"",
-          "size": "6x36",
-          "size_nominal": "6\"x36\"",
-          "thickness": null,
-          "finish": null,
-          "surface": null,
-          "cost": 1.99,
-          "uom": "SF",
-          "sqft_box": 13.09,
-          "pcs_box": 9,
-          "boxes_pallet": 48,
-          "type": "Porcelain",
-          "origin": "Spain",
-          "sell_by": "box",
-          "price_basis": "per_sqft",
-          "variant_type": null,
-          "accessory_label": null,
-          "suffix": "6x36"
-        }
-      ],
-      "color": null
     },
     {
       "pkey": "FLZ-solstica-blanco",
@@ -9477,6 +9631,140 @@
         }
       ],
       "color": null
+    },
+    {
+      "pkey": "FLZ-venetian-stone-white",
+      "key": "venetian stone white",
+      "kind": "field",
+      "name": "Venetian Stone White",
+      "collection": "Venetian Stone",
+      "category": "porcelain-tile",
+      "material": "Porcelain",
+      "look": "Marble",
+      "origin": "Italy",
+      "origins": [
+        "Italy"
+      ],
+      "status": "active",
+      "skus": [
+        {
+          "variant_name": "24\"x24\"",
+          "size": "24x24",
+          "size_nominal": "24\"x24\"",
+          "thickness": null,
+          "finish": null,
+          "surface": null,
+          "cost": 3.99,
+          "uom": "SF",
+          "sqft_box": 15.5,
+          "pcs_box": 4,
+          "boxes_pallet": 32,
+          "type": "Porcelain",
+          "origin": "Italy",
+          "sell_by": "box",
+          "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null,
+          "suffix": "24x24"
+        },
+        {
+          "variant_name": "24\"x48\"",
+          "size": "24x48",
+          "size_nominal": "24\"x48\"",
+          "thickness": null,
+          "finish": null,
+          "surface": null,
+          "cost": 4.49,
+          "uom": "SF",
+          "sqft_box": 15.5,
+          "pcs_box": 2,
+          "boxes_pallet": 30,
+          "type": "Porcelain",
+          "origin": "Italy",
+          "sell_by": "box",
+          "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null,
+          "suffix": "24x48"
+        }
+      ],
+      "color": "White"
+    },
+    {
+      "pkey": "FLZ-venetian-stone-beige",
+      "key": "venetian stone beige",
+      "kind": "field",
+      "name": "Venetian Stone Beige",
+      "collection": "Venetian Stone",
+      "category": "porcelain-tile",
+      "material": "Porcelain",
+      "look": "Marble",
+      "origin": "Italy",
+      "origins": [
+        "Italy"
+      ],
+      "status": "active",
+      "skus": [
+        {
+          "variant_name": "24\"x24\"",
+          "size": "24x24",
+          "size_nominal": "24\"x24\"",
+          "thickness": null,
+          "finish": null,
+          "surface": null,
+          "cost": 3.99,
+          "uom": "SF",
+          "sqft_box": 15.5,
+          "pcs_box": 4,
+          "boxes_pallet": 32,
+          "type": "Porcelain",
+          "origin": "Italy",
+          "sell_by": "box",
+          "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null,
+          "suffix": "24x24"
+        }
+      ],
+      "color": "Beige"
+    },
+    {
+      "pkey": "FLZ-venetian-stone-gris",
+      "key": "venetian stone gris",
+      "kind": "field",
+      "name": "Venetian Stone Gris",
+      "collection": "Venetian Stone",
+      "category": "porcelain-tile",
+      "material": "Porcelain",
+      "look": "Marble",
+      "origin": "Italy",
+      "origins": [
+        "Italy"
+      ],
+      "status": "active",
+      "skus": [
+        {
+          "variant_name": "24\"x24\"",
+          "size": "24x24",
+          "size_nominal": "24\"x24\"",
+          "thickness": null,
+          "finish": null,
+          "surface": null,
+          "cost": 3.99,
+          "uom": "SF",
+          "sqft_box": 15.5,
+          "pcs_box": 4,
+          "boxes_pallet": 32,
+          "type": "Porcelain",
+          "origin": "Italy",
+          "sell_by": "box",
+          "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null,
+          "suffix": "24x24"
+        }
+      ],
+      "color": "Gris"
     },
     {
       "pkey": "FLZ-veneto-black",
