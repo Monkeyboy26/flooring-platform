@@ -439,6 +439,50 @@ export async function send2FACode(email, code) {
 }
 
 /**
+ * Internal alert: a new storefront order landed. Without this, orders sit
+ * unseen until someone opens the admin — the customer gets a confirmation
+ * but staff got nothing.
+ */
+export async function sendNewOrderStaffAlert(order) {
+  if (!transporter) {
+    console.log(`[Email] Skipping new-order staff alert for ${order.order_number} — SMTP not configured`);
+    return;
+  }
+  try {
+    const toAddress = process.env.ORDER_NOTIFY_EMAIL || 'Sales@romaflooringdesigns.com';
+    const items = Array.isArray(order.items) ? order.items : [];
+    const itemRows = items.slice(0, 12).map(i =>
+      `<tr><td style="padding:4px 12px 4px 0;color:#44403c;">${i.product_name || i.name || 'Item'}${i.variant_name ? ' — ' + i.variant_name : ''}</td>` +
+      `<td style="padding:4px 0;color:#78716c;white-space:nowrap;">×${i.quantity || i.num_boxes || 1}</td></tr>`
+    ).join('');
+    const more = items.length > 12 ? `<p style="color:#78716c;">…and ${items.length - 12} more line(s)</p>` : '';
+    const method = order.delivery_method === 'pickup' ? 'Pickup' : (order.delivery_method || 'Delivery');
+    const html = `
+      <div style="font-family:Inter,Arial,sans-serif;max-width:560px;">
+        <h2 style="color:#1c1917;margin:0 0 4px;">New order ${order.order_number}</h2>
+        <p style="font-size:22px;margin:0 0 16px;color:#1c1917;"><strong>$${parseFloat(order.total || 0).toFixed(2)}</strong> · ${method}</p>
+        <p style="margin:0 0 16px;color:#44403c;">
+          ${order.customer_name || 'Guest'} · ${order.customer_email || ''}${order.phone ? ' · ' + order.phone : ''}
+        </p>
+        <table style="border-collapse:collapse;font-size:14px;">${itemRows}</table>${more}
+        <p style="margin:20px 0 0;">
+          <a href="https://romaflooringdesigns.com/admin" style="color:#8a6d3b;">Open in admin</a>
+        </p>
+      </div>`;
+    await deliver({
+      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      to: toAddress,
+      replyTo: order.customer_email || undefined,
+      subject: `New order ${order.order_number} — $${parseFloat(order.total || 0).toFixed(2)} — ${order.customer_name || 'Guest'}`,
+      html
+    });
+    console.log(`[Email] New-order staff alert sent to ${toAddress} for ${order.order_number}`);
+  } catch (err) {
+    console.error(`[Email] Failed to send new-order staff alert for ${order.order_number}:`, err.message);
+  }
+}
+
+/**
  * Send installation inquiry notification to staff.
  */
 export async function sendInstallationInquiryNotification(inquiry) {
