@@ -76,26 +76,39 @@ function deriveDisplayName(slugs) {
  * current product name (first run) and the vendor_sku prefix (idempotent
  * across re-runs after the product has been renamed).
  */
+// Series codes whose vendor_skus use a DIFFERENT prefix after the Apr-2026
+// price-list update renamed SKUs to Fujiwa's official item codes.
+const SKU_PREFIX_ALIASES = {
+  'LANTERN':     ['LT'],
+  'PEBBLESTONE': ['PEBBLE'],
+  'STONELEDGE':  ['SL'],
+  'VIP/S':       ['VIP', 'VIPS'],
+};
+
 async function findProductIdByCode(pool, vendorId, code) {
-  // 1. Exact name match (covers pre-rename state)
+  // 1. Name match, case-insensitive (covers post-overhaul display names
+  //    like 'Lantern' / 'Stoneledge' for codes 'LANTERN' / 'STONELEDGE')
   const byName = await pool.query(
-    `SELECT id FROM products WHERE vendor_id = $1 AND name = $2 LIMIT 1`,
+    `SELECT id FROM products WHERE vendor_id = $1 AND LOWER(name) = LOWER($2) LIMIT 1`,
     [vendorId, code]
   );
   if (byName.rows.length) return byName.rows[0].id;
 
-  // 2. Vendor SKU pattern (covers post-rename state).
+  // 2. Vendor SKU pattern — try the code itself plus any official-code
+  //    prefix aliases ('LANTERN' SKUs are now LT-*, 'STONELEDGE' → SL-*, …).
   //    'VIP/S' is stored in the DB as 'VIP-S'.
-  const pattern = code.replace('/', '-');
-  const bySku = await pool.query(
-    `SELECT DISTINCT p.id FROM products p
-       JOIN skus s ON s.product_id = p.id
-      WHERE p.vendor_id = $1
-        AND (s.vendor_sku = $2 OR s.vendor_sku LIKE $3)
-      LIMIT 1`,
-    [vendorId, pattern, pattern + '-%']
-  );
-  if (bySku.rows.length) return bySku.rows[0].id;
+  const prefixes = [code.replace('/', '-'), ...(SKU_PREFIX_ALIASES[code] || [])];
+  for (const pattern of prefixes) {
+    const bySku = await pool.query(
+      `SELECT DISTINCT p.id FROM products p
+         JOIN skus s ON s.product_id = p.id
+        WHERE p.vendor_id = $1
+          AND (s.vendor_sku = $2 OR s.vendor_sku LIKE $3)
+        LIMIT 1`,
+      [vendorId, pattern, pattern + '-%']
+    );
+    if (bySku.rows.length) return bySku.rows[0].id;
+  }
 
   return null;
 }
@@ -110,6 +123,7 @@ const TILE_URL_MAP = {
   'BORA':       ['bora-600-series'],
   'CEL':        ['celica-series'],
   'CRESTA':     ['cresta-series'],
+  'DORIS':      ['doris-series'],
   'EROS':       ['eros-100-series', 'eros-600-series'],
   'FGM':        ['fgm-series'],
   'FLORA':      ['flora-series'],
@@ -131,6 +145,7 @@ const TILE_URL_MAP = {
   'LOMBO':      ['lombo-series'],
   'LUNAR':      ['lunar-series'],
   'LYRA':       ['lyra-600-series'],
+  'METRO':      ['metro-series'],
   'NAMI':       ['nami-100-series', 'nami-600-series'],
   'NET':        ['net-600-series'],
   'OMEGA':      ['omega-series'],
@@ -168,6 +183,9 @@ const TILE_URL_MAP = {
   'VIP/S':      ['vip-series'],
   'YOMBA':      ['yomba-series'],
   'YUCCA':      ['yuca-series'],
+  // No page on the site yet as of Aug 2026 — 404s are skipped gracefully,
+  // so future re-runs pick Zeta up automatically once Fujiwa posts it.
+  'ZETA':       ['zeta-series'],
 };
 
 // Keys are the post-overhaul product names (see fujiwa-naming-overhaul.cjs).
@@ -344,7 +362,9 @@ function buildSkuMatcher(productSkus) {
   const bySuffix = new Map();  // all possible suffixes → sku row
 
   for (const sku of productSkus) {
-    const key = sku.vendor_sku.toLowerCase();
+    // Official codes can contain spaces (e.g., 'GS-SKY BLUE') — image
+    // filenames always hyphenate, so normalize before indexing.
+    const key = sku.vendor_sku.toLowerCase().replace(/\s+/g, '-');
     byExact.set(key, sku);
 
     // Index by ALL possible suffixes of the vendor_sku
@@ -363,18 +383,31 @@ function buildSkuMatcher(productSkus) {
  * Match a swatch image filename to a SKU.
  * Tries direct filename match first, then suffix matching.
  */
-function matchSwatchToSku(filename, matcher) {
-  const stem = filename.replace(/\.\w+$/, '').toLowerCase();
+function matchSwatchToSku(filename, matcher, dataValue = '') {
+  const candidates = [filename.replace(/\.\w+$/, ''), dataValue]
+    .map(s => s.toLowerCase())
+    .filter(Boolean);
 
-  // 1. Direct match: gs-black → gloss-solid-black? No, but joya-101 → joya-101 ✓
-  if (matcher.byExact.has(stem)) return matcher.byExact.get(stem);
+  for (const stem of candidates) {
+    // 1. Direct match: gs-black → gloss-solid-black? No, but joya-101 → joya-101 ✓
+    if (matcher.byExact.has(stem)) return matcher.byExact.get(stem);
 
-  // 2. Suffix match: strip progressive prefixes from the filename
-  // e.g., gs-black → try 'black' → matches GLOSS-SOLID-BLACK ✓
-  const parts = stem.split('-');
-  for (let i = 1; i < parts.length; i++) {
-    const suffix = parts.slice(i).join('-');
-    if (matcher.bySuffix.has(suffix)) return matcher.bySuffix.get(suffix);
+    const parts = stem.split('-');
+
+    // 2. Prefix match: strip trailing color words from the filename
+    // e.g., doris-811-marlin-green → try 'doris-811-marlin' → 'doris-811' ✓
+    // (2026-era uploads append the color name to the item code)
+    for (let i = parts.length - 1; i >= 1; i--) {
+      const prefix = parts.slice(0, i).join('-');
+      if (matcher.byExact.has(prefix)) return matcher.byExact.get(prefix);
+    }
+
+    // 3. Suffix match: strip progressive prefixes from the filename
+    // e.g., gs-black → try 'black' → matches GLOSS-SOLID-BLACK ✓
+    for (let i = 1; i < parts.length; i++) {
+      const suffix = parts.slice(i).join('-');
+      if (matcher.bySuffix.has(suffix)) return matcher.bySuffix.get(suffix);
+    }
   }
 
   return null;
@@ -446,7 +479,7 @@ async function scrapeTileProduct({ pool, page, productId, label, slugs, productS
   let skuMissed = 0;
   for (const sw of allSwatches) {
     const filename = sw.src.split('/').pop();
-    const matchedSku = matchSwatchToSku(filename, matcher);
+    const matchedSku = matchSwatchToSku(filename, matcher, sw.dataValue);
     if (matchedSku) {
       await upsertMediaAsset(pool, {
         product_id: productId, sku_id: matchedSku.id,
