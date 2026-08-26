@@ -58,7 +58,7 @@ body { font-family: var(--font-body); background: var(--warm-bg); color: var(--s
 .skip-link:focus { top: 0.5rem; }
 
 /* ── HEADER (Two Row) ── */
-header { background: var(--warm-bg); position: sticky; top: 0; z-index: var(--z-dropdown); }
+header { background: var(--warm-bg); position: sticky; top: 0; z-index: var(--z-dropdown); border-bottom: 0.5px solid rgba(21,18,15,0.07); }
 
 /* Home page: transparent header overlaying the full-viewport hero at the top */
 header.header--home { position: fixed; left: 0; right: 0; top: 0; background: transparent; transition: background 0.3s ease, box-shadow 0.3s ease; }
@@ -67,7 +67,7 @@ header.header--home:not(.scrolled) .utility-bar-left,
 header.header--home:not(.scrolled) .utility-bar-left span,
 header.header--home:not(.scrolled) .utility-bar-dot { color: #fff; }
 header.header--home:not(.scrolled) .utility-bar-phone { color: rgba(255,255,255,0.92); }
-header.header--home:not(.scrolled) .header-main { border-bottom-color: rgba(255,255,255,0.18); }
+header.header--home:not(.scrolled) { border-bottom-color: rgba(255,255,255,0.18); }
 header.header--home:not(.scrolled) .logo-text,
 header.header--home:not(.scrolled) .logo-wordmark,
 header.header--home:not(.scrolled) .logo-wordmark em,
@@ -97,7 +97,7 @@ header.header--home.scrolled { background: var(--warm-bg); box-shadow: 0 2px 16p
 .utility-bar-consult { color: var(--gold-dark) !important; font-weight: 500; }
 
 /* Main Header (Row 2) — CSS Grid: logo | nav | actions */
-.header-main { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2.5rem; height: var(--header-main-height); padding: 0 4rem; max-width: var(--max-width); margin: 0 auto; border-bottom: 0.5px solid rgba(21,18,15,0.07); }
+.header-main { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2.5rem; height: var(--header-main-height); padding: 0 4rem; max-width: var(--max-width); margin: 0 auto; }
 .header-main-left { display: flex; align-items: center; gap: 0.75rem; }
 .header-main-right { display: flex; align-items: center; justify-content: flex-end; gap: 0.25rem; }
 .logo { cursor: pointer; display: flex; align-items: center; justify-content: center; }
