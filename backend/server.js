@@ -9,7 +9,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendDailyAnalyticsSummary, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendQualityDigest, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -32337,116 +32337,6 @@ cron.schedule('0 7 * * *', async () => {
       console.error('[Analytics] Matview refresh error:', mvErr.message);
     }
 
-    // Send summary email to admin/manager staff
-    try {
-      const staffRes = await pool.query(
-        "SELECT email FROM staff_accounts WHERE role IN ('admin','manager') AND is_active = true"
-      );
-      if (staffRes.rows.length > 0) {
-        // Get top viewed-not-purchased for email
-        const vnp = await pool.query(`
-          WITH views AS (
-            SELECT properties->>'sku_id' as sku_id, COALESCE(properties->>'product_name','') as product_name,
-                   COUNT(*)::int as views
-            FROM analytics_events WHERE event_type = 'product_view' AND created_at >= $1 AND created_at <= $2
-              AND properties->>'sku_id' IS NOT NULL
-            GROUP BY properties->>'sku_id', properties->>'product_name'
-          ),
-          carts AS (
-            SELECT properties->>'sku_id' as sku_id, COUNT(*)::int as carts
-            FROM analytics_events WHERE event_type = 'add_to_cart' AND created_at >= $1 AND created_at <= $2
-              AND properties->>'sku_id' IS NOT NULL
-            GROUP BY properties->>'sku_id'
-          )
-          SELECT v.product_name, v.views, COALESCE(c.carts, 0) as carts
-          FROM views v LEFT JOIN carts c ON c.sku_id = v.sku_id
-          ORDER BY v.views DESC LIMIT 5
-        `, [dayStart, dayEnd]);
-
-        const zeroSearches = await pool.query(`
-          SELECT LOWER(properties->>'query') as term, COUNT(*)::int as count
-          FROM analytics_events WHERE event_type = 'search' AND created_at >= $1 AND created_at <= $2
-            AND properties->>'query' IS NOT NULL AND properties->>'results_count' IS NOT NULL AND (properties->>'results_count')::int = 0
-          GROUP BY LOWER(properties->>'query') ORDER BY count DESC LIMIT 5
-        `, [dayStart, dayEnd]);
-
-        await sendDailyAnalyticsSummary(
-          staffRes.rows.map(r => r.email),
-          {
-            stat_date: yesterday,
-            total_sessions: ss.total_sessions || 0,
-            unique_visitors: ss.unique_visitors || 0,
-            page_views: ec.page_view?.cnt || 0,
-            product_views: ec.product_view?.cnt || 0,
-            add_to_carts: ec.add_to_cart?.cnt || 0,
-            checkouts_started: ec.checkout_started?.cnt || 0,
-            orders_completed: ec.order_completed?.cnt || 0,
-            searches: ec.search?.cnt || 0,
-            sample_requests: ec.sample_request?.cnt || 0,
-            trade_signups: ec.trade_signup_complete?.cnt || 0,
-            total_revenue: parseFloat(revenueRes.rows[0]?.revenue || 0),
-            avg_session_duration_secs: ss.avg_duration || 0,
-            bounce_rate: parseFloat(ss.bounce_rate || 0),
-            cart_abandonment_rate: cartAbandonRate,
-            top_search_terms: topSearches.rows,
-            top_viewed_not_purchased: vnp.rows,
-            zero_result_searches: zeroSearches.rows
-          }
-        );
-      }
-    } catch (emailErr) {
-      console.error('[Analytics] Email summary error:', emailErr.message);
-    }
-
-    // Quality digest email
-    try {
-      const staffRes2 = await pool.query("SELECT email FROM staff_accounts WHERE role IN ('admin','manager') AND is_active = true");
-      if (staffRes2.rows.length > 0) {
-        const overallRes = await pool.query(`
-          SELECT ROUND(AVG(quality_score))::int as avg_score, COUNT(*)::int as total_skus,
-            COUNT(*) FILTER (WHERE quality_score >= 80) as good,
-            COUNT(*) FILTER (WHERE quality_score >= 50 AND quality_score < 80) as fair,
-            COUNT(*) FILTER (WHERE quality_score < 50) as poor,
-            COUNT(*) FILTER (WHERE has_image = 0) as no_image,
-            COUNT(*) FILTER (WHERE has_retail = 0) as no_price,
-            COUNT(*) FILTER (WHERE has_color = 0) as no_color,
-            COUNT(*) FILTER (WHERE has_description = 0) as no_description
-          FROM sku_quality_scores
-        `);
-        const vendorRes = await pool.query(`
-          SELECT vendor_name, ROUND(AVG(quality_score))::int as avg_score, COUNT(*)::int as sku_count,
-            COUNT(*) FILTER (WHERE has_image = 0) as no_image,
-            COUNT(*) FILTER (WHERE has_retail = 0) as no_price,
-            COUNT(*) FILTER (WHERE has_color = 0) as no_color
-          FROM sku_quality_scores
-          GROUP BY vendor_name HAVING ROUND(AVG(quality_score)) < 80
-          ORDER BY AVG(quality_score) ASC
-        `);
-        const worstRes = await pool.query(`
-          SELECT vendor_name, product_name, internal_sku, quality_score
-          FROM sku_quality_scores ORDER BY quality_score ASC, internal_sku LIMIT 10
-        `);
-        const vendors = vendorRes.rows.map(v => {
-          const issues = [];
-          if (v.no_image > 0) issues.push(`${v.no_image} no image`);
-          if (v.no_price > 0) issues.push(`${v.no_price} no price`);
-          if (v.no_color > 0) issues.push(`${v.no_color} no color`);
-          return { ...v, issues };
-        });
-        await sendQualityDigest(
-          staffRes2.rows.map(r => r.email),
-          {
-            generated_at: new Date().toISOString(),
-            overall: overallRes.rows[0],
-            vendors,
-            worst_skus: worstRes.rows
-          }
-        );
-        console.log('[Analytics] Quality digest sent');
-      }
-    } catch (qdErr) {
-      console.error('[Analytics] Quality digest error:', qdErr.message);
-    }
   } catch (err) {
     console.error('[Analytics] Daily aggregation error:', err.message);
   }

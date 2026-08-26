@@ -24,7 +24,6 @@ import { generateSampleRequestVendorEmailHTML } from '../templates/sampleRequest
 import { generateSampleShippingPaymentHTML } from '../templates/sampleShippingPayment.js';
 import { generateWelcomeSetPasswordHTML } from '../templates/welcomeSetPassword.js';
 import { generateWelcomeCustomerHTML } from '../templates/welcomeCustomer.js';
-import { generateDailyAnalyticsSummaryHTML } from '../templates/dailyAnalyticsSummary.js';
 import { generateDailyHealthCheckHTML } from '../templates/dailyHealthCheck.js';
 import { generateEstimateSentHTML } from '../templates/estimateSent.js';
 import { generateEstimateAcceptedHTML } from '../templates/estimateAccepted.js';
@@ -1323,61 +1322,6 @@ export async function sendOrderInvoiceEmail({ order, items, balance, checkout_ur
   } catch (err) {
     console.error(`[Email] Failed to send order invoice for ${order.order_number}:`, err.message);
     return { sent: false };
-  }
-}
-
-/**
- * Send daily analytics summary email to admin/manager staff.
- */
-export async function sendDailyAnalyticsSummary(staffEmails, summaryData) {
-  if (!transporter) {
-    console.log(`[Email] Skipping daily analytics summary — SMTP not configured`);
-    return;
-  }
-  if (!staffEmails || staffEmails.length === 0) {
-    console.log(`[Email] Skipping daily analytics summary — no recipients`);
-    return;
-  }
-  try {
-    const html = generateDailyAnalyticsSummaryHTML(summaryData);
-    const dateStr = new Date(summaryData.stat_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    await deliver({
-      from: NOREPLY_FROM,
-      to: staffEmails.join(', '),
-      subject: `Daily Analytics — ${dateStr}`,
-      html
-    });
-    console.log(`[Email] Daily analytics summary sent to ${staffEmails.length} recipient(s)`);
-  } catch (err) {
-    console.error(`[Email] Failed to send daily analytics summary:`, err.message);
-  }
-}
-
-/**
- * Send nightly quality digest email to admin/manager staff.
- */
-export async function sendQualityDigest(staffEmails, qualityData) {
-  if (!transporter) {
-    console.log(`[Email] Skipping quality digest — SMTP not configured`);
-    return;
-  }
-  if (!staffEmails || staffEmails.length === 0) {
-    console.log(`[Email] Skipping quality digest — no recipients`);
-    return;
-  }
-  try {
-    const { generateQualityDigestHTML } = await import('../templates/qualityDigest.js');
-    const html = generateQualityDigestHTML(qualityData);
-    const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    await deliver({
-      from: NOREPLY_FROM,
-      to: staffEmails.join(', '),
-      subject: `Data Quality Digest — ${dateStr} — Avg ${qualityData.overall.avg_score}`,
-      html
-    });
-    console.log(`[Email] Quality digest sent to ${staffEmails.length} recipient(s)`);
-  } catch (err) {
-    console.error(`[Email] Failed to send quality digest:`, err.message);
   }
 }
 
