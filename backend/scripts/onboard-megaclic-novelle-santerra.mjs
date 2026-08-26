@@ -203,17 +203,23 @@ try {
       await upsertAttribute(client, sku.id, 'Color', color);
       await upsertAttribute(client, sku.id, 'Collection', c.collection);
 
+      let accSort = 0;
       for (const [suffix, accName, accCost] of MOLDINGS[c.moldingTier]) {
         const { rows: [acc] } = await client.query(`
-          INSERT INTO skus (product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type, status)
-          VALUES ($1, $2, $3, $4, 'unit', 'accessory', 'active')
+          INSERT INTO skus (product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type, accessory_label, status)
+          VALUES ($1, $2, $3, $4, 'unit', 'accessory', $4, 'active')
           ON CONFLICT (internal_sku) DO UPDATE SET product_id = EXCLUDED.product_id, status = 'active',
-            updated_at = CURRENT_TIMESTAMP
+            accessory_label = EXCLUDED.accessory_label, updated_at = CURRENT_TIMESTAMP
           RETURNING id`, [prod.id, `${code}-${suffix}`, `MEGACLIC-${code}-${suffix}`, accName]);
         await client.query(`
           INSERT INTO pricing (sku_id, cost, retail_price, price_basis) VALUES ($1, $2, $3, 'per_unit')
           ON CONFLICT (sku_id) DO UPDATE SET cost=EXCLUDED.cost, retail_price=EXCLUDED.retail_price`,
           [acc.id, accCost, keystoneUnit(accCost)]);
+        // storefront surfaces accessories via sku_accessories linkage
+        await client.query(`
+          INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order) VALUES ($1, $2, $3)
+          ON CONFLICT (parent_sku_id, accessory_sku_id) DO UPDATE SET sort_order = EXCLUDED.sort_order`,
+          [sku.id, acc.id, accSort++]);
         accs++;
       }
     }
