@@ -376,7 +376,11 @@ export async function run(pool, job, source) {
   // expired cert, but the response handler still verifies the peer identity
   // (CN + DigiCert issuer) and rejects any OTHER validation failure. Remove
   // once `openssl s_client -connect www.engfloors.info:443` shows a fresh cert.
-  const agent = new https.Agent({ keepAlive: true, maxSockets: concurrency, rejectUnauthorized: false });
+  // maxCachedSessions: 0 — sockets that RESUME a cached TLS session skip the
+  // full handshake and getPeerCertificate() returns {}, which the identity
+  // guard below would reject as a mismatch. Forcing a full handshake per new
+  // socket keeps the cert inspectable on first use.
+  const agent = new https.Agent({ keepAlive: true, maxSockets: concurrency, rejectUnauthorized: false, maxCachedSessions: 0 });
   let nextIndex = 0;
   let backoffGate = null; // Promise all workers await while backing off
 
