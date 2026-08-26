@@ -172,6 +172,7 @@ const PRODUCT_PRIMARY_OVERRIDE = {
   'Granby Ivory':           'https://bellezzaceramica.com/wp-content/uploads/2024/09/Granby_beige_dark_grey_cam1.jpg',
   'Modern Concrete Ivory':  'https://bellezzaceramica.com/wp-content/uploads/2024/09/modern-concrete-ivory-detal-768x1086-1.jpg',
   'Montblanc Gold':         'https://bellezzaceramica.com/wp-content/uploads/2022/01/MONTBLANC-GOLD-24X48.jpg',
+  'Statuario Nice':         'https://bellezzaceramica.com/wp-content/uploads/2024/04/Statuario-Nice.jpg',
   'Westmount Beige':        'https://bellezzaceramica.com/wp-content/uploads/2024/09/westmount-beige-30x60-rf-1-e1695212563999-768x384-1.jpg',
 };
 
@@ -224,6 +225,20 @@ const MANUAL_SKU_IMAGES = {
   'Milano Mosaic::Gold':        'https://bellezzaceramica.com/wp-content/uploads/2024/10/Milano-Crema-0.jpg',  // no Gold image on vendor site; Crema as fallback
   'Milano Mosaic::Silver':      'https://bellezzaceramica.com/wp-content/uploads/2024/10/Milano-Crema-0.jpg',  // no Silver image on vendor site; Crema as fallback
   'Elven::Grafito':             'https://bellezzaceramica.com/wp-content/uploads/2020/01/ElvenGrafitoLapattoWallTile15X60.jpg',
+
+  // ── Fix wrong-color / wrong-variant images (Jul 2026 audit) ────
+  'Kadence::Perla':             'https://bellezzaceramica.com/wp-content/uploads/2022/02/KADENCE-PERLA-scaled-1.jpg',  // perla page leads with KADENCE-3.png, a room scene
+  'Concretus::Light Matte 36x36': 'https://bellezzaceramica.com/wp-content/uploads/2020/07/concretus-light-36x36-1.jpg',  // 36x36 page leads with OIP.jpeg lifestyle
+  'Mixit Concept::Blanco':      'https://bellezzaceramica.com/wp-content/uploads/2020/01/MixitConceptBlanco.jpg',
+  'Statuario Nice::':           'https://bellezzaceramica.com/wp-content/uploads/2024/04/Statuario-Nice.jpg',  // page gallery leads with Montblanc Gold image
+  'Frammenti::Azzurro Macro':   'https://bellezzaceramica.com/wp-content/uploads/2022/05/FR-2-MACRO_2000.jpeg',
+  'Frammenti::Grigio Brick':    'https://bellezzaceramica.com/wp-content/uploads/2022/05/FR-5-GRIGIO-BRICK.jpeg',
+  'Palatino::Ivory Deco':       'https://bellezzaceramica.com/wp-content/uploads/2024/09/Deco-Palatino-Ivory.png',
+  'WG001::Polished 24x24':      'https://bellezzaceramica.com/wp-content/uploads/2020/01/Wg001GPolish24X24.jpg',
+  'Calacatta Gold::':           'https://bellezzaceramica.com/wp-content/uploads/2022/05/06-Calacatta-Gold-Lux.jpg',
+  'Acoustic MDF Sound Absorption Panel::Light Walnut': 'https://bellezzaceramica.com/wp-content/uploads/2025/03/MDF-4.jpg',
+  'Acoustic MDF Sound Absorption Panel::Dark Walnut':  'https://bellezzaceramica.com/wp-content/uploads/2025/03/MDF-5.jpg',
+  // Black MDF panel: vendor has no black slat image; MDF-2 (pine) remains the fallback
 
   // ── Fix wrong-product image ────────────────────────────────────
   'Montblanc Gold::':           'https://bellezzaceramica.com/wp-content/uploads/2022/01/MONTBLANC-GOLD-24X48.jpg',
@@ -443,7 +458,9 @@ function generateDescription(productName, collection, meta) {
   let desc = `The ${name} is a`;
   if (finish) desc += ` ${finish.toLowerCase()}`;
   if (color && !name.toLowerCase().includes(color.toLowerCase())) desc += ` ${color.toLowerCase()}`;
-  desc += ` ${materialType} from the Bellezza Ceramica collection`;
+  // Bellezza Ceramica is a hidden vendor (vendors.hide_public_name) — never bake its name into
+  // generated descriptions, or a re-scrape would reintroduce the leak. See seoRenderer brand hiding.
+  desc += ` ${materialType}`;
 
   if (size) desc += `, available in ${size}`;
   desc += '.';
@@ -466,7 +483,7 @@ function generateBasicDescription(productName, collection) {
   else if (nameLC.includes('penny')) type = 'penny round mosaic tile';
   else if (nameLC.includes('linear') || nameLC.includes('stacked')) type = 'linear mosaic tile';
 
-  return `The ${productName} is a ${type} from the Bellezza Ceramica collection.`;
+  return `The ${productName} is a ${type}.`; // vendor name omitted — Bellezza is a hidden vendor
 }
 
 /**
@@ -620,6 +637,39 @@ function detectColorMismatch(variantName, imageUrl) {
   return false;
 }
 
+// ── Per-color lifestyle distribution ─────────────────────────────
+// Lifestyle/room-scene photos are usually color-specific. On multi-color
+// products, keeping them product-level leaks every color's room scenes into
+// every sibling's gallery (the SKU endpoint supplements single-image SKUs
+// with product-level lifestyle images). So: a lifestyle image whose filename
+// names exactly one of the product's colors is saved as a SKU-level lifestyle
+// on that color's SKUs; unmatched ones (brochures, collages, unsold
+// colorways) are saved as product-level alternates so they never supplement
+// a color page.
+const LIFESTYLE_COLOR_ALIASES = { bleu: 'blue', perla: 'pearla' };
+const LIFESTYLE_UNSOLD_TOKENS = ['tortora'];  // vendor colorways we don't carry
+
+function normColorPhrase(s) {
+  let t = (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  for (const [a, b] of Object.entries(LIFESTYLE_COLOR_ALIASES)) {
+    t = t.replace(new RegExp(`\\b${a}\\b`, 'g'), b);
+  }
+  return t;
+}
+
+/** Match a lifestyle image filename to exactly one product color, or null. */
+function matchLifestyleColor(url, colors) {
+  const file = ' ' + normColorPhrase(decodeURIComponent((url || '').split('/').pop()).replace(/\.\w{3,4}$/, '')) + ' ';
+  if (LIFESTYLE_UNSOLD_TOKENS.some(t => file.includes(t))) return null;
+  const matched = [...colors]
+    .sort((a, b) => b.length - a.length)
+    .filter(c => file.includes(' ' + normColorPhrase(c) + ' '));
+  // drop submatches contained in a longer matched color ("blue" inside "ash blue")
+  const final = matched.filter(c =>
+    !matched.some(o => o !== c && normColorPhrase(o).includes(normColorPhrase(c))));
+  return final.length === 1 ? final[0] : null;
+}
+
 async function run() {
   const vendorRes = await pool.query("SELECT id FROM vendors WHERE code = 'BLZ'");
   if (!vendorRes.rows.length) {
@@ -770,6 +820,20 @@ async function run() {
         }
         const bestFilename = bestImage.url.split('/').pop();
 
+        // SKU rows with their color attribute (single-valued colors only)
+        const skuRows = await pool.query(`
+          SELECT s.id, s.variant_name, sa.value AS color
+          FROM skus s
+          LEFT JOIN sku_attributes sa ON sa.sku_id = s.id
+            AND sa.attribute_id = (SELECT id FROM attributes WHERE slug = 'color')
+          WHERE s.product_id = $1
+        `, [productId]);
+        const skuColors = new Map(skuRows.rows
+          .filter(r => r.color && !r.color.includes(','))
+          .map(r => [r.id, r.color]));
+        const distinctColors = [...new Set(skuColors.values())];
+        const multiColor = distinctColors.length > 1;
+
         // Helper: pick the best swatch image from a single slug's gallery.
         // Uses first non-lifestyle image in slider order.
         function bestImageForSlug(slug) {
@@ -791,14 +855,26 @@ async function run() {
         `, [productId]);
 
         // Save ALL product-level images in slider order
-        // First non-lifestyle image is primary, rest classified by type
+        // First non-lifestyle image is primary, rest classified by type.
+        // On multi-color products, color-matched lifestyle images are held
+        // back and saved at SKU level below; unmatched lifestyle images
+        // (brochures/collages) are demoted to alternate.
         let primarySaved = false;
+        const skuLifestyles = [];  // { url, color }
         for (let i = 0; i < allImages.length; i++) {
           const img = allImages[i];
           const isPrimary = img.url === bestImage.url;
           if (isPrimary) primarySaved = true;
           const isLifestyle = isLifestyleImage(img);
-          const assetType = isPrimary ? 'primary' : (isLifestyle ? 'lifestyle' : 'alternate');
+          let assetType = isPrimary ? 'primary' : (isLifestyle ? 'lifestyle' : 'alternate');
+          if (!isPrimary && isLifestyle && multiColor) {
+            const color = matchLifestyleColor(img.url, distinctColors);
+            if (color) {
+              skuLifestyles.push({ url: img.url, color });
+              continue;
+            }
+            assetType = 'alternate';  // mixed-collection shot — keep out of color galleries
+          }
           await upsertMediaAsset(pool, {
             product_id: productId,
             asset_type: assetType,
@@ -832,7 +908,7 @@ async function run() {
 
         // Save variant-aware SKU-level primaries
         // Each SKU gets the best swatch from its best-matching slug's gallery
-        const skuRows = await pool.query('SELECT id, variant_name FROM skus WHERE product_id = $1', [productId]);
+        const skuPrimaryUrls = new Map();
         let variantMatches = 0;
         let colorMismatches = 0;
         for (const skuRow of skuRows.rows) {
@@ -868,6 +944,31 @@ async function run() {
             original_url: skuImage.url,
             sort_order: 0,
           });
+          skuPrimaryUrls.set(skuRow.id, skuImage.url);
+        }
+
+        // Save color-matched lifestyle images at SKU level (multi-color products)
+        if (skuLifestyles.length) {
+          const perSkuSort = new Map();
+          let lifestylesSaved = 0;
+          for (const { url, color } of skuLifestyles) {
+            for (const skuRow of skuRows.rows) {
+              if (skuColors.get(skuRow.id) !== color) continue;
+              if (skuPrimaryUrls.get(skuRow.id) === url) continue;
+              const so = (perSkuSort.get(skuRow.id) || 0) + 1;
+              perSkuSort.set(skuRow.id, so);
+              await upsertMediaAsset(pool, {
+                product_id: productId,
+                sku_id: skuRow.id,
+                asset_type: 'lifestyle',
+                url,
+                original_url: url,
+                sort_order: so,
+              });
+              lifestylesSaved++;
+            }
+          }
+          if (lifestylesSaved) console.log(`    [LIFESTYLE] ${lifestylesSaved} color-matched room scenes attached at SKU level`);
         }
 
         imagesSaved++;

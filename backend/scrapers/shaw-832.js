@@ -84,8 +84,9 @@ const CATEGORY_MAP = {
   // Laminate
   'laminate':            'laminate',
   'repel laminate':      'laminate',
-  // Tile
-  'tile':                'tile',
+  // Tile — default to the porcelain leaf, never the 'tile' parent bucket
+  // (most Shaw tile is porcelain; explicit ceramic/stone text still wins)
+  'tile':                'porcelain-tile',
   'porcelain':           'porcelain-tile',
   'ceramic':             'ceramic-tile',
   'stone':               'natural-stone',
@@ -107,7 +108,7 @@ const MAC_CATEGORY_MAP = {
   WOOMIS: 'transitions-moldings',
   VINTIL: 'luxury-vinyl',
   VINMIS: 'transitions-moldings',
-  CERFLO: 'tile',
+  CERFLO: 'porcelain-tile',
   CERMIS: 'transitions-moldings',
   ACC:    'installation-sundries',
 };
@@ -654,9 +655,10 @@ function finalizeItem(item) {
     if (/\bSPC\b|\bWPC\b/.test(sub)) item.category = 'luxury-vinyl';
     else if (/DRYBACK|DRYBAC/.test(sub)) item.category = 'luxury-vinyl';
     else if (/ENGINEERED HARDWOOD/.test(sub)) item.category = 'engineered-hardwood';
-    else if (/RESIDENTIAL FLOOR TILE|COMMERCIAL FLOOR TILE/.test(sub)) item.category = 'tile';
+    else if (/RESIDENTIAL FLOOR TILE|COMMERCIAL FLOOR TILE/.test(sub)) item.category = /CERAMIC/.test(sub) ? 'ceramic-tile' : 'porcelain-tile';
     else if (/\bADHESIVE\b/.test(sub) && !/CARIND|CARTIL/.test(item.material_class || '')) item.category = 'adhesives-sealants';
-    else if (/\bCLEANER\b|\bSUNDRIES\b/.test(sub)) item.category = 'installation-sundries';
+    else if (/\bCLEANER\b/.test(sub)) item.category = 'care-maintenance';
+    else if (/\bSUNDRIES\b/.test(sub)) item.category = 'installation-sundries';
     else if (/\bUNDERLAYMENT\b|\bPAD\b|\bREBOND\b/.test(sub) && item.material_class !== 'CARIND') item.category = 'underlayment';
     else if (/\bTRIMS?\b|\bMOLDING\b|\bDECORATIVE\b/.test(sub) && !/CARIND|CARTIL/.test(item.material_class || '')) item.category = 'transitions-moldings';
   }
@@ -673,7 +675,9 @@ function finalizeItem(item) {
     // BT3HU/BT7CT (baby threshold), SQ4CT/SQ7CT/SQTHS (square trim/threshold),
     // TR1HS (t-reducer), VSQT (v-square trim), CS##Z/CS##F (ceramic trim)
     else if (/^(aa(?:olr|qtr)|bt[0-9]|sq[0-9]|sqths|tr[0-9]|vsqt|pcqtr|qtr\d|qtrhs|cs\d{2}[fz]|lx\d{2})/i.test(name)) item.category = 'transitions-moldings';
-    else if (/seam|sealer|poly\b/i.test(name)) item.category = 'installation-sundries';
+    else if (/seam|sealer|caulk/i.test(name)) item.category = 'adhesives-sealants';
+    else if (/cleaner|mop pad|\brevive\b/i.test(name)) item.category = 'care-maintenance';
+    else if (/poly\b/i.test(name)) item.category = 'installation-sundries';
   }
 
   // --- Measurements ---

@@ -860,6 +860,11 @@ CREATE TABLE customers (
     zip TEXT,
     password_reset_token TEXT,
     password_reset_expires TIMESTAMP,
+    -- Self-service email change: the new address is held here (unverified) until the
+    -- customer clicks the confirmation link sent to it. Only then is email swapped.
+    pending_email TEXT,
+    pending_email_token TEXT,
+    pending_email_expires TIMESTAMP,
     stripe_customer_id TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -878,6 +883,11 @@ CREATE INDEX idx_customers_email ON customers(email);
 
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
 CREATE INDEX idx_orders_customer ON orders(customer_id);
+
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_email TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_email_token TEXT;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS pending_email_expires TIMESTAMP;
+CREATE INDEX IF NOT EXISTS idx_customers_pending_email_token ON customers(pending_email_token);
 
 -- Auto-created customer accounts (rep-initiated)
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS password_set BOOLEAN DEFAULT true;

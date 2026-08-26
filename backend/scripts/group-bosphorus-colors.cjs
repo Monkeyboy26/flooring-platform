@@ -26,6 +26,22 @@ function makeSlug(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
+// Product slugs are globally unique (products_slug_unique). A collection name
+// can collide with another vendor's product (e.g. Bosphorus "Foyer" vs Daltile
+// "American Olean Foyer" → slug "foyer"). Resolve to a free slug by appending a
+// numeric suffix, ignoring the product we're about to rename.
+async function uniqueSlug(base, keepProductId) {
+  let slug = base;
+  for (let n = 2; ; n++) {
+    const { rows } = await pool.query(
+      'SELECT 1 FROM products WHERE slug = $1 AND id <> $2 LIMIT 1',
+      [slug, keepProductId]
+    );
+    if (!rows.length) return slug;
+    slug = `${base}-${n}`;
+  }
+}
+
 async function main() {
   console.log(`\n=== Group Bosphorus Colors ===`);
   console.log(`Mode: ${dryRun ? 'DRY RUN' : 'LIVE'}\n`);
@@ -37,12 +53,18 @@ async function main() {
   if (!vendor) { console.error('No Bosphorus vendor found'); process.exit(1); }
   console.log(`Vendor: ${vendor.name} (${vendor.id})\n`);
 
-  // Get all collections with their product counts
+  // Get all collections with their product counts.
+  // LEFT JOIN (not INNER) so 0-SKU products are counted: a daily re-scrape
+  // re-homes SKUs onto fresh per-size/finish products, leaving yesterday's
+  // canonical (collection-named) product at 0 SKUs. If we didn't count it, the
+  // collection would look single-color and Phase 2 would try to re-create that
+  // name, colliding on slug and (vendor_id, collection, name). Empty
+  // collections are skipped so collection-less products never merge together.
   const { rows: collections } = await pool.query(`
     SELECT p.collection, COUNT(DISTINCT p.id) as product_count, COUNT(s.id) as sku_count
     FROM products p
-    JOIN skus s ON s.product_id = p.id
-    WHERE p.vendor_id = $1
+    LEFT JOIN skus s ON s.product_id = p.id
+    WHERE p.vendor_id = $1 AND p.collection IS NOT NULL AND p.collection <> ''
     GROUP BY p.collection
     ORDER BY p.collection
   `, [vendor.id]);
@@ -70,9 +92,14 @@ async function main() {
       ORDER BY p.name
     `, [vendor.id, coll.collection]);
 
-    // Pick master: first product alphabetically
-    const master = products[0];
-    const others = products.slice(1);
+    // Pick master: prefer the already-canonical product (named after the
+    // collection) so identity stays stable across daily re-scrapes; otherwise
+    // first alphabetically. Merging fresh per-size/finish products back into
+    // yesterday's canonical product (rather than electing a new master each
+    // run) avoids orphaned 0-SKU duplicates that collide on slug and
+    // (vendor_id, collection, name).
+    const master = products.find(p => p.name === coll.collection) || products[0];
+    const others = products.filter(p => p.id !== master.id);
 
     console.log(`${coll.collection}: ${products.length} colors → 1 product (${coll.sku_count} SKUs)`);
 
@@ -142,7 +169,7 @@ async function main() {
     totalProductsDeleted += deleted;
 
     // Rename master to collection name
-    const slug = makeSlug(coll.collection);
+    const slug = await uniqueSlug(makeSlug(coll.collection), master.id);
     // Extract material suffix from existing display_name
     const suffixMatch = (master.display_name || '').match(/\s+(Porcelain Tile|Ceramic Tile|Natural Stone|Glass Tile|Mosaic Tile|Tile)$/i);
     const suffix = suffixMatch ? suffixMatch[1] : 'Porcelain Tile';
@@ -167,7 +194,7 @@ async function main() {
     // Skip if already named after collection
     if (product.name === coll.collection) continue;
 
-    const slug = makeSlug(coll.collection);
+    const slug = await uniqueSlug(makeSlug(coll.collection), product.id);
     const suffixMatch = (product.display_name || '').match(/\s+(Porcelain Tile|Ceramic Tile|Natural Stone|Glass Tile|Mosaic Tile|Tile)$/i);
     const suffix = suffixMatch ? suffixMatch[1] : 'Porcelain Tile';
 

@@ -347,6 +347,30 @@ function isAccessory(title, description) {
   return ACCESSORY_KEYWORDS.test(title) || (description && ACCESSORY_KEYWORDS.test(description));
 }
 
+// AZ page titles sometimes carry internal series codes — expand or strip them
+// for customer-facing names ("DT-Taj Mahal Polished" → "Della Terra Taj Mahal
+// Polished"; "CS-Terra Nova" → "Terra Nova"). Price-list lookups must keep the
+// RAW title — their keys are built from it.
+function normalizeSeriesTitle(title) {
+  return (title || '').replace(/^DT-\s*/i, 'Della Terra ').replace(/^CS-\s*/i, '').trim();
+}
+
+// Join collection + color collapsing a word-boundary overlap so shared words
+// never double: "Cementine Evo" + "Evo 1" → "Cementine Evo 1". Hyphens count
+// as boundaries on the collection side: "Geo-Dijon" + "Dijon Classic" →
+// "Geo-Dijon Classic".
+function joinDedupe(a, b) {
+  const aw = a.split(/\s+/), bw = b.split(/\s+/);
+  const aNorm = a.toLowerCase().replace(/-/g, ' ').trim().split(/\s+/);
+  for (let n = Math.min(aNorm.length, bw.length); n > 0; n--) {
+    const bHead = bw.slice(0, n).join(' ').toLowerCase().replace(/-/g, ' ');
+    if (aNorm.slice(-n).join(' ') === bHead) {
+      return aw.concat(bw.slice(n)).join(' ');
+    }
+  }
+  return `${a} ${b}`;
+}
+
 /**
  * Resolve the best PIM category for a product from its AZ category tags.
  * Highest CATEGORY_MAP priority wins; parent categories get a -5 penalty.
@@ -440,9 +464,35 @@ function classifyVariation(sizeAttr, originalFormatSlug, originalSlabSlug) {
  *   3. Full mode: upsert products/SKUs/images/specs/packaging/pricing + activate
  *      Inventory mode: update pricing for existing SKUs only
  */
+// When the vendor is hidden (vendors.hide_public_name), the site descriptions we scrape carry the
+// distributor name + marketing/logistics boilerplate. Strip them before storing so a re-scrape can't
+// reintroduce the name. Best-effort code scrub; seoRenderer.cleanDescription is the render-time backstop.
+let HIDE_VENDOR_NAME = null;
+function scrubHiddenVendor(text) {
+  if (!HIDE_VENDOR_NAME || !text) return text;
+  const n = HIDE_VENDOR_NAME.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  let t = text;
+  // vendor-only marketing / logistics boilerplate tails
+  t = t.replace(new RegExp('\\s*(at\\s+)?' + n + ' we have tile and slabs whether you are building your dream.*$', 'is'), '');
+  t = t.replace(new RegExp('\\s*-?\\s*whether you are building your dream with ' + n + '\\.?\\s*$', 'i'), '');
+  t = t.replace(new RegExp('\\s*just imagine how ' + n + ' products can enhance your project.*$', 'is'), '');
+  t = t.replace(new RegExp("\\s*[^.]*\\b" + n + " (?:does not|will not|carries|features|Slab Warehouse|locations)[^.]*\\.", 'gi'), '');
+  // attribution phrasings
+  t = t.replace(new RegExp(n + "['’]s\\s+", 'g'), 'the ');
+  t = t.replace(new RegExp('\\s*(?:,?\\s*crafted by|,?\\s*by|\\s*from)\\s+' + n + '\\b', 'gi'), '');
+  t = t.replace(new RegExp('\\s*' + n + '\\b', 'gi'), '');   // any remaining
+  t = t.replace(/\s{2,}/g, ' ').replace(/\s+([.,])/g, '$1').replace(/\s*-\s*$/, '').trim();
+  return t || null;
+}
+
 export async function run(pool, job, source) {
   const config = { ...DEFAULT_CONFIG, ...(source.config || {}) };
   const vendor_id = source.vendor_id;
+  {
+    const vr = await pool.query('SELECT name, hide_public_name FROM vendors WHERE id=$1', [vendor_id]);
+    HIDE_VENDOR_NAME = vr.rows[0]?.hide_public_name === true ? vr.rows[0].name : null;
+    if (HIDE_VENDOR_NAME) console.log(`  [hidden vendor — scrubbing "${HIDE_VENDOR_NAME}" from scraped descriptions]`);
+  }
   const isInventoryMode = config.mode === 'inventory';
 
   const stats = {
@@ -948,9 +998,11 @@ export async function run(pool, job, source) {
         // For variable products, group by color — each color becomes its own product
         // For simple products, keep title as name with collection
         const collectionName = apiProduct.title;
+        // Customer-facing collection/name base with series codes expanded/stripped.
+        // (collectionName itself stays pristine: price-list lookups key off it.)
+        const displayCollection = normalizeSeriesTitle(apiProduct.title);
         // Slab page whose title collides with a tile/mosaic page — needs its own
         // collection so it doesn't share a product row with the tile product.
-        // (collectionName itself stays pristine: price-list lookups key off it.)
         const slabCollision = SLAB_CATEGORIES.has(pimCatSlug) && titleHasNonSlab.has(apiProduct.title.toLowerCase());
 
         // ── Gallery images data ──
@@ -974,8 +1026,13 @@ export async function run(pool, job, source) {
             // Product name = deslugified color (e.g., "white-ribbon" → "White Ribbon")
             // If no color, fall back to the API title
             const rawColor = colorSlug ? deslugify(colorSlug) : apiProduct.title;
-            const productName = (collectionName && !rawColor.toLowerCase().startsWith(collectionName.toLowerCase()))
-              ? `${collectionName} ${rawColor}`
+            // Skip the collection prefix when the page title already CONTAINS the
+            // color name ("CS-Terra Nova" + color "Terra Nova" would double into
+            // "CS-Terra Nova Terra Nova ...") — the color is the identity there.
+            const productName = (displayCollection
+                && !rawColor.toLowerCase().startsWith(displayCollection.toLowerCase())
+                && !displayCollection.toLowerCase().includes(rawColor.toLowerCase()))
+              ? joinDedupe(displayCollection, rawColor)
               : rawColor;
 
             // Build best product-shot lookup from all sibling variations in this color group.
@@ -1009,7 +1066,7 @@ export async function run(pool, job, source) {
             const needsSuffix = formatGroups.size > 1;
 
             for (const [fmt, fmtVariations] of formatGroups) {
-              let effectiveCollection = collectionName;
+              let effectiveCollection = displayCollection;
               let effectiveCatId = categoryId;
               let effectiveCatSlug = pimCatSlug;
 
@@ -1054,7 +1111,10 @@ export async function run(pool, job, source) {
                 shapeMap.get(shape).push(entry);
               }
               for (const [shape, vars] of shapeMap) {
-                shapeSubGroups.push([shape ? `${productName} ${shape}` : productName, vars, shape]);
+                // Don't append a shape word the name already carries
+                // ("Large Chevron Terra Nova" + shape "Chevron")
+                const hasShape = shape && new RegExp('\\b' + shape.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?\\b', 'i').test(productName);
+                shapeSubGroups.push([shape && !hasShape ? `${productName} ${shape}` : productName, vars, shape]);
               }
             } else {
               shapeSubGroups.push([productName, fmtVariations, '']);
@@ -1082,8 +1142,8 @@ export async function run(pool, job, source) {
               name: effectiveName,
               collection: effectiveCollection,
               category_id: effectiveCatId,
-              description_short: apiProduct.description ? apiProduct.description.slice(0, 255) : null,
-              description_long: apiProduct.description
+              description_short: apiProduct.description ? scrubHiddenVendor(apiProduct.description.slice(0, 255)) : null,
+              description_long: scrubHiddenVendor(apiProduct.description)
             });
 
             if (product.is_new) stats.created++;
@@ -1291,11 +1351,11 @@ export async function run(pool, job, source) {
           // Simple product: single SKU — use title as name, no collection grouping
           const product = await upsertProduct(pool, {
             vendor_id,
-            name: apiProduct.title,
-            collection: slabCollision ? `${collectionName} Slab` : collectionName,
+            name: displayCollection,
+            collection: slabCollision ? `${displayCollection} Slab` : displayCollection,
             category_id: categoryId,
-            description_short: apiProduct.description ? apiProduct.description.slice(0, 255) : null,
-            description_long: apiProduct.description
+            description_short: apiProduct.description ? scrubHiddenVendor(apiProduct.description.slice(0, 255)) : null,
+            description_long: scrubHiddenVendor(apiProduct.description)
           });
 
           if (product.is_new) stats.created++;
@@ -1325,7 +1385,7 @@ export async function run(pool, job, source) {
             ? priceList.lookupSimpleAllGauges(apiProduct.title, apiProduct.slug, detail.specs)
             : [];
           const plEntry = gaugeEntries.length > 0 ? gaugeEntries[0]
-            : (priceList ? priceList.lookupSimple(apiProduct.title, apiProduct.slug, detail.specs) : null);
+            : (priceList ? priceList.lookupSimple(apiProduct.title, apiProduct.slug, detail.specs, isSlab) : null);
 
           // Multi-gauge path: create one SKU per thickness
           if (gaugeEntries.length > 1) {
@@ -1572,26 +1632,27 @@ export async function run(pool, job, source) {
 
         const goodAlt = alt.rows.find(r => !isLifestyleUrl(r.url, s.product_name));
         if (goodAlt) {
-          // Swap asset_type AND sort_order to avoid unique constraint violations
-          // on (product_id, sku_id, asset_type, sort_order)
-          await pool.query(`
-            WITH old_primary AS (
-              SELECT id, asset_type, sort_order FROM media_assets WHERE id = $1
-            ), new_primary AS (
-              SELECT id, asset_type, sort_order FROM media_assets WHERE id = $2
-            )
-            UPDATE media_assets SET
-              asset_type = CASE id
-                WHEN $1 THEN (SELECT asset_type FROM new_primary)
-                WHEN $2 THEN (SELECT asset_type FROM old_primary)
-              END,
-              sort_order = CASE id
-                WHEN $1 THEN (SELECT sort_order FROM new_primary)
-                WHEN $2 THEN (SELECT sort_order FROM old_primary)
-              END
-            WHERE id IN ($1, $2)
-          `, [s.media_id, goodAlt.id]);
-          fixed++;
+          // Swap asset_type AND sort_order. A single-statement swap still trips
+          // the unique (product_id, sku_id, asset_type, sort_order) index —
+          // Postgres checks it per-row mid-statement — so park the old primary
+          // at an unused negative sort first, then move each row. One bad image
+          // must not fail the whole job.
+          try {
+            const pair = await pool.query(
+              'SELECT id, asset_type, sort_order FROM media_assets WHERE id IN ($1, $2)',
+              [s.media_id, goodAlt.id]);
+            const oldP = pair.rows.find(r => r.id === s.media_id);
+            const newP = pair.rows.find(r => r.id === goodAlt.id);
+            await pool.query('UPDATE media_assets SET sort_order = $2 WHERE id = $1',
+              [s.media_id, -1000 - fixed]);
+            await pool.query('UPDATE media_assets SET asset_type = $2, sort_order = $3 WHERE id = $1',
+              [goodAlt.id, oldP.asset_type, oldP.sort_order]);
+            await pool.query('UPDATE media_assets SET asset_type = $2, sort_order = $3 WHERE id = $1',
+              [s.media_id, newP.asset_type, newP.sort_order]);
+            fixed++;
+          } catch (err) {
+            await appendLog(pool, job.id, `Primary image swap failed for ${s.internal_sku}: ${err.message}`);
+          }
         } else {
           // No product shot available — keep lifestyle as primary (better than nothing)
           keptAsOnly++;

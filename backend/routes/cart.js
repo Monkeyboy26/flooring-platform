@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { isTradeTaxExempt } from '../lib/helpers.js';
 import { computeRugQuote } from '../lib/rugPricing.js';
+import { enrichItemsForNaming } from '../lib/enrichItems.js';
 
 export default function createCartRoutes(ctx) {
   const router = Router();
@@ -35,7 +36,7 @@ export default function createCartRoutes(ctx) {
     SELECT ci.*, COALESCE(p.display_name, p.name) as product_name, p.collection,
       CASE WHEN ci.is_custom_rug THEN 'unit' ELSE s.sell_by END as sell_by,
       s.variant_type, s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, c.name as category_name, c.slug as category_slug,
-      v.name as vendor_name, COALESCE(br.name, v.name) as brand_name, COALESCE(br.hide_public_name, v.hide_public_name, false) AS brand_hidden, sa_c.value as color, sa_sz.value as size,
+      v.name as vendor_name, v.code as vendor_code, COALESCE(br.name, v.name) as brand_name, (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, sa_c.value as color, sa_sz.value as size,
       pr.cut_price, pr.roll_price, pr.roll_min_sqft,
       COALESCE(ma_sku.url, ma_prod.url) as primary_image,
       COALESCE(v.has_public_inventory, false) as vendor_has_inventory,
@@ -67,6 +68,7 @@ export default function createCartRoutes(ctx) {
   async function fetchCartRow(id) {
     const r = await pool.query(cartRowQuery('WHERE ci.id = $1'), [id]);
     if (!r.rows.length) return null;
+    await enrichItemsForNaming(r.rows);
     const item = r.rows[0];
     return { ...item, pickup_only: !item.is_sample && isPickupOnly(item) };
   }
@@ -77,6 +79,7 @@ export default function createCartRoutes(ctx) {
       if (!session_id) return res.status(400).json({ error: 'session_id is required' });
 
       const result = await pool.query(cartRowQuery('WHERE ci.session_id = $1 ORDER BY ci.created_at'), [session_id]);
+      await enrichItemsForNaming(result.rows);
       const cart = result.rows.map(item => ({
         ...item,
         pickup_only: !item.is_sample && isPickupOnly(item)

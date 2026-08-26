@@ -20,7 +20,7 @@
       "key": "absolute black",
       "kind": "field",
       "name": "Absolute Black",
-      "collection": "Absolute Black",
+      "collection": "Absolute",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -110,14 +110,15 @@
           "accessory_label": null,
           "suffix": "24x24-unpolished"
         }
-      ]
+      ],
+      "color": "Black"
     },
     {
       "pkey": "FLZ-absolute-grey",
       "key": "absolute grey",
       "kind": "field",
       "name": "Absolute Grey",
-      "collection": "Absolute Grey",
+      "collection": "Absolute",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -147,14 +148,15 @@
           "accessory_label": null,
           "suffix": "12x24-unpolished"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-absolute-white",
       "key": "absolute white",
       "kind": "field",
       "name": "Absolute White",
-      "collection": "Absolute White",
+      "collection": "Absolute",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -265,14 +267,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "White"
     },
     {
       "pkey": "FLZ-absolute-brown",
       "key": "absolute brown",
       "kind": "field",
       "name": "Absolute Brown",
-      "collection": "Absolute Brown",
+      "collection": "Absolute",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -302,14 +305,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Brown"
     },
     {
       "pkey": "FLZ-accent-vanilla",
       "key": "accent vanilla",
       "kind": "field",
       "name": "Accent Vanilla",
-      "collection": "Accent Vanilla",
+      "collection": "Accent",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -359,14 +363,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Vanilla"
     },
     {
       "pkey": "FLZ-accent-wheat",
       "key": "accent wheat",
       "kind": "field",
       "name": "Accent Wheat",
-      "collection": "Accent Wheat",
+      "collection": "Accent",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -396,7 +401,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Wheat"
     },
     {
       "pkey": "FLZ-acropolis-rosso",
@@ -433,7 +439,8 @@
           "accessory_label": null,
           "suffix": "16x16"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-atienza",
@@ -470,7 +477,8 @@
           "accessory_label": null,
           "suffix": "16x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-alaska",
@@ -507,14 +515,15 @@
           "accessory_label": null,
           "suffix": "24x24-gloss"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-alaska-grey",
       "key": "alaska grey",
       "kind": "field",
       "name": "Alaska Grey",
-      "collection": "Alaska Grey",
+      "collection": "Alaska",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -604,7 +613,8 @@
           "accessory_label": null,
           "suffix": "24x48-polished"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-albufera",
@@ -641,7 +651,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-altea-cuero",
@@ -678,7 +689,8 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-antic-cuero",
@@ -715,7 +727,8 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-apuano",
@@ -752,7 +765,8 @@
           "accessory_label": null,
           "suffix": "24x48-polished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-artic-day",
@@ -789,14 +803,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-artstract-cement",
       "key": "artstract cement",
       "kind": "field",
       "name": "Artstract Cement",
-      "collection": "Artstract Cement",
+      "collection": "Artstract",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Concrete",
@@ -826,14 +841,15 @@
           "accessory_label": null,
           "suffix": "88x88"
         }
-      ]
+      ],
+      "color": "Cement"
     },
     {
       "pkey": "FLZ-artstract-neutro",
       "key": "artstract neutro",
       "kind": "field",
       "name": "Artstract Neutro",
-      "collection": "Artstract Neutro",
+      "collection": "Artstract",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Concrete",
@@ -863,14 +879,15 @@
           "accessory_label": null,
           "suffix": "88x88"
         }
-      ]
+      ],
+      "color": "Neutro"
     },
     {
       "pkey": "FLZ-aspen-scatola",
       "key": "aspen scatola",
       "kind": "field",
       "name": "Aspen Scatola",
-      "collection": "Aspen Scatola",
+      "collection": "Aspen",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -900,14 +917,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Scatola"
     },
     {
       "pkey": "FLZ-aspen-trenza",
       "key": "aspen trenza",
       "kind": "field",
       "name": "Aspen Trenza",
-      "collection": "Aspen Trenza",
+      "collection": "Aspen",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -937,7 +955,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Trenza"
     },
     {
       "pkey": "FLZ-at-duna-blanco",
@@ -974,14 +993,15 @@
           "accessory_label": null,
           "suffix": "10x28-gloss"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-avenue-pearl",
       "key": "avenue pearl",
       "kind": "field",
       "name": "Avenue Pearl",
-      "collection": "Avenue Pearl",
+      "collection": "Avenue",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1011,14 +1031,15 @@
           "accessory_label": null,
           "suffix": "75x75"
         }
-      ]
+      ],
+      "color": "Pearl"
     },
     {
       "pkey": "FLZ-avenue-rock",
       "key": "avenue",
       "kind": "field",
       "name": "Avenue Rock",
-      "collection": "Avenue Rock",
+      "collection": "Avenue",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1048,14 +1069,15 @@
           "accessory_label": null,
           "suffix": "75x75"
         }
-      ]
+      ],
+      "color": "Rock"
     },
     {
       "pkey": "FLZ-bali-gris",
       "key": "bali gris",
       "kind": "field",
       "name": "Bali Gris",
-      "collection": "Bali Gris",
+      "collection": "Bali",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1085,14 +1107,15 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Gris"
     },
     {
       "pkey": "FLZ-bali-marfil",
       "key": "bali marfil",
       "kind": "field",
       "name": "Bali Marfil",
-      "collection": "Bali Marfil",
+      "collection": "Bali",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1122,7 +1145,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Marfil"
     },
     {
       "pkey": "FLZ-balsa-wengue",
@@ -1159,14 +1183,15 @@
           "accessory_label": null,
           "suffix": "6x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-bang-fossil",
       "key": "bang fossil",
       "kind": "field",
       "name": "Bang Fossil",
-      "collection": "Bang Fossil",
+      "collection": "Bang",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1196,14 +1221,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Fossil"
     },
     {
       "pkey": "FLZ-bang-grey",
       "key": "bang grey",
       "kind": "field",
       "name": "Bang Grey",
-      "collection": "Bang Grey",
+      "collection": "Bang",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1233,7 +1259,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-belcaire-gris",
@@ -1270,14 +1297,15 @@
           "accessory_label": null,
           "suffix": "9x18"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-belgica-bone",
       "key": "belgica bone",
       "kind": "field",
       "name": "Belgica Bone",
-      "collection": "Belgica Bone",
+      "collection": "Belgica",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1307,14 +1335,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Bone"
     },
     {
       "pkey": "FLZ-belgica-earth",
       "key": "belgica earth",
       "kind": "field",
       "name": "Belgica Earth",
-      "collection": "Belgica Earth",
+      "collection": "Belgica",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1344,14 +1373,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Earth"
     },
     {
       "pkey": "FLZ-belgica-stone",
       "key": "belgica stone",
       "kind": "field",
       "name": "Belgica Stone",
-      "collection": "Belgica Stone",
+      "collection": "Belgica",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1381,14 +1411,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Stone"
     },
     {
       "pkey": "FLZ-beli-cream",
       "key": "beli cream",
       "kind": "field",
       "name": "Beli Cream",
-      "collection": "Beli Cream",
+      "collection": "Beli",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1418,14 +1449,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Cream"
     },
     {
       "pkey": "FLZ-beli-grey",
       "key": "beli grey",
       "kind": "field",
       "name": "Beli Grey",
-      "collection": "Beli Grey",
+      "collection": "Beli",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1455,7 +1487,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-bianco-river",
@@ -1512,7 +1545,8 @@
           "accessory_label": null,
           "suffix": "12x24-polished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-blink-black",
@@ -1549,7 +1583,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-boreal-avana",
@@ -1586,7 +1621,8 @@
           "accessory_label": null,
           "suffix": "6x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-calco-cemento",
@@ -1623,7 +1659,8 @@
           "accessory_label": null,
           "suffix": "8x48"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-campanili-carrara",
@@ -1660,14 +1697,15 @@
           "accessory_label": null,
           "suffix": "1339x1536"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-carrara-white",
       "key": "carrara white",
       "kind": "field",
       "name": "Carrara White",
-      "collection": "Carrara White",
+      "collection": "Carrara",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": "Marble",
@@ -1697,14 +1735,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "White"
     },
     {
       "pkey": "FLZ-carrara-gold",
       "key": "carrara gold",
       "kind": "field",
       "name": "Carrara Gold",
-      "collection": "Carrara Gold",
+      "collection": "Carrara",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -1754,14 +1793,15 @@
           "accessory_label": null,
           "suffix": "24x48-matteorpolished"
         }
-      ]
+      ],
+      "color": "Gold"
     },
     {
       "pkey": "FLZ-carson-ceniza",
       "key": "carson ceniza",
       "kind": "field",
       "name": "Carson Ceniza",
-      "collection": "Carson Ceniza",
+      "collection": "Carson",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1791,14 +1831,15 @@
           "accessory_label": null,
           "suffix": "10x395"
         }
-      ]
+      ],
+      "color": "Ceniza"
     },
     {
       "pkey": "FLZ-carson-miel",
       "key": "carson miel",
       "kind": "field",
       "name": "Carson Miel",
-      "collection": "Carson Miel",
+      "collection": "Carson",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1828,14 +1869,15 @@
           "accessory_label": null,
           "suffix": "10x395"
         }
-      ]
+      ],
+      "color": "Miel"
     },
     {
       "pkey": "FLZ-cassero-carbone",
       "key": "cassero carbone",
       "kind": "field",
       "name": "Cassero Carbone",
-      "collection": "Cassero Carbone",
+      "collection": "Cassero",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1885,14 +1927,15 @@
           "accessory_label": null,
           "suffix": "4x12"
         }
-      ]
+      ],
+      "color": "Carbone"
     },
     {
       "pkey": "FLZ-cassero-cenere",
       "key": "cassero cenere",
       "kind": "field",
       "name": "Cassero Cenere",
-      "collection": "Cassero Cenere",
+      "collection": "Cassero",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1942,14 +1985,15 @@
           "accessory_label": null,
           "suffix": "4x12"
         }
-      ]
+      ],
+      "color": "Cenere"
     },
     {
       "pkey": "FLZ-cassero-polvere",
       "key": "cassero polvere",
       "kind": "field",
       "name": "Cassero Polvere",
-      "collection": "Cassero Polvere",
+      "collection": "Cassero",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -1999,14 +2043,15 @@
           "accessory_label": null,
           "suffix": "4x12"
         }
-      ]
+      ],
+      "color": "Polvere"
     },
     {
       "pkey": "FLZ-castro-brown",
       "key": "castro brown",
       "kind": "field",
       "name": "Castro Brown",
-      "collection": "Castro Brown",
+      "collection": "Castro",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -2036,14 +2081,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Brown"
     },
     {
       "pkey": "FLZ-castro-grey",
       "key": "castro grey",
       "kind": "field",
       "name": "Castro Grey",
-      "collection": "Castro Grey",
+      "collection": "Castro",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -2073,14 +2119,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-castro-mix",
       "key": "castro mix",
       "kind": "field",
       "name": "Castro Mix",
-      "collection": "Castro Mix",
+      "collection": "Castro",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -2110,14 +2157,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Mix"
     },
     {
       "pkey": "FLZ-castrum-brown",
       "key": "castrum brown",
       "kind": "field",
       "name": "Castrum Brown",
-      "collection": "Castrum Brown",
+      "collection": "Castrum",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -2147,14 +2195,15 @@
           "accessory_label": null,
           "suffix": "16x16"
         }
-      ]
+      ],
+      "color": "Brown"
     },
     {
       "pkey": "FLZ-castrum-grey",
       "key": "castrum grey",
       "kind": "field",
       "name": "Castrum Grey",
-      "collection": "Castrum Grey",
+      "collection": "Castrum",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -2184,14 +2233,15 @@
           "accessory_label": null,
           "suffix": "16x16"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-cedar-nero",
       "key": "cedar nero",
       "kind": "field",
       "name": "Cedar Nero",
-      "collection": "Cedar Nero",
+      "collection": "Cedar",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -2221,14 +2271,15 @@
           "accessory_label": null,
           "suffix": "6x36"
         }
-      ]
+      ],
+      "color": "Nero"
     },
     {
       "pkey": "FLZ-cedar-rosato",
       "key": "cedar rosato",
       "kind": "field",
       "name": "Cedar Rosato",
-      "collection": "Cedar Rosato",
+      "collection": "Cedar",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -2258,14 +2309,15 @@
           "accessory_label": null,
           "suffix": "6x36"
         }
-      ]
+      ],
+      "color": "Rosato"
     },
     {
       "pkey": "FLZ-chianca-avorio",
       "key": "chianca avorio",
       "kind": "field",
       "name": "Chianca Avorio",
-      "collection": "Chianca Avorio",
+      "collection": "Chianca",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -2355,14 +2407,15 @@
           "accessory_label": null,
           "suffix": "24x48"
         }
-      ]
+      ],
+      "color": "Avorio"
     },
     {
       "pkey": "FLZ-chianca-beige",
       "key": "chianca beige",
       "kind": "field",
       "name": "Chianca Beige",
-      "collection": "Chianca Beige",
+      "collection": "Chianca",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -2452,14 +2505,15 @@
           "accessory_label": null,
           "suffix": "24x48"
         }
-      ]
+      ],
+      "color": "Beige"
     },
     {
       "pkey": "FLZ-chestnut-fiber",
       "key": "chestnut fiber",
       "kind": "field",
       "name": "Chestnut Fiber",
-      "collection": "Chestnut Fiber",
+      "collection": "Chestnut",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": "Wood",
@@ -2489,14 +2543,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Fiber"
     },
     {
       "pkey": "FLZ-chestnut-origin",
       "key": "chestnut origin",
       "kind": "field",
       "name": "Chestnut Origin",
-      "collection": "Chestnut Origin",
+      "collection": "Chestnut",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": "Wood",
@@ -2526,7 +2581,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Origin"
     },
     {
       "pkey": "FLZ-craft-cotton",
@@ -2563,7 +2619,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-crema-marfil",
@@ -2620,7 +2677,8 @@
           "accessory_label": null,
           "suffix": "24x24-gloss"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-cut-safari-perla",
@@ -2657,7 +2715,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-d-cor-black-edge",
@@ -2694,7 +2753,8 @@
           "accessory_label": null,
           "suffix": "75x75"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-diagonals-ash-sage",
@@ -2731,7 +2791,8 @@
           "accessory_label": null,
           "suffix": "88x88"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-dolomite",
@@ -2848,14 +2909,15 @@
           "accessory_label": null,
           "suffix": "24x48-polished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-domino-cubo",
       "key": "domino cubo",
       "kind": "field",
       "name": "Domino Cubo",
-      "collection": "Domino Cubo",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -2885,14 +2947,15 @@
           "accessory_label": null,
           "suffix": "8x8"
         }
-      ]
+      ],
+      "color": "Cubo"
     },
     {
       "pkey": "FLZ-domino-diamante",
       "key": "domino diamante",
       "kind": "field",
       "name": "Domino Diamante",
-      "collection": "Domino Diamante",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -2922,14 +2985,15 @@
           "accessory_label": null,
           "suffix": "8x8"
         }
-      ]
+      ],
+      "color": "Diamante"
     },
     {
       "pkey": "FLZ-domino-dorato",
       "key": "domino dorato",
       "kind": "field",
       "name": "Domino Dorato",
-      "collection": "Domino Dorato",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -2959,14 +3023,15 @@
           "accessory_label": null,
           "suffix": "8x48"
         }
-      ]
+      ],
+      "color": "Dorato"
     },
     {
       "pkey": "FLZ-domino-enigma",
       "key": "domino enigma",
       "kind": "field",
       "name": "Domino Enigma",
-      "collection": "Domino Enigma",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -2996,14 +3061,15 @@
           "accessory_label": null,
           "suffix": "8x8"
         }
-      ]
+      ],
+      "color": "Enigma"
     },
     {
       "pkey": "FLZ-domino-foglie",
       "key": "domino foglie",
       "kind": "field",
       "name": "Domino Foglie",
-      "collection": "Domino Foglie",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3033,14 +3099,15 @@
           "accessory_label": null,
           "suffix": "8x8"
         }
-      ]
+      ],
+      "color": "Foglie"
     },
     {
       "pkey": "FLZ-domino-naturale",
       "key": "domino naturale",
       "kind": "field",
       "name": "Domino Naturale",
-      "collection": "Domino Naturale",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3070,14 +3137,15 @@
           "accessory_label": null,
           "suffix": "8x48"
         }
-      ]
+      ],
+      "color": "Naturale"
     },
     {
       "pkey": "FLZ-domino-petali",
       "key": "domino petali",
       "kind": "field",
       "name": "Domino Petali",
-      "collection": "Domino Petali",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3107,14 +3175,15 @@
           "accessory_label": null,
           "suffix": "8x8"
         }
-      ]
+      ],
+      "color": "Petali"
     },
     {
       "pkey": "FLZ-domino-riflesso",
       "key": "domino riflesso",
       "kind": "field",
       "name": "Domino Riflesso",
-      "collection": "Domino Riflesso",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3144,14 +3213,15 @@
           "accessory_label": null,
           "suffix": "8x8"
         }
-      ]
+      ],
+      "color": "Riflesso"
     },
     {
       "pkey": "FLZ-domino-riquadro",
       "key": "domino riquadro",
       "kind": "field",
       "name": "Domino Riquadro",
-      "collection": "Domino Riquadro",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3181,14 +3251,15 @@
           "accessory_label": null,
           "suffix": "8x8"
         }
-      ]
+      ],
+      "color": "Riquadro"
     },
     {
       "pkey": "FLZ-domino-tabacco",
       "key": "domino tabacco",
       "kind": "field",
       "name": "Domino Tabacco",
-      "collection": "Domino Tabacco",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3218,14 +3289,15 @@
           "accessory_label": null,
           "suffix": "8x48"
         }
-      ]
+      ],
+      "color": "Tabacco"
     },
     {
       "pkey": "FLZ-domino-ventaglio",
       "key": "domino ventaglio",
       "kind": "field",
       "name": "Domino Ventaglio",
-      "collection": "Domino Ventaglio",
+      "collection": "Domino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3255,14 +3327,15 @@
           "accessory_label": null,
           "suffix": "8x8"
         }
-      ]
+      ],
+      "color": "Ventaglio"
     },
     {
       "pkey": "FLZ-dray-dusk",
       "key": "dray dusk",
       "kind": "field",
       "name": "dRay Dusk",
-      "collection": "dRay Dusk",
+      "collection": "dRay",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -3292,14 +3365,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Dusk"
     },
     {
       "pkey": "FLZ-dray-twilight",
       "key": "dray twilight",
       "kind": "field",
       "name": "dRay Twilight",
-      "collection": "dRay Twilight",
+      "collection": "dRay",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -3349,14 +3423,15 @@
           "accessory_label": null,
           "suffix": "13x26"
         }
-      ]
+      ],
+      "color": "Twilight"
     },
     {
       "pkey": "FLZ-driftwood-brown",
       "key": "driftwood brown",
       "kind": "field",
       "name": "Driftwood Brown",
-      "collection": "Driftwood Brown",
+      "collection": "Driftwood",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -3386,14 +3461,15 @@
           "accessory_label": null,
           "suffix": "8x48"
         }
-      ]
+      ],
+      "color": "Brown"
     },
     {
       "pkey": "FLZ-driftwood-honey",
       "key": "driftwood honey",
       "kind": "field",
       "name": "Driftwood Honey",
-      "collection": "Driftwood Honey",
+      "collection": "Driftwood",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -3423,14 +3499,15 @@
           "accessory_label": null,
           "suffix": "8x48"
         }
-      ]
+      ],
+      "color": "Honey"
     },
     {
       "pkey": "FLZ-durango-beige",
       "key": "durango beige",
       "kind": "field",
       "name": "Durango Beige",
-      "collection": "Durango Beige",
+      "collection": "Durango",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3500,14 +3577,15 @@
           "accessory_label": null,
           "suffix": "24x48"
         }
-      ]
+      ],
+      "color": "Beige"
     },
     {
       "pkey": "FLZ-durango-greige",
       "key": "durango greige",
       "kind": "field",
       "name": "Durango Greige",
-      "collection": "Durango Greige",
+      "collection": "Durango",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3577,14 +3655,15 @@
           "accessory_label": null,
           "suffix": "24x48"
         }
-      ]
+      ],
+      "color": "Greige"
     },
     {
       "pkey": "FLZ-durango-mud",
       "key": "durango mud",
       "kind": "field",
       "name": "Durango Mud",
-      "collection": "Durango Mud",
+      "collection": "Durango",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3654,14 +3733,15 @@
           "accessory_label": null,
           "suffix": "24x48"
         }
-      ]
+      ],
+      "color": "Mud"
     },
     {
       "pkey": "FLZ-durango-taupe",
       "key": "durango taupe",
       "kind": "field",
       "name": "Durango Taupe",
-      "collection": "Durango Taupe",
+      "collection": "Durango",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3711,14 +3791,15 @@
           "accessory_label": null,
           "suffix": "24x48"
         }
-      ]
+      ],
+      "color": "Taupe"
     },
     {
       "pkey": "FLZ-ec-lyon-mica",
       "key": "ec lyon mica",
       "kind": "field",
       "name": "Ec.Lyon Mica",
-      "collection": "Ec.Lyon Mica",
+      "collection": "Ec.Lyon",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3748,14 +3829,15 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Mica"
     },
     {
       "pkey": "FLZ-ec-lyon-siena",
       "key": "ec lyon siena",
       "kind": "field",
       "name": "Ec.Lyon Siena",
-      "collection": "Ec.Lyon Siena",
+      "collection": "Ec.Lyon",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -3785,7 +3867,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Siena"
     },
     {
       "pkey": "FLZ-ecuador-nero",
@@ -3822,7 +3905,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-epoca-rosso",
@@ -3859,14 +3943,15 @@
           "accessory_label": null,
           "suffix": "16x16"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-essenza-bianco",
       "key": "essenza bianco",
       "kind": "field",
       "name": "Essenza Bianco",
-      "collection": "Essenza Bianco",
+      "collection": "Essenza",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Concrete",
@@ -3896,14 +3981,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Bianco"
     },
     {
       "pkey": "FLZ-essenza-grigio",
       "key": "essenza grigio",
       "kind": "field",
       "name": "Essenza Grigio",
-      "collection": "Essenza Grigio",
+      "collection": "Essenza",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Concrete",
@@ -3973,14 +4059,15 @@
           "accessory_label": null,
           "suffix": "24x48"
         }
-      ]
+      ],
+      "color": "Grigio"
     },
     {
       "pkey": "FLZ-essenza-nero",
       "key": "essenza nero",
       "kind": "field",
       "name": "Essenza Nero",
-      "collection": "Essenza Nero",
+      "collection": "Essenza",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Concrete",
@@ -4030,14 +4117,15 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Nero"
     },
     {
       "pkey": "FLZ-essenza-tortora",
       "key": "essenza tortora",
       "kind": "field",
       "name": "Essenza Tortora",
-      "collection": "Essenza Tortora",
+      "collection": "Essenza",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Concrete",
@@ -4087,7 +4175,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Tortora"
     },
     {
       "pkey": "FLZ-etna",
@@ -4124,14 +4213,15 @@
           "accessory_label": null,
           "suffix": "24x24-matte"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-etna-gris",
       "key": "etna gris",
       "kind": "field",
       "name": "Etna Gris",
-      "collection": "Etna Gris",
+      "collection": "Etna",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -4161,7 +4251,8 @@
           "accessory_label": null,
           "suffix": "24x24-matte"
         }
-      ]
+      ],
+      "color": "Gris"
     },
     {
       "pkey": "FLZ-evolution-white",
@@ -4198,7 +4289,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-evora-caldera",
@@ -4235,7 +4327,8 @@
           "accessory_label": null,
           "suffix": "16x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-faenza-terra",
@@ -4272,7 +4365,8 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-fortezza-ash",
@@ -4309,14 +4403,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-gran-canyon-beige",
       "key": "gran canyon beige",
       "kind": "field",
       "name": "Gran Canyon Beige",
-      "collection": "Gran Canyon Beige",
+      "collection": "Gran Canyon",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -4346,14 +4441,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Beige"
     },
     {
       "pkey": "FLZ-gran-canyon-grey",
       "key": "gran canyon grey",
       "kind": "field",
       "name": "Gran Canyon Grey",
-      "collection": "Gran Canyon Grey",
+      "collection": "Gran Canyon",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -4383,14 +4479,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-gravel-browm",
       "key": "gravel browm",
       "kind": "field",
       "name": "Gravel Browm",
-      "collection": "Gravel Browm",
+      "collection": "Gravel",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -4420,14 +4517,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Browm"
     },
     {
       "pkey": "FLZ-gravel-grey",
       "key": "gravel grey",
       "kind": "field",
       "name": "Gravel Grey",
-      "collection": "Gravel Grey",
+      "collection": "Gravel",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -4457,14 +4555,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-heartland-sand",
       "key": "heartland sand",
       "kind": "field",
       "name": "Heartland Sand",
-      "collection": "Heartland Sand",
+      "collection": "Heartland",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -4534,14 +4633,15 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Sand"
     },
     {
       "pkey": "FLZ-heartland-amber",
       "key": "heartland amber",
       "kind": "field",
       "name": "Heartland Amber",
-      "collection": "Heartland Amber",
+      "collection": "Heartland",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -4611,14 +4711,15 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Amber"
     },
     {
       "pkey": "FLZ-heartland-clay",
       "key": "heartland clay",
       "kind": "field",
       "name": "Heartland Clay",
-      "collection": "Heartland Clay",
+      "collection": "Heartland",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -4688,14 +4789,15 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Clay"
     },
     {
       "pkey": "FLZ-heartland-charcoal",
       "key": "heartland charcoal",
       "kind": "field",
       "name": "Heartland Charcoal",
-      "collection": "Heartland Charcoal",
+      "collection": "Heartland",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -4765,14 +4867,15 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Charcoal"
     },
     {
       "pkey": "FLZ-heartland-terracotta",
       "key": "heartland terracotta",
       "kind": "field",
       "name": "Heartland Terracotta",
-      "collection": "Heartland Terracotta",
+      "collection": "Heartland",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -4842,7 +4945,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Terracotta"
     },
     {
       "pkey": "FLZ-heritage-white-graphite-silver",
@@ -4879,7 +4983,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-hickory-wengue",
@@ -4916,14 +5021,15 @@
           "accessory_label": null,
           "suffix": "6x36"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-homywood-fume",
       "key": "homywood fume",
       "kind": "field",
       "name": "Homywood Fume",
-      "collection": "Homywood Fume",
+      "collection": "Homywood",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -4953,14 +5059,15 @@
           "accessory_label": null,
           "suffix": "8x48"
         }
-      ]
+      ],
+      "color": "Fume"
     },
     {
       "pkey": "FLZ-homywood-natural",
       "key": "homywood natural",
       "kind": "field",
       "name": "Homywood Natural",
-      "collection": "Homywood Natural",
+      "collection": "Homywood",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -4990,7 +5097,8 @@
           "accessory_label": null,
           "suffix": "8x48"
         }
-      ]
+      ],
+      "color": "Natural"
     },
     {
       "pkey": "FLZ-hyper-white",
@@ -5027,14 +5135,15 @@
           "accessory_label": null,
           "suffix": "12x12-unpolished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-inspire-grey",
       "key": "inspire grey",
       "kind": "field",
       "name": "Inspire Grey",
-      "collection": "Inspire Grey",
+      "collection": "Inspire",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -5084,14 +5193,15 @@
           "accessory_label": null,
           "suffix": "8x10"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-inspire-white",
       "key": "inspire white",
       "kind": "field",
       "name": "Inspire White",
-      "collection": "Inspire White",
+      "collection": "Inspire",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -5141,7 +5251,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "White"
     },
     {
       "pkey": "FLZ-italia-terra",
@@ -5178,14 +5289,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-jewel-day",
       "key": "jewel day",
       "kind": "field",
       "name": "Jewel Day",
-      "collection": "Jewel Day",
+      "collection": "Jewel",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -5215,14 +5327,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Day"
     },
     {
       "pkey": "FLZ-jewel-white",
       "key": "jewel white",
       "kind": "field",
       "name": "Jewel White",
-      "collection": "Jewel White",
+      "collection": "Jewel",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -5252,7 +5365,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "White"
     },
     {
       "pkey": "FLZ-kalahari-coin",
@@ -5289,7 +5403,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-kanawa-beige",
@@ -5326,7 +5441,8 @@
           "accessory_label": null,
           "suffix": "20x20"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-karval-wengue",
@@ -5363,14 +5479,15 @@
           "accessory_label": null,
           "suffix": "6x36"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-key-cuero",
       "key": "key cuero",
       "kind": "field",
       "name": "Key Cuero",
-      "collection": "Key Cuero",
+      "collection": "Key",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -5400,14 +5517,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Cuero"
     },
     {
       "pkey": "FLZ-key-marengo",
       "key": "key marengo",
       "kind": "field",
       "name": "Key Marengo",
-      "collection": "Key Marengo",
+      "collection": "Key",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -5437,7 +5555,8 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Marengo"
     },
     {
       "pkey": "FLZ-lavagna-black-rock",
@@ -5474,7 +5593,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-lenci-blanco",
@@ -5551,7 +5671,8 @@
           "accessory_label": null,
           "suffix": "24x24-matteorpolished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-lord-beige-or-grey",
@@ -5588,7 +5709,8 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-luxury-white",
@@ -5625,7 +5747,8 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-merona-beige",
@@ -5702,14 +5825,15 @@
           "accessory_label": null,
           "suffix": "24x48"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-marmo-bruno",
       "key": "marmo bruno",
       "kind": "field",
       "name": "Marmo Bruno",
-      "collection": "Marmo Bruno",
+      "collection": "Marmo",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": "Marble",
@@ -5759,14 +5883,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Bruno"
     },
     {
       "pkey": "FLZ-marmo-mix",
       "key": "marmo mix",
       "kind": "field",
       "name": "Marmo Mix",
-      "collection": "Marmo Mix",
+      "collection": "Marmo",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -5796,14 +5921,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Mix"
     },
     {
       "pkey": "FLZ-marmorea-almond",
       "key": "marmorea almond",
       "kind": "field",
       "name": "Marmorea Almond",
-      "collection": "Marmorea Almond",
+      "collection": "Marmorea",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -5833,14 +5959,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Almond"
     },
     {
       "pkey": "FLZ-marmorea-beige",
       "key": "marmorea beige",
       "kind": "field",
       "name": "Marmorea Beige",
-      "collection": "Marmorea Beige",
+      "collection": "Marmorea",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -5870,14 +5997,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Beige"
     },
     {
       "pkey": "FLZ-marmorea-taupe",
       "key": "marmorea taupe",
       "kind": "field",
       "name": "Marmorea Taupe",
-      "collection": "Marmorea Taupe",
+      "collection": "Marmorea",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -5907,7 +6035,8 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Taupe"
     },
     {
       "pkey": "FLZ-metro-dark-stripes",
@@ -5944,14 +6073,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-metro-infused",
       "key": "metro infused",
       "kind": "field",
       "name": "Metro Infused",
-      "collection": "Metro Infused",
+      "collection": "Metro",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Concrete",
@@ -6001,7 +6131,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Infused"
     },
     {
       "pkey": "FLZ-metro-light-stripes",
@@ -6038,14 +6169,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-metro-solid",
       "key": "metro solid",
       "kind": "field",
       "name": "Metro Solid",
-      "collection": "Metro Solid",
+      "collection": "Metro",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Concrete",
@@ -6095,7 +6227,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Solid"
     },
     {
       "pkey": "FLZ-mill-ornament",
@@ -6132,7 +6265,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-minuet-bianco",
@@ -6169,7 +6303,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-mirambell-blanco-gris-rojo-ocre-naranja",
@@ -6206,7 +6341,8 @@
           "accessory_label": null,
           "suffix": "6x12"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-missouri-noce",
@@ -6243,7 +6379,8 @@
           "accessory_label": null,
           "suffix": "20x20"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-pave-gubbio",
@@ -6280,7 +6417,8 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-pavia-crema",
@@ -6317,7 +6455,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-piedra-mix",
@@ -6354,7 +6493,8 @@
           "accessory_label": null,
           "suffix": "9x18"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-positano",
@@ -6411,7 +6551,8 @@
           "accessory_label": null,
           "suffix": "24x48-polished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-potenza-elegant",
@@ -6448,14 +6589,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-premier-grey",
       "key": "premier grey",
       "kind": "field",
       "name": "Premier Grey",
-      "collection": "Premier Grey",
+      "collection": "Premier",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -6485,14 +6627,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-premier-tortora",
       "key": "premier tortora",
       "kind": "field",
       "name": "Premier Tortora",
-      "collection": "Premier Tortora",
+      "collection": "Premier",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -6522,14 +6665,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Tortora"
     },
     {
       "pkey": "FLZ-quechua-magma",
       "key": "quechua magma",
       "kind": "field",
       "name": "Quechua Magma",
-      "collection": "Quechua Magma",
+      "collection": "Quechua",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -6559,14 +6703,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Magma"
     },
     {
       "pkey": "FLZ-quechua-natural",
       "key": "quechua natural",
       "kind": "field",
       "name": "Quechua Natural",
-      "collection": "Quechua Natural",
+      "collection": "Quechua",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -6596,7 +6741,8 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Natural"
     },
     {
       "pkey": "FLZ-river-stone-dark-grey-g608",
@@ -6633,14 +6779,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-royale-crema",
       "key": "royale crema",
       "kind": "field",
       "name": "Royale Crema",
-      "collection": "Royale Crema",
+      "collection": "Royale",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -6670,14 +6817,15 @@
           "accessory_label": null,
           "suffix": "13x24-relief"
         }
-      ]
+      ],
+      "color": "Crema"
     },
     {
       "pkey": "FLZ-royale-marfil",
       "key": "royale marfil",
       "kind": "field",
       "name": "Royale Marfil",
-      "collection": "Royale Marfil",
+      "collection": "Royale",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -6707,7 +6855,8 @@
           "accessory_label": null,
           "suffix": "13x24-relief"
         }
-      ]
+      ],
+      "color": "Marfil"
     },
     {
       "pkey": "FLZ-royale-crema-marfil-perla",
@@ -6744,14 +6893,15 @@
           "accessory_label": null,
           "suffix": "13x355-relief"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-rustic-cotto",
       "key": "rustic cotto",
       "kind": "field",
       "name": "Rustic Cotto",
-      "collection": "Rustic Cotto",
+      "collection": "Rustic",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -6781,14 +6931,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Cotto"
     },
     {
       "pkey": "FLZ-rustic-crema",
       "key": "rustic crema",
       "kind": "field",
       "name": "Rustic Crema",
-      "collection": "Rustic Crema",
+      "collection": "Rustic",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -6818,14 +6969,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Crema"
     },
     {
       "pkey": "FLZ-rustic-gris",
       "key": "rustic gris",
       "kind": "field",
       "name": "Rustic Gris",
-      "collection": "Rustic Gris",
+      "collection": "Rustic",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -6855,14 +7007,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Gris"
     },
     {
       "pkey": "FLZ-rustic-natura",
       "key": "rustic natura",
       "kind": "field",
       "name": "Rustic Natura",
-      "collection": "Rustic Natura",
+      "collection": "Rustic",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -6892,14 +7045,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Natura"
     },
     {
       "pkey": "FLZ-safari-crema",
       "key": "safari crema",
       "kind": "field",
       "name": "Safari crema",
-      "collection": "Safari crema",
+      "collection": "Safari",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -6929,14 +7083,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "crema"
     },
     {
       "pkey": "FLZ-safari-gris",
       "key": "safari gris",
       "kind": "field",
       "name": "Safari Gris",
-      "collection": "Safari Gris",
+      "collection": "Safari",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -6966,7 +7121,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Gris"
     },
     {
       "pkey": "FLZ-san-pietrino",
@@ -7003,14 +7159,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-saturnia-beige",
       "key": "saturnia beige",
       "kind": "field",
       "name": "Saturnia Beige",
-      "collection": "Saturnia Beige",
+      "collection": "Saturnia",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -7060,14 +7217,15 @@
           "accessory_label": null,
           "suffix": "13x24"
         }
-      ]
+      ],
+      "color": "Beige"
     },
     {
       "pkey": "FLZ-saturnia-bianco",
       "key": "saturnia bianco",
       "kind": "field",
       "name": "Saturnia Bianco",
-      "collection": "Saturnia Bianco",
+      "collection": "Saturnia",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -7097,14 +7255,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Bianco"
     },
     {
       "pkey": "FLZ-senesi-copper",
       "key": "senesi copper",
       "kind": "field",
       "name": "Senesi Copper",
-      "collection": "Senesi Copper",
+      "collection": "Senesi",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -7134,14 +7293,15 @@
           "accessory_label": null,
           "suffix": "88x88"
         }
-      ]
+      ],
+      "color": "Copper"
     },
     {
       "pkey": "FLZ-senesi-ferro",
       "key": "senesi ferro",
       "kind": "field",
       "name": "Senesi Ferro",
-      "collection": "Senesi Ferro",
+      "collection": "Senesi",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -7171,14 +7331,15 @@
           "accessory_label": null,
           "suffix": "88x88"
         }
-      ]
+      ],
+      "color": "Ferro"
     },
     {
       "pkey": "FLZ-sequoia-beige",
       "key": "sequoia beige",
       "kind": "field",
       "name": "Sequoia Beige",
-      "collection": "Sequoia Beige",
+      "collection": "Sequoia",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -7208,14 +7369,15 @@
           "accessory_label": null,
           "suffix": "6x36"
         }
-      ]
+      ],
+      "color": "Beige"
     },
     {
       "pkey": "FLZ-sequoia-bruno",
       "key": "sequoia bruno",
       "kind": "field",
       "name": "Sequoia Bruno",
-      "collection": "Sequoia Bruno",
+      "collection": "Sequoia",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -7245,14 +7407,15 @@
           "accessory_label": null,
           "suffix": "6x36"
         }
-      ]
+      ],
+      "color": "Bruno"
     },
     {
       "pkey": "FLZ-sestino-crema",
       "key": "sestino crema",
       "kind": "field",
       "name": "Sestino Crema",
-      "collection": "Sestino Crema",
+      "collection": "Sestino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -7282,14 +7445,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Crema"
     },
     {
       "pkey": "FLZ-sestino-moka",
       "key": "sestino moka",
       "kind": "field",
       "name": "Sestino Moka",
-      "collection": "Sestino Moka",
+      "collection": "Sestino",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -7319,14 +7483,15 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": "Moka"
     },
     {
       "pkey": "FLZ-simply-grey",
       "key": "simply grey",
       "kind": "field",
       "name": "Simply Grey",
-      "collection": "Simply Grey",
+      "collection": "Simply",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -7356,14 +7521,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-simply-snow",
       "key": "simply snow",
       "kind": "field",
       "name": "Simply Snow",
-      "collection": "Simply Snow",
+      "collection": "Simply",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -7393,14 +7559,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Snow"
     },
     {
       "pkey": "FLZ-slate-way-ash",
       "key": "slate way ash polish",
       "kind": "field",
       "name": "Slate Way Ash",
-      "collection": "Slate Way Ash",
+      "collection": "Slate Way",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -7430,14 +7597,15 @@
           "accessory_label": null,
           "suffix": "12x24-semipolished"
         }
-      ]
+      ],
+      "color": "Ash"
     },
     {
       "pkey": "FLZ-slate-way-brown",
       "key": "slate way brown polish",
       "kind": "field",
       "name": "Slate Way Brown",
-      "collection": "Slate Way Brown",
+      "collection": "Slate Way",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -7467,14 +7635,15 @@
           "accessory_label": null,
           "suffix": "12x24-semipolished"
         }
-      ]
+      ],
+      "color": "Brown"
     },
     {
       "pkey": "FLZ-snow-cubes",
       "key": "snow cubes",
       "kind": "field",
       "name": "Snow Cubes",
-      "collection": "Snow Cubes",
+      "collection": "Snow",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -7504,14 +7673,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Cubes"
     },
     {
       "pkey": "FLZ-snow-white",
       "key": "snow white",
       "kind": "field",
       "name": "Snow white",
-      "collection": "Snow white",
+      "collection": "Snow",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -7541,7 +7711,8 @@
           "accessory_label": null,
           "suffix": "12x12-unpolished"
         }
-      ]
+      ],
+      "color": "white"
     },
     {
       "pkey": "FLZ-solna-blanco",
@@ -7578,14 +7749,15 @@
           "accessory_label": null,
           "suffix": "6x36"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-solstica-blanco",
       "key": "solstica blanco",
       "kind": "field",
       "name": "Solstica Blanco",
-      "collection": "Solstica Blanco",
+      "collection": "Solstica",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -7615,14 +7787,15 @@
           "accessory_label": null,
           "suffix": "17x17"
         }
-      ]
+      ],
+      "color": "Blanco"
     },
     {
       "pkey": "FLZ-solstica-gris",
       "key": "solstica gris",
       "kind": "field",
       "name": "Solstica Gris",
-      "collection": "Solstica Gris",
+      "collection": "Solstica",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -7652,7 +7825,8 @@
           "accessory_label": null,
           "suffix": "17x17"
         }
-      ]
+      ],
+      "color": "Gris"
     },
     {
       "pkey": "FLZ-sorano-rosso",
@@ -7689,7 +7863,8 @@
           "accessory_label": null,
           "suffix": "1339x1536"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-star-crest-gaya-r65",
@@ -7726,7 +7901,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-star-crest-lankayan-r62",
@@ -7763,7 +7939,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-star-crest-mabul-r61",
@@ -7800,7 +7977,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-statuario-paris",
@@ -7877,7 +8055,8 @@
           "accessory_label": null,
           "suffix": "24x48-polished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-stone-dark-grey",
@@ -7914,7 +8093,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-stone-light-grey",
@@ -7951,7 +8131,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-stromboli-grigio",
@@ -7988,7 +8169,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-super-white",
@@ -8085,7 +8267,8 @@
           "accessory_label": null,
           "suffix": "24x48-polished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-surf-preto",
@@ -8122,14 +8305,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-tamarindo-gris",
       "key": "tamarindo gris",
       "kind": "field",
       "name": "Tamarindo Gris",
-      "collection": "Tamarindo Gris",
+      "collection": "Tamarindo",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -8159,14 +8343,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Gris"
     },
     {
       "pkey": "FLZ-tamarindo-terra",
       "key": "tamarindo terra",
       "kind": "field",
       "name": "Tamarindo Terra",
-      "collection": "Tamarindo Terra",
+      "collection": "Tamarindo",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -8196,14 +8381,15 @@
           "accessory_label": null,
           "suffix": "18x18"
         }
-      ]
+      ],
+      "color": "Terra"
     },
     {
       "pkey": "FLZ-teka-blanco",
       "key": "teka blanco",
       "kind": "field",
       "name": "Teka Blanco",
-      "collection": "Teka Blanco",
+      "collection": "Teka",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -8233,14 +8419,15 @@
           "accessory_label": null,
           "suffix": "575x35"
         }
-      ]
+      ],
+      "color": "Blanco"
     },
     {
       "pkey": "FLZ-teka-gris",
       "key": "teka gris",
       "kind": "field",
       "name": "Teka Gris",
-      "collection": "Teka Gris",
+      "collection": "Teka",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -8270,14 +8457,15 @@
           "accessory_label": null,
           "suffix": "575x35"
         }
-      ]
+      ],
+      "color": "Gris"
     },
     {
       "pkey": "FLZ-tempo-black",
       "key": "tempo black",
       "kind": "field",
       "name": "Tempo Black",
-      "collection": "Tempo Black",
+      "collection": "Tempo",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -8327,14 +8515,15 @@
           "accessory_label": null,
           "suffix": "8x10"
         }
-      ]
+      ],
+      "color": "Black"
     },
     {
       "pkey": "FLZ-tempo-mix",
       "key": "tempo mix",
       "kind": "field",
       "name": "Tempo Mix",
-      "collection": "Tempo Mix",
+      "collection": "Tempo",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -8364,7 +8553,8 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": "Mix"
     },
     {
       "pkey": "FLZ-terrace-brown",
@@ -8401,7 +8591,8 @@
           "accessory_label": null,
           "suffix": "20x20"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-topstone-grey",
@@ -8438,7 +8629,8 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-torano-dorado",
@@ -8515,14 +8707,15 @@
           "accessory_label": null,
           "suffix": "24x24-matteorpolished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-trav-ambra",
       "key": "trav ambra",
       "kind": "field",
       "name": "Trav. Ambra",
-      "collection": "Trav. Ambra",
+      "collection": "Trav.",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -8592,14 +8785,15 @@
           "accessory_label": null,
           "suffix": "24x24-polished"
         }
-      ]
+      ],
+      "color": "Ambra"
     },
     {
       "pkey": "FLZ-trav-beige",
       "key": "trav beige",
       "kind": "field",
       "name": "Trav. Beige",
-      "collection": "Trav. Beige",
+      "collection": "Trav.",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -8629,14 +8823,15 @@
           "accessory_label": null,
           "suffix": "12x24-polished"
         }
-      ]
+      ],
+      "color": "Beige"
     },
     {
       "pkey": "FLZ-trav-grey",
       "key": "trav grey",
       "kind": "field",
       "name": "Trav. Grey",
-      "collection": "Trav. Grey",
+      "collection": "Trav.",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -8706,14 +8901,15 @@
           "accessory_label": null,
           "suffix": "24x24-polished"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-trav-bianco",
       "key": "trav bianco",
       "kind": "field",
       "name": "Trav. Bianco",
-      "collection": "Trav. Bianco",
+      "collection": "Trav.",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -8763,14 +8959,15 @@
           "accessory_label": null,
           "suffix": "24x24-polished"
         }
-      ]
+      ],
+      "color": "Bianco"
     },
     {
       "pkey": "FLZ-trav-ocra",
       "key": "trav ocra",
       "kind": "field",
       "name": "Trav. Ocra",
-      "collection": "Trav. Ocra",
+      "collection": "Trav.",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -8800,14 +8997,15 @@
           "accessory_label": null,
           "suffix": "12x24-matte"
         }
-      ]
+      ],
+      "color": "Ocra"
     },
     {
       "pkey": "FLZ-travessa-cube",
       "key": "travessa cube",
       "kind": "field",
       "name": "Travessa Cube",
-      "collection": "Travessa Cube",
+      "collection": "Travessa",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -8837,14 +9035,15 @@
           "accessory_label": null,
           "suffix": "1339x1536"
         }
-      ]
+      ],
+      "color": "Cube"
     },
     {
       "pkey": "FLZ-travessa-dark",
       "key": "travessa dark",
       "kind": "field",
       "name": "Travessa Dark",
-      "collection": "Travessa Dark",
+      "collection": "Travessa",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -8874,14 +9073,15 @@
           "accessory_label": null,
           "suffix": "1339x1536"
         }
-      ]
+      ],
+      "color": "Dark"
     },
     {
       "pkey": "FLZ-travessa-light",
       "key": "travessa light",
       "kind": "field",
       "name": "Travessa Light",
-      "collection": "Travessa Light",
+      "collection": "Travessa",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -8911,14 +9111,15 @@
           "accessory_label": null,
           "suffix": "1339x1536"
         }
-      ]
+      ],
+      "color": "Light"
     },
     {
       "pkey": "FLZ-travessa-medium",
       "key": "travessa medium",
       "kind": "field",
       "name": "Travessa Medium",
-      "collection": "Travessa Medium",
+      "collection": "Travessa",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -8948,7 +9149,8 @@
           "accessory_label": null,
           "suffix": "1339x1536"
         }
-      ]
+      ],
+      "color": "Medium"
     },
     {
       "pkey": "FLZ-tresana-blanco",
@@ -9045,7 +9247,8 @@
           "accessory_label": null,
           "suffix": "24x24-matteorpolished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-true-soft-black",
@@ -9082,7 +9285,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-true-warm-white",
@@ -9119,14 +9323,15 @@
           "accessory_label": null,
           "suffix": "24x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-tube-black",
       "key": "tube black",
       "kind": "field",
       "name": "Tube Black",
-      "collection": "Tube Black",
+      "collection": "Tube",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -9156,14 +9361,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Black"
     },
     {
       "pkey": "FLZ-tube-cream",
       "key": "tube cream",
       "kind": "field",
       "name": "Tube Cream",
-      "collection": "Tube Cream",
+      "collection": "Tube",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -9193,14 +9399,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Cream"
     },
     {
       "pkey": "FLZ-tube-white",
       "key": "tube white",
       "kind": "field",
       "name": "Tube White",
-      "collection": "Tube White",
+      "collection": "Tube",
       "category": "ceramic-tile",
       "material": "Ceramic",
       "look": null,
@@ -9230,7 +9437,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "White"
     },
     {
       "pkey": "FLZ-umbria-brown",
@@ -9267,7 +9475,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-veneto-black",
@@ -9304,7 +9513,8 @@
           "accessory_label": null,
           "suffix": "13x13"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-vinson-bianco",
@@ -9341,14 +9551,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-vivo-black",
       "key": "vivo black",
       "kind": "field",
       "name": "Vivo Black",
-      "collection": "Vivo Black",
+      "collection": "Vivo",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -9378,14 +9589,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Black"
     },
     {
       "pkey": "FLZ-vivo-brown",
       "key": "vivo brown",
       "kind": "field",
       "name": "Vivo Brown",
-      "collection": "Vivo Brown",
+      "collection": "Vivo",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -9415,7 +9627,8 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": "Brown"
     },
     {
       "pkey": "FLZ-vivo-dark-grey",
@@ -9452,14 +9665,15 @@
           "accessory_label": null,
           "suffix": "12x24"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-wells-cream",
       "key": "wells cream",
       "kind": "field",
       "name": "Wells Cream",
-      "collection": "Wells Cream",
+      "collection": "Wells",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -9529,14 +9743,15 @@
           "accessory_label": null,
           "suffix": "12x24-matteorpolished"
         }
-      ]
+      ],
+      "color": "Cream"
     },
     {
       "pkey": "FLZ-wells-ivory",
       "key": "wells ivory",
       "kind": "field",
       "name": "Wells Ivory",
-      "collection": "Wells Ivory",
+      "collection": "Wells",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -9606,14 +9821,15 @@
           "accessory_label": null,
           "suffix": "12x24-matteorpolished"
         }
-      ]
+      ],
+      "color": "Ivory"
     },
     {
       "pkey": "FLZ-wells-pearl",
       "key": "wells pearl",
       "kind": "field",
       "name": "Wells Pearl",
-      "collection": "Wells Pearl",
+      "collection": "Wells",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -9663,14 +9879,15 @@
           "accessory_label": null,
           "suffix": "24x48-polished"
         }
-      ]
+      ],
+      "color": "Pearl"
     },
     {
       "pkey": "FLZ-wells-sand",
       "key": "wells sand",
       "kind": "field",
       "name": "Wells Sand",
-      "collection": "Wells Sand",
+      "collection": "Wells",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Marble",
@@ -9700,14 +9917,15 @@
           "accessory_label": null,
           "suffix": "24x24-polished"
         }
-      ]
+      ],
+      "color": "Sand"
     },
     {
       "pkey": "FLZ-woodland-natural",
       "key": "woodland natural",
       "kind": "field",
       "name": "Woodland Natural",
-      "collection": "Woodland Natural",
+      "collection": "Woodland",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -9737,14 +9955,15 @@
           "accessory_label": null,
           "suffix": "10x395"
         }
-      ]
+      ],
+      "color": "Natural"
     },
     {
       "pkey": "FLZ-woodland-taupe",
       "key": "woodland taupe",
       "kind": "field",
       "name": "Woodland Taupe",
-      "collection": "Woodland Taupe",
+      "collection": "Woodland",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Wood",
@@ -9774,7 +9993,8 @@
           "accessory_label": null,
           "suffix": "10x395"
         }
-      ]
+      ],
+      "color": "Taupe"
     },
     {
       "pkey": "FLZ-andean-red",
@@ -9811,7 +10031,8 @@
           "accessory_label": null,
           "suffix": "95x11"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-ashen-gray",
@@ -9868,7 +10089,8 @@
           "accessory_label": null,
           "suffix": "6x6x12-abrasive"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-baltic-grey",
@@ -9905,7 +10127,8 @@
           "accessory_label": null,
           "suffix": "6x6x38"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-cotto-grey",
@@ -9942,7 +10165,8 @@
           "accessory_label": null,
           "suffix": "13x13x1"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-mayflower-red-ironspot",
@@ -9979,7 +10203,8 @@
           "accessory_label": null,
           "suffix": "6x6x12"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-mocca",
@@ -10016,7 +10241,8 @@
           "accessory_label": null,
           "suffix": "12x12-smooth"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-moro-brown",
@@ -10053,14 +10279,15 @@
           "accessory_label": null,
           "suffix": "12x12-smooth"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-quarry-grey",
       "key": "grey",
       "kind": "field",
       "name": "Quarry Grey",
-      "collection": "Quarry Grey",
+      "collection": "Quarry",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -10090,14 +10317,15 @@
           "accessory_label": null,
           "suffix": "6x6x12-smooth"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-quarry-red",
       "key": "red",
       "kind": "field",
       "name": "Quarry Red",
-      "collection": "Quarry Red",
+      "collection": "Quarry",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Stone",
@@ -10127,7 +10355,8 @@
           "accessory_label": null,
           "suffix": "6x6x12-smooth"
         }
-      ]
+      ],
+      "color": "Red"
     },
     {
       "pkey": "FLZ-sahara-sand",
@@ -10264,7 +10493,8 @@
           "accessory_label": null,
           "suffix": "6x6x38-smooth"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-salmon",
@@ -10301,14 +10531,15 @@
           "accessory_label": null,
           "suffix": "12x12x38-smooth"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-spanish-grey",
       "key": "spanish grey",
       "kind": "field",
       "name": "Spanish Grey",
-      "collection": "Spanish Grey",
+      "collection": "Spanish",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -10378,14 +10609,15 @@
           "accessory_label": null,
           "suffix": "12x12x38-smooth"
         }
-      ]
+      ],
+      "color": "Grey"
     },
     {
       "pkey": "FLZ-spanish-red",
       "key": "spanish red",
       "kind": "field",
       "name": "Spanish Red",
-      "collection": "Spanish Red",
+      "collection": "Spanish",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -10535,7 +10767,8 @@
           "accessory_label": null,
           "suffix": "12x12x38-grafiladogrooved"
         }
-      ]
+      ],
+      "color": "Red"
     },
     {
       "pkey": "FLZ-porcelagres-gris",
@@ -10572,7 +10805,8 @@
           "accessory_label": null,
           "suffix": "12x12x38-antislip"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-puritan-grey-ironspot",
@@ -10609,14 +10843,15 @@
           "accessory_label": null,
           "suffix": "6x6x12-abrasive"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-bronx-alga",
       "key": "bronx alga",
       "kind": "field",
       "name": "Bronx Alga",
-      "collection": "Bronx Alga",
+      "collection": "Bronx",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -10646,14 +10881,15 @@
           "accessory_label": null,
           "suffix": "3x12"
         }
-      ]
+      ],
+      "color": "Alga"
     },
     {
       "pkey": "FLZ-bronx-gris",
       "key": "bronx gris",
       "kind": "field",
       "name": "Bronx Gris",
-      "collection": "Bronx Gris",
+      "collection": "Bronx",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -10683,14 +10919,15 @@
           "accessory_label": null,
           "suffix": "3x12"
         }
-      ]
+      ],
+      "color": "Gris"
     },
     {
       "pkey": "FLZ-bronx-hueso",
       "key": "bronx hueso",
       "kind": "field",
       "name": "Bronx Hueso",
-      "collection": "Bronx Hueso",
+      "collection": "Bronx",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -10720,14 +10957,15 @@
           "accessory_label": null,
           "suffix": "3x12"
         }
-      ]
+      ],
+      "color": "Hueso"
     },
     {
       "pkey": "FLZ-bronx-negro",
       "key": "bronx negro",
       "kind": "field",
       "name": "Bronx Negro",
-      "collection": "Bronx Negro",
+      "collection": "Bronx",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -10757,14 +10995,15 @@
           "accessory_label": null,
           "suffix": "3x12"
         }
-      ]
+      ],
+      "color": "Negro"
     },
     {
       "pkey": "FLZ-cassero-essenza",
       "key": "cassero essenza",
       "kind": "field",
       "name": "Cassero Essenza",
-      "collection": "Cassero Essenza",
+      "collection": "Cassero",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": "Concrete",
@@ -10794,14 +11033,15 @@
           "accessory_label": null,
           "suffix": "4x12"
         }
-      ]
+      ],
+      "color": "Essenza"
     },
     {
       "pkey": "FLZ-cassero-legno",
       "key": "cassero legno",
       "kind": "field",
       "name": "Cassero Legno",
-      "collection": "Cassero Legno",
+      "collection": "Cassero",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -10831,14 +11071,15 @@
           "accessory_label": null,
           "suffix": "4x12"
         }
-      ]
+      ],
+      "color": "Legno"
     },
     {
       "pkey": "FLZ-cassero-naturale",
       "key": "cassero naturale",
       "kind": "field",
       "name": "Cassero Naturale",
-      "collection": "Cassero Naturale",
+      "collection": "Cassero",
       "category": "porcelain-tile",
       "material": "Porcelain",
       "look": null,
@@ -10868,7 +11109,8 @@
           "accessory_label": null,
           "suffix": "4x12"
         }
-      ]
+      ],
+      "color": "Naturale"
     },
     {
       "pkey": "FLZ-stratus-venato-mosaic",
@@ -10905,14 +11147,15 @@
           "accessory_label": null,
           "suffix": "12x12-gloss"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-absolute-brown-mosaic",
       "key": "absolute brown",
       "kind": "mosaic",
       "name": "Absolute Brown Mosaic",
-      "collection": "Absolute Brown",
+      "collection": "Absolute",
       "category": "mosaic-tile",
       "material": "Porcelain",
       "look": null,
@@ -10942,14 +11185,15 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": "Brown"
     },
     {
       "pkey": "FLZ-absolute-dark-mosaic",
       "key": "absolute dark",
       "kind": "mosaic",
       "name": "Absolute Dark Mosaic",
-      "collection": "Absolute Dark",
+      "collection": "Absolute",
       "category": "mosaic-tile",
       "material": "Porcelain",
       "look": null,
@@ -10979,7 +11223,8 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": "Dark"
     },
     {
       "pkey": "FLZ-absolute-light-grey-mosaic",
@@ -11016,14 +11261,15 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-absolute-white-mosaic",
       "key": "absolute white",
       "kind": "mosaic",
       "name": "Absolute White Mosaic",
-      "collection": "Absolute White",
+      "collection": "Absolute",
       "category": "mosaic-tile",
       "material": "Porcelain",
       "look": null,
@@ -11053,7 +11299,8 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": "White"
     },
     {
       "pkey": "FLZ-durango-beige-mud-mosaic",
@@ -11090,7 +11337,8 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-true-mild-grey-light-beige-warm-white-mosaic",
@@ -11127,7 +11375,8 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-trav-black-ambra-ocra-polished-mosaic",
@@ -11164,7 +11413,8 @@
           "accessory_label": null,
           "suffix": "12x12-polished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-heritage-sand-silver-white-and-graphite-mosaic",
@@ -11201,7 +11451,8 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-callacatta-gold-mosaic",
@@ -11238,7 +11489,8 @@
           "accessory_label": null,
           "suffix": "12x12-polished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-metro-fair-solid-stained-infused-mosaic",
@@ -11275,7 +11527,8 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-turin-mosaic",
@@ -11312,7 +11565,8 @@
           "accessory_label": null,
           "suffix": "12x12-polished"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-penny-round-carrara-white-big-small-mosaic",
@@ -11349,7 +11603,8 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-penny-round-emperador-dark-big-small-mosaic",
@@ -11386,7 +11641,8 @@
           "accessory_label": null,
           "suffix": "12x12"
         }
-      ]
+      ],
+      "color": null
     }
   ],
   "accessoryProducts": [
@@ -11428,7 +11684,8 @@
       ],
       "attach_to": [
         "FLZ-antic-cuero"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-andean-trim",
@@ -11466,7 +11723,8 @@
           "suffix": "stairtread12x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-ashen-gray-trim",
@@ -11546,7 +11804,8 @@
       ],
       "attach_to": [
         "FLZ-ashen-gray"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-colonial-grey-trim",
@@ -11604,7 +11863,8 @@
           "suffix": "outsidecovebase6x6"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-colonial-red-trim",
@@ -11682,7 +11942,8 @@
           "suffix": "bullnose6x6"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-cotto-grey-trim",
@@ -11722,7 +11983,8 @@
       ],
       "attach_to": [
         "FLZ-cotto-grey"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-mayflower-red-ironspot-trim",
@@ -11802,7 +12064,8 @@
       ],
       "attach_to": [
         "FLZ-mayflower-red-ironspot"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-mocca-trim",
@@ -11862,7 +12125,8 @@
       ],
       "attach_to": [
         "FLZ-mocca"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-moro-brown-inside-trim",
@@ -11902,14 +12166,15 @@
       ],
       "attach_to": [
         "FLZ-moro-brown"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-quarry-grey-trim",
       "key": "grey",
       "kind": "accessory",
       "name": "Quarry Grey Trim",
-      "collection": "Quarry Grey",
+      "collection": "Quarry",
       "category": "trim-accessories",
       "material": "Porcelain",
       "look": "Stone",
@@ -12002,14 +12267,15 @@
       ],
       "attach_to": [
         "FLZ-quarry-grey"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-quarry-red-trim",
       "key": "red",
       "kind": "accessory",
       "name": "Quarry Red Trim",
-      "collection": "Quarry Red",
+      "collection": "Quarry",
       "category": "trim-accessories",
       "material": "Porcelain",
       "look": "Stone",
@@ -12042,7 +12308,8 @@
       ],
       "attach_to": [
         "FLZ-quarry-red"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-sahara-sand-trim",
@@ -12122,7 +12389,8 @@
       ],
       "attach_to": [
         "FLZ-sahara-sand"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-sahara-trim",
@@ -12160,7 +12428,8 @@
           "suffix": "stairtread12x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-salmon-trim",
@@ -12240,14 +12509,15 @@
       ],
       "attach_to": [
         "FLZ-salmon"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-spanish-grey-trim",
       "key": "spanish grey",
       "kind": "accessory",
       "name": "Spanish Grey Trim",
-      "collection": "Spanish Grey",
+      "collection": "Spanish",
       "category": "trim-accessories",
       "material": "Porcelain",
       "look": null,
@@ -12280,14 +12550,15 @@
       ],
       "attach_to": [
         "FLZ-spanish-grey"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-spanish-red-trim",
       "key": "spanish red",
       "kind": "accessory",
       "name": "Spanish Red Trim",
-      "collection": "Spanish Red",
+      "collection": "Spanish",
       "category": "trim-accessories",
       "material": "Porcelain",
       "look": null,
@@ -12380,7 +12651,8 @@
       ],
       "attach_to": [
         "FLZ-spanish-red"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-puritan-grey-ironspot-trim",
@@ -12460,7 +12732,8 @@
       ],
       "attach_to": [
         "FLZ-puritan-grey-ironspot"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-white-trim",
@@ -12498,7 +12771,8 @@
           "suffix": "outsidecovebase1x6"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-black-white-trim",
@@ -12536,7 +12810,8 @@
           "suffix": "covebase6x6"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-aurelia-beige-aurelia-grey-trim",
@@ -12574,7 +12849,8 @@
           "suffix": "trim3x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-bianco-river-trim",
@@ -12614,7 +12890,8 @@
       ],
       "attach_to": [
         "FLZ-bianco-river"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-blink-black-trim",
@@ -12654,7 +12931,8 @@
       ],
       "attach_to": [
         "FLZ-blink-black"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-blink-white-trim",
@@ -12692,7 +12970,8 @@
           "suffix": "trim3x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-calacatta-dp-trim",
@@ -12730,14 +13009,15 @@
           "suffix": "trim3x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-carrara-white-trim",
       "key": "carrara white",
       "kind": "accessory",
       "name": "Carrara White Trim",
-      "collection": "Carrara White",
+      "collection": "Carrara",
       "category": "trim-accessories",
       "material": "Ceramic",
       "look": "Marble",
@@ -12770,7 +13050,8 @@
       ],
       "attach_to": [
         "FLZ-carrara-white"
-      ]
+      ],
+      "color": null
     },
     {
       "pkey": "FLZ-evolution-dark-grey-ligth-grey-trim",
@@ -12808,7 +13089,8 @@
           "suffix": "trim3x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-metro-solid-stained-fair-infused-trim",
@@ -12846,7 +13128,8 @@
           "suffix": "trim3x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-safari-crema-gris-trim",
@@ -12884,7 +13167,8 @@
           "suffix": "trim3x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-surf-corda-surf-branco-surf-preto-trim",
@@ -12922,7 +13206,8 @@
           "suffix": "trim3x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-true-light-beige-mild-grey-trim",
@@ -12960,7 +13245,8 @@
           "suffix": "trim3x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-vivo-ligth-grey-dark-grey-trim",
@@ -12998,7 +13284,8 @@
           "suffix": "trim3x12"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-trav-beige-ocra-black-trim",
@@ -13036,7 +13323,8 @@
           "suffix": "trim3x24"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     },
     {
       "pkey": "FLZ-heritage-silver-white-sand-graphite-trim",
@@ -13074,7 +13362,8 @@
           "suffix": "trim4x24"
         }
       ],
-      "attach_to": []
+      "attach_to": [],
+      "color": null
     }
   ]
 }

@@ -103,7 +103,7 @@ function footer() {
       <tr>
         <td width="50%" valign="top" style="padding:0 12px 18px 0;border-bottom:1px solid ${T.footBorder};">
           <p style="margin:0 0 10px;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.accent};">Showroom</p>
-          <p style="margin:0;font-family:${SANS};font-size:13px;line-height:1.5;color:${T.footText};">1440 S. State College Blvd #6M<br>Anaheim, CA 92806<br>Mon&ndash;Fri 8am&ndash;5pm &middot; Sat 9am&ndash;2pm</p>
+          <p style="margin:0;font-family:${SANS};font-size:13px;line-height:1.5;color:${T.footText};">1440 S. State College Blvd #6M<br>Anaheim, CA 92806<br>Mon&ndash;Fri 9am&ndash;5pm &middot; Sat 10am&ndash;5pm</p>
         </td>
         <td width="50%" valign="top" style="padding:0 0 18px;border-bottom:1px solid ${T.footBorder};">
           <p style="margin:0 0 10px;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:${T.accent};">Reach us</p>

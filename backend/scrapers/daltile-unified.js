@@ -452,8 +452,8 @@ async function loadCategoryMap(pool) {
 
 function retailFromCost(cost) {
   if (!cost || cost <= 0) return 0;
-  const multiplier = cost < 5 ? 2.5 : cost < 15 ? 2.2 : cost < 30 ? 2.0 : cost < 50 ? 1.8 : 1.6;
-  return Math.round(cost * multiplier * 100) / 100;
+  // Flat 1.6x keystone — Daltile 832 only sends wholesale cost, so retail = cost × 1.6.
+  return Math.round(cost * 1.6 * 100) / 100;
 }
 
 // ─── Internal SKU builder ────────────────────────────────────────────────────

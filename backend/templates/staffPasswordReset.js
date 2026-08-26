@@ -4,9 +4,9 @@ import { SITE_URL } from './_config.js';
 // Staff / admin password-reset email. Distinct from the customer welcome flow:
 // staff sign in to the operations console (not the shop), and the set-password
 // token is good for 7 days rather than the customer reset's one hour.
-export function generateStaffPasswordResetHTML(firstName, resetUrl, { expiresLabel = '7 days' } = {}) {
+export function generateStaffPasswordResetHTML(firstName, resetUrl, { expiresLabel = '7 days', loginPath = '/admin' } = {}) {
   const name = firstName ? esc(firstName) : 'there';
-  const adminUrl = `${SITE_URL}/admin`;
+  const adminUrl = `${SITE_URL}${loginPath}`;
   const adminHost = adminUrl.replace(/^https?:\/\//, '');
 
   const content = [

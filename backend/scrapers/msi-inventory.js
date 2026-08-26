@@ -79,67 +79,83 @@ export async function run(pool, job, source) {
   }
 
   async function processSku(sku) {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      await waitOutCooldown();
+    // MSI's inventory API keys on the base item code. Some of our SKUs carry a
+    // trailing "-N" notation the API doesn't recognize, so query the raw
+    // vendor_sku first and fall back to the "-N"-stripped base code on a miss.
+    // Verified: recovers ~75% of -N SKUs and never collides with a real hit
+    // (the -N form always returns "No Records"), so the fallback can't mismatch.
+    const candidates = [sku.vendor_sku];
+    if (/-N$/i.test(sku.vendor_sku)) candidates.push(sku.vendor_sku.replace(/-N$/i, ''));
 
-      let data;
-      try {
-        data = await fetchInventory(sku.vendor_sku);
-      } catch (err) {
-        errors++;
-        if (errors <= 10) {
-          await appendLog(pool, job.id, `Error fetching inventory for ${sku.vendor_sku}: ${err.message}`);
-          await addJobError(pool, job.id, `SKU ${sku.vendor_sku}: ${err.message}`);
+    for (const code of candidates) {
+      let noData = false;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        await waitOutCooldown();
+
+        let data;
+        try {
+          data = await fetchInventory(code);
+        } catch (err) {
+          errors++;
+          if (errors <= 10) {
+            await appendLog(pool, job.id, `Error fetching inventory for ${code}: ${err.message}`);
+            await addJobError(pool, job.id, `SKU ${code}: ${err.message}`);
+          }
+          return;
         }
+
+        if (data && data.throttled) {
+          // Rate limited — set a shared cooldown so every worker backs off, then retry this SKU.
+          throttleHits++;
+          cooldownUntil = Math.max(cooldownUntil, Date.now() + cooldownMs);
+          if (throttleHits === 1 || throttleHits % 25 === 0) {
+            await appendLog(pool, job.id, `Rate limited (429) — pausing all workers ${Math.round(cooldownMs / 1000)}s to let MSI's window reset (hit #${throttleHits})`);
+          }
+          continue;
+        }
+
+        if (!data) {
+          noData = true; // no records for THIS code — try the next candidate
+          break;
+        }
+
+        found++;
+
+        // Upsert inventory snapshot per region
+        for (const region of data.regions) {
+          await pool.query(`
+            INSERT INTO inventory_snapshots (
+              sku_id, warehouse, qty_on_hand, qty_in_transit,
+              qty_on_hand_sqft, qty_in_transit_sqft, fresh_until
+            ) VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL '24 hours')
+            ON CONFLICT (sku_id, warehouse) DO UPDATE SET
+              qty_on_hand = EXCLUDED.qty_on_hand,
+              qty_in_transit = EXCLUDED.qty_in_transit,
+              qty_on_hand_sqft = EXCLUDED.qty_on_hand_sqft,
+              qty_in_transit_sqft = EXCLUDED.qty_in_transit_sqft,
+              fresh_until = EXCLUDED.fresh_until,
+              snapshot_time = CURRENT_TIMESTAMP
+          `, [
+            sku.id,
+            region.geography,
+            region.qtyInWhsePcs,
+            region.qtyInTransitPcs,
+            region.qtyInWhseSqft,
+            region.qtyInTransitSqft
+          ]);
+        }
+
+        updated++;
         return;
       }
 
-      if (data && data.throttled) {
-        // Rate limited — set a shared cooldown so every worker backs off, then retry this SKU.
-        throttleHits++;
-        cooldownUntil = Math.max(cooldownUntil, Date.now() + cooldownMs);
-        if (throttleHits === 1 || throttleHits % 25 === 0) {
-          await appendLog(pool, job.id, `Rate limited (429) — pausing all workers ${Math.round(cooldownMs / 1000)}s to let MSI's window reset (hit #${throttleHits})`);
-        }
-        continue;
+      // Exhausted retries while still being throttled — leave prior snapshot intact.
+      if (!noData) {
+        dropped++;
+        return;
       }
-
-      if (!data) {
-        return; // Genuinely no inventory data for this SKU
-      }
-
-      found++;
-
-      // Upsert inventory snapshot per region
-      for (const region of data.regions) {
-        await pool.query(`
-          INSERT INTO inventory_snapshots (
-            sku_id, warehouse, qty_on_hand, qty_in_transit,
-            qty_on_hand_sqft, qty_in_transit_sqft, fresh_until
-          ) VALUES ($1, $2, $3, $4, $5, $6, NOW() + INTERVAL '24 hours')
-          ON CONFLICT (sku_id, warehouse) DO UPDATE SET
-            qty_on_hand = EXCLUDED.qty_on_hand,
-            qty_in_transit = EXCLUDED.qty_in_transit,
-            qty_on_hand_sqft = EXCLUDED.qty_on_hand_sqft,
-            qty_in_transit_sqft = EXCLUDED.qty_in_transit_sqft,
-            fresh_until = EXCLUDED.fresh_until,
-            snapshot_time = CURRENT_TIMESTAMP
-        `, [
-          sku.id,
-          region.geography,
-          region.qtyInWhsePcs,
-          region.qtyInTransitPcs,
-          region.qtyInWhseSqft,
-          region.qtyInTransitSqft
-        ]);
-      }
-
-      updated++;
-      return;
+      // noData: fall through to the next candidate code (if any)
     }
-
-    // Exhausted retries while still being throttled — leave prior snapshot intact.
-    dropped++;
   }
 
   async function worker() {

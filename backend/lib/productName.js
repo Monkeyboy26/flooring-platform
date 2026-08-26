@@ -16,6 +16,83 @@
 //                                             // overall_length
 // All fields optional; the function degrades gracefully when data is missing.
 
+// ---- Stored-name de-duplication -------------------------------------------
+// Many vendor feeds bake the collection into products.name AND repeat it inside
+// the raw color, producing redundant titles:
+//   col "B&W Marble"       name "B&W Marble B&W Breach"                        → "B&W Marble Breach"
+//   col "Ledger Panels"    name "Ledger Panels Autumn Ledger"                  → "Ledger Panels Autumn"
+//   col "Calacatta Dorado" name "Calacatta Dorado Malaysia Calacatta Dorado M" → "Calacatta Dorado Malaysia M"
+//   (any vendor)           name "American Olean Botticino Matte Matte"         → "American Olean Botticino Matte"
+// The rules only ever remove tokens that duplicate the collection or an adjacent
+// word, so a legitimately-repeating name ("Blanc du Blanc") is left intact.
+// Used by the storefront title builder (defensive net), the one-time backfill,
+// and the shared scraper upsertProduct() so re-imports don't re-introduce echoes.
+function _dedupTok(tok) { return tok.toLowerCase().replace(/[.,]+$/, ''); }
+
+function collapseAdjacentDupWords(tokens) {
+  const out = [];
+  for (const t of tokens) {
+    // Only collapse repeated alphabetic words ("Matte Matte"). Numeric tokens
+    // ("Slu 50 50 Bags") are distinct values, not a typo-style repeat.
+    if (out.length && !/\d/.test(t) && _dedupTok(out[out.length - 1]) === _dedupTok(t)) continue;
+    out.push(t);
+  }
+  return out;
+}
+
+function dedupeStoredName(collection, name) {
+  if (!name || typeof name !== 'string') return name;
+  const col = (collection || '').trim();
+  const colToks = col.split(/\s+/).filter(Boolean);
+  const nC = colToks.length;
+  const colN = colToks.map(_dedupTok);
+  // Alternation collections ("Chevron & Herringbone", "Backsplash & Wall") name two
+  // options; the color's leading token ("Chevron Blue" vs "Herringbone Blue") is a
+  // meaningful selector, not a redundant echo. Leave these entirely untouched — even
+  // adjacent-word collapse would merge the collection's trailing option with a color
+  // that repeats it ("...Herringbone Herringbone Blue"), erasing the distinction. A
+  // standalone "&"/"and" token marks alternation; an ampersand *inside* a token
+  // ("B&W") does not, so "B&W Marble" is still de-duped.
+  const isAlternation = colN.some(t => t === '&' || t === 'and');
+  if (isAlternation) return name.trim().replace(/\s+/g, ' ');
+
+  let toks = collapseAdjacentDupWords(name.trim().split(/\s+/).filter(Boolean));
+  if (!col) return toks.join(' ');
+  // Only treat the tail as "color" when the name begins with the full collection
+  if (toks.length <= nC) return toks.join(' ');
+  for (let i = 0; i < nC; i++) if (_dedupTok(toks[i]) !== colN[i]) return toks.join(' ');
+  let rest = toks.slice(nC);
+  // (1) leading positional echo of the collection (e.g. "B&W" in "B&W Breach")
+  {
+    let a = 0;
+    while (a < rest.length && a < colN.length && _dedupTok(rest[a]) === colN[a]) a++;
+    if (a > 0) rest = rest.slice(a);
+  }
+  // (2) interior repeat of the ENTIRE collection later in the name — e.g.
+  //     "River Malaysia River White" → "River Malaysia White", "Alaska NG Alaska
+  //     Grey" → "Alaska NG Grey". Safe even for single-token collections because
+  //     only a full repeat of the whole collection string is removed (never a lone
+  //     token that might be part of a compound color).
+  {
+    const rn = rest.map(_dedupTok);
+    let s = 0;
+    while (s + nC <= rn.length) {
+      let hit = true;
+      for (let k = 0; k < nC; k++) if (rn[s + k] !== colN[k]) { hit = false; break; }
+      if (hit) { rest.splice(s, nC); rn.splice(s, nC); } else s++;
+    }
+  }
+  // (3) trailing echo of the collection's leading token (appended category word,
+  //     e.g. "Ledger", "Slate", "Large"). Restricted to the first token to avoid
+  //     stripping common trailing color words ("...Wood", "...Stone").
+  while (rest.length && _dedupTok(rest[rest.length - 1]) === colN[0]) rest.pop();
+  // Preserve the name's ORIGINAL casing for the collection-prefix tokens (don't
+  // re-case to the collection's casing — that would turn "Colorfast X" into
+  // "COLORFAST X"). Only the redundant tokens are removed.
+  const out = collapseAdjacentDupWords(toks.slice(0, nC).concat(rest)).join(' ').trim();
+  return out || col;
+}
+
 function formatCarpetValue(val) {
   if (!val || typeof val !== 'string') return val;
   // Fiber format: "PILE 100 NYLON" → "100% Nylon"
@@ -130,10 +207,14 @@ function stripTypeSuffix(text, categoryName) {
   return text.replace(re, '').trim();
 }
 
+export { collapseAdjacentDupWords, dedupeStoredName };
+
 export function fullProductName(sku) {
   const rawName = sku.product_name || '';
   const col = sku.collection || '';
-  let name = formatCarpetValue(rawName);
+  // Defensive net: strip any collection/token echo still baked into the stored
+  // product_name (belt-and-suspenders alongside the DB backfill). See dedupeStoredName.
+  let name = formatCarpetValue(dedupeStoredName(col, rawName));
 
   // Accessories: show "Collection Color — Accessory Type" (e.g., "Prime 3 — End Cap, 8'")
   if (sku.variant_type === 'accessory') {
@@ -400,7 +481,18 @@ export function fullProductName(sku) {
     const sizeMatch = name.match(/^(.*?\s)?(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d.*)$/);
     if (sizeMatch && sizeMatch[2]) {
       const prefix = (sizeMatch[1] || '').trimEnd();
-      orderedName = (prefix ? prefix + ' ' : '') + variant + ' ' + sizeMatch[2];
+      let tail = sizeMatch[2];
+      // The variant already carries the size (e.g. "2″ × 2″, Matte"). If the name's
+      // trailing part ALSO leads with that same dimension ("2x2 Mosaic"/"2x2 Hexagon"),
+      // drop the bare dimension so the size isn't printed twice
+      // ("... 2″ × 2″, Matte 2x2 Mosaic" → "... 2″ × 2″, Matte Mosaic").
+      const nd = s => { const t = String(s).replace(/["″”'’]/g, '').replace(/×/g, 'x'); const m = t.match(/\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?/i); return m ? m[0].replace(/\s/g, '').toLowerCase() : ''; };
+      const vDim = nd(variant);
+      const tHead = tail.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?)/);
+      if (vDim && tHead && nd(tHead[1]) === vDim) {
+        tail = tail.slice(tHead[1].length).replace(/^[\s,.\-–—]+/, '').trim();
+      }
+      orderedName = (prefix ? prefix + ' ' : '') + variant + (tail ? ' ' + tail : '');
       orderedVariant = null;
     }
   }

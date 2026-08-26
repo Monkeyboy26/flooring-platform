@@ -1430,7 +1430,7 @@ function stripTypeSuffix(text) {
  */
 export async function reconcileBedProducts(pool, vendor_id) {
   const stats = { categoryFixed: 0, colorFixed: 0, displayNameFixed: 0, sellByFixed: 0,
-    slabPriceConverted: 0, accessorySkus: 0, pruned: 0, accessoryLinks: 0, nullPrice: 0 };
+    slabPriceConverted: 0, ledgerPriceConverted: 0, accessorySkus: 0, pruned: 0, accessoryLinks: 0, nullPrice: 0 };
 
   const slugToId = new Map();
   for (const r of (await pool.query('SELECT id, slug FROM categories WHERE is_active = true')).rows) {
@@ -1446,13 +1446,13 @@ export async function reconcileBedProducts(pool, vendor_id) {
 
   // SKUs + pivoted attributes + latest price
   const skus = (await pool.query(
-    `SELECT s.id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.variant_type, s.accessory_label,
+    `SELECT s.id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.variant_type, s.accessory_label, s.status,
        max(CASE WHEN a.slug='size' THEN sa.value END) AS size,
        max(CASE WHEN a.slug='material' THEN sa.value END) AS material,
        max(CASE WHEN a.slug='application' THEN sa.value END) AS application,
        max(CASE WHEN a.slug='shape' THEN sa.value END) AS shape,
        max(CASE WHEN a.slug='color' THEN sa.value END) AS color,
-       pr.price_basis, pr.retail_price, pk.sqft_per_box
+       pr.price_basis, pr.retail_price, pk.sqft_per_box, pk.pieces_per_box
      FROM skus s
      JOIN products p ON p.id = s.product_id
      LEFT JOIN sku_attributes sa ON sa.sku_id = s.id
@@ -1461,8 +1461,8 @@ export async function reconcileBedProducts(pool, vendor_id) {
      LEFT JOIN pricing pr ON pr.sku_id = s.id
      LEFT JOIN packaging pk ON pk.sku_id = s.id
      WHERE p.vendor_id = $1
-     GROUP BY s.id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.variant_type, s.accessory_label,
-       pr.price_basis, pr.retail_price, pk.sqft_per_box`, [vendor_id])).rows;
+     GROUP BY s.id, s.product_id, s.vendor_sku, s.variant_name, s.sell_by, s.variant_type, s.accessory_label, s.status,
+       pr.price_basis, pr.retail_price, pk.sqft_per_box, pk.pieces_per_box`, [vendor_id])).rows;
   for (const s of skus) { const p = byId.get(s.product_id); if (p) p.skus.push(s); }
 
   const colorAttrId = (await pool.query("SELECT id FROM attributes WHERE slug='color'")).rows[0]?.id;
@@ -1497,6 +1497,13 @@ export async function reconcileBedProducts(pool, vendor_id) {
       const d = parseDims(s.size);
       return d && d.min >= 2 && d.max <= 50;
     });
+    // Ledger panel/corner SKU: BED codes them LED / LEDCNR / SFCNR (split-face corner) / MIXCNR
+    // and rates them wall-only. Product names are bare colors ("Alpine Grey"), so the code suffix
+    // + application is the only signal — require both so a color abbreviation ending in "led"
+    // can't false-positive on a floor-rated tile.
+    const isLedgerSku = (s) => /(LED|CNR)$/i.test(s.vendor_sku || '')
+      && /wall/i.test(s.application || '') && !/floor/i.test(s.application || '');
+    const activeSkus = p.skus.filter(s => s.status === 'active');
 
     // ── a. Category (CORRECTIVE, not from-scratch) ──
     // The scrape-time category used rich raw data (esp. shape, which is sparse once stored — 60%+
@@ -1526,6 +1533,12 @@ export async function reconcileBedProducts(pool, vendor_id) {
       target = mt === 'porcelain' || mt === 'cement' ? 'porcelain-tile'
         : mt === 'ceramic' ? 'ceramic-tile'
         : /marble|travertine|limestone|granite|quartzite|slate|onyx/.test(mt) ? 'natural-stone' : p.cat;
+    } else if (['natural-stone', 'mosaic-tile', 'porcelain-tile', 'ceramic-tile', 'backsplash-wall'].includes(p.cat)
+        && activeSkus.length > 0 && activeSkus.every(isLedgerSku)) {
+      // Every live SKU is a ledger panel/corner (Alpine Grey, Silver Sheen…) → stacked stone.
+      // Active-only so Glacier White (live split-face corner + two draft slab SKUs from a
+      // name-collision merge) routes by what customers can actually buy.
+      target = 'stacked-stone';
     } else if (['porcelain-tile', 'ceramic-tile'].includes(p.cat) && (wallOnly || namedWallTile)) {
       target = 'backsplash-wall';                                  // Cloe, Traditions, Donna
     } else if (p.cat === 'backsplash-wall' && floorCapable && !namedWallTile && !wallOnly) {
@@ -1574,15 +1587,20 @@ export async function reconcileBedProducts(pool, vendor_id) {
     // ── c. Accessory-variant marking (authoritative) ──
     // A SKU is an accessory iff it's a thin strip (0.5"×8" liner) OR its name/variant explicitly
     // names a trim piece. Decision does NOT use the vendor_sku (codes like "SN"/"ATC" are too
-    // ambiguous and would mis-mark field tiles). Clear a stale accessory flag on a real tile SKU.
+    // ambiguous and would mis-mark field tiles) — sole exception: a *CNR ledger corner inside a
+    // stacked-stone product that also has a panel SKU, where the corner would otherwise render as
+    // a duplicate pill (panel and corner share the same variant_name, e.g. "6x24, Natural").
     const TILE_CATS = new Set(['porcelain-tile', 'ceramic-tile', 'mosaic-tile', 'backsplash-wall', 'natural-stone', 'backsplash-tile']);
+    const hasLedgerPanel = p.skus.some(s => isLedgerSku(s) && !/CNR$/i.test(s.vendor_sku || ''));
     for (const s of p.skus) {
       const dims = parseDims(s.size);
       const nameTrim = /bull?nos|jolly|\bliner\b|pencil|t[-\s]?mold|reducer|stair\s*nos|nosing|threshold|end\s*cap|quarter\s*round|chair\s*rail|v-?cap|cove\s*base|listello/i.test(`${p.name} ${s.variant_name || ''}`);
-      const shouldBeAcc = isThinStrip(dims) || nameTrim;
+      const ledgerCorner = p.cat === 'stacked-stone' && hasLedgerPanel
+        && isLedgerSku(s) && /CNR$/i.test(s.vendor_sku || '');
+      const shouldBeAcc = isThinStrip(dims) || nameTrim || ledgerCorner;
       if (shouldBeAcc) {
         // Derive the specific type label authoritatively (fixes generic "Trim"/"Molding").
-        const label = accessoryLabelFor(p.name, s.variant_name, s.vendor_sku, dims);
+        const label = ledgerCorner ? 'Corner' : accessoryLabelFor(p.name, s.variant_name, s.vendor_sku, dims);
         if (s.variant_type !== 'accessory' || s.accessory_label !== label) {
           await pool.query(
             'UPDATE skus SET variant_type=$2, accessory_label=$3, updated_at=CURRENT_TIMESTAMP WHERE id=$1',
@@ -1634,8 +1652,27 @@ export async function reconcileBedProducts(pool, vendor_id) {
         s.price_basis = 'per_unit';
         stats.slabPriceConverted++;
       }
+      // Ledger panels/corners are quoted per-sqft but sell per piece (like the Jumbo/Tumbled
+      // Ledgers lines) — convert with the piece area: Box SF ÷ pieces, else nominal dims
+      // (6x24 = 1 sqft). Same lesson as slabs: relabeling per-sqft as per_unit without
+      // converting fabricates the price. Only when the SKU actually sells per piece here —
+      // a ledger SKU inside a field-tile grab-bag keeps its box/per_sqft basis.
+      if (wantUnit && isLedgerSku(s) && s.price_basis === 'per_sqft' && s.retail_price != null) {
+        const pieces = parseFloat(s.pieces_per_box);
+        const d = parseDims(s.size);
+        const pieceArea = (slabArea > 0 && pieces > 0) ? slabArea / pieces
+          : d ? (d.min * d.max) / 144 : 0;
+        if (pieceArea > 0) {
+          await pool.query(
+            `UPDATE pricing SET retail_price = ROUND(retail_price * $2, 2),
+               cost = ROUND(cost * $2, 2), price_basis = 'per_unit' WHERE sku_id = $1`,
+            [s.id, pieceArea]);
+          s.price_basis = 'per_unit';
+          stats.ledgerPriceConverted++;
+        }
+      }
       const wantBasis = !wantUnit ? 'per_sqft'
-        : (slabSku && s.price_basis === 'per_sqft') ? 'per_sqft' : 'per_unit';
+        : ((slabSku || isLedgerSku(s)) && s.price_basis === 'per_sqft') ? 'per_sqft' : 'per_unit';
       if (s.retail_price != null && s.price_basis && s.price_basis !== wantBasis) {
         await pool.query('UPDATE pricing SET price_basis=$2 WHERE sku_id=$1', [s.id, wantBasis]);
       }

@@ -69,7 +69,7 @@ export function generateOrderStatusUpdateHTML(orderData, status) {
     sections.push(section(warmCard(`
       <p style="margin:0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:${T.accent};">Pickup location</p>
       <p style="margin:6px 0 0;font-family:${SERIF};font-size:22px;font-weight:300;letter-spacing:-0.01em;color:${T.ink};">Roma Flooring Designs</p>
-      <p style="margin:8px 0 0;font-family:${SANS};font-size:13px;line-height:1.6;color:${T.body};">1440 S. State College Blvd #6M, Anaheim, CA 92806<br>Mon&ndash;Fri 8am&ndash;5pm &middot; Sat 9am&ndash;2pm<br>Bring a valid photo ID</p>
+      <p style="margin:8px 0 0;font-family:${SANS};font-size:13px;line-height:1.6;color:${T.body};">1440 S. State College Blvd #6M, Anaheim, CA 92806<br>Mon&ndash;Fri 9am&ndash;5pm &middot; Sat 10am&ndash;5pm<br>Bring a valid photo ID</p>
     `, '20px 22px'), '0 40px 24px'));
   }
 

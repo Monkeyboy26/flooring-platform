@@ -768,13 +768,17 @@ export function loadAllPriceLists() {
    * @param {object} specs - Parsed specs from detail page { finish, thickness, size, ... }
    * @returns {object|null} Price list entry or null
    */
-  function lookupSimple(title, slug, specs) {
+  function lookupSimple(title, slug, specs, allowSlab = true) {
     if (!title) return null;
 
+    const SLAB_SRC = new Set(['stone-slab', 'quartz', 'porcelain-slab']);
     const name = title.toUpperCase().trim();
 
     // ── 1) Exact match (unlikely but try) ──
-    if (allMaps.has(name)) return allMaps.get(name);
+    if (allMaps.has(name)) {
+      const exact = allMaps.get(name);
+      if (allowSlab || !SLAB_SRC.has(exact.source)) return exact;
+    }
 
     // ── 2) Derive search name with finish handling ──
     // Extract finish from title (e.g., "Bianco Carrara Honed" → finish = "HONED", stem = "BIANCO CARRARA")
@@ -801,6 +805,12 @@ export function loadAllPriceLists() {
       }
     }
 
+    // ── 3–6) Slab / quartz list matching — ONLY for slab-category products.
+    // A tile must never inherit a slab price: e.g. a natural-stone "Calacatta
+    // Viola" TILE (absent from the tile price list) would otherwise prefix-match
+    // "CALACATTA VIOLA HONED,SLAB" ($90.18/sqft) in §5 below. The caller passes
+    // allowSlab=false for non-slab PIM categories to prevent that cross-list bleed.
+    if (allowSlab) {
     // ── 3) Try "NAME SLAB" pattern (stone + quartz slabs) ──
     const nameWithSlab = searchName + ' SLAB';
     if (allMaps.has(nameWithSlab)) return allMaps.get(nameWithSlab);
@@ -923,6 +933,7 @@ export function loadAllPriceLists() {
         }
       }
     }
+    } // end if (allowSlab) — slab/quartz matching gated to slab categories
 
     // ── 7) Tile prefix match for simple products ──
     // For non-slab tile products without size (e.g. "SPARK BARS IVORY"),
@@ -940,6 +951,7 @@ export function loadAllPriceLists() {
     // ── 8) Fuzzy compact match (strip spaces/hyphens) ──
     const nameCompact = searchName.replace(/[\s\-\/]+/g, '');
     for (const [k, v] of allMaps) {
+      if (!allowSlab && SLAB_SRC.has(v.source)) continue; // no slab bleed onto tiles
       const kStem = k.replace(/\s+SLAB.*$/, '').replace(/\s+\d+X\d+.*$/, '');
       if (kStem.replace(/[\s\-\/]+/g, '') === nameCompact) return v;
     }

@@ -157,6 +157,8 @@ function shapeOf(name, size) {
   if (/hex|13\.39x15\.36|9\.5x11/.test(s)) return 'Hexagon';
   return null;
 }
+// Set true in main() when vendors.hide_public_name — omits distributor name from descriptions.
+let HIDE_VENDOR = false;
 function descFor(p) {
   const sizes = [...new Set(p.skus.map((s) => s.size_nominal))].filter(Boolean);
   const origins = p.origins && p.origins.length ? p.origins.join(', ') : p.origin;
@@ -164,14 +166,14 @@ function descFor(p) {
     const kinds = [...new Set(p.skus.map((s) => (s.accessory_label || '').replace(/\s*\(.*\)$/, '')))].filter(Boolean);
     return {
       short: `Matching ${kinds.join(', ').toLowerCase()} trim for ${p.collection}.`,
-      long: `Coordinating trim pieces (${kinds.join(', ')}) for the ${p.collection} line. Sold by the piece. Imported by Florenza Ceramic — FOB Anaheim.`,
+      long: `Coordinating trim pieces (${kinds.join(', ')}) for the ${p.collection} line. Sold by the piece.${HIDE_VENDOR ? '' : ' Imported by Florenza Ceramic —'} FOB Anaheim.`,
     };
   }
   const mat = (p.material || 'Porcelain').toLowerCase();
   const looksLike = p.look ? `${p.look.toLowerCase()}-look ` : '';
   return {
     short: `Imported ${looksLike}${mat} tile${sizes.length ? ' in ' + sizes.join(', ') : ''}${origins ? ' — made in ' + origins : ''}.`,
-    long: `${p.name} — ${looksLike}${mat} tile distributed by Florenza Ceramic (Anaheim, CA).` +
+    long: `${p.name} — ${looksLike}${mat} tile${HIDE_VENDOR ? '' : ' distributed by Florenza Ceramic (Anaheim, CA)'}.` +
       `${sizes.length ? ' Available sizes: ' + sizes.join(', ') + '.' : ''}${origins ? ' Country of origin: ' + origins + '.' : ''} FOB Anaheim warehouse.`,
   };
 }
@@ -226,6 +228,7 @@ async function importProduct(p, vendorId, brandId, catId) {
 
     await setAttr(skuId, 'material', s.type || p.material);
     await setAttr(skuId, 'collection', p.collection);
+    await setAttr(skuId, 'color', p.color);
     await setAttr(skuId, 'size', s.size_nominal);
     await setAttr(skuId, 'thickness', s.thickness);
     await setAttr(skuId, 'finish', s.finish);
@@ -241,7 +244,8 @@ async function importProduct(p, vendorId, brandId, catId) {
 async function main() {
   console.log('=== Florenza Ceramic Import ===\n');
   const vendorId = await upsertVendor(catalog.vendor);
-  console.log(`Vendor: ${catalog.vendor.name} (${vendorId})`);
+  HIDE_VENDOR = (await pool.query('SELECT hide_public_name FROM vendors WHERE id=$1', [vendorId])).rows[0]?.hide_public_name === true;
+  console.log(`Vendor: ${catalog.vendor.name} (${vendorId})${HIDE_VENDOR ? ' [hidden — vendor name omitted from descriptions]' : ''}`);
   const brandId = await upsertBrand(catalog.brand);
   await linkVendorBrand(vendorId, brandId, true);
   console.log(`Brand:  ${catalog.brand.name} (${brandId})`);

@@ -52,6 +52,51 @@ export async function claimGuestRecords(db, customerId, email) {
   return moved;
 }
 
+// Every table that stores a denormalized `customer_email` snapshot and is looked
+// up by it (retail records carry no owning customer_id, or the FK is added live and
+// missing from schema.sql — so the email string is the ONLY reliable link). When a
+// customer's email is changed we must re-point ALL of these, or their orders, quotes,
+// estimates, invoices, credit memos, promo-usage limits and — most importantly —
+// store credit become unreachable under the new address. Email is globally unique to
+// one identity (findExactDuplicate + UNIQUE constraints), so every row bearing the old
+// address belongs to this person and is safe to move.
+const EMAIL_KEYED_TABLES = [
+  'orders', 'quotes', 'estimates', 'sample_requests', 'showroom_visits',
+  'invoices', 'credit_memos', 'returns', 'promo_code_usages',
+  'installation_inquiries', 'deals', 'rep_tasks',
+];
+
+// Re-point a customer's entire email-keyed footprint from oldEmail → newEmail, then
+// (re-)claim any guest orders/quotes/estimates/samples under the new address. MUST run
+// inside the same transaction/client as the customers.email UPDATE. Returns per-table
+// row counts moved. Caller is responsible for verifying newEmail isn't owned by a
+// DIFFERENT account first (findExactDuplicate). No-ops when the email is unchanged.
+export async function migrateCustomerEmail(client, { customerId, oldEmail, newEmail }) {
+  const from = (oldEmail || '').toLowerCase().trim();
+  const to = (newEmail || '').toLowerCase().trim();
+  if (!from || !to || from === to) return {};
+  const moved = {};
+  for (const t of EMAIL_KEYED_TABLES) {
+    const r = await client.query(
+      `UPDATE ${t} SET customer_email = $1 WHERE lower(customer_email) = $2`,
+      [to, from]
+    );
+    moved[t] = r.rowCount;
+  }
+  // Store credit is keyed on LOWER(customer_email) for RETAIL rows only (trade rows
+  // key on trade_customer_id). Restrict to retail so a coincidental trade balance is
+  // never touched. This is the critical one — orphaned credit is unspendable.
+  const credit = await client.query(
+    `UPDATE store_credit_ledger SET customer_email = $1
+       WHERE lower(customer_email) = $2 AND trade_customer_id IS NULL`,
+    [to, from]
+  );
+  moved.store_credit_ledger = credit.rowCount;
+  // Belt-and-suspenders: attach any now-re-pointed guest records to this customer id.
+  const claimed = await claimGuestRecords(client, customerId, to);
+  return { moved, claimed };
+}
+
 export function createCustomerHelpers(hashPassword, sendWelcomeSetPassword) {
   async function findOrCreateCustomer(client, { email, firstName, lastName, middleInitial, phone, companyName, repId, createdVia }) {
     const normalEmail = email.toLowerCase().trim();

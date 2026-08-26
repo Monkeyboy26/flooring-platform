@@ -5,6 +5,7 @@
 // to the original tender vs. added to the Roma account as store credit).
 // Cadence-neutral copy — no newsletter framing. Real Roma branding throughout.
 import { emailShell, heroSection, section, detailList, ctaButton, warmCard, T, SERIF, SANS, MONO, esc } from './_shell.js';
+import { composeItemName } from '../lib/documents.js';
 
 // Dev previews pass display strings like '1,240.00' — strip commas first.
 const num = (v) => parseFloat(String(v ?? 0).replace(/,/g, '')) || 0;
@@ -31,7 +32,9 @@ export function generateCreditMemoIssuedHTML(data) {
 
   // Returned-item rows (name × qty → line credit)
   const itemRows = items.map((it) => {
-    const name = esc(it.description || it.product_name || 'Returned item');
+    const _ci = composeItemName(it);
+    const _manual = _ci.title === 'Product' && !_ci.descriptors.length && it.description;
+    const name = esc(_manual ? it.description : (_ci.nameLine || 'Returned item'));
     const qty = num(it.qty) || 1;
     return {
       label: `${qty} ${qty === 1 ? 'unit' : 'units'}`,

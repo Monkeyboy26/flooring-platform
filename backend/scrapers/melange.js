@@ -1681,6 +1681,19 @@ async function run() {
     collectionProducts.get(row.collection).push({ id: row.id, name: row.name });
   }
 
+  // Optional scoped run: MLG_ONLY="Shellstone,Unique Bourgogne" restricts every
+  // fetch + assignment phase (all gated on collectionProducts) to those
+  // collections. The per-collection media DELETE stays scoped, so the other
+  // collections' images are left untouched. Used to (re)match a newly-onboarded
+  // collection without re-scraping the whole catalog.
+  const ONLY = (process.env.MLG_ONLY || '').split(',').map(s => s.trim()).filter(Boolean);
+  if (ONLY.length) {
+    for (const key of [...collectionProducts.keys()]) {
+      if (!ONLY.includes(key)) collectionProducts.delete(key);
+    }
+    console.log(`[MLG_ONLY] Restricting to: ${[...collectionProducts.keys()].join(', ')}\n`);
+  }
+
   const browser = await launchBrowser();
   let imagesSaved = 0;
   let productsMatched = 0;

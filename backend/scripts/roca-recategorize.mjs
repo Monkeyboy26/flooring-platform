@@ -4,8 +4,8 @@
  * Fixes the pricebook-TYPE-driven miscategorization: category is derived from
  * material + actual field-tile format, not from whichever SKU happened to be seen
  * first. Keeps small decorative/subway tile in Backsplash & Wall, moves floor-size
- * porcelain out of it, routes slab-scale panels to Porcelain Slabs, and detects
- * wood-look plank collections.
+ * porcelain out of it (incl. slab-scale large-format panels — Roca sells no real slabs,
+ * so they are Porcelain Tile), and detects wood-look plank collections.
  *
  * The classifyRocaCategory() function is mirrored verbatim in import-roca.js.
  * DRY RUN by default; pass EXECUTE=1 to write.
@@ -31,8 +31,13 @@ const SLUG = { [CAT.porcelain]:'porcelain-tile',[CAT.ceramic]:'ceramic-tile',[CA
 const SLUG_TO_ID = Object.fromEntries(Object.entries(SLUG).map(([id, slug]) => [slug, id]));
 
 // Wood-look plank collections (confirmed by wood-species color names: Roble=oak, Noce=walnut,
-// Fresno=ash, Walnut, Wenge, Nogal — all in plank formats).
-const WOOD_COLLECTIONS = new Set(['PINE','NORTHWOOD','WESTON','ABBEY','BOHEME','COLONIAL','INDIANA','LAGOM']);
+// Fresno=ash, Walnut, Wenge, Nogal — all in plank formats). ESSENCE (Ash/Maple) and EVERGLADE
+// (Nogales=walnut) are whole-collection wood lines; their neutral colors are light wood stains.
+const WOOD_COLLECTIONS = new Set(['PINE','NORTHWOOD','WESTON','ABBEY','BOHEME','COLONIAL','INDIANA','LAGOM','ESSENCE','EVERGLADE']);
+// Wood-species color names used to catch wood-look planks mis-grouped under a non-wood collection
+// header (e.g. Onyx / "Panama Roble"). Only fires on plank-aspect formats so square/marble tiles
+// whose color merely rhymes with a wood word are never moved.
+const WOOD_COLOR_RE = /\b(ROBLE|FRESNO|NOGAL|NOGALES|NOCE|WALNUT|WENGE|OAK|TEAK|MAPLE|ASH|BIRCH|HICKORY|MAHOGANY|EBONY|ACACIA|CHESTNUT|PECAN|IPE|CEDAR|ELM|VISON)\b/;
 const TRIM_RE = /bullnose|cove|liner|\brope\b|pencil|chair|skirt|\bbase\b|nose|\btrim\b|corner|quarter round|reducer|threshold|\bstep\b|border|jolly|listel/i;
 
 function parseDim(s) {
@@ -49,16 +54,18 @@ function parseDim(s) {
  * @param fieldSizes  array of size labels for the product's FIELD (non-trim) SKUs
  * @param flags       { isMosaic, isPaver, isBath }
  */
-export function classifyRocaCategory(collection, material, fieldSizes, flags = {}) {
+export function classifyRocaCategory(collection, material, fieldSizes, flags = {}, nameHint = '') {
   const c = (collection || '').toUpperCase().trim();
   const m = (material || '').toUpperCase();
   const dims = (fieldSizes || []).map(parseDim).filter(Boolean);
   const maxDim = dims.length ? Math.max(...dims.flatMap(d => d)) : 0;
+  // Plank-aspect: a floor-plank field size (short 6–11", aspect >=3.5) — 8x48, 9x35, 10.5x64, 8x35.
+  // The 6" floor min keeps narrow wall/accent sticks (3x17 chevron, 4x24 brick) out of the wood rule.
+  const isPlank = dims.some(([a, b]) => { const mn = Math.min(a, b), mx = Math.max(a, b); return mn >= 6 && mn <= 11 && mx / mn >= 3.5; });
 
-  // Slab / large panel: dedicated collections or slab-scale format (>=90" longest side).
-  // Uses the longest side so planks (e.g. 10.5x64) are NOT mistaken for slabs — only genuinely
-  // wide+long panels (48x98, 48x110, 63x126) qualify. 48x48 large tiles stay tile.
-  if (c === 'SLABS' || c === 'XL SLABS' || maxDim >= 90) return CAT.porcelainSlab;
+  // Roca does NOT sell slabs — the "Slabs"/"XL Slabs" collections and their slab-scale panels
+  // (48x98, 48x110, 63x126) are large-format porcelain TILE, not countertop slabs. They fall
+  // through to the porcelain floor-tile default below; porcelain-slabs is never a Roca target.
   // Bath fixtures
   if (flags.isBath || c === 'BATH FIXTURES') return CAT.bathAccessories;
   // Pavers
@@ -66,8 +73,10 @@ export function classifyRocaCategory(collection, material, fieldSizes, flags = {
   // Mosaics
   if (flags.isMosaic || /^CC\s+(MOSAICS?|PORCELAIN)/.test(c) || c === 'ROCKART' || c === 'METALS'
       || m.includes('GLASS MOSAIC') || m.includes('NATURAL STONE') || m.includes('ALUMINUM')) return CAT.mosaic;
-  // Wood-look plank
+  // Wood-look plank — whole-collection wood lines, or a wood-species color on a plank format
+  // (catches Panama Roble mis-grouped under the Onyx marble header without moving Onyx White).
   if (WOOD_COLLECTIONS.has(c)) return CAT.woodLook;
+  if (isPlank && WOOD_COLOR_RE.test((nameHint || '').toUpperCase())) return CAT.woodLook;
   // Quarry
   if (m.includes('QUARRY')) return CAT.ceramic;
   // Decorative / brick / subway / pencil wall: every field size is NARROW-format — longest side
@@ -115,7 +124,7 @@ async function main() {
       isPaver:  r.cur_slug === 'pavers',
       isBath:   r.cur_slug === 'bath-accessories',
     };
-    const newCat = classifyRocaCategory(r.collection, r.material, fieldSizes, flags);
+    const newCat = classifyRocaCategory(r.collection, r.material, fieldSizes, flags, r.name);
     let newSlug = SLUG[newCat];
     // Guard: never move a product on missing size data into the material-default zone
     // (porcelain/wall) — keep whatever it already had. Slab/wood/mosaic/paver/bath are

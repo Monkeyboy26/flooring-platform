@@ -364,16 +364,40 @@ const MAC_CATEGORY_MAP = {
   VINMISR: 'installation-sundries', // Vinyl Misc (accessories)
 };
 
+// Collapse the doubled tokens the EF trade-name / color fields sometimes carry
+// ("TS103 TS103" → "TS103", color "01 01" → "01") and drop a trailing style
+// code whose number is already spelled out earlier ("Tile Special 101 TS101"
+// → "Tile Special 101").
+function dedupeTokens(raw) {
+  if (!raw) return raw;
+  const toks = String(raw).split(/\s+/).filter(Boolean);
+  const out = [];
+  for (const t of toks) {
+    if (out.length && out[out.length - 1].toLowerCase() === t.toLowerCase()) continue;
+    out.push(t);
+  }
+  if (out.length >= 2) {
+    const m = out[out.length - 1].match(/^[A-Za-z]{1,4}(\d+)$/);
+    if (m && out.slice(0, -1).some(t => t === m[1])) out.pop();
+  }
+  return out.join(' ');
+}
+
+// Style codes like "TS103" or "7053P" keep their all-caps form; else title-case.
+const STYLE_CODE_RE = /^(?:[A-Za-z]{1,4}\d+|\d+[A-Za-z]{1,2})$/;
+
 function cleanProductName(raw) {
   if (!raw) return null;
-  let name = raw
+  let name = dedupeTokens(raw
     .replace(/\s*\([^)]*sq(?:ft|yd)[^)]*\)/gi, '')
     // Remove dimension patterns: 7.60x54.45, 6.99 X 48, 1X94, 12X50, etc.
     .replace(/\s+\d+\.?\d*"?\s*[xX×]\s*\d+\.?\d*"?/gi, '')
     .replace(/\s{2,}/g, ' ')
-    .trim();
-  name = name.replace(/\b\w+/g, w =>
-    w.length <= 3 && /^(i{1,3}|ii|iv|v|vi|vii|viii|ix|x|spc|lvp|lvt)$/i.test(w)
+    .trim());
+  name = name.replace(/\b[\w]+\b/g, w =>
+    STYLE_CODE_RE.test(w)
+      ? w.toUpperCase()
+      : w.length <= 3 && /^(i{1,3}|ii|iv|v|vi|vii|viii|ix|x|spc|lvp|lvt)$/i.test(w)
       ? w.toLowerCase()
       : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
   );
@@ -398,7 +422,7 @@ function finalizeItem(item) {
   }
 
   const colorPid = item.descriptions.find(d => d.characteristic_label === 'color');
-  item.color = colorPid ? colorPid.description : null;
+  item.color = colorPid ? dedupeTokens(colorPid.description) : null;
 
   // Collection: from PID 77, or manufacturer brand from LIN MF
   const collPid = item.descriptions.find(d => d.characteristic_label === 'collection');
@@ -517,6 +541,21 @@ function finalizeItem(item) {
       const wuom = (widthMea.unit_of_measure || '').toUpperCase();
       item.roll_width_ft = (wuom === 'IN' || w > 24) ? w / 12 : w;
     }
+  }
+
+  // Carpet tile / vinyl sanity: some 832 lines carry per-SF dollars mislabeled
+  // as SY — the /9 above then yields token prices (~$0.24/sqft cost on modular
+  // tile that really costs ~$2.16/sqft). Nothing in these classes sells under
+  // ~$0.60/sqft dealer cost, so un-divide when we land there.
+  const macPidCT = item.descriptions.find(d => d.characteristic_code === 'MAC');
+  if (macPidCT && /^(CARTIL|VINTIL)/i.test(macPidCT.description || '')) {
+    const undivide = (v) => (v > 0 && v < 0.6) ? parseFloat((v * 9).toFixed(4)) : v;
+    item.cost = undivide(item.cost);
+    item.retail_price = undivide(item.retail_price);
+    item.cut_price = undivide(item.cut_price);
+    item.roll_price = undivide(item.roll_price);
+    item.cut_cost = undivide(item.cut_cost);
+    item.roll_cost = undivide(item.roll_cost);
   }
 
   // Broadloom-specific handling: keep SY prices native, set roll fields
@@ -781,22 +820,38 @@ export async function run(pool, job, source) {
       // Pricing — always create a row so downstream scrapers (web services)
       // can UPDATE dealer cost without hitting the retail_price NOT NULL constraint.
       const priceBasis = sellBy === 'roll' ? 'per_sqyd' : sellBy === 'box' ? 'per_sqft' : 'per_unit';
-      // Keystone fallback + floor: missing/thin vendor retail must not undercut
-      // the site-standard cost × 2 margin (raising a price never violates MAP).
-      const efKeystone = item.cost ? Math.round(item.cost * 2 * 100) / 100 : 0;
-      let efRetail = item.retail_price || efKeystone;
-      if (item.cost > 0 && efRetail < efKeystone) efRetail = efKeystone;
+      // Store-standard retail = 1.6× cost, nickel-rounded (EF's vendor SRP runs
+      // ~1.9×, so we override it or rescrapes revert the reprice to the 1.6×
+      // standard). Super-cheap hard-surface goods get a $2.49/sqft floor so a
+      // sub-$2 LVP isn't sold at a token price. Carpet is priced per SY off its
+      // dealer cut/roll costs (all per-SY here — see the CARIND ×9 block above);
+      // LVP/unit off the per-unit `cost`. Falls back to vendor retail only when
+      // we have no cost to mark up.
+      const LVP_FLOOR = 2.49;
+      const nickel = (n) => Math.round(n / 0.05) * 0.05;
+      let efRetail, efCutPrice = item.cut_price || null, efRollPrice = item.roll_price || null;
+      if (sellBy === 'roll') {
+        const cutBase = item.cut_cost || item.cost || 0;
+        const rollBase = item.roll_cost || item.cut_cost || item.cost || 0;
+        if (cutBase > 0) efCutPrice = nickel(cutBase * 1.6);
+        if (rollBase > 0) efRollPrice = nickel(rollBase * 1.6);
+        efRetail = efCutPrice || (item.cost > 0 ? nickel(item.cost * 1.6) : (item.retail_price || 0));
+      } else if (sellBy === 'box') {
+        efRetail = item.cost > 0 ? Math.max(nickel(item.cost * 1.6), LVP_FLOOR) : (item.retail_price || 0);
+      } else {
+        efRetail = item.cost > 0 ? nickel(item.cost * 1.6) : (item.retail_price || 0);
+      }
       await upsertPricing(pool, skuId, {
         cost: item.cost || 0,
         retail_price: efRetail,
         price_basis: priceBasis,
-        cut_price: item.cut_price || null,
-        roll_price: item.roll_price || null,
+        cut_price: efCutPrice,
+        roll_price: efRollPrice,
         cut_cost: item.cut_cost || null,
         roll_cost: item.roll_cost || null,
         roll_min_sqft: item.roll_min_sqft || null,
         map_price: item.map_price || null,
-      });
+      }, { skipKeystoneReprice: true });
       pricingUpserted++;
 
       // Packaging

@@ -40,6 +40,10 @@ const MARKUP = catalog.markup || 1.6;
 const keystone = (cost) => cost == null ? null : parseFloat((Math.round(cost * MARKUP / 0.05) * 0.05).toFixed(2));
 const SOURCE = 'marblexcorp.com';
 
+// When the vendor is hidden (vendors.hide_public_name), omit the distributor name from generated
+// descriptions so a re-import never reintroduces the vendor identity. Set in main() after upsert.
+let HIDE_VENDOR = false;
+
 // ==================== DB helpers ====================
 async function upsertVendor(v) {
   const r = await pool.query(`
@@ -165,7 +169,7 @@ function descFor(p) {
     const kinds = [...new Set(p.skus.map((s) => (s.accessory_label || '').replace(/\s*\(.*\)$/, '')))].filter(Boolean);
     return {
       short: `Matching ${kinds.join(', ').toLowerCase()} trim for ${p.collection}.`,
-      long: `Coordinating ${mat} trim pieces (${kinds.join(', ')}) for the ${p.collection} line. Sold by the piece. Distributed by Marblex Corp — FOB Anaheim.`,
+      long: `Coordinating ${mat} trim pieces (${kinds.join(', ')}) for the ${p.collection} line. Sold by the piece.${HIDE_VENDOR ? '' : ' Distributed by Marblex Corp —'} FOB Anaheim.`,
     };
   }
   const kindWord = p.kind === 'slab' ? 'slab' : p.kind === 'mosaic' ? 'mosaic' : p.kind === 'medallion' ? 'medallion'
@@ -173,8 +177,8 @@ function descFor(p) {
   const looksLike = (p.look && p.look.toLowerCase() !== mat) ? `${p.look.toLowerCase()}-look ` : '';
   return {
     short: `${p.material} ${looksLike}${kindWord}${sizes.length ? ' in ' + sizes.join(', ') : ''}${finishes.length ? ' — ' + finishes.join(' / ').toLowerCase() : ''}.`,
-    long: `${p.name} — ${looksLike}${mat} ${kindWord}${p.collection && p.collection !== p.name ? ' from the ' + p.collection + ' collection' : ''}${mfr}, `
-      + `distributed by Marblex Corp (Anaheim, CA).${sizes.length ? ' Sizes: ' + sizes.join(', ') + '.' : ''}`
+    long: `${p.name} — ${looksLike}${mat} ${kindWord}${p.collection && p.collection !== p.name ? ' from the ' + p.collection + ' collection' : ''}${mfr}`
+      + `${HIDE_VENDOR ? '' : ', distributed by Marblex Corp (Anaheim, CA)'}.${sizes.length ? ' Sizes: ' + sizes.join(', ') + '.' : ''}`
       + `${finishes.length ? ' Finishes: ' + finishes.join(', ') + '.' : ''} FOB Anaheim warehouse.`,
   };
 }
@@ -245,7 +249,8 @@ async function importProduct(p, vendorId, brandId, catId) {
 async function main() {
   console.log('=== Marblex Corp Import ===\n');
   const vendorId = await upsertVendor(catalog.vendor);
-  console.log(`Vendor: ${catalog.vendor.name} (${vendorId})`);
+  HIDE_VENDOR = (await pool.query('SELECT hide_public_name FROM vendors WHERE id=$1', [vendorId])).rows[0]?.hide_public_name === true;
+  console.log(`Vendor: ${catalog.vendor.name} (${vendorId})${HIDE_VENDOR ? ' [hidden — vendor name omitted from descriptions]' : ''}`);
   const brandId = await upsertBrand(catalog.brand);
   await linkVendorBrand(vendorId, brandId, true);
   console.log(`Brand:  ${catalog.brand.name} (${brandId})`);

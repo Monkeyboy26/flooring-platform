@@ -2173,9 +2173,10 @@ body{font-family:var(--sans);color:var(--ink);margin:0;background:#fff}
 </style>
 </head>
 <body>
+<div style="display:flex;flex-direction:column;min-height:9.5in;">
 
 <div style="position:relative;display:grid;grid-template-columns:1fr auto;gap:36px;padding-bottom:20px;border-bottom:1px solid #1c191722;">
-${isWillCall ? willCallStamp({ top: '16px', left: '52%' }) : ''}
+${isWillCall ? willCallStamp({ top: '16px', left: '50%' }) : ''}
 <div>
 <div style="display:inline-flex;flex-direction:column;align-items:center;line-height:1;padding-bottom:0.34em;">
 <span style="font-family:var(--serif);font-weight:400;font-size:26px;letter-spacing:0.34em;text-indent:0.34em;color:var(--ink);white-space:nowrap;">ROMA <em style="font-style:normal;font-size:1em;letter-spacing:normal;text-indent:0;color:var(--ink);">FLOORING</em></span>
@@ -2192,21 +2193,14 @@ ${isWillCall ? willCallStamp({ top: '16px', left: '52%' }) : ''}
 ${release.job_name ? `<span style="color:var(--muted);">Sidemark</span><span style="text-align:right;">${escDoc(release.job_name)}</span>` : ''}
 ${isWillCall && poNumber ? `<span style="color:var(--muted);">Release against PO</span><span style="text-align:right;font-weight:500;color:var(--ink);">${escDoc(poNumber)}</span>` : ''}
 <span style="color:var(--muted);">Method</span><span style="text-align:right;">${methodLabel}</span>
-<span style="color:var(--muted);">Status</span><span class="mono" style="color:${stampColor};text-align:right;letter-spacing:0.18em;">● ${statusLabel}</span>
+</div>
+<div style="margin-top:16px;display:flex;flex-direction:column;align-items:flex-end;gap:9px;">
+<span style="padding:7px 14px;border:1.5px solid ${stampColor};color:${stampColor};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.3em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</span>
 </div>
 </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr auto;gap:24px;padding:14px 0;margin-bottom:8px;border-bottom:1px solid #1c191711;align-items:center;">
-<div style="font:500 9px/1.4 var(--sans);letter-spacing:0.06em;color:#1c1917cc;">
-${isWillCall
-  ? `This authorizes the customer to collect the materials below at <b>${escDoc(release.vendor_name || 'the distributor')}</b> against order ${orderNumber}${poNumber ? ` under Roma purchase order <b>${escDoc(poNumber)}</b>` : ''}. Present this form and reference the PO number to release the order. Quantities are in cartons/units as sold.`
-  : `This document authorizes the materials below to be ${isDelivery ? 'delivered' : 'released for pickup'} against order ${orderNumber}. Present it at the Anaheim warehouse. Quantities are in cartons/units as sold.`}
-</div>
-<div style="padding:8px 14px;border:1.5px solid ${stampColor};color:${stampColor};font:500 11px/1 ui-monospace,monospace;letter-spacing:0.32em;text-transform:uppercase;transform:rotate(-2deg);white-space:nowrap;">${stampText}</div>
-</div>
-
-<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 22px;border-bottom:1px solid #1c191722;">
+<div class="keep" style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:14px 0 16px;border-bottom:1px solid #1c191722;">
 <div>
 <div class="mono" style="margin-bottom:8px;">Released to</div>
 <div style="font:500 11px/1.2 var(--sans);">${release.recipient_name || release.customer_name || '—'}</div>
@@ -2231,6 +2225,8 @@ ${isWillCall
 ${rowsHtml}
 </div>
 
+<div style="flex:1 1 auto;min-height:0;"></div>
+
 <div class="keep" style="display:grid;grid-template-columns:1fr 240px;gap:32px;margin-top:10px;border-top:1px solid #1c191733;padding-top:10px;">
 <div style="padding-top:4px;" class="small">
 ${release.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div style="margin-bottom:14px;">${String(release.notes).replace(/</g, '&lt;')}</div>` : ''}
@@ -2252,11 +2248,12 @@ ${release.notes ? `<div class="mono" style="margin-bottom:8px;">Notes</div><div 
 </div>
 </div>
 
-<div style="margin-top:26px;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
+<div style="margin-top:auto;padding-top:12px;border-top:1px solid #1c191722;display:flex;justify-content:space-between;align-items:center;font:400 9px/1.4 var(--sans);color:var(--muted);">
 <span>Roma Flooring Designs · 1440 S. State College Blvd #6M · Anaheim, CA 92806 · License #830966</span>
 <span style="font:500 9px/1 ui-monospace,monospace;letter-spacing:0.18em;text-transform:uppercase;">Release ${relNumber}</span>
 </div>
 
+</div>
 </body>
 </html>`;
 }

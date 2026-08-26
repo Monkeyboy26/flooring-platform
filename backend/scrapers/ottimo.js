@@ -35,6 +35,61 @@ const MARKUP = 2.0;
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
+// ─── Naming normalization ───
+// Vendor Shopify bakes mosaic chip geometry (and sometimes finish) into the
+// `color` option, inconsistently. This reviewed per-SKU map is the authoritative
+// end-state for color/finish/pattern on the affected SKUs; it is ALSO consumed by
+// scripts/fix-ottimo-naming.mjs to backfill live data (single source of truth).
+// Do NOT drive this with a regex — 'Arabesque' is a COLOR in True/Marmi but a
+// SHAPE in Peak. See MEMORY: ottimo-naming.
+const ATTR_OVERRIDES = JSON.parse(
+  readFileSync(join(__dirname, '..', 'data', 'ottimo-attr-overrides.json'), 'utf-8')
+);
+delete ATTR_OVERRIDES._comment;
+
+// Finish words are never colors, so stripping them from a color value is safe.
+const FINISH_IN_COLOR_RE = /\s*\(?\b(matte|polished|glossy|honed|satin)\b\)?/i;
+
+/**
+ * Resolve the canonical { color, finish, pattern } for a variant.
+ * Override map wins; otherwise strip any finish word baked into the color.
+ */
+function resolveAttrs(vendorSku, rawColor, rawFinish) {
+  const ov = ATTR_OVERRIDES[vendorSku];
+  if (ov) {
+    return {
+      color: (ov.color || '').trim() || null,
+      finish: (ov.finish || '').trim() || null,
+      pattern: (ov.pattern || '').trim() || null,
+    };
+  }
+  let color = (rawColor || '').trim() || null;
+  let finish = (rawFinish || '').trim() || null;
+  if (color) {
+    const m = color.match(FINISH_IN_COLOR_RE);
+    if (m) {
+      const word = m[1][0].toUpperCase() + m[1].slice(1).toLowerCase();
+      const cleaned = color.replace(FINISH_IN_COLOR_RE, '').replace(/\(\s*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+      if (cleaned) { color = cleaned; if (!finish) finish = word; }
+    }
+  }
+  return { color, finish, pattern: null };
+}
+
+/** Canonical variant label: Color, Finish, Size[, Pattern] (skip blanks). */
+function composeVariantName(color, finish, size, pattern) {
+  return [color, finish, size, pattern].map(v => (v || '').trim()).filter(Boolean).join(', ') || null;
+}
+
+/** Delete a single attribute (by slug) from a SKU — used to drop stale feed values. */
+async function clearSkuAttribute(pool, skuId, slug) {
+  await pool.query(
+    `DELETE FROM sku_attributes sa USING attributes a
+     WHERE sa.attribute_id = a.id AND sa.sku_id = $1 AND a.slug = $2`,
+    [skuId, slug]
+  );
+}
+
 // ─── Category IDs ───
 const CAT = {
   porcelain: '650e8400-e29b-41d4-a716-446655440012',
@@ -371,22 +426,6 @@ function getOptionValue(product, variant, optionName) {
   return null;
 }
 
-/**
- * Build variant name from option values.
- */
-function buildVariantName(product, variant) {
-  const parts = [];
-  const size = getOptionValue(product, variant, 'size');
-  const color = getOptionValue(product, variant, 'color');
-  const finish = getOptionValue(product, variant, 'finish') || getOptionValue(product, variant, 'format');
-
-  if (size && size !== 'Default Title' && size !== 'Mixed') parts.push(normalizeSize(size));
-  if (color && color !== 'Default Title') parts.push(color);
-  if (finish && finish !== 'Default Title') parts.push(finish);
-
-  return parts.length > 0 ? parts.join(', ') : null;
-}
-
 // ──────────────────────────────────────────────
 // Image processing
 // ──────────────────────────────────────────────
@@ -542,7 +581,6 @@ async function processShopifyProduct(product, vendorId, priceMap, fuzzyMap) {
     if (!vendorSku) continue;
 
     const internalSku = 'OTTIMO-' + vendorSku;
-    const variantName = buildVariantName(product, variant);
 
     // Look up price list data (exact match, then fuzzy fallback)
     const plData = priceMap.get(vendorSku) || fuzzyMap.get(vendorSku) || null;
@@ -554,6 +592,19 @@ async function processShopifyProduct(product, vendorId, priceMap, fuzzyMap) {
     // Check body_html data for this SKU's application
     const bodyRow = bodyData.get(vendorSku) || {};
     const application = bodyRow.application || plData?.application || '';
+
+    // ── Canonical color / finish / size / pattern ──
+    const rawColorOpt = getOptionValue(product, variant, 'color') || bodyRow.color || null;
+    const rawFinishOpt = getOptionValue(product, variant, 'finish') ||
+                         getOptionValue(product, variant, 'format') || bodyRow.finish || null;
+    const rawSizeOpt = getOptionValue(product, variant, 'size') || bodyRow.size || null;
+    const rawColor = (rawColorOpt && rawColorOpt !== 'Default Title') ? rawColorOpt : null;
+    const rawFinish = (rawFinishOpt && rawFinishOpt !== 'Default Title') ? rawFinishOpt : null;
+    const sizeNorm = (rawSizeOpt && rawSizeOpt !== 'Default Title' && rawSizeOpt !== 'Mixed')
+      ? normalizeSize(rawSizeOpt) : null;
+    const { color, finish, pattern } = resolveAttrs(vendorSku, rawColor, rawFinish);
+    const isOverride = !!ATTR_OVERRIDES[vendorSku];
+    const variantName = composeVariantName(color, finish, sizeNorm, pattern);
 
     let sellBy = plData?.sellBy || (isMosaic ? 'unit' : 'box');
     let priceBasis = plData?.priceBasis || (isMosaic ? 'per_unit' : 'per_sqft');
@@ -593,29 +644,15 @@ async function processShopifyProduct(product, vendorId, priceMap, fuzzyMap) {
       stats.packaging++;
     }
 
-    // ── Attributes ──
-    // Color: from variant option or body_html
-    const color = getOptionValue(product, variant, 'color') || bodyRow.color || null;
-    if (color && color !== 'Default Title') {
-      await upsertSkuAttribute(pool, skuId, 'color', color);
-      stats.attrs++;
-    }
+    // ── Attributes (canonical: color = true color; geometry → pattern) ──
+    if (color) { await upsertSkuAttribute(pool, skuId, 'color', color); stats.attrs++; }
+    if (sizeNorm) { await upsertSkuAttribute(pool, skuId, 'size', sizeNorm); stats.attrs++; }
+    if (finish) { await upsertSkuAttribute(pool, skuId, 'finish', finish); stats.attrs++; }
+    if (pattern) { await upsertSkuAttribute(pool, skuId, 'pattern', pattern); stats.attrs++; }
 
-    // Size: from variant option, normalized
-    const sizeRaw = getOptionValue(product, variant, 'size') || bodyRow.size || null;
-    if (sizeRaw && sizeRaw !== 'Default Title' && sizeRaw !== 'Mixed') {
-      await upsertSkuAttribute(pool, skuId, 'size', normalizeSize(sizeRaw));
-      stats.attrs++;
-    }
-
-    // Finish: from variant option3 or body_html
-    const finish = getOptionValue(product, variant, 'finish') ||
-                   getOptionValue(product, variant, 'format') ||
-                   bodyRow.finish || null;
-    if (finish && finish !== 'Default Title') {
-      await upsertSkuAttribute(pool, skuId, 'finish', finish);
-      stats.attrs++;
-    }
+    // For override SKUs, drop any stale finish/pattern the vendor feed left behind.
+    if (isOverride && !finish) await clearSkuAttribute(pool, skuId, 'finish');
+    if (isOverride && !pattern) await clearSkuAttribute(pool, skuId, 'pattern');
 
     // Material: from body_html Type column or tags
     let material = bodyRow.type || null;

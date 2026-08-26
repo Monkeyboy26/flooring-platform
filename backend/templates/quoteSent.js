@@ -8,6 +8,7 @@
 // opts.tracking adds an open-tracking pixel — only set when actually emailing,
 // never for the rep-facing preview (the preview iframe would log a fake open).
 import { emailShell, heroSection, ctaButton, warmCard, section, T, SERIF, SANS, MONO, esc, emailImage } from './_shell.js';
+import { composeItemName } from '../lib/documents.js';
 
 // Dev previews pass display strings like '3,450.00' — strip commas first.
 const num = (v) => parseFloat(String(v ?? 0).replace(/,/g, '')) || 0;
@@ -24,12 +25,12 @@ function pdpUrl(item) {
 
 function itemRow(item, isLast) {
   const rowBorder = isLast ? '' : `border-bottom:1px solid ${T.border};`;
-  const name = esc(item.product_name || item.collection || 'Product');
+  const composed = composeItemName(item);
+  const name = esc(composed.nameLine || item.product_name || 'Product');
   const link = pdpUrl(item);
-  const topLine = [item.collection && item.collection !== item.product_name ? item.collection : null, item.vendor_name]
-    .filter(Boolean).map(esc).join(' &middot; ');
-  const subLine = [...new Set([item.color, item.variant_name].filter(Boolean))]
-    .filter(v => v !== item.product_name).map(esc).join(' &middot; ');
+  const topLine = composed.vendor ? esc(composed.vendor) : '';
+  const skuText = composed.sku ? esc(composed.sku) : '';
+  const subLine = '';
   const isUnit = item.sell_by === 'unit';
   const qty = item.num_boxes || item.quantity || 1;
   const sqft = num(item.sqft_needed);
@@ -52,6 +53,7 @@ function itemRow(item, isLast) {
     <td valign="middle" style="padding:16px 0;${rowBorder}">
       ${topLine ? `<p style="margin:0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">${topLine}</p>` : ''}
       <p style="margin:${topLine ? '4px' : '0'} 0 0;font-family:${SERIF};font-size:18px;line-height:1.2;letter-spacing:-0.012em;color:${T.ink};">${nameHtml}</p>
+      ${skuText ? `<p style="margin:3px 0 0;font-family:${MONO};font-size:10px;font-weight:500;letter-spacing:0.16em;text-transform:uppercase;color:${T.muted};">${skuText}</p>` : ''}
       ${subLine ? `<p style="margin:2px 0 0;font-family:${SANS};font-size:12px;line-height:1.4;color:${T.soft};">${subLine}</p>` : ''}
       <p style="margin:6px 0 0;font-family:${MONO};font-size:11px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:${T.ink};">${qtyLine}</p>
     </td>

@@ -17,7 +17,7 @@
     "vendor_sku": "P2561299",
     "internal_sku": "ICON-P2561299",
     "variant_name": "6x12",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -28,13 +28,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "200sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 0.5,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P25121299",
     "internal_sku": "ICON-P25121299",
     "variant_name": "12x12",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -45,13 +49,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "200sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P25122499",
     "internal_sku": "ICON-P25122499",
     "variant_name": "12x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -62,13 +70,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P25162499",
     "internal_sku": "ICON-P25162499",
     "variant_name": "16x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -79,6 +91,10 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -133,7 +149,7 @@
     "vendor_sku": "P2261299",
     "internal_sku": "ICON-P2261299",
     "variant_name": "6x12",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.75,
     "retail": 9.19,
@@ -144,13 +160,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "200sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 0.5,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P22121299",
     "internal_sku": "ICON-P22121299",
     "variant_name": "12x12",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.75,
     "retail": 9.19,
@@ -161,13 +181,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "200sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P22122499",
     "internal_sku": "ICON-P22122499",
     "variant_name": "12x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -178,13 +202,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P22162499",
     "internal_sku": "ICON-P22162499",
     "variant_name": "16x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -195,6 +223,10 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -249,7 +281,7 @@
     "vendor_sku": "P21122499",
     "internal_sku": "ICON-P21122499",
     "variant_name": "12x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -260,13 +292,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P21162499",
     "internal_sku": "ICON-P21162499",
     "variant_name": "16x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -277,13 +313,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P21242499",
     "internal_sku": "ICON-P21242499",
     "variant_name": "24x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.99,
     "retail": 12.79,
@@ -294,6 +334,10 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
@@ -348,7 +392,7 @@
     "vendor_sku": "P2361299",
     "internal_sku": "ICON-P2361299",
     "variant_name": "6x12",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -359,13 +403,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "200sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 0.5,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P23121299",
     "internal_sku": "ICON-P23121299",
     "variant_name": "12x12",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -376,13 +424,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "200sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P23122499",
     "internal_sku": "ICON-P23122499",
     "variant_name": "12x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -393,13 +445,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P23162499",
     "internal_sku": "ICON-P23162499",
     "variant_name": "16x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -410,13 +466,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P23242499",
     "internal_sku": "ICON-P23242499",
     "variant_name": "24x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.99,
     "retail": 12.79,
@@ -427,6 +487,10 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
@@ -481,7 +545,7 @@
     "vendor_sku": "P2861299",
     "internal_sku": "ICON-P2861299",
     "variant_name": "6x12",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.0,
     "retail": 9.59,
@@ -492,13 +556,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "200sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 0.5,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P28121299",
     "internal_sku": "ICON-P28121299",
     "variant_name": "12x12",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.75,
     "retail": 10.79,
@@ -509,13 +577,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "200sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P28122499",
     "internal_sku": "ICON-P28122499",
     "variant_name": "12x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.99,
     "retail": 12.79,
@@ -526,13 +598,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P28162499",
     "internal_sku": "ICON-P28162499",
     "variant_name": "16x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.99,
     "retail": 12.79,
@@ -543,13 +619,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P28242499",
     "internal_sku": "ICON-P28242499",
     "variant_name": "24x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 9.65,
     "retail": 15.39,
@@ -560,6 +640,10 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
@@ -614,7 +698,7 @@
     "vendor_sku": "P2761299",
     "internal_sku": "ICON-P2761299",
     "variant_name": "6x12",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -625,13 +709,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "200sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 0.5,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P27121299",
     "internal_sku": "ICON-P27121299",
     "variant_name": "12x12",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -642,13 +730,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "200sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P27122499",
     "internal_sku": "ICON-P27122499",
     "variant_name": "12x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.49,
     "retail": 11.99,
@@ -659,13 +751,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P27162499",
     "internal_sku": "ICON-P27162499",
     "variant_name": "16x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.49,
     "retail": 11.99,
@@ -676,13 +772,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P271624169",
     "internal_sku": "ICON-P271624169",
     "variant_name": "16x24 Brushed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.49,
     "retail": 11.99,
@@ -693,13 +793,17 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P27242499",
     "internal_sku": "ICON-P27242499",
     "variant_name": "24x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.99,
     "retail": 12.79,
@@ -710,6 +814,10 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
@@ -764,7 +872,7 @@
     "vendor_sku": "P32162499150",
     "internal_sku": "ICON-P32162499150",
     "variant_name": "16x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.49,
     "retail": 10.39,
@@ -775,6 +883,10 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "160SF",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -813,7 +925,7 @@
     "vendor_sku": "P35162499150",
     "internal_sku": "ICON-P35162499150",
     "variant_name": "16x24",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.49,
     "retail": 10.39,
@@ -824,6 +936,10 @@
      "weight": "15.5lbs",
      "sf_per_pallet": "160SF",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -862,7 +978,7 @@
     "vendor_sku": "P771624175",
     "internal_sku": "ICON-P771624175",
     "variant_name": "16x24 Flamed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 8.99,
     "retail": 14.39,
@@ -873,6 +989,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -911,7 +1031,7 @@
     "vendor_sku": "P1191224",
     "internal_sku": "ICON-P1191224",
     "variant_name": "12x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.5,
     "retail": 11.99,
@@ -922,13 +1042,17 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P1191624",
     "internal_sku": "ICON-P1191624",
     "variant_name": "16x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.5,
     "retail": 11.99,
@@ -939,6 +1063,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -993,7 +1121,7 @@
     "vendor_sku": "P1201224",
     "internal_sku": "ICON-P1201224",
     "variant_name": "12x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.5,
     "retail": 11.99,
@@ -1004,13 +1132,17 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P1201624",
     "internal_sku": "ICON-P1201624",
     "variant_name": "16x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.5,
     "retail": 11.99,
@@ -1021,6 +1153,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -1075,7 +1211,7 @@
     "vendor_sku": "P1181224",
     "internal_sku": "ICON-P1181224",
     "variant_name": "12x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.5,
     "retail": 11.99,
@@ -1086,13 +1222,17 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P1181624",
     "internal_sku": "ICON-P1181624",
     "variant_name": "16x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.5,
     "retail": 11.99,
@@ -1103,6 +1243,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -1157,7 +1301,7 @@
     "vendor_sku": "P1171224",
     "internal_sku": "ICON-P1171224",
     "variant_name": "12x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.5,
     "retail": 11.99,
@@ -1168,13 +1312,17 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "132sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "P1171624",
     "internal_sku": "ICON-P1171624",
     "variant_name": "16x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.5,
     "retail": 11.99,
@@ -1185,6 +1333,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -1223,7 +1375,7 @@
     "vendor_sku": "P1701624",
     "internal_sku": "ICON-P1701624",
     "variant_name": "16x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.5,
     "retail": 11.99,
@@ -1234,6 +1386,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -1288,7 +1444,7 @@
     "vendor_sku": "P291624",
     "internal_sku": "ICON-P291624",
     "variant_name": "16x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.5,
     "retail": 11.99,
@@ -1299,6 +1455,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -1353,7 +1513,7 @@
     "vendor_sku": "P301624",
     "internal_sku": "ICON-P301624",
     "variant_name": "16x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 8.49,
     "retail": 13.59,
@@ -1364,6 +1524,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -1402,7 +1566,7 @@
     "vendor_sku": "P1791624",
     "internal_sku": "ICON-P1791624",
     "variant_name": "16x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.49,
     "retail": 11.99,
@@ -1413,6 +1577,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -1451,7 +1619,7 @@
     "vendor_sku": "P1011624",
     "internal_sku": "ICON-P1011624",
     "variant_name": "16x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.49,
     "retail": 11.99,
@@ -1462,6 +1630,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -1500,7 +1672,7 @@
     "vendor_sku": "P1221624",
     "internal_sku": "ICON-P1221624",
     "variant_name": "16x24 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 7.49,
     "retail": 11.99,
@@ -1511,6 +1683,10 @@
      "weight": "16.6lbs",
      "sf_per_pallet": "176sf",
      "sold_by": "SF"
+    },
+    "packaging": {
+     "sqft_per_box": 2.6667,
+     "pieces_per_box": 1
     }
    },
    {
@@ -5692,7 +5868,7 @@
     "vendor_sku": "PP1412424R",
     "internal_sku": "ICON-PP1412424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -5703,13 +5879,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1412448R",
     "internal_sku": "ICON-PP1412448R",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -5720,6 +5900,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -5742,7 +5926,7 @@
     "vendor_sku": "PP1312424",
     "internal_sku": "ICON-PP1312424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -5753,13 +5937,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1312448",
     "internal_sku": "ICON-PP1312448",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -5770,6 +5958,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -5792,7 +5984,7 @@
     "vendor_sku": "PP1342424",
     "internal_sku": "ICON-PP1342424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -5803,13 +5995,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1342448",
     "internal_sku": "ICON-PP1342448",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -5820,6 +6016,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -5842,7 +6042,7 @@
     "vendor_sku": "PP1332424",
     "internal_sku": "ICON-PP1332424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -5853,13 +6053,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1332448",
     "internal_sku": "ICON-PP1332448",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -5870,6 +6074,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -5892,7 +6100,7 @@
     "vendor_sku": "PP1302424",
     "internal_sku": "ICON-PP1302424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -5903,13 +6111,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1302448",
     "internal_sku": "ICON-PP1302448",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -5920,6 +6132,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -5942,7 +6158,7 @@
     "vendor_sku": "PP1352424",
     "internal_sku": "ICON-PP1352424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -5953,13 +6169,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1352448",
     "internal_sku": "ICON-PP1352448",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -5970,6 +6190,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -5992,7 +6216,7 @@
     "vendor_sku": "PP1372424",
     "internal_sku": "ICON-PP1372424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6003,13 +6227,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1372448",
     "internal_sku": "ICON-PP1372448",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6020,6 +6248,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6042,7 +6274,7 @@
     "vendor_sku": "PP1442424R",
     "internal_sku": "ICON-PP1442424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6053,13 +6285,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1442448R",
     "internal_sku": "ICON-PP1442448R",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6070,6 +6306,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6092,7 +6332,7 @@
     "vendor_sku": "PP1432424R",
     "internal_sku": "ICON-PP1432424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6103,13 +6343,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1432448R",
     "internal_sku": "ICON-PP1432448R",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6120,6 +6364,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6142,7 +6390,7 @@
     "vendor_sku": "PP1382424R",
     "internal_sku": "ICON-PP1382424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6153,6 +6401,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6175,7 +6427,7 @@
     "vendor_sku": "PP1362424R",
     "internal_sku": "ICON-PP1362424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6186,13 +6438,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1362448",
     "internal_sku": "ICON-PP1362448",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6203,6 +6459,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6225,7 +6485,7 @@
     "vendor_sku": "PP1772424R",
     "internal_sku": "ICON-PP1772424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6236,13 +6496,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1772448R",
     "internal_sku": "ICON-PP1772448R",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6253,6 +6517,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6275,7 +6543,7 @@
     "vendor_sku": "PP1392424",
     "internal_sku": "ICON-PP1392424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6286,13 +6554,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1392448",
     "internal_sku": "ICON-PP1392448",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6303,6 +6575,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6325,7 +6601,7 @@
     "vendor_sku": "PP1292424",
     "internal_sku": "ICON-PP1292424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6336,13 +6612,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1292448",
     "internal_sku": "ICON-PP1292448",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6353,6 +6633,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6375,7 +6659,7 @@
     "vendor_sku": "PP1402424R",
     "internal_sku": "ICON-PP1402424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6386,13 +6670,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1402448R",
     "internal_sku": "ICON-PP1402448R",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6403,6 +6691,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6425,7 +6717,7 @@
     "vendor_sku": "PP1692424R",
     "internal_sku": "ICON-PP1692424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6436,6 +6728,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6458,7 +6754,7 @@
     "vendor_sku": "PP1692448R",
     "internal_sku": "ICON-PP1692448R",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6469,6 +6765,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6491,7 +6791,7 @@
     "vendor_sku": "PP1322424",
     "internal_sku": "ICON-PP1322424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6502,13 +6802,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1322448",
     "internal_sku": "ICON-PP1322448",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6519,6 +6823,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6541,7 +6849,7 @@
     "vendor_sku": "PP1422424R",
     "internal_sku": "ICON-PP1422424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.5,
     "retail": 7.19,
@@ -6552,13 +6860,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "248sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1422448R",
     "internal_sku": "ICON-PP1422448R",
     "variant_name": "24x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6569,6 +6881,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "232.5sf",
      "sold_by": "SF (7.75/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 8.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6591,7 +6907,7 @@
     "vendor_sku": "PP701632",
     "internal_sku": "ICON-PP701632",
     "variant_name": "16x32 Rough/chiseled Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6602,6 +6918,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "170sf",
      "sold_by": "SF (3.44/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 3.5556,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6624,7 +6944,7 @@
     "vendor_sku": "PP721632",
     "internal_sku": "ICON-PP721632",
     "variant_name": "16x32 Rough/chiseled Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6635,21 +6955,25 @@
      "weight": "9lbs",
      "sf_per_pallet": "170sf",
      "sold_by": "SF (3.44/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 3.5556,
+     "pieces_per_box": 1
     }
    }
   ]
  },
  {
-  "name": "Calcatta Gold Porcelain Pavers",
+  "name": "Calacatta Gold Porcelain Pavers",
   "collection": "Porcelain Pavers",
   "category_slug": "pavers",
   "brand_name": "Icon Tile",
-  "color": "Calcatta Gold",
+  "color": "Calacatta Gold",
   "material": "Porcelain",
   "form": "paver",
-  "description": "Calcatta Gold Porcelain \u2014 natural-stone pavers for patios, pool decks, driveways and walkways.",
+  "description": "Calacatta Gold Porcelain \u2014 natural-stone pavers for patios, pool decks, driveways and walkways.",
   "attrs": {
-   "color": "Calcatta Gold",
+   "color": "Calacatta Gold",
    "material": "porcelain"
   },
   "skus": [
@@ -6657,7 +6981,7 @@
     "vendor_sku": "PP482424160",
     "internal_sku": "ICON-PP482424160",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.5,
     "retail": 8.79,
@@ -6668,21 +6992,25 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
  },
  {
-  "name": "Capuccino Porcelain Pavers",
+  "name": "Cappuccino Porcelain Pavers",
   "collection": "Porcelain Pavers",
   "category_slug": "pavers",
   "brand_name": "Icon Tile",
-  "color": "Capuccino",
+  "color": "Cappuccino",
   "material": "Porcelain",
   "form": "paver",
-  "description": "Capuccino Porcelain \u2014 natural-stone pavers for patios, pool decks, driveways and walkways.",
+  "description": "Cappuccino Porcelain \u2014 natural-stone pavers for patios, pool decks, driveways and walkways.",
   "attrs": {
-   "color": "Capuccino",
+   "color": "Cappuccino",
    "material": "porcelain"
   },
   "skus": [
@@ -6690,7 +7018,7 @@
     "vendor_sku": "PP1221648R",
     "internal_sku": "ICON-PP1221648R",
     "variant_name": "16x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.5,
     "retail": 10.39,
@@ -6701,6 +7029,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "288sf",
      "sold_by": "SF (5.33/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 5.3333,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6723,7 +7055,7 @@
     "vendor_sku": "PP1122424R",
     "internal_sku": "ICON-PP1122424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -6734,6 +7066,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6756,7 +7092,7 @@
     "vendor_sku": "PP1112424R",
     "internal_sku": "ICON-PP1112424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -6767,6 +7103,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6789,7 +7129,7 @@
     "vendor_sku": "PP412424160",
     "internal_sku": "ICON-PP412424160",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.5,
     "retail": 8.79,
@@ -6800,6 +7140,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6822,7 +7166,7 @@
     "vendor_sku": "PP1092424R",
     "internal_sku": "ICON-PP1092424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -6833,6 +7177,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6855,7 +7203,7 @@
     "vendor_sku": "PP1231648R",
     "internal_sku": "ICON-PP1231648R",
     "variant_name": "16x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.5,
     "retail": 10.39,
@@ -6866,6 +7214,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "288sf",
      "sold_by": "SF (5.33/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 5.3333,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6888,7 +7240,7 @@
     "vendor_sku": "PP1211648R",
     "internal_sku": "ICON-PP1211648R",
     "variant_name": "16x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.5,
     "retail": 10.39,
@@ -6899,6 +7251,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "288sf",
      "sold_by": "SF (5.33/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 5.3333,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6921,7 +7277,7 @@
     "vendor_sku": "PP1142424",
     "internal_sku": "ICON-PP1142424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -6932,6 +7288,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6954,7 +7314,7 @@
     "vendor_sku": "PP711632",
     "internal_sku": "ICON-PP711632",
     "variant_name": "16x32 Rough/chiseled Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.99,
     "retail": 11.19,
@@ -6965,6 +7325,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.44/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 3.5556,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -6987,7 +7351,7 @@
     "vendor_sku": "PP1162424",
     "internal_sku": "ICON-PP1162424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -6998,6 +7362,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -7020,7 +7388,7 @@
     "vendor_sku": "PP1172424",
     "internal_sku": "ICON-PP1172424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -7031,6 +7399,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -7053,7 +7425,7 @@
     "vendor_sku": "PP1182424",
     "internal_sku": "ICON-PP1182424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -7064,13 +7436,17 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PP1072424USA",
     "internal_sku": "ICON-PP1072424USA",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -7081,6 +7457,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -7103,7 +7483,7 @@
     "vendor_sku": "PP1241648R",
     "internal_sku": "ICON-PP1241648R",
     "variant_name": "16x48 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 6.5,
     "retail": 10.39,
@@ -7114,6 +7494,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "288sf",
      "sold_by": "SF (5.33/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 5.3333,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -7136,7 +7520,7 @@
     "vendor_sku": "PP1132424R",
     "internal_sku": "ICON-PP1132424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -7147,6 +7531,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -7169,7 +7557,7 @@
     "vendor_sku": "PP1072424R",
     "internal_sku": "ICON-PP1072424R",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -7180,6 +7568,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -7202,7 +7594,7 @@
     "vendor_sku": "PP1202424",
     "internal_sku": "ICON-PP1202424",
     "variant_name": "24x24 Rough & Straight Edge",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -7213,6 +7605,10 @@
      "weight": "9lbs",
      "sf_per_pallet": "256sf",
      "sold_by": "SF (3.875/PC)"
+    },
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -8814,16 +9210,16 @@
   ]
  },
  {
-  "name": "White Carrera Splitface Natural Stone Ledger Panel",
+  "name": "Carrara White Splitface Natural Stone Ledger Panel",
   "collection": "Natural Stone Ledger Panel",
   "category_slug": "stacked-stone",
   "brand_name": "Icon Tile",
-  "color": "White Carrera Splitface",
+  "color": "Carrara White Splitface",
   "material": "Natural Stone",
   "form": "ledger",
-  "description": "White Carrera Splitface Natural Stone \u2014 split-face / rock-face stacked-stone ledger panels for feature walls.",
+  "description": "Carrara White Splitface Natural Stone \u2014 split-face / rock-face stacked-stone ledger panels for feature walls.",
   "attrs": {
-   "color": "White Carrera Splitface",
+   "color": "Carrara White Splitface",
    "material": "natural stone"
   },
   "skus": [
@@ -10911,7 +11307,7 @@
     "vendor_sku": "P1181836D",
     "internal_sku": "ICON-P1181836D",
     "variant_name": "18x36 Leather (Sandblasted & Brushed)",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 8.99,
     "retail": 14.39,
@@ -10922,6 +11318,10 @@
      "weight": "TBD",
      "sf_per_pallet": "TBD",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 4.5,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -10944,7 +11344,7 @@
     "vendor_sku": "PT20210",
     "internal_sku": "ICON-PT20210",
     "variant_name": "2x10 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -10955,6 +11355,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "36/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1389,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11010,7 +11414,7 @@
     "vendor_sku": "PT21210",
     "internal_sku": "ICON-PT21210",
     "variant_name": "2x10 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -11021,13 +11425,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "36/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1389,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PT64263D",
     "internal_sku": "ICON-PT64263D",
     "variant_name": "2x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11038,13 +11446,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "108pcs/bx 9sf/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.0833,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PT64443D",
     "internal_sku": "ICON-PT64443D",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11055,6 +11467,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "68pcs/bx 7.55sf/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11110,7 +11526,7 @@
     "vendor_sku": "PT22210",
     "internal_sku": "ICON-PT22210",
     "variant_name": "2x10 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -11121,13 +11537,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "36/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1389,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PT60263D",
     "internal_sku": "ICON-PT60263D",
     "variant_name": "2x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11138,13 +11558,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "108pcs/bx 9sf/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.0833,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PT60443D",
     "internal_sku": "ICON-PT60443D",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11155,6 +11579,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "68pcs/bx 7.55sf/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11210,7 +11638,7 @@
     "vendor_sku": "PT23210",
     "internal_sku": "ICON-PT23210",
     "variant_name": "2x10 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -11221,6 +11649,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "36/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1389,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11276,7 +11708,7 @@
     "vendor_sku": "PT24210",
     "internal_sku": "ICON-PT24210",
     "variant_name": "2x10 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -11287,6 +11719,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "36/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1389,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11342,7 +11778,7 @@
     "vendor_sku": "PT25210",
     "internal_sku": "ICON-PT25210",
     "variant_name": "2x10 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -11353,6 +11789,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "36/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1389,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11408,7 +11848,7 @@
     "vendor_sku": "PT26210",
     "internal_sku": "ICON-PT26210",
     "variant_name": "2x10 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -11419,6 +11859,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "36/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1389,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11474,7 +11918,7 @@
     "vendor_sku": "PT27210",
     "internal_sku": "ICON-PT27210",
     "variant_name": "2x10 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -11485,6 +11929,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "36/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1389,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11540,7 +11988,7 @@
     "vendor_sku": "PT28210",
     "internal_sku": "ICON-PT28210",
     "variant_name": "2x10 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -11551,13 +11999,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "36/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1389,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PT62263D",
     "internal_sku": "ICON-PT62263D",
     "variant_name": "2x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11568,13 +12020,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "108pcs/bx 9sf/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.0833,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PT62443D",
     "internal_sku": "ICON-PT62443D",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11585,6 +12041,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "68pcs/bx 7.55sf/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11640,7 +12100,7 @@
     "vendor_sku": "PT29210",
     "internal_sku": "ICON-PT29210",
     "variant_name": "2x10 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 5.99,
     "retail": 9.59,
@@ -11651,6 +12111,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "36/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1389,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11706,7 +12170,7 @@
     "vendor_sku": "B7027135",
     "internal_sku": "ICON-B7027135",
     "variant_name": "2.5x7.5 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11717,13 +12181,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "38/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1302,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "B7044135",
     "internal_sku": "ICON-B7044135",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11734,6 +12202,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "60/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11756,7 +12228,7 @@
     "vendor_sku": "B7127135",
     "internal_sku": "ICON-B7127135",
     "variant_name": "2.5x7.5 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11767,13 +12239,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "38/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1302,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "B7144135",
     "internal_sku": "ICON-B7144135",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11784,6 +12260,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "60/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11806,7 +12286,7 @@
     "vendor_sku": "B7227135",
     "internal_sku": "ICON-B7227135",
     "variant_name": "2.5x7.5 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11817,13 +12297,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "38/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1302,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "B7244135",
     "internal_sku": "ICON-B7244135",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11834,6 +12318,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "60/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11856,7 +12344,7 @@
     "vendor_sku": "B7327135",
     "internal_sku": "ICON-B7327135",
     "variant_name": "2.5x7.5 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11867,13 +12355,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "38/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1302,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "B7344135",
     "internal_sku": "ICON-B7344135",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11884,6 +12376,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "60/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11906,7 +12402,7 @@
     "vendor_sku": "B7427135",
     "internal_sku": "ICON-B7427135",
     "variant_name": "2.5x7.5 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11917,13 +12413,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "38/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1302,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "B7444135",
     "internal_sku": "ICON-B7444135",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11934,6 +12434,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "60/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -11956,7 +12460,7 @@
     "vendor_sku": "B7527135",
     "internal_sku": "ICON-B7527135",
     "variant_name": "2.5x7.5 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11967,13 +12471,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "38/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1302,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "B7544135",
     "internal_sku": "ICON-B7544135",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -11984,6 +12492,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "60/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12006,7 +12518,7 @@
     "vendor_sku": "B7627135",
     "internal_sku": "ICON-B7627135",
     "variant_name": "2.5x7.5 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12017,13 +12529,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "38/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1302,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "B7644135",
     "internal_sku": "ICON-B7644135",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12034,6 +12550,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "60/pcs",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12089,7 +12609,7 @@
     "vendor_sku": "PT61263D",
     "internal_sku": "ICON-PT61263D",
     "variant_name": "2x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12100,13 +12620,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "108pcs/bx 9sf/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.0833,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PT61443D",
     "internal_sku": "ICON-PT61443D",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12117,6 +12641,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "68pcs/bx 7.55sf/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12205,7 +12733,7 @@
     "vendor_sku": "PT63263D",
     "internal_sku": "ICON-PT63263D",
     "variant_name": "2x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12216,13 +12744,17 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "108pcs/bx 9sf/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.0833,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "PT63443D",
     "internal_sku": "ICON-PT63443D",
     "variant_name": "4x4 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12233,6 +12765,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "68pcs/bx 7.55sf/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12321,7 +12857,7 @@
     "vendor_sku": "PT3566135",
     "internal_sku": "ICON-PT3566135",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12332,6 +12868,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12354,7 +12894,7 @@
     "vendor_sku": "PT3166125",
     "internal_sku": "ICON-PT3166125",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12365,6 +12905,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12387,7 +12931,7 @@
     "vendor_sku": "PT3466135",
     "internal_sku": "ICON-PT3466135",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12398,6 +12942,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12420,7 +12968,7 @@
     "vendor_sku": "PT3266135",
     "internal_sku": "ICON-PT3266135",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12431,6 +12979,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12453,7 +13005,7 @@
     "vendor_sku": "PT4066135",
     "internal_sku": "ICON-PT4066135",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12464,6 +13016,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12486,7 +13042,7 @@
     "vendor_sku": "PT3866125",
     "internal_sku": "ICON-PT3866125",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12497,6 +13053,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12519,7 +13079,7 @@
     "vendor_sku": "PT3366125",
     "internal_sku": "ICON-PT3366125",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12530,6 +13090,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12552,7 +13116,7 @@
     "vendor_sku": "PT3066135",
     "internal_sku": "ICON-PT3066135",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12563,6 +13127,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12585,7 +13153,7 @@
     "vendor_sku": "PT3666125",
     "internal_sku": "ICON-PT3666125",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12596,6 +13164,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12618,7 +13190,7 @@
     "vendor_sku": "PT3766125",
     "internal_sku": "ICON-PT3766125",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12629,6 +13201,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12651,7 +13227,7 @@
     "vendor_sku": "PT3966135",
     "internal_sku": "ICON-PT3966135",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12662,6 +13238,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12684,7 +13264,7 @@
     "vendor_sku": "PT4166125",
     "internal_sku": "ICON-PT4166125",
     "variant_name": "6x6 Glazed",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12695,6 +13275,10 @@
      "weight": "4.4lbs",
      "sf_per_pallet": "22pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12717,7 +13301,7 @@
     "vendor_sku": "PT7044",
     "internal_sku": "ICON-PT7044",
     "variant_name": "4x4 Glossy",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12728,6 +13312,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "54pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12750,7 +13338,7 @@
     "vendor_sku": "PT7144",
     "internal_sku": "ICON-PT7144",
     "variant_name": "4x4 Glossy",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12761,6 +13349,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "54pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12783,7 +13375,7 @@
     "vendor_sku": "PT7244",
     "internal_sku": "ICON-PT7244",
     "variant_name": "4x4 Glossy",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12794,6 +13386,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "54pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12816,7 +13412,7 @@
     "vendor_sku": "PT7344",
     "internal_sku": "ICON-PT7344",
     "variant_name": "4x4 Glossy",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12827,6 +13423,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "54pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12849,7 +13449,7 @@
     "vendor_sku": "PT7444",
     "internal_sku": "ICON-PT7444",
     "variant_name": "4x4 Glossy",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12860,6 +13460,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "54pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12882,7 +13486,7 @@
     "vendor_sku": "PT7544",
     "internal_sku": "ICON-PT7544",
     "variant_name": "4x4 Glossy",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12893,6 +13497,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "54pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12915,7 +13523,7 @@
     "vendor_sku": "PT7644",
     "internal_sku": "ICON-PT7644",
     "variant_name": "4x4 Glossy",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12926,6 +13534,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "54pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12948,7 +13560,7 @@
     "vendor_sku": "PT7744",
     "internal_sku": "ICON-PT7744",
     "variant_name": "4x4 Glossy",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12959,6 +13571,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "54pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -12981,7 +13597,7 @@
     "vendor_sku": "PT7844",
     "internal_sku": "ICON-PT7844",
     "variant_name": "4x4 Glossy",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -12992,6 +13608,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "54pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -13014,7 +13634,7 @@
     "vendor_sku": "S8028",
     "internal_sku": "ICON-S8028",
     "variant_name": "2x8 Matte",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -13025,13 +13645,17 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "38pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "S8044",
     "internal_sku": "ICON-S8044",
     "variant_name": "4x4 Matte",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -13042,6 +13666,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "60pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -13064,7 +13692,7 @@
     "vendor_sku": "S8128",
     "internal_sku": "ICON-S8128",
     "variant_name": "2x8 Matte",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -13075,13 +13703,17 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "38pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "S8144",
     "internal_sku": "ICON-S8144",
     "variant_name": "4x4 Matte",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -13092,6 +13724,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "60pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -13114,7 +13750,7 @@
     "vendor_sku": "S8228",
     "internal_sku": "ICON-S8228",
     "variant_name": "2x8 Matte",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -13125,13 +13761,17 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "38pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "S8244",
     "internal_sku": "ICON-S8244",
     "variant_name": "4x4 Matte",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -13142,6 +13782,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "60pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -13164,7 +13808,7 @@
     "vendor_sku": "S8328",
     "internal_sku": "ICON-S8328",
     "variant_name": "2x8 Matte",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -13175,13 +13819,17 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "38pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "S8344",
     "internal_sku": "ICON-S8344",
     "variant_name": "4x4 Matte",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -13192,6 +13840,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "60pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -13214,7 +13866,7 @@
     "vendor_sku": "S8428",
     "internal_sku": "ICON-S8428",
     "variant_name": "2x8 Matte",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -13225,13 +13877,17 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "38pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    },
    {
     "vendor_sku": "S8444",
     "internal_sku": "ICON-S8444",
     "variant_name": "4x4 Matte",
-    "sell_by": "box",
+    "sell_by": "unit",
     "price_basis": "per_sqft",
     "cost": 4.99,
     "retail": 7.99,
@@ -13242,6 +13898,10 @@
      "weight": "4.1lbs",
      "sf_per_pallet": "60pcs/bx",
      "sold_by": "Square Footage"
+    },
+    "packaging": {
+     "sqft_per_box": 0.1111,
+     "pieces_per_box": 1
     }
    }
   ]
@@ -13311,16 +13971,16 @@
   ]
  },
  {
-  "name": "Calcatta Prestige Porcelain Tile",
+  "name": "Calacatta Prestige Porcelain Tile",
   "collection": "Porcelain Tile",
   "category_slug": "porcelain-tile",
   "brand_name": "Icon Tile",
-  "color": "Calcatta Prestige",
+  "color": "Calacatta Prestige",
   "material": "Porcelain",
   "form": "tile",
-  "description": "Calcatta Prestige Porcelain \u2014 natural-stone field tiles for floors and walls.",
+  "description": "Calacatta Prestige Porcelain \u2014 natural-stone field tiles for floors and walls.",
   "attrs": {
-   "color": "Calcatta Prestige",
+   "color": "Calacatta Prestige",
    "material": "porcelain"
   },
   "skus": [

@@ -1,4 +1,5 @@
 import { emailShell, heroSection, section, sectionLabel, ctaButton, warmCard, money, T, SERIF, SANS, MONO, esc } from './_shell.js';
+import { composeItemName } from '../lib/documents.js';
 
 // Rep-initiated "pay your balance" email. Matches the Brass Charcoal house
 // style (see orderConfirmation.js). Renders the full order line items, a
@@ -26,8 +27,9 @@ export function generatePaymentRequestHTML({ order, items = [], balance, checkou
 
   const itemRows = items.map((item, i) => {
     const isSample = item.is_sample;
-    const name = esc(item.product_name || 'Product');
-    const collection = item.collection ? esc(item.collection) : '';
+    const _ci = composeItemName(item);
+    const name = esc(_ci.descriptors.length ? _ci.descriptors.join(' · ') : (_ci.title || 'Product'));
+    const collection = _ci.descriptors.length ? esc(_ci.title || '') : '';
     const qty = isSample
       ? `${item.num_boxes} sample${item.num_boxes > 1 ? 's' : ''}`
       : item.sell_by === 'unit' ? `${item.num_boxes}` : `${item.num_boxes} box${item.num_boxes > 1 ? 'es' : ''}`;

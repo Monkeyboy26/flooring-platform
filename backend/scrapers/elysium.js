@@ -4,7 +4,7 @@ import {
   upsertInventorySnapshot,
   appendLog, addJobError, upsertMediaAsset,
   buildVariantName, isLifestyleUrl,
-  saveSkuImages, saveProductImages, applySheetSelling,
+  saveSkuImages, saveProductImages, applySheetSelling, deriveSheetSqft,
 } from './base.js';
 import { elysiumLogin, elysiumFetch, BASE_URL } from './elysium-auth.js';
 
@@ -716,9 +716,25 @@ export async function run(pool, job, source) {
           stats.priced++;
         }
         if (detail.inventory.caSqft != null) {
+          // Mosaics / stacked stone sell per SHEET, so their stock must be counted
+          // in sheets — but Elysium reports inventory only in square feet. base.js
+          // derives units as sqft ÷ sqft_per_box (i.e. BOXES), which undercounts a
+          // sheet SKU by pieces-per-box (and, on a light run before packaging is
+          // written, degrades to raw sqft). We already know this sheet's coverage,
+          // so convert to a sheet count here and pass qty_on_hand explicitly.
+          const invExtra = {};
+          if (sheet.coveringFloor) {
+            const sheetSqft = sheet.sheetSqft
+              || deriveSheetSqft(detail.packaging.sqftPerBox, detail.packaging.piecesPerBox);
+            if (sheetSqft > 0) {
+              invExtra.qty_on_hand = Math.floor(detail.inventory.caSqft / sheetSqft);
+              invExtra.qty_in_transit = Math.floor((detail.inventory.caInTransitSqft || 0) / sheetSqft);
+            }
+          }
           await upsertInventorySnapshot(pool, sku.id, 'CA', {
             qty_on_hand_sqft: detail.inventory.caSqft,
             qty_in_transit_sqft: detail.inventory.caInTransitSqft || 0,
+            ...invExtra,
           });
           stats.inventoried++;
         }

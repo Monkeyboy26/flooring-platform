@@ -126,7 +126,7 @@ async function fetchSkuData(pool, skuId) {
       p.name as product_name, p.collection, p.description_long, p.description_short,
       COALESCE(br.name, v.name) as brand_name,
       (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden,
-      v.code as vendor_code,
+      v.code as vendor_code, v.public_code as vendor_public_code,
       c.name as category_name, c.slug as category_slug,
       pr.retail_price,
       (SELECT ma.url FROM media_assets ma
@@ -176,7 +176,7 @@ async function fetchProductBySlug(pool, categorySlug, productSlug) {
       p.name as product_name, p.collection, p.slug as product_slug, p.description_long, p.description_short,
       COALESCE(br.name, v.name) as brand_name,
       (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden,
-      v.code as vendor_code,
+      v.code as vendor_code, v.public_code as vendor_public_code,
       c.name as category_name, c.slug as category_slug,
       pr.retail_price,
       (SELECT ma.url FROM media_assets ma
@@ -411,11 +411,16 @@ function buildSeoHtml({ title, description, canonicalUrl, ogImage, ogType, robot
 
 function renderSkuPage(sku) {
   const desc = cleanDescription(sku.description_long || sku.description_short, sku.brand_name);
+  // Hidden vendors/brands must never leak their real name into indexed metadata or structured data.
+  // Use the public 3-digit code when hidden; null (omit) if there isn't one.
+  const seoBrandName = sku.brand_hidden
+    ? (sku.vendor_public_code != null ? String(sku.vendor_public_code) : null)
+    : sku.brand_name;
   const priceNum = sku.retail_price ? Number(parseFloat(sku.retail_price).toFixed(2)) : null;
   const priceDisplay = priceNum !== null ? priceNum.toFixed(2) : null;
   const unit = sku.sell_by === 'unit' ? '/ea' : '/sqft';
   const title = `${sku.product_name}${sku.variant_name ? ' - ' + sku.variant_name : ''} | Roma Flooring Designs`;
-  const metaDesc = desc ? desc.substring(0, 160) : `${sku.product_name} from ${sku.brand_name}. Premium flooring available at Roma Flooring Designs.`;
+  const metaDesc = desc ? desc.substring(0, 160) : `${sku.product_name}${seoBrandName ? ' from ' + seoBrandName : ''}. Premium flooring available at Roma Flooring Designs.`;
   const skuSlug = slugify(sku.product_name + (sku.variant_name ? '-' + sku.variant_name : ''));
   const canonicalUrl = `${SITE_URL}/shop/sku/${sku.sku_id}/${skuSlug}`;
 
@@ -440,7 +445,6 @@ function renderSkuPage(sku) {
     name: sku.product_name + (sku.variant_name ? ' - ' + sku.variant_name : ''),
     image: productImage,
     sku: sku.internal_sku,
-    brand: { '@type': 'Brand', name: sku.brand_name },
     offers: {
       '@type': 'Offer',
       priceCurrency: 'USD',
@@ -449,6 +453,8 @@ function renderSkuPage(sku) {
       url: canonicalUrl
     }
   };
+  // seoBrandName (computed above) respects hidden vendors — omit brand entirely if no public code.
+  if (seoBrandName) productJsonLd.brand = { '@type': 'Brand', name: seoBrandName };
   if (desc) productJsonLd.description = desc;
   if (sku.category_name) productJsonLd.category = sku.category_name;
   if (priceNum) productJsonLd.offers.price = priceNum;
@@ -487,7 +493,7 @@ function renderSkuPage(sku) {
         <h1>${escapeHtml(sku.product_name)}${sku.variant_name ? ' <span style="color:#78716c">- ' + escapeHtml(sku.variant_name) + '</span>' : ''}</h1>
         ${priceDisplay ? `<div class="price">$${priceDisplay}${unit}</div>` : ''}
         ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
-        ${sku.brand_hidden ? (sku.vendor_code ? `<p><strong>Brand:</strong> ${escapeHtml(String(sku.vendor_code))}</p>` : '') : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
+        ${sku.brand_hidden ? (sku.vendor_public_code ? `<p><strong>Brand:</strong> ${escapeHtml(String(sku.vendor_public_code))}</p>` : '') : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
         <p><strong>SKU:</strong> ${escapeHtml(sku.internal_sku)}</p>
         ${sku.category_name ? `<p><strong>Category:</strong> <a href="/shop?category=${escapeHtml(sku.category_slug || '')}">${escapeHtml(sku.category_name)}</a></p>` : ''}
         ${sku.collection ? `<p><strong>Collection:</strong> <a href="/collections/${escapeHtml(slugify(sku.collection))}">${escapeHtml(sku.collection)}</a></p>` : ''}
@@ -500,11 +506,16 @@ function renderSkuPage(sku) {
 
 function renderProductPage(sku) {
   const desc = cleanDescription(sku.description_long || sku.description_short, sku.brand_name);
+  // Hidden vendors/brands must never leak their real name into indexed metadata or structured data.
+  // Use the public 3-digit code when hidden; null (omit) if there isn't one.
+  const seoBrandName = sku.brand_hidden
+    ? (sku.vendor_public_code != null ? String(sku.vendor_public_code) : null)
+    : sku.brand_name;
   const priceNum = sku.retail_price ? Number(parseFloat(sku.retail_price).toFixed(2)) : null;
   const priceDisplay = priceNum !== null ? priceNum.toFixed(2) : null;
   const unit = sku.sell_by === 'unit' ? '/ea' : '/sqft';
   const title = `${sku.product_name}${sku.collection ? ' ' + sku.collection : ''} ${sku.category_name || ''} | Roma Flooring Designs`.replace(/\s+/g, ' ');
-  const metaDesc = desc ? desc.substring(0, 160) : `${sku.product_name} from ${sku.brand_name}. Premium ${(sku.category_name || 'flooring').toLowerCase()} available at Roma Flooring Designs.`;
+  const metaDesc = desc ? desc.substring(0, 160) : `${sku.product_name}${seoBrandName ? ' from ' + seoBrandName : ''}. Premium ${(sku.category_name || 'flooring').toLowerCase()} available at Roma Flooring Designs.`;
   const canonicalUrl = `${SITE_URL}/shop/${sku.category_slug}/${sku.product_slug}`;
 
   const availability = sku.stock_status === 'out_of_stock' ? 'https://schema.org/OutOfStock'
@@ -528,7 +539,6 @@ function renderProductPage(sku) {
     name: sku.product_name + (sku.variant_name ? ' - ' + sku.variant_name : ''),
     image: productImage,
     sku: sku.internal_sku,
-    brand: { '@type': 'Brand', name: sku.brand_name },
     offers: {
       '@type': 'Offer',
       priceCurrency: 'USD',
@@ -537,6 +547,8 @@ function renderProductPage(sku) {
       url: canonicalUrl
     }
   };
+  // seoBrandName (computed above) respects hidden vendors — omit brand entirely if no public code.
+  if (seoBrandName) productJsonLd.brand = { '@type': 'Brand', name: seoBrandName };
   if (desc) productJsonLd.description = desc;
   if (sku.category_name) productJsonLd.category = sku.category_name;
   if (priceNum) productJsonLd.offers.price = priceNum;
@@ -573,7 +585,7 @@ function renderProductPage(sku) {
         <h1>${escapeHtml(sku.product_name)}${sku.variant_name ? ' <span style="color:#78716c">- ' + escapeHtml(sku.variant_name) + '</span>' : ''}</h1>
         ${priceDisplay ? `<div class="price">$${priceDisplay}${unit}</div>` : ''}
         ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
-        ${sku.brand_hidden ? (sku.vendor_code ? `<p><strong>Brand:</strong> ${escapeHtml(String(sku.vendor_code))}</p>` : '') : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
+        ${sku.brand_hidden ? (sku.vendor_public_code ? `<p><strong>Brand:</strong> ${escapeHtml(String(sku.vendor_public_code))}</p>` : '') : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
         <p><strong>SKU:</strong> ${escapeHtml(sku.internal_sku)}</p>
         ${sku.category_name ? `<p><strong>Category:</strong> <a href="/shop?category=${escapeHtml(sku.category_slug || '')}">${escapeHtml(sku.category_name)}</a></p>` : ''}
         ${sku.collection ? `<p><strong>Collection:</strong> <a href="/collections/${escapeHtml(slugify(sku.collection))}">${escapeHtml(sku.collection)}</a></p>` : ''}

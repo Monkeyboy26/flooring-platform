@@ -19,7 +19,7 @@ const CATEGORY_MAP = {
   'Broadloom':   'carpet',
   'Resilient':   'luxury-vinyl',
   'Hardwood':    'engineered-hardwood',
-  'TileStone':   'tile',
+  'TileStone':   'porcelain-tile', // leaf, not the 'tile' parent bucket; ceramic lines refined below
   'Carpet Tile': 'carpet-tile',
   'Laminate':    'laminate',
   'Turf':        'artificial-turf',
@@ -35,9 +35,9 @@ function inferCategoryFromName(name) {
   // Shaw coded trim part numbers
   if (/^(aa(?:olr|qtr)|bt[0-9]|sq[0-9]|sqths|tr[0-9]|vsqt|pcqtr|qtr\d|qtrhs|cs\d{2}[fz]|lx\d{2}|sors)/i.test(n)) return 'transitions-moldings';
   if (/mosaic|chair rail|pencil liner/i.test(n)) return 'transitions-moldings';
-  if (/adhesive|adh\b/i.test(n)) return 'adhesives-sealants';
+  if (/adhesive|adh\b|seam|sealer|caulk/i.test(n)) return 'adhesives-sealants';
+  if (/cleaner|mop pad|\brevive\b/i.test(n)) return 'care-maintenance';
   if (/underlayment|pad\b/i.test(n)) return 'underlayment';
-  if (/cleaner|mop pad|seam|sealer/i.test(n)) return 'installation-sundries';
   return null;
 }
 
@@ -98,10 +98,100 @@ function imperialValue(measurement) {
 
 // ─── API Fetching ───────────────────────────────────────────────────────────
 
+// Backoff schedule (seconds) shared by 429 rate-limit and transient network retries.
+const RETRY_WAITS = [10, 30, 60, 120];
+
+/**
+ * Detect transient connection failures worth retrying. Node's built-in fetch
+ * (undici) surfaces a mid-download socket drop as `TypeError: terminated`
+ * (cause code UND_ERR_SOCKET); an AbortSignal timeout throws a TimeoutError.
+ * These are network blips, not real failures — the previous/next run succeeds.
+ */
+function isTransientNetworkError(err) {
+  if (!err) return false;
+  const code = err.code || err.cause?.code || '';
+  if (['UND_ERR_SOCKET', 'ECONNRESET', 'ETIMEDOUT', 'ECONNREFUSED', 'EPIPE', 'ENETUNREACH', 'EAI_AGAIN'].includes(code)) return true;
+  const msg = `${err.message || ''} ${err.cause?.message || ''}`.toLowerCase();
+  return /terminated|socket|econnreset|etimedout|network|fetch failed|timeout|aborted|other side closed/.test(msg);
+}
+
+/**
+ * Fetch one page of the Shaw catalog, retrying on both HTTP 429 and transient
+ * network errors (including a body-stream `terminated` mid-download). A 401/403
+ * or other non-retryable status throws with an actionable diagnostic.
+ */
+async function fetchPageWithRetries(apiUrl, headers, pagingId, pool, jobId) {
+  const doFetch = () => fetch(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ ProductType: 'All', PagingId: pagingId || '' }),
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+
+  let attempt = 0;
+  while (true) {
+    try {
+      const resp = await doFetch();
+
+      if (resp.status === 429) {
+        if (attempt < RETRY_WAITS.length) {
+          const waitSec = RETRY_WAITS[attempt++];
+          await appendLog(pool, jobId, `Rate limited (429). Retry ${attempt}/${RETRY_WAITS.length} in ${waitSec}s...`);
+          await new Promise(r => setTimeout(r, waitSec * 1000));
+          continue;
+        }
+        throw new Error('API error: 429 — rate limited, exhausted retries');
+      }
+
+      if (!resp.ok) {
+        let bodyText = '';
+        try { bodyText = await resp.text(); } catch { /* ignore */ }
+        if (resp.status === 401 || resp.status === 403) {
+          // Distinguish which credential Shaw rejected. Shaw's Azure API-Management
+          // gateway returns a body mentioning "subscription key" when the
+          // ocp-apim-subscription-key (gateway_key) is bad/missing. A body WITHOUT
+          // that phrase (e.g. {"errorMessage":"Not Authorized"}) means the request
+          // cleared the gateway and Shaw's application rejected the dealer api-Key.
+          const gatewayRejected = /subscription key/i.test(bodyText);
+          const culprit = gatewayRejected
+            ? 'the Azure gateway key (config.gateway_key / ocp-apim-subscription-key)'
+            : 'the dealer key (config.dealer_key / api-Key) — request cleared Shaw\'s gateway but the app returned "Not Authorized"';
+          throw new Error(
+            `Shaw API ${resp.status}: ${culprit} was rejected — this credential has likely expired or been rotated by Shaw. ` +
+            `Request a fresh key from Shaw (or confirm IP allowlisting), then set it in the vendor source config. ` +
+            `Catalog/pricing still flow via the shaw-832 EDI feed, so this only affects supplementary image/attribute enrichment. ` +
+            `Response body: ${bodyText.slice(0, 200)}`
+          );
+        }
+        throw new Error(`API error: ${resp.status} ${resp.statusText}${bodyText ? ` — ${bodyText.slice(0, 200)}` : ''}`);
+      }
+
+      // Reading the body streams the (large) payload and can itself throw
+      // `terminated` if Shaw drops the connection mid-download — caught below.
+      return await resp.json();
+    } catch (err) {
+      if (isTransientNetworkError(err) && attempt < RETRY_WAITS.length) {
+        const waitSec = RETRY_WAITS[attempt++];
+        await appendLog(pool, jobId, `Network error (${err.message}). Retry ${attempt}/${RETRY_WAITS.length} in ${waitSec}s...`);
+        await new Promise(r => setTimeout(r, waitSec * 1000));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 async function fetchAllProducts(config, pool, jobId) {
   const apiUrl = config.api_url || DEFAULT_API_URL;
   const gatewayKey = config.gateway_key || DEFAULT_GATEWAY_KEY;
   const dealerKey = config.dealer_key || DEFAULT_DEALER_KEY;
+
+  const headers = {
+    'ocp-apim-subscription-key': gatewayKey,
+    'api-Key': dealerKey,
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Content-Type': 'application/json',
+  };
 
   const allStyles = [];
   let pagingId = '';
@@ -111,69 +201,7 @@ async function fetchAllProducts(config, pool, jobId) {
     page++;
     await appendLog(pool, jobId, `Fetching API page ${page} (pagingId: ${pagingId || 'initial'})...`);
 
-    const resp = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'ocp-apim-subscription-key': gatewayKey,
-        'api-Key': dealerKey,
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ ProductType: 'All', PagingId: pagingId || '' }),
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    });
-
-    if (resp.status === 429) {
-      // Rate limited — retry with exponential backoff
-      for (const waitSec of [30, 60, 120]) {
-        await appendLog(pool, jobId, `Rate limited (429). Waiting ${waitSec}s...`);
-        await new Promise(r => setTimeout(r, waitSec * 1000));
-        const retry = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'ocp-apim-subscription-key': gatewayKey,
-            'api-Key': dealerKey,
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ ProductType: 'All', PagingId: pagingId || '' }),
-          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        });
-        if (retry.ok) {
-          const data = await retry.json();
-          allStyles.push(...(data.retailerStylesDetail || []));
-          pagingId = data.pagingId || null;
-          break;
-        }
-        if (retry.status !== 429) throw new Error(`API error: ${retry.status} ${retry.statusText}`);
-      }
-      continue;
-    }
-
-    if (!resp.ok) {
-      let bodyText = '';
-      try { bodyText = await resp.text(); } catch { /* ignore */ }
-      if (resp.status === 401 || resp.status === 403) {
-        // Distinguish which credential Shaw rejected. Shaw's Azure API-Management
-        // gateway returns a body mentioning "subscription key" when the
-        // ocp-apim-subscription-key (gateway_key) is bad/missing. A body WITHOUT
-        // that phrase (e.g. {"errorMessage":"Not Authorized"}) means the request
-        // cleared the gateway and Shaw's application rejected the dealer api-Key.
-        const gatewayRejected = /subscription key/i.test(bodyText);
-        const culprit = gatewayRejected
-          ? 'the Azure gateway key (config.gateway_key / ocp-apim-subscription-key)'
-          : 'the dealer key (config.dealer_key / api-Key) — request cleared Shaw\'s gateway but the app returned "Not Authorized"';
-        throw new Error(
-          `Shaw API ${resp.status}: ${culprit} was rejected — this credential has likely expired or been rotated by Shaw. ` +
-          `Request a fresh key from Shaw (or confirm IP allowlisting), then set it in the vendor source config. ` +
-          `Catalog/pricing still flow via the shaw-832 EDI feed, so this only affects supplementary image/attribute enrichment. ` +
-          `Response body: ${bodyText.slice(0, 200)}`
-        );
-      }
-      throw new Error(`API error: ${resp.status} ${resp.statusText}${bodyText ? ` — ${bodyText.slice(0, 200)}` : ''}`);
-    }
-
-    const data = await resp.json();
+    const data = await fetchPageWithRetries(apiUrl, headers, pagingId, pool, jobId);
     const styles = data.retailerStylesDetail || [];
     allStyles.push(...styles);
 

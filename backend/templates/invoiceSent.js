@@ -1,4 +1,5 @@
 import { LOGO_LOCKUP } from './_config.js';
+import { composeItemName } from '../lib/documents.js';
 
 export function generateInvoiceSentHTML(invoice) {
   const {
@@ -9,11 +10,14 @@ export function generateInvoiceSentHTML(invoice) {
   } = invoice;
 
   const itemRows = items.map(item => {
-    const desc = esc(item.description || 'Item');
+    const composed = composeItemName(item);
+    const desc = esc(composed.nameLine || item.description || 'Item');
+    const brand = composed.vendor ? esc(composed.vendor) : '';
+    const skuText = composed.sku ? esc(composed.sku) : '';
     const qty = parseFloat(item.qty || 1);
     const price = '$' + parseFloat(item.subtotal || 0).toFixed(2);
     return `<tr>
-      <td style="padding:12px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;">${desc}</td>
+      <td style="padding:12px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;">${brand ? `<span style="font-size:12px;color:#78716c;">${brand}</span><br>` : ''}${desc}${skuText ? `<br><span style="font-size:12px;color:#78716c;">${skuText}</span>` : ''}</td>
       <td style="padding:12px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:14px;color:#57534e;text-align:center;">${qty}</td>
       <td style="padding:12px 0;border-bottom:1px solid #e7e5e4;font-family:Inter,Arial,sans-serif;font-size:14px;color:#292524;text-align:right;">${price}</td>
     </tr>`;

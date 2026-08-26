@@ -146,14 +146,16 @@ async function skuMedia(productId, skuId, url, assetType, sortOrder) {
 }
 
 // ==================== derived fields ====================
+// Set true in main() when vendors.hide_public_name — omits distributor name from descriptions.
+let HIDE_VENDOR = false;
 function descFor(p) {
   const sizes = [...new Set(p.skus.map((s) => s.size_nominal))].filter(Boolean);
   const finishes = [...new Set(p.skus.map((s) => s.finish))].filter(Boolean);
   const look = (p.look || 'Stone').toLowerCase();
   const short = `Imported ${look}-look porcelain tile — ${p.collection} ${p.color}` +
     `${sizes.length ? ' in ' + sizes.join(', ') : ''}.`;
-  const long = `${p.collection} ${p.color} — ${look}-look rectified porcelain tile distributed by ` +
-    `Forma Mondo (Carson, CA). ${p.blurb || ''}` +
+  const long = `${p.collection} ${p.color} — ${look}-look rectified porcelain tile` +
+    `${HIDE_VENDOR ? '' : ' distributed by Forma Mondo (Carson, CA)'}. ${p.blurb || ''}` +
     `${sizes.length ? ' Available sizes: ' + sizes.join(', ') + '.' : ''}` +
     `${finishes.length ? ' Finishes: ' + finishes.join(', ') + '.' : ''}` +
     `${p.finishNote ? ' ' + p.finishNote : ''} FOB Carson warehouse.`;
@@ -209,7 +211,8 @@ async function importProduct(p, vendorId, brandId, catId) {
 async function main() {
   console.log('=== Forma Mondo Import ===\n');
   const vendorId = await upsertVendor(catalog.vendor);
-  console.log(`Vendor: ${catalog.vendor.name} (${vendorId})`);
+  HIDE_VENDOR = (await pool.query('SELECT hide_public_name FROM vendors WHERE id=$1', [vendorId])).rows[0]?.hide_public_name === true;
+  console.log(`Vendor: ${catalog.vendor.name} (${vendorId})${HIDE_VENDOR ? ' [hidden — vendor name omitted from descriptions]' : ''}`);
   const brandId = await upsertBrand(catalog.brand);
   await linkVendorBrand(vendorId, brandId, true);
   console.log(`Brand:  ${catalog.brand.name} (${brandId})`);

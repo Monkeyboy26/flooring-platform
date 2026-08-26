@@ -15,7 +15,7 @@ export function generateWelcomeSetPasswordHTML(firstName, resetUrl) {
     {
       icon: '&#8962;',
       t: 'Visit the showroom',
-      s: '1440 S. State College Blvd #6M, Anaheim — Mon–Fri 8am–5pm, Sat 9am–2pm.',
+      s: '1440 S. State College Blvd #6M, Anaheim — Mon–Fri 9am–5pm, Sat 10am–5pm.',
       cta: 'Directions &rarr;',
       href: 'https://maps.google.com/?q=1440+S+State+College+Blvd+%236M,+Anaheim,+CA+92806'
     }

@@ -20,7 +20,7 @@ export async function recalculateBalance(pool, orderId, client) {
 // than being zeroed. Returns { subtotal, tax_amount, total }.
 export async function recalcOrderTotals(db, orderId) {
   const o = await db.query(
-    'SELECT shipping, sample_shipping, discount_amount, tax_rate, tax_amount FROM orders WHERE id = $1',
+    'SELECT shipping, sample_shipping, transfer_fee, discount_amount, tax_rate, tax_amount FROM orders WHERE id = $1',
     [orderId]
   );
   if (!o.rows.length) return null;
@@ -35,16 +35,26 @@ export async function recalcOrderTotals(db, orderId) {
   const materialsSubtotal = parseFloat(sums.rows[0].materials_subtotal);
   const shipping = parseFloat(row.shipping || 0);
   const sampleShipping = parseFloat(row.sample_shipping || 0);
+  const transferFee = parseFloat(row.transfer_fee || 0);
   const discount = parseFloat(row.discount_amount || 0);
   const rate = parseFloat(row.tax_rate || 0);
   const tax_amount = rate > 0
     ? parseFloat((materialsSubtotal * rate).toFixed(2))
     : parseFloat(parseFloat(row.tax_amount || 0).toFixed(2));
-  const total = parseFloat((subtotal + shipping + sampleShipping + tax_amount - discount).toFixed(2));
+  const total = parseFloat((subtotal + shipping + sampleShipping + transferFee + tax_amount - discount).toFixed(2));
   await db.query('UPDATE orders SET subtotal = $1, tax_amount = $2, total = $3 WHERE id = $4',
     [subtotal.toFixed(2), tax_amount.toFixed(2), total.toFixed(2), orderId]);
   return { subtotal, tax_amount, total };
 }
+
+// Customer-facing edits that change the invoice and thus warrant a REVISED stamp.
+// Excludes internal/warehouse/lifecycle events (cost_updated, item_ready, status).
+// NOTE: 'discount_changed' has no emitter yet (orders have no post-creation
+// discount-edit endpoint) — it's wired here so a future discount edit counts
+// automatically once it logs that action.
+const REVISION_EDIT_ACTIONS = new Set([
+  'item_added', 'item_removed', 'price_adjusted', 'delivery_method_changed', 'discount_changed'
+]);
 
 export async function logOrderActivity(queryable, orderId, action, performerId, performerName, details = {}) {
   try {
@@ -53,6 +63,18 @@ export async function logOrderActivity(queryable, orderId, action, performerId, 
        VALUES ($1, $2, $3, $4, $5)`,
       [orderId, action, performerId || null, performerName || null, JSON.stringify(details)]
     );
+    // Latch the order "revised" only when its customer-facing contents are edited
+    // AFTER it has already been sent to the customer (invoice / payment request).
+    // This is what stamps REVISED on the invoice; a plain resend never sets it.
+    if (REVISION_EDIT_ACTIONS.has(action)) {
+      await queryable.query(
+        `UPDATE orders SET is_revised = true
+         WHERE id = $1 AND is_revised = false
+           AND EXISTS (SELECT 1 FROM order_activity_log
+                       WHERE order_id = $1 AND action IN ('invoice_sent', 'payment_request_sent'))`,
+        [orderId]
+      );
+    }
   } catch (err) {
     console.error('Failed to log order activity:', err.message);
   }
@@ -62,7 +84,7 @@ export async function recalculateCommission(queryable, orderId) {
   try {
     // Fetch order
     const orderRes = await queryable.query(
-      'SELECT id, total, status, sales_rep_id, amount_paid FROM orders WHERE id = $1',
+      'SELECT id, total, subtotal, discount_amount, status, sales_rep_id, amount_paid FROM orders WHERE id = $1',
       [orderId]
     );
     if (!orderRes.rows.length) return;
@@ -116,9 +138,14 @@ export async function recalculateCommission(queryable, orderId) {
     const laborSubtotal = parseFloat(laborRes.rows[0].labor_subtotal);
 
     const orderTotal = parseFloat(order.total);
-    // Materials revenue = everything on the order except labor (still includes
-    // shipping/tax, matching the prior behavior for the material portion).
-    const materialsBase = Math.max(0, orderTotal - laborSubtotal);
+    // Commission is paid on MERCHANDISE margin only. Base = the non-sample
+    // line-item subtotal (order.subtotal) minus labor (commissioned separately at
+    // the labor rate) minus the order discount. Shipping, sample shipping,
+    // transfer fees and tax are NOT part of order.subtotal, so they're excluded —
+    // reps earn no commission on shipping or fees.
+    const orderSubtotal = parseFloat(order.subtotal || 0);
+    const orderDiscount = parseFloat(order.discount_amount || 0);
+    const materialsBase = Math.max(0, orderSubtotal - laborSubtotal - orderDiscount);
 
     // Fallback: if no PO data, estimate materials cost from the materials base —
     // but only for the NON-rug portion, since rugs carry their own real cost

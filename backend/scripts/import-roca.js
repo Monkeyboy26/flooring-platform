@@ -54,9 +54,15 @@ const MARKUP = 1.6;
 // Category is derived from the material plus the product's real field sizes — NOT from the
 // pricebook's per-SKU FLOOR/WALL label, which mislabels a whole product when its first SKU
 // happens to be a trim/wall piece. Keeps small decorative/subway/brick tile in Backsplash &
-// Wall, routes floor-size porcelain to Porcelain Tile, slab-scale panels to Porcelain Slabs,
-// and detects wood-look plank collections. Mirrored in scripts/roca-recategorize.mjs.
-const WOOD_COLLECTIONS = new Set(['PINE', 'NORTHWOOD', 'WESTON', 'ABBEY', 'BOHEME', 'COLONIAL', 'INDIANA', 'LAGOM']);
+// Wall, routes floor-size porcelain (incl. slab-scale large-format panels — Roca sells no real
+// slabs) to Porcelain Tile, and detects wood-look plank collections. Mirrored in
+// scripts/roca-recategorize.mjs.
+// ESSENCE (Ash/Maple) and EVERGLADE (Nogales=walnut) are whole-collection wood-look plank lines;
+// their neutral colors (Pearl/Silver/Warm Gray) are light wood stains, so the whole set moves.
+const WOOD_COLLECTIONS = new Set(['PINE', 'NORTHWOOD', 'WESTON', 'ABBEY', 'BOHEME', 'COLONIAL', 'INDIANA', 'LAGOM', 'ESSENCE', 'EVERGLADE']);
+// Wood-species color names — catch a wood-look plank mis-grouped under a non-wood collection header
+// (e.g. Onyx / "Panama Roble"). Only fires on plank-aspect floor formats (see isPlank).
+const WOOD_COLOR_RE = /\b(ROBLE|FRESNO|NOGAL|NOGALES|NOCE|WALNUT|WENGE|OAK|TEAK|MAPLE|ASH|BIRCH|HICKORY|MAHOGANY|EBONY|ACACIA|CHESTNUT|PECAN|IPE|CEDAR|ELM|VISON)\b/;
 
 function parseDim(s) {
   s = String(s).replace(/["']/g, '').trim();
@@ -68,20 +74,24 @@ function parseDim(s) {
 
 // @param fieldSizes  array of size labels across the product's SKUs
 // @param flags       { isMosaic, isPaver, isBath }
-function classifyRocaCategory(collection, material, fieldSizes, flags = {}) {
+function classifyRocaCategory(collection, material, fieldSizes, flags = {}, nameHint = '') {
   const c = (collection || '').toUpperCase().trim();
   const m = (material || '').toUpperCase();
   const dims = (fieldSizes || []).map(parseDim).filter(Boolean);
   const maxDim = dims.length ? Math.max(...dims.flatMap(d => d)) : 0;
+  // Plank-aspect: a floor-plank field size (short 6–11", aspect >=3.5) — 8x48, 9x35, 10.5x64, 8x35.
+  // The 6" floor min keeps narrow wall/accent sticks (3x17 chevron, 4x24 brick) out of the wood rule.
+  const isPlank = dims.some(([a, b]) => { const mn = Math.min(a, b), mx = Math.max(a, b); return mn >= 6 && mn <= 11 && mx / mn >= 3.5; });
 
-  // Slab / large panel: dedicated collections or slab-scale format (>=90" longest side).
-  // Longest side keeps planks (10.5x64) out; only wide+long panels (48x98, 63x126) qualify.
-  if (c === 'SLABS' || c === 'XL SLABS' || maxDim >= 90) return CAT.porcelainSlab;
+  // Roca does NOT sell slabs — the "Slabs"/"XL Slabs" collections and their slab-scale panels
+  // (48x98, 63x126) are large-format porcelain TILE, not countertop slabs. They fall through to
+  // the porcelain floor-tile default below. (No slab rule; keep porcelain slab off Roca entirely.)
   if (flags.isBath || c === 'BATH FIXTURES') return CAT.bathAccessories;
   if (flags.isPaver || c === 'PAVERS' || m.includes('FULL BODY PORCELAIN STONEWARE')) return CAT.pavers;
   if (flags.isMosaic || /^CC\s+(MOSAICS?|PORCELAIN)/.test(c) || c === 'ROCKART' || c === 'METALS'
       || m.includes('GLASS MOSAIC') || m.includes('NATURAL STONE') || m.includes('ALUMINUM')) return CAT.mosaic;
   if (WOOD_COLLECTIONS.has(c)) return CAT.woodLook;
+  if (isPlank && WOOD_COLOR_RE.test((nameHint || '').toUpperCase())) return CAT.woodLook;
   if (m.includes('QUARRY')) return CAT.ceramic;
   // Decorative / brick / subway / pencil wall: every field size is narrow (<=24" long AND <=6" short).
   // A tile with a short side >6" (8x8, 12x24, 24x48, 35x35) counts as a floor tile.
@@ -553,7 +563,7 @@ async function run() {
       isMosaic: prod.isMosaicProduct || /mosaic/i.test(prod.color),
       isPaver: prod.collection.toUpperCase() === 'PAVERS',
       isBath: prod.collection.toUpperCase() === 'BATH FIXTURES',
-    });
+    }, prod.color);
   }
 
   console.log(`Grouped into ${productMap.size} products\n`);

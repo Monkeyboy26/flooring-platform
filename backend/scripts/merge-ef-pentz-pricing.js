@@ -38,6 +38,10 @@ const DRY_RUN = process.argv.includes('--dry-run');
 function deriveCollection(name) {
   if (!name) return '';
   let s = name.trim();
+  // PC product names now end with the style code ("Outlaw Broadloom 3053B",
+  // "Avenue LVT P1000", "TS103 Tile Special") — strip it before the format words
+  // or nothing below matches and the clean collection gets clobbered.
+  s = s.replace(/\s+(P?\d{3,4}[A-Z]{0,2}|TS\d+)$/i, '');
   s = s.replace(/\s+Broadloom$/i, '');
   s = s.replace(/\s+Plank$/i, '');
   s = s.replace(/\s+LVT$/i, '');

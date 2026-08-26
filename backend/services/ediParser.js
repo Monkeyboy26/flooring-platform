@@ -81,8 +81,12 @@ export function parse855(txnSet) {
   for (const seg of segs) {
     switch (seg[0]) {
       case 'BAK': {
-        // BAK*AC*AT*PO_NUMBER*DATE
-        result.ackType = seg[1] || null;  // AC, AD, RD
+        // BAK*<purpose 00>*<ackType AC/AD/RD>*<PO number>*<date>
+        // Ack type is element 2 (element 1 is the transaction-purpose code); guard
+        // against feeds that shift it so a header-only rejection isn't missed.
+        const ackCodes = ['AC', 'AD', 'RD', 'RF', 'RJ'];
+        result.ackType = ackCodes.includes(seg[2]) ? seg[2]
+          : ackCodes.includes(seg[1]) ? seg[1] : (seg[2] || null);
         result.poNumber = seg[3] || null;
         result.poDate = seg[4] || null;
         break;

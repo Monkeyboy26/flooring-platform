@@ -134,7 +134,22 @@ def clean_color(type_str, material_label):
                '', s, flags=re.I)
     s = re.sub(r'(?<=[A-Za-z])\(', ' (', s)   # "Indian(Lime)" -> "Indian (Lime)"
     s = re.sub(r'\s+', ' ', s).strip(' -')
+    s = fix_color_spelling(s)
     return title_case(s) if s else (material_label or 'Natural Stone')
+
+
+# Vendor pricelist misspells a few stone/color names; correct them for customer display
+# (vendor_sku on the PO is untouched, so ordering still matches). Applied case-insensitively
+# before title_case. Order matters: the phrase fix reorders "White Carrera" -> "Carrara White".
+COLOR_SPELLING = [
+    (r'\bWhite\s+Carrera\s+Splitface\b', 'Carrara White Splitface'),
+    (r'\bCalcatta\b',                    'Calacatta'),
+    (r'\bCapuccino\b',                   'Cappuccino'),
+]
+def fix_color_spelling(s):
+    for pat, repl in COLOR_SPELLING:
+        s = re.sub(pat, repl, s, flags=re.I)
+    return s
 
 
 # family -> (label, category_slug)
@@ -239,6 +254,18 @@ def split_size(size):
             wxh = f"{wxh} {extra}"
         return wxh, th
     return s, None
+
+
+def piece_sqft(wxh):
+    """Area (sqft) of ONE rectangular piece from a clean 'WxH' token (inches).
+    Returns None for patterns / non-rectangular / zero sizes — those stay coverage-sold."""
+    m = re.match(r'^\s*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)', wxh or '', re.I)
+    if not m:
+        return None
+    w, h = float(m.group(1)), float(m.group(2))
+    if w <= 0 or h <= 0:
+        return None
+    return round(w * h / 144.0, 4)
 
 
 def clean_thickness(t):
@@ -391,6 +418,18 @@ def main():
         if fam == 'coping' and thick_c:
             vname += f' ({thick_c})'
 
+        # Per-piece selling (like natural stone): pavers & field tile with a clean
+        # rectangular size are ordered BY THE PIECE, not by coverage. Flip sell_by to
+        # 'unit' and attach the single-piece area; price_basis stays 'per_sqft' so the
+        # storefront computes piece price = per-sqft rate × piece area (storefront.jsx
+        # displayPrice / cart.js — see [[natural-stone-per-piece]]). Laid PATTERNS
+        # (Versailles/Roman) and non-rectangular sizes keep coverage selling ('box').
+        piece_area = None
+        if fam in ('paver', 'tile') and sell_by == 'box' and re.match(r'^\d', disp or ''):
+            piece_area = piece_sqft(wxh)
+            if piece_area:
+                sell_by = 'unit'
+
         sku = {
             'vendor_sku': pn,
             'internal_sku': f"ICON-{pn}",
@@ -401,6 +440,8 @@ def main():
             'retail': retail_from_cost(cost),
             'attrs': {},
         }
+        if piece_area:
+            sku['packaging'] = {'sqft_per_box': piece_area, 'pieces_per_box': 1}
         if size:
             sku['attrs']['size'] = disp
         if thick_c:

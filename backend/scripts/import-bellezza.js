@@ -7,7 +7,8 @@
  *   Porcelain Tile, Ceramic Wall Tile, Glass Mosaic, Porcelain Mosaic,
  *   Subway / Artisan Tile, Trim Accessories, Wall Panels
  *
- * Pricing: Excel lists dealer cost. Retail = cost × 2.5 (standard tile markup).
+ * Pricing: Excel lists dealer cost. Retail = cost × 1.6 (store standard since
+ * the 2026-07 keystone reprice; was 2.5 before 2026-07-26).
  * Most tiles sold per sqft. Mosaics sold per sheet. Trim/accessories per piece.
  *
  * Usage: docker compose exec api node scripts/import-bellezza.js
@@ -23,7 +24,7 @@ const pool = new pg.Pool({
   password: 'postgres',
 });
 
-const RETAIL_MARKUP = 2.5;
+const RETAIL_MARKUP = 1.6;
 
 // ==================== Helpers ====================
 
@@ -836,9 +837,9 @@ async function main() {
       });
       if (sku.is_new) skusCreated++; else skusUpdated++;
 
-      // Pricing: dealer cost → retail × 2.5
+      // Pricing: dealer cost → retail × 1.6, nickel-rounded (store standard)
       const cost = price;
-      const retail = parseFloat((cost * RETAIL_MARKUP).toFixed(2));
+      const retail = parseFloat((Math.round(cost * RETAIL_MARKUP / 0.05) * 0.05).toFixed(2));
       await upsertPricing(sku.id, { cost, retail_price: retail, price_basis: priceBasis });
 
       // Packaging

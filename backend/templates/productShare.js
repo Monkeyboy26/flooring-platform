@@ -2,14 +2,25 @@ import { LOGO_LOCKUP } from './_config.js';
 
 export function generateProductShareHTML(data) {
   const {
-    product_name, collection, price, sell_by,
+    product_name, collection, price, sell_by, price_basis, sqft_per_box,
     image_url, product_url,
     rep_first_name, rep_last_name, rep_email, rep_phone,
     message
   } = data;
 
   const repName = [rep_first_name, rep_last_name].filter(Boolean).join(' ') || 'Your Sales Representative';
-  const priceLabel = price ? `$${parseFloat(price).toFixed(2)}${sell_by === 'box' ? '/sqft' : sell_by === 'unit' ? '/ea' : ''}` : '';
+  // Canonical price-unit suffix (mirrors storefront priceSuffix): slabs sold as a
+  // unit but priced per sqft with no box area show /sqft; else follow sell_by.
+  const priceSuffix = () => {
+    const soldPerUnit = sell_by ? sell_by === 'unit' : price_basis === 'per_unit';
+    if (soldPerUnit) {
+      if ((price_basis === 'sqft' || price_basis === 'per_sqft') && !(parseFloat(sqft_per_box) > 0)) return '/sqft';
+      return '/ea';
+    }
+    if (sell_by === 'roll' || price_basis === 'per_sqyd') return '/sqyd';
+    return '/sqft';
+  };
+  const priceLabel = price ? `$${parseFloat(price).toFixed(2)}${priceSuffix()}` : '';
 
   const imageSection = image_url ? `
   <tr><td style="padding:0 40px 24px;text-align:center;">

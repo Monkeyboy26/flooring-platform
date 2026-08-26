@@ -412,14 +412,148 @@ function cleanProductName(raw) {
     .replace(/\s*buy\s+mult[\d.]*/gi, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
-  name = name.replace(/\b\w+/g, w =>
-    w.length <= 3 && /^(i{1,3}|ii|iv|v|vi|vii|viii|ix|x|spc|lvp|lvt)$/i.test(w)
-      ? w.toLowerCase()
-      : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-  );
+  name = name.replace(/\b\w+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  name = fixEmserCaps(name);
   // "Mosaic On" is a truncated "Mosaic On Mesh" — drop the dangling "On"
   name = name.replace(/\s+On$/i, '');
+  name = tidyEmserTileName(name);
   return name || null;
+}
+
+// After title-casing, restore all-caps for roman-numeral version markers
+// ("Swiss ii" → "Swiss II") and material acronyms (SPC/LVP/LVT). Only touches
+// space-delimited tokens so slash-clustered color abbreviations ("Fo/Ma/Vi/Ye")
+// stay title-cased. Mirrored in scripts (keep in sync).
+function fixEmserCaps(name) {
+  if (!name) return name;
+  return name
+    .replace(/(^|\s)(i{1,3}|iv|vi{0,3}|ix)(?=\s|$)/gi, (m, pre, r) => pre + r.toUpperCase())
+    .replace(/(^|\s)(spc|lvp|lvt)(?=\s|$)/gi, (m, pre, a) => pre + a.toUpperCase())
+    // Title-case any lowercase segment in a slash abbreviation cluster
+    // ("Fo/Ma/vi/Ye" → "Fo/Ma/Vi/Ye").
+    .replace(/\/([a-z])/g, (m, ch) => '/' + ch.toUpperCase())
+    .replace(/\bBb\b/g, 'BB');
+}
+
+// Second-stage tidy for the title-cased EDI name: strips packaging/quantity
+// noise the feed glues onto descriptions ("8 Pcs/Ct", "3.875 Sf/Pc", "Grp1",
+// "2000pc"), normalizes thickness ("9 Mm"→"9mm", "Mattex7.5 Mm"→"Matte 7.5mm"),
+// and drops "Thickness"/"Por"/orphan-"Cm" noise plus trailing "Mixed Sizes".
+// Mirrored in scripts/cleanup-emser-tile-names.cjs (keep the two in sync).
+function tidyEmserTileName(raw) {
+  if (!raw) return raw;
+  let n = raw;
+
+  // Un-glue finish words fused to a thickness. mm thickness is kept (normalized);
+  // cm thickness is dropped as noise (values are unreliable — often the tile size).
+  n = n.replace(/\b([A-Za-z]+)x(\d*\.?\d+)\s*mm\b/gi, '$1 $2mm');
+  n = n.replace(/\b([A-Za-z]+)x\d*\.?\d+\s*cm\b/gi, '$1');
+  n = n.replace(/\b\d+(?:\.\d+)?\s*cm\s*x\s*\d+(?:\.\d+)?\s*cm\b/gi, ''); // "31.5cmx31.5cm" size noise
+  n = n.replace(/\bmesh\s*x\s*[\d.]+/gi, 'Mesh');                          // "Meshx1.25" mesh count
+
+  // Strip packaging / quantity noise (quantities may lead with a dot: ".949 Sf/Pc",
+  // or glue onto a thickness: "7.5mm9pc/Ct" — so the pcs/ct rule isn't \b-anchored).
+  n = n
+    .replace(/\bon\s+\d*\.?\d+\s*(?:pcs?|sf)\b[^,]*/gi, '')
+    .replace(/\d*\.?\d+\s*sf\s*\/\s*(?:pc|ct)\b/gi, '')
+    .replace(/\d*\.?\d+\s*pcs?\s*\/\s*(?:ct|box)\b/gi, '')
+    .replace(/\b\d+\s*pcs?\b/gi, '')
+    .replace(/\bper\s+ct\b/gi, '')
+    .replace(/\bgrp\d+\b/gi, '')
+    .replace(/\bmixed\s+sizes\b/gi, '');
+
+  // Thickness: normalize spacing/case, drop redundant "Thickness"/"Thick" and orphan "Cm".
+  n = n
+    .replace(/\bthickness\b/gi, '')
+    .replace(/(\d)\s*mm\b/gi, '$1mm')
+    .replace(/(\d)\s*cm\b/gi, '$1cm')
+    .replace(/(\d(?:mm|cm))\s+thick\b/gi, '$1')
+    .replace(/\bthick\b/gi, '')
+    .replace(/(^|\s)cm\b/gi, '$1');
+
+  // Un-fuse a material-code suffix glued onto a finish ("Mattepor"→"Matte",
+  // "Satincer"→"Satin") and drop the redundant standalone "Por" (already porcelain).
+  n = n
+    .replace(/\b(matte|satin|polished|glossy|gloss|honed|semigloss|lappato|brushed|flamed|tumbled|rectified|sbn)(?:por|cer)\b/gi, '$1')
+    .replace(/\bpor\b/gi, '');
+
+  // Collapse whitespace and tidy dangling separators.
+  n = n
+    .replace(/\s+On$/i, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,/])/g, '$1')
+    .trim()
+    .replace(/[\s,/-]+$/, '')
+    .trim();
+
+  return n || raw;
+}
+
+// A field-tile MAC code can carry trim/hardware (a porcelain bullnose is still
+// tagged POR), leaking finishing pieces into the tile browse. When the name says
+// otherwise, reroute to the right non-tile category. Mirrors reclassifyStray() in
+// scripts/cleanup-emser-tile-names.cjs.
+const EMSER_TILE_CATS = new Set([
+  'porcelain-tile', 'ceramic-tile', 'mosaic-tile', 'natural-stone', 'tile',
+  'stacked-stone', 'porcelain-slabs', 'wood-look-tile', 'large-format-tile',
+]);
+function reclassifyEmserStray(name) {
+  const s = (name || '').toLowerCase();
+  if (/\b(elevel|wedge|clip|spacer|washers?|screws?|pliers?|tab)\b/.test(s)) return 'installation-sundries';
+  if (/\b(edge\s*protector|reducer|quarter\s*circle|ramp|skirting|carpet\s*trim)\b/.test(s)) return 'transitions-moldings';
+  if (/\b(bullnose|sbn|cove\s*base|cove\s*corner|inside\s*cove|outside\s*cove|sill|threshold|shelf|pencil|liner|v-?cap|mud\s*cap)\b/.test(s)) return 'trim-accessories';
+  return null;
+}
+
+// Name → leaf category for Emser sundries/hardware. Used both when the MAC code
+// didn't map (would be NULL) and to push products out of the generic parent
+// installation-sundries / hardware-specialty buckets into leaves. Order matters
+// (first match wins). Mirrored in scripts/emser-categorization-fix.cjs (keep in sync).
+function classifyEmserSundry(name) {
+  const s = (name || '').toLowerCase();
+  if (/\bniche|curb|probase|foam base|honeycomb|ctr drn|\bdrain\b|\bdrn\b|strainer|\bstrnr\b|\bshower\b|\bshr\b|hydro ?ban|aqua ?shield|aquashld|thinline|soap dish|spice rack|kerdi|\btrough\b|nipple|cradle|\bcpe\b|pvashr|solutions drain|tile top|weep|noble ?deck|nobleseal|\bgrate\b|slpd|provadrain|prova ?board|flexdeck|nobledeck|pan liner|\bbase only\b|slpe bse|\bshelf\b/.test(s)) return 'shower-systems';
+  if (/nuheat|thermostat|\btherm\b|radiant|floor (heat|warm)|heat.*(mat|cable|wire|mesh)|\bheat mat|dual voltage|strataheat/.test(s)) return 'floor-heating';
+  if (/stepline|nosing|stepnose|stair (tread|nos)|\btread\b|\briser\b/.test(s)) return 'stair-treads-nosing';
+  if (/edge protector|\bprot pro\b|balc|cubeline|floor accent|quarter circle|\breducer\b|expansion ?(joint|jnt)|movement joint|hd exp|\bprofile\b|\bjolly\b|schluter|transition|\bramp\b|skirting|\bdilex\b|sill profile|aqua ?ke?il|aq kl|\bkeil\b|deck edge|banding|gravel deck|pedestal|deco(line| strip)|covecover|corner pro|\bjoiner\b|crner angle|corner angle/.test(s)) return 'transitions-moldings';
+  if (/membrane|antifrac|anti ?fracture|waterproof|crack (buster|isolation)|decoupling|uncoupling|uncoup|self furred|netting|reinforcing fabric|\blath\b|\bdmc\b|\bprimer\b|\bpatch\b|skim|self ?level|\bslu\b|backer ?board|foam tile backer|\bscreed\b|moisture guard|preformed|pipe collar|shell tape|joint tape|interior tape|\bmesh\b|triboard|durock|structocrete|structural panel|cement board|permabase|xboard|provamat|whisper mat|gypsum/.test(s)) return 'surface-prep-levelers';
+  if (/\bcove\b|bullnose|\bsbn\b|listello|pencil liner|\bliner\b|v-?cap|mud ?cap|chair rail|out corner|outside corner|inside corner|vinyl.*corner/.test(s)) return 'trim-accessories';
+  if (/cleaner|\bclnr\b|krud|\bclean\b|kleen|disinfec|deepklenz|\bsealer\b|sealers|restore|\bpolish\b|degreaser|grout release|stonetech|aqua ?mix|nanoscrub|poultice|salt water|choice gold|\brevi\b|citrus|haze remover|stainblocker|stain ?blocker|enhancer sealer|shop towel|red shop/.test(s)) return 'care-maintenance';
+  if (/thinset|thin ?set|\bmortar\b|adhesive|sikabond|sikatile|\bbond\b|matrix|\bepoxy\b|sealant|\bmastic\b|bedg|\brapid\b|\bmvis\b|\blht\b|lite set|premix|\bslc\b|st900|3701|caulk|omnigrip|versabond|prolite|proflex|veneer mtr/.test(s)) return 'adhesives-sealants';
+  if (/underlayment|sound guard|acoustic|\bcork\b|easy mat/.test(s)) return 'underlayment';
+  if (/\bfloat\b|sponge|kneepad|kneeling|\bglove|knit latex|caddy|buckle|\bpads?\b|trowel|\bbucket\b|mixing|mixer|\bblades?\b|margin|\bnotch|leveling|twister|\bclip\b|\bwedge\b|\bspacers?\b|\bshim\b|\bedger\b|\bgrit\b|cap for|rai fix|\banchor\b|\bkit\b|\bsaw\b|cutter|scoring|\bvac\b|oscillat|\bdrill\b|chisel|bridge saw|spare part|suction|\brls\b|trolley|\btool\b|nozzle|magnet|\btowel|battery|\bwheel\b|scaling|python|nipper|\bcup\b|hammer|speed92|\btable\b|\bbit\b|caulking gun|pull bar|maverick|\bguide\b|lifting|transport|scraper|getter|applicator|rub stone|sand pad|\bknife\b|velcro|beating block|backer screw|contractor pencil|splash guard|grout bag|grout pen|grout getter|grout remover|grout replacement|grout shield/.test(s)) return 'tools-trowels';
+  return null;
+}
+const EMSER_PARENT_BUCKETS = new Set(['installation-sundries', 'hardware-specialty']);
+
+// Push a product out of the generic parent "tile" bucket into a leaf using name
+// hints (material/format). Field tiles with no signal default to porcelain-tile.
+function leafForEmserTile(name) {
+  const s = (name || '').toLowerCase();
+  if (/\bbeak\b|shark ?nose|\blistello\b|\bpencil\b|\bliner\b/.test(s)) return 'trim-accessories';
+  if (/insert\/dot|\binsert\b/.test(s)) return 'mosaic-tile';
+  if (/\bstacked\b|ledger/.test(s)) return 'stacked-stone';
+  if (/\btrav\b|travertine|marble|limestone|slate|granite|onyx/.test(s)) return 'natural-stone';
+  if (/\b(2cm|3cm)\b|\bslab\b/.test(s)) return 'porcelain-slabs';
+  if (/\bmosaic\b/.test(s)) return 'mosaic-tile';
+  return 'porcelain-tile';
+}
+
+// The 832 feed blanks Emser's own tile collection ("EMSER TILE LLC"); other
+// vendors fill it with the series, so derive the series (leading words up to the
+// first finish/shape/size token) from the cleaned name to match that structure.
+// The emser-catalog scraper later overrides with the authoritative API series.
+// Mirrored in scripts/emser-tile-collection-caps.cjs (keep in sync).
+const EMSER_SERIES_STOP = /^(matte|satin|polished|gloss|glossy|honed|flamed|tumbled|lappato|rectified|semigloss|mirror|unpolished|leathered|brushed|mosaic|hex|hexagon|chevron|herringbone|arabesque|penny|lantern|picket|pinwheel|basketweave|offset|linear|brick|subway|pebble|cigaro|convex|beveled|bevel|wave|slim|deco|decor|insert|dot|leaf|star|geometric|circle|form|pattern|single|corner|blend|grip|trapezoid|diamond|glass|metal|engineered|new|original|pure|frame)$/i;
+function deriveEmserSeries(name) {
+  const out = [];
+  for (const t of String(name || '').split(/\s+/)) {
+    if (EMSER_SERIES_STOP.test(t)) break;
+    if (/^\d/.test(t) || /\d(?:mm|cm)$/i.test(t) || /^\d+x\d+/i.test(t) || /^\d+in$/i.test(t)) break;
+    if (t.includes('/')) break;
+    out.push(t);
+  }
+  const series = out.join(' ');
+  return series && !EMSER_SERIES_STOP.test(series) ? series : '';
 }
 
 // Size is encoded as the last 4-digit run of the item code (F78STMOTA1818 →
@@ -866,8 +1000,30 @@ export async function run(pool, job, source) {
   for (let gi = 0; gi < productGroups.length; gi++) {
    try {
     const group = productGroups[gi];
-    const categoryId = resolveCatId(group.category);
-    const categorySlug = resolveCatSlug(group.category);
+    let categoryId = resolveCatId(group.category);
+    let categorySlug = resolveCatSlug(group.category);
+
+    // Evict finishing pieces (bullnose/cove/edge-profiles/leveling) that a
+    // field-tile MAC code dragged into the tile browse.
+    if (EMSER_TILE_CATS.has(categorySlug)) {
+      const reroute = reclassifyEmserStray(group.baseName);
+      if (reroute && catCache[reroute]) {
+        categorySlug = reroute;
+        categoryId = catCache[reroute];
+      }
+    }
+    // The generic parent "tile" bucket isn't browsable — push to a leaf.
+    if (categorySlug === 'tile') {
+      const leaf = leafForEmserTile(group.baseName);
+      if (catCache[leaf]) { categorySlug = leaf; categoryId = catCache[leaf]; }
+    }
+    // Unmapped MAC → NULL, or a MAC that only resolves to the generic parent
+    // installation-sundries / hardware-specialty bucket — classify the sundry by
+    // name so it lands in a real browsable leaf.
+    if (!categoryId || EMSER_PARENT_BUCKETS.has(categorySlug)) {
+      const guess = classifyEmserSundry(group.baseName);
+      if (guess && catCache[guess]) { categorySlug = guess; categoryId = catCache[guess]; }
+    }
 
     // SKU-first product resolution: the catalog scraper renames product
     // collections (part of the (vendor, collection, name) upsert key), so an
@@ -890,13 +1046,16 @@ export async function run(pool, job, source) {
       }
     }
     if (!productId) {
+      // The feed's "collection" is the manufacturer. For Emser's own tile that is
+      // display noise ("EMSER TILE LLC") — derive the series from the name (like
+      // other vendors) instead of leaving it blank; the catalog scraper later
+      // overrides with the authoritative API series for website-listed items.
+      let collection = /^EMSER TILE/i.test(group.collection || '') ? '' : (group.collection || '');
+      if (!collection && EMSER_TILE_CATS.has(categorySlug)) collection = deriveEmserSeries(group.baseName);
       const productRow = await upsertProduct(pool, {
         vendor_id: vendorId,
         name: group.baseName,
-        // The feed's "collection" is the manufacturer. For Emser's own tile
-        // that is display noise ("EMSER TILE LLC") — leave blank and let the
-        // catalog scraper fill in the real series for website-listed items.
-        collection: /^EMSER TILE/i.test(group.collection || '') ? '' : (group.collection || ''),
+        collection,
         category_id: categoryId,
         description_short: group.items[0].product_name || null,
       });
@@ -934,7 +1093,13 @@ export async function run(pool, job, source) {
       // the feed uses XXX / N/A as color placeholders — treat as no color.
       let rawColor = item.color || item.product_name || null;
       if (rawColor && /^(x{2,}|n\/?a)$/i.test(rawColor.trim())) rawColor = null;
-      let variantName = rawColor ? rawColor.replace(/\s+\d+x\d+$/i, '').trim() || rawColor : null;
+      // The feed sends colors ALL-CAPS ("PATH", "DARK GRAY"); title-case so the
+      // variant reads "Path 24x47" not "PATH 24x47" (matches the color attribute).
+      let variantName = rawColor
+        ? (rawColor.replace(/\s+\d+x\d+$/i, '').trim() || rawColor)
+            .replace(/\b\w+/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+        : null;
+      variantName = variantName ? fixEmserCaps(variantName) : null;
       if (variantName && (colorCounts.get((item.color || '').trim().toUpperCase()) || 0) > 1) {
         const size = emserSkuSize(item.vendor_sku);
         if (size) variantName = `${variantName} ${size}`;

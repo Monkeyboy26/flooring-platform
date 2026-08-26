@@ -400,6 +400,42 @@ for (const ap of accessoryProducts) {
   else unlinked++;
 }
 
+// ---- collections: group product families so colors of one line share a collection ----
+// The storefront renders same-collection + same-category products as a color-swatch grid on
+// the PDP (collection_siblings) and lists collections on the shop page. A product's own name
+// was being used as its collection, which grouped nothing. Group by name stem (name minus the
+// trailing color word); a stem shared by >=2 products becomes the collection, singletons keep
+// their full name. Each product also gets a `color` attribute = the distinguishing word(s).
+const famBase = (p) => (p.kind === 'mosaic' ? p.name.replace(/\s+Mosaic$/i, '').trim() : p.name);
+const stemOf = (name) => { const w = name.split(/\s+/); return w.length > 1 ? w.slice(0, -1).join(' ') : name; };
+{
+  const groups = new Map();   // stem(lower) -> { label, items }
+  for (const p of products.filter((x) => x.kind === 'field' || x.kind === 'mosaic')) {
+    const st = stemOf(famBase(p)), k = st.toLowerCase();
+    if (!groups.has(k)) groups.set(k, { label: st, items: [] });
+    groups.get(k).items.push(p);
+  }
+  for (const { label, items } of groups.values()) {
+    if (items.length >= 2) for (const p of items) p.collection = label;
+    else items[0].collection = famBase(items[0]);            // singleton keeps its own line name
+  }
+  // accessories inherit the linked field line's collection (else keep their cleaned base)
+  const byPkey = new Map(products.map((p) => [p.pkey, p]));
+  for (const ap of accessoryProducts) {
+    const fp = (ap.attach_to || []).map((k) => byPkey.get(k)).find(Boolean);
+    if (fp) ap.collection = fp.collection;
+  }
+  // color attribute = the part of the name beyond the collection stem (field/mosaic only)
+  for (const p of [...products, ...accessoryProducts]) {
+    p.color = null;
+    if (p.kind === 'accessory') continue;
+    const nm = famBase(p), coll = p.collection || '';
+    if (coll && nm.length > coll.length && nm.toLowerCase().startsWith(coll.toLowerCase())) {
+      p.color = nm.slice(coll.length).replace(/^[\s.,\-–]+/, '').trim() || null;
+    }
+  }
+}
+
 // ---- safety: guarantee (collection, name) is unique so the importer's upsert never
 // clobbers a distinct product. Disambiguate rare collisions with the size/thickness. ----
 {
@@ -541,6 +577,13 @@ console.log(`field products:     ${fieldP.length}  (${skuCount(fieldP)} skus)`);
 console.log(`mosaic products:    ${mosaicP.length}  (${skuCount(mosaicP)} skus)`);
 console.log(`accessory products: ${accessoryProducts.length}  (${skuCount(accessoryProducts)} skus)`);
 console.log(`  linked to a field line: ${linked}   standalone: ${unlinked}`);
+{
+  const colls = new Map();
+  for (const p of [...products, ...accessoryProducts]) colls.set(p.collection, (colls.get(p.collection) || 0) + 1);
+  const multi = [...colls.values()].filter((n) => n >= 2).length;
+  console.log(`collections: ${colls.size} (${multi} with >=2 products), e.g. ` +
+    [...colls.entries()].filter(([, n]) => n >= 3).slice(0, 6).map(([c, n]) => `${c}(${n})`).join(', '));
+}
 console.log(`products with >=1 photo: ${withImg} / ${products.length + accessoryProducts.length}   (SKU-specific image matches: ${skuMatched})`);
 const cats = {};
 for (const p of [...products, ...accessoryProducts]) cats[p.category] = (cats[p.category] || 0) + 1;

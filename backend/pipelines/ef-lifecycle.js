@@ -67,6 +67,22 @@ const HAS_STOCK = `EXISTS (
 // Known out of stock = we have inventory data AND none of it shows stock.
 const KNOWN_OUT_OF_STOCK = `(${HAS_INVENTORY_DATA} AND NOT ${HAS_STOCK})`;
 
+// EF-side Pentz twin: the 832 creates EF-vendor duplicates of Pentz items
+// (internal_sku 'EF-1-{style}-{color}-…') purely as pricing carriers;
+// merge-ef-pentz-pricing.js copies their pricing onto the canonical PC-vendor
+// products and drafts them. Never re-activate one whose PC twin exists
+// (matched by style+color, same key the merge script uses).
+const IS_MERGED_PENTZ_TWIN = `EXISTS (
+  SELECT 1 FROM skus es
+  WHERE es.product_id = p.id AND es.internal_sku LIKE 'EF-1-%'
+    AND EXISTS (
+      SELECT 1 FROM skus ps JOIN products pp ON pp.id = ps.product_id
+      WHERE pp.vendor_id = (SELECT id FROM vendors WHERE code = 'PC')
+        AND split_part(ps.vendor_sku, '-', 2) = split_part(es.internal_sku, '-', 3)
+        AND split_part(ps.vendor_sku, '-', 3) = split_part(es.internal_sku, '-', 4)
+    )
+)`;
+
 async function resolveVendorIds() {
   const res = await pool.query(`SELECT id, code FROM vendors WHERE code IN ('EF','PC')`);
   const ids = res.rows.map(r => r.id);
@@ -133,6 +149,7 @@ async function main() {
       AND p.category_id IS NOT NULL
       AND ${HAS_ACTIVE_PRICED_SKU}
       AND NOT ${KNOWN_OUT_OF_STOCK}
+      AND NOT ${IS_MERGED_PENTZ_TWIN}
     ORDER BY name
   `, [vendorIds]);
 

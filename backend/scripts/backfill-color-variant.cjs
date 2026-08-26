@@ -40,6 +40,8 @@ const NON_COLOR_WORDS = new Set([
   'rectangle', 'square', 'hexagon', 'octagon', 'mosaic', 'plank', 'tile',
   'slab', 'sheet', 'roll', 'strip', 'brick', 'penny', 'round', 'chevron',
   'herringbone', 'picket', 'arabesque', 'lantern', 'diamond', 'fan',
+  // Application / format (a "Wall Tile" / "Floor Tile" format is not a color)
+  'wall', 'floor', 'subway',
   // Finishes
   'matte', 'polished', 'satin', 'honed', 'brushed', 'textured', 'natural',
   'glossy', 'lappato', 'rectified', 'tumbled', 'chiseled', 'flamed',

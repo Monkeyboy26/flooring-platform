@@ -2,7 +2,7 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { generateQuoteHtml } from '../lib/documents.js';
-import { findExactDuplicate, claimGuestRecords } from '../lib/customerHelpers.js';
+import { findExactDuplicate, claimGuestRecords, migrateCustomerEmail } from '../lib/customerHelpers.js';
 import { titleCaseName, formatPhone, collapse, normState, normMiddleInitial } from '../lib/customerNormalize.js';
 import { enrichItemsForNaming } from '../lib/enrichItems.js';
 import { depositAmount } from '../lib/estimateBundle.js';
@@ -12,7 +12,8 @@ export default function createCustomerRoutes(ctx) {
   const {
     pool, customerAuth, optionalCustomerAuth,
     hashPassword, verifyPassword, hashToken, logAudit,
-    sendPasswordReset, sendWelcomeSetPassword,
+    sendPasswordReset, sendWelcomeSetPassword, sendWelcomeCustomer,
+    sendEmailChangeConfirm, sendEmailChangeNotice,
     recalculateBalance,
     generatePDF, generateSampleRequestConfirmationHtml
   } = ctx;
@@ -94,6 +95,11 @@ export default function createCustomerRoutes(ctx) {
       if (newsletter) {
         await pool.query('INSERT INTO newsletter_subscribers (email) VALUES ($1) ON CONFLICT (email) DO NOTHING', [email.toLowerCase()]);
       }
+
+      // First-time account — welcome them. Fire-and-forget so email hiccups never
+      // block the signup response.
+      sendWelcomeCustomer(customer.email, customer.first_name)
+        .catch(err => console.error('[Email] welcome error:', err.message));
 
       res.json({ token, customer });
     } catch (err) {
@@ -255,6 +261,127 @@ export default function createCustomerRoutes(ctx) {
     }
   });
 
+  // Step 1 of a verified email change: re-authenticate with the current password,
+  // then stash the requested new address as PENDING and email a confirmation link to
+  // it. The account email is NOT touched until that link is clicked (see /confirm).
+  router.post('/api/customer/email-change/request', customerAuth, async (req, res) => {
+    try {
+      const { new_email, current_password } = req.body || {};
+      if (!new_email || !current_password) {
+        return res.status(400).json({ error: 'New email and current password are required' });
+      }
+      const newEmail = String(new_email).trim().toLowerCase().slice(0, 255);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+        return res.status(400).json({ error: 'Enter a valid email address' });
+      }
+
+      const cust = (await pool.query(
+        'SELECT email, first_name, password_hash, password_salt, password_set FROM customers WHERE id = $1',
+        [req.customer.id]
+      )).rows[0];
+      if (!cust) return res.status(404).json({ error: 'Account not found' });
+
+      // Accounts with no password (rep-created but never claimed, or Google-only)
+      // can't re-authenticate — they must set a password before changing email.
+      if (cust.password_set === false) {
+        return res.status(400).json({ error: 'Set a password on your account before changing your email.' });
+      }
+      if (!(await verifyPassword(current_password, cust.password_hash, cust.password_salt))) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+      if (newEmail === (cust.email || '').toLowerCase()) {
+        return res.status(400).json({ error: 'That is already your email address' });
+      }
+
+      // Block a change to an address already owned by a DIFFERENT account (retail or trade).
+      const match = await findExactDuplicate(pool, { email: newEmail, excludeId: req.customer.id });
+      if (match && match.email === newEmail) {
+        return res.status(409).json({ error: 'That email is already in use by another account.' });
+      }
+
+      const token = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+      const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await pool.query(
+        'UPDATE customers SET pending_email = $1, pending_email_token = $2, pending_email_expires = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4',
+        [newEmail, tokenHash, expires, req.customer.id]
+      );
+
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const confirmUrl = `${frontendUrl}/account?action=confirm-email&token=${token}`;
+      sendEmailChangeConfirm(newEmail, cust.first_name, confirmUrl)
+        .catch(err => console.error('[Email] email-change confirm error:', err.message));
+      // Security heads-up to the CURRENT address, so a hijack is visible to the owner.
+      sendEmailChangeNotice(cust.email, cust.first_name, newEmail, 'requested')
+        .catch(err => console.error('[Email] email-change notice error:', err.message));
+
+      res.json({ success: true, pending_email: newEmail });
+    } catch (err) {
+      console.error('Customer email-change request error:', err);
+      res.status(500).json({ error: 'Failed to start email change' });
+    }
+  });
+
+  // Step 2: the confirmation link (clicked from the NEW inbox) commits the change.
+  // Public — the token IS the credential. Swaps the email and re-points the customer's
+  // entire email-keyed footprint (orders, invoices, store credit, …) in one transaction.
+  router.post('/api/customer/email-change/confirm', async (req, res) => {
+    try {
+      const { token } = req.body || {};
+      if (!token) return res.status(400).json({ error: 'Missing confirmation token' });
+      const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
+
+      const cust = (await pool.query(
+        `SELECT id, email, first_name, pending_email FROM customers
+          WHERE pending_email_token = $1 AND pending_email_expires > CURRENT_TIMESTAMP AND pending_email IS NOT NULL`,
+        [tokenHash]
+      )).rows[0];
+      if (!cust) return res.status(400).json({ error: 'This confirmation link is invalid or has expired.' });
+
+      const oldEmail = (cust.email || '').toLowerCase();
+      const newEmail = (cust.pending_email || '').toLowerCase();
+
+      // Someone may have claimed the address in the window since the request was made.
+      const match = await findExactDuplicate(pool, { email: newEmail, excludeId: cust.id });
+      if (match && match.email === newEmail) {
+        await pool.query(
+          'UPDATE customers SET pending_email = NULL, pending_email_token = NULL, pending_email_expires = NULL WHERE id = $1',
+          [cust.id]
+        );
+        return res.status(409).json({ error: 'That email is no longer available.' });
+      }
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `UPDATE customers SET email = $1, pending_email = NULL, pending_email_token = NULL,
+             pending_email_expires = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+          [newEmail, cust.id]
+        );
+        await migrateCustomerEmail(client, { customerId: cust.id, oldEmail, newEmail });
+        // Kill every existing session — the login identity just changed, so anyone
+        // holding an old token (including a hijacker) must sign in again with the new email.
+        await client.query('DELETE FROM customer_sessions WHERE customer_id = $1', [cust.id]);
+        await client.query('COMMIT');
+      } catch (txErr) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw txErr;
+      } finally {
+        client.release();
+      }
+
+      // Confirm to the old address that the change went through.
+      sendEmailChangeNotice(oldEmail, cust.first_name, newEmail, 'completed')
+        .catch(err => console.error('[Email] email-change notice error:', err.message));
+
+      res.json({ success: true, email: newEmail });
+    } catch (err) {
+      console.error('Customer email-change confirm error:', err);
+      res.status(500).json({ error: 'Failed to confirm email change' });
+    }
+  });
+
   router.post('/api/customer/forgot-password', async (req, res) => {
     try {
       let { email } = req.body;
@@ -366,6 +493,8 @@ export default function createCustomerRoutes(ctx) {
       // address could be matched to — and take over — an existing account.
       if (!emailVerified) return res.status(401).json({ error: 'Your Google email address is not verified' });
 
+      let isNewCustomer = false;
+
       // 1. Lookup by google_id
       let existing = await pool.query(
         'SELECT id, email, first_name, last_name, phone, address_line1, address_line2, city, state, zip, password_set, created_via, google_id FROM customers WHERE google_id = $1',
@@ -415,6 +544,7 @@ export default function createCustomerRoutes(ctx) {
           [email, placeholderHash, placeholderSalt, firstName, lastName, googleId]
         );
         customer = result.rows[0];
+        isNewCustomer = true;
       }
 
       // Create session
@@ -428,6 +558,12 @@ export default function createCustomerRoutes(ctx) {
 
       // Non-staff actor: log under entity_type/entity_id, staff_id stays null.
       await logAudit(null, 'customer.login', 'customers', customer.id, { email: customer.email, via: 'google' }, req.ip);
+
+      // First-time Google account — welcome them (fire-and-forget).
+      if (isNewCustomer) {
+        sendWelcomeCustomer(customer.email, customer.first_name)
+          .catch(err => console.error('[Email] welcome error:', err.message));
+      }
 
       res.json({ token, customer });
     } catch (err) {

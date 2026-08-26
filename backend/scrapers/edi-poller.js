@@ -13,9 +13,11 @@
  * - 810: Invoice → creates invoice records for AP reconciliation
  */
 
-import { createSftpConnection, downloadFile as sftpDownload, moveToArchive as sftpArchive, listFiles as sftpList } from '../services/ediSftp.js';
-import { createFtpConnection, downloadFile as ftpDownload, moveToArchive as ftpArchive, listFiles as ftpList } from '../services/ediFtp.js';
+import { createSftpConnection, downloadFile as sftpDownload, moveToArchive as sftpArchive, listFiles as sftpList, uploadFile as sftpUpload } from '../services/ediSftp.js';
+import { createFtpConnection, downloadFile as ftpDownload, moveToArchive as ftpArchive, listFiles as ftpList, uploadFile as ftpUpload } from '../services/ediFtp.js';
 import { parseX12, parse855, parse856, parse810, identifyDocumentType } from '../services/ediParser.js';
+import { generate997 } from '../services/ediGenerator.js';
+import { createRepNotification } from '../lib/notifications.js';
 
 const EDI_EXTENSIONS = ['edi', 'x12', 'txt', 'dat', '810', '855', '856'];
 
@@ -38,6 +40,7 @@ async function createTransport(ediConfig) {
       client,
       listFiles: (dir, exts) => ftpList(client, dir, exts),
       downloadFile: (path) => ftpDownload(client, path),
+      uploadFile: (path, content) => ftpUpload(client, path, content),
       moveToArchive: (src, archDir) => ftpArchive(client, src, archDir),
       close: () => client.close(),
     };
@@ -55,9 +58,43 @@ async function createTransport(ediConfig) {
     client: sftp,
     listFiles: (dir, exts) => sftpList(sftp, dir, exts),
     downloadFile: (path) => sftpDownload(sftp, path),
+    uploadFile: (path, content) => sftpUpload(sftp, path, content),
     moveToArchive: (src, archDir) => sftpArchive(sftp, src, archDir),
     close: async () => { try { await sftp.end(); } catch (_) {} },
   };
+}
+
+/**
+ * Send a 997 Functional Acknowledgment back to the vendor confirming we received
+ * their EDI file (one 997 per received functional group). Opt-in per vendor via
+ * edi_config.send_997 — many vendors don't want a 997, so it's off by default.
+ */
+async function send997(pool, transport, ediConfig, source, raw, filename) {
+  if (!ediConfig.send_997) return 0;
+  const dir = ediConfig.ack_997_dir || ediConfig.inbox_dir || '/Inbox';
+  const vendorCode = source.vendor_code || 'UNKNOWN';
+  let sent = 0;
+  try {
+    const acks = await generate997(pool, source.vendor_id, ediConfig, raw, filename);
+    for (const ack of acks) {
+      // Retry the STOR — a transient "550 STOR failed" clears on a short backoff.
+      let ok = false, lastErr = null;
+      for (let attempt = 1; attempt <= 3 && !ok; attempt++) {
+        try { await transport.uploadFile(`${dir}/${ack.filename}`, ack.content); ok = true; }
+        catch (e) { lastErr = e; if (attempt < 3) await new Promise(r => setTimeout(r, attempt * 1500)); }
+      }
+      await pool.query(
+        `INSERT INTO edi_transactions
+         (vendor_id, document_type, direction, filename, interchange_control_number, status, raw_content, error_message, processed_at, created_at)
+         VALUES ($1, '997', 'outbound', $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+        [source.vendor_id, ack.filename, ack.icn, ack.content, ok ? 'sent' : 'error', ok ? null : (lastErr && lastErr.message)]);
+      if (ok) sent++;
+    }
+    if (sent) console.log(`[EDI Poller:${vendorCode}] Sent ${sent} 997 ack(s) for ${filename}`);
+  } catch (err) {
+    console.error(`[EDI Poller:${vendorCode}] 997 send failed for ${filename}:`, err.message);
+  }
+  return sent;
 }
 
 export async function run(pool, job, source) {
@@ -101,53 +138,12 @@ export async function run(pool, job, source) {
       try {
         console.log(`[EDI Poller:${vendorCode}] Processing: ${file.name}`);
         const raw = await transport.downloadFile(file.path);
+        const res = await processRawEdi(pool, raw, source, { filename: file.name });
+        for (const [t, n] of Object.entries(res.by_type)) stats.by_type[t] = (stats.by_type[t] || 0) + n;
+        stats.errors += res.errors;
 
-        // Parse envelope to identify document type
-        const parsed = parseX12(raw);
-        const { envelope, transactionSets } = parsed;
-
-        for (const txnSet of transactionSets) {
-          const docType = identifyDocumentType(txnSet);
-          stats.by_type[docType] = (stats.by_type[docType] || 0) + 1;
-
-          // Record transaction
-          const txnResult = await pool.query(
-            `INSERT INTO edi_transactions
-             (vendor_id, document_type, direction, filename, interchange_control_number, status, raw_content, created_at)
-             VALUES ($1, $2, 'inbound', $3, $4, 'received', $5, CURRENT_TIMESTAMP)
-             RETURNING id`,
-            [source.vendor_id, docType, file.name, envelope.interchangeControlNumber, raw]
-          );
-          const txnId = txnResult.rows[0].id;
-
-          try {
-            switch (docType) {
-              case '855':
-                await handle855(pool, txnId, txnSet, source.vendor_id, vendorCode);
-                break;
-              case '856':
-                await handle856(pool, txnId, txnSet, source.vendor_id, vendorCode);
-                break;
-              case '810':
-                await handle810(pool, txnId, txnSet, source.vendor_id, vendorCode);
-                break;
-              default:
-                console.log(`[EDI Poller:${vendorCode}] Unhandled document type: ${docType}`);
-            }
-
-            await pool.query(
-              `UPDATE edi_transactions SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = $1`,
-              [txnId]
-            );
-          } catch (handlerErr) {
-            console.error(`[EDI Poller:${vendorCode}] Error processing ${docType} from ${file.name}:`, handlerErr.message);
-            await pool.query(
-              `UPDATE edi_transactions SET status = 'failed', error_message = $2 WHERE id = $1`,
-              [txnId, handlerErr.message]
-            );
-            stats.errors++;
-          }
-        }
+        // Send a 997 receipt ack back to the vendor (opt-in via edi_config.send_997)
+        stats.acks_sent = (stats.acks_sent || 0) + await send997(pool, transport, ediConfig, source, raw, file.name);
 
         // Move to archive
         try {
@@ -173,23 +169,68 @@ export async function run(pool, job, source) {
 }
 
 /**
+ * Parse a raw X12 payload and dispatch each transaction set to its handler.
+ * Shared by the scheduled poller (run) and the manual test-ingest endpoint,
+ * so both take the exact same code path. Returns a summary of what was handled.
+ */
+export async function processRawEdi(pool, raw, source, { filename } = {}) {
+  const vendorCode = source.vendor_code || 'UNKNOWN';
+  const { envelope, transactionSets } = parseX12(raw);
+  const summary = { by_type: {}, errors: 0, handled: [] };
+
+  for (const txnSet of transactionSets) {
+    const docType = identifyDocumentType(txnSet);
+    summary.by_type[docType] = (summary.by_type[docType] || 0) + 1;
+
+    const txnResult = await pool.query(
+      `INSERT INTO edi_transactions
+       (vendor_id, document_type, direction, filename, interchange_control_number, status, raw_content, created_at)
+       VALUES ($1, $2, 'inbound', $3, $4, 'received', $5, CURRENT_TIMESTAMP)
+       RETURNING id`,
+      [source.vendor_id, docType, filename || null, envelope.interchangeControlNumber, raw]
+    );
+    const txnId = txnResult.rows[0].id;
+
+    try {
+      let result = null;
+      switch (docType) {
+        case '855': result = await handle855(pool, txnId, txnSet, source.vendor_id, vendorCode); break;
+        case '856': result = await handle856(pool, txnId, txnSet, source.vendor_id, vendorCode); break;
+        case '810': result = await handle810(pool, txnId, txnSet, source.vendor_id, vendorCode); break;
+        default: console.log(`[EDI Poller:${vendorCode}] Unhandled document type: ${docType}`);
+      }
+      await pool.query(
+        `UPDATE edi_transactions SET status = 'processed', processed_at = CURRENT_TIMESTAMP WHERE id = $1`, [txnId]);
+      summary.handled.push({ doc_type: docType, txn_id: txnId, result });
+    } catch (handlerErr) {
+      console.error(`[EDI Poller:${vendorCode}] Error processing ${docType}${filename ? ' from ' + filename : ''}:`, handlerErr.message);
+      await pool.query(
+        `UPDATE edi_transactions SET status = 'failed', error_message = $2 WHERE id = $1`, [txnId, handlerErr.message]);
+      summary.errors++;
+      summary.handled.push({ doc_type: docType, txn_id: txnId, error: handlerErr.message });
+    }
+  }
+  return summary;
+}
+
+/**
  * Handle 855 — PO Acknowledgment
  */
 async function handle855(pool, txnId, txnSet, vendorId, vendorCode) {
   const ack = parse855(txnSet);
   if (!ack.poNumber) {
     console.log(`[EDI Poller:${vendorCode}] 855 has no PO number, skipping`);
-    return;
+    return { matched: false, reason: 'no_po_number' };
   }
 
   // Find the PO
   const poResult = await pool.query(
-    `SELECT id, order_id, status FROM purchase_orders WHERE po_number = $1 AND vendor_id = $2`,
+    `SELECT id, po_number, order_id, status FROM purchase_orders WHERE po_number = $1 AND vendor_id = $2`,
     [ack.poNumber, vendorId]
   );
   if (!poResult.rows.length) {
     console.log(`[EDI Poller:${vendorCode}] 855: PO ${ack.poNumber} not found`);
-    return;
+    return { matched: false, po_number: ack.poNumber, reason: 'po_not_found' };
   }
   const po = poResult.rows[0];
 
@@ -217,12 +258,14 @@ async function handle855(pool, txnId, txnSet, vendorId, vendorCode) {
     }
   }
 
-  // Update PO
+  // Update PO. Only a CLEAN acceptance advances sent → acknowledged (Confirmed);
+  // a rejected/partial (backordered/changed) ack records edi_ack_status but keeps
+  // the PO 'sent' so it never reads "Confirmed" and stays flagged for the rep.
+  const advance = po.status === 'sent' && overallStatus === 'accepted';
   await pool.query(
     `UPDATE purchase_orders
      SET edi_ack_status = $2, edi_ack_received_at = CURRENT_TIMESTAMP,
-         status = CASE WHEN status = 'sent' THEN 'acknowledged' ELSE status END,
-         updated_at = CURRENT_TIMESTAMP
+         ${advance ? "status = 'acknowledged', " : ''}updated_at = CURRENT_TIMESTAMP
      WHERE id = $1`,
     [po.id, overallStatus]
   );
@@ -252,14 +295,35 @@ async function handle855(pool, txnId, txnSet, vendorId, vendorCode) {
     }
   }
 
-  // Log activity
+  // Log activity — distinct action per outcome so the timeline reads clearly.
+  const action = overallStatus === 'accepted' ? 'edi_acknowledged'
+    : overallStatus === 'rejected' ? 'edi_ack_rejected' : 'edi_ack_partial';
   await pool.query(
     `INSERT INTO po_activity_log (purchase_order_id, action, details)
-     VALUES ($1, 'edi_acknowledged', $2)`,
-    [po.id, JSON.stringify({ ack_type: ack.ackType, overall_status: overallStatus, line_count: ack.lineItems.length })]
+     VALUES ($1, $2, $3)`,
+    [po.id, action, JSON.stringify({ ack_type: ack.ackType, overall_status: overallStatus, line_count: ack.lineItems.length })]
   );
 
-  console.log(`[EDI Poller:${vendorCode}] 855: PO ${ack.poNumber} acknowledged (${overallStatus})`);
+  // Notify the order's rep — a clean accept is informational; a rejected/partial
+  // ack needs attention (backordered/changed/rejected lines).
+  const ord = await pool.query('SELECT order_number, sales_rep_id FROM orders WHERE id = $1', [po.order_id]);
+  const repId = ord.rows[0] && ord.rows[0].sales_rep_id;
+  if (repId) {
+    const orderNo = ord.rows[0].order_number;
+    if (overallStatus === 'accepted') {
+      await createRepNotification(pool, repId, 'po_acknowledged',
+        `PO ${po.po_number} acknowledged by ${vendorCode}`,
+        `${orderNo} — vendor acknowledged the order via EDI 855`, 'order', po.order_id);
+    } else {
+      await createRepNotification(pool, repId, 'po_ack_issue',
+        `PO ${po.po_number} — vendor flagged ${overallStatus === 'rejected' ? 'rejected' : 'backordered/changed'} line(s)`,
+        `${orderNo} — review the EDI 855 acknowledgment (${overallStatus})`, 'order', po.order_id);
+    }
+  }
+
+  console.log(`[EDI Poller:${vendorCode}] 855: PO ${ack.poNumber} ack=${overallStatus}`);
+  return { matched: true, po_number: po.po_number, order_id: po.order_id, overall_status: overallStatus,
+    confirmed: overallStatus === 'accepted', line_count: ack.lineItems.length };
 }
 
 /**
