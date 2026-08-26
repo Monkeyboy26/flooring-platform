@@ -310,6 +310,10 @@ app.get('/api/img', imgLimiter, async (req, res) => {
     let fmt = req.query.f || 'auto';
     if (fmt === 'auto') fmt = acceptsAvif ? 'avif' : acceptsWebp ? 'webp' : 'jpeg';
     if (!['avif', 'webp', 'jpeg', 'png'].includes(fmt)) fmt = 'jpeg';
+    // AVIF encode cost grows steeply with size — at hero widths it hogs both
+    // vCPUs and starves Postgres handshakes during image stampedes. WebP is
+    // ~10x cheaper and nearly as small at these sizes.
+    if (fmt === 'avif' && w > 800 && acceptsWebp) fmt = 'webp';
     if (fmt === 'avif') q = Math.min(q, 65);
 
     // fit=cover crops to exactly w×h (email thumbnails); default keeps the
@@ -395,7 +399,7 @@ app.get('/api/img', imgLimiter, async (req, res) => {
         const resizeOpts = { width: w, fit: fitMode, withoutEnlargement: fitMode === 'inside' };
         if (h) resizeOpts.height = h;
         let pipeline = sharp(inputBuffer).resize(resizeOpts);
-        if (fmt === 'avif') pipeline = pipeline.avif({ quality: q, effort: 4 });
+        if (fmt === 'avif') pipeline = pipeline.avif({ quality: q, effort: 2 });
         else if (fmt === 'webp') pipeline = pipeline.webp({ quality: q, smartSubsample: true });
         else if (fmt === 'jpeg') pipeline = pipeline.jpeg({ quality: q, mozjpeg: true, progressive: true });
         else pipeline = pipeline.png({ quality: q });
