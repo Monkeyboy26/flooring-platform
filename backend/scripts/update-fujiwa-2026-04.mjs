@@ -27,6 +27,7 @@
  */
 import pg from 'pg';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -275,8 +276,15 @@ async function main() {
     return;
   }
 
-  const backupPath = path.join(__dirname, '..', 'data', `fujiwa-update-backup-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`);
-  fs.writeFileSync(backupPath, JSON.stringify(backup, null, 2));
+  const backupName = `fujiwa-update-backup-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.json`;
+  let backupPath = path.join(__dirname, '..', 'data', backupName);
+  try {
+    fs.writeFileSync(backupPath, JSON.stringify(backup, null, 2));
+  } catch (e) {
+    // data/ isn't writable in the prod container (owned by a different uid)
+    backupPath = path.join(os.tmpdir(), backupName);
+    fs.writeFileSync(backupPath, JSON.stringify(backup, null, 2));
+  }
   console.log(`\nBackup written: ${backupPath}`);
 
   const client = await pool.connect();
