@@ -1433,7 +1433,7 @@
     .cdv-head-id { display: flex; gap: 22px; align-items: center; }
     .cdv-avatar { width: 84px; height: 84px; border-radius: 50%; background: radial-gradient(circle at 32% 28%, #e4dac2, var(--brass-warm)); display: flex; align-items: center; justify-content: center; font: 300 32px/1 'Cormorant Garamond', serif; color: var(--stone-900); flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(28,25,23,0.10), 0 1px 3px rgba(28,25,23,0.07); }
     .cdv-badge { padding: 4px 12px; display: inline-block; background: var(--brass-warm); font: 500 10px/1 ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--brass-muted); margin-bottom: 10px; }
-    .cdv-name { font: 300 40px/1 'Cormorant Garamond', serif; letter-spacing: -0.018em; margin: 0; color: var(--stone-900); }
+    .cdv-name { font: 300 44px/1 'Cormorant Garamond', serif; letter-spacing: -0.018em; margin: 0; color: var(--stone-900); } /* 44px = ws-title standard (Phase 3) */
     .cdv-name em { color: var(--gold); font-style: italic; }
     .cdv-contact { font: 400 14px/1.5 'Inter', sans-serif; color: rgba(28,25,23,0.7); margin-top: 6px; }
     .cdv-contact a { color: var(--stone-900); text-decoration: none; }
@@ -1561,6 +1561,51 @@
       .cdv-otable-head > :nth-child(5), .cdv-otable-row > :nth-child(5) { display: none; }
     }
     @media (max-width: 640px) { .cdv-kpis { grid-template-columns: 1fr 1fr; } .cdv-mats { grid-template-columns: repeat(2, 1fr); } .cdv-name { font-size: 32px; } }
+
+    /* ws-* : unified workspace header (shared) — the cdv-head/cdv-kpis pattern
+       generalized for document pages (orders, quotes, estimates, …).
+       Breadcrumb trail → serif title + status chip → KPI strip. */
+    .ws-crumbs-bar {
+      padding-bottom: 14px; border-bottom: 0.5px solid rgba(28,25,23,0.12); margin-bottom: 18px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .ws-crumbs {
+      font: 500 10px/1 ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--brass-muted); display: flex; gap: 12px; align-items: center;
+    }
+    .ws-crumbs a { color: var(--brass-muted); text-decoration: none; cursor: pointer; }
+    .ws-crumbs a:hover { color: var(--stone-900); }
+    .ws-crumb-sep { width: 12px; height: 1px; background: rgba(28,25,23,0.25); }
+    .ws-crumb-cur { color: var(--stone-900); }
+    .ws-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 18px; flex-wrap: wrap; }
+    .ws-title-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .ws-title {
+      font: 300 44px/1 'Cormorant Garamond', serif; letter-spacing: -0.018em;
+      margin: 0; color: var(--stone-900);
+    }
+    .ws-title em { color: var(--gold, #c9a668); font-style: italic; }
+    .ws-head-actions { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
+    .ws-kpis {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      background: #ece5d8; border: 0.5px solid rgba(28,25,23,0.14); margin-bottom: 16px;
+    }
+    .ws-kpi { padding: 14px 18px; border-right: 0.5px solid rgba(28,25,23,0.07); min-width: 0; }
+    .ws-kpi:last-child { border-right: none; }
+    .ws-kpi-l { font: 500 9px/1 ui-monospace, monospace; letter-spacing: 0.16em; text-transform: uppercase; color: var(--brass-muted); }
+    .ws-kpi-v { font: 300 22px/1.05 'Cormorant Garamond', serif; letter-spacing: -0.014em; margin-top: 8px; color: var(--stone-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ws-kpi-s { font: 400 12px/1.4 'Inter', sans-serif; color: rgba(28,25,23,0.6); margin-top: 6px; }
+    /* ws-owner : sidebar "who owns this record" card body (rep/owner chip) */
+    .ws-owner { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .ws-owner-name { font: 500 13px/1.25 'Inter', sans-serif; color: var(--stone-900); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .ws-owner-meta {
+      font: 500 10px/1.4 ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--brass-muted); margin-top: 3px; word-break: break-word;
+    }
+    .ws-you-tag {
+      font: 500 8px/1 ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--gold, #c9a668); border: 0.5px solid rgba(201,166,104,0.5); padding: 2px 5px;
+    }
+    @media (max-width: 768px) { .ws-title { font-size: 34px; } }
 
     /* ── Product detail (pd-*) ── */
     .pd-breadcrumb {
@@ -4383,15 +4428,15 @@
     }
     .rof-rail-step.completed .rof-rail-chev { color: var(--green, #3a7d44); opacity: 0.8; }
 
-    /* Body Grid */
+    /* Body Grid — sidebar widened to the unified 360px sticky rail (Phase 3) */
     .rof-body {
       display: grid;
-      grid-template-columns: 1fr 320px;
+      grid-template-columns: 1fr 360px;
       gap: 1.5rem;
       align-items: start;
     }
     .rof-main { min-width: 0; }
-    .rof-sidebar { position: sticky; top: 1.5rem; }
+    .rof-sidebar { position: sticky; top: 16px; }
 
     /* WizRepCard */
     .rof-card {
@@ -5707,11 +5752,11 @@
       font: 400 13px/1.2 'Inter', sans-serif;
       color: var(--rod-ink);
     }
-    /* Order-detail line items — collapsed summary row + expandable detail */
+    /* Order-detail line items — swatch summary row (rof-item-row look) + expandable detail */
     .rod-li-head {
       padding: 10px 20px;
       display: grid;
-      grid-template-columns: 112px 1fr 58px 78px 78px 92px 26px;
+      grid-template-columns: 36px 1fr 70px 78px 78px 92px 26px;
       gap: 12px;
       background: var(--rod-warm);
       border-bottom: 0.5px solid var(--rod-border);
@@ -5723,7 +5768,7 @@
     .rod-li-sum {
       padding: 12px 20px;
       display: grid;
-      grid-template-columns: 112px 1fr 58px 78px 78px 92px 26px;
+      grid-template-columns: 36px 1fr 70px 78px 78px 92px 26px;
       gap: 12px;
       align-items: center;
       cursor: pointer;
@@ -5732,7 +5777,7 @@
     }
     /* Cost hidden (showCost off) — one fewer column */
     .rod-li-head.nocost,
-    .rod-li-sum.nocost { grid-template-columns: 118px 1fr 64px 84px 98px 26px; }
+    .rod-li-sum.nocost { grid-template-columns: 36px 1fr 70px 84px 98px 26px; }
     .rod-li-chip {
       display: inline-flex;
       align-items: center;
@@ -5779,7 +5824,7 @@
     }
     @media (max-width: 720px) {
       /* Qty / Unit / Cost columns hide on mobile (they live in the dropdown) */
-      .rod-li-head, .rod-li-sum { grid-template-columns: 96px 1fr 84px 18px !important; gap: 7px; }
+      .rod-li-head, .rod-li-sum { grid-template-columns: 36px 1fr 84px 18px !important; gap: 7px; }
       .rod-li-head > :nth-child(3), .rod-li-sum > :nth-child(3),
       .rod-li-head > :nth-child(4), .rod-li-sum > :nth-child(4),
       .rod-li-head:not(.nocost) > :nth-child(5), .rod-li-sum:not(.nocost) > :nth-child(5) { display: none; }
@@ -9591,19 +9636,27 @@
               <div className="cdv-empty">{timelineFilter === 'all' ? 'No activity yet' : 'No ' + timelineFilter + ' events'}</div>
             ) : (
               <React.Fragment>
-              <div>
+              {/* Timeline entries — unified qw-thread visual language (Phase 3).
+                  Same data/grouping/links as before; system events render as
+                  qw-msg-body sys mono-ish lines, kinds as qw-msg-tag chips. */}
+              <div className="qw-thread-list" style={{ padding: 0 }}>
                 {(showAllActivity ? filteredTimeline : filteredTimeline.slice(0, 8)).map((evt, i) => {
                   const cfg = timelineConfig[evt.event_type] || { label: evt.event_type, clickable: false };
                   const sty = TL_STYLE[evt.event_type] || { g: '·', t: 'var(--brass-muted)' };
                   return (
-                    <div className={'cdv-tl-item' + (cfg.clickable ? ' click' : '')} key={i} onClick={() => cfg.clickable && handleTimelineClick(evt)}>
-                      <span className="cdv-tl-time">{tlTime(evt.timestamp)}</span>
-                      <span className="cdv-tl-glyph" style={{ color: sty.t }}>{sty.g}</span>
-                      <div className="cdv-tl-body">
-                        <span className="cdv-tl-kind">{cfg.label}</span>
-                        <span className="cdv-tl-title">{evt.title}</span>
-                        {evt.description && <span className="cdv-tl-desc"> {'·'} {evt.description}</span>}
-                        {cfg.clickable && <span className="cdv-tl-view">View {'→'}</span>}
+                    <div className="qw-msg" key={i} onClick={() => cfg.clickable && handleTimelineClick(evt)}
+                      style={cfg.clickable ? { cursor: 'pointer' } : undefined}>
+                      <div className="qw-msg-avatar" style={{ background: 'transparent', border: '0.5px solid rgba(28,25,23,0.18)', color: sty.t, font: "400 14px/1 'Cormorant Garamond', serif" }}>{sty.g}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="qw-msg-head">
+                          <span className="qw-msg-tag">{cfg.label}</span>
+                          <span className="qw-msg-time">{tlTime(evt.timestamp)}</span>
+                        </div>
+                        <div className="qw-msg-body sys">
+                          <span style={{ color: 'var(--stone-900)' }}>{evt.title}</span>
+                          {evt.description && <span> {'·'} {evt.description}</span>}
+                          {cfg.clickable && <span className="cdv-tl-view">View {'→'}</span>}
+                        </div>
                       </div>
                     </div>
                   );
@@ -9615,6 +9668,38 @@
                 </button>
               )}
               </React.Fragment>
+            )}
+          </div>
+        </div>
+      );
+
+      // ---- Sales rep — record owner (unified ws-owner card, Phase 3) ----
+      // Customer payload carries assigned_rep_id + rep_name (see ReassignRepModal).
+      const ownerCard = (
+        <div className="cdv-card">
+          <div className="cdv-card-head"><h3 className="cdv-card-title">Sales rep</h3></div>
+          <div className="cdv-card-body">
+            {customer.rep_name || customer.assigned_rep_id ? (
+              <div className="ws-owner">
+                <div className="qw-avatar">{(customer.rep_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div className="ws-owner-name">
+                    {customer.rep_name || 'Assigned rep'}
+                    {customer.assigned_rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
+                  </div>
+                  <div className="ws-owner-meta">
+                    {customer.assigned_rep_id === repInfo.id && repInfo.email ? repInfo.email : 'Dedicated rep for this customer'}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="ws-owner">
+                <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                <div style={{ minWidth: 0 }}>
+                  <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
+                  <div className="ws-owner-meta">No rep owns this customer yet</div>
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -9991,7 +10076,7 @@
           </div>
 
           {/* Tab content */}
-          {activeTab === 'overview' && <div>{timelineCard}{gridBlock}{materialsCard}</div>}
+          {activeTab === 'overview' && <div>{ownerCard}{timelineCard}{gridBlock}{materialsCard}</div>}
           {activeTab === 'orders' && ordersTab}
           {activeTab === 'quotes' && quotesTab}
           {activeTab === 'estimates' && estimatesTab}
@@ -14349,50 +14434,34 @@
             const disc = parseFloat(c.discount_percent || 0);
             const addr = [c.address_line1, [c.city, c.state].filter(Boolean).join(', '), c.zip].filter(Boolean).join(' \u00b7 ');
             const initials = (c.name || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-            const mini = (label, value, color) => (
-              <div>
-                <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#8a7e68', marginBottom: 4 }}>{label}</div>
-                <div style={{ font: '400 13px/1.3 var(--roma-sans)', color: color || '#1c1917', letterSpacing: '-0.005em' }}>{value}</div>
-              </div>
-            );
+            // Unified 34px identity chip (Phase 3) \u2014 replaces the old 54px avatar + stat-cell grid
             return (
-              <div style={{ border: '0.5px solid rgba(28,25,23,0.13)', background: '#ece5d8' }}>
-                <div style={{
-                  padding: '1rem 1.125rem',
-                  display: 'grid', gridTemplateColumns: '54px 1.4fr 1fr', gap: '1.25rem', alignItems: 'flex-start',
-                }}>
-                  <div style={{
-                    width: 54, height: 54, background: '#d8cdb6',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    font: '400 20px/1 var(--roma-serif)', color: '#1c1917', letterSpacing: '-0.012em',
-                  }}>{initials}</div>
-                  <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
-                    <div style={{ font: '400 19px/1.2 var(--roma-serif)', color: '#1c1917', letterSpacing: '-0.012em' }}>{c.name}</div>
-                    <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>
-                      {[c.company_name, isTrade ? 'Trade' : 'Retail', c.tier_name].filter(Boolean).join(' \u00b7 ')}
+              <div style={{ border: '0.5px solid rgba(28,25,23,0.13)', background: '#ece5d8', padding: '12px 16px 14px' }}>
+                <div className="qw-identity" style={{ marginTop: 0 }}>
+                  <div className="qw-avatar">{initials}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="qw-cust-line" style={{ font: "500 13px/1.25 'Inter', sans-serif" }}>
+                      {c.name}{c.company_name ? ' \u2014 ' + c.company_name : ''}
                     </div>
-                    <div style={{ font: '400 12.5px/1.5 var(--roma-sans)', color: '#1c1917', marginTop: 4 }}>
-                      {c.email}{c.phone ? ' \u00b7 ' + c.phone : ''}
+                    <div className="qw-cust-sub">
+                      {[c.email, c.phone, isTrade ? 'Trade' + (c.tier_name ? ' \u00b7 ' + c.tier_name : '') : 'Retail'].filter(Boolean).join(' \u00b7 ')}
                     </div>
-                    {addr && <div style={{ font: '400 12.5px/1.4 var(--roma-sans)', color: 'rgba(28,25,23,0.7)' }}>{addr}</div>}
-                  </div>
-                  <div style={{ display: 'grid', gap: 12 }}>
-                    {mini('Discount tier', isTrade && disc > 0 ? 'Trade \u00b7 ' + disc + '% off' : isTrade ? 'Trade \u00b7 list' : 'Retail \u00b7 list', disc > 0 ? '#a87935' : undefined)}
-                    {mini('Lifetime', '$' + parseFloat(c.lifetime_value || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' \u00b7 ' + (c.order_count || 0) + ' order' + ((c.order_count || 0) !== 1 ? 's' : ''))}
                   </div>
                 </div>
-                <div style={{
-                  padding: '0.625rem 1.125rem', borderTop: '0.5px solid rgba(28,25,23,0.1)', background: '#d8cdb6',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12,
-                }}>
-                  <span style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68' }}>
-                    {'\u25cf'} Drives discount, tax &amp; terms on this order
-                  </span>
-                  <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a7e68' }}>
-                    Avg order <span style={{ font: '400 14px/1 var(--roma-serif)', color: '#1c1917', letterSpacing: '0', textTransform: 'none', marginLeft: 4 }}>
-                      {(c.order_count || 0) > 0 ? '$' + (parseFloat(c.lifetime_value || 0) / c.order_count).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '\u2014'}
-                    </span>
-                  </span>
+                {addr && (
+                  <div style={{ font: '500 10px/1.5 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a7e68', marginTop: 10 }}>{addr}</div>
+                )}
+                {/* Quiet mono stats line \u2014 same data as the old stat cells */}
+                <div style={{ font: '500 10px/1.5 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#8a7e68', marginTop: addr ? 4 : 10 }}>
+                  {[
+                    isTrade && disc > 0 ? 'Trade \u00b7 ' + disc + '% off' : isTrade ? 'Trade \u00b7 list' : 'Retail \u00b7 list',
+                    '$' + parseFloat(c.lifetime_value || 0).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ' lifetime',
+                    (c.order_count || 0) + ' order' + ((c.order_count || 0) !== 1 ? 's' : ''),
+                    (c.order_count || 0) > 0 ? 'avg $' + (parseFloat(c.lifetime_value || 0) / c.order_count).toLocaleString('en-US', { maximumFractionDigits: 0 }) : null,
+                  ].filter(Boolean).join(' \u00b7 ')}
+                </div>
+                <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#8a7e68', marginTop: 10, paddingTop: 8, borderTop: '0.5px solid rgba(28,25,23,0.1)' }}>
+                  {'\u25cf'} Drives discount, tax &amp; terms on this order
                 </div>
               </div>
             );
@@ -17929,18 +17998,31 @@
 
       return (
         <div className="rof-container">
-          <RofBreadcrumb step={step} navigate={navigate} orderNumber={orderNumber} />
+          {/* A. Breadcrumb — unified ws-* header (Phase 3) */}
+          <div className="ws-crumbs-bar" style={{ paddingTop: '1rem' }}>
+            <div className="ws-crumbs">
+              <a onClick={() => navigate('dashboard')}>Workspace</a>
+              <span className="ws-crumb-sep"></span>
+              <a onClick={() => navigate('orders')}>Orders</a>
+              <span className="ws-crumb-sep"></span>
+              <span className="ws-crumb-cur">{orderNumber || 'New'}</span>
+              <span className="ws-crumb-sep"></span>
+              <span>{ROF_STEPS[step - 1] ? ROF_STEPS[step - 1].label : 'Done'}</span>
+            </div>
+          </div>
 
-          {/* Serif identity header — same as the quote workspace + order detail */}
+          {/* B. Header — unified ws-* pattern (serif title + 34px identity chip) */}
           {(() => {
             const custName = data.customer ? data.customer.name : (data.newCustomerName || '');
             const custEmail = data.customer ? data.customer.email : (data.newCustomerEmail || '');
             const custPhone = data.customer ? data.customer.phone : (data.newCustomerPhone || '');
             const custInitials = (custName || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
             return (
-              <div className="qw-header" style={{ marginBottom: 16 }}>
-                <div>
-                  <h1>{orderNumber ? <React.Fragment>Order <em>{orderNumber}</em></React.Fragment> : <React.Fragment>New <em>order</em></React.Fragment>}</h1>
+              <div className="ws-head" style={{ marginBottom: 16 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div className="ws-title-row">
+                    <h1 className="ws-title">{orderNumber ? <React.Fragment>Order <em>{orderNumber}</em></React.Fragment> : <React.Fragment>New <em>order</em></React.Fragment>}</h1>
+                  </div>
                   <div className="qw-identity">
                     <div className="qw-avatar">{custInitials}</div>
                     <div>
@@ -19022,6 +19104,7 @@
       else if (cityLine) addressParts.push(cityLine);
       else if (sr.shipping_zip) addressParts.push(sr.shipping_zip);
 
+      const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');   // owner card (ws-owner)
       const activeItems = items.filter(i => i.status !== 'cancelled');
       const readyCount = activeItems.filter(i => i.status === 'ready').length;
       const cancelledCount = items.length - activeItems.length;
@@ -19120,30 +19203,28 @@
 
       return (
         <div className="sd-detail">
-          {/* Breadcrumb */}
-          <div className="qw-breadcrumb">
-            <div className="qw-crumbs">
+          {/* Breadcrumb — unified ws-* header (Phase 2) */}
+          <div className="ws-crumbs-bar">
+            <div className="ws-crumbs">
               <a onClick={() => navigate('dashboard')}>Workspace</a>
-              <span className="qw-crumb-sep" />
+              <span className="ws-crumb-sep"></span>
               <a onClick={() => navigate('samples')}>Samples</a>
-              <span className="qw-crumb-sep" />
-              <span className="qw-crumb-current">{sr.request_number}</span>
+              <span className="ws-crumb-sep"></span>
+              <span className="ws-crumb-cur">{sr.request_number}</span>
             </div>
-            <div className="qw-meta-right" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <RepPrevNext section="samples" id={editId} view="sample-detail" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
-              </div>
-              <div style={{ display: 'flex', gap: 16 }}>
-                <span>Requested {fmtD(sr.created_at)}</span>
-                <span style={{ color: pill.c }}>{'●'} {pill.l}</span>
-              </div>
+            <div className="qw-meta-right" style={{ alignItems: 'center' }}>
+              <span>Requested {fmtD(sr.created_at)}</span>
+              <RepPrevNext section="samples" id={editId} view="sample-detail" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
             </div>
           </div>
 
-          {/* Header */}
-          <div className="qw-header">
-            <div>
-              <h1>Sample request <em>{sr.request_number}</em></h1>
+          {/* Header — unified ws-* pattern (title + status chip + customer chip) */}
+          <div className="ws-head">
+            <div style={{ minWidth: 0 }}>
+              <div className="ws-title-row">
+                <h1 className="ws-title">Sample request <em>{sr.request_number}</em></h1>
+                <span className="rov-chip" style={{ background: pill.bg, color: pill.c }}>{'●'} {pill.l}</span>
+              </div>
               <div className="qw-identity">
                 <div className="qw-avatar">{initials}</div>
                 <div>
@@ -19154,7 +19235,7 @@
                 </div>
               </div>
             </div>
-            <div className="ol-header-actions">
+            <div className="ws-head-actions">
               {allSamplesReady && !sr.all_ready_notified_at && isOpen && (
                 <button className="ol-header-btn" disabled={notifying} onClick={() => setReadyPrompt(true)}>Email customer</button>
               )}
@@ -19176,6 +19257,32 @@
               {isOpen && (
                 <button className="ol-header-btn" style={{ color: '#c54731' }} disabled={acting} onClick={cancelRequest}>Cancel request</button>
               )}
+            </div>
+          </div>
+
+          {/* KPI strip — request stats under the title, ws-kpis DNA (values already computed above) */}
+          <div className="ws-kpis">
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Samples</div>
+              <div className="ws-kpi-v">{activeItems.length}</div>
+              {cancelledCount > 0 && <div className="ws-kpi-s">{cancelledCount} cancelled</div>}
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Ready</div>
+              <div className="ws-kpi-v" style={activeItems.length > 0 && readyCount === activeItems.length ? { color: 'var(--rod-green)' } : undefined}>{readyCount} / {activeItems.length}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Vendors notified</div>
+              <div className="ws-kpi-v">{vendorsNotified} / {vendorsTotal}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Shipping</div>
+              <div className="ws-kpi-v" style={isPickup ? { color: 'var(--rod-green)' } : undefined}>{isPickup ? 'Free' : '$12'}</div>
+              {isShipping && <div className="ws-kpi-s">{sr.shipping_payment_collected ? 'Collected' : 'Not collected'}</div>}
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Requested</div>
+              <div className="ws-kpi-v">{fmtD(sr.created_at)}</div>
             </div>
           </div>
 
@@ -19479,19 +19586,48 @@
               {/* Internal notes — same multi-entry widget as the quote workspace */}
               <InternalNotesCard basePath={'/api/rep/sample-requests/' + editId} bg="#f5f0e8" />
 
-              {/* Summary */}
+              {/* Summary — plain rod-style rows (rov-row), big serif shipping figure */}
               <div className="qw-rail-card">
                 <h3>Summary</h3>
-                <div className="qw-total-row"><span className="k">Samples</span><span>{activeItems.length}{cancelledCount > 0 ? ' · ' + cancelledCount + ' cancelled' : ''}</span></div>
-                <div className="qw-total-row" style={{ marginTop: 8 }}>
-                  <span className="k">Ready</span>
-                  <span style={activeItems.length > 0 && readyCount === activeItems.length ? { color: '#3a7a4e' } : undefined}>{readyCount} / {activeItems.length}</span>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <RovRow l="Samples" v={activeItems.length + (cancelledCount > 0 ? ' · ' + cancelledCount + ' cancelled' : '')} />
+                  <RovRow l="Ready" v={readyCount + ' / ' + activeItems.length}
+                    c={activeItems.length > 0 && readyCount === activeItems.length ? 'var(--rod-green)' : undefined} />
+                  <RovRow l="Vendors" v={vendorGroups.length} />
                 </div>
-                <div className="qw-total-row" style={{ marginTop: 8 }}><span className="k">Vendors</span><span>{vendorGroups.length}</span></div>
-                <div className="qw-total-big">
-                  <span className="k">Shipping</span>
-                  <span className="v" style={isPickup ? { color: '#3a7a4e' } : undefined}>{isPickup ? 'Free' : '$12'}</span>
+                <div className="rov-total-row" style={{ marginTop: 12 }}>
+                  <span style={{ font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>Shipping</span>
+                  <span className="rov-total-value" style={isPickup ? { color: 'var(--rod-green)' } : undefined}>{isPickup ? 'Free' : '$12'}</span>
                 </div>
+              </div>
+
+              {/* Sales rep — record owner (unified ws-owner card, Phase 2).
+                  Payload only carries rep_id (no name join), so a rep other than
+                  the logged-in one renders as a generic assigned state. */}
+              <div className="qw-rail-card">
+                <h3>Sales rep</h3>
+                {sr.rep_id ? (
+                  <div className="ws-owner">
+                    <div className="qw-avatar">{sr.rep_id === repInfo.id ? (((repInfo.first_name || '?')[0] || '') + ((repInfo.last_name || '')[0] || '')).toUpperCase() : '•'}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ws-owner-name">
+                        {sr.rep_id === repInfo.id ? ([repInfo.first_name, repInfo.last_name].filter(Boolean).join(' ') || 'Rep') : 'Assigned rep'}
+                        {sr.rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
+                      </div>
+                      {sr.rep_id === repInfo.id && repInfo.email && (
+                        <div className="ws-owner-meta">{repInfo.email}</div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="ws-owner">
+                    <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
+                      <div className="ws-owner-meta">No rep owns this request yet</div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Workflow */}
@@ -20812,6 +20948,7 @@
 
       const fmtDT = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null;
 
+      const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');   // owner card (ws-owner)
       const st = visit.status === 'carted' ? { label: 'Carted', tone: '#3a7a4e' }
         : visit.status === 'opened' ? { label: 'Opened', tone: 'var(--gold, #c9a668)' }
         : visit.status === 'sent' ? { label: 'Sent', tone: '#5c6e94' }
@@ -20847,28 +20984,28 @@
 
       return (
         <div style={{ paddingBottom: 40 }}>
-          {/* Breadcrumb */}
-          <div className="qw-breadcrumb">
-            <div className="qw-crumbs">
+          {/* Breadcrumb — unified ws-* header (Phase 2) */}
+          <div className="ws-crumbs-bar">
+            <div className="ws-crumbs">
+              <a onClick={() => navigate('dashboard')}>Workspace</a>
+              <span className="ws-crumb-sep"></span>
               <a onClick={() => navigate('visits')}>Visits</a>
-              <span className="qw-crumb-sep" />
-              <span className="qw-crumb-current">{visit.customer_name}</span>
+              <span className="ws-crumb-sep"></span>
+              <span className="ws-crumb-cur">{visit.customer_name}</span>
             </div>
-            <div className="qw-meta-right" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <RepPrevNext section="visits" id={editId} view="visit-detail" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
-              </div>
-              <div style={{ display: 'flex', gap: 16 }}>
-                <span>Created {fmtDT(visit.created_at)}</span>
-                <span style={{ color: st.tone }}>{'●'} {st.label}</span>
-              </div>
+            <div className="qw-meta-right" style={{ alignItems: 'center' }}>
+              <span>Created {fmtDT(visit.created_at)}</span>
+              <RepPrevNext section="visits" id={editId} view="visit-detail" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
             </div>
           </div>
 
-          {/* Header */}
-          <div className="qw-header">
-            <div>
-              <h1>Visit <em>recap</em></h1>
+          {/* Header — unified ws-* pattern (title + status chip + customer chip) */}
+          <div className="ws-head">
+            <div style={{ minWidth: 0 }}>
+              <div className="ws-title-row">
+                <h1 className="ws-title">Visit <em>recap</em></h1>
+                <span className="rov-chip soft" style={{ color: st.tone }}>{'●'} {st.label}</span>
+              </div>
               <div className="qw-identity">
                 <div className="qw-avatar">{initials}</div>
                 <div>
@@ -20879,7 +21016,7 @@
                 </div>
               </div>
             </div>
-            <div className="ol-header-actions">
+            <div className="ws-head-actions">
               {visit.status === 'draft' && (
                 <button className="ol-header-btn" style={{ color: '#c54731' }} onClick={deleteVisit}>Delete</button>
               )}
@@ -20889,6 +21026,26 @@
                   {sending ? 'Sending…' : visit.status === 'sent' ? 'Resend email' : 'Send email'}
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* KPI strip — recap stats under the title, ws-kpis DNA (values already computed above) */}
+          <div className="ws-kpis">
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Products</div>
+              <div className="ws-kpi-v">{items.length}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Sent</div>
+              <div className="ws-kpi-v">{visit.sent_at ? fmtDT(visit.sent_at) : '—'}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Opened</div>
+              <div className="ws-kpi-v">{visit.opened_at ? fmtDT(visit.opened_at) : '—'}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Carted</div>
+              <div className="ws-kpi-v" style={visit.items_carted_at ? { color: 'var(--rod-green)' } : undefined}>{visit.items_carted_at ? fmtDT(visit.items_carted_at) : '—'}</div>
             </div>
           </div>
 
@@ -20987,6 +21144,35 @@
                 <button className="ol-header-btn" style={{ width: '100%' }} onClick={copyUrl}>
                   {copied ? 'Copied!' : 'Copy link'}
                 </button>
+              </div>
+
+              {/* Sales rep — record owner (unified ws-owner card, Phase 2).
+                  Payload only carries rep_id (no name join), so a rep other than
+                  the logged-in one renders as a generic assigned state. */}
+              <div className="qw-rail-card">
+                <h3>Sales rep</h3>
+                {visit.rep_id ? (
+                  <div className="ws-owner">
+                    <div className="qw-avatar">{visit.rep_id === repInfo.id ? (((repInfo.first_name || '?')[0] || '') + ((repInfo.last_name || '')[0] || '')).toUpperCase() : '•'}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ws-owner-name">
+                        {visit.rep_id === repInfo.id ? ([repInfo.first_name, repInfo.last_name].filter(Boolean).join(' ') || 'Rep') : 'Assigned rep'}
+                        {visit.rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
+                      </div>
+                      {visit.rep_id === repInfo.id && repInfo.email && (
+                        <div className="ws-owner-meta">{repInfo.email}</div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="ws-owner">
+                    <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
+                      <div className="ws-owner-meta">No rep owns this visit yet</div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {canSend && (
@@ -22819,35 +23005,47 @@
 
       return (
         <div style={{ paddingBottom: 96 }}>
-          {/* A. Breadcrumb */}
-          <div className="rod-breadcrumb">
-            <div className="rod-breadcrumb-trail">
+          {/* A. Breadcrumb — unified ws-* header */}
+          <div className="ws-crumbs-bar">
+            <div className="ws-crumbs">
               <a onClick={() => navigate('dashboard')}>Workspace</a>
-              <span className="rod-breadcrumb-sep"></span>
+              <span className="ws-crumb-sep"></span>
               <a onClick={() => navigate('orders')}>Orders</a>
-              <span className="rod-breadcrumb-sep"></span>
-              <span className="rod-current">{order.order_number}</span>
+              <span className="ws-crumb-sep"></span>
+              <span className="ws-crumb-cur">{order.order_number}</span>
             </div>
             <div className="rod-breadcrumb-nav">
               <RepPrevNext section="orders" id={editId} view="order-detail" navigate={navigate} />
             </div>
           </div>
 
-          {/* B. Header — Order View v2 */}
-          <div className="rov-header">
-            <div>
-              <RovMicro>Orders{order.project_name ? ' · ' + order.project_name : ''}</RovMicro>
-              <div className="rov-header-title-row">
-                <h1>{order.order_number}</h1>
+          {/* B. Header — unified ws-* pattern (title + status chip + customer chip) */}
+          <div className="ws-head">
+            <div style={{ minWidth: 0 }}>
+              <div className="ws-title-row">
+                <h1 className="ws-title">{order.order_number}</h1>
                 <RovChip tone={headChip.tone}>{headChip.label}</RovChip>
                 {!orderIsDead && pendingPayment && (
                   <RovChip tone="hold">{pendingIsCheck ? 'Check clearing' : 'Payment clearing'}</RovChip>
                 )}
               </div>
+              <div className="qw-identity">
+                <div className="qw-avatar">{(order.customer_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div className="qw-cust-line">{order.customer_name || 'Guest'}</div>
+                  <div className="qw-cust-sub">
+                    {[
+                      order.customer_email,
+                      order.phone,
+                      custType === 'trade' ? 'Trade' + (order.trade_tier_name ? ' · ' + order.trade_tier_name : '') : custType === 'retail' ? 'Retail' : 'Guest',
+                    ].filter(Boolean).join(' · ')}
+                  </div>
+                </div>
+              </div>
               <RovMicro style={{ marginTop: 10 }}>
-                Placed {rodFmtDT(order.created_at)} · {order.customer_name}
-                {order.payment_method ? ' · ' + ({ cash: 'Cash', check: 'Check', card: 'Card', stripe: 'Payment Request', offline: 'Offline', ach: 'Check (ACH)' }[order.payment_method] || order.payment_method) : ''}
-                {order.rep_name ? ' · Rep ' + order.rep_name : ''}
+                {order.project_name ? order.project_name + ' · ' : ''}
+                {order.payment_method ? ({ cash: 'Cash', check: 'Check', card: 'Card', stripe: 'Payment Request', offline: 'Offline', ach: 'Check (ACH)' }[order.payment_method] || order.payment_method) : ''}
+                {order.rep_name ? (order.payment_method || order.project_name ? ' · ' : '') + 'Rep ' + order.rep_name : ''}
               </RovMicro>
               {/* Job / sidemark — inline-editable; prints on vendor POs + invoice */}
               <div style={{ marginTop: 8 }}>
@@ -22881,7 +23079,7 @@
                 )}
               </div>
             </div>
-            <div className="rov-header-actions">
+            <div className="ws-head-actions">
               <AddTaskButton
                 navigate={navigate}
                 className="rov-hbtn"
@@ -22925,6 +23123,32 @@
             </div>
           </div>
 
+          {/* KPI strip — doc stats under the title, cdv-kpis DNA */}
+          <div className="ws-kpis">
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Order total</div>
+              <div className="ws-kpi-v">${orderTotal.toFixed(2)}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Paid</div>
+              <div className="ws-kpi-v" style={amountPaid > 0 ? { color: 'var(--rod-green)' } : undefined}>${amountPaid.toFixed(2)}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Balance due</div>
+              <div className="ws-kpi-v" style={(balanceInfo ? balanceInfo.balance > 0.005 : orderTotal - amountPaid > 0.005) ? { color: 'var(--rod-accent)' } : undefined}>
+                ${(balanceInfo ? Math.max(0, balanceInfo.balance) : Math.max(0, orderTotal - amountPaid)).toFixed(2)}
+              </div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Items</div>
+              <div className="ws-kpi-v">{items.length}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Placed</div>
+              <div className="ws-kpi-v">{new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
+            </div>
+          </div>
+
           {showReassign && (
             <ReassignRepModal
               title={'Reassign order ' + order.order_number}
@@ -22937,20 +23161,20 @@
             />
           )}
 
-          {/* Lifecycle rail */}
-          <div className="rov-lifecycle">
+          {/* Lifecycle stepper — unified qw-stepper */}
+          <div className="qw-stepper cols-5">
             {orderStages.map((s, i) => {
               const state = orderIsDead ? 'dead'
                 : s.done ? 'done'
-                : i === currentStageIdx ? 'current'
-                : 'future';
+                : i === currentStageIdx ? 'now'
+                : 'next';
               return (
-                <div key={s.label} className={'rov-stage ' + state}>
-                  <span className="rov-stage-mark">{s.done ? '✓' : orderIsDead ? '✕' : '0' + (i + 1)}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <div className="rov-stage-label">{s.label}</div>
-                    <RovMicro style={{ marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.meta}</RovMicro>
+                <div key={s.label} className={'qw-step ' + state}>
+                  <div className="qw-step-label">
+                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
+                    <span>{s.label}</span>
                   </div>
+                  <div className="qw-step-meta">{s.meta}</div>
                 </div>
               );
             })}
@@ -23054,10 +23278,10 @@
             </div>
           )}
 
-          {/* E. Two-Column Body */}
-          <div className="rod-body">
-            {/* LEFT COLUMN */}
-            <div className="rod-col">
+          {/* E. Two-Column Body — main column + 360px sticky rail (qw-grid) */}
+          <div className="qw-grid">
+            {/* MAIN COLUMN */}
+            <div className="qw-main">
 
               {/* Line Items */}
               <RodCard title={'Line items · ' + items.length + (showReady ? ' · ' + readyCount + '/' + readyTotal + ' ready for pickup' : '')}
@@ -23072,7 +23296,7 @@
                   }
                 }}>
                 <div className={'rod-li-head' + (showCost ? '' : ' nocost')}>
-                  <span>Status</span>
+                  <span></span>
                   <span>Item</span>
                   <span style={{ textAlign: 'right' }}>Qty</span>
                   <span style={{ textAlign: 'right' }}>Unit $</span>
@@ -23097,13 +23321,31 @@
                   );
                   return (
                     <React.Fragment key={item.id}>
-                      {/* Collapsed summary — thumb · name · qty · total. Click for detail. */}
+                      {/* Collapsed summary — swatch · name · qty · total (rof-item-row look). Click for detail. */}
                       <div className={'rod-li-sum' + (open ? ' open' : '') + (showCost ? '' : ' nocost')} onClick={() => setOpenLines(p => ({ ...p, [item.id]: !p[item.id] }))}>
-                        {/* Fulfillment status chip — one most-advanced state per line.
-                            During fulfillment it doubles as the "mark received" entry. */}
-                        <div>
+                        <div className="rof-item-swatch">
+                          {isLabor ? null : item.primary_image
+                            ? <img src={optimizeImg(item.primary_image, 96)} alt="" style={{ width: 36, height: 36, objectFit: 'cover' }} loading="lazy" />
+                            : <div style={{ width: 36, height: 36, ...materialFace(rofCatKind({ collection: item.collection || item.current_collection }), 50) }} />
+                          }
+                        </div>
+                        <div className="rof-item-info">
+                          {!isLabor && !isCustom && fli.brand && (
+                            <div className="rof-item-meta">{fli.brand}</div>
+                          )}
+                          <div className="rof-item-name" style={{ whiteSpace: 'normal' }}>
+                            {isLabor ? (item.product_name || 'Labor') : fli.name}
+                            {isLabor && badge('Labor')}
+                            {!isLabor && isCustom && badge('Custom', true)}
+                            {item.is_sample && badge('Sample')}
+                          </div>
+                          {!isLabor && !isCustom && fli.sku && (
+                            <div className="rof-item-meta">{fli.sku}</div>
+                          )}
+                          {/* Fulfillment status chip — one most-advanced state per line.
+                              During fulfillment it doubles as the "mark received" entry. */}
                           {(() => {
-                            if (isLabor || item.is_sample) return <span style={{ color: 'var(--rod-muted)', font: '400 11px/1 "Inter", sans-serif' }}>—</span>;
+                            if (isLabor || item.is_sample) return null;
                             const recv = item.qty_received != null ? parseFloat(item.qty_received) : null;
                             const fullRel = released + 0.001 >= ordered && ordered > 0;
                             const fullRecv = recv != null && recv + 0.001 >= ordered && ordered > 0;
@@ -23113,32 +23355,25 @@
                             else if (fullRecv) { label = '✓ Received'; color = 'var(--rod-green)'; bg = 'rgba(75,138,86,0.1)'; }
                             else if (recv != null && recv > 0) { label = '◑ ' + parseFloat(recv.toFixed(2)) + '/' + parseFloat(ordered.toFixed(2)) + ' in'; color = '#a87935'; bg = 'rgba(168,121,53,0.1)'; }
                             else if (showReceive) { label = 'On order'; color = 'var(--rod-muted)'; bg = 'transparent'; }
-                            else return <span style={{ color: 'var(--rod-muted)', font: '400 11px/1 "Inter", sans-serif' }}>—</span>;
+                            else return null;
                             // Can't receive a line until its PO is transmitted.
                             const awaitingT = showReceive && !(recv != null && recv > 0) && lineAwaitingTransmit(item.id);
                             if (awaitingT) { label = 'PO not sent'; color = 'var(--rod-muted)'; bg = 'transparent'; }
                             const canReceive = showReceive && !awaitingT;
-                            return canReceive ? (
-                              <button className="rod-li-chip" title="Record received quantity"
-                                onClick={e => { e.stopPropagation(); openReceive(item); }}
-                                style={{ borderColor: label === 'On order' ? 'rgba(28,25,23,0.22)' : color, background: bg, color }}>
-                                {label}
-                              </button>
-                            ) : (
-                              <span className="rod-li-chip" title={awaitingT ? 'Send this line’s purchase order to the vendor first' : undefined} style={{ background: bg, color, borderColor: awaitingT ? 'rgba(28,25,23,0.22)' : undefined }}>{label}</span>
+                            return (
+                              <div style={{ marginTop: 4 }}>
+                                {canReceive ? (
+                                  <button className="rod-li-chip" title="Record received quantity"
+                                    onClick={e => { e.stopPropagation(); openReceive(item); }}
+                                    style={{ borderColor: label === 'On order' ? 'rgba(28,25,23,0.22)' : color, background: bg, color }}>
+                                    {label}
+                                  </button>
+                                ) : (
+                                  <span className="rod-li-chip" title={awaitingT ? 'Send this line’s purchase order to the vendor first' : undefined} style={{ background: bg, color, borderColor: awaitingT ? 'rgba(28,25,23,0.22)' : undefined }}>{label}</span>
+                                )}
+                              </div>
                             );
                           })()}
-                        </div>
-                        <div>
-                          {!isLabor && !isCustom && fli.brand && (
-                            <div className="rod-line-item-meta">{fli.brand}</div>
-                          )}
-                          <div className="rod-line-item-name">
-                            {isLabor ? (item.product_name || 'Labor') : fli.name}
-                            {isLabor && badge('Labor')}
-                            {!isLabor && isCustom && badge('Custom', true)}
-                            {item.is_sample && badge('Sample')}
-                          </div>
                         </div>
                         <div className="rod-line-item-qty" style={{ textAlign: 'right' }}>
                           {isLabor ? (
@@ -23846,53 +24081,186 @@
                 </div>
               </RodCard>
 
-              {/* Activity */}
-              <RodCard title={'Activity' + (orderActivity ? ' · ' + orderActivity.length : '')}>
+              {/* Payments — v2 */}
+              {(payments.length > 0 || paymentRequests.length > 0) && (
+                <RodCard title={'Payments · ' + payments.length + ' tender' + (payments.length !== 1 ? 's' : '')}>
+                  {payments.map(p => {
+                    const amt = parseFloat(p.amount);
+                    const state = p.status === 'pending' ? 'Clearing' : p.status === 'failed' ? 'Failed' : (p.payment_type === 'refund' || amt < 0) ? 'Refunded' : 'Captured';
+                    const stateColor = state === 'Clearing' ? '#5c6e94' : (state === 'Failed' || state === 'Refunded') ? 'var(--rod-red)' : 'var(--rod-green)';
+                    return (
+                      <div className="rov-pay-row" key={p.id}>
+                        <div>
+                          <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                            {p.description || ({ card: 'Card', cash: 'Cash', check: 'Check', ach: 'ACH' }[p.payment_method] || p.payment_method || 'Payment')}
+                          </div>
+                          <RovMicro style={{ marginTop: 3 }}>
+                            {rodFmtDT(p.created_at)}
+                            {p.stripe_payment_intent_id ? ' · ' + p.stripe_payment_intent_id.slice(0, 18) : p.initiated_by_name ? ' · by ' + p.initiated_by_name : ''}
+                          </RovMicro>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: amt < 0 ? 'var(--rod-red)' : 'var(--rod-ink)' }}>
+                            {amt < 0 ? '-' : ''}${Math.abs(amt).toFixed(2)}
+                          </div>
+                          <RovMicro color={stateColor} style={{ marginTop: 3 }}>{state}</RovMicro>
+                          {canCounterRefund(p) && (
+                            <button className="rov-doc-link" style={{ marginTop: 4 }}
+                              onClick={() => { setRefundTarget(p); setRefundAmount(tenderRemaining(p).toFixed(2)); setRefundReason(''); }}>
+                              Refund
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {refundTarget && (
+                    <div style={{ padding: '12px 20px', borderTop: '0.5px solid rgba(28,25,23,0.13)', background: 'var(--rod-warm)' }}>
+                      <RovMicro>Refund · {refundTarget.description || tenderMethod(refundTarget)}</RovMicro>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                        <span style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>$</span>
+                        <input className="rod-input" type="number" min="0.01" max={tenderRemaining(refundTarget)} step="0.01"
+                          value={refundAmount} onChange={e => setRefundAmount(e.target.value)} style={{ flex: 1, width: 'auto' }} />
+                        <RovMicro style={{ whiteSpace: 'nowrap' }}>OF ${tenderRemaining(refundTarget).toFixed(2)}</RovMicro>
+                      </div>
+                      <input className="rod-input" placeholder="Reason (required)" maxLength={200}
+                        value={refundReason} onChange={e => setRefundReason(e.target.value)} style={{ marginTop: 8 }} />
+                      <RovMicro style={{ marginTop: 6 }}>
+                        {tenderMethod(refundTarget) === 'cash' ? 'Cash comes out of your open drawer'
+                          : tenderMethod(refundTarget) === 'check' ? 'Records the check as returned — hand it back or void it'
+                          : "Refunds to the customer's card via Stripe"}
+                      </RovMicro>
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+                        <button className="rod-mini-btn" onClick={() => setRefundTarget(null)} disabled={refundSaving}>Cancel</button>
+                        <button className="rod-mini-btn primary" onClick={() => setShowRefundConfirm(true)}
+                          disabled={refundSaving || !refundReason.trim() || !(parseFloat(refundAmount) > 0) || parseFloat(refundAmount) > tenderRemaining(refundTarget) + 0.005}>
+                          {'Refund $' + (parseFloat(refundAmount) > 0 ? parseFloat(refundAmount).toFixed(2) : '0.00')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {paymentRequests.map(pr => (
+                    <div className="rov-pay-row" key={pr.id}>
+                      <div>
+                        <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Payment link · {pr.sent_to_email}</div>
+                        <RovMicro style={{ marginTop: 3 }}>{rodFmtDT(pr.created_at)}</RovMicro>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>${parseFloat(pr.amount).toFixed(2)}</div>
+                        <RovMicro color={pr.status === 'paid' ? 'var(--rod-green)' : pr.status === 'pending' ? 'var(--rod-accent)' : 'var(--rod-red)'} style={{ marginTop: 3 }}>{pr.status}</RovMicro>
+                      </div>
+                    </div>
+                  ))}
+                </RodCard>
+              )}
+
+              {/* Activity — unified qw-thread (system events + internal notes + composer) */}
+              <RodCard title={'Activity' + (orderActivity ? ' · ' + (orderActivity.length + orderNotes.length) : '')}>
                 {orderActivity === null ? (
                   <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading activity...</div>
-                ) : orderActivity.length === 0 ? (
-                  <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>No activity recorded yet</div>
-                ) : (
-                  <div style={{ padding: '6px 20px 14px' }}>
-                    {orderActivity.map(entry => (
-                      <div className="rov-activity-row" key={entry.id}>
-                        <RovMicro>{rodFmtDT(entry.created_at)}</RovMicro>
-                        <span className="rov-activity-dot" />
-                        <span style={{ font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }}>
-                          {orderActionLabel(entry.action)}{orderActivityDetail(entry) ? ' · ' + orderActivityDetail(entry) : ''}
-                        </span>
-                        <RovMicro>{entry.performer_name || 'System'}</RovMicro>
-                      </div>
-                    ))}
+                ) : (() => {
+                  // Merge the system event log and internal notes into one thread,
+                  // oldest first — quote-workspace conversation convention.
+                  const thread = [
+                    ...orderActivity.map(e => ({ kind: 'event', ts: e.created_at, e })),
+                    ...orderNotes.map((n, i) => ({ kind: 'note', ts: n.created_at, n, i })),
+                  ].sort((a, b) => new Date(a.ts) - new Date(b.ts));
+                  if (thread.length === 0) {
+                    return <div className="qw-thread-empty">No activity recorded yet</div>;
+                  }
+                  return (
+                    <div className="qw-thread-list">
+                      {thread.map(t => {
+                        if (t.kind === 'event') {
+                          const entry = t.e;
+                          const name = entry.performer_name || 'System';
+                          const initials2 = (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+                          return (
+                            <div key={'ev-' + entry.id} className="qw-msg">
+                              <div className="qw-msg-avatar">{initials2}</div>
+                              <div style={{ minWidth: 0 }}>
+                                <div className="qw-msg-head">
+                                  <span className="qw-msg-name">{name}</span>
+                                  <span className="qw-msg-time">{rodFmtDT(entry.created_at)}</span>
+                                </div>
+                                <div className="qw-msg-body sys">
+                                  {orderActionLabel(entry.action)}{orderActivityDetail(entry) ? ' · ' + orderActivityDetail(entry) : ''}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                        const n = t.n;
+                        const noteName = n.staff_name || 'Roma staff';
+                        const noteInitials = (noteName || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+                        return (
+                          <div key={'note-' + (n.id || t.i)} className="qw-msg rep">
+                            <div className="qw-msg-avatar">{noteInitials}</div>
+                            <div style={{ minWidth: 0 }}>
+                              <div className="qw-msg-head">
+                                <span className="qw-msg-name">{noteName}</span>
+                                <span className="qw-msg-time">{n.created_at ? rodFmtDT(n.created_at) : ''}</span>
+                                <span className="qw-msg-tag">Internal note</span>
+                                {n.id && n.staff_id === repInfo.id && editingNoteId !== n.id && (
+                                  <span className="qw-msg-time">
+                                    <a onClick={() => { setEditingNoteId(n.id); setEditNoteText(n.note); }}
+                                      style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--rod-muted)' }}>Edit</a>
+                                    <span style={{ margin: '0 5px', color: 'var(--rod-muted)' }}>·</span>
+                                    <a onClick={() => deleteNote(n)}
+                                      style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--rod-red)' }}>Delete</a>
+                                  </span>
+                                )}
+                              </div>
+                              {editingNoteId === n.id ? (
+                                <div style={{ marginTop: 4 }}>
+                                  <textarea value={editNoteText} onChange={e => setEditNoteText(e.target.value)} autoFocus
+                                    style={{ width: '100%', minHeight: 46, padding: 8, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
+                                  <div style={{ display: 'flex', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
+                                    <button onClick={() => { setEditingNoteId(null); setEditNoteText(''); }}
+                                      style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                                    <button disabled={!editNoteText.trim()} onClick={() => saveNoteEdit(n)}
+                                      style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: 'pointer' }}>Save</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="qw-msg-body note">{n.note}</div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+                <div className="qw-composer">
+                  <textarea rows={2} maxLength={2000} placeholder="Add a note — visible only to Roma staff…"
+                    value={orderNoteText} onChange={e => setOrderNoteText(e.target.value)} disabled={savingOrderNote} />
+                  <div className="qw-composer-bar">
+                    <span className="qw-composer-hint">Internal record — nothing here emails the customer</span>
+                    <div className="qw-composer-actions">
+                      <button className="qw-composer-btn" disabled={!orderNoteText.trim() || savingOrderNote} onClick={async () => {
+                        setSavingOrderNote(true);
+                        try {
+                          const data = await repFetch('/api/rep/orders/' + editId + '/notes', {
+                            method: 'POST',
+                            body: JSON.stringify({ note: orderNoteText.trim() })
+                          });
+                          if (data.note) setOrderNotes(prev => [data.note, ...prev]);
+                          setOrderNoteText('');
+                        } catch (err) {}
+                        setSavingOrderNote(false);
+                      }}>
+                        {savingOrderNote ? 'Saving…' : '+ Internal note'}
+                      </button>
+                    </div>
                   </div>
-                )}
+                </div>
               </RodCard>
 
             </div>
 
-            {/* RIGHT COLUMN */}
-            <div className="rod-col">
-
-              {/* Customer — v2 */}
-              <RodCard title="Customer">
-                <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'center' }}>
-                    <div className="rov-cust-avatar">{order.customer_name ? order.customer_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'}</div>
-                    <div>
-                      <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{order.customer_name}</div>
-                      <RovMicro style={{ marginTop: 3 }}>
-                        {custType === 'trade' ? 'Trade pro' : custType === 'retail' ? 'Retail' : 'Guest'}
-                        {customerStats ? ' · ' + (customerStats.total_orders || 0) + ' order' + (customerStats.total_orders !== 1 ? 's' : '') + ' · $' + (parseFloat(customerStats.total_spent || 0) / 1000).toFixed(1) + 'k lifetime' : ''}
-                      </RovMicro>
-                    </div>
-                  </div>
-                  <RovMicro>{[order.customer_email, order.phone].filter(Boolean).join(' · ') || '—'}</RovMicro>
-                  <div style={{ display: 'flex', gap: 16, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                    {order.customer_email && <a className="rov-textlink" href={'mailto:' + order.customer_email}>Email</a>}
-                    {order.phone && <a className="rov-textlink" href={'tel:' + order.phone}>Call</a>}
-                  </div>
-                </div>
-              </RodCard>
+            {/* RIGHT RAIL — 360px sticky */}
+            <div className="qw-rail">
 
               {/* Totals — v2 */}
               <RodCard title="Totals">
@@ -24098,79 +24466,6 @@
                   </RodCard>
               )}
 
-              {/* Payments — v2 */}
-              {(payments.length > 0 || paymentRequests.length > 0) && (
-                <RodCard title={'Payments · ' + payments.length + ' tender' + (payments.length !== 1 ? 's' : '')}>
-                  {payments.map(p => {
-                    const amt = parseFloat(p.amount);
-                    const state = p.status === 'pending' ? 'Clearing' : p.status === 'failed' ? 'Failed' : (p.payment_type === 'refund' || amt < 0) ? 'Refunded' : 'Captured';
-                    const stateColor = state === 'Clearing' ? '#5c6e94' : (state === 'Failed' || state === 'Refunded') ? 'var(--rod-red)' : 'var(--rod-green)';
-                    return (
-                      <div className="rov-pay-row" key={p.id}>
-                        <div>
-                          <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>
-                            {p.description || ({ card: 'Card', cash: 'Cash', check: 'Check', ach: 'ACH' }[p.payment_method] || p.payment_method || 'Payment')}
-                          </div>
-                          <RovMicro style={{ marginTop: 3 }}>
-                            {rodFmtDT(p.created_at)}
-                            {p.stripe_payment_intent_id ? ' · ' + p.stripe_payment_intent_id.slice(0, 18) : p.initiated_by_name ? ' · by ' + p.initiated_by_name : ''}
-                          </RovMicro>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: amt < 0 ? 'var(--rod-red)' : 'var(--rod-ink)' }}>
-                            {amt < 0 ? '-' : ''}${Math.abs(amt).toFixed(2)}
-                          </div>
-                          <RovMicro color={stateColor} style={{ marginTop: 3 }}>{state}</RovMicro>
-                          {canCounterRefund(p) && (
-                            <button className="rov-doc-link" style={{ marginTop: 4 }}
-                              onClick={() => { setRefundTarget(p); setRefundAmount(tenderRemaining(p).toFixed(2)); setRefundReason(''); }}>
-                              Refund
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {refundTarget && (
-                    <div style={{ padding: '12px 20px', borderTop: '0.5px solid rgba(28,25,23,0.13)', background: 'var(--rod-warm)' }}>
-                      <RovMicro>Refund · {refundTarget.description || tenderMethod(refundTarget)}</RovMicro>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-                        <span style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>$</span>
-                        <input className="rod-input" type="number" min="0.01" max={tenderRemaining(refundTarget)} step="0.01"
-                          value={refundAmount} onChange={e => setRefundAmount(e.target.value)} style={{ flex: 1, width: 'auto' }} />
-                        <RovMicro style={{ whiteSpace: 'nowrap' }}>OF ${tenderRemaining(refundTarget).toFixed(2)}</RovMicro>
-                      </div>
-                      <input className="rod-input" placeholder="Reason (required)" maxLength={200}
-                        value={refundReason} onChange={e => setRefundReason(e.target.value)} style={{ marginTop: 8 }} />
-                      <RovMicro style={{ marginTop: 6 }}>
-                        {tenderMethod(refundTarget) === 'cash' ? 'Cash comes out of your open drawer'
-                          : tenderMethod(refundTarget) === 'check' ? 'Records the check as returned — hand it back or void it'
-                          : "Refunds to the customer's card via Stripe"}
-                      </RovMicro>
-                      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
-                        <button className="rod-mini-btn" onClick={() => setRefundTarget(null)} disabled={refundSaving}>Cancel</button>
-                        <button className="rod-mini-btn primary" onClick={() => setShowRefundConfirm(true)}
-                          disabled={refundSaving || !refundReason.trim() || !(parseFloat(refundAmount) > 0) || parseFloat(refundAmount) > tenderRemaining(refundTarget) + 0.005}>
-                          {'Refund $' + (parseFloat(refundAmount) > 0 ? parseFloat(refundAmount).toFixed(2) : '0.00')}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {paymentRequests.map(pr => (
-                    <div className="rov-pay-row" key={pr.id}>
-                      <div>
-                        <div style={{ font: '400 13px/1.25 Inter, sans-serif', color: 'var(--rod-ink)' }}>Payment link · {pr.sent_to_email}</div>
-                        <RovMicro style={{ marginTop: 3 }}>{rodFmtDT(pr.created_at)}</RovMicro>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ font: '400 16px/1 "Cormorant Garamond", serif', color: 'var(--rod-ink)' }}>${parseFloat(pr.amount).toFixed(2)}</div>
-                        <RovMicro color={pr.status === 'paid' ? 'var(--rod-green)' : pr.status === 'pending' ? 'var(--rod-accent)' : 'var(--rod-red)'} style={{ marginTop: 3 }}>{pr.status}</RovMicro>
-                      </div>
-                    </div>
-                  ))}
-                </RodCard>
-              )}
-
               {/* Margin & commission — v2 */}
               {commission && (
                 <RodCard title="Margin & commission">
@@ -24190,6 +24485,56 @@
                   </div>
                 </RodCard>
               )}
+
+              {/* Customer — v2 */}
+              <RodCard title="Customer">
+                <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'center' }}>
+                    <div className="rov-cust-avatar">{order.customer_name ? order.customer_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'}</div>
+                    <div>
+                      <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{order.customer_name}</div>
+                      <RovMicro style={{ marginTop: 3 }}>
+                        {custType === 'trade' ? 'Trade pro' : custType === 'retail' ? 'Retail' : 'Guest'}
+                        {customerStats ? ' · ' + (customerStats.total_orders || 0) + ' order' + (customerStats.total_orders !== 1 ? 's' : '') + ' · $' + (parseFloat(customerStats.total_spent || 0) / 1000).toFixed(1) + 'k lifetime' : ''}
+                      </RovMicro>
+                    </div>
+                  </div>
+                  <RovMicro>{[order.customer_email, order.phone].filter(Boolean).join(' · ') || '—'}</RovMicro>
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                    {order.customer_email && <a className="rov-textlink" href={'mailto:' + order.customer_email}>Email</a>}
+                    {order.phone && <a className="rov-textlink" href={'tel:' + order.phone}>Call</a>}
+                  </div>
+                </div>
+              </RodCard>
+
+              {/* Sales rep — record owner (unified ws-owner card; replicate on
+                  quote/estimate/sample/visit workspaces in later phases) */}
+              <RodCard title="Sales rep">
+                <div className="rod-card-body-padded">
+                  {order.sales_rep_id ? (
+                    <div className="ws-owner">
+                      <div className="qw-avatar">{(order.rep_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name">
+                          {order.rep_name || 'Rep'}
+                          {order.sales_rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
+                        </div>
+                        {order.sales_rep_id === repInfo.id && repInfo.email && (
+                          <div className="ws-owner-meta">{repInfo.email}</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="ws-owner">
+                      <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
+                        <div className="ws-owner-meta">No rep owns this order yet</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </RodCard>
 
               {/* Documents — v2 */}
               <RodCard title="Documents" action={'⎙ Print'} onAction={openPrintModal}>
@@ -24277,88 +24622,6 @@
                       </div>
                     );
                   })}
-                </div>
-              </RodCard>
-
-              {/* Internal Notes */}
-              <RodCard title={'Internal notes' + (orderNotes.length ? ' · ' + orderNotes.length : '')} action="+ Add" onAction={() => setShowAddNote(true)}>
-                <div style={{ padding: '8px 0' }}>
-                  {orderNotes.length === 0 && !showAddNote && (
-                    <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>No notes yet</div>
-                  )}
-                  {orderNotes.map((n, i) => (
-                    <div className="rod-note-entry" key={n.id || i} style={i === orderNotes.length - 1 && !showAddNote ? { borderBottom: 'none' } : {}}>
-                      <div className="rod-note-avatar">
-                        {(n.staff_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        {editingNoteId === n.id ? (
-                          <div>
-                            <textarea value={editNoteText} onChange={e => setEditNoteText(e.target.value)} autoFocus
-                              style={{ width: '100%', minHeight: 46, padding: 8, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
-                            <div style={{ display: 'flex', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
-                              <button onClick={() => { setEditingNoteId(null); setEditNoteText(''); }}
-                                style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
-                              <button disabled={!editNoteText.trim()} onClick={() => saveNoteEdit(n)}
-                                style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: 'pointer' }}>Save</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <React.Fragment>
-                            <div className="rod-note-text">{n.note}</div>
-                            <div className="rod-note-ts">
-                              {n.created_at ? new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + new Date(n.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''}
-                              {n.staff_name ? ' · ' + n.staff_name : ''}
-                              {n.id && n.staff_id === repInfo.id && (
-                                <span style={{ marginLeft: 8 }}>
-                                  <a onClick={() => { setEditingNoteId(n.id); setEditNoteText(n.note); }}
-                                    style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--rod-muted)' }}>Edit</a>
-                                  <span style={{ margin: '0 5px', color: 'var(--rod-muted)' }}>·</span>
-                                  <a onClick={() => deleteNote(n)}
-                                    style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--rod-red)' }}>Delete</a>
-                                </span>
-                              )}
-                            </div>
-                          </React.Fragment>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {showAddNote && (
-                    <div style={{ padding: '14px 18px', borderTop: orderNotes.length ? '0.5px solid rgba(28,25,23,0.12)' : 'none' }}>
-                      <textarea
-                        value={orderNoteText}
-                        onChange={e => setOrderNoteText(e.target.value)}
-                        placeholder="Add a note — visible only to Roma staff…"
-                        autoFocus
-                        style={{
-                          width: '100%', minHeight: 50, padding: 10,
-                          background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)',
-                          outline: 'none', resize: 'vertical', boxSizing: 'border-box',
-                          font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)',
-                        }}
-                      />
-                      <div style={{ display: 'flex', gap: '6px', marginTop: '6px', justifyContent: 'flex-end' }}>
-                        <button onClick={() => { setShowAddNote(false); setOrderNoteText(''); }}
-                          style={{ padding: '5px 10px', fontSize: '10px', fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
-                        <button disabled={!orderNoteText.trim() || savingOrderNote} onClick={async () => {
-                          setSavingOrderNote(true);
-                          try {
-                            const data = await repFetch('/api/rep/orders/' + editId + '/notes', {
-                              method: 'POST',
-                              body: JSON.stringify({ note: orderNoteText.trim() })
-                            });
-                            if (data.note) setOrderNotes(prev => [data.note, ...prev]);
-                            setShowAddNote(false); setOrderNoteText('');
-                          } catch (err) {}
-                          setSavingOrderNote(false);
-                        }}
-                          style={{ padding: '5px 10px', fontSize: '10px', fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: 'pointer' }}>
-                          {savingOrderNote ? 'Saving...' : 'Save'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </RodCard>
 
@@ -24927,19 +25190,26 @@
 
       return (
         <div className="rof-container">
-          <div className="rof-breadcrumb">
-            <a onClick={() => navigate('dashboard')}>Workspace</a>
-            <span className="rof-bc-sep">/</span>
-            <a onClick={() => navigate('orders')}>Orders</a>
-            <span className="rof-bc-sep">/</span>
-            <a onClick={() => navigate('order-detail', editId)}>{order.order_number}</a>
-            <span className="rof-bc-sep">{'·'}</span>
-            <span className="rof-bc-current">Return</span>
+          {/* A. Breadcrumb — unified ws-* header (Phase 3) */}
+          <div className="ws-crumbs-bar" style={{ paddingTop: '1rem' }}>
+            <div className="ws-crumbs">
+              <a onClick={() => navigate('dashboard')}>Workspace</a>
+              <span className="ws-crumb-sep"></span>
+              <a onClick={() => navigate('orders')}>Orders</a>
+              <span className="ws-crumb-sep"></span>
+              <a onClick={() => navigate('order-detail', editId)}>{order.order_number}</a>
+              <span className="ws-crumb-sep"></span>
+              <span className="ws-crumb-cur">Return</span>
+            </div>
           </div>
 
-          <div className="qw-header" style={{ marginBottom: 16 }}>
-            <div>
-              <h1>Return {rmaNumber ? <em>{rmaNumber}</em> : <em>against {order.order_number}</em>}</h1>
+          {/* B. Header — unified ws-* pattern (title + status chip + identity chip) */}
+          <div className="ws-head" style={{ marginBottom: 16 }}>
+            <div style={{ minWidth: 0 }}>
+              <div className="ws-title-row">
+                <h1 className="ws-title">Return {rmaNumber ? <em>{rmaNumber}</em> : <em>against {order.order_number}</em>}</h1>
+                <RovChip tone={rmaNumber ? 'done' : 'hold'}>{rmaNumber ? 'Processed' : 'In progress'}</RovChip>
+              </div>
               <div className="qw-identity">
                 <div className="qw-avatar">{custInitials}</div>
                 <div>
@@ -24947,6 +25217,26 @@
                   <div className="qw-cust-sub">Order {order.order_number} · {order.customer_email || ''}</div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* KPI strip — return stats (values already computed for the summary rail) */}
+          <div className="ws-kpis">
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Order total</div>
+              <div className="ws-kpi-v">${parseFloat(order.total || 0).toFixed(2)}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Refund total</div>
+              <div className="ws-kpi-v" style={totals.refundTotal > 0.005 ? { color: 'var(--rod-red)' } : undefined}>${totals.refundTotal.toFixed(2)}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Lines selected</div>
+              <div className="ws-kpi-v">{totals.lineCount} of {items.length}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Restock fee</div>
+              <div className="ws-kpi-v">${totals.restock.toFixed(2)}</div>
             </div>
           </div>
 
@@ -25909,26 +26199,53 @@
 
       return (
         <div className="rof-container">
-          <div className="rof-breadcrumb">
-            <a onClick={() => navigate('dashboard')}>Workspace</a>
-            <span className="rof-bc-sep">/</span>
-            <a onClick={() => navigate('orders')}>Orders</a>
-            <span className="rof-bc-sep">/</span>
-            <a onClick={() => navigate('order-detail', editId)}>{order.order_number}</a>
-            <span className="rof-bc-sep">{'·'}</span>
-            <span className="rof-bc-current">Change order</span>
+          {/* A. Breadcrumb — unified ws-* header (Phase 3) */}
+          <div className="ws-crumbs-bar" style={{ paddingTop: '1rem' }}>
+            <div className="ws-crumbs">
+              <a onClick={() => navigate('dashboard')}>Workspace</a>
+              <span className="ws-crumb-sep"></span>
+              <a onClick={() => navigate('orders')}>Orders</a>
+              <span className="ws-crumb-sep"></span>
+              <a onClick={() => navigate('order-detail', editId)}>{order.order_number}</a>
+              <span className="ws-crumb-sep"></span>
+              <span className="ws-crumb-cur">Change order</span>
+            </div>
           </div>
 
-          <div className="qw-header" style={{ marginBottom: 16 }}>
-            <div>
-              <h1>Change <em>{order.order_number}</em></h1>
+          {/* B. Header — unified ws-* pattern (title + status chip + identity chip) */}
+          <div className="ws-head" style={{ marginBottom: 16 }}>
+            <div style={{ minWidth: 0 }}>
+              <div className="ws-title-row">
+                <h1 className="ws-title">Change <em>{order.order_number}</em></h1>
+                <RovChip tone={{ pending: 'hold', confirmed: 'live', shipped: 'live', ready_for_pickup: 'live', delivered: 'done', cancelled: 'hot' }[order.status] || 'soft'}>{(order.status || '').replace(/_/g, ' ')}</RovChip>
+              </div>
               <div className="qw-identity">
                 <div className="qw-avatar">{custInitials}</div>
                 <div>
                   <div className="qw-cust-line">{custName}</div>
-                  <div className="qw-cust-sub">{order.status} · placed {order.customer_email || ''}</div>
+                  <div className="qw-cust-sub">{[order.customer_email, order.phone].filter(Boolean).join(' · ') || 'Order ' + order.order_number}</div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* KPI strip — change stats (values already computed for the summary rail) */}
+          <div className="ws-kpis">
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Order total</div>
+              <div className="ws-kpi-v">${oldTotal.toFixed(2)}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Net change</div>
+              <div className="ws-kpi-v" style={netChange < -0.005 ? { color: 'var(--rod-red)' } : netChange > 0.005 ? { color: 'var(--rod-green)' } : undefined}>{(netChange < 0 ? '−' : '+') + '$' + Math.abs(netChange).toFixed(2)}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">New total · est.</div>
+              <div className="ws-kpi-v">${estNewTotal.toFixed(2)}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Staged edits</div>
+              <div className="ws-kpi-v">{diffs.length}</div>
             </div>
           </div>
 
@@ -27254,6 +27571,7 @@
 
       if (loading) return <div className="loading">Loading quote...</div>;
 
+      const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');   // owner card (ws-owner)
       const isReadonly = quote && !['draft', 'sent'].includes(quote.status);
       const calcSubtotal = quoteItems.reduce((sum, i) => sum + parseFloat(i.subtotal || 0), 0);
       const qtyLabel = (sellBy) => sellBy === 'unit' ? 'units' : sellBy === 'piece' ? 'pcs' : sellBy === 'roll' ? 'sqft' : 'boxes';
@@ -27365,28 +27683,28 @@
 
       return (
         <div style={{ paddingBottom: 96 }}>
-          {/* Breadcrumb */}
-          <div className="qw-breadcrumb">
-            <div className="qw-crumbs">
+          {/* Breadcrumb — unified ws-* header (Phase 2) */}
+          <div className="ws-crumbs-bar">
+            <div className="ws-crumbs">
+              <a onClick={() => navigate('dashboard')}>Workspace</a>
+              <span className="ws-crumb-sep"></span>
               <a onClick={() => navigate('quotes')}>Quotes</a>
-              <span className="qw-crumb-sep" />
-              <span className="qw-crumb-current">{editId && quote ? quote.quote_number : 'New quote'}</span>
+              <span className="ws-crumb-sep"></span>
+              <span className="ws-crumb-cur">{editId && quote ? quote.quote_number : 'New quote'}</span>
             </div>
-            <div className="qw-meta-right" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-              {editId && <div style={{ display: 'flex', gap: 12 }}>
-                <RepPrevNext section="quotes" id={editId} view="quote-edit" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
-              </div>}
-              <div style={{ display: 'flex', gap: 16 }}>
-                {quote && <span>Updated {fmtD(quote.updated_at)}</span>}
-                <span style={{ color: st.tone }}>{'●'} {st.label}</span>
-              </div>
+            <div className="qw-meta-right" style={{ alignItems: 'center' }}>
+              {quote && <span>Updated {fmtD(quote.updated_at)}</span>}
+              {editId && <RepPrevNext section="quotes" id={editId} view="quote-edit" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />}
             </div>
           </div>
 
-          {/* Header */}
-          <div className="qw-header">
-            <div>
-              <h1>{editId && quote ? <React.Fragment>Quote <em>{quote.quote_number}</em></React.Fragment> : <React.Fragment>New <em>quote</em></React.Fragment>}</h1>
+          {/* Header — unified ws-* pattern (title + status chip + customer chip) */}
+          <div className="ws-head">
+            <div style={{ minWidth: 0 }}>
+              <div className="ws-title-row">
+                <h1 className="ws-title">{editId && quote ? <React.Fragment>Quote <em>{quote.quote_number}</em></React.Fragment> : <React.Fragment>New <em>quote</em></React.Fragment>}</h1>
+                <span className="rov-chip soft" style={{ color: st.tone }}>{'●'} {st.label}</span>
+              </div>
               <div className="qw-identity">
                 <div className="qw-avatar">{initials}</div>
                 <div>
@@ -27399,7 +27717,7 @@
                 </div>
               </div>
             </div>
-            <div className="ol-header-actions">
+            <div className="ws-head-actions">
               {editId && quote && (
                 <AddTaskButton
                   navigate={navigate}
@@ -27435,6 +27753,36 @@
                   {saving ? 'Saving…' : 'Save changes'}
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* KPI strip — quote stats under the title, ws-kpis DNA (values already computed above) */}
+          <div className="ws-kpis">
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Total</div>
+              <div className="ws-kpi-v">${displayTotal.toFixed(2)}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Lines</div>
+              <div className="ws-kpi-v">{quoteItems.length}</div>
+            </div>
+            {showCost && blendedMargin !== null && (
+              <div className="ws-kpi">
+                <div className="ws-kpi-l">Margin · rep only</div>
+                <div className="ws-kpi-v">{blendedMargin.toFixed(1)}%</div>
+              </div>
+            )}
+            {quote && expiresAt && ['draft', 'sent', 'accepted', 'expired'].includes(quote.status) && (
+              <div className="ws-kpi">
+                <div className="ws-kpi-l">Expires</div>
+                <div className="ws-kpi-v" style={isExpired ? { color: '#c54731' } : (daysLeft !== null && daysLeft < 7 ? { color: 'var(--gold, #c9a668)' } : undefined)}>
+                  {isExpired ? 'Expired ' + fmtD(expiresAt) : fmtD(expiresAt) + ' · ' + daysLeft + 'd'}
+                </div>
+              </div>
+            )}
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">{lastSentEvent ? 'Sent' : 'Drafted'}</div>
+              <div className="ws-kpi-v">{lastSentEvent ? fmtD(lastSentEvent.created_at) : quote ? fmtD(quote.created_at) : '—'}</div>
             </div>
           </div>
 
@@ -28055,17 +28403,6 @@
 
             {/* ── Decision rail ── */}
             <aside className="qw-rail">
-              {quote && expiresAt && ['draft', 'sent', 'accepted'].includes(quote.status) && (
-                <div className={'qw-expiry-card' + (isExpired ? ' expired' : '')}>
-                  <div className="qw-expiry-label">{'●'} {isExpired ? 'Quote expired' : quote.status === 'accepted' ? 'Accepted — convert before expiry' : 'Awaiting acceptance'}</div>
-                  <div className="qw-expiry-big">{daysLeft <= 0 ? 'Expired' : daysLeft + (daysLeft === 1 ? ' day left' : ' days left')}</div>
-                  <div className="qw-expiry-sub">{isExpired ? 'Expired ' : 'Expires '}{expiresAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-                  <div className="qw-expiry-track">
-                    <div className="qw-expiry-fill" style={{ width: expiryPct + '%' }} />
-                  </div>
-                </div>
-              )}
-
               {!editId && (
                 <div className="qw-rail-card">
                   <h3>Draft checklist</h3>
@@ -28094,13 +28431,14 @@
 
               <div className="qw-rail-card">
                 <h3>Totals</h3>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  <div className="qw-total-row"><span className="k">Subtotal</span><span>${displaySubtotal.toFixed(2)}</span></div>
+                {/* Plain rod-style rows (rov-row) — big serif total below; no chips */}
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <RovRow l={'Subtotal · ' + quoteItems.length + ' line' + (quoteItems.length !== 1 ? 's' : '')} v={'$' + displaySubtotal.toFixed(2)} />
                   {displayDiscount > 0 && (
-                    <div className="qw-total-row"><span className="k">Discount{promoResult && promoResult.code ? ' · ' + promoResult.code : ''}</span><span style={{ color: '#3a7a4e' }}>{'−'}${displayDiscount.toFixed(2)}</span></div>
+                    <RovRow l={'Discount' + (promoResult && promoResult.code ? ' · ' + promoResult.code : '')} v={'−$' + displayDiscount.toFixed(2)} c="var(--rod-green)" />
                   )}
                   {displayShipping > 0 && (
-                    <div className="qw-total-row"><span className="k">Shipping</span><span>${displayShipping.toFixed(2)}</span></div>
+                    <RovRow l="Shipping" v={'$' + displayShipping.toFixed(2)} />
                   )}
                 </div>
 
@@ -28143,20 +28481,52 @@
                   )}
                 </div>
 
-                <div className="qw-total-big">
-                  <span className="k">Total</span>
-                  <span className="v">${displayTotal.toFixed(2)}</span>
+                <div className="rov-total-row" style={{ marginTop: 12 }}>
+                  <span style={{ font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>Total</span>
+                  <span className="rov-total-value">${displayTotal.toFixed(2)}</span>
                 </div>
-                {showCost && blendedMargin !== null && (
-                  <div className="qw-margin-chip">
-                    <span className="k">Blended margin<br />rep only</span>
-                    <span className="v">{blendedMargin.toFixed(1)}%</span>
+                {/* Quiet plain lines — expiry + rep economics (big treatments now live in the header KPIs) */}
+                {quote && expiresAt && ['draft', 'sent', 'accepted'].includes(quote.status) && (
+                  <div className="qw-commission" style={isExpired ? { color: '#c54731' } : undefined}>
+                    {isExpired ? 'Expired ' : 'Expires '}{expiresAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{!isExpired && daysLeft !== null ? ' · ' + daysLeft + 'd left' : ''}
                   </div>
+                )}
+                {showCost && blendedMargin !== null && (
+                  <div className="qw-commission">Blended margin {blendedMargin.toFixed(1)}% · rep only</div>
                 )}
                 {showCost && blendedMargin !== null && (
                   <div className="qw-commission">Est. commission ${(grossProfit * 0.10).toFixed(2)}</div>
                 )}
               </div>
+
+              {/* Sales rep — record owner (unified ws-owner card, Phase 2) */}
+              {editId && quote && (
+                <div className="qw-rail-card">
+                  <h3>Sales rep</h3>
+                  {quote.sales_rep_id ? (
+                    <div className="ws-owner">
+                      <div className="qw-avatar">{(quote.rep_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name">
+                          {quote.rep_name || 'Rep'}
+                          {quote.sales_rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
+                        </div>
+                        {quote.sales_rep_id === repInfo.id && repInfo.email && (
+                          <div className="ws-owner-meta">{repInfo.email}</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="ws-owner">
+                      <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
+                        <div className="ws-owner-meta">No rep owns this quote yet</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {editId && quote && (
                 <div className="qw-rail-card">
@@ -29858,6 +30228,7 @@
           dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase().replace(' ', '');
       };
       // effective_status folds "sent + expired" into 'expired'
+      const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');   // owner card (ws-owner)
       const effStatus = estimate ? (estimate.effective_status || estimate.status) : 'draft';
       const isTerminalNeg = effStatus === 'declined' || effStatus === 'expired';
       const EST_STATUS_META = {
@@ -30323,28 +30694,28 @@
 
       return (
         <div style={{ paddingBottom: 96 }}>
-          {/* Breadcrumb */}
-          <div className="qw-breadcrumb">
-            <div className="qw-crumbs">
+          {/* Breadcrumb — unified ws-* header (Phase 2) */}
+          <div className="ws-crumbs-bar">
+            <div className="ws-crumbs">
+              <a onClick={() => navigate('dashboard')}>Workspace</a>
+              <span className="ws-crumb-sep"></span>
               <a onClick={() => navigate('estimates')}>Estimates</a>
-              <span className="qw-crumb-sep" />
-              <span className="qw-crumb-current">{editId && estimate ? estimate.estimate_number : 'New estimate'}</span>
+              <span className="ws-crumb-sep"></span>
+              <span className="ws-crumb-cur">{editId && estimate ? estimate.estimate_number : 'New estimate'}</span>
             </div>
-            <div className="qw-meta-right" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-              {editId && <div style={{ display: 'flex', gap: 12 }}>
-                <RepPrevNext section="estimates" id={editId} view="estimate-edit" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />
-              </div>}
-              <div style={{ display: 'flex', gap: 16 }}>
-                {estimate && <span>Updated {fmtD(estimate.updated_at)}</span>}
-                <span style={{ color: st.tone }}>{'●'} {st.label}</span>
-              </div>
+            <div className="qw-meta-right" style={{ alignItems: 'center' }}>
+              {estimate && <span>Updated {fmtD(estimate.updated_at)}</span>}
+              {editId && <RepPrevNext section="estimates" id={editId} view="estimate-edit" navigate={navigate} linkStyle={{ color: 'var(--brass-muted)', textDecoration: 'none' }} />}
             </div>
           </div>
 
-          {/* Header */}
-          <div className="qw-header">
-            <div>
-              <h1>{editId && estimate ? <React.Fragment>Estimate <em>{estimate.estimate_number}</em></React.Fragment> : <React.Fragment>New <em>estimate</em></React.Fragment>}</h1>
+          {/* Header — unified ws-* pattern (title + status chip + customer chip) */}
+          <div className="ws-head">
+            <div style={{ minWidth: 0 }}>
+              <div className="ws-title-row">
+                <h1 className="ws-title">{editId && estimate ? <React.Fragment>Estimate <em>{estimate.estimate_number}</em></React.Fragment> : <React.Fragment>New <em>estimate</em></React.Fragment>}</h1>
+                <span className="rov-chip soft" style={{ color: st.tone }}>{'●'} {st.label}</span>
+              </div>
               <div className="qw-identity">
                 <div className="qw-avatar">{initials}</div>
                 <div>
@@ -30357,7 +30728,7 @@
                 </div>
               </div>
             </div>
-            <div className="ol-header-actions">
+            <div className="ws-head-actions">
               {estimate && (
                 <AddTaskButton
                   navigate={navigate}
@@ -30399,6 +30770,55 @@
               )}
             </div>
           </div>
+
+          {/* KPI strip — estimate stats under the title, ws-kpis DNA (values already computed above) */}
+          <div className="ws-kpis">
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Total</div>
+              <div className="ws-kpi-v">${parseFloat(estimate ? estimate.total || 0 : 0).toFixed(2)}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Lines</div>
+              <div className="ws-kpi-v">{materialItems.length + laborItems.length}</div>
+              <div className="ws-kpi-s">{materialItems.length} mat · {laborItems.length} labor</div>
+            </div>
+            {(() => {   // deposit due at acceptance — same math as the rail deposit control below
+              const estTotal = parseFloat(estimate ? estimate.total || 0 : 0) || 0;
+              const depAmt = milestones.length > 0
+                ? (estTotal * (parseFloat(milestones[0].percent) || 0)) / 100
+                : depositType === 'percent'
+                  ? Math.min(estTotal, Math.round(estTotal * ((parseFloat(depositValue) || 0) / 100) * 100) / 100)
+                  : depositType === 'fixed'
+                    ? Math.min(estTotal, parseFloat(depositValue) || 0)
+                    : 0;
+              if (!(depAmt > 0)) return null;
+              return (
+                <div className="ws-kpi">
+                  <div className="ws-kpi-l">Deposit due</div>
+                  <div className="ws-kpi-v">${depAmt.toFixed(2)}</div>
+                </div>
+              );
+            })()}
+            {showCost && estBlendedMargin !== null && (
+              <div className="ws-kpi">
+                <div className="ws-kpi-l">Margin · rep only</div>
+                <div className="ws-kpi-v">{estBlendedMargin.toFixed(1)}%</div>
+              </div>
+            )}
+            {estimate && estExpiresAt && ['draft', 'sent', 'accepted'].includes(estimate.status) && (
+              <div className="ws-kpi">
+                <div className="ws-kpi-l">Expires</div>
+                <div className="ws-kpi-v" style={estIsExpired ? { color: '#c54731' } : (estDaysLeft !== null && estDaysLeft < 7 ? { color: 'var(--gold, #c9a668)' } : undefined)}>
+                  {estIsExpired ? 'Expired ' + fmtD(estExpiresAt) : fmtD(estExpiresAt) + ' · ' + estDaysLeft + 'd'}
+                </div>
+              </div>
+            )}
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">{estimate && estimate.sent_at ? 'Sent' : 'Drafted'}</div>
+              <div className="ws-kpi-v">{estimate ? fmtD(estimate.sent_at || estimate.created_at) : '—'}</div>
+            </div>
+          </div>
+
           {pdfViewer && (
             <RepPdfViewer
               url={pdfViewer.url}
@@ -30839,17 +31259,6 @@
 
             {/* ── Decision rail ── */}
             <aside className="qw-rail">
-              {estimate && estExpiresAt && ['draft', 'sent', 'accepted'].includes(estimate.status) && (
-                <div className={'qw-expiry-card' + (estIsExpired ? ' expired' : '')}>
-                  <div className="qw-expiry-label">{'●'} {estIsExpired ? 'Estimate expired' : estimate.status === 'accepted' ? 'Accepted — convert before expiry' : 'Awaiting acceptance'}</div>
-                  <div className="qw-expiry-big">{estDaysLeft <= 0 ? 'Expired' : estDaysLeft + (estDaysLeft === 1 ? ' day left' : ' days left')}</div>
-                  <div className="qw-expiry-sub">{estIsExpired ? 'Expired ' : 'Expires '}{estExpiresAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</div>
-                  <div className="qw-expiry-track">
-                    <div className="qw-expiry-fill" style={{ width: estExpiryPct + '%' }} />
-                  </div>
-                </div>
-              )}
-
               {!editId && (
                 <div className="qw-rail-card">
                   <h3>Draft checklist</h3>
@@ -30878,22 +31287,26 @@
 
               <div className="qw-rail-card">
                 <h3>Totals</h3>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  <div className="qw-total-row"><span className="k">Materials</span><span>${parseFloat(estimate ? estimate.materials_subtotal || 0 : 0).toFixed(2)}</span></div>
-                  <div className="qw-total-row"><span className="k">Labor &amp; services</span><span>${parseFloat(estimate ? estimate.labor_subtotal || 0 : 0).toFixed(2)}</span></div>
+                {/* Plain rod-style rows (rov-row) — big serif total below; no chips */}
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <RovRow l={'Materials · ' + materialItems.length + ' line' + (materialItems.length !== 1 ? 's' : '')} v={'$' + parseFloat(estimate ? estimate.materials_subtotal || 0 : 0).toFixed(2)} />
+                  <RovRow l={'Labor & services'} v={'$' + parseFloat(estimate ? estimate.labor_subtotal || 0 : 0).toFixed(2)} />
                   {estimate && parseFloat(estimate.tax_amount || 0) > 0 && (
-                    <div className="qw-total-row"><span className="k">Tax · materials only</span><span>${parseFloat(estimate.tax_amount).toFixed(2)}</span></div>
+                    <RovRow l="Tax · materials only" v={'$' + parseFloat(estimate.tax_amount).toFixed(2)} />
                   )}
                 </div>
-                <div className="qw-total-big">
-                  <span className="k">Total</span>
-                  <span className="v">${parseFloat(estimate ? estimate.total || 0 : 0).toFixed(2)}</span>
+                <div className="rov-total-row" style={{ marginTop: 12 }}>
+                  <span style={{ font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>Total</span>
+                  <span className="rov-total-value">${parseFloat(estimate ? estimate.total || 0 : 0).toFixed(2)}</span>
                 </div>
-                {showCost && estBlendedMargin !== null && (
-                  <div className="qw-margin-chip">
-                    <span className="k">Materials margin<br />rep only</span>
-                    <span className="v">{estBlendedMargin.toFixed(1)}%</span>
+                {/* Quiet plain lines — expiry + rep economics (big treatments now live in the header KPIs) */}
+                {estimate && estExpiresAt && ['draft', 'sent', 'accepted'].includes(estimate.status) && (
+                  <div className="qw-commission" style={estIsExpired ? { color: '#c54731' } : undefined}>
+                    {estIsExpired ? 'Expired ' : 'Expires '}{estExpiresAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}{!estIsExpired && estDaysLeft !== null ? ' · ' + estDaysLeft + 'd left' : ''}
                   </div>
+                )}
+                {showCost && estBlendedMargin !== null && (
+                  <div className="qw-commission">Materials margin {estBlendedMargin.toFixed(1)}% · rep only</div>
                 )}
                 {(() => {
                   // Optional deposit the customer can pay online at acceptance.
@@ -30951,6 +31364,35 @@
                   );
                 })()}
               </div>
+
+              {/* Sales rep — record owner (unified ws-owner card, Phase 2) */}
+              {editId && estimate && (
+                <div className="qw-rail-card">
+                  <h3>Sales rep</h3>
+                  {estimate.sales_rep_id ? (
+                    <div className="ws-owner">
+                      <div className="qw-avatar">{(estimate.rep_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name">
+                          {estimate.rep_name || 'Rep'}
+                          {estimate.sales_rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
+                        </div>
+                        {estimate.rep_email && (
+                          <div className="ws-owner-meta">{estimate.rep_email}</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="ws-owner">
+                      <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
+                        <div className="ws-owner-meta">No rep owns this estimate yet</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {editId && estimate && (
                 <div className="qw-rail-card">
@@ -32379,6 +32821,7 @@
       const skuSearchCounter = useRef(0);
       const [newPOItem, setNewPOItem] = useState({ product_name: '', vendor_sku: '', qty: 1, cost: '', sell_by: 'box', description: '', retail_price: '' });
       const [poDocPreview, setPoDocPreview] = useState(null);
+      const repInfo = JSON.parse(sessionStorage.getItem('rep_info') || '{}');   // owner card (ws-owner)
 
       const load = async () => {
         setLoading(true);
@@ -32579,30 +33022,29 @@
 
       return (<>
         <div>
-          {/* Breadcrumb */}
-          <div style={{ paddingBottom: 16, borderBottom: '0.5px solid ' + INK + '18', marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: MUTED, display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ cursor: 'pointer' }} onClick={() => navigate('purchase-orders')}>PO Tracking</span>
-              <span style={{ width: 12, height: 1, background: INK + '33', display: 'inline-block' }} />
+          {/* A. Breadcrumb — unified ws-* header (Phase 3) */}
+          <div className="ws-crumbs-bar">
+            <div className="ws-crumbs">
+              <a onClick={() => navigate('purchase-orders')}>PO Tracking</a>
+              <span className="ws-crumb-sep"></span>
               {isOrderLinked && (<>
-                <span style={{ cursor: 'pointer', color: ACCENT }} onClick={() => navigate('order-detail', po.order_id)}>{po.order_number}</span>
-                <span style={{ width: 12, height: 1, background: INK + '33', display: 'inline-block' }} />
+                <a style={{ color: ACCENT }} onClick={() => navigate('order-detail', po.order_id)}>{po.order_number}</a>
+                <span className="ws-crumb-sep"></span>
               </>)}
-              <span style={{ color: INK }}>{po.po_number}</span>
+              <span className="ws-crumb-cur">{po.po_number}</span>
             </div>
-            <div style={{ font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: MUTED, display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div className="rod-breadcrumb-nav">
               <RepPrevNext section="purchase-orders" id={editId} view="purchase-order-detail" navigate={navigate}
                 linkStyle={{ color: MUTED, textDecoration: 'none' }} />
             </div>
           </div>
 
-          {/* Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 32, marginBottom: 16 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '5px 12px', background: sCol + '22', color: sCol, font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-                  ● {statusLabel[po.status] || po.status}
-                </span>
+          {/* B. Header — unified ws-* pattern (title + status chip + actions right) */}
+          <div className="ws-head">
+            <div style={{ minWidth: 0 }}>
+              <div className="ws-title-row">
+                <h1 className="ws-title">Purchase order <em>{po.po_number}</em></h1>
+                <RovChip tone={{ draft: 'soft', sent: 'hold', acknowledged: 'hold', fulfilled: 'done', cancelled: 'hot' }[po.status] || 'soft'}>{statusLabel[po.status] || po.status}</RovChip>
                 {isOrderLinked ? (
                   <span style={{ padding: '5px 10px', font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: ACCENT, border: '0.5px solid ' + ACCENT + '55', cursor: 'pointer' }} onClick={() => navigate('order-detail', po.order_id)}>
                     ● Linked to {po.order_number}
@@ -32616,9 +33058,6 @@
                   {editable ? '✎ Adjustable' : '🔒 View only'}
                 </span>
               </div>
-              <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 300, fontSize: 44, lineHeight: 1, letterSpacing: '-0.018em', margin: 0, color: INK }}>
-                Purchase order <em style={{ color: ACCENT, fontStyle: 'italic' }}>{po.po_number}</em>
-              </h1>
               <div style={{ font: '400 14px/1.5 Inter, sans-serif', color: INK + 'b3', marginTop: 8 }}>
                 {po.vendor_name}{po.vendor_public_code ? ' · ' + po.vendor_public_code : ''}
                 {(po.recipient_email || po.vendor_email) ? <React.Fragment> · <em>{po.recipient_email || po.vendor_email}</em></React.Fragment> : null}
@@ -32627,23 +33066,52 @@
                 {' · placed '}{new Date(po.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </div>
             </div>
-            {/* Money block */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, auto)', gap: 24, padding: '16px 22px', background: WARM, textAlign: 'right', flexShrink: 0 }}>
-              {[
-                ['PO cost', '$' + subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 }), INK],
-                ['Lines', items.length, INK],
-                ['Resale value', retail > 0 ? '$' + retail.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—', GREEN],
-              ].map(([l, v, c]) => (
-                <div key={l}>
-                  <div style={{ ...monoLabel, fontSize: 10 }}>{l}</div>
-                  <div style={{ ...serifNum(28), color: c, marginTop: 6 }}>{v}</div>
-                </div>
-              ))}
+            {!isOrderLinked && (
+              <div className="ws-head-actions">
+                {isDraft && items.length > 0 && (
+                  <button className="rov-hbtn" style={{ background: INK, color: PAPER, borderColor: INK }} disabled={poUpdating} onClick={approveAndSend}>
+                    <span className="rov-hico">⤓</span>{poUpdating ? 'Sending...' : 'Approve & send'}
+                  </button>
+                )}
+                {isDraft && (
+                  <button className="rov-hbtn" onClick={() => { setAddingItem(true); setAddItemMode('sku'); }}><span className="rov-hico">+</span>Add line</button>
+                )}
+                {isSentOrLater && (
+                  <button className="rov-hbtn" onClick={() => bulkUpdatePOItemStatus('received')}><span className="rov-hico">⎘</span>Mark all received</button>
+                )}
+                <button className="rov-hbtn" onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + editId + '/pdf?preview=true'); setPoDocPreview({ url, po }); } catch(e) { alert('Failed to load PDF'); } }}>
+                  View PDF
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* KPI strip — PO stats under the title, ws-kpis DNA (values already computed) */}
+          <div className="ws-kpis">
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">PO total</div>
+              <div className="ws-kpi-v">${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Resale value</div>
+              <div className="ws-kpi-v" style={retail > 0 ? { color: GREEN } : undefined}>{retail > 0 ? '$' + retail.toLocaleString(undefined, { minimumFractionDigits: 2 }) : '—'}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Lines</div>
+              <div className="ws-kpi-v">{items.length}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Vendor</div>
+              <div className="ws-kpi-v">{po.vendor_name}{po.vendor_public_code ? ' · ' + po.vendor_public_code : ''}</div>
+            </div>
+            <div className="ws-kpi">
+              <div className="ws-kpi-l">Sent</div>
+              <div className="ws-kpi-v">{sentDone ? (fmtDay(sentAt) || '—') : 'Not sent'}</div>
             </div>
           </div>
 
-          {/* Action bar (standalone editable) or Locked banner (order-attached) */}
-          {isOrderLinked ? (
+          {/* Locked banner (order-attached POs keep their explanatory banner + actions) */}
+          {isOrderLinked && (
             <div style={{ display: 'flex', gap: 18, alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', background: WARM, border: '0.5px solid ' + ACCENT + '44', borderLeft: '3px solid ' + ACCENT, marginBottom: 22 }}>
               <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
                 <span style={{ width: 34, height: 34, flexShrink: 0, background: PAPER, border: '0.5px solid ' + INK + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>🔒</span>
@@ -32660,27 +33128,6 @@
                 <button style={{ padding: '9px 14px', background: INK, color: PAPER, font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', border: 'none' }} onClick={() => navigate('order-detail', po.order_id)}>Edit on order →</button>
                 <button style={{ padding: '9px 14px', border: '0.5px solid ' + INK + '55', color: INK, font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer', background: 'transparent' }} onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + editId + '/pdf?preview=true'); setPoDocPreview({ url, po }); } catch(e) { alert('Failed to load PDF'); } }}>View PDF</button>
               </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', gap: 6, marginBottom: 22, alignItems: 'center', flexWrap: 'wrap', paddingBottom: 16, borderBottom: '0.5px solid ' + INK + '18' }}>
-              {isDraft && items.length > 0 && (
-                <button style={{ padding: '9px 14px', background: INK, color: PAPER, border: '0.5px solid ' + INK, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, font: '500 12px/1 Inter, sans-serif', letterSpacing: '0.04em' }} disabled={poUpdating} onClick={approveAndSend}>
-                  ⤓ {poUpdating ? 'Sending...' : 'Approve & send'}
-                </button>
-              )}
-              {isDraft && (
-                <button style={{ padding: '9px 14px', background: 'transparent', color: INK, border: '0.5px solid ' + INK + '33', cursor: 'pointer', font: '500 12px/1 Inter, sans-serif', letterSpacing: '0.04em' }} onClick={() => { setAddingItem(true); setAddItemMode('sku'); }}>
-                  + Add line
-                </button>
-              )}
-              {isSentOrLater && (
-                <button style={{ padding: '9px 14px', background: 'transparent', color: INK, border: '0.5px solid ' + INK + '33', cursor: 'pointer', font: '500 12px/1 Inter, sans-serif', letterSpacing: '0.04em' }} onClick={() => bulkUpdatePOItemStatus('received')}>
-                  ⎘ Mark all received
-                </button>
-              )}
-              <button style={{ padding: '9px 14px', background: 'transparent', color: INK, border: '0.5px solid ' + INK + '33', cursor: 'pointer', font: '500 12px/1 Inter, sans-serif', letterSpacing: '0.04em' }} onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + editId + '/pdf?preview=true'); setPoDocPreview({ url, po }); } catch(e) { alert('Failed to load PDF'); } }}>
-                View PDF
-              </button>
             </div>
           )}
 
@@ -32917,6 +33364,33 @@
 
             {/* Right column */}
             <div style={{ display: 'grid', gap: 20, alignContent: 'start' }}>
+              {/* Approved by — record owner (unified ws-owner card, Phase 3).
+                  PO payload carries approved_by (staff id) + approved_by_name. */}
+              <PdCard title="Approved by">
+                <div style={{ padding: '18px 20px' }}>
+                  {po.approved_by_name ? (
+                    <div className="ws-owner">
+                      <div className="qw-avatar">{(po.approved_by_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name">
+                          {po.approved_by_name}
+                          {po.approved_by === repInfo.id && <span className="ws-you-tag">You</span>}
+                        </div>
+                        <div className="ws-owner-meta">Approved &amp; sent this PO{sentAt ? ' · ' + fmtDay(sentAt) : ''}</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="ws-owner">
+                      <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Not yet approved</div>
+                        <div className="ws-owner-meta">Approve &amp; send records the owner</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </PdCard>
+
               {/* Vendor card */}
               <PdCard title="Vendor">
                 <div style={{ padding: '18px 20px', display: 'grid', gap: 12 }}>
