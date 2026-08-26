@@ -764,25 +764,33 @@
           u.searchParams.delete('x.app');
           return `/api/img?url=${encodeURIComponent(u.toString())}&w=${width}`;
         }
-        // All other vendor domains: route through our resize proxy for
-        // webp conversion, right-sizing, and nginx edge caching.
-        const PROXY_DOMAINS = [
-          'cdn.msisurfaces.com', 'elysiumtile.com',
-          'melangetile.com', 'ragnousa.com', 'onetile.us', 'energieker.it',
-          'emilgroup.it', 'platformsurfaces.com', 'lafabbrica.it',
-          'cercomceramiche.it', 'supergres.com', 'onetile.it',
-          'landoftile.com', 'milestonetiles.com', 'midwesttile.com',
-          'domita.it', 'refin-ceramic-tiles.com', 'tilelook.com',
-          'somertile.com', 'equipeceramicas.com', 'edilportale.com', 'cegoceramiche.com',
-          'manningtonprod.pimcoreclient.com', 'www.hartco.com',
-          'armstrongflooring.com', 'style-access.com'
-        ];
-        if (url.startsWith('/uploads/rom440/') || PROXY_DOMAINS.some(d => url.includes(d))) {
+        // Everything else — any vendor origin or local upload — routes through
+        // our resize proxy for right-sizing, webp/avif, and the nginx 30-day
+        // edge cache. Raw fall-through meant cards loaded multi-hundred-KB
+        // originals straight from slow vendor WordPress hosts.
+        if (url.startsWith('/uploads/') || url.startsWith('http')) {
           return `/api/img?url=${encodeURIComponent(url)}&w=${width}`;
         }
       } catch (e) { /* malformed URL — return as-is */ }
       return url;
     }
+
+    // If the resize proxy fails for some origin (blocked UA, fetch error), fall
+    // back to the raw image instead of a broken tile. One capture-phase
+    // listener covers every <img> ever rendered.
+    document.addEventListener('error', (e) => {
+      const el = e.target;
+      if (el && el.tagName === 'IMG' && el.src && el.src.includes('/api/img?url=')) {
+        try {
+          const raw = new URL(el.src, location.origin).searchParams.get('url');
+          if (raw && raw.startsWith('http') && !el.dataset.rawFallback) {
+            el.dataset.rawFallback = '1';
+            el.removeAttribute('srcset');
+            el.src = raw;
+          }
+        } catch (err) { /* leave as-is */ }
+      }
+    }, true);
 
     function optimizeSrcSet(url, sizes) {
       if (!url || typeof url !== 'string') return {};
