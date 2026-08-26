@@ -31649,6 +31649,15 @@ function rescheduleSource(source) {
 }
 
 async function initScheduler() {
+  // Scheduled scrapes run ONLY in production. A dev stack left running would
+  // fire the same schedules with the same vendor credentials as the prod
+  // server — single-session portals (Elysium, TradePro, Bosphorus…) kick one
+  // login when the other connects, so both runs fail. Set ENABLE_SCHEDULER=1
+  // to force-enable locally for scheduler development.
+  if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_SCHEDULER !== '1') {
+    console.log('[Scheduler] Disabled outside production (set ENABLE_SCHEDULER=1 to override)');
+    return;
+  }
   try {
     // Idempotent re-init: stop and drop every task we previously registered so a
     // second initScheduler() call can't leak duplicate cron timers. Without this,
