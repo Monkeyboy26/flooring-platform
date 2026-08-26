@@ -27,7 +27,8 @@ const { Pool } = require('pg');
 
 // ── Config ──────────────────────────────────────────────────────────
 
-const DB_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/flooring_pim';
+const DB_URL = process.env.DATABASE_URL ||
+  `postgresql://${process.env.DB_USER || 'postgres'}:${process.env.DB_PASSWORD || 'postgres'}@${process.env.DB_HOST || 'localhost'}:${process.env.DB_PORT || 5432}/${process.env.DB_NAME || 'flooring_pim'}`;
 const DRY_RUN = process.argv.includes('--dry-run');
 
 // ── Helper: page header / footer detection ──────────────────────────
@@ -781,12 +782,22 @@ async function importPricing(pool, items) {
   for (const { item, dbRow, score } of assignments) {
     const { sellBy, priceBasis } = mapUnitOfMeasure(item.um);
 
+    // touch updated_at on every matched SKU so rows the list no longer carries
+    // can be found (and deactivated as discontinued) after the run
     await pool.query(
-      `UPDATE skus SET sell_by = $1 WHERE id = $2 AND sell_by != $1`,
+      `UPDATE skus SET sell_by = COALESCE($1, sell_by), updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
       [sellBy, dbRow.sku_id]
     );
 
-    const retailPrice = +(Math.round(item.price * 1.6 / 0.05) * 0.05).toFixed(2); // default 1.6x markup
+    // 1.6x keystone, rounded DOWN to .x9 with the covering floor for per-sqft
+    // rows — platform charm-pricing rule (see backfill-round-down-nine.mjs)
+    const nineDown = (v) => {
+      const cents = Math.round(Number(v) * 100);
+      return Math.max(9, Math.floor((cents - 9) / 10) * 10 + 9) / 100;
+    };
+    const floorMin = (priceBasis === 'per_sqft' || priceBasis === 'sqft') ? item.price + 0.99 : 0;
+    let retailPrice = nineDown(Math.max(item.price * 1.6, floorMin));
+    if (floorMin > 0 && retailPrice < floorMin - 1e-9) retailPrice = Math.round((retailPrice + 0.10) * 100) / 100;
     await pool.query(`
       INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
       VALUES ($1, $2, $3, $4)
