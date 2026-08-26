@@ -6,6 +6,12 @@
       ? 'http://localhost:3001'
       : '';
 
+    // Scrolling over a focused number input silently changes its value — blur so the wheel just scrolls.
+    document.addEventListener('wheel', (e) => {
+      const el = document.activeElement;
+      if (el && el.tagName === 'INPUT' && el.type === 'number' && el.contains(e.target)) el.blur();
+    }, { passive: true });
+
     function getSessionId() {
       let id = localStorage.getItem('cart_session_id');
       if (!id) {

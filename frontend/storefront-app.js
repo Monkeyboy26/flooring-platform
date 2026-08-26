@@ -1,6 +1,10 @@
 (() => {
   const { useState, useEffect, useRef, useCallback, useMemo } = React;
   const API = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:3001" : "";
+  document.addEventListener("wheel", (e) => {
+    const el = document.activeElement;
+    if (el && el.tagName === "INPUT" && el.type === "number" && el.contains(e.target)) el.blur();
+  }, { passive: true });
   function getSessionId() {
     let id = localStorage.getItem("cart_session_id");
     if (!id) {
