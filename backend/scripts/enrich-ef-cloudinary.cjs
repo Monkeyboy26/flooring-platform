@@ -248,6 +248,17 @@ async function main() {
     const colorCode = extractColorCode(productColor);
     if (!style || !colorCode) { swatchNoMatch++; continue; }
 
+    // Cross-check: EF filenames encode {style}_{color}. When the filename's
+    // color code disagrees with the metadata's, the asset is mislabeled on
+    // EF's side (seen on 4740_4021 tagged "Nautical") — trust the filename
+    // and skip rather than assign a wrong-color photo.
+    const fnMatch = String(img.public_id || '').match(/^[A-Z0-9]+_(\d{2,5})_/i);
+    if (fnMatch && fnMatch[1].replace(/^0+/, '') !== String(colorCode).replace(/^0+/, '')) {
+      console.log(`  [SKIP mislabeled] ${img.public_id}: filename color ${fnMatch[1]} != metadata color ${colorCode}`);
+      swatchNoMatch++;
+      continue;
+    }
+
     const matchedSkus = (skuIndex[style] || {})[colorCode] || [];
     if (matchedSkus.length === 0) { swatchNoMatch++; continue; }
 
