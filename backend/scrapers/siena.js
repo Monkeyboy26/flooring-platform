@@ -265,10 +265,17 @@ async function extractCollectionImages(page, url) {
  * 3. Color name starts with label (e.g., "Grey" → "Grey Polished")
  * 4. Label starts with color (e.g., "Black Matte/ Glossy" → "Black")
  */
-function matchLabelToColor(label, colors) {
+function matchLabelToColor(label, colors, collectionName = '') {
   if (!label || !colors.length) return null;
-  const clean = label.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  // Normalize the ×/X multiply sign to 'x' so size tokens (e.g. "24×40") are recognized,
+  // then drop remaining punctuation.
+  let clean = label.toLowerCase().replace(/[×✕✖]/g, 'x')
+    .replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
   if (clean.length < 2) return null;
+
+  // Strip a leading collection-name prefix ("CARPET SAND 24x40" → "sand 24x40")
+  const collClean = (collectionName || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+  if (collClean && clean.startsWith(collClean + ' ')) clean = clean.slice(collClean.length).trim();
 
   // Normalize color names consistently (collapse whitespace)
   const norm = c => c.toLowerCase().replace(/\s+/g, ' ').trim();
@@ -327,6 +334,18 @@ function matchLabelToColor(label, colors) {
     }
   }
   if (best) return best;
+
+  // 4. Unique whole-word match: exactly one color appears as a standalone word in the
+  //    label (handles size/collection-suffixed captions like "SAND 24x40" → Sand).
+  //    Only fires when a SINGLE color matches — ambiguous captions stay unmatched.
+  const wordHits = [];
+  for (const c of colors) {
+    const cl = norm(c);
+    if (cl.length < 4) continue;
+    const re = new RegExp(`\\b${cl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`);
+    if (re.test(clean)) wordHits.push(c);
+  }
+  if (wordHits.length === 1) return wordHits[0];
 
   return null;
 }
@@ -538,10 +557,7 @@ async function run() {
 
       console.log(`    Found ${result.swatches.length} swatch + ${result.lifestyleImages.length} lifestyle images`);
 
-      // Gather all colors for this collection
-      const collData = PRICE_LIST[collectionName];
-      if (!collData) { await delay(500); continue; }
-
+      // Gather all colors for this collection (collData from the loop above)
       const allColors = [];
       for (const item of collData.items) {
         if (item.colors) allColors.push(...item.colors);
@@ -567,7 +583,7 @@ async function run() {
         // 1. Explicit caption→color mapping (highest priority)
         // 2. Conservative fuzzy match by label only (no filename guessing)
         const matchedColor = captionMap[swatch.label] ||
-                             matchLabelToColor(swatch.label, uniqueColors);
+                             matchLabelToColor(swatch.label, uniqueColors, collectionName);
         if (!matchedColor) {
           console.log(`    [UNMATCHED] caption="${swatch.label}" | available: ${uniqueColors.join(', ')}`);
           continue;
