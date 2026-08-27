@@ -64,6 +64,7 @@ export const RULES = [
             OR p.name ~ '  ' OR s.variant_name ~ '  '
             OR s.variant_name ~ '(^\\s*,|,\\s*,|,\\s*$)'
             OR p.name ~ '(^\\s*,|,\\s*,|,\\s*$)'
+            OR s.variant_name ~* '(^|, )([^,]+), \\2(,|$)'
           )
       `, [vendorId]);
       return rows.map(r => ({
