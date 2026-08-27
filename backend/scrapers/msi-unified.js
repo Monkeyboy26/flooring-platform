@@ -34,11 +34,20 @@ import {
   upsertPackaging, upsertPricing,
   upsertMediaAsset, saveSkuImages,
   preferProductShot, isLifestyleUrl, filterImageUrls, filterImagesByVariant,
-  appendLog, addJobError, applySheetSelling,
+  appendLog, addJobError, applySheetSelling, isTrimPiece, PER_SHEET_CATEGORY_SLUGS,
 } from './base.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Carton packaging reference (derived from the MSI price list — see the JSON's
+// _source note). The 832's PO4 omits carton counts for EA/PC-packaged wall tile,
+// so per-box selling and price-basis reconciliation need this. Packaging only;
+// prices are never read from it.
+let PACKAGING_REF = {};
+try {
+  PACKAGING_REF = JSON.parse(fs.readFileSync(path.join(__dirname, '../data/msi/carton-packaging.json'), 'utf-8')).items || {};
+} catch { /* reference optional — reconciliation falls back to per-piece pricing */ }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CLI flags
@@ -525,6 +534,9 @@ function finalizeItem(item) {
       item.sqft_per_box = sqftPerPiece;
     }
   }
+  // Keep the per-piece area itself — price-basis reconciliation at upsert time
+  // needs it independent of whatever sqft_per_box ends up holding.
+  item.sqft_per_piece = sqftPerPiece;
 
   // Pricing
   const lprPrices = item.pricing.filter(p => p.price_type === 'LPR');
@@ -1011,21 +1023,77 @@ async function phase2_edi832(pool, vendorId, source, log) {
     for (const item of group.items) {
       const internalSku = makeInternalSku(item.vendor_sku, item.product_name);
       const vendorSku = item.vendor_sku || internalSku;
-      const sellBy = item.sell_by || 'box';
+      let sellBy = item.sell_by || 'box';
       const isItemAccessory = item._isAccessory || group.isAccessory;
       const variantType = isItemAccessory ? 'accessory' : null;
       const variantName = buildVariantName(item, isItemAccessory);
 
+      // ── Price-basis ↔ selling-basis reconciliation ─────────────────────────
+      // The 832 prices items on its own basis (usually SQFT) independent of how
+      // PO4 says they pack (EA/PC ⇒ sell_by 'unit'). Storing an SF rate on a
+      // per-piece SKU sells a 2-sqft Dymo tile below cost and a 0.12-sqft subway
+      // piece at 8×. Convert price and/or selling unit until they agree:
+      //   • natural stone stays per-piece with the per-sqft RATE stored
+      //     (storefront/cart compute piece price = rate × sqft_per_box — the
+      //     platform per-piece stone model, see convert-natural-stone-per-piece.cjs)
+      //   • field/wall tile with known cartons sells per box at the SF price
+      //   • per-sheet products and anything carton-less price the piece itself
+      let _cost = item.cost || 0;
+      let _retail = item.retail_price || Math.round(_cost * 2 * 100) / 100;
+      const _ref = PACKAGING_REF[vendorSku.toUpperCase()] || null;
+      const _perPieceSqft = item.sqft_per_piece || (_ref && _ref.sqft_per_piece) || null;
+      const _priceUom = (item.unit_of_measure || '').toUpperCase();
+      const _sfPriced = _priceUom === 'SF' || _priceUom === 'FT2';
+      const _eaPriced = _priceUom === 'EA' || _priceUom === 'PC' || _priceUom === 'EACH';
+      const _fullName = `${group.baseName} ${variantName || ''}`;
+      const _sheetItem = PER_SHEET_CATEGORY_SLUGS.has(categorySlug) || /mosaic/i.test(_fullName);
+      const _trim = isTrimPiece(_fullName) || isItemAccessory;
+      const _refCarton = !!(_ref && _ref.pieces_per_box > 0 && _ref.sqft_per_box > 0);
+      let stonePerPiece = false;
+      if (item.cost || item.retail_price) {
+        if (sellBy === 'unit' && _sfPriced && !_trim) {
+          if (categorySlug === 'natural-stone') {
+            stonePerPiece = true;
+            if (!item.sqft_per_box && _perPieceSqft) item.sqft_per_box = _perPieceSqft;
+          } else if (!_sheetItem && _refCarton) {
+            sellBy = 'box';
+            item.sqft_per_box = _ref.sqft_per_box;
+            item.pieces_per_box = _ref.pieces_per_box;
+          } else if (_perPieceSqft) {
+            _cost = Math.round(_cost * _perPieceSqft * 100) / 100;
+            _retail = Math.round(_retail * _perPieceSqft * 100) / 100;
+          }
+        } else if (sellBy === 'unit' && _eaPriced && categorySlug === 'backsplash-wall'
+            && !_trim && _refCarton && _perPieceSqft) {
+          // EA-priced backsplash: convert to per-sqft and sell cartons like its siblings
+          sellBy = 'box';
+          _cost = Math.round(_cost / _perPieceSqft * 10000) / 10000;
+          _retail = Math.round(_retail / _perPieceSqft * 100) / 100;
+          item.sqft_per_box = _ref.sqft_per_box;
+          item.pieces_per_box = _ref.pieces_per_box;
+        } else if (sellBy === 'box' && _eaPriced && _perPieceSqft && Math.abs(_perPieceSqft - 1) > 0.02) {
+          // Box-sold but the 832 priced the piece — convert to per-sqft
+          _cost = Math.round(_cost / _perPieceSqft * 10000) / 10000;
+          _retail = Math.round(_retail / _perPieceSqft * 100) / 100;
+        }
+      }
+      // Correct plainly-wrong carton coverage on box-sold SKUs — the PO4 fallback
+      // stores per-PIECE area in sqft_per_box when pieces-per-pack is missing.
+      if (sellBy === 'box' && _refCarton && item.sqft_per_box
+          && Math.abs(item.sqft_per_box - _ref.sqft_per_box) > 0.05 * _ref.sqft_per_box) {
+        item.sqft_per_box = _ref.sqft_per_box;
+        if (!item.pieces_per_box) item.pieces_per_box = _ref.pieces_per_box;
+      }
+
       // Mosaics / stacked stone sell per sheet — convert the per-sqft price to a
       // per-sheet price from box packaging (see selling-conventions). Ambiguous
       // boxes (no piece count) stay as boxes.
-      const _cost = item.cost || 0;
-      const _retail = item.retail_price || Math.round(_cost * 2 * 100) / 100;
       const sheet = applySheetSelling({
-        categorySlug, sellBy, name: `${group.baseName} ${variantName || ''}`,
+        categorySlug, sellBy, name: _fullName,
         sqft_per_box: item.sqft_per_box, pieces_per_box: item.pieces_per_box,
         cost: _cost, retail_price: _retail,
       });
+      if (stonePerPiece) sheet.priceBasis = 'per_sqft';
 
       const skuRow = await upsertSku(pool, {
         product_id: productId, vendor_sku: vendorSku,
