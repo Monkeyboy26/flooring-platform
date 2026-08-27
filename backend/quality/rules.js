@@ -350,6 +350,49 @@ export const RULES = [
   },
 
   {
+    key: 'undercounted-pieces',
+    title: 'Single-piece box whose area is a clean multiple of the piece (piece count undercounted)',
+    severity: 'warn',
+    async run(pool, { vendorId }) {
+      // A box marked pieces_per_box=1 whose sqft_per_box is a clean integer
+      // multiple (2-30) of the single-piece face area really holds that many
+      // pieces (BED plank boxes, Daltile Assemble/Delegate). The clean-multiple
+      // test is what separates this from area corruption (SlimLite, non-integer
+      // 40x ratios). Slabs/mosaics excluded — their name size is thickness/chip,
+      // not a face dimension. Mirrors fix-packaging-piececount-accessories-2026-08.mjs.
+      const CATS = ['porcelain-tile', 'ceramic-tile', 'wood-look-tile', 'large-format-tile',
+        'backsplash-wall', 'engineered-hardwood', 'solid-hardwood', 'laminate', 'lvp-plank', 'lvt-tile'];
+      const { rows } = await pool.query(`
+        SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
+               p.name, s.variant_name, pk.sqft_per_box AS sf,
+               (regexp_match(s.variant_name,'([0-9]+(?:\\.[0-9]+)?)x([0-9]+(?:\\.[0-9]+)?)'))[1]::numeric AS w,
+               (regexp_match(s.variant_name,'([0-9]+(?:\\.[0-9]+)?)x([0-9]+(?:\\.[0-9]+)?)'))[2]::numeric AS h
+        ${SKU_FROM}
+          AND s.sell_by = 'box' AND pk.pieces_per_box = 1 AND pk.sqft_per_box > 0
+          AND s.variant_type IS DISTINCT FROM 'accessory'
+          AND c.slug = ANY($2)
+          AND s.variant_name ~ '[0-9]+(\\.[0-9]+)?x[0-9]+'
+      `, [vendorId, CATS]);
+      const out = [];
+      for (const r of rows) {
+        const w = parseFloat(r.w), h = parseFloat(r.h), sf = parseFloat(r.sf);
+        if (!(w >= 3 && w <= 130 && h >= 3 && h <= 130)) continue;
+        const pieceArea = w * h / 144;
+        if (sf < pieceArea * 1.8) continue;
+        const pcs = Math.round(sf / pieceArea);
+        if (pcs < 2 || pcs > 30) continue;
+        if (Math.abs(sf - pcs * pieceArea) > sf * 0.08) continue;
+        out.push({
+          sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+          summary: `${r.vendor_code}: "${r.name}${r.variant_name ? ' — ' + r.variant_name : ''}" is 1 piece/box but ${sf} sqft ≈ ${pcs}× the ${w}x${h} piece — piece count likely ${pcs}`,
+          detail: { sqft_per_box: sf, size: `${w}x${h}`, implied_pieces: pcs },
+        });
+      }
+      return out;
+    },
+  },
+
+  {
     key: 'missing-roll-width',
     title: 'Roll goods without roll_width_ft (cut math incomplete)',
     severity: 'warn',
