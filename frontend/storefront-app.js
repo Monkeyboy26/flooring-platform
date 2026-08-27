@@ -5327,6 +5327,7 @@
       return () => window.removeEventListener("scroll", handleDualSticky);
     }, []);
     useEffect(() => {
+      let cancelled = false;
       setLoading(true);
       setFetchError(null);
       setSelectedImage(0);
@@ -5337,10 +5338,22 @@
       if (t) headers["X-Trade-Token"] = t;
       const ct = localStorage.getItem("customer_token") || sessionStorage.getItem("customer_token");
       if (ct) headers["X-Customer-Token"] = ct;
-      fetch(API + "/api/storefront/skus/" + skuId, { headers }).then((r) => {
-        if (!r.ok) throw new Error(r.status === 404 ? "not_found" : "server_error");
-        return r.json();
-      }).then((data) => {
+      const loadSku = async () => {
+        const delays = [400, 900];
+        for (let attempt = 0; ; attempt++) {
+          try {
+            const r = await fetch(API + "/api/storefront/skus/" + skuId, { headers });
+            if (r.status === 404) throw new Error("not_found");
+            if (!r.ok) throw new Error("server_error");
+            return await r.json();
+          } catch (err) {
+            if (err.message === "not_found" || attempt >= delays.length) throw err;
+            await new Promise((res) => setTimeout(res, delays[attempt]));
+          }
+        }
+      };
+      loadSku().then((data) => {
+        if (cancelled) return;
         if (data.redirect_to_sku) {
           onSkuClick(data.redirect_to_sku);
           return;
@@ -5402,10 +5415,14 @@
           }
         }
       }).catch((err) => {
+        if (cancelled) return;
         console.error(err);
         setFetchError(err.message === "not_found" ? "not_found" : "error");
         setLoading(false);
       });
+      return () => {
+        cancelled = true;
+      };
     }, [skuId]);
     useEffect(() => {
       if (!sku) return;
