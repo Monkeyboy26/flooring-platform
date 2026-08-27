@@ -1,0 +1,4452 @@
+{
+  "ARAL": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Cream",
+          "Pearl"
+        ],
+        "finish": "Polished",
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 70.91,
+        "bxPl": 35,
+        "price": 4.59,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Cream",
+          "Pearl"
+        ],
+        "finish": "Matte",
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 70.91,
+        "bxPl": 35,
+        "price": 3.89,
+        "unit": "sf"
+      }
+    ],
+    "slug": "aral"
+  },
+  "AROMA": {
+    "material": "ceramic",
+    "origin": "Italy",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Amaranto",
+          "Dark Blue",
+          "Dark Verde",
+          "Rosa",
+          "Sabbia",
+          "Tabbaco",
+          "Turquoise",
+          "Verde"
+        ],
+        "size": "3x10",
+        "pcs": 50,
+        "sf": 7.75,
+        "lbs": 27.17,
+        "bxPl": 60,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x10",
+        "pcs": 10,
+        "price": 5.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "aroma"
+  },
+  "ASSI D'ALPE": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "woodlook",
+    "items": [
+      {
+        "colors": [
+          "Badia",
+          "Ciasa",
+          "Maso",
+          "Stube"
+        ],
+        "size": "8x36",
+        "pcs": 6,
+        "sf": 11.69,
+        "lbs": 59.4,
+        "bxPl": 48,
+        "price": 4.19,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x36",
+        "price": 11.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "price": 9.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "assi-dalpe"
+  },
+  "ATLAS": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Grafito",
+          "Gris",
+          "Taupe"
+        ],
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 72.75,
+        "bxPl": 48,
+        "price": 2.89,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Hexagon Multi Cold, Warm"
+        ],
+        "size": "9x10",
+        "pcs": 25,
+        "sf": 11.9,
+        "lbs": 55,
+        "bxPl": 48,
+        "price": 3.59,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Hexagon Patchwork Cold, Warm"
+        ],
+        "size": "9x10",
+        "pcs": 25,
+        "sf": 11.9,
+        "lbs": 55,
+        "bxPl": 48,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "pcs": 30,
+        "lbs": 2.9,
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "pcs": 10,
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "colors": [
+          "Hexagon"
+        ],
+        "size": "2x2",
+        "price": 10.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "atlas"
+  },
+  "BETON": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Avorio"
+        ],
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 16.03,
+        "lbs": 51.92,
+        "bxPl": 60,
+        "price": 1.49,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "pcs": 10,
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "pcs": 10,
+        "price": 9.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "beton"
+  },
+  "BIOPHILIC": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Dark Grey",
+          "Greige",
+          "Grey"
+        ],
+        "size": "12x24",
+        "pcs": 7,
+        "sf": 13.56,
+        "lbs": 53.02,
+        "bxPl": 40,
+        "price": 3.79,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Dark Grey",
+          "Grey"
+        ],
+        "size": "24x24",
+        "pcs": 5,
+        "sf": 19.37,
+        "lbs": 75.63,
+        "bxPl": 32,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Greige",
+          "Grey",
+          "White"
+        ],
+        "finish": "New Packaging",
+        "size": "24x24",
+        "pcs": 4,
+        "sf": 15.49,
+        "lbs": 75.63,
+        "bxPl": 40,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "pcs": 10,
+        "price": 7.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "pcs": 10,
+        "price": 10.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "colors": [
+          "Hexagon"
+        ],
+        "size": "2x2",
+        "pcs": 10,
+        "price": 12.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "colors": [
+          "Basket Weave"
+        ],
+        "size": "2x2",
+        "pcs": 10,
+        "price": 12.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "colors": [
+          "Staggered"
+        ],
+        "size": "2x6",
+        "pcs": 10,
+        "price": 9.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "biophilic"
+  },
+  "BISEL": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Bianco Brillo",
+          "Calacata Beige Brillo",
+          "Calacata Gris Brillo",
+          "Carrara Brillo",
+          "Light Grey Brillo"
+        ],
+        "size": "4x8",
+        "pcs": 50,
+        "sf": 10.76,
+        "lbs": 25.52,
+        "bxPl": 96,
+        "price": 3.59,
+        "unit": "sf"
+      },
+      {
+        "type": "Bisel Bullnose",
+        "size": "4x8",
+        "pcs": 25,
+        "price": 4.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Bisel Bullnose Corner",
+        "size": "4x4",
+        "pcs": 50,
+        "price": 5.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "brillo"
+  },
+  "BLANCOS": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Blanco Brillo"
+        ],
+        "finish": "New Packaging",
+        "size": "12x36",
+        "pcs": 5,
+        "sf": 14.52,
+        "lbs": 45.1,
+        "bxPl": 63,
+        "price": 3.79,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Palas Blanco Brillo"
+        ],
+        "size": "12x36",
+        "pcs": 4,
+        "sf": 11.62,
+        "lbs": 46.62,
+        "bxPl": 60,
+        "price": 3.79,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x36",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "price": 9.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "colors": [
+          "Hexagon"
+        ],
+        "size": "2x2",
+        "price": 10.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "blancos"
+  },
+  "BOHEMIAN": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Blend Natural",
+          "Blue Natural",
+          "Sand Natural"
+        ],
+        "size": "20x40",
+        "pcs": 3,
+        "sf": 15.99,
+        "lbs": 75.77,
+        "bxPl": 27,
+        "price": 6.29,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x40",
+        "price": 13.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "colors": [
+          "Hexagon"
+        ],
+        "size": "2x2",
+        "price": 14.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "price": 13.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "bohemian"
+  },
+  "BORNEO": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "woodlook",
+    "items": [
+      {
+        "colors": [
+          "Ivory",
+          "Nogal",
+          "Roble",
+          "Straw"
+        ],
+        "size": "9x48",
+        "pcs": 5,
+        "sf": 14.85,
+        "lbs": 61.42,
+        "bxPl": 48,
+        "price": 2.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x48",
+        "price": 13.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "borneo"
+  },
+  "BUBBLE": {
+    "material": "ceramic",
+    "origin": "Italy",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Black",
+          "Coffee",
+          "Red"
+        ],
+        "size": "3x12",
+        "pcs": 44,
+        "sf": 10.65,
+        "lbs": 28.97,
+        "bxPl": 56,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Black",
+          "Coffee",
+          "Red",
+          "White"
+        ],
+        "finish": "Déco",
+        "size": "3x12",
+        "pcs": 40,
+        "sf": 9.68,
+        "lbs": 28.32,
+        "bxPl": 56,
+        "price": 6.39,
+        "unit": "sf"
+      },
+      {
+        "type": "decor",
+        "colors": [
+          "Gold",
+          "Platinum"
+        ],
+        "size": "3x12",
+        "price": 25.99,
+        "unit": "pc"
+      },
+      {
+        "type": "decor",
+        "colors": [
+          "Cofee Time"
+        ],
+        "size": "3x12",
+        "price": 210,
+        "unit": "set"
+      },
+      {
+        "type": "decor",
+        "colors": [
+          "Mr & Mrs"
+        ],
+        "size": "3x12",
+        "price": 330,
+        "unit": "set"
+      },
+      {
+        "type": "decor",
+        "colors": [
+          "Tea Herbs"
+        ],
+        "size": "3x12",
+        "price": 210,
+        "unit": "set"
+      },
+      {
+        "type": "Jolly",
+        "size": "0.5x12",
+        "price": 5.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "bubble"
+  },
+  "CAMBER": {
+    "material": "ceramic",
+    "origin": "Italy",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Moonlight",
+          "Taupe"
+        ],
+        "size": "7x7",
+        "pcs": 30,
+        "sf": 5.17,
+        "lbs": 20.1,
+        "bxPl": 120,
+        "price": 5.29,
+        "unit": "sf"
+      }
+    ],
+    "slug": "camber"
+  },
+  "CANET": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Beige",
+          "Gris",
+          "Marron"
+        ],
+        "size": "18x18",
+        "pcs": 6,
+        "sf": 11.84,
+        "lbs": 44.79,
+        "bxPl": 52,
+        "price": 3.69,
+        "unit": "sf"
+      }
+    ],
+    "slug": "canet"
+  },
+  "CANVAS": {
+    "material": "ceramic",
+    "origin": "Italy",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Argento",
+          "Avio",
+          "Corda",
+          "Perla",
+          "Tobacco"
+        ],
+        "size": "4x12",
+        "pcs": 30,
+        "sf": 9.68,
+        "lbs": 45.84,
+        "bxPl": 50,
+        "price": 4.59,
+        "unit": "sf"
+      }
+    ],
+    "slug": "canvas"
+  },
+  "CARPET": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor/wall",
+    "items": [
+      {
+        "colors": [
+          "Sand",
+          "Vestige"
+        ],
+        "size": "20x40",
+        "pcs": 3,
+        "sf": 16.14,
+        "lbs": 75.77,
+        "bxPl": 27,
+        "price": 6.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Sand",
+          "Vestige"
+        ],
+        "size": "10x30",
+        "pcs": 7,
+        "sf": 14.31,
+        "lbs": 55.24,
+        "bxPl": 45,
+        "price": 4.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x30",
+        "price": 9.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "price": 13.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "price": 11.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "carpet"
+  },
+  "CARRARA": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor/wall",
+    "items": [
+      {
+        "colors": [
+          "Flat / Ondas"
+        ],
+        "size": "13x24",
+        "pcs": 6,
+        "sf": 12.6,
+        "lbs": 47.3,
+        "bxPl": 48,
+        "price": 2.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "colors": [
+          "Flat only"
+        ],
+        "size": "3x24",
+        "pcs": 30,
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "colors": [
+          "Diamond Shaped Rhomboid"
+        ],
+        "size": "2x6",
+        "price": 10.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "colors": [
+          "Hexagon"
+        ],
+        "size": "2x2",
+        "price": 10.99,
+        "unit": "sh"
+      },
+      {
+        "type": "Pencil",
+        "colors": [
+          "Carrara Polish Pencil"
+        ],
+        "size": "1x12",
+        "pcs": 10,
+        "price": 4.1,
+        "unit": "pc"
+      }
+    ],
+    "slug": "carrara"
+  },
+  "CENTO PER CENTO": {
+    "material": "ceramic",
+    "origin": "Italy",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Almond",
+          "Aqua",
+          "Blanco",
+          "Brown",
+          "Crema",
+          "Dark Brown",
+          "Dark Grey",
+          "Grey",
+          "Purple",
+          "Yellow"
+        ],
+        "size": "5x7",
+        "pcs": 22,
+        "sf": 5.11,
+        "lbs": 16.8,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "type": "decor",
+        "colors": [
+          "Décor Cacao Almond",
+          "Aqua",
+          "Blanco",
+          "Brown",
+          "Crema",
+          "Dark Brown",
+          "Dark Grey",
+          "Grey",
+          "Purple",
+          "Yellow"
+        ],
+        "size": "5x7",
+        "pcs": 22,
+        "sf": 5.11,
+        "lbs": 16.8,
+        "price": 6.29,
+        "unit": "sf"
+      },
+      {
+        "type": "London",
+        "colors": [
+          "London"
+        ],
+        "size": "1.4x7",
+        "pcs": 6,
+        "lbs": 1.8,
+        "price": 9.99,
+        "unit": "pc"
+      },
+      {
+        "type": "London",
+        "colors": [
+          "London Corner"
+        ],
+        "size": "1.4x0.71",
+        "pcs": 4,
+        "lbs": 0.22,
+        "price": 14.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Torello",
+        "colors": [
+          "Torello"
+        ],
+        "size": "0.6x7",
+        "pcs": 6,
+        "lbs": 0.58,
+        "price": 6.49,
+        "unit": "pc"
+      },
+      {
+        "type": "Torello",
+        "colors": [
+          "Torello Corner"
+        ],
+        "size": "0.6x0.6",
+        "pcs": 4,
+        "lbs": 0.35,
+        "price": 11.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "cento-per-cento"
+  },
+  "CHIC": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Cotton",
+          "Grey",
+          "Sky"
+        ],
+        "finish": "Glossy/ Matte",
+        "size": "2.5x10",
+        "pcs": 30,
+        "sf": 5.38,
+        "lbs": 16.94,
+        "bxPl": 138,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Antique",
+          "Rose"
+        ],
+        "finish": "Glossy only",
+        "size": "2.5x10",
+        "pcs": 30,
+        "sf": 5.38,
+        "lbs": 16.94,
+        "bxPl": 138,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "type": "Jolly",
+        "colors": [
+          "Jolly"
+        ],
+        "size": "0.6x12",
+        "pcs": 10,
+        "price": 4.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "chic"
+  },
+  "CIRCE": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor/wall",
+    "items": [
+      {
+        "colors": [
+          "Crema Marfil"
+        ],
+        "size": "12x36",
+        "pcs": 4,
+        "sf": 11.62,
+        "lbs": 44.41,
+        "bxPl": 63,
+        "price": 4.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Crema Marfil Relieve",
+          "Crema Marfil Sigma",
+          "Statuario Sigma"
+        ],
+        "size": "12x36",
+        "pcs": 4,
+        "sf": 11.62,
+        "lbs": 44.41,
+        "bxPl": 63,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "colors": [
+          "FLAT ONLY"
+        ],
+        "size": "3x36",
+        "price": 11.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "colors": [
+          "FLAT ONLY"
+        ],
+        "size": "3x3",
+        "price": 7.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "circe"
+  },
+  "COLOR COLLECTION": {
+    "material": "ceramic",
+    "origin": "Brazil",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Tender Grey",
+          "White Ice"
+        ],
+        "size": "6x18",
+        "pcs": 16,
+        "sf": 12,
+        "lbs": 31.16,
+        "price": 3.19,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Tender Grey",
+          "White Ice"
+        ],
+        "size": "6x6",
+        "pcs": 50,
+        "sf": 12.5,
+        "lbs": 31,
+        "price": 2.49,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Tender Grey"
+        ],
+        "size": "4 1/4x16",
+        "pcs": 23,
+        "sf": 11,
+        "lbs": 30.66,
+        "price": 2.69,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "White Ice"
+        ],
+        "size": "4 1/4x16",
+        "pcs": 32,
+        "sf": 15.33,
+        "lbs": 41.2,
+        "price": 2.69,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Tender Grey",
+          "White Ice"
+        ],
+        "size": "4 1/4x10",
+        "pcs": 38,
+        "sf": 11.25,
+        "lbs": 29.1,
+        "price": 2.49,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Tender Grey",
+          "White Ice"
+        ],
+        "size": "4 1/4x4 1/4",
+        "pcs": 80,
+        "sf": 10,
+        "lbs": 27.12,
+        "price": 2.49,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Tender Grey",
+          "White Ice"
+        ],
+        "size": "3x6",
+        "pcs": 80,
+        "sf": 10,
+        "lbs": 31,
+        "price": 2.49,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "2x6",
+        "pcs": 10,
+        "price": 1.69,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose Corner",
+        "size": "2x2",
+        "pcs": 10,
+        "price": 2.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x6",
+        "pcs": 10,
+        "price": 1.69,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x10",
+        "pcs": 10,
+        "price": 1.69,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose Corner",
+        "size": "3x3",
+        "pcs": 10,
+        "price": 2.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Quarter Round",
+        "size": "3/4x6",
+        "pcs": 10,
+        "price": 1.49,
+        "unit": "pc"
+      },
+      {
+        "type": "Quarter Round",
+        "colors": [
+          "In-Corner Quarter Rounds"
+        ],
+        "size": "3/4x3/4",
+        "pcs": 10,
+        "price": 1.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Quarter Round",
+        "colors": [
+          "Out-Corner Quarter Rounds"
+        ],
+        "size": "3/4x6",
+        "pcs": 10,
+        "price": 1.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "color-collection"
+  },
+  "COLORGLOSS": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Black"
+        ],
+        "size": "10x30",
+        "pcs": 7,
+        "sf": 14.1,
+        "lbs": 50.82,
+        "bxPl": 48,
+        "price": 3.79,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Black",
+          "White"
+        ],
+        "size": "10x30",
+        "pcs": 8,
+        "sf": 16.14,
+        "lbs": 56.32,
+        "bxPl": 48,
+        "price": 3.79,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Black"
+        ],
+        "note": "Bend, Grid",
+        "size": "10x30",
+        "pcs": 7,
+        "sf": 14.1,
+        "lbs": 50.82,
+        "bxPl": 48,
+        "price": 4.59,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Black",
+          "White"
+        ],
+        "note": "Bend, Grid",
+        "size": "10x30",
+        "pcs": 8,
+        "sf": 16.14,
+        "lbs": 56.32,
+        "bxPl": 48,
+        "price": 4.59,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Black",
+          "White"
+        ],
+        "note": "Honey",
+        "size": "10x30",
+        "pcs": 8,
+        "sf": 16.14,
+        "lbs": 56.32,
+        "bxPl": 48,
+        "price": 4.59,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Black",
+          "White"
+        ],
+        "note": "Décor Honey Bijou",
+        "size": "10x30",
+        "pcs": 6,
+        "sf": 12.04,
+        "lbs": 40,
+        "price": 38.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x30",
+        "packing": "30 pcs/ bx",
+        "price": 11.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "packing": "10 sh/ bx",
+        "price": 7.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "colorgloss"
+  },
+  "CORINA": {
+    "material": "porcelain",
+    "origin": "Vietnam",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Brown"
+        ],
+        "finish": "Polished",
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 73,
+        "bxPl": 36,
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Brown",
+          "Grey",
+          "Pearl"
+        ],
+        "finish": "Polished",
+        "size": "24x24",
+        "pcs": 4,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 36,
+        "price": 2.09,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Brown",
+          "Grey",
+          "Pearl"
+        ],
+        "finish": "Polished",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 32,
+        "price": 2.09,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Brown",
+          "Grey",
+          "Pearl"
+        ],
+        "finish": "Matte",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 32,
+        "price": 1.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Subway"
+        ],
+        "finish": "Rectified",
+        "size": "4x12",
+        "packing": "30 pcs = 10 sf/ bx",
+        "sf": 10,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Subway"
+        ],
+        "finish": "Rectified",
+        "size": "3x6",
+        "packing": "60 pcs = 7.5 sf/ bx",
+        "sf": 7.5,
+        "price": 4.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "packing": "10 sh/ bx",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "packing": "10 sh/ bx",
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Hexagon",
+        "size": "2x2",
+        "packing": "10 sh/ bx",
+        "price": 9.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "1x6",
+        "packing": "None stock item, available upon request",
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "packing": "None stock item, available upon request",
+        "price": 6.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x6",
+        "packing": "None stock item, available upon request",
+        "price": 8.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "corina"
+  },
+  "COUNTRY": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Anthracite",
+          "Tobacco",
+          "Vision"
+        ],
+        "size": "2.5x8",
+        "pcs": 76,
+        "sf": 10.76,
+        "lbs": 38.53,
+        "bxPl": 60,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Anthracite",
+          "Ash Blue",
+          "Blanco",
+          "Graphite",
+          "Grey Pearl",
+          "Gris Claro",
+          "Ivory",
+          "Mist Green"
+        ],
+        "size": "2.5x8",
+        "pcs": 38,
+        "sf": 5.38,
+        "lbs": 19.27,
+        "bxPl": 120,
+        "price": 4.79,
+        "unit": "sf",
+        "note": "***New packaging"
+      },
+      {
+        "colors": [
+          "Anthracite",
+          "Ash Blue",
+          "Blanco",
+          "Graphite",
+          "Grey Pearl",
+          "Gris Claro",
+          "Ivory",
+          "Mist Green",
+          "Tobacco",
+          "Vision"
+        ],
+        "size": "2.5x16",
+        "pcs": 38,
+        "sf": 10.76,
+        "lbs": 38.53,
+        "bxPl": 60,
+        "price": 4.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Crochet Tobacco"
+        ],
+        "size": "2.5x8",
+        "pcs": 76,
+        "sf": 10.76,
+        "lbs": 38.53,
+        "bxPl": 60,
+        "price": 5.29,
+        "unit": "pc"
+      },
+      {
+        "colors": [
+          "Hexagon Black",
+          "White"
+        ],
+        "finish": "Matte",
+        "size": "5x4",
+        "pcs": 50,
+        "sf": 5.38,
+        "lbs": 22.1,
+        "bxPl": 84,
+        "price": 5.29,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose",
+        "size": "2.5x8",
+        "packing": "76 pcs/bx; 0.49 lb/pc",
+        "price": 4.49,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose Corner",
+        "size": "2.5x2.5",
+        "packing": "18 pcs/bx",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "London",
+        "size": "2.5x8",
+        "packing": "24 pcs/bx; 0.38 lb/pc",
+        "price": 6.99,
+        "unit": "pc"
+      },
+      {
+        "type": "London Corner",
+        "size": "2.5x2.5",
+        "packing": "N/A",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Quarter Round",
+        "colors": [
+          "Anthracite",
+          "Graphite",
+          "Tobacco",
+          "Vision"
+        ],
+        "size": "1x8",
+        "packing": "34 pcs/bx; 0.10 lb/pc",
+        "price": 3.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Quarter Round Corner",
+        "size": "1x1",
+        "packing": "10 pc/ bx",
+        "price": 4.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Jolly",
+        "size": "0.5x8",
+        "packing": "10 pc/ bx",
+        "price": 4.69,
+        "unit": "pc"
+      },
+      {
+        "type": "Torello",
+        "size": "1x8",
+        "packing": "21 pcs/bx; 0.18 lb/pc",
+        "price": 4.49,
+        "unit": "pc"
+      }
+    ],
+    "slug": "country"
+  },
+  "CROSSWOOD": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "woodlook",
+    "items": [
+      {
+        "colors": [
+          "Bone",
+          "Buff",
+          "Cinder",
+          "Dust"
+        ],
+        "size": "8x48",
+        "pcs": 5,
+        "sf": 13.07,
+        "lbs": 63.8,
+        "bxPl": 24,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "4x48",
+        "packing": "None stock item, available upon request",
+        "price": 11.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "packing": "None stock item, available upon request",
+        "price": 8.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "cross-wood"
+  },
+  "DAINO": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Crema",
+          "Marfil"
+        ],
+        "note": "Ondas",
+        "size": "12x24",
+        "pcs": 6,
+        "sf": 12.6,
+        "lbs": 47.3,
+        "bxPl": 48,
+        "price": 2.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "packing": "30 pcs/ bx",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "packing": "10 sh/ bx",
+        "price": 7.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "daino"
+  },
+  "DE BRICK": {
+    "material": "ceramic",
+    "origin": "Brazil",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Cambridge White",
+          "Luton Ash",
+          "Luton White",
+          "Woodstock Blend",
+          "Yorkshire Light"
+        ],
+        "size": "12x15",
+        "packing": "12 sheets = 9.9 sf = 30.83 lbs; 45 bx/pl, sheet = 4 pcs; Dot mount asymmetric; 2.75x10.25 each brick",
+        "sf": 9.9,
+        "lbs": 30.83,
+        "bxPl": 45,
+        "price": 4.29,
+        "unit": "sf"
+      }
+    ],
+    "slug": "de-brick"
+  },
+  "DEVON": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor/wall",
+    "items": [
+      {
+        "colors": [
+          "Grey",
+          "Taupe"
+        ],
+        "size": "12x36",
+        "pcs": 3,
+        "sf": 8.5,
+        "lbs": 33,
+        "bxPl": 90,
+        "price": 4.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Moon"
+        ],
+        "size": "12x36",
+        "pcs": 6,
+        "sf": 17.11,
+        "lbs": 64.9,
+        "bxPl": 45,
+        "price": 4.29,
+        "unit": "sf",
+        "note": "***New packaging"
+      },
+      {
+        "colors": [
+          "Grey",
+          "Moon",
+          "Taupe"
+        ],
+        "note": "Inlay",
+        "size": "12x36",
+        "pcs": 3,
+        "sf": 8.5,
+        "lbs": 33,
+        "bxPl": 75,
+        "price": 4.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Grey",
+          "Moon",
+          "Taupe"
+        ],
+        "note": "Inlay",
+        "size": "12x36",
+        "pcs": 4,
+        "sf": 11.62,
+        "lbs": 45.1,
+        "bxPl": 63,
+        "price": 4.29,
+        "unit": "sf",
+        "note2": "***New packaging"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x36",
+        "packing": "10 sh/ bx",
+        "price": 11.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "packing": "10 sh/ bx",
+        "price": 10.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "devon"
+  },
+  "DIMSEY": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Anthracite",
+          "Grey",
+          "Jade",
+          "Marine",
+          "Pink",
+          "White"
+        ],
+        "finish": "Flat",
+        "size": "2.6x13",
+        "pcs": 62,
+        "sf": 12.27,
+        "lbs": 37.27,
+        "bxPl": 60,
+        "price": 5.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Anthracite",
+          "Grey",
+          "Jade",
+          "Marine",
+          "Pink",
+          "White"
+        ],
+        "finish": "3D",
+        "size": "2.6x13",
+        "pcs": 46,
+        "sf": 9.04,
+        "lbs": 31.81,
+        "bxPl": 60,
+        "price": 5.79,
+        "unit": "sf"
+      },
+      {
+        "type": "Jolly",
+        "size": "0.6x12",
+        "packing": "40 pcs/bx; 0.18 lb/pc",
+        "price": 5.29,
+        "unit": "pc"
+      }
+    ],
+    "slug": "dimsey"
+  },
+  "ECOLUXE": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Grayish",
+          "Snow"
+        ],
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 78.66,
+        "bxPl": 32,
+        "price": 4.69,
+        "unit": "sf"
+      }
+    ],
+    "slug": "ecoluxe"
+  },
+  "ELEMENTI": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Tobacco"
+        ],
+        "size": "12x24",
+        "pcs": 7,
+        "sf": 13.67,
+        "lbs": 50.29,
+        "bxPl": 40,
+        "price": 2.99,
+        "unit": "sf"
+      },
+      {
+        "type": "decor",
+        "note": "Décor",
+        "colors": [
+          "Beige",
+          "Fumo",
+          "Tobacco"
+        ],
+        "size": "12x24",
+        "pcs": 7,
+        "sf": 13.67,
+        "lbs": 50.29,
+        "bxPl": 40,
+        "price": 8.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "packing": "16 pcs/ bx",
+        "price": 6.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "packing": "10 sh/ bx",
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x6",
+        "packing": "10 sh/ bx",
+        "price": 8.99,
+        "unit": "sh"
+      },
+      {
+        "type": "Small Stainless steel Strip liner",
+        "size": "0.5x24",
+        "packing": "Sold by piece",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Large Stainless steel Strip liner",
+        "size": "1.5x24",
+        "packing": "Sold by piece",
+        "price": 6.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "elementi"
+  },
+  "FACTORY": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Beige",
+          "Dark Grey",
+          "Grey",
+          "White"
+        ],
+        "size": "12x24",
+        "pcs": 6,
+        "sf": 11.62,
+        "lbs": 52.6,
+        "bxPl": 40,
+        "price": 4.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Beige",
+          "Dark Grey",
+          "Grey",
+          "White"
+        ],
+        "size": "24x24",
+        "pcs": 3,
+        "sf": 11.62,
+        "lbs": 52.6,
+        "bxPl": 40,
+        "price": 4.39,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Grey"
+        ],
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 77.13,
+        "bxPl": 27,
+        "price": 5.49,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "packing": "10 pcs/ bx",
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "packing": "10 sh/ bx",
+        "price": 11.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Hexagon",
+        "size": "2x2",
+        "packing": "10 sh/ bx",
+        "price": 13.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Basket Weave",
+        "size": "2x2",
+        "packing": "10 sh/ bx",
+        "price": 13.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Stagger",
+        "size": "2x6",
+        "packing": "10 sh/ bx",
+        "price": 11.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "factory-2"
+  },
+  "FACTORYHEX": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Antracite",
+          "Stone Marfil",
+          "Stone White Statuario",
+          "White"
+        ],
+        "size": "9x19",
+        "pcs": 12,
+        "sf": 12.18,
+        "lbs": 46.52,
+        "bxPl": 40,
+        "price": 4.29,
+        "unit": "sf"
+      }
+    ],
+    "slug": "factory"
+  },
+  "FLAGSTONE": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Borgona",
+          "Canyon",
+          "Esla",
+          "Filita"
+        ],
+        "size": "17x26",
+        "pcs": 4,
+        "sf": 12.59,
+        "lbs": 52.6,
+        "bxPl": 48,
+        "price": 4.19,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "8.5x26",
+        "packing": "None stock item, available upon request",
+        "price": 12,
+        "unit": "pc"
+      }
+    ],
+    "slug": "flagstone"
+  },
+  "FOREST": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "woodlook",
+    "items": [
+      {
+        "colors": [
+          "Greige",
+          "Silver",
+          "Walnut",
+          "White"
+        ],
+        "size": "8x48",
+        "pcs": 5,
+        "sf": 12.49,
+        "lbs": 52.8,
+        "bxPl": 64,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "4x48",
+        "packing": "None stock item, available upon request",
+        "price": 11.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "forest"
+  },
+  "FORMWORKS": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Antracite",
+          "Bianco",
+          "Grey"
+        ],
+        "size": "12x24",
+        "pcs": 7,
+        "sf": 13.88,
+        "lbs": 58.7,
+        "bxPl": 40,
+        "price": 3.49,
+        "unit": "sf"
+      },
+      {
+        "type": "decor",
+        "note": "Décor",
+        "size": "12x24",
+        "packing": "Random",
+        "price": 8.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "packing": "12 pcs/ bx; 1 lbs/ pc",
+        "price": 6.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "packing": "10 sh/ bx",
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Wall Mosaic",
+        "size": "1x6",
+        "packing": "7 sh/ bx ; 4 lbs/bx; Random",
+        "price": 9.99,
+        "unit": "sh"
+      },
+      {
+        "type": "Small Stainless steel Strip liner",
+        "size": "0.5x24",
+        "packing": "Sold by piece",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Large Stainless steel Strip liner",
+        "size": "1.5x24",
+        "packing": "Sold by piece",
+        "price": 6.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "formworks"
+  },
+  "FOSSIL": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "woodlook",
+    "items": [
+      {
+        "colors": [
+          "Beige"
+        ],
+        "size": "10x40",
+        "pcs": 3,
+        "sf": 7.96,
+        "lbs": 39.8,
+        "bxPl": 40,
+        "price": 4.19,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Smoke"
+        ],
+        "size": "10x40",
+        "pcs": 4,
+        "sf": 10.76,
+        "lbs": 49.72,
+        "bxPl": 32,
+        "price": 4.19,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x40",
+        "packing": "None stock item, available upon request",
+        "price": 11.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "packing": "None stock item, available upon request",
+        "price": 8.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "fossil"
+  },
+  "GARDA": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Bardolino",
+          "Lazise",
+          "Riva",
+          "Torbole"
+        ],
+        "size": "12x24",
+        "pcs": 7,
+        "sf": 13.56,
+        "lbs": 56.1,
+        "bxPl": 40,
+        "price": 3.49,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "packing": "10 pcs/ bx",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "packing": "10 sh/ bx",
+        "price": 11.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Hexagon",
+        "size": "2x2",
+        "packing": "10 sh/ bx",
+        "price": 13.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "garda"
+  },
+  "GEOBLANCO": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Dante",
+          "Swing"
+        ],
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 78.51,
+        "bxPl": 32,
+        "price": 4.69,
+        "unit": "sf"
+      }
+    ],
+    "slug": "geoblanco"
+  },
+  "H-STONE": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Dark Beige",
+          "Dark Grey",
+          "Light Grey"
+        ],
+        "size": "12x24",
+        "pcs": 7,
+        "sf": 14.2,
+        "lbs": 57.4,
+        "bxPl": 40,
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "packing": "18 pcs/bx; 2 lbs/pc",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "note": "Mosaic 1",
+        "size": "3x3",
+        "packing": "6 sh/bx; 3.1 lbs/sh",
+        "price": 8.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Mosaic 2",
+        "size": "9x24",
+        "packing": "None stock item, available upon request; Random",
+        "price": 17.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Mix Mosaic",
+        "colors": [
+          "Beige",
+          "Grey"
+        ],
+        "size": "2x2",
+        "packing": "6 sh/bx; 4 lbs/sh",
+        "price": 10.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Mix Mosaic",
+        "colors": [
+          "Beige",
+          "Grey"
+        ],
+        "size": "1x1",
+        "packing": "6 sh/bx; 4 lbs/sh",
+        "price": 10.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "h-stone"
+  },
+  "HEXAGON": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "White"
+        ],
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.5,
+        "lbs": 66.59,
+        "bxPl": 32,
+        "price": 2.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "packing": "None stock item, available upon request",
+        "price": 5.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "packing": "None stock item, available upon request",
+        "price": 9.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "hexagon"
+  },
+  "INDUSTRIAL": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Blue",
+          "Copper",
+          "Marine",
+          "Silver",
+          "White"
+        ],
+        "finish": "Glossy",
+        "size": "3x12",
+        "pcs": 22,
+        "sf": 5.38,
+        "lbs": 17.79,
+        "bxPl": 120,
+        "price": 4.59,
+        "unit": "sf"
+      },
+      {
+        "type": "Jolly",
+        "size": "0.6x12",
+        "packing": "10 pcs/ bx",
+        "price": 4.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "industrial"
+  },
+  "KEHL": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Beige",
+          "Black",
+          "Grey"
+        ],
+        "size": "12x24",
+        "pcs": 5,
+        "sf": 10.11,
+        "lbs": 44,
+        "bxPl": 48,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Small Stainless steel"
+        ],
+        "size": "0.5x24",
+        "type": "Strip liner",
+        "price": 4.99,
+        "unit": "pc"
+      },
+      {
+        "colors": [
+          "Large Stainless steel"
+        ],
+        "size": "1.5x24",
+        "type": "Strip liner",
+        "price": 5.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "kehl"
+  },
+  "LEDGESTONE": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "British Beige",
+          "Gris"
+        ],
+        "size": "13x26",
+        "pcs": 5,
+        "sf": 11.3,
+        "lbs": 45.8,
+        "bxPl": 60,
+        "price": 3.49,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Canada Gris",
+          "Sage"
+        ],
+        "size": "13x26",
+        "pcs": 5,
+        "sf": 11.3,
+        "lbs": 45.8,
+        "bxPl": 60,
+        "price": 3.49,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "3x26",
+        "type": "Bullnose",
+        "price": 7.99,
+        "unit": "sf"
+      }
+    ],
+    "slug": "ledgestone"
+  },
+  "LEVANTE": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Corfu Beige",
+          "Corfu Gris",
+          "Fenix Blanco",
+          "Gris",
+          "Iceberg",
+          "Natural",
+          "Silke"
+        ],
+        "finish": "Nplus",
+        "size": "30x30",
+        "pcs": 2,
+        "sf": 11.94,
+        "lbs": 58.74,
+        "bxPl": 42,
+        "price": 5.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Corfu Beige",
+          "Corfu Gris",
+          "Iceberg",
+          "Marfil"
+        ],
+        "finish": "Matte",
+        "size": "30x30",
+        "pcs": 2,
+        "sf": 11.94,
+        "lbs": 58.74,
+        "bxPl": 42,
+        "price": 4.49,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "3x30",
+        "type": "Bullnose",
+        "price": 11.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "2x2",
+        "type": "mosaic",
+        "price": 9.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "levante-2"
+  },
+  "LIMESTONE": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Ash",
+          "Beige",
+          "Coal"
+        ],
+        "size": "12x24",
+        "pcs": 7,
+        "sf": 13.99,
+        "lbs": 54.12,
+        "bxPl": 40,
+        "price": 3.49,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "3x24",
+        "type": "Bullnose",
+        "price": 5.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "3x3",
+        "type": "mosaic",
+        "price": 10.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "limestone"
+  },
+  "LOOK KLIFF": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Greige",
+          "Pearl",
+          "Sand",
+          "White"
+        ],
+        "size": "12x36",
+        "pcs": 4,
+        "sf": 11.62,
+        "lbs": 43.12,
+        "bxPl": 63,
+        "price": 4.59,
+        "unit": "sf"
+      }
+    ],
+    "slug": "look-kliff"
+  },
+  "LUX": {
+    "material": "porcelain",
+    "origin": "India",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Anty Sky Brown",
+          "Bianco Stone",
+          "Blonze Bianco",
+          "Calcutta White",
+          "Classic Coral",
+          "Glaier Bay",
+          "Profitland Bianco"
+        ],
+        "size": "24x24",
+        "pcs": 4,
+        "sf": 15.49,
+        "lbs": 63.14,
+        "bxPl": 38,
+        "price": 2.09,
+        "unit": "sf"
+      }
+    ],
+    "slug": "lux"
+  },
+  "MADISON": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Beige",
+          "Bone",
+          "Gris"
+        ],
+        "size": "6x36",
+        "pcs": 7,
+        "sf": 10.23,
+        "lbs": 49.61,
+        "bxPl": 56,
+        "price": 2.39,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "3x36",
+        "type": "Bullnose",
+        "price": 7.99,
+        "unit": "pc"
+      },
+      {
+        "colors": [],
+        "size": "3x3",
+        "type": "mosaic",
+        "price": 8.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "madison"
+  },
+  "MARBLE CARRARA": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Carrara Elongate"
+        ],
+        "finish": "Glossy",
+        "size": "4x8",
+        "pcs": 44,
+        "sf": 6.67,
+        "lbs": 20.48,
+        "bxPl": 72,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Carrara Hexagon"
+        ],
+        "finish": "Matte/ Glossy",
+        "size": "6x7",
+        "pcs": 44,
+        "sf": 9.25,
+        "lbs": 28.42,
+        "bxPl": 48,
+        "price": 4.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Carrara Wave"
+        ],
+        "finish": "Glossy",
+        "size": "3x12",
+        "pcs": 44,
+        "sf": 7.1,
+        "lbs": 22.42,
+        "bxPl": 64,
+        "price": 5.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "0.5x12",
+        "type": "Jolly",
+        "price": 3.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "marble-carrara"
+  },
+  "MARMO": {
+    "material": "porcelain",
+    "origin": "Vietnam",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Agave",
+          "Calacatta Gold",
+          "Calcatta Pietra",
+          "Carrara",
+          "Cavelano",
+          "Crema Marfil",
+          "Ice Rock"
+        ],
+        "finish": "Polished",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 32,
+        "price": 2.09,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Calacatta Gold",
+          "Calcatta Pietra",
+          "Cavelano",
+          "Ice Rock"
+        ],
+        "finish": "Matte",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 32,
+        "price": 1.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Calacatta Gold",
+          "Calcatta Pietra",
+          "Cavelano",
+          "Crema Marfil",
+          "Ice Rock"
+        ],
+        "finish": "Polished",
+        "size": "24x24",
+        "pcs": 4,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 36,
+        "price": 2.09,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Calacatta Gold",
+          "Calcatta Pietra",
+          "Cavelano",
+          "Ice Rock"
+        ],
+        "finish": "Matte",
+        "size": "24x24",
+        "pcs": 4,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 32,
+        "price": 1.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Calcatta Bianco",
+          "Carrara",
+          "Ice Rock"
+        ],
+        "finish": "Polished",
+        "size": "32x32",
+        "pcs": 2,
+        "sf": 13.77,
+        "lbs": 70.4,
+        "bxPl": 36,
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Calacatta Bianco"
+        ],
+        "finish": "Polished",
+        "size": "32x32",
+        "pcs": 3,
+        "sf": 20.66,
+        "lbs": 104.5,
+        "bxPl": 24,
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Agave",
+          "Carrara",
+          "Ice Rock"
+        ],
+        "finish": "Polished",
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 77,
+        "bxPl": 32,
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Ice Rock"
+        ],
+        "finish": "Matte",
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 77,
+        "bxPl": 32,
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Subway"
+        ],
+        "finish": "Rectified",
+        "size": "4x12",
+        "pcs": 30,
+        "sf": 10,
+        "type": "subway",
+        "price": 4.19,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Subway"
+        ],
+        "finish": "Rectified",
+        "size": "3x6",
+        "pcs": 60,
+        "sf": 7.5,
+        "type": "subway",
+        "price": 4.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "3x24",
+        "type": "Bullnose",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "colors": [],
+        "size": "2x2",
+        "type": "mosaic",
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "colors": [],
+        "size": "2x2",
+        "type": "mosaic",
+        "name": "Mosaic Hexagon",
+        "price": 9.99,
+        "unit": "sh"
+      },
+      {
+        "colors": [],
+        "size": "2x2",
+        "type": "mosaic",
+        "name": "Mosaic Rhomboid 3D",
+        "price": 9.99,
+        "unit": "sh"
+      },
+      {
+        "colors": [],
+        "size": "1x6",
+        "type": "mosaic",
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "colors": [],
+        "size": "1x6",
+        "type": "mosaic",
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "colors": [],
+        "size": "2x6",
+        "type": "mosaic",
+        "price": 8.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "marmo-calacatta"
+  },
+  "MARQUINA": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Carrara",
+          "Nero"
+        ],
+        "size": "3x12",
+        "pcs": 44,
+        "sf": 10.76,
+        "lbs": 29.22,
+        "bxPl": 64,
+        "price": 4.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "0.6x12",
+        "type": "Jolly",
+        "price": 3.69,
+        "unit": "pc"
+      }
+    ],
+    "slug": "marquina-nero"
+  },
+  "MASH-UP": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "36W Flat White Matte"
+        ],
+        "size": "12x24",
+        "pcs": 6,
+        "sf": 11.05,
+        "lbs": 38.72,
+        "bxPl": 40,
+        "price": 3.69,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Wall paper 1-36 Flower",
+          "2-36 Dot",
+          "4-36 Diamond",
+          "36W Lined"
+        ],
+        "size": "12x24",
+        "pcs": 6,
+        "sf": 11.05,
+        "lbs": 38.72,
+        "bxPl": 40,
+        "type": "decor",
+        "price": 3.69,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "3x24",
+        "type": "Bullnose",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "colors": [],
+        "size": "2x2",
+        "type": "mosaic",
+        "name": "Mosaic Hexagon",
+        "price": 11.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "mash-up"
+  },
+  "MATERICA": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Taupe"
+        ],
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 16.46,
+        "lbs": 51.92,
+        "price": 1.49,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "3x24",
+        "type": "Bullnose",
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "colors": [],
+        "size": "3x3",
+        "type": "mosaic",
+        "price": 7.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "materica"
+  },
+  "MONOCHROME WAVE": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Black",
+          "Crème",
+          "Grey",
+          "Ivory",
+          "White"
+        ],
+        "finish": "Glossy",
+        "size": "3x12",
+        "pcs": 44,
+        "sf": 7.1,
+        "lbs": 22.42,
+        "bxPl": 64,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "0.5x12",
+        "type": "Jolly",
+        "price": 3.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "monocrhome-wave"
+  },
+  "NATIVA": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Dark",
+          "Light",
+          "Medium"
+        ],
+        "size": "6x16",
+        "pcs": 15,
+        "sf": 10.33,
+        "lbs": 26.08,
+        "bxPl": 60,
+        "price": 4.29,
+        "unit": "sf"
+      }
+    ],
+    "slug": "nativa"
+  },
+  "NOLAN": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Bianco",
+          "Grey",
+          "Miele",
+          "Natural"
+        ],
+        "size": "12x48",
+        "pcs": 3,
+        "sf": 11.62,
+        "lbs": 55.22,
+        "bxPl": 40,
+        "price": 3.49,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Bianco",
+          "Grey",
+          "Miele",
+          "Natural"
+        ],
+        "size": "8x48",
+        "pcs": 5,
+        "sf": 12.91,
+        "lbs": 64.1,
+        "bxPl": 40,
+        "price": 3.29,
+        "unit": "sf"
+      }
+    ],
+    "slug": "nolan"
+  },
+  "OPAL": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Black",
+          "Emerald",
+          "Grey",
+          "Ivory",
+          "Marine",
+          "Moka",
+          "Sky",
+          "Snow",
+          "Turquoise",
+          "Vision",
+          "White"
+        ],
+        "size": "3x12",
+        "pcs": 22,
+        "sf": 5.38,
+        "lbs": 17.79,
+        "bxPl": 120,
+        "price": 4.69,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Grey",
+          "Ivory",
+          "Moka",
+          "Sky",
+          "Snow",
+          "Turquoise",
+          "Vision",
+          "White"
+        ],
+        "size": "3x12",
+        "pcs": 22,
+        "sf": 5.38,
+        "lbs": 17.79,
+        "bxPl": 120,
+        "type": "decor",
+        "price": 9.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Rodia Black",
+          "Emerald",
+          "Ivory",
+          "Marine",
+          "Moka",
+          "Sky",
+          "Snow",
+          "Turquoise",
+          "Vision",
+          "White"
+        ],
+        "size": "3x12",
+        "pcs": 16,
+        "sf": 3.87,
+        "lbs": 13.05,
+        "price": 6.29,
+        "unit": "pc"
+      },
+      {
+        "colors": [],
+        "size": "3x12",
+        "type": "Bullnose",
+        "pcs": 22,
+        "sf": 6.13,
+        "lbs": 15.71,
+        "price": 4.99,
+        "unit": "pc"
+      },
+      {
+        "colors": [],
+        "size": "1x12",
+        "type": "Torello Matita",
+        "pcs": 52,
+        "sf": 3.87,
+        "lbs": 10.58,
+        "price": 3.99,
+        "unit": "pc"
+      },
+      {
+        "colors": [],
+        "size": "2x12",
+        "type": "Moldura (Chairail)",
+        "pcs": 30,
+        "sf": 3.22,
+        "lbs": 13.62,
+        "price": 6.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "opal"
+  },
+  "ORCHESTRA": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Minuetto Mix",
+          "Sonata Mix"
+        ],
+        "size": "24x24",
+        "pcs": 3,
+        "sf": 11.62,
+        "lbs": 55,
+        "bxPl": 40,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Adelia",
+          "Elvida",
+          "Medea",
+          "Outis",
+          "Zaira"
+        ],
+        "size": "8x24",
+        "pcs": 8,
+        "sf": 10.33,
+        "lbs": 48.8,
+        "bxPl": 48,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "price": 5.99,
+        "unit": "pc",
+        "note": "Mix pattern only"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "price": 10.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "Strip liner",
+        "size": "0.5x24",
+        "price": 4.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Strip liner",
+        "size": "1.5x24",
+        "price": 5.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "orchestra"
+  },
+  "ORLANDO": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "White"
+        ],
+        "size": "30x30",
+        "pcs": 3,
+        "sf": 18.19,
+        "lbs": 90.64,
+        "bxPl": 30,
+        "price": 4.79,
+        "unit": "sf"
+      }
+    ],
+    "slug": "orlando"
+  },
+  "OXFORD948": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Bianco",
+          "Canus",
+          "Perla",
+          "Roble"
+        ],
+        "size": "9x48",
+        "pcs": 5,
+        "sf": 14.85,
+        "lbs": 64.53,
+        "bxPl": 45,
+        "price": 3.19,
+        "unit": "sf"
+      }
+    ],
+    "slug": "oxford-2"
+  },
+  "PADDINGTON": {
+    "material": "ceramic",
+    "origin": "Brazil",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Black",
+          "Grey",
+          "Navy Blue",
+          "Putty",
+          "White"
+        ],
+        "size": "4x16",
+        "pcs": 20,
+        "sf": 8.39,
+        "lbs": 23.15,
+        "bxPl": 70,
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Black",
+          "Grey",
+          "Navy Blue",
+          "Putty",
+          "White"
+        ],
+        "size": "4x16",
+        "pcs": 20,
+        "sf": 8.39,
+        "lbs": 23.15,
+        "bxPl": 70,
+        "type": "decor",
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [],
+        "size": "0.25x8",
+        "type": "Jolly",
+        "pcs": 30,
+        "sf": 3.64,
+        "price": 2.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "paddington"
+  },
+  "PATCHWORK": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Black",
+          "White"
+        ],
+        "size": "4x12",
+        "pcs": 23,
+        "sf": 7.42,
+        "lbs": 21.15,
+        "bxPl": 65,
+        "price": 4.59,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Deco 1"
+        ],
+        "size": "4x12",
+        "pcs": 23,
+        "sf": 7.42,
+        "lbs": 21.15,
+        "bxPl": 65,
+        "type": "decor",
+        "price": 7.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Deco 2"
+        ],
+        "size": "4x12",
+        "pcs": 23,
+        "sf": 7.42,
+        "lbs": 21.15,
+        "bxPl": 65,
+        "type": "decor",
+        "price": 7.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Deco 1. 3D"
+        ],
+        "size": "4x12",
+        "pcs": 20,
+        "type": "decor",
+        "price": 10.29,
+        "unit": "pc"
+      },
+      {
+        "colors": [
+          "Deco 2. 3D"
+        ],
+        "size": "4x12",
+        "pcs": 20,
+        "type": "decor",
+        "price": 10.29,
+        "unit": "pc"
+      },
+      {
+        "colors": [],
+        "size": "2x12",
+        "type": "Bullnose",
+        "pcs": 48,
+        "price": 3.99,
+        "unit": "pc"
+      },
+      {
+        "colors": [],
+        "size": "0.75x12",
+        "type": "Torello (Pencil Liner)",
+        "pcs": 80,
+        "price": 3.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "patchwork"
+  },
+  "PEAK": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Dark",
+          "Gris",
+          "Medium",
+          "Tropical",
+          "White"
+        ],
+        "size": "6x16",
+        "pcs": 12,
+        "sf": 8.29,
+        "lbs": 33.66,
+        "bxPl": 60,
+        "price": 4.29,
+        "unit": "sf"
+      }
+    ],
+    "slug": "peak"
+  },
+  "PICKET": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Carrara"
+        ],
+        "finish": "Glossy",
+        "size": "4x12",
+        "pcs": 40,
+        "sf": 10.76,
+        "lbs": 31.77,
+        "bxPl": 60,
+        "price": 4.59,
+        "unit": "sf"
+      },
+      {
+        "type": "Jolly",
+        "size": "0.5x12",
+        "pcs": 55,
+        "price": 3.69,
+        "unit": "pc"
+      }
+    ],
+    "slug": "picket"
+  },
+  "PIERRE": {
+    "material": "porcelain",
+    "origin": "Brazil",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Belle Blanc",
+          "Bianco Paonazzetto"
+        ],
+        "finish": "Matte",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.71,
+        "lbs": 70.99,
+        "bxPl": 40,
+        "price": 1.49,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "pcs": 10,
+        "price": 6.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "sf": 10,
+        "price": 7.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "pierre"
+  },
+  "PIETRA": {
+    "material": "porcelain",
+    "origin": "Vietnam",
+    "usage": "floor",
+    "note": "Rectified",
+    "items": [
+      {
+        "colors": [
+          "Prima Blanco"
+        ],
+        "finish": "Polished",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 32,
+        "price": 2.09,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Prima Blanco"
+        ],
+        "finish": "Polished",
+        "size": "4x12",
+        "note": "Subway/ Rectified",
+        "pcs": 30,
+        "sf": 10,
+        "price": 4.19,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Prima Blanco"
+        ],
+        "finish": "Polished",
+        "size": "3x6",
+        "note": "Subway/ Rectified",
+        "pcs": 60,
+        "sf": 7.5,
+        "price": 4.29,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "pcs": 10,
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "sf": 10,
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Hexagon",
+        "size": "2x2",
+        "sf": 10,
+        "price": 9.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Staggered",
+        "size": "2x6",
+        "sf": 10,
+        "price": 8.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "1x6",
+        "sf": 10,
+        "price": 7.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "pietra"
+  },
+  "POWDER": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Argent",
+          "Concrete",
+          "Plum",
+          "Tortora"
+        ],
+        "finish": "Matte",
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 78.91,
+        "bxPl": 30,
+        "price": 3.89,
+        "unit": "sf"
+      }
+    ],
+    "slug": "powder"
+  },
+  "PULPIS": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "note": "Hexagon",
+    "items": [
+      {
+        "colors": [
+          "Beige",
+          "Dark Grey",
+          "Marquina Gold",
+          "Taupe"
+        ],
+        "size": "8x9",
+        "pcs": 25,
+        "sf": 9.9,
+        "lbs": 37.84,
+        "bxPl": 60,
+        "price": 4.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Calcatta Gold",
+          "Calacatta White",
+          "Dark Grey",
+          "Grey",
+          "Marquina Gold",
+          "Taupe"
+        ],
+        "size": "8x9",
+        "pcs": 24,
+        "sf": 9.03,
+        "lbs": 40.12,
+        "bxPl": 48,
+        "note": "New Packaging",
+        "price": 4.29,
+        "unit": "sf"
+      }
+    ],
+    "slug": "pulpis"
+  },
+  "ROCK": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "note": "White body porcelain",
+    "items": [
+      {
+        "colors": [
+          "Petra Beige",
+          "Petra Gris",
+          "Teide Beige",
+          "Teide Sand",
+          "Vulcano Dark",
+          "Vulcano Oxido"
+        ],
+        "size": "13x26",
+        "pcs": 5,
+        "sf": 11.65,
+        "lbs": 45.75,
+        "bxPl": 40,
+        "price": 3.69,
+        "unit": "sf"
+      }
+    ],
+    "slug": "rock"
+  },
+  "ROMANI": {
+    "material": "porcelain",
+    "origin": "Vietnam",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Crema",
+          "Noce"
+        ],
+        "finish": "Polished",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 32,
+        "price": 2.09,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Crema",
+          "Noce"
+        ],
+        "finish": "Matte",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 32,
+        "price": 1.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Crema",
+          "Noce"
+        ],
+        "finish": "Polished",
+        "size": "24x24",
+        "pcs": 4,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 36,
+        "price": 2.09,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Crema",
+          "Noce"
+        ],
+        "finish": "Matte",
+        "size": "24x24",
+        "pcs": 4,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 36,
+        "price": 1.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Crema"
+        ],
+        "finish": "Matte",
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 73,
+        "bxPl": 30,
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "pcs": 10,
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "sf": 10,
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Hexagon",
+        "size": "2x2",
+        "sf": 10,
+        "price": 9.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Staggered",
+        "size": "2x6",
+        "sf": 10,
+        "price": 8.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "1x6",
+        "sf": 10,
+        "price": 7.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "romani"
+  },
+  "SABINA": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "woodlook",
+    "note": "White body porcelain",
+    "items": [
+      {
+        "colors": [
+          "Gris",
+          "Marron"
+        ],
+        "size": "6x36",
+        "pcs": 7,
+        "sf": 10.22,
+        "lbs": 44.33,
+        "bxPl": 56,
+        "price": 2.39,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x36",
+        "price": 7.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "3x3",
+        "price": 8.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "sabina"
+  },
+  "SAVERNE": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "note": "White body porcelain",
+    "items": [
+      {
+        "colors": [
+          "Beige",
+          "Black",
+          "Grey"
+        ],
+        "size": "12x24",
+        "pcs": 5,
+        "sf": 10.11,
+        "lbs": 44,
+        "bxPl": 48,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Strip liner",
+        "note": "Small Stainless steel",
+        "size": "0.5x24",
+        "price": 4.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Strip liner",
+        "note": "Large Stainless steel",
+        "size": "1.5x24",
+        "price": 5.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "saverne-2"
+  },
+  "SELKIS": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "note": "White body porcelain",
+    "items": [
+      {
+        "colors": [
+          "Black",
+          "Charcoal",
+          "Pergamon",
+          "Steel",
+          "Tobacco",
+          "White"
+        ],
+        "size": "3x12",
+        "pcs": 28,
+        "sf": 6.78,
+        "lbs": 22.12,
+        "bxPl": 120,
+        "price": 3.79,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x12",
+        "pcs": 10,
+        "price": 3.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "selkis"
+  },
+  "STONY": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Black",
+          "Grafite",
+          "Lava",
+          "Sabbia",
+          "White"
+        ],
+        "finish": "Matte",
+        "size": "4x12",
+        "pcs": 30,
+        "sf": 8.72,
+        "lbs": 28.38,
+        "bxPl": 66,
+        "price": 4.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Black",
+          "Grafite",
+          "Lava",
+          "Sabbia",
+          "White"
+        ],
+        "note": "Pattern",
+        "size": "4x12",
+        "pcs": 30,
+        "sf": 8.72,
+        "lbs": 28.38,
+        "bxPl": 66,
+        "price": 8.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Grafite",
+          "Lava",
+          "Sabbia"
+        ],
+        "type": "decor",
+        "size": "4x12",
+        "pcs": 30,
+        "sf": 8.72,
+        "lbs": 28.38,
+        "bxPl": 66,
+        "price": 8.29,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "pcs": 10,
+        "price": 3.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "stony"
+  },
+  "SUPER WHITE": {
+    "material": "porcelain",
+    "origin": "Vietnam",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "White"
+        ],
+        "finish": "Polished",
+        "size": "24x24",
+        "pcs": 4,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 36,
+        "price": 2.09,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "White"
+        ],
+        "finish": "Matte",
+        "size": "24x24",
+        "pcs": 4,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 36,
+        "price": 1.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "White"
+        ],
+        "finish": "Polished",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 32,
+        "price": 2.09,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "White"
+        ],
+        "finish": "Matte",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 70.4,
+        "bxPl": 32,
+        "price": 1.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "White"
+        ],
+        "finish": "Polished",
+        "size": "32x32",
+        "pcs": 3,
+        "sf": 20.66,
+        "lbs": 104.5,
+        "bxPl": 24,
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "White"
+        ],
+        "finish": "Polished",
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 77,
+        "bxPl": 32,
+        "price": 3.29,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "White"
+        ],
+        "size": "4x12",
+        "pcs": 30,
+        "sf": 10,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "White"
+        ],
+        "size": "3x6",
+        "pcs": 60,
+        "sf": 7.5,
+        "price": 4.29,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "pcs": 10,
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "sf": 10,
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Hexagon",
+        "size": "2x2",
+        "sf": 10,
+        "price": 9.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "3D Rhomboid",
+        "size": "2x2",
+        "sf": 10,
+        "price": 9.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "size": "1x6",
+        "sf": 10,
+        "price": 7.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "super-white"
+  },
+  "TERRA": {
+    "material": "porcelain",
+    "origin": "Vietnam",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "River Rock",
+          "Travertine"
+        ],
+        "finish": "Polished",
+        "size": "12x24",
+        "pcs": 8,
+        "sf": 15.49,
+        "lbs": 74.53,
+        "bxPl": 32,
+        "price": 2.09,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x24",
+        "pcs": 10,
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "sf": 10,
+        "price": 7.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Hexagon",
+        "size": "2x2",
+        "sf": 10,
+        "price": 9.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "terra"
+  },
+  "TERRAZO": {
+    "material": "porcelain",
+    "origin": "Vietnam",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Bianco",
+          "Gris"
+        ],
+        "finish": "Polished",
+        "size": "32x32",
+        "pcs": 3,
+        "sf": 20.66,
+        "lbs": 104.5,
+        "bxPl": 24,
+        "price": 3.29,
+        "unit": "sf"
+      }
+    ],
+    "slug": "terrazo"
+  },
+  "TIMELESS": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "woodlook",
+    "items": [
+      {
+        "colors": [
+          "Ecru",
+          "Honey"
+        ],
+        "size": "9x60",
+        "pcs": 3,
+        "sf": 11.62,
+        "lbs": 45.65,
+        "bxPl": 36,
+        "price": 4.39,
+        "unit": "sf"
+      }
+    ],
+    "slug": "timeless-2"
+  },
+  "TORP": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "note": "White body porcelain",
+    "items": [
+      {
+        "colors": [
+          "Gris",
+          "Moka"
+        ],
+        "size": "24x24",
+        "pcs": 3,
+        "sf": 11.62,
+        "lbs": 45,
+        "bxPl": 32,
+        "price": 2.79,
+        "unit": "sf"
+      }
+    ],
+    "slug": "torp"
+  },
+  "TOULOUSE": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "note": "Glossy ceramic",
+    "items": [
+      {
+        "colors": [
+          "Beige",
+          "Beige Fibre",
+          "Taupe",
+          "Taupe Fibre"
+        ],
+        "size": "12x36",
+        "pcs": 6,
+        "sf": 17.11,
+        "lbs": 64.9,
+        "bxPl": 45,
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Beige",
+          "Beige Fibre",
+          "Grey",
+          "Grey Fibre"
+        ],
+        "size": "12x36",
+        "pcs": 5,
+        "sf": 14.53,
+        "lbs": 48.4,
+        "bxPl": 63,
+        "note": "New Packaging",
+        "price": 3.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x36",
+        "sf": 10,
+        "price": 11.99,
+        "unit": "pc"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "sf": 10,
+        "price": 10.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "toulouse"
+  },
+  "VICTORIAN": {
+    "material": "ceramic",
+    "origin": "Italy",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Bianco",
+          "Perla",
+          "Nero",
+          "Blue",
+          "Avorio",
+          "Tortora",
+          "Purpura"
+        ],
+        "size": "4x12",
+        "pcs": 34,
+        "sf": 10.98,
+        "lbs": 34.12,
+        "bxPl": 66,
+        "price": 4.59,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Blue",
+          "Perla",
+          "Tortora",
+          "Avorio"
+        ],
+        "type": "decor",
+        "size": "4x12",
+        "pcs": 6,
+        "price": 11.29,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose",
+        "pcs": 10,
+        "price": 3.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "victorian-2"
+  },
+  "VIENA": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "wall",
+    "note": "White body porcelain",
+    "items": [
+      {
+        "colors": [
+          "Anthracite",
+          "Ash Blue",
+          "Graphite",
+          "Ivory",
+          "Gris Claro",
+          "Mist Green",
+          "Grey Pearl",
+          "Tobbaco",
+          "Vision",
+          "White"
+        ],
+        "size": "4x8",
+        "pcs": 36,
+        "sf": 5.38,
+        "lbs": 15.51,
+        "bxPl": 88,
+        "price": 4.79,
+        "unit": "sf"
+      },
+      {
+        "type": "decor",
+        "price": 7.29,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose",
+        "size": "2.5x8",
+        "pcs": 88,
+        "price": 4.49,
+        "unit": "pc"
+      },
+      {
+        "type": "Bullnose Corner",
+        "size": "2.5x2.5",
+        "pcs": 18,
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "London",
+        "size": "2.5x8",
+        "pcs": 24,
+        "lbs": 0.38,
+        "price": 6.99,
+        "unit": "pc"
+      },
+      {
+        "type": "London Corner",
+        "size": "2.5x2.5",
+        "pcs": 10,
+        "price": 5.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Torello",
+        "size": "1x8",
+        "pcs": 21,
+        "lbs": 0.18,
+        "price": 4.49,
+        "unit": "pc"
+      }
+    ],
+    "slug": "viena"
+  },
+  "VINYLE": {
+    "material": "porcelain",
+    "origin": "Spain",
+    "usage": "floor",
+    "note": "White body porcelain",
+    "items": [
+      {
+        "colors": [
+          "Antracite",
+          "Beige",
+          "Blanco",
+          "Crema",
+          "Gris",
+          "Moka"
+        ],
+        "size": "12x36",
+        "pcs": 5,
+        "sf": 14.52,
+        "lbs": 68.34,
+        "bxPl": 36,
+        "price": 2.99,
+        "unit": "sf"
+      },
+      {
+        "type": "mosaic",
+        "size": "2x2",
+        "sf": 10,
+        "price": 8.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Mix COLD (Antracite, Blanco, Gris)",
+        "size": "1x2",
+        "sf": 10,
+        "price": 9.99,
+        "unit": "sh"
+      },
+      {
+        "type": "mosaic",
+        "note": "Mix WARM (Beige, Crema, Moka)",
+        "size": "1x2",
+        "sf": 10,
+        "price": 9.99,
+        "unit": "sh"
+      }
+    ],
+    "slug": "vinyle"
+  },
+  "VULCANI": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Avorio",
+          "Bianco",
+          "Grigio",
+          "Multicolor"
+        ],
+        "size": "6x16",
+        "pcs": 14,
+        "sf": 9.68,
+        "lbs": 32.56,
+        "bxPl": 65,
+        "price": 4.29,
+        "unit": "sf"
+      }
+    ],
+    "slug": "vulcani"
+  },
+  "WALES": {
+    "material": "porcelain",
+    "origin": "Italy",
+    "usage": "floor",
+    "items": [
+      {
+        "colors": [
+          "Grey",
+          "White"
+        ],
+        "size": "24x48",
+        "pcs": 2,
+        "sf": 15.49,
+        "lbs": 62.48,
+        "bxPl": 36,
+        "price": 4.29,
+        "unit": "sf"
+      }
+    ],
+    "slug": "wales"
+  },
+  "ZAFIRO": {
+    "material": "ceramic",
+    "origin": "Spain",
+    "usage": "wall",
+    "items": [
+      {
+        "colors": [
+          "Helena"
+        ],
+        "size": "3x12",
+        "pcs": 22,
+        "sf": 5.38,
+        "lbs": 17.79,
+        "bxPl": 120,
+        "price": 4.89,
+        "unit": "sf"
+      },
+      {
+        "colors": [
+          "Helena",
+          "Tracia"
+        ],
+        "type": "decor",
+        "size": "3x12",
+        "pcs": 22,
+        "sf": 5.38,
+        "lbs": 17.79,
+        "bxPl": 120,
+        "price": 8.99,
+        "unit": "sf"
+      },
+      {
+        "type": "Bullnose",
+        "size": "3x12",
+        "pcs": 22,
+        "sf": 6.13,
+        "lbs": 15.71,
+        "price": 4.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Torello",
+        "size": "1x12",
+        "pcs": 52,
+        "sf": 3.87,
+        "lbs": 10.58,
+        "price": 3.99,
+        "unit": "pc"
+      },
+      {
+        "type": "Moldura",
+        "size": "2x12",
+        "pcs": 30,
+        "sf": 3.22,
+        "lbs": 13.62,
+        "price": 6.99,
+        "unit": "pc"
+      }
+    ],
+    "slug": "zafiro"
+  }
+}
