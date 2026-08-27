@@ -9,7 +9,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, SCRAPER_ALERT_ADDR } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -7000,6 +7000,195 @@ app.post('/api/admin/data-quality/refresh', staffAuth, requireRole('admin', 'man
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
+// ==================== Data Quality: Conformance Rules Engine ====================
+// Complements sku_quality_scores (presence) with conformance checks — naming
+// lint, selling conventions, price-basis sanity. See backend/quality/rules.js.
+
+const { runQualityAudit, listRules } = await import('./quality/runner.js');
+
+// One conformance audit at a time — they're heavy SQL sweeps.
+let qualityAuditRunning = false;
+async function runQualityAuditExclusive(opts) {
+  if (qualityAuditRunning) throw Object.assign(new Error('An audit is already running'), { code: 'AUDIT_BUSY' });
+  qualityAuditRunning = true;
+  try { return await runQualityAudit(pool, opts); }
+  finally { qualityAuditRunning = false; }
+}
+
+app.get('/api/admin/quality/summary', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const [byRule, byVendor, runs, exemptions] = await Promise.all([
+      pool.query(`
+        SELECT rule_key, severity,
+          COUNT(*) FILTER (WHERE status = 'open')::int AS open,
+          COUNT(*) FILTER (WHERE status = 'waived')::int AS waived,
+          COUNT(*) FILTER (WHERE status = 'fixed' AND resolved_at > NOW() - INTERVAL '30 days')::int AS fixed_30d
+        FROM quality_violations GROUP BY rule_key, severity ORDER BY open DESC
+      `),
+      pool.query(`
+        SELECT v.code AS vendor_code, v.name AS vendor_name, qv.vendor_id,
+          COUNT(*) FILTER (WHERE qv.status = 'open')::int AS open,
+          COUNT(*) FILTER (WHERE qv.status = 'open' AND qv.severity = 'error')::int AS open_errors
+        FROM quality_violations qv JOIN vendors v ON v.id = qv.vendor_id
+        GROUP BY v.code, v.name, qv.vendor_id
+        HAVING COUNT(*) FILTER (WHERE qv.status = 'open') > 0
+        ORDER BY open DESC
+      `),
+      pool.query(`
+        SELECT id, started_at, finished_at, scope, triggered_by, rules_run,
+          new_count, reopened_count, fixed_count, open_total, error
+        FROM quality_runs ORDER BY started_at DESC LIMIT 10
+      `),
+      pool.query(`
+        SELECT qe.id, qe.rule_key, qe.vendor_id, v.code AS vendor_code, v.name AS vendor_name,
+          qe.note, qe.created_by, qe.created_at
+        FROM quality_exemptions qe JOIN vendors v ON v.id = qe.vendor_id
+        ORDER BY qe.created_at DESC
+      `),
+    ]);
+    res.json({
+      rules: listRules(),
+      by_rule: byRule.rows,
+      by_vendor: byVendor.rows,
+      recent_runs: runs.rows,
+      exemptions: exemptions.rows,
+      audit_running: qualityAuditRunning,
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.get('/api/admin/quality/violations', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { status = 'open', rule, vendor, severity, q } = req.query;
+    const limit = Math.min(parseInt(req.query.limit || '100', 10), 500);
+    const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
+    const where = ['1=1'];
+    const params = [];
+    if (status && status !== 'all') { params.push(status); where.push(`qv.status = $${params.length}`); }
+    if (rule) { params.push(rule); where.push(`qv.rule_key = $${params.length}`); }
+    if (vendor) { params.push(vendor); where.push(`v.code = $${params.length}`); }
+    if (severity) { params.push(severity); where.push(`qv.severity = $${params.length}`); }
+    if (q) { params.push(`%${q}%`); where.push(`qv.summary ILIKE $${params.length}`); }
+    params.push(limit, offset);
+    const { rows } = await pool.query(`
+      SELECT qv.id, qv.rule_key, qv.severity, qv.status, qv.summary, qv.detail,
+        qv.first_seen, qv.last_seen, qv.resolved_at, qv.waived_by, qv.waive_note, qv.waived_at,
+        qv.sku_id, qv.product_id, v.code AS vendor_code, v.name AS vendor_name,
+        s.internal_sku,
+        COUNT(*) OVER()::int AS total_count
+      FROM quality_violations qv
+      LEFT JOIN vendors v ON v.id = qv.vendor_id
+      LEFT JOIN skus s ON s.id = qv.sku_id
+      WHERE ${where.join(' AND ')}
+      ORDER BY qv.severity = 'error' DESC, qv.first_seen DESC
+      LIMIT $${params.length - 1} OFFSET $${params.length}
+    `, params);
+    res.json({ violations: rows, total: rows[0]?.total_count || 0, limit, offset });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/admin/quality/run', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { vendor_code, check_images } = req.body || {};
+    let vendorId = null;
+    if (vendor_code) {
+      const vRes = await pool.query('SELECT id FROM vendors WHERE code = $1', [vendor_code]);
+      if (!vRes.rows.length) return res.status(404).json({ error: 'Unknown vendor code' });
+      vendorId = vRes.rows[0].id;
+    }
+    const staffName = `${req.staff.first_name} ${req.staff.last_name}`;
+    const result = await runQualityAuditExclusive({
+      vendorId,
+      triggeredBy: `manual:${staffName}`,
+      checkImages: !!check_images,
+      // Manual image sweeps stay bounded; the weekly cron does the full pass.
+      imageLimit: check_images ? 1000 : null,
+    });
+    res.json(result);
+  } catch (err) {
+    if (err.code === 'AUDIT_BUSY') return res.status(409).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/admin/quality/violations/:id/waive', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const staffName = `${req.staff.first_name} ${req.staff.last_name}`;
+    const { rows } = await pool.query(`
+      UPDATE quality_violations
+      SET status = 'waived', waived_by = $2, waive_note = $3, waived_at = CURRENT_TIMESTAMP
+      WHERE id = $1 RETURNING id
+    `, [req.params.id, staffName, req.body?.note || null]);
+    if (!rows.length) return res.status(404).json({ error: 'Violation not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.post('/api/admin/quality/violations/:id/reopen', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      UPDATE quality_violations
+      SET status = 'open', waived_by = NULL, waive_note = NULL, waived_at = NULL, resolved_at = NULL
+      WHERE id = $1 RETURNING id
+    `, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Violation not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Bulk waive everything open for a rule (optionally scoped to one vendor).
+app.post('/api/admin/quality/violations/waive-bulk', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { rule_key, vendor_code, note } = req.body || {};
+    if (!rule_key) return res.status(400).json({ error: 'rule_key is required' });
+    const staffName = `${req.staff.first_name} ${req.staff.last_name}`;
+    const params = [rule_key, staffName, note || null];
+    let vendorClause = '';
+    if (vendor_code) {
+      params.push(vendor_code);
+      vendorClause = `AND vendor_id = (SELECT id FROM vendors WHERE code = $4)`;
+    }
+    const result = await pool.query(`
+      UPDATE quality_violations
+      SET status = 'waived', waived_by = $2, waive_note = $3, waived_at = CURRENT_TIMESTAMP
+      WHERE status = 'open' AND rule_key = $1 ${vendorClause}
+    `, params);
+    res.json({ success: true, waived: result.rowCount });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Exempt a (rule, vendor) pair permanently — the runner stops checking it,
+// and existing open violations are waived under the exemption note.
+app.post('/api/admin/quality/exemptions', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { rule_key, vendor_code, note } = req.body || {};
+    if (!rule_key || !vendor_code) return res.status(400).json({ error: 'rule_key and vendor_code are required' });
+    const vRes = await pool.query('SELECT id FROM vendors WHERE code = $1', [vendor_code]);
+    if (!vRes.rows.length) return res.status(404).json({ error: 'Unknown vendor code' });
+    const vendorId = vRes.rows[0].id;
+    const staffName = `${req.staff.first_name} ${req.staff.last_name}`;
+    await pool.query(`
+      INSERT INTO quality_exemptions (rule_key, vendor_id, note, created_by)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (rule_key, vendor_id) DO UPDATE SET note = EXCLUDED.note
+    `, [rule_key, vendorId, note || null, staffName]);
+    const waived = await pool.query(`
+      UPDATE quality_violations
+      SET status = 'waived', waived_by = $3, waive_note = $4, waived_at = CURRENT_TIMESTAMP
+      WHERE status = 'open' AND rule_key = $1 AND vendor_id = $2
+    `, [rule_key, vendorId, staffName, note ? `Exempted: ${note}` : 'Vendor exempted from rule']);
+    res.json({ success: true, waived: waived.rowCount });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.delete('/api/admin/quality/exemptions/:id', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { rows } = await pool.query('DELETE FROM quality_exemptions WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Exemption not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 // ==================== AI Enrichment Endpoints ====================
 
 // Status dashboard: gap counts + recent jobs
@@ -11243,6 +11432,29 @@ async function runScraper(source, configOverride = null) {
         const { maybeQueuePostScrapeEnrichment } = await import('./services/aiEnrichment.js');
         await maybeQueuePostScrapeEnrichment(pool, job.id, source);
       } catch (eErr) { console.error('Post-scrape enrichment hook failed:', eErr.message); }
+
+      // Post-scrape conformance audit, scoped to this vendor: did the scrape
+      // introduce NEW violations? Alert only on deltas, never on backlog.
+      try {
+        const vsRes = await pool.query('SELECT vendor_id FROM vendor_sources WHERE id = $1', [source.id]);
+        const scrapeVendorId = vsRes.rows[0]?.vendor_id;
+        if (scrapeVendorId) {
+          const audit = await runQualityAuditExclusive({
+            vendorId: scrapeVendorId,
+            triggeredBy: `scrape:${source.scraper_key}`,
+          });
+          if (audit.newCount + audit.reopenedCount > 0) {
+            sendQualityDiffAlert({
+              label: `after ${source.name || source.scraper_key} scrape`,
+              newCount: audit.newCount,
+              reopenedCount: audit.reopenedCount,
+              fixedCount: audit.fixedCount,
+              openTotal: audit.openTotal,
+              newSample: audit.newSample,
+            }).catch(emailErr => console.error('[Quality] Failed to send diff alert:', emailErr.message));
+          }
+        }
+      } catch (qcErr) { console.error('Post-scrape conformance audit failed:', qcErr.message); }
     } catch (err) {
       clearTimeout(timeoutHandle);
       // Watchdog aborts (stallReason set) count as failures, not user cancels
@@ -31979,6 +32191,50 @@ cron.schedule('*/30 * * * *', async () => {
     }
   } catch (err) {
     console.error('[StockAlerts Cron] Error:', err.message);
+  }
+});
+
+// ==================== Data Quality Audit Crons ====================
+
+// Nightly full conformance audit (all vendors, no image checks) at 5:45 AM UTC.
+// Catches drift from any source — manual admin edits, backfills, re-imports —
+// that the per-vendor post-scrape hooks don't see. Alerts only on new findings.
+cron.schedule('45 5 * * *', async () => {
+  try {
+    const audit = await runQualityAuditExclusive({ triggeredBy: 'cron' });
+    console.log(`[Quality] Nightly audit: ${audit.newCount} new, ${audit.fixedCount} fixed, ${audit.openTotal} open`);
+    if (audit.newCount + audit.reopenedCount > 0) {
+      await sendQualityDiffAlert({
+        label: 'nightly audit',
+        newCount: audit.newCount,
+        reopenedCount: audit.reopenedCount,
+        fixedCount: audit.fixedCount,
+        openTotal: audit.openTotal,
+        newSample: audit.newSample,
+      });
+    }
+  } catch (err) {
+    console.error('[Quality] Nightly audit failed:', err.message);
+  }
+});
+
+// Weekly broken-image sweep (network-bound HEAD checks) Sunday 4 AM UTC.
+cron.schedule('0 4 * * 0', async () => {
+  try {
+    const audit = await runQualityAuditExclusive({ triggeredBy: 'cron:images', checkImages: true, ruleKeys: ['broken-image'] });
+    console.log(`[Quality] Weekly image sweep: ${audit.newCount} new broken, ${audit.fixedCount} fixed`);
+    if (audit.newCount + audit.reopenedCount > 0) {
+      await sendQualityDiffAlert({
+        label: 'weekly image sweep',
+        newCount: audit.newCount,
+        reopenedCount: audit.reopenedCount,
+        fixedCount: audit.fixedCount,
+        openTotal: audit.openTotal,
+        newSample: audit.newSample,
+      });
+    }
+  } catch (err) {
+    console.error('[Quality] Weekly image sweep failed:', err.message);
   }
 });
 

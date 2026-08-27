@@ -2655,3 +2655,65 @@ CREATE TABLE IF NOT EXISTS order_activity_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_order_activity_log_order ON order_activity_log(order_id);
+
+-- ==================== Product Data Quality (Conformance) ====================
+-- Conformance rules engine — complements sku_quality_scores (which measures
+-- PRESENCE: has image/cost/attrs) by checking CORRECTNESS/CONSISTENCY:
+-- naming lint, sell_by conventions per category, price-basis sanity,
+-- indistinguishable variants, broken images. Rules live in backend/quality/rules.js;
+-- the runner (backend/quality/runner.js) diffs each run against this table so
+-- violations carry memory: open -> fixed (auto-closed when data heals) or
+-- waived (recorded human decision — never re-nags).
+
+CREATE TABLE IF NOT EXISTS quality_violations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    rule_key TEXT NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'warn',          -- error | warn
+    vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id) ON DELETE CASCADE,
+    sku_id UUID REFERENCES skus(id) ON DELETE CASCADE,
+    summary TEXT NOT NULL,
+    detail JSONB DEFAULT '{}',
+    -- Stable identity of the violation (rule + entity + discriminator) so
+    -- re-runs upsert instead of duplicating, and fixes can be detected.
+    fingerprint TEXT NOT NULL UNIQUE,
+    status TEXT NOT NULL DEFAULT 'open',            -- open | fixed | waived
+    first_seen TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_seen TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP,
+    waived_by TEXT,
+    waive_note TEXT,
+    waived_at TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_qv_status_rule ON quality_violations(status, rule_key);
+CREATE INDEX IF NOT EXISTS idx_qv_vendor ON quality_violations(vendor_id) WHERE status = 'open';
+CREATE INDEX IF NOT EXISTS idx_qv_sku ON quality_violations(sku_id);
+
+-- Per-vendor rule opt-outs ("Bosphorus genuinely has no finish data").
+-- Runner skips exempted (rule, vendor) pairs entirely, so they never
+-- reappear as open violations after re-imports.
+CREATE TABLE IF NOT EXISTS quality_exemptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    rule_key TEXT NOT NULL,
+    vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+    note TEXT,
+    created_by TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(rule_key, vendor_id)
+);
+
+-- One row per audit run; new_count/fixed_count drive the diff alert email.
+CREATE TABLE IF NOT EXISTS quality_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    started_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finished_at TIMESTAMP,
+    scope TEXT NOT NULL DEFAULT 'all',              -- 'all' or vendor code
+    triggered_by TEXT,                              -- 'cron' | 'scrape:<key>' | 'manual:<user>'
+    rules_run INTEGER,
+    new_count INTEGER,
+    reopened_count INTEGER,
+    fixed_count INTEGER,
+    open_total INTEGER,
+    error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_quality_runs_started ON quality_runs(started_at DESC);

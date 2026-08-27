@@ -1004,6 +1004,46 @@ export async function sendScraperFailure({ source_name, scraper_key, job_id, err
 }
 
 /**
+ * Send a data-quality diff alert when an audit run surfaces NEW violations
+ * (typically right after a scrape). Silent when nothing new appeared —
+ * the point is triaging deltas, not re-reporting known backlog.
+ */
+export async function sendQualityDiffAlert({ label, newCount, reopenedCount, fixedCount, openTotal, newSample = [] }) {
+  const alertEmail = SCRAPER_ALERT_ADDR;
+  if (!transporter) {
+    console.log(`[Email] Skipping quality diff alert (${label}) — SMTP not configured`);
+    return;
+  }
+  try {
+    const sampleRows = newSample.map(s => `
+      <tr><td style="padding: 6px 10px; border-bottom: 1px solid #eee; white-space: nowrap; color: ${s.severity === 'error' ? '#c0392b' : '#b8860b'}; font-weight: 600;">${s.rule_key}</td>
+          <td style="padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 13px;">${s.summary}</td></tr>`).join('');
+    const html = `
+      <div style="font-family: Inter, sans-serif; max-width: 700px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #b8860b; margin-bottom: 4px;">Data Quality: ${newCount + reopenedCount} new violation${newCount + reopenedCount === 1 ? '' : 's'}</h2>
+        <p style="color: #666; margin-top: 0;">${label}</p>
+        <p style="font-size: 14px;">
+          <strong>${newCount}</strong> new${reopenedCount ? `, <strong>${reopenedCount}</strong> reopened` : ''}${fixedCount ? `, <strong>${fixedCount}</strong> auto-fixed` : ''}
+          &middot; ${openTotal} open total
+        </p>
+        ${sampleRows ? `<table style="width: 100%; border-collapse: collapse; font-size: 14px;">${sampleRows}</table>` : ''}
+        ${newCount > newSample.length ? `<p style="font-size: 13px; color: #888;">…and ${newCount - newSample.length} more.</p>` : ''}
+        <p style="margin-top: 20px; font-size: 13px; color: #888;">Review and waive in Admin → Data Quality.</p>
+      </div>
+    `;
+    await deliver({
+      from: `"${BRAND_NAME} Alerts" <${NOREPLY_ADDR}>`,
+      to: alertEmail,
+      subject: `[Data Quality] ${newCount + reopenedCount} new violation${newCount + reopenedCount === 1 ? '' : 's'} — ${label}`,
+      html
+    });
+    console.log(`[Email] Quality diff alert sent (${label}): ${newCount} new`);
+  } catch (err) {
+    console.error(`[Email] Failed to send quality diff alert (${label}):`, err.message);
+  }
+}
+
+/**
  * Send a catalog pipeline summary (activations / retirements) to the ops team.
  * Called by lifecycle steps only when a live run actually changed the catalog.
  */

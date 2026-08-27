@@ -403,6 +403,16 @@
     .quality-na { background: var(--stone-100); color: var(--stone-400); }
     .missing-flags { display: flex; gap: 0.25rem; margin-top: 0.125rem; }
     .missing-flag { display: inline-block; padding: 0.0625rem 0.375rem; border-radius: var(--radius-full); font-size: 0.5625rem; font-weight: 500; background: rgba(197,71,49,0.12); color: #e07a63; white-space: nowrap; }
+
+    /* Data Quality (conformance rules) tab */
+    .dq-panels { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1.25rem; align-items: start; margin-bottom: 1.5rem; }
+    @media (max-width: 1000px) { .dq-panels { grid-template-columns: 1fr; } }
+    .dq-rule-key { font-family: var(--mono); font-size: 0.6875rem; color: var(--stone-400); }
+    .dq-count-link { background: none; border: none; padding: 0; cursor: pointer; color: var(--gold); font-weight: 600; font-size: 0.875rem; text-decoration: underline; font-family: inherit; }
+    .dq-count-link:disabled { color: var(--stone-400); text-decoration: none; cursor: default; font-weight: 400; }
+    .dq-summary-cell { max-width: 460px; white-space: normal; word-break: break-word; }
+    .dq-waive-note { font-size: 0.6875rem; color: var(--stone-400); margin-top: 0.25rem; }
+    .dq-section-toggle { background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; font-size: 0.9375rem; font-weight: 600; color: var(--ink); display: inline-flex; align-items: center; gap: 0.375rem; }
     .badge-confirmed { background: var(--green-light); color: var(--green); }
     .badge-shipped { background: rgba(126,160,205,0.16); color: #8fb3dd; }
     .badge-delivered { background: var(--green-light); color: #7cc294; }
@@ -2469,6 +2479,7 @@
         { key: 'visits', label: 'Visits', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: ['admin', 'manager'] },
         { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', roles: ['admin', 'manager'] },
+        { key: 'quality', label: 'Data Quality', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.031 9-11.622 0-1.042-.133-2.052-.382-3.016z', roles: ['admin', 'manager'] },
         { key: 'trade', label: 'Trade', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'promos', label: 'Promo Codes', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4zM17 3h2a2 2 0 012 2v2', roles: ['admin', 'manager'] },
         { key: 'staff', label: 'Staff', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', roles: ['admin', 'manager'] },
@@ -2550,6 +2561,7 @@
             {view === 'promo-create' && <PromoCodeFormView navigate={navigate} />}
             {view === 'promo-edit' && <PromoCodeFormView navigate={navigate} editId={editId} />}
             {view === 'audit' && <AuditLogView navigate={navigate} />}
+            {view === 'quality' && <DataQualityView navigate={navigate} />}
             {view === 'purchase-orders' && <PurchaseOrdersListView navigate={navigate} staffRole={staffRole} />}
             {view === 'purchase-order-detail' && <PurchaseOrderDetailView navigate={navigate} editId={editId} staffRole={staffRole} />}
           </div>
@@ -12072,6 +12084,431 @@
           <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
             <button className="btn btn-secondary btn-sm" disabled={page <= 0} onClick={() => setPage(p => p - 1)}>Previous</button>
             <button className="btn btn-secondary btn-sm" disabled={logs.length < LIMIT} onClick={() => setPage(p => p + 1)}>Next</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== DataQualityView ==========
+    // Surfaces conformance violations from the rules engine (naming lint,
+    // selling-convention violations, price-basis outliers).
+    function DataQualityView({ navigate }) {
+      const LIMIT = 100;
+      const [summary, setSummary] = useState(null);
+      const [summaryLoading, setSummaryLoading] = useState(true);
+      const [running, setRunning] = useState(false);
+      const [runMsg, setRunMsg] = useState(null);
+      const [checkImages, setCheckImages] = useState(false);
+
+      // Violations list filters + paging
+      const [statusFilter, setStatusFilter] = useState('open');
+      const [ruleFilter, setRuleFilter] = useState('');
+      const [vendorFilter, setVendorFilter] = useState('');
+      const [sevFilter, setSevFilter] = useState('');
+      const [qInput, setQInput] = useState('');
+      const [q, setQ] = useState('');
+      const [page, setPage] = useState(0);
+      const [violations, setViolations] = useState([]);
+      const [total, setTotal] = useState(0);
+      const [listLoading, setListLoading] = useState(true);
+
+      // Collapsible sections
+      const [showVendors, setShowVendors] = useState(true);
+      const [showExemptions, setShowExemptions] = useState(false);
+
+      // Add-exemption form
+      const [exRule, setExRule] = useState('');
+      const [exVendor, setExVendor] = useState('');
+      const [exNote, setExNote] = useState('');
+      const [exSaving, setExSaving] = useState(false);
+
+      const listRef = React.useRef(null);
+
+      const loadSummary = () => {
+        adminFetch('/api/admin/quality/summary')
+          .then(d => { setSummary(d); setSummaryLoading(false); })
+          .catch(() => setSummaryLoading(false));
+      };
+      useEffect(loadSummary, []);
+
+      // Debounce free-text search
+      useEffect(() => {
+        const t = setTimeout(() => { setQ(qInput); setPage(0); }, 350);
+        return () => clearTimeout(t);
+      }, [qInput]);
+
+      const loadViolations = () => {
+        setListLoading(true);
+        let url = '/api/admin/quality/violations?status=' + statusFilter + '&limit=' + LIMIT + '&offset=' + (page * LIMIT);
+        if (ruleFilter) url += '&rule=' + encodeURIComponent(ruleFilter);
+        if (vendorFilter) url += '&vendor=' + encodeURIComponent(vendorFilter);
+        if (sevFilter) url += '&severity=' + sevFilter;
+        if (q) url += '&q=' + encodeURIComponent(q);
+        adminFetch(url)
+          .then(d => { setViolations(d.violations || []); setTotal(d.total || 0); setListLoading(false); })
+          .catch(() => setListLoading(false));
+      };
+      useEffect(loadViolations, [statusFilter, ruleFilter, vendorFilter, sevFilter, q, page]);
+
+      const refreshAll = () => { loadSummary(); loadViolations(); };
+
+      const rules = (summary && summary.rules) || [];
+      const byRuleMap = {};
+      ((summary && summary.by_rule) || []).forEach(r => { byRuleMap[r.rule_key] = r; });
+      const byVendor = (summary && summary.by_vendor) || [];
+      const exemptions = (summary && summary.exemptions) || [];
+      const lastRun = ((summary && summary.recent_runs) || [])[0] || null;
+
+      const openErrors = ((summary && summary.by_rule) || []).reduce((n, r) => n + (r.severity === 'error' ? Number(r.open || 0) : 0), 0);
+      const openWarns = ((summary && summary.by_rule) || []).reduce((n, r) => n + (r.severity !== 'error' ? Number(r.open || 0) : 0), 0);
+      const openTotal = openErrors + openWarns;
+
+      const fmtShort = d => d ? new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—';
+      const fmtWhen = d => d ? new Date(d).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+      const sevBadge = sev => (
+        <span className={'quality-badge ' + (sev === 'error' ? 'quality-poor' : 'quality-fair')}>{sev === 'error' ? 'error' : 'warn'}</span>
+      );
+
+      const filterTo = (patch) => {
+        setStatusFilter('open');
+        setRuleFilter(patch.rule != null ? patch.rule : '');
+        setVendorFilter(patch.vendor != null ? patch.vendor : '');
+        if (patch.severity != null) setSevFilter(patch.severity);
+        setPage(0);
+        if (listRef.current) listRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+
+      const runAudit = () => {
+        if (running) return;
+        setRunning(true);
+        setRunMsg(null);
+        adminFetch('/api/admin/quality/run', { method: 'POST', body: JSON.stringify({ check_images: checkImages }) })
+          .then(d => {
+            setRunning(false);
+            setRunMsg({ msg: 'Audit complete — ' + d.newCount + ' new, ' + d.reopenedCount + ' reopened, ' + d.fixedCount + ' fixed, ' + d.openTotal + ' open.' });
+            refreshAll();
+          })
+          .catch(err => {
+            setRunning(false);
+            const already = /already|409/i.test(err.message || '');
+            setRunMsg({ err: true, msg: already ? 'An audit is already running — try again in a bit.' : err.message });
+            if (already) loadSummary();
+          });
+      };
+
+      const waiveOne = (v) => {
+        const note = window.prompt('Waive this violation — optional note:', '');
+        if (note === null) return;
+        adminFetch('/api/admin/quality/violations/' + v.id + '/waive', { method: 'POST', body: JSON.stringify({ note: note.trim() }) })
+          .then(refreshAll)
+          .catch(err => alert(err.message));
+      };
+
+      const reopenOne = (v) => {
+        adminFetch('/api/admin/quality/violations/' + v.id + '/reopen', { method: 'POST', body: JSON.stringify({}) })
+          .then(refreshAll)
+          .catch(err => alert(err.message));
+      };
+
+      const waiveAllForRule = (ruleDef, openCount) => {
+        if (!window.confirm('Waive ALL ' + openCount + ' open violation(s) of “' + ruleDef.title + '”? They stay on record as waived.')) return;
+        const note = window.prompt('Note for this bulk waive (goes on every violation):', '');
+        if (note === null) return;
+        adminFetch('/api/admin/quality/violations/waive-bulk', { method: 'POST', body: JSON.stringify({ rule_key: ruleDef.key, note: note.trim() }) })
+          .then(d => { setRunMsg({ msg: 'Waived ' + (d.waived != null ? d.waived : openCount) + ' violation(s) of “' + ruleDef.title + '”.' }); refreshAll(); })
+          .catch(err => alert(err.message));
+      };
+
+      const addExemption = () => {
+        if (!exRule || !exVendor.trim()) { alert('Pick a rule and enter a vendor code.'); return; }
+        setExSaving(true);
+        adminFetch('/api/admin/quality/exemptions', { method: 'POST', body: JSON.stringify({ rule_key: exRule, vendor_code: exVendor.trim().toUpperCase(), note: exNote.trim() }) })
+          .then(() => { setExSaving(false); setExRule(''); setExVendor(''); setExNote(''); refreshAll(); })
+          .catch(err => { setExSaving(false); alert(err.message); });
+      };
+
+      const deleteExemption = (ex) => {
+        if (!window.confirm('Remove the exemption for ' + (ex.vendor_code || '?') + ' / ' + ex.rule_key + '? The next audit will check this vendor again.')) return;
+        adminFetch('/api/admin/quality/exemptions/' + ex.id, { method: 'DELETE' })
+          .then(refreshAll)
+          .catch(err => alert(err.message));
+      };
+
+      const auditRunning = running || !!(summary && summary.audit_running);
+      const pageStart = total === 0 ? 0 : page * LIMIT + 1;
+      const pageEnd = Math.min(total, page * LIMIT + violations.length);
+
+      if (summaryLoading && !summary) return <div className="loading">Loading data quality...</div>;
+
+      return (
+        <div>
+          <div className="content-header">
+            <h1>Data Quality</h1>
+            <button className="btn btn-secondary" onClick={() => navigate('products')}>Products →</button>
+          </div>
+
+          {/* Summary cards */}
+          <div className="stat-grid" style={{ marginBottom: '1rem' }}>
+            <div className="stat-card">
+              <div className="stat-card-label">Open Violations</div>
+              <div className="stat-card-value">{openTotal}</div>
+              <div style={{ marginTop: '0.375rem', display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                <span className="quality-badge quality-poor">{openErrors} errors</span>
+                <span className="quality-badge quality-fair">{openWarns} warnings</span>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-label">Last Run</div>
+              <div className="stat-card-value" style={{ fontSize: '1.125rem' }}>{lastRun ? fmtWhen(lastRun.finished_at || lastRun.started_at) : 'Never'}</div>
+              {lastRun && (
+                <div style={{ marginTop: '0.375rem', fontSize: '0.75rem', color: 'var(--stone-500)' }}>
+                  {lastRun.triggered_by || 'system'} · {lastRun.new_count} new · {lastRun.fixed_count} fixed
+                  {lastRun.error && <span style={{ color: 'var(--red)' }}> · error: {lastRun.error}</span>}
+                </div>
+              )}
+            </div>
+            <div className="stat-card">
+              <div className="stat-card-label">Audit</div>
+              <button className="btn btn-primary btn-sm" style={{ marginTop: '0.375rem' }} disabled={auditRunning} onClick={runAudit}>
+                {auditRunning ? 'Running…' : 'Run audit now'}
+              </button>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.5rem', fontSize: '0.6875rem', color: 'var(--stone-500)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={checkImages} onChange={e => setCheckImages(e.target.checked)} disabled={auditRunning} />
+                include image checks (slow, samples 1000)
+              </label>
+            </div>
+          </div>
+          {runMsg && (
+            <div style={{ marginBottom: '1rem', padding: '0.625rem 0.875rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8125rem',
+              background: runMsg.err ? 'var(--red-light)' : 'var(--green-light)', color: runMsg.err ? 'var(--red)' : 'var(--green)' }}>
+              {runMsg.msg}
+            </div>
+          )}
+
+          {/* By rule + by vendor */}
+          <div className="dq-panels">
+            <div>
+              <h2 style={{ fontSize: '0.9375rem', marginBottom: '0.625rem' }}>By rule</h2>
+              <div className="table-scroll-wrapper">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Rule</th>
+                      <th>Severity</th>
+                      <th>Open</th>
+                      <th>Waived</th>
+                      <th>Fixed 30d</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rules.map(r => {
+                      const agg = byRuleMap[r.key] || {};
+                      const open = Number(agg.open || 0);
+                      return (
+                        <tr key={r.key}>
+                          <td>
+                            <div style={{ fontWeight: 500 }}>{r.title}{r.heavy ? <span title="Heavy rule — only runs on full audits" style={{ color: 'var(--stone-400)' }}> ⚙</span> : null}</div>
+                            <div className="dq-rule-key">{r.key}</div>
+                          </td>
+                          <td>{sevBadge(r.severity)}</td>
+                          <td>
+                            <button className="dq-count-link" disabled={open === 0} onClick={() => filterTo({ rule: r.key })}>{open}</button>
+                          </td>
+                          <td style={{ color: 'var(--stone-500)' }}>{Number(agg.waived || 0)}</td>
+                          <td style={{ color: 'var(--stone-500)' }}>{Number(agg.fixed_30d || 0)}</td>
+                          <td className="actions">
+                            {open > 0 && (
+                              <button className="btn btn-secondary btn-sm" onClick={() => waiveAllForRule(r, open)}>Waive all…</button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {rules.length === 0 && (
+                      <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '1.5rem' }}>No rules registered</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <button className="dq-section-toggle" style={{ marginBottom: '0.625rem' }} onClick={() => setShowVendors(v => !v)}>
+                <span style={{ fontSize: '0.6875rem' }}>{showVendors ? '▼' : '▶'}</span> By vendor
+              </button>
+              {showVendors && (
+                <div className="table-scroll-wrapper">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Vendor</th>
+                        <th>Open</th>
+                        <th>Errors</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {byVendor.map(v => (
+                        <tr key={v.vendor_code || v.vendor_id}>
+                          <td>
+                            <div style={{ fontWeight: 500 }}>{v.vendor_name || '—'}</div>
+                            <div className="dq-rule-key">{v.vendor_code}</div>
+                          </td>
+                          <td>
+                            <button className="dq-count-link" disabled={!Number(v.open)} onClick={() => filterTo({ vendor: v.vendor_code })}>{Number(v.open || 0)}</button>
+                          </td>
+                          <td>
+                            {Number(v.open_errors) > 0
+                              ? <span className="quality-badge quality-poor">{Number(v.open_errors)}</span>
+                              : <span style={{ color: 'var(--stone-400)' }}>0</span>}
+                          </td>
+                        </tr>
+                      ))}
+                      {byVendor.length === 0 && (
+                        <tr><td colSpan="3" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '1.5rem' }}>No open violations by vendor</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Violations list */}
+          <div ref={listRef}>
+            <h2 style={{ fontSize: '0.9375rem', marginBottom: '0.625rem' }}>Violations</h2>
+            <div className="filter-bar" style={{ marginBottom: '1rem' }}>
+              <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}>
+                <option value="open">Open</option>
+                <option value="waived">Waived</option>
+                <option value="fixed">Fixed</option>
+                <option value="all">All statuses</option>
+              </select>
+              <select value={ruleFilter} onChange={e => { setRuleFilter(e.target.value); setPage(0); }}>
+                <option value="">All rules</option>
+                {rules.map(r => <option key={r.key} value={r.key}>{r.title}</option>)}
+              </select>
+              <select value={vendorFilter} onChange={e => { setVendorFilter(e.target.value); setPage(0); }}>
+                <option value="">All vendors</option>
+                {byVendor.map(v => <option key={v.vendor_code || v.vendor_id} value={v.vendor_code}>{(v.vendor_name || v.vendor_code) + ' (' + v.vendor_code + ')'}</option>)}
+              </select>
+              <select value={sevFilter} onChange={e => { setSevFilter(e.target.value); setPage(0); }}>
+                <option value="">Any severity</option>
+                <option value="error">Errors</option>
+                <option value="warn">Warnings</option>
+              </select>
+              <input type="text" value={qInput} onChange={e => setQInput(e.target.value)} placeholder="Search summary / SKU…" />
+              <span className="filter-count" style={{ marginLeft: 'auto' }}>
+                {listLoading ? 'Loading…' : total === 0 ? 'No violations' : pageStart + '–' + pageEnd + ' of ' + total}
+              </span>
+            </div>
+            <div className="table-scroll-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Sev</th>
+                    <th>Rule</th>
+                    <th>Summary</th>
+                    <th>Vendor</th>
+                    <th>First seen</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {violations.map(v => (
+                    <tr key={v.id}>
+                      <td>{sevBadge(v.severity)}</td>
+                      <td><span className="dq-rule-key">{v.rule_key}</span></td>
+                      <td className="dq-summary-cell">
+                        <div>{v.summary}</div>
+                        {v.internal_sku && (
+                          <div className="dq-rule-key" style={{ marginTop: '0.125rem' }}>
+                            {v.product_id
+                              ? <a href={'#product-edit/' + v.product_id} onClick={e => { e.preventDefault(); navigate('product-edit', v.product_id); }} style={{ color: 'var(--stone-400)' }}>{v.internal_sku}</a>
+                              : v.internal_sku}
+                          </div>
+                        )}
+                        {v.status === 'waived' && (
+                          <div className="dq-waive-note" title={v.waive_note || ''}>
+                            waived {v.waived_by ? 'by ' + v.waived_by : ''}{v.waived_at ? ' · ' + fmtShort(v.waived_at) : ''}{v.waive_note ? ' — ' + v.waive_note : ''}
+                          </div>
+                        )}
+                        {v.status === 'fixed' && (
+                          <div className="dq-waive-note">fixed · last seen {fmtShort(v.last_seen)}</div>
+                        )}
+                      </td>
+                      <td><span className="dq-rule-key" style={{ color: 'var(--stone-500)' }}>{v.vendor_code || '—'}</span></td>
+                      <td style={{ whiteSpace: 'nowrap', color: 'var(--stone-500)', fontSize: '0.8125rem' }} title={v.first_seen ? new Date(v.first_seen).toLocaleString() : ''}>{fmtShort(v.first_seen)}</td>
+                      <td className="actions">
+                        {v.status === 'open' && <button className="btn btn-secondary btn-sm" onClick={() => waiveOne(v)}>Waive</button>}
+                        {v.status === 'waived' && <button className="btn btn-secondary btn-sm" onClick={() => reopenOne(v)}>Reopen</button>}
+                      </td>
+                    </tr>
+                  ))}
+                  {!listLoading && violations.length === 0 && (
+                    <tr><td colSpan="6" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No violations match these filters</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
+              <button className="btn btn-secondary btn-sm" disabled={page <= 0} onClick={() => setPage(p => p - 1)}>Previous</button>
+              <button className="btn btn-secondary btn-sm" disabled={pageEnd >= total} onClick={() => setPage(p => p + 1)}>Next</button>
+            </div>
+          </div>
+
+          {/* Exemptions */}
+          <div style={{ marginTop: '2rem', marginBottom: '2rem' }}>
+            <button className="dq-section-toggle" onClick={() => setShowExemptions(v => !v)}>
+              <span style={{ fontSize: '0.6875rem' }}>{showExemptions ? '▼' : '▶'}</span> Exemptions ({exemptions.length})
+            </button>
+            <div style={{ fontSize: '0.75rem', color: 'var(--stone-400)', marginTop: '0.25rem' }}>
+              Exempted vendor/rule pairs are skipped by the audit entirely.
+            </div>
+            {showExemptions && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <div className="table-scroll-wrapper">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Rule</th>
+                        <th>Vendor</th>
+                        <th>Note</th>
+                        <th>Added</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {exemptions.map(ex => (
+                        <tr key={ex.id}>
+                          <td><span className="dq-rule-key" style={{ color: 'var(--stone-500)' }}>{ex.rule_key}</span></td>
+                          <td style={{ fontWeight: 500 }}>{ex.vendor_name || '—'} <span className="dq-rule-key">{ex.vendor_code}</span></td>
+                          <td className="dq-summary-cell" style={{ color: 'var(--stone-500)', fontSize: '0.8125rem' }}>{ex.note || '—'}</td>
+                          <td style={{ whiteSpace: 'nowrap', color: 'var(--stone-500)', fontSize: '0.8125rem' }}>{fmtShort(ex.created_at)}{ex.created_by ? ' · ' + ex.created_by : ''}</td>
+                          <td className="actions">
+                            <button className="btn btn-danger btn-sm" onClick={() => deleteExemption(ex)}>Delete</button>
+                          </td>
+                        </tr>
+                      ))}
+                      {exemptions.length === 0 && (
+                        <tr><td colSpan="5" style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '1.5rem' }}>No exemptions</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="filter-bar" style={{ marginTop: '0.75rem' }}>
+                  <select value={exRule} onChange={e => setExRule(e.target.value)}>
+                    <option value="">Rule…</option>
+                    {rules.map(r => <option key={r.key} value={r.key}>{r.title}</option>)}
+                  </select>
+                  <input type="text" value={exVendor} onChange={e => setExVendor(e.target.value)} placeholder="Vendor code (e.g. MSI)" style={{ minWidth: '160px', textTransform: 'uppercase' }} />
+                  <input type="text" value={exNote} onChange={e => setExNote(e.target.value)} placeholder="Why is this vendor intentionally different?" style={{ minWidth: '260px' }} />
+                  <button className="btn btn-primary btn-sm" disabled={exSaving || !exRule || !exVendor.trim()} onClick={addExemption}>
+                    {exSaving ? 'Adding…' : 'Add exemption'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       );
