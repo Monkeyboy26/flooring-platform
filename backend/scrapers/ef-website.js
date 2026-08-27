@@ -101,6 +101,47 @@ function slugify(name) {
     .replace(/^-|-$/g, '');
 }
 
+// EF cloudinary room-scene URLs encode a specific color
+// (e.g. .../2565_Astounding_615_Endless_Sea_RS_x.jpg → code 615, name "endless sea").
+// Saving them product-level made every color's PDP inherit other colors' rooms.
+// Route each to the SKU it depicts (by color code, then color name); keep only
+// uncoded/generic images product-level; drop color-coded images whose color this
+// product doesn't sell (no wrong image). Mirrors fix-shaw-ef-image-colors-2026-08.mjs.
+async function saveEfImagesByColor(pool, productId, urls) {
+  const skuRows = (await pool.query(
+    `SELECT id, variant_name FROM skus WHERE product_id = $1 AND is_sample = false ORDER BY created_at`,
+    [productId])).rows;
+  const code = v => (String(v || '').match(/([A-Za-z0-9]{3,5})\s*$/) || [])[1] || null;
+  const name = v => String(v || '').replace(/\s*[A-Za-z0-9]{3,5}\s*$/, '').trim().toLowerCase();
+  const byCode = new Map(), names = [];
+  for (const s of skuRows) {
+    const c = code(s.variant_name);
+    if (c) { byCode.set(c.toUpperCase(), s); byCode.set(c.replace(/^0+/, '').toUpperCase(), s); }
+    const n = name(s.variant_name);
+    if (n && n.length >= 4) names.push({ n, s });
+  }
+  names.sort((a, b) => b.n.length - a.n.length); // longest first
+
+  const bySku = new Map(); // skuId → urls
+  const productLevel = [];
+  for (const url of urls) {
+    const file = decodeURIComponent((url.split('/').pop() || '').toLowerCase());
+    const codes = [...file.matchAll(/_(\d{2,4})(?=_)/g)].map(m => m[1]);
+    const text = ' ' + file.replace(/_/g, ' ') + ' ';
+    let target = null;
+    for (const c of codes) { target = byCode.get(c.toUpperCase()) || byCode.get(c.replace(/^0+/, '').toUpperCase()); if (target) break; }
+    if (!target) for (const { n, s } of names) { if (text.includes(' ' + n + ' ')) { target = s; break; } }
+    if (target) { if (!bySku.has(target.id)) bySku.set(target.id, []); bySku.get(target.id).push(url); }
+    else if (codes.length === 0) productLevel.push(url);  // no color encoded → generic
+    // else: color-coded but foreign to this product → skip
+  }
+
+  let saved = 0;
+  for (const [skuId, list] of bySku) saved += await saveSkuImages(pool, productId, skuId, list, { maxImages: 6 });
+  if (productLevel.length) saved += await saveProductImages(pool, productId, productLevel);
+  return saved;
+}
+
 // ──────────────────────────────────────────────
 // Main
 // ──────────────────────────────────────────────
@@ -230,7 +271,7 @@ async function main() {
         const filtered = filterImageUrls(imageUrls, { maxImages: 8 });
 
         if (filtered.length > 0 && parseInt(product.image_count) === 0) {
-          const saved = await saveProductImages(pool, product.id, filtered);
+          const saved = await saveEfImagesByColor(pool, product.id, filtered);
           imagesFound += saved;
           console.log(`    + ${saved} images saved`);
         } else if (filtered.length > 0) {

@@ -376,21 +376,31 @@ async function processStyle(pool, style, vendorId, data, counters, jobId) {
     });
   }
 
-  // Product-level room scene (first one from style, not color)
+  // Style-level room scene: Shaw returns ONE scene per style, but it depicts a
+  // single specific color (URL encodes it). Attaching it product-level (sku_id
+  // NULL) made the PDP supplement it into EVERY color's gallery, so a beige
+  // carpet's page showed another color's room. Route it to the color it actually
+  // depicts instead; drop it if that color isn't in this product (no wrong image).
   const rawStyleRsUrl = style.roomScene?.highResolutionImagePath || style.roomScene?.imagePath;
   const styleRoomSceneUrl = optimizeImageUrl(rawStyleRsUrl);
-  if (styleRoomSceneUrl) {
-    await upsertMediaAsset(pool, {
-      product_id: productId, sku_id: null,
-      asset_type: 'lifestyle', url: styleRoomSceneUrl,
-      original_url: rawStyleRsUrl, sort_order: 0,
-    });
-    counters.imagesAdded++;
-  }
 
   // ─── Process colors (SKUs) ──────────────────────────────────────────
   const colors = style.colors || [];
   const existingSkus = data.productSkus.get(productId) || [];
+
+  if (styleRoomSceneUrl) {
+    // Color code follows the style in both URL shapes (widen "MB372_00713.jpg",
+    // shawinc "/v1/54256_56595/..."); take the LAST underscore-prefixed 5-digit run.
+    const codeMatches = [...String(styleRoomSceneUrl).matchAll(/_(\d{5})(?!\d)/g)];
+    const sceneL3 = codeMatches.length ? codeMatches[codeMatches.length - 1][1].slice(-3) : null;
+    const sceneColor = sceneL3 && colors.find(c => (c.colorNumber || '').trim().slice(-3) === sceneL3);
+    if (!sceneColor) {
+      counters.imagesSkipped = (counters.imagesSkipped || 0) + 1; // color-specific but unmatched → drop
+    } else {
+      // remember which color owns it; processColor attaches it sku-level (deduped)
+      sceneColor._styleRoomScene = { url: styleRoomSceneUrl, rawUrl: rawStyleRsUrl };
+    }
+  }
 
   // Resolve this product's collection for cross-collection dedup
   const productCollection = (data.nameToProduct.get(normalizeName(styleName)) || {}).collection || '';
@@ -605,8 +615,14 @@ async function processImages(pool, color, productId, skuId, counters, usedConten
     }
   }
 
-  // Room scenes (SKU-level, capped)
-  const roomScenes = color.roomScenes || [];
+  // Room scenes (SKU-level, capped). Prepend the style-level scene routed to this
+  // color (set in processStyle) so it lands on the color it depicts, not product-wide.
+  const roomScenes = [...(color.roomScenes || [])];
+  if (color._styleRoomScene) {
+    const already = roomScenes.some(rs =>
+      optimizeImageUrl(rs.highResolutionImagePath || rs.highResolutionUrl || rs.imagePath || rs.url) === color._styleRoomScene.url);
+    if (!already) roomScenes.unshift({ highResolutionImagePath: color._styleRoomScene.rawUrl });
+  }
   for (let i = 0; i < Math.min(roomScenes.length, ROOM_SCENE_CAP); i++) {
     const rs = roomScenes[i];
     const rawRsUrl = rs.highResolutionImagePath || rs.highResolutionUrl || rs.imagePath || rs.url;

@@ -3573,8 +3573,11 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             (EXISTS (SELECT 1 FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id WHERE sa.sku_id = s.id AND a.slug = 'size' AND sa.value = $7)) DESC,
             (s.variant_name = $5) DESC,
             s.created_at
-          LIMIT 120
-        `, [sku.collection, sku.product_id, sku.category_id, isMosaicProduct, sku.variant_name, sku.vendor_id, curSizeVal]);
+          LIMIT $8
+        `, [sku.collection, sku.product_id, sku.category_id, isMosaicProduct, sku.variant_name, sku.vendor_id, curSizeVal,
+            // Dream Weaver carpet shares one collection across 150+ products; the
+            // density-series pills need every family member present
+            sku.category_slug === 'broadloom-carpet' ? 300 : 120]);
         collectionSiblings = collResult.rows;
 
         // Build sku_map for each collection sibling product: { "size|finish" → sku_id }

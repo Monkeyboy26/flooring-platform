@@ -485,8 +485,16 @@
       if (sku.sell_by) return sku.sell_by === 'roll';
       return sku.price_basis === 'per_sqyd';
     }
+    // Any roll-priced good (per-sqyd cut price): carpet or sheet vinyl sold from the roll
+    function isRollPriced(sku) {
+      return !!(sku && sku.cut_price != null && sku.sell_by === 'roll');
+    }
+    function isSheetVinylSku(sku) {
+      return !!(sku && (sku.category_slug === 'sheet-vinyl' || /sheet vinyl/i.test(sku.category_name || '')));
+    }
+    // Carpet gets the carpet calculator + rug quote; sheet vinyl never does, even when roll-priced
     function isCarpet(sku) {
-      return sku && sku.cut_price != null && sku.sell_by === 'roll';
+      return isRollPriced(sku) && !isSheetVinylSku(sku);
     }
     function parseRollWidthFt(productName) {
       if (!productName) return 0;
@@ -657,10 +665,10 @@
       if (isSoldPerSqyd(sku)) return '/sqyd';
       return '/sqft';
     }
-    // Customer-facing list price: cut_price for carpet (per sqyd), retail_price otherwise
+    // Customer-facing list price: cut_price for roll goods (per sqyd), retail_price otherwise
     function skuListPrice(sku) {
       if (!sku) return 0;
-      return isCarpet(sku) ? sku.cut_price : sku.retail_price;
+      return isRollPriced(sku) ? sku.cut_price : sku.retail_price;
     }
     // Slab pricing: when price is stored per sqft but sold per piece, compute piece price
     function displayPrice(sku, rawPrice) {
@@ -3745,7 +3753,7 @@
           signin: { title: 'Sign In | Roma Flooring Designs', description: 'Sign in to your Roma Flooring Designs account.', url: SITE_URL + '/signin' },
           signup: { title: 'Create Account | Roma Flooring Designs', description: 'Create your Roma Flooring Designs account.', url: SITE_URL + '/signup' },
           'forgot-password': { title: 'Forgot Password | Roma Flooring Designs', description: 'Reset your Roma Flooring Designs password.', url: SITE_URL + '/forgot-password' },
-          about: { title: 'About Us | Roma Flooring Designs', description: 'A family flooring house in Anaheim, California — hardwood, stone, tile, and cabinetry since 1999. Visit our showroom on State College Blvd.', url: SITE_URL + '/about' },
+          about: { title: 'About Us — Coming Soon | Roma Flooring Designs', description: 'Our story is coming soon. Visit the Roma Flooring Designs showroom in Anaheim, California for hardwood, stone, tile, and cabinetry.', url: SITE_URL + '/about' },
           installation: { title: 'Flooring Installation in Anaheim & Orange County | Roma Flooring Designs', description: 'Licensed, insured flooring installation in Anaheim & Orange County — hardwood, tile, luxury vinyl, stone, carpet & laminate. Free estimates. CA Lic #830966. Call (714) 999-0009.', url: SITE_URL + '/installation', image: SITE_URL + '/uploads/og-default.jpg' },
           'custom-accessories': { title: 'Custom Tile Trim & Wood Floor Moldings | Roma Flooring Designs', description: 'Custom floor accessories in Anaheim & Orange County — bullnose, cut-downs, mosaics & tile stair treads fabricated from your tile, plus color-matched wood moldings & stair parts. Made to order. Call (714) 999-0009.', url: SITE_URL + '/custom-accessories', image: SITE_URL + '/uploads/og-default.jpg' },
         'custom-area-rugs': { title: 'Custom Area Rugs & Runners in Anaheim & Orange County | Roma Flooring Designs', description: 'Custom area rugs & runners in Anaheim & Orange County — cut and bound to any size and shape from wool, nylon & natural-fiber carpet, with serged, bound, or leather edges. Made to order. Call (714) 999-0009.', url: SITE_URL + '/custom-area-rugs', image: SITE_URL + '/uploads/og-default.jpg' },
@@ -4369,9 +4377,6 @@
                   <div className="search-panel-section-label">Browse Categories</div>
                   {parentCats.slice(0, 6).map(cat => (
                     <button key={cat.slug} className="search-panel-cat-row" onClick={() => { onClose(); onCategorySelect(cat.slug); }}>
-                      <div className="search-panel-cat-swatch">
-                        {cat.image ? <img src={optimizeImg(cat.image, 60)} alt="" decoding="async" loading="lazy" width={28} height={28} /> : null}
-                      </div>
                       <span className="search-panel-cat-name">{cat.name}</span>
                       <span className="search-panel-cat-meta">{cat.product_count || 0}</span>
                     </button>
@@ -5698,7 +5703,7 @@
               ) : specimens.length > 0 ? (
                 <div className="form-specimen-grid">
                   {specimens.map((sku, i) => {
-                    const basePrice = isCarpet(sku) ? sku.cut_price : sku.retail_price;
+                    const basePrice = isRollPriced(sku) ? sku.cut_price : sku.retail_price;
                     const price = sku.trade_price || sku.sale_price || basePrice;
                     return (
                       <div key={sku.sku_id} className="form-specimen-card" onClick={() => onSkuClick(sku.sku_id, sku.product_name)}>
@@ -5860,7 +5865,7 @@
               ) : featured.length > 0 ? (
                 <div className="shop-featured-grid">
                   {featured.map(sku => {
-                    const basePrice = isCarpet(sku) ? sku.cut_price : sku.retail_price;
+                    const basePrice = isRollPriced(sku) ? sku.cut_price : sku.retail_price;
                     const price = sku.trade_price || sku.sale_price || basePrice;
                     return (
                       <div key={sku.sku_id} className="shop-featured-card" onClick={() => onSkuClick(sku.sku_id, sku.product_name)}>
@@ -6771,7 +6776,7 @@
     function SkuCard({ sku, onClick, isWished, onToggleWishlist, onQuickView, index }) {
       const isAboveFold = index != null && index < 8;
       const onSale = sku.sale_price != null && !sku.trade_price;
-      const basePrice = isCarpet(sku) ? sku.cut_price : sku.retail_price;
+      const basePrice = isRollPriced(sku) ? sku.cut_price : sku.retail_price;
       const price = sku.trade_price || (onSale ? sku.sale_price : basePrice);
       const discountPct = onSale && parseFloat(basePrice) > 0 ? Math.round((1 - parseFloat(sku.sale_price) / parseFloat(basePrice)) * 100) : 0;
       const catName = sku.category_name || '';
@@ -7264,10 +7269,14 @@
       const isSoldPerSqft = sku && sku.sell_by === 'sqft';
       const hasBoxCalc = !isPerUnit && !isSoldPerSqft && sqftPerBox > 0;
       const isSqftNoBox = !isPerUnit && !isSoldPerSqft && sqftPerBox <= 0;
-      // Sheet vinyl roll calculator
-      const sheetRollWidthFt = isSqftNoBox && !isCarpetSku && sku
-        ? parseRollWidthFt(sku.product_name || '') : 0;
-      const isSheetVinyl = isSqftNoBox && !isCarpetSku && sheetRollWidthFt > 0;
+      // Sheet vinyl roll calculator — keyed off category so vinyl never gets the
+      // carpet calculator and carpet never gets this one. Covers both roll-priced
+      // (per-sqyd cut price) and per-sqft box SKUs.
+      const isSheetVinyl = isSqftNoBox && sku && isSheetVinylSku(sku);
+      const vinylRollPriced = isSheetVinyl && isRollPriced(sku);
+      const sheetRollWidthFt = isSheetVinyl
+        ? (parseFloat(sku.roll_width_ft) || parseRollWidthFt(sku.product_name || '')) : 0;
+      const sheetPerSqftPrice = vinylRollPriced ? parseFloat(sku.cut_price) / 9 : effectivePrice;
       const sheetMode = isSheetVinyl
         ? (carpetInputMode === 'linear' && sheetRollWidthFt <= 0 ? 'dimensions' : carpetInputMode)
         : null;
@@ -7278,7 +7287,7 @@
         : 0;
       const sheetSqft = isSheetVinyl && includeCarpetOverage
         ? Math.ceil(sheetRawSqft * 11 / 10) : sheetRawSqft;
-      const sheetSubtotal = sheetSqft * effectivePrice;
+      const sheetSubtotal = sheetSqft * sheetPerSqftPrice;
       const sheetNeedsSeam = isSheetVinyl && sheetMode === 'dimensions'
         && sheetRollWidthFt > 0 && (parseFloat(roomWidth) || 0) > sheetRollWidthFt;
       // Slab with per-sqft pricing but no known dimensions — can't compute piece price
@@ -7398,17 +7407,31 @@
             sell_by: 'box'
           });
         } else if (isSheetVinyl) {
-          // Sheet vinyl roll — sell by box
           if (sheetSqft <= 0) return;
-          addToCart({
-            product_id: sku.product_id,
-            sku_id: sku.sku_id,
-            sqft_needed: sheetSqft,
-            num_boxes: 1,
-            unit_price: effectivePrice,
-            subtotal: sheetSubtotal.toFixed(2),
-            sell_by: 'box'
-          });
+          if (vinylRollPriced) {
+            // Roll-priced sheet vinyl — per-sqyd cut price, same line semantics as carpet
+            addToCart({
+              product_id: sku.product_id,
+              sku_id: sku.sku_id,
+              sqft_needed: sheetSqft,
+              num_boxes: 1,
+              unit_price: parseFloat(sku.cut_price),
+              subtotal: sheetSubtotal.toFixed(2),
+              sell_by: 'roll',
+              price_tier: 'cut'
+            });
+          } else {
+            // Per-sqft sheet vinyl — sell by box
+            addToCart({
+              product_id: sku.product_id,
+              sku_id: sku.sku_id,
+              sqft_needed: sheetSqft,
+              num_boxes: 1,
+              unit_price: effectivePrice,
+              subtotal: sheetSubtotal.toFixed(2),
+              sell_by: 'box'
+            });
+          }
         } else {
           // sqft product without box data — sell by box directly
           const sqft = parseFloat(sqftInput) || 0;
@@ -7772,7 +7795,7 @@
               )}
 
               <div className="sku-detail-price">
-                {isCarpet(sku) ? (
+                {isRollPriced(sku) ? (
                   <>
                     <div className="pdp-price-main">
                       <span className="pdp-price-amount">${parseFloat(sku.cut_price).toFixed(2)}</span>
@@ -7897,12 +7920,12 @@
               {/* Klarna Pay-in-4 badge — illustrative installment on the smallest purchasable unit */}
               {(() => {
                 const effUnit = tradePrice || salePrice || retailPrice || 0;
-                const isBoxPriced = !isPerUnit && sqftPerBox > 0 && !isCarpet(sku);
-                const klarnaBase = isCarpet(sku)
+                const isBoxPriced = !isPerUnit && sqftPerBox > 0 && !isRollPriced(sku);
+                const klarnaBase = isRollPriced(sku)
                   ? (parseFloat(sku.cut_price) || 0)
                   : (isBoxPriced ? effUnit * sqftPerBox : effUnit);
                 if (!(klarnaBase >= 35)) return null;
-                const unitLabel = isCarpet(sku) ? 'sq yd' : (isBoxPriced ? boxLabel : 'item');
+                const unitLabel = isRollPriced(sku) ? 'sq yd' : (isBoxPriced ? boxLabel : 'item');
                 return (
                   <div className="pdp-klarna">
                     <span className="pdp-klarna-icon">Klarna.</span>
@@ -8793,7 +8816,48 @@
                 // Build separate roman numeral style pills from collection siblings
                 // when colors already exist (carpet with both colors AND roman variants like I/II/III)
                 let romanStyleItems = [];
-                if (colorItems.length >= 2 && !isRomanVariants && collectionSiblings.length > 0) {
+                // Carpet density series: tiers live as separate products sharing a collection.
+                // Parse (family, tier) from the product name — roman numerals ("Astounding
+                // I/II/III 2530"), SP hundred-families ("SP440/SP450/SP460"), commercial face
+                // weights ("Emphatic II 30/36"). Shaw's 12/15 roll width is a family axis,
+                // never a tier, so 12' and 15' versions group separately.
+                const parseCarpetSeries = (name) => {
+                  if (!name) return null;
+                  let m = name.match(/^SP(\d)(\d)0\b/i);
+                  if (m) return { fam: 'sp' + m[1] + 'x0', tier: 'SP' + m[1] + m[2] + '0', sort: parseInt(m[1] + m[2], 10) };
+                  // Drop the trailing style code ("2545", "E0143", "CC78B", "54255")
+                  const base = name.replace(/\s*\b[A-Z]{0,2}\d{3,}[A-Z]?\b\s*$/i, '').trim();
+                  m = base.match(/^(.+?)\s+(I{1,3}|IV|V)\b\s*(.*)$/);
+                  if (m) {
+                    const rest = m[3].trim();
+                    const wm = rest.match(/^(1[25])$/);
+                    const extra = wm ? '' : rest;
+                    return {
+                      fam: m[1].toLowerCase() + (wm ? '|' + wm[1] : ''),
+                      tier: m[2] + (extra ? ' ' + extra : ''),
+                      sort: (ROMAN_VAL[m[2]] || 0) * 1000 + (parseInt(extra, 10) || 0),
+                    };
+                  }
+                  // No numeral — face-weight pair ("Emphatic 30" vs "Emphatic 36").
+                  // 12/15 endings are roll widths, not weights — never a tier.
+                  m = base.match(/^(.+?)\s+(\d{2})$/);
+                  if (m && m[2] !== '12' && m[2] !== '15') return { fam: m[1].toLowerCase(), tier: m[2], sort: parseInt(m[2], 10) };
+                  return null;
+                };
+                const isCarpetPdp = sku.category_slug === 'broadloom-carpet';
+                if (colorItems.length >= 2 && !isRomanVariants && collectionSiblings.length > 0 && isCarpetPdp) {
+                  const cur = parseCarpetSeries(sku.product_name);
+                  if (cur) {
+                    const byTier = new Map();
+                    byTier.set(cur.tier, { sku_id: sku.sku_id, product_name: sku.product_name, is_current: true, series_label: cur.tier, series_sort: cur.sort });
+                    collectionSiblings.forEach(s => {
+                      const ps = parseCarpetSeries(s.product_name);
+                      if (!ps || ps.fam !== cur.fam || byTier.has(ps.tier)) return;
+                      byTier.set(ps.tier, { sku_id: s.sku_id, product_name: s.product_name, is_current: false, series_label: ps.tier, series_sort: ps.sort });
+                    });
+                    if (byTier.size >= 2) romanStyleItems = [...byTier.values()];
+                  }
+                } else if (colorItems.length >= 2 && !isRomanVariants && collectionSiblings.length > 0) {
                   const curBase = (sku.product_name || '').replace(ROMAN_REGEX, '').replace(/\s+\d+\s*$/, '').trim();
                   const romanSibs = collectionSiblings.filter(s => {
                     const sibBase = (s.product_name || '').replace(ROMAN_REGEX, '').replace(/\s+\d+\s*$/, '').trim();
@@ -8979,11 +9043,11 @@
                     )}
                     {showRomanStylePills && (
                       <div className="variant-selector-group">
-                        <div className="variant-selector-label">Style<span>{romanPillLabel(sku.product_name)}</span></div>
+                        <div className="variant-selector-label">Style<span>{romanStyleItems.find(c => c.is_current)?.series_label || romanPillLabel(sku.product_name)}</span></div>
                         <div className="attr-pills">
-                          {[...romanStyleItems].sort((a, b) => romanSortKey(a.product_name) - romanSortKey(b.product_name)).map(c => (
+                          {[...romanStyleItems].sort((a, b) => (a.series_sort != null ? a.series_sort : romanSortKey(a.product_name)) - (b.series_sort != null ? b.series_sort : romanSortKey(b.product_name))).map(c => (
                             <button key={c.sku_id} className={'attr-pill' + (c.is_current ? ' active' : '')} onClick={() => { if (!c.is_current) onSkuClick(c.sku_id); }}>
-                              {romanPillLabel(c.product_name)}
+                              {c.series_label || romanPillLabel(c.product_name)}
                             </button>
                           ))}
                         </div>
@@ -9556,15 +9620,19 @@
               )}
 
               {/* Sheet Vinyl Roll Calculator */}
-              {isSheetVinyl && effectivePrice > 0 && !isOutOfStock && (
+              {isSheetVinyl && sheetPerSqftPrice > 0 && !isOutOfStock && (
                 <div className="calculator-widget">
                   <h3>Roll Calculator</h3>
-                  <div className="carpet-roll-width-header">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
-                    {sheetRollWidthFt}' Wide Roll
-                  </div>
+                  {sheetRollWidthFt > 0 && (
+                    <div className="carpet-roll-width-header">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+                      {sheetRollWidthFt}' Wide Roll
+                    </div>
+                  )}
                   <div className="calc-mode-tabs">
-                    <button className={'calc-mode-tab' + (carpetInputMode === 'linear' ? ' active' : '')} onClick={() => setCarpetInputMode('linear')}>Linear Feet</button>
+                    {sheetRollWidthFt > 0 && (
+                      <button className={'calc-mode-tab' + (carpetInputMode === 'linear' ? ' active' : '')} onClick={() => setCarpetInputMode('linear')}>Linear Feet</button>
+                    )}
                     <button className={'calc-mode-tab' + (carpetInputMode === 'dimensions' ? ' active' : '')} onClick={() => setCarpetInputMode('dimensions')}>Room Size</button>
                     <button className={'calc-mode-tab' + (carpetInputMode === 'sqft' ? ' active' : '')} onClick={() => setCarpetInputMode('sqft')}>Enter Sqft</button>
                   </div>
@@ -9627,7 +9695,10 @@
                         </div>
                       )}
                       <div className="calc-summary-row">
-                        <span>Price</span><span>${effectivePrice.toFixed(2)}/sqft</span>
+                        <span>Price</span>
+                        <span>{vinylRollPriced
+                          ? '$' + parseFloat(sku.cut_price).toFixed(2) + '/sqyd \u00b7 $' + sheetPerSqftPrice.toFixed(2) + '/sqft'
+                          : '$' + sheetPerSqftPrice.toFixed(2) + '/sqft'}</span>
                       </div>
                       <div className="calc-summary-total"><span>Subtotal</span><span>${sheetSubtotal.toFixed(2)}</span></div>
                     </div>
@@ -18677,113 +18748,23 @@
       const ACCENT = 'var(--gold)';
       return (
         <div className="about-page" style={{ background: PAPER, color: INK }}>
-          {/* Manifesto / hero */}
-          <section style={{ maxWidth: 720, margin: '0 auto', padding: 'clamp(64px, 9vw, 112px) 32px 64px', textAlign: 'center' }}>
-            <div style={{ font: '500 11px/1.8 var(--font-body)', letterSpacing: '0.22em', textTransform: 'uppercase', color: ACCENT, marginBottom: 30 }}>
-              A family flooring house &middot; Anaheim, California
+          <section style={{ maxWidth: 640, margin: '0 auto', padding: 'clamp(96px, 16vw, 200px) 32px', textAlign: 'center', minHeight: '52vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+            <div style={{ font: '500 11px/1.8 var(--font-body)', letterSpacing: '0.24em', textTransform: 'uppercase', color: ACCENT, marginBottom: 30 }}>
+              Roma Flooring Designs &middot; Anaheim, California
             </div>
-            <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 400, fontSize: 'clamp(2.125rem, 5vw, 3rem)', lineHeight: 1.3, letterSpacing: '0.004em', textWrap: 'balance' }}>
-              We have spent fifteen years learning what a good floor
-              asks of a house — and then keeping that material on the shelf.
+            <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 400, fontSize: 'clamp(2.5rem, 7vw, 4rem)', lineHeight: 1.15, letterSpacing: '0.004em', textWrap: 'balance' }}>
+              Coming soon
             </h1>
-          </section>
-
-          <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 32px' }}>
-            <div style={{ height: 1, background: `${INK}22` }} />
-          </div>
-
-          {/* The letter */}
-          <section style={{ maxWidth: 640, margin: '0 auto', padding: '64px 32px 40px' }}>
-            <div style={{ font: '500 11px/1 var(--font-body)', letterSpacing: '0.24em', textTransform: 'uppercase', color: `${INK}88`, marginBottom: 32 }}>
-              A note from the family
-            </div>
-
-            <p style={{ margin: '0 0 26px', font: '400 19px/1.85 var(--font-heading)', textWrap: 'pretty' }}>
-              <span style={{ float: 'left', font: '400 76px/0.78 var(--font-heading)', color: ACCENT, padding: '6px 14px 0 0' }}>R</span>
-              oma began in 2010 with a single rented bay, a tile saw, and a
-              simple rule: never sell a floor you would not lay in your own
-              home. We started with the materials other shops would not bother
-              to stock, and a habit of walking customers across every sample
-              until they were sure.
+            <p style={{ margin: '28px 0 0', maxWidth: 460, font: '400 18px/1.75 var(--font-body)', color: `${INK}bb`, textWrap: 'pretty' }}>
+              Our story is on its way. In the meantime, come stand on a few floors —
+              our showroom is open and the kettle is on.
             </p>
-            <p style={{ margin: '0 0 26px', font: '400 17px/1.92 var(--font-body)', color: `${INK}cc`, textWrap: 'pretty' }}>
-              Fifteen years later the saw is still here, and so are we. The bay
-              became a showroom; the odd lots became a real collection of
-              hardwood, stone, tile, and cabinetry. What did not change is the
-              counter — the place where someone on our team will still cut you
-              a sample, talk you out of the wrong choice, and answer the phone
-              when the install hits a surprise.
-            </p>
-            <p style={{ margin: '0 0 38px', font: '400 17px/1.92 var(--font-body)', color: `${INK}cc`, textWrap: 'pretty' }}>
-              We are not the biggest flooring company in Orange County, and we
-              have never tried to be. We would rather be the one a family comes
-              back to for the second house, and sends their neighbor to for the
-              first. A few things we hold to, in case it helps you decide
-              whether we are your kind of shop:
-            </p>
-
-            {/* Values — numbered, inside the prose */}
-            <ol style={{ margin: '0 0 42px', padding: 0, listStyle: 'none' }}>
-              {ABOUT_VALUES.map((v, i) => (
-                <li key={i} style={{ display: 'flex', gap: 22, padding: '22px 0', borderTop: `1px solid ${INK}1a` }}>
-                  <span style={{ font: '400 26px/1 var(--font-heading)', fontStyle: 'italic', color: ACCENT, flex: '0 0 auto', width: 34 }}>
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  <div>
-                    <div style={{ font: '500 17px/1.4 var(--font-heading)', marginBottom: 7 }}>{v.t}</div>
-                    <p style={{ margin: 0, font: '400 15px/1.78 var(--font-body)', color: `${INK}aa`, textWrap: 'pretty' }}>{v.d}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-
-            {/* Signature */}
-            <div style={{ borderTop: `1px solid ${INK}1a`, paddingTop: 30 }}>
-              <p style={{ margin: '0 0 18px', font: '400 17px/1.85 var(--font-body)', color: `${INK}cc` }}>
-                Come stand on a few. We will put the kettle on.
-              </p>
-              <div style={{ font: '400 34px/1 var(--font-heading)', fontStyle: 'italic', color: INK, marginBottom: 8 }}>
-                The Roma family
-              </div>
-              <div style={{ font: '500 11px/1.6 var(--font-body)', letterSpacing: '0.16em', textTransform: 'uppercase', color: `${INK}77` }}>
-                Founders &middot; Anaheim, California
-              </div>
-            </div>
-          </section>
-
-          {/* A single quiet image */}
-          <section style={{ maxWidth: 720, margin: '0 auto', padding: '20px 32px 72px' }}>
-            <AboutImgSlot label="The showroom counter" ratio="16 / 7" />
-            <div style={{ font: '400 12px/1.6 var(--font-body)', color: `${INK}77`, marginTop: 12, fontStyle: 'italic' }}>
-              Fig. — the counter at our Anaheim showroom, much as it looks today.
-            </div>
-          </section>
-
-          {/* Visit — quiet block */}
-          <section style={{ background: PAPER_ALT, borderTop: `1px solid ${INK}22` }}>
-            <div className="about-visit-grid" style={{ maxWidth: 720, margin: '0 auto', padding: '64px 32px' }}>
-              <div>
-                <div style={{ font: '500 11px/1 var(--font-body)', letterSpacing: '0.24em', textTransform: 'uppercase', color: ACCENT, marginBottom: 22 }}>Visit the showroom</div>
-                <div style={{ font: '400 22px/1.5 var(--font-heading)', marginBottom: 18 }}>{ABOUT_FACTS.address}<br />{ABOUT_FACTS.cityzip}</div>
-                <div style={{ font: '400 14px/1.9 var(--font-body)', color: `${INK}aa` }}>
-                  Mon &ndash; Fri &middot; 9am &ndash; 5pm<br />
-                  Saturday &middot; 10am &ndash; 5pm<br />
-                  Closed Sunday<br />
-                  <a href={ABOUT_FACTS.phoneHref} style={{ color: 'inherit', textDecoration: 'none' }}>{ABOUT_FACTS.phone}</a><br />
-                  {ABOUT_FACTS.license}<br />
-                  <span style={{ fontStyle: 'italic' }}>Just off the 57 freeway.</span>
-                </div>
-              </div>
-              <div>
-                <a href={ABOUT_FACTS.mapsUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textDecoration: 'none', color: 'inherit' }} aria-label="Open our showroom location in Google Maps">
-                  <AboutImgSlot label="Open in Google Maps" ratio="4 / 3" />
-                </a>
-                <a href={ABOUT_FACTS.phoneHref} style={{
-                  display: 'inline-block', marginTop: 18, font: '500 11px/1 var(--font-body)', letterSpacing: '0.18em',
-                  textTransform: 'uppercase', color: INK, textDecoration: 'none', cursor: 'pointer',
-                  borderBottom: `1px solid ${INK}`, paddingBottom: 6,
-                }}>Book a counter visit</a>
-              </div>
+            <div style={{ marginTop: 44 }}>
+              <button onClick={() => navigate('/shop')} style={{
+                font: '500 11px/1 var(--font-body)', letterSpacing: '0.18em', textTransform: 'uppercase',
+                color: INK, background: 'transparent', border: 'none', cursor: 'pointer',
+                borderBottom: `1px solid ${INK}`, paddingBottom: 6,
+              }}>Browse the catalog</button>
             </div>
           </section>
         </div>
