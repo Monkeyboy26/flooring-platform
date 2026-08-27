@@ -539,6 +539,25 @@ async function run() {
       }
     }
 
+    // ── Fallback 2: same color + shape, ANY finish. A Matte SKU borrowing the
+    //    Polished product shot (a real tile of the same color) is far better than
+    //    falling through to a lifestyle room scene as its primary/swatch. ──
+    for (const sku of skusToProcess) {
+      if (skuPrimaryMap.has(sku.sku_id)) continue;
+      const skuShape = extractShape(sku.variant_name || sku.color || '');
+      const skuColorNorm = norm(cleanColor(sku.color));
+      if (!skuColorNorm) continue;
+      for (const sib of mainSkus) {
+        if (sib.sku_id === sku.sku_id || !skuPrimaryMap.has(sib.sku_id)) continue;
+        if (norm(cleanColor(sib.color)) === skuColorNorm
+            && extractShape(sib.variant_name || sib.color || '') === skuShape) {
+          skuPrimaryMap.set(sku.sku_id, skuPrimaryMap.get(sib.sku_id));
+          console.log(`    ${sku.vendor_sku} (${sku.color}) → shared from ${sib.vendor_sku} (any-finish)`);
+          break;
+        }
+      }
+    }
+
     // ── Phase 2: Assign slider/lifestyle images to SKUs by color ──
     // Many slider images have color/finish/shape in their filenames
     // (e.g. "Melanie-3x12-Scene-Black.jpg", "Silom-Scene-Leaf-Glossy.jpg").
