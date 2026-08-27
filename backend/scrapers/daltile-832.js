@@ -1087,6 +1087,25 @@ export async function run(pool, job, source) {
           pricingUpserted++;
         }
 
+        // SlimLite gauged-porcelain panels ship one panel per box, but the 832's
+        // surface-area segment for this line is unreliable — it intermittently
+        // reports areas up to 40x the true panel (e.g. 1291.6 sqft for a 39x118
+        // panel that is 32 sqft), which makes the storefront coverage calculator
+        // quote a single panel for a whole floor. When it's a single-panel box
+        // and the real face dimensions are known, the box coverage IS the panel
+        // area — recompute it. Scoped to the SlimLite line by name: a blanket
+        // single-piece recompute would wrongly shrink multi-panel boxes that the
+        // feed miscounts as one piece. Mirrors fix-daltile-slimlite-area-2026-08.mjs.
+        if (/slimlite/i.test(group.baseName || '')
+            && (item.pieces_per_box == null || item.pieces_per_box === 1)
+            && wMea && lMea && parseFloat(wMea.value) > 0 && parseFloat(lMea.value) > 0) {
+          const panelSf = Math.round((parseFloat(wMea.value) * parseFloat(lMea.value) / 144) * 10000) / 10000;
+          if (panelSf > 0 && Math.abs((item.sqft_per_box || 0) - panelSf) > 0.01) {
+            item.sqft_per_box = panelSf;
+            item.pieces_per_box = 1;
+          }
+        }
+
         if (item.sqft_per_box || item.pieces_per_box || item.weight_per_box_lbs) {
           const bpp = item.packaging?.packs_per_pallet || null;
           const sqftPerPallet = (bpp && item.sqft_per_box) ? bpp * item.sqft_per_box : null;
