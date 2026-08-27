@@ -493,14 +493,32 @@ async function scrapeTileProduct({ pool, page, productId, label, slugs, productS
     }
   }
 
-  // Save lifestyle images at product level (up to 4)
-  for (let i = 0; i < allLifestyle.length && i < 4; i++) {
-    await upsertMediaAsset(pool, {
-      product_id: productId, sku_id: null,
-      asset_type: 'lifestyle', url: allLifestyle[i].src,
-      original_url: allLifestyle[i].src, sort_order: i,
-    });
-    saved++;
+  // Save lifestyle images. 2026-era series pages carry COLOR-CODED install
+  // photos (DORIS-812-POOL-1.jpeg …) — attaching those at product level leaks
+  // every color's room shot onto every sibling's gallery (same trap as the
+  // Shaw/EF product-level lifestyle fix). Route filename-matched shots to
+  // their SKU; only genuinely generic photos stay product-level.
+  let prodLifeIdx = 0;
+  const skuLifeIdx = new Map();
+  for (const lf of allLifestyle) {
+    const filename = lf.src.split('/').pop();
+    const matchedSku = matchSwatchToSku(filename, matcher);
+    if (matchedSku) {
+      const idx = (skuLifeIdx.get(matchedSku.id) || 0) + 1; // sort 1+: sku primary owns 0
+      if (idx > 2) continue;                                 // cap 2 per color
+      skuLifeIdx.set(matchedSku.id, idx);
+      await upsertMediaAsset(pool, {
+        product_id: productId, sku_id: matchedSku.id,
+        asset_type: 'lifestyle', url: lf.src, original_url: lf.src, sort_order: idx,
+      });
+      saved++;
+    } else if (prodLifeIdx < 4) {
+      await upsertMediaAsset(pool, {
+        product_id: productId, sku_id: null,
+        asset_type: 'lifestyle', url: lf.src, original_url: lf.src, sort_order: prodLifeIdx++,
+      });
+      saved++;
+    }
   }
 
   console.log(`  [SAVED] ${label} — ${skuMatched} SKU images, ${skuMissed} unmatched, ${allLifestyle.length > 4 ? 4 : allLifestyle.length} lifestyle\n`);
