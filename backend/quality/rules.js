@@ -76,6 +76,30 @@ export const RULES = [
   },
 
   {
+    key: 'variant-echoes-product',
+    title: 'Variant name repeats the product name ("Lisbon — Lisbon Bullnose 3X12")',
+    severity: 'warn',
+    async run(pool, { vendorId }) {
+      const { rows } = await pool.query(`
+        SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
+               p.name, s.variant_name
+        ${SKU_FROM}
+          AND s.variant_name IS NOT NULL
+          AND (
+            LOWER(TRIM(s.variant_name)) = LOWER(TRIM(p.name))
+            OR LOWER(s.variant_name) LIKE LOWER(p.name) || ' %'
+            OR LOWER(s.variant_name) LIKE LOWER(p.name) || ',%'
+          )
+      `, [vendorId]);
+      return rows.map(r => ({
+        sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+        summary: `${r.vendor_code}: variant "${r.variant_name}" repeats product name "${r.name}" — displays doubled`,
+        detail: { name: r.name, variant_name: r.variant_name },
+      }));
+    },
+  },
+
+  {
     key: 'name-abbrev-soup',
     title: 'Product name is abbreviation soup (e.g. "Spectra Matte Bo/Ce/Ho/Na")',
     severity: 'warn',
