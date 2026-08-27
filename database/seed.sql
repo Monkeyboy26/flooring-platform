@@ -434,11 +434,11 @@ ON CONFLICT DO NOTHING;
 
 -- Margin Tiers for Trade Pricing
 -- spend_threshold = minimum trailing 365-day product spend to reach the tier:
--- Silver $0+, Gold $12,500+, Platinum $25,000+
+-- Silver $0+, Gold $10,000+, Platinum $20,000+
 INSERT INTO margin_tiers (name, discount_percent, spend_threshold, tier_level) VALUES
 ('Silver', 12.500, 0, 0),
-('Gold', 18.750, 12500, 1),
-('Platinum', 21.875, 25000, 2);
+('Gold', 18.750, 10000, 1),
+('Platinum', 21.875, 20000, 2);
 
 -- ==================== Extended Seed Data ====================
 -- 15 more products across multiple categories for richer filtering
