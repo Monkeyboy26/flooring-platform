@@ -498,11 +498,18 @@ async function scrapeTileProduct({ pool, page, productId, label, slugs, productS
   // every color's room shot onto every sibling's gallery (same trap as the
   // Shaw/EF product-level lifestyle fix). Route filename-matched shots to
   // their SKU; only genuinely generic photos stay product-level.
+  // Factory-render lifestyle files that carry a color word but no item code —
+  // explicit routing (else they'd sit at product level and leak across colors).
+  const LIFESTYLE_FILE_HINTS = [
+    [/^3x6-Blue-Textured/i, 'metro-362'],        // Lapis pool/bath renders
+    [/^3x6-Silver-Grey-Textured/i, 'metro-364'], // Shadow Gray renders
+  ];
   let prodLifeIdx = 0;
   const skuLifeIdx = new Map();
   for (const lf of allLifestyle) {
-    const filename = lf.src.split('/').pop();
-    const matchedSku = matchSwatchToSku(filename, matcher);
+    const filename = decodeURIComponent(lf.src.split('/').pop());
+    const hint = LIFESTYLE_FILE_HINTS.find(([re]) => re.test(filename));
+    const matchedSku = (hint && matcher.byExact.get(hint[1])) || matchSwatchToSku(filename, matcher);
     if (matchedSku) {
       const idx = (skuLifeIdx.get(matchedSku.id) || 0) + 1; // sort 1+: sku primary owns 0
       if (idx > 2) continue;                                 // cap 2 per color
