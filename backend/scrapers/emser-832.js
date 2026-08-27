@@ -489,6 +489,22 @@ function tidyEmserTileName(raw) {
   return n || raw;
 }
 
+// Strip glued color-abbreviation chains from TILE product names: slash-chains
+// of 2-letter tokens ("Bo/Ce/Ho/Na") and runs of >=3 two-letter title-case
+// tokens ("Al Na Sk Gr Ca Rd"). Colors live on the variants; the chain in the
+// name forks color-split duplicate products. Only call for EMSER_TILE_CATS —
+// tool names carry meaningful lookalike chains. Mirrors
+// fix-conformance-backfill-2026-08.mjs (2026-08-26).
+function stripEmserColorChains(name) {
+  if (!name) return name;
+  const out = name
+    .replace(/\b[A-Za-z]{2}(?:\/[A-Za-z]{2}){2,}\b/g, ' ')
+    .replace(/(?:^|\s)((?:[A-Z][a-z]\s+){2,}[A-Z][a-z])(?=\s|$)/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return out.length >= 4 ? out : name;
+}
+
 // A field-tile MAC code can carry trim/hardware (a porcelain bullnose is still
 // tagged POR), leaking finishing pieces into the tile browse. When the name says
 // otherwise, reroute to the right non-tile category. Mirrors reclassifyStray() in
@@ -1052,9 +1068,17 @@ export async function run(pool, job, source) {
       // overrides with the authoritative API series for website-listed items.
       let collection = /^EMSER TILE/i.test(group.collection || '') ? '' : (group.collection || '');
       if (!collection && EMSER_TILE_CATS.has(categorySlug)) collection = deriveEmserSeries(group.baseName);
+      // Tile names sometimes glue the color-group list onto the series
+      // ("Spectra Matte Bo/Ce/Ho/Na") — colors belong to the variants. Stripping
+      // here also makes split color-group feeds land on ONE product via the
+      // (vendor, collection, name) upsert key. Tile-scoped: in tool/sundry names
+      // similar chains are compatibility specs ("Dv/Dc/Ds/Dx Bridge Saws").
+      const productName = EMSER_TILE_CATS.has(categorySlug)
+        ? stripEmserColorChains(group.baseName)
+        : group.baseName;
       const productRow = await upsertProduct(pool, {
         vendor_id: vendorId,
-        name: group.baseName,
+        name: productName,
         collection,
         category_id: categoryId,
         description_short: group.items[0].product_name || null,

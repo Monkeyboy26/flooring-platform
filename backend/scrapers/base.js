@@ -104,7 +104,10 @@ const VALID_PRODUCT_STATUSES = ['draft', 'active', 'inactive', 'discontinued'];
 const VALID_SKU_STATUSES = ['active', 'draft', 'inactive'];
 const VALID_SELL_BY = ['box', 'unit', 'roll'];
 const VALID_VARIANT_TYPES = [null, 'accessory', 'floor_tile', 'wall_tile', 'mosaic', 'lvt', 'quarry_tile', 'stone_tile', 'floor_deco'];
-const VALID_PRICE_BASIS = ['per_sqft', 'per_unit', 'per_sqyd', 'sqft', 'unit'];
+const VALID_PRICE_BASIS = ['per_sqft', 'per_unit', 'per_sqyd'];
+// Legacy labels some feeds/importers still emit — canonicalize instead of
+// storing them (storefront pricing display keys off the canonical values).
+const LEGACY_PRICE_BASIS = { sqft: 'per_sqft', unit: 'per_unit', sqyd: 'per_sqyd', each: 'per_unit' };
 const VALID_ASSET_TYPES = ['primary', 'alternate', 'lifestyle', 'spec_pdf', 'swatch'];
 
 // ──────────────────────────────────────────────
@@ -303,8 +306,9 @@ export function validatePricing({ cost, retail_price, price_basis, cut_price, ro
     warnings.push(`Negative margin: cost $${parsedCost} > retail $${parsedRetail}`);
   }
 
-  // Validate price_basis enum
+  // Validate price_basis enum (canonicalize legacy labels silently)
   let cleanPriceBasis = price_basis || 'per_sqft';
+  cleanPriceBasis = LEGACY_PRICE_BASIS[cleanPriceBasis] || cleanPriceBasis;
   if (!VALID_PRICE_BASIS.includes(cleanPriceBasis)) {
     warnings.push(`Invalid price_basis "${cleanPriceBasis}", defaulting to "per_sqft"`);
     cleanPriceBasis = 'per_sqft';
@@ -466,7 +470,16 @@ export async function upsertSku(pool, rawData, opts = {}) {
     ON CONFLICT (internal_sku) DO UPDATE SET
       product_id = EXCLUDED.product_id,
       vendor_sku = COALESCE(EXCLUDED.vendor_sku, skus.vendor_sku),
-      variant_name = COALESCE(EXCLUDED.variant_name, skus.variant_name),
+      -- Preserve an ENRICHED variant name (existing = incoming + appended
+      -- distinguishing attrs, e.g. "Almond" -> "Almond, Matte, 5x5" from the
+      -- 2026-08 conformance backfill) instead of letting a rescrape revert it.
+      -- A genuine vendor rename (different base) still wins.
+      variant_name = CASE
+        WHEN EXCLUDED.variant_name IS NOT NULL
+         AND skus.variant_name ILIKE EXCLUDED.variant_name || ',%'
+        THEN skus.variant_name
+        ELSE COALESCE(EXCLUDED.variant_name, skus.variant_name)
+      END,
       sell_by = COALESCE(EXCLUDED.sell_by, skus.sell_by),
       variant_type = EXCLUDED.variant_type,
       updated_at = CURRENT_TIMESTAMP

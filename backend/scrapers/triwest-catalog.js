@@ -274,8 +274,10 @@ export async function run(pool, job, source) {
   try {
     // ── Resolve category IDs upfront ──
     const categoryCache = new Map();
-    for (const code of manufacturerCodes) {
-      const slug = MFGR_CATEGORY[code.toUpperCase()];
+    // sheet-vinyl isn't any manufacturer's primary category but Armstrong's
+    // sheet lines route there (see isSheetVinyl below).
+    const upfrontSlugs = [...manufacturerCodes.map(c => MFGR_CATEGORY[c.toUpperCase()]), 'sheet-vinyl'];
+    for (const slug of upfrontSlugs) {
       if (slug && !categoryCache.has(slug)) {
         const res = await pool.query('SELECT id FROM categories WHERE slug = $1', [slug]);
         if (res.rows.length > 0) categoryCache.set(slug, res.rows[0].id);
@@ -385,11 +387,20 @@ export async function run(pool, job, source) {
           const collectionDisplay = `${group.brand} - ${group.collection}`;
           const productName = group.collection;
 
+          // Armstrong sheet-vinyl lines sell by the ROLL like carpet (owner
+          // decision 2026-08-26), not by the box like the brand's LVP — route
+          // them to the sheet-vinyl category and per-sqyd pricing below.
+          const isSheetVinyl = mfgrCode === 'ARM'
+            && /cushionstep|stratamax|flexstep|progressions|duality|initiator|memories/i.test(group.collection);
+          const groupCategoryId = isSheetVinyl
+            ? (categoryCache.get('sheet-vinyl') || categoryId)
+            : categoryId;
+
           const product = await upsertProduct(pool, {
             vendor_id,
             name: productName,
             collection: collectionDisplay,
-            category_id: categoryId,
+            category_id: groupCategoryId,
           }, { jobId: job.id });
 
           totalProducts++;
@@ -406,20 +417,35 @@ export async function run(pool, job, source) {
                 vendor_sku: row.itemNumber,
                 internal_sku: internalSku,
                 variant_name: colorName,
-                sell_by: 'box',
+                sell_by: isSheetVinyl ? 'roll' : 'box',
                 variant_type: null,
               }, { jobId: job.id });
 
               totalSkus++;
               if (sku.is_new) totalNewSkus++;
 
-              // Pricing: sqftPrice as dealer cost, × markup for retail
+              // Pricing: sqftPrice as dealer cost, × markup for retail.
+              // Sheet vinyl converts to per-sqyd roll pricing (rate × 9) with
+              // cut_price populated — the storefront roll experience keys off
+              // sell_by='roll' + cut_price.
               if (row.sqftPrice) {
-                await upsertPricing(pool, sku.id, {
-                  cost: row.sqftPrice,
-                  retail_price: parseFloat((row.sqftPrice * retailMarkup).toFixed(2)),
-                  price_basis: 'per_sqft',
-                }, { jobId: job.id });
+                if (isSheetVinyl) {
+                  const sqydCost = parseFloat((row.sqftPrice * 9).toFixed(2));
+                  const sqydRetail = parseFloat((row.sqftPrice * retailMarkup * 9).toFixed(2));
+                  await upsertPricing(pool, sku.id, {
+                    cost: sqydCost,
+                    retail_price: sqydRetail,
+                    cut_price: sqydRetail,
+                    cut_cost: sqydCost,
+                    price_basis: 'per_sqyd',
+                  }, { jobId: job.id });
+                } else {
+                  await upsertPricing(pool, sku.id, {
+                    cost: row.sqftPrice,
+                    retail_price: parseFloat((row.sqftPrice * retailMarkup).toFixed(2)),
+                    price_basis: 'per_sqft',
+                  }, { jobId: job.id });
+                }
               }
 
               // Packaging
