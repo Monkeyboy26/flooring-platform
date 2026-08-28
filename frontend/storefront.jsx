@@ -730,6 +730,15 @@
       }
     }
 
+    // Touch devices have no hover, so the card's hover-swap "alternate" image
+    // is never seen — loading it just doubles the browse grid's image requests
+    // (a real problem on phones: one session fired 500+ /api/img/min). Skip it
+    // where hover isn't available. Defaults to true (desktop/crawler) if the
+    // media query is unavailable, preserving existing behavior there.
+    const CAN_HOVER = (typeof window !== 'undefined' && window.matchMedia)
+      ? window.matchMedia('(hover: hover) and (pointer: fine)').matches
+      : true;
+
     // ==================== Image Optimization Helper ====================
     function optimizeImg(url, width) {
       if (!url || typeof url !== 'string') return url;
@@ -6800,7 +6809,7 @@
         <div className="sku-card" onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
           <div className="sku-card-image">
             {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} {...optimizeSrcSet(sku.primary_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt={sku.product_name} loading={isAboveFold ? 'eager' : 'lazy'} fetchPriority={isAboveFold ? 'high' : 'auto'} decoding={isAboveFold ? 'sync' : 'async'} width="300" height="280" />}
-            {sku.alternate_image && <img className="sku-card-alt-img" onLoad={handleProductImgLoad} src={optimizeImg(sku.alternate_image, 400)} {...optimizeSrcSet(sku.alternate_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt="" loading="lazy" decoding="async" width="300" height="280" />}
+            {CAN_HOVER && sku.alternate_image && <img className="sku-card-alt-img" onLoad={handleProductImgLoad} src={optimizeImg(sku.alternate_image, 400)} {...optimizeSrcSet(sku.alternate_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt="" loading="lazy" decoding="async" width="300" height="280" />}
             {onSale && <span className="sale-badge">SALE</span>}
             {/* Hover overlay with wishlist + compare */}
             <div className="sku-card-hover-actions">
@@ -7058,19 +7067,24 @@
         // Unified retail login carries trade pricing server-side.
         const ct = localStorage.getItem('customer_token') || sessionStorage.getItem('customer_token');
         if (ct) headers['X-Customer-Token'] = ct;
-        // A transient 5xx/network blip (e.g. a brief image-proxy stampede)
-        // shouldn't dump the shopper on the "Something Went Wrong" page — retry
-        // a couple of times with backoff first. 404s are terminal, never retried.
+        // A transient 5xx/network blip shouldn't dump the shopper on the
+        // "Something Went Wrong" page — retry with backoff first. 404s are
+        // terminal. 429 (rate limited) gets a single longer wait, never a
+        // tight retry loop — hammering a rate-limited endpoint only makes it
+        // worse (that loop was itself part of the bug).
         const loadSku = async () => {
-          const delays = [400, 900];
           for (let attempt = 0; ; attempt++) {
+            let status = 0;
             try {
               const r = await fetch(API + '/api/storefront/skus/' + skuId, { headers });
+              status = r.status;
               if (r.status === 404) throw new Error('not_found');
               if (!r.ok) throw new Error('server_error');
               return await r.json();
             } catch (err) {
-              if (err.message === 'not_found' || attempt >= delays.length) throw err;
+              if (err.message === 'not_found') throw err;
+              const delays = status === 429 ? [1500] : [400, 900];
+              if (attempt >= delays.length) throw err;
               await new Promise(res => setTimeout(res, delays[attempt]));
             }
           }

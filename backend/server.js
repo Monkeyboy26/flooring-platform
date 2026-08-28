@@ -203,7 +203,12 @@ app.use(healthRoutes);
 app.use(createSeoRouter(pool));
 
 // ==================== Rate Limiters ====================
-const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false });
+// The image proxy is exempted here — an image-heavy mobile browse/PDP fires
+// hundreds of /api/img requests per minute, which would otherwise burn the
+// 200/min data budget and get the actual product-data requests 429'd (the
+// "Oops, Something Went Wrong" page). /api/img has its own imgLimiter and is
+// fronted by the nginx edge cache, so it doesn't belong in the data budget.
+const globalLimiter = rateLimit({ windowMs: 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, skip: (req) => req.path === '/api/img' });
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many login attempts, please try again later' } });
 const checkoutLimiter = rateLimit({ windowMs: 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false });
 const searchLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false });
@@ -229,7 +234,10 @@ app.use('/api/storefront/search/suggest', searchLimiter);
 // prefix, which would also throttle /register/upload and cap document uploads.
 
 // ==================== Image Resize Proxy ====================
-const imgLimiter = rateLimit({ windowMs: 60 * 1000, max: 1000, standardHeaders: true, legacyHeaders: false });
+// High ceiling: a single phone can fire 500+ image requests/min while browsing,
+// and a cold edge cache sends most of them through to Express. Cache HITs never
+// reach here, so this only bounds genuine cold-fetch bursts / abuse.
+const imgLimiter = rateLimit({ windowMs: 60 * 1000, max: 3000, standardHeaders: true, legacyHeaders: false });
 const IMG_CACHE_DIR = path.join(process.cwd(), '_cache');
 if (!fs.existsSync(IMG_CACHE_DIR)) fs.mkdirSync(IMG_CACHE_DIR, { recursive: true });
 // Originals cached separately from resized variants: without this, every new

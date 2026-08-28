@@ -741,6 +741,7 @@
       if (card) card.classList.add("sku-card--contain");
     }
   }
+  const CAN_HOVER = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(hover: hover) and (pointer: fine)").matches : true;
   function optimizeImg(url, width) {
     if (!url || typeof url !== "string") return url;
     try {
@@ -5154,7 +5155,7 @@
     const stockClass = stockStatus === "in_stock" ? "sku-card-stock--in" : stockStatus === "low_stock" ? "sku-card-stock--low" : "sku-card-stock--out";
     const hasVariants = sku.variant_count > 1;
     const variantImages = sku.variant_images || [];
-    return /* @__PURE__ */ React.createElement("div", { className: "sku-card", onClick, "data-sku": sku.vendor_sku || sku.internal_sku }, /* @__PURE__ */ React.createElement("div", { className: "sku-card-image" }, sku.primary_image && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(sku.primary_image, 400), ...optimizeSrcSet(sku.primary_image, [200, 400, 600]), sizes: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw", alt: sku.product_name, loading: isAboveFold ? "eager" : "lazy", fetchPriority: isAboveFold ? "high" : "auto", decoding: isAboveFold ? "sync" : "async", width: "300", height: "280" }), sku.alternate_image && /* @__PURE__ */ React.createElement("img", { className: "sku-card-alt-img", onLoad: handleProductImgLoad, src: optimizeImg(sku.alternate_image, 400), ...optimizeSrcSet(sku.alternate_image, [200, 400, 600]), sizes: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw", alt: "", loading: "lazy", decoding: "async", width: "300", height: "280" }), onSale && /* @__PURE__ */ React.createElement("span", { className: "sale-badge" }, "SALE"), /* @__PURE__ */ React.createElement("div", { className: "sku-card-hover-actions" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "sku-card", onClick, "data-sku": sku.vendor_sku || sku.internal_sku }, /* @__PURE__ */ React.createElement("div", { className: "sku-card-image" }, sku.primary_image && /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(sku.primary_image, 400), ...optimizeSrcSet(sku.primary_image, [200, 400, 600]), sizes: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw", alt: sku.product_name, loading: isAboveFold ? "eager" : "lazy", fetchPriority: isAboveFold ? "high" : "auto", decoding: isAboveFold ? "sync" : "async", width: "300", height: "280" }), CAN_HOVER && sku.alternate_image && /* @__PURE__ */ React.createElement("img", { className: "sku-card-alt-img", onLoad: handleProductImgLoad, src: optimizeImg(sku.alternate_image, 400), ...optimizeSrcSet(sku.alternate_image, [200, 400, 600]), sizes: "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw", alt: "", loading: "lazy", decoding: "async", width: "300", height: "280" }), onSale && /* @__PURE__ */ React.createElement("span", { className: "sale-badge" }, "SALE"), /* @__PURE__ */ React.createElement("div", { className: "sku-card-hover-actions" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "sku-card-action-btn wishlist-heart" + (isWished ? " active" : ""),
@@ -5339,15 +5340,18 @@
       const ct = localStorage.getItem("customer_token") || sessionStorage.getItem("customer_token");
       if (ct) headers["X-Customer-Token"] = ct;
       const loadSku = async () => {
-        const delays = [400, 900];
         for (let attempt = 0; ; attempt++) {
+          let status = 0;
           try {
             const r = await fetch(API + "/api/storefront/skus/" + skuId, { headers });
+            status = r.status;
             if (r.status === 404) throw new Error("not_found");
             if (!r.ok) throw new Error("server_error");
             return await r.json();
           } catch (err) {
-            if (err.message === "not_found" || attempt >= delays.length) throw err;
+            if (err.message === "not_found") throw err;
+            const delays = status === 429 ? [1500] : [400, 900];
+            if (attempt >= delays.length) throw err;
             await new Promise((res) => setTimeout(res, delays[attempt]));
           }
         }
