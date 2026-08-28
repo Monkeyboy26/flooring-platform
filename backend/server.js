@@ -374,7 +374,11 @@ app.get('/api/img', imgLimiter, async (req, res) => {
                 let buf;
                 for (let attempt = 0; attempt < maxAttempts; attempt++) {
                   const controller = new AbortController();
-                  const timeout = setTimeout(() => controller.abort(), 10000);
+                  // 6s, down from 10s: legitimate vendor origins answer in
+                  // well under 2s, so a long timeout only made dead/hanging
+                  // image URLs sit spinning on the page for 10s before the
+                  // client's onerror fallback could fire. Fail fast instead.
+                  const timeout = setTimeout(() => controller.abort(), 6000);
                   try {
                     const fetchUrl = attempt > 0 ? url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now() : url;
                     const resp = await fetch(fetchUrl, { signal: controller.signal, headers: { 'User-Agent': 'Roma-ImageProxy/1.0' } });
