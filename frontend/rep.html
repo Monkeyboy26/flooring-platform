@@ -19545,6 +19545,35 @@
 
             {/* Right rail */}
             <div className="qw-rail">
+              {/* Sales rep — record owner (unified ws-owner card, Phase 2).
+                  Payload only carries rep_id (no name join), so a rep other than
+                  the logged-in one renders as a generic assigned state. */}
+              <div className="qw-rail-card">
+                <h3>Sales rep</h3>
+                {sr.rep_id ? (
+                  <div className="ws-owner">
+                    <div className="qw-avatar">{sr.rep_id === repInfo.id ? (((repInfo.first_name || '?')[0] || '') + ((repInfo.last_name || '')[0] || '')).toUpperCase() : '•'}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ws-owner-name">
+                        {sr.rep_id === repInfo.id ? ([repInfo.first_name, repInfo.last_name].filter(Boolean).join(' ') || 'Rep') : 'Assigned rep'}
+                        {sr.rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
+                      </div>
+                      {sr.rep_id === repInfo.id && repInfo.email && (
+                        <div className="ws-owner-meta">{repInfo.email}</div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="ws-owner">
+                    <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
+                      <div className="ws-owner-meta">No rep owns this request yet</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Customer */}
               <div className="qw-rail-card">
                 <h3>Customer</h3>
@@ -19583,9 +19612,6 @@
                 </div>
               </div>
 
-              {/* Internal notes — same multi-entry widget as the quote workspace */}
-              <InternalNotesCard basePath={'/api/rep/sample-requests/' + editId} bg="#f5f0e8" />
-
               {/* Summary — plain rod-style rows (rov-row), big serif shipping figure */}
               <div className="qw-rail-card">
                 <h3>Summary</h3>
@@ -19599,35 +19625,6 @@
                   <span style={{ font: '500 11px/1 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-ink)' }}>Shipping</span>
                   <span className="rov-total-value" style={isPickup ? { color: 'var(--rod-green)' } : undefined}>{isPickup ? 'Free' : '$12'}</span>
                 </div>
-              </div>
-
-              {/* Sales rep — record owner (unified ws-owner card, Phase 2).
-                  Payload only carries rep_id (no name join), so a rep other than
-                  the logged-in one renders as a generic assigned state. */}
-              <div className="qw-rail-card">
-                <h3>Sales rep</h3>
-                {sr.rep_id ? (
-                  <div className="ws-owner">
-                    <div className="qw-avatar">{sr.rep_id === repInfo.id ? (((repInfo.first_name || '?')[0] || '') + ((repInfo.last_name || '')[0] || '')).toUpperCase() : '•'}</div>
-                    <div style={{ minWidth: 0 }}>
-                      <div className="ws-owner-name">
-                        {sr.rep_id === repInfo.id ? ([repInfo.first_name, repInfo.last_name].filter(Boolean).join(' ') || 'Rep') : 'Assigned rep'}
-                        {sr.rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
-                      </div>
-                      {sr.rep_id === repInfo.id && repInfo.email && (
-                        <div className="ws-owner-meta">{repInfo.email}</div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="ws-owner">
-                    <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
-                    <div style={{ minWidth: 0 }}>
-                      <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
-                      <div className="ws-owner-meta">No rep owns this request yet</div>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* Workflow */}
@@ -19669,6 +19666,9 @@
                   </div>
                 ))}
               </div>
+
+              {/* Internal notes — same multi-entry widget as the quote workspace */}
+              <InternalNotesCard basePath={'/api/rep/sample-requests/' + editId} bg="#f5f0e8" />
 
               {/* Request notes */}
               {sr.notes && (
@@ -21122,30 +21122,6 @@
 
             {/* ── Rail ── */}
             <aside className="qw-rail">
-              <div className="qw-rail-card">
-                <h3>Activity</h3>
-                {timeline.map((t, i) => {
-                  const state = t.at ? 'done' : i === firstPending ? 'now' : 'next';
-                  return (
-                    <div key={t.label} className={'qw-check-row ' + state}>
-                      <span className="qw-check-mark">{t.at ? '✓' : state === 'now' ? '●' : '○'}</span>
-                      <span className="qw-check-label">{t.label}</span>
-                      <span className="qw-check-meta">{fmtDT(t.at) || 'Pending'}</span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="qw-rail-card">
-                <h3>Shareable link</h3>
-                <div style={{ font: '400 11px/1.5 ui-monospace, monospace', color: '#1c1917', wordBreak: 'break-all', marginBottom: 10 }}>
-                  {visitUrl}
-                </div>
-                <button className="ol-header-btn" style={{ width: '100%' }} onClick={copyUrl}>
-                  {copied ? 'Copied!' : 'Copy link'}
-                </button>
-              </div>
-
               {/* Sales rep — record owner (unified ws-owner card, Phase 2).
                   Payload only carries rep_id (no name join), so a rep other than
                   the logged-in one renders as a generic assigned state. */}
@@ -21175,6 +21151,20 @@
                 )}
               </div>
 
+              <div className="qw-rail-card">
+                <h3>Activity</h3>
+                {timeline.map((t, i) => {
+                  const state = t.at ? 'done' : i === firstPending ? 'now' : 'next';
+                  return (
+                    <div key={t.label} className={'qw-check-row ' + state}>
+                      <span className="qw-check-mark">{t.at ? '✓' : state === 'now' ? '●' : '○'}</span>
+                      <span className="qw-check-label">{t.label}</span>
+                      <span className="qw-check-meta">{fmtDT(t.at) || 'Pending'}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
               {canSend && (
                 <div className="qw-convert-card">
                   <div className="qw-convert-label">{visit.status === 'sent' ? 'Sent — nudge again?' : 'Ready to send'}</div>
@@ -21194,7 +21184,7 @@
                 <div className="qw-convert-card">
                   <div className="qw-convert-label">No email on file</div>
                   <div className="qw-convert-copy">
-                    Share the link directly — copy it above and text it to the customer.
+                    Share the link directly — copy it below and text it to the customer.
                   </div>
                 </div>
               )}
@@ -21218,6 +21208,16 @@
                   </button>
                 </div>
               )}
+
+              <div className="qw-rail-card">
+                <h3>Shareable link</h3>
+                <div style={{ font: '400 11px/1.5 ui-monospace, monospace', color: '#1c1917', wordBreak: 'break-all', marginBottom: 10 }}>
+                  {visitUrl}
+                </div>
+                <button className="ol-header-btn" style={{ width: '100%' }} onClick={copyUrl}>
+                  {copied ? 'Copied!' : 'Copy link'}
+                </button>
+              </div>
             </aside>
           </div>
         </div>
@@ -24262,6 +24262,56 @@
             {/* RIGHT RAIL — 360px sticky */}
             <div className="qw-rail">
 
+              {/* Sales rep — record owner (unified ws-owner card; replicate on
+                  quote/estimate/sample/visit workspaces in later phases) */}
+              <RodCard title="Sales rep">
+                <div className="rod-card-body-padded">
+                  {order.sales_rep_id ? (
+                    <div className="ws-owner">
+                      <div className="qw-avatar">{(order.rep_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name">
+                          {order.rep_name || 'Rep'}
+                          {order.sales_rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
+                        </div>
+                        {order.sales_rep_id === repInfo.id && repInfo.email && (
+                          <div className="ws-owner-meta">{repInfo.email}</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="ws-owner">
+                      <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
+                        <div className="ws-owner-meta">No rep owns this order yet</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </RodCard>
+
+              {/* Customer — v2 */}
+              <RodCard title="Customer">
+                <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'center' }}>
+                    <div className="rov-cust-avatar">{order.customer_name ? order.customer_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'}</div>
+                    <div>
+                      <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{order.customer_name}</div>
+                      <RovMicro style={{ marginTop: 3 }}>
+                        {custType === 'trade' ? 'Trade pro' : custType === 'retail' ? 'Retail' : 'Guest'}
+                        {customerStats ? ' · ' + (customerStats.total_orders || 0) + ' order' + (customerStats.total_orders !== 1 ? 's' : '') + ' · $' + (parseFloat(customerStats.total_spent || 0) / 1000).toFixed(1) + 'k lifetime' : ''}
+                      </RovMicro>
+                    </div>
+                  </div>
+                  <RovMicro>{[order.customer_email, order.phone].filter(Boolean).join(' · ') || '—'}</RovMicro>
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                    {order.customer_email && <a className="rov-textlink" href={'mailto:' + order.customer_email}>Email</a>}
+                    {order.phone && <a className="rov-textlink" href={'tel:' + order.phone}>Call</a>}
+                  </div>
+                </div>
+              </RodCard>
+
               {/* Totals — v2 */}
               <RodCard title="Totals">
                 <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
@@ -24485,56 +24535,6 @@
                   </div>
                 </RodCard>
               )}
-
-              {/* Customer — v2 */}
-              <RodCard title="Customer">
-                <div className="rod-card-body-padded" style={{ display: 'grid', gap: 12 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '38px 1fr', gap: 12, alignItems: 'center' }}>
-                    <div className="rov-cust-avatar">{order.customer_name ? order.customer_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'}</div>
-                    <div>
-                      <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{order.customer_name}</div>
-                      <RovMicro style={{ marginTop: 3 }}>
-                        {custType === 'trade' ? 'Trade pro' : custType === 'retail' ? 'Retail' : 'Guest'}
-                        {customerStats ? ' · ' + (customerStats.total_orders || 0) + ' order' + (customerStats.total_orders !== 1 ? 's' : '') + ' · $' + (parseFloat(customerStats.total_spent || 0) / 1000).toFixed(1) + 'k lifetime' : ''}
-                      </RovMicro>
-                    </div>
-                  </div>
-                  <RovMicro>{[order.customer_email, order.phone].filter(Boolean).join(' · ') || '—'}</RovMicro>
-                  <div style={{ display: 'flex', gap: 16, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                    {order.customer_email && <a className="rov-textlink" href={'mailto:' + order.customer_email}>Email</a>}
-                    {order.phone && <a className="rov-textlink" href={'tel:' + order.phone}>Call</a>}
-                  </div>
-                </div>
-              </RodCard>
-
-              {/* Sales rep — record owner (unified ws-owner card; replicate on
-                  quote/estimate/sample/visit workspaces in later phases) */}
-              <RodCard title="Sales rep">
-                <div className="rod-card-body-padded">
-                  {order.sales_rep_id ? (
-                    <div className="ws-owner">
-                      <div className="qw-avatar">{(order.rep_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="ws-owner-name">
-                          {order.rep_name || 'Rep'}
-                          {order.sales_rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
-                        </div>
-                        {order.sales_rep_id === repInfo.id && repInfo.email && (
-                          <div className="ws-owner-meta">{repInfo.email}</div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="ws-owner">
-                      <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
-                        <div className="ws-owner-meta">No rep owns this order yet</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </RodCard>
 
               {/* Documents — v2 */}
               <RodCard title="Documents" action={'⎙ Print'} onAction={openPrintModal}>
@@ -28403,29 +28403,32 @@
 
             {/* ── Decision rail ── */}
             <aside className="qw-rail">
-              {!editId && (
+              {/* Sales rep — record owner (unified ws-owner card, Phase 2) */}
+              {editId && quote && (
                 <div className="qw-rail-card">
-                  <h3>Draft checklist</h3>
-                  {checklist.map((c, i) => {
-                    const state = c.done ? 'done' : i === firstTodo ? 'now' : 'next';
-                    return (
-                      <div key={c.label} className={'qw-check-row ' + state}>
-                        <span className="qw-check-mark">{c.done ? '✓' : state === 'now' ? '●' : '○'}</span>
-                        <span className="qw-check-label">{c.label}</span>
-                        <span className="qw-check-meta">{c.meta}</span>
+                  <h3>Sales rep</h3>
+                  {quote.sales_rep_id ? (
+                    <div className="ws-owner">
+                      <div className="qw-avatar">{(quote.rep_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name">
+                          {quote.rep_name || 'Rep'}
+                          {quote.sales_rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
+                        </div>
+                        {quote.sales_rep_id === repInfo.id && repInfo.email && (
+                          <div className="ws-owner-meta">{repInfo.email}</div>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Internal notes — same multi-entry widget as the order detail */}
-              {editId ? (
-                <InternalNotesCard basePath={'/api/rep/quotes/' + editId} readOnly={isReadonly} bg="#f5f0e8" />
-              ) : (
-                <div className="qw-rail-card">
-                  <h3>Internal notes</h3>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: '#8a7e68' }}>Save the quote to start adding internal notes.</p>
+                    </div>
+                  ) : (
+                    <div className="ws-owner">
+                      <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
+                        <div className="ws-owner-meta">No rep owns this quote yet</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -28499,32 +28502,19 @@
                 )}
               </div>
 
-              {/* Sales rep — record owner (unified ws-owner card, Phase 2) */}
-              {editId && quote && (
+              {!editId && (
                 <div className="qw-rail-card">
-                  <h3>Sales rep</h3>
-                  {quote.sales_rep_id ? (
-                    <div className="ws-owner">
-                      <div className="qw-avatar">{(quote.rep_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="ws-owner-name">
-                          {quote.rep_name || 'Rep'}
-                          {quote.sales_rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
-                        </div>
-                        {quote.sales_rep_id === repInfo.id && repInfo.email && (
-                          <div className="ws-owner-meta">{repInfo.email}</div>
-                        )}
+                  <h3>Draft checklist</h3>
+                  {checklist.map((c, i) => {
+                    const state = c.done ? 'done' : i === firstTodo ? 'now' : 'next';
+                    return (
+                      <div key={c.label} className={'qw-check-row ' + state}>
+                        <span className="qw-check-mark">{c.done ? '✓' : state === 'now' ? '●' : '○'}</span>
+                        <span className="qw-check-label">{c.label}</span>
+                        <span className="qw-check-meta">{c.meta}</span>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="ws-owner">
-                      <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
-                        <div className="ws-owner-meta">No rep owns this quote yet</div>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               )}
 
@@ -28599,6 +28589,16 @@
                     {saving ? 'Creating…' : <React.Fragment>Create quote {'→'}</React.Fragment>}
                   </button>
                   {saveDisabled && !saving && <div className="qw-convert-note">Complete customer details to create</div>}
+                </div>
+              )}
+
+              {/* Internal notes — same multi-entry widget as the order detail */}
+              {editId ? (
+                <InternalNotesCard basePath={'/api/rep/quotes/' + editId} readOnly={isReadonly} bg="#f5f0e8" />
+              ) : (
+                <div className="qw-rail-card">
+                  <h3>Internal notes</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: '#8a7e68' }}>Save the quote to start adding internal notes.</p>
                 </div>
               )}
 
@@ -31259,29 +31259,32 @@
 
             {/* ── Decision rail ── */}
             <aside className="qw-rail">
-              {!editId && (
+              {/* Sales rep — record owner (unified ws-owner card, Phase 2) */}
+              {editId && estimate && (
                 <div className="qw-rail-card">
-                  <h3>Draft checklist</h3>
-                  {estChecklist.map((c, i) => {
-                    const state = c.done ? 'done' : i === estFirstTodo ? 'now' : 'next';
-                    return (
-                      <div key={c.label} className={'qw-check-row ' + state}>
-                        <span className="qw-check-mark">{c.done ? '✓' : state === 'now' ? '●' : '○'}</span>
-                        <span className="qw-check-label">{c.label}</span>
-                        <span className="qw-check-meta">{c.meta}</span>
+                  <h3>Sales rep</h3>
+                  {estimate.sales_rep_id ? (
+                    <div className="ws-owner">
+                      <div className="qw-avatar">{(estimate.rep_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name">
+                          {estimate.rep_name || 'Rep'}
+                          {estimate.sales_rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
+                        </div>
+                        {estimate.rep_email && (
+                          <div className="ws-owner-meta">{estimate.rep_email}</div>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Internal notes — same multi-entry widget as the order/quote detail */}
-              {editId ? (
-                <InternalNotesCard basePath={'/api/rep/estimates/' + editId} readOnly={isReadonly} bg="#f5f0e8" />
-              ) : (
-                <div className="qw-rail-card">
-                  <h3>Internal notes</h3>
-                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: '#8a7e68' }}>Save the estimate to start adding internal notes.</p>
+                    </div>
+                  ) : (
+                    <div className="ws-owner">
+                      <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
+                        <div className="ws-owner-meta">No rep owns this estimate yet</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -31365,56 +31368,6 @@
                 })()}
               </div>
 
-              {/* Sales rep — record owner (unified ws-owner card, Phase 2) */}
-              {editId && estimate && (
-                <div className="qw-rail-card">
-                  <h3>Sales rep</h3>
-                  {estimate.sales_rep_id ? (
-                    <div className="ws-owner">
-                      <div className="qw-avatar">{(estimate.rep_name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}</div>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="ws-owner-name">
-                          {estimate.rep_name || 'Rep'}
-                          {estimate.sales_rep_id === repInfo.id && <span className="ws-you-tag">You</span>}
-                        </div>
-                        {estimate.rep_email && (
-                          <div className="ws-owner-meta">{estimate.rep_email}</div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="ws-owner">
-                      <div className="qw-avatar" style={{ background: 'var(--brass-warm, #d8cdb6)', color: 'var(--brass-muted, #8a7e68)' }}>—</div>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="ws-owner-name" style={{ color: 'var(--rod-muted)' }}>Unassigned</div>
-                        <div className="ws-owner-meta">No rep owns this estimate yet</div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {editId && estimate && (
-                <div className="qw-rail-card">
-                  <h3>Engagement</h3>
-                  <div className="qw-engage-grid">
-                    {[[engOpens, engOpens === 1 ? 'open' : 'opens'], [engViewers, engViewers === 1 ? 'viewer' : 'viewers'], [engReplies, engReplies === 1 ? 'reply' : 'replies']].map(([n, l]) => (
-                      <div key={l}>
-                        <div className="qw-engage-n">{n}</div>
-                        <div className="qw-engage-l">{l}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="qw-engage-foot">
-                    {engOpens > 0
-                      ? <React.Fragment>Last opened {fmtDT(lastViewedAt)}{lastReplyAt ? ' · last reply ' + fmtDT(lastReplyAt) : ''}.</React.Fragment>
-                      : estimate.status === 'draft'
-                        ? 'Send the estimate to start tracking opens.'
-                        : 'No opens yet — tracking starts when the customer opens the email.'}
-                  </div>
-                </div>
-              )}
-
               {(() => {
                 const estTotal = estimate ? (parseFloat(estimate.total || 0) || 0) : 0;
                 const sumOff = milestones.length > 0 && Math.abs(schedulePctSum - 100) > 0.01;
@@ -31495,6 +31448,43 @@
                 );
               })()}
 
+              {!editId && (
+                <div className="qw-rail-card">
+                  <h3>Draft checklist</h3>
+                  {estChecklist.map((c, i) => {
+                    const state = c.done ? 'done' : i === estFirstTodo ? 'now' : 'next';
+                    return (
+                      <div key={c.label} className={'qw-check-row ' + state}>
+                        <span className="qw-check-mark">{c.done ? '✓' : state === 'now' ? '●' : '○'}</span>
+                        <span className="qw-check-label">{c.label}</span>
+                        <span className="qw-check-meta">{c.meta}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {editId && estimate && (
+                <div className="qw-rail-card">
+                  <h3>Engagement</h3>
+                  <div className="qw-engage-grid">
+                    {[[engOpens, engOpens === 1 ? 'open' : 'opens'], [engViewers, engViewers === 1 ? 'viewer' : 'viewers'], [engReplies, engReplies === 1 ? 'reply' : 'replies']].map(([n, l]) => (
+                      <div key={l}>
+                        <div className="qw-engage-n">{n}</div>
+                        <div className="qw-engage-l">{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="qw-engage-foot">
+                    {engOpens > 0
+                      ? <React.Fragment>Last opened {fmtDT(lastViewedAt)}{lastReplyAt ? ' · last reply ' + fmtDT(lastReplyAt) : ''}.</React.Fragment>
+                      : estimate.status === 'draft'
+                        ? 'Send the estimate to start tracking opens.'
+                        : 'No opens yet — tracking starts when the customer opens the email.'}
+                  </div>
+                </div>
+              )}
+
               {canConvert && (
                 <div className="qw-convert-card">
                   <div className="qw-convert-label">Ready to commit</div>
@@ -31539,6 +31529,16 @@
                   <button className="qw-convert-btn" onClick={loadPreview} disabled={previewLoading}>
                     {previewLoading ? 'Loading…' : <React.Fragment>Re-send &amp; renew {'→'}</React.Fragment>}
                   </button>
+                </div>
+              )}
+
+              {/* Internal notes — same multi-entry widget as the order/quote detail */}
+              {editId ? (
+                <InternalNotesCard basePath={'/api/rep/estimates/' + editId} readOnly={isReadonly} bg="#f5f0e8" />
+              ) : (
+                <div className="qw-rail-card">
+                  <h3>Internal notes</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.8125rem', color: '#8a7e68' }}>Save the estimate to start adding internal notes.</p>
                 </div>
               )}
 
