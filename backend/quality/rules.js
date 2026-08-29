@@ -36,6 +36,38 @@ const SLAB_SLUGS = [
   'prefab-countertops', 'vanity-tops', 'countertops',
 ];
 
+// Name-vs-category contradiction table — shared by the name-category-mismatch
+// rule and fix-name-category-2026-08.mjs (same detection = same fix; keep ONE
+// copy). Each pattern fires ONLY inside its confusable categories (fireIn):
+// e.g. Shaw sells a CARPET style named "Mosaic", Fujiwa's pool penny round is
+// correctly pool-tile, "Carpet Tile Adhesive" is correctly an adhesive —
+// global keyword matching would flag all of those.
+export const NAME_CATEGORY_RULES = [
+  { key: 'trim', label: 'tile trim', target: 'trim-accessories',
+    pattern: 'bullnose|pencil liner|\\mv-?cap\\M|mud ?cap|chair rail|\\mlistello\\M',
+    fireIn: ['porcelain-tile', 'ceramic-tile', 'natural-stone', 'wood-look-tile', 'backsplash-wall',
+             'large-format-tile', 'functional-hardware', 'bath-accessories'] },
+  { key: 'mosaic', label: 'a mosaic', target: 'mosaic-tile',
+    pattern: '\\mmosaics?\\M',
+    unless: 'bullnose|pencil liner|trim|\\mv-?cap\\M',
+    fireIn: ['porcelain-tile', 'ceramic-tile', 'natural-stone', 'wood-look-tile', 'large-format-tile', 'pavers'] },
+  { key: 'ledger', label: 'ledger / stacked stone', target: 'stacked-stone',
+    pattern: '\\mledger\\M|stack(ed)? ?stone',
+    fireIn: ['porcelain-tile', 'ceramic-tile', 'natural-stone', 'mosaic-tile', 'hardware-specialty', 'functional-hardware'] },
+  { key: 'coping', label: 'coping', target: 'pool-coping',
+    pattern: '\\mcoping\\M',
+    fireIn: ['porcelain-tile', 'ceramic-tile', 'natural-stone', 'pavers'] },
+  { key: 'penny-hex', label: 'a mosaic (penny/hex/picket)', target: 'mosaic-tile',
+    pattern: 'penny round|hexagon mosaic|picket mosaic',
+    fireIn: ['porcelain-tile', 'ceramic-tile', 'natural-stone'] },
+  { key: 'carpet-tile', label: 'carpet tile', target: 'carpet-tile',
+    pattern: 'carpet ?tile',
+    fireIn: ['broadloom-carpet', 'lvp-plank', 'porcelain-tile'] },
+  { key: 'sheet-vinyl', label: 'sheet vinyl', target: 'sheet-vinyl',
+    pattern: 'sheet ?vinyl',
+    fireIn: ['lvp-plank', 'lvt-tile'] },
+];
+
 // Base FROM clause shared by sku-level rules.
 const SKU_FROM = `
   FROM skus s
@@ -96,6 +128,35 @@ export const RULES = [
         summary: `${r.vendor_code}: variant "${r.variant_name}" repeats product name "${r.name}" — displays doubled`,
         detail: { name: r.name, variant_name: r.variant_name },
       }));
+    },
+  },
+
+  {
+    key: 'name-category-mismatch',
+    title: 'Product name contradicts its category (mosaic in field tile, ledger outside stacked stone, …)',
+    severity: 'warn',
+    async run(pool, { vendorId }) {
+      const out = [];
+      for (const rule of NAME_CATEGORY_RULES) {
+        const { rows } = await pool.query(`
+          SELECT p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code, p.name, c.slug
+          FROM products p
+          JOIN vendors v ON v.id = p.vendor_id
+          JOIN categories c ON c.id = p.category_id
+          WHERE p.status = 'active' AND p.name ~* $2 AND c.slug = ANY($3)
+            AND ($1::uuid IS NULL OR v.id = $1)
+            ${rule.unless ? `AND p.name !~* '${rule.unless}'` : ''}
+        `, [vendorId, rule.pattern, rule.fireIn]);
+        for (const r of rows) {
+          out.push({
+            product_id: r.product_id, vendor_id: r.vendor_id,
+            discriminator: rule.key,
+            summary: `${r.vendor_code}: "${r.name}" looks like ${rule.label} but sits in ${r.slug} — expected ${rule.target}`,
+            detail: { rule: rule.key, current: r.slug, expected: rule.target },
+          });
+        }
+      }
+      return out;
     },
   },
 
