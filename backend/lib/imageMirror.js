@@ -84,10 +84,18 @@ export async function mirrorImage(sourceUrl, opts = {}) {
   } catch { return null; } // undecodable (HTML error page, corrupt, etc.)
   if (!out || out.length < 64) return null;
 
-  fs.mkdirSync(path.dirname(abs), { recursive: true });
-  const tmp = abs + '.' + process.pid + '.tmp';
-  fs.writeFileSync(tmp, out);
-  fs.renameSync(tmp, abs); // atomic — a concurrent reader never sees a partial file
+  try {
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    const tmp = abs + '.' + process.pid + '.tmp';
+    fs.writeFileSync(tmp, out);
+    fs.renameSync(tmp, abs); // atomic — a concurrent reader never sees a partial file
+  } catch (err) {
+    // Almost always a perms issue on uploads/ (must be writable by the api
+    // container's gid). Warn ONCE and loudly — a silent skip here looks like a
+    // dead source and would quietly mirror nothing. See ops note in schema.sql.
+    if (!mirrorImage._warned) { mirrorImage._warned = true; console.error(`[imageMirror] cannot write ${abs}: ${err.message} — is uploads/ writable by the container user?`); }
+    return null;
+  }
   return { rel, bytes: out.length, cached: false };
 }
 

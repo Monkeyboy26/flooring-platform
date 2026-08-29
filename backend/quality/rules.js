@@ -413,6 +413,72 @@ export const RULES = [
   },
 
   {
+    key: 'image-color-mismatch',
+    title: 'Primary image shows a different color (encodes a sibling SKU’s color)',
+    severity: 'warn',
+    async run(pool, { vendorId }) {
+      // Deterministic color-correctness for the two vendors whose image URLs
+      // encode a color code (EF Cloudinary, Shaw Widen). A naive "url code !=
+      // sku code" check drowns in false positives: both vendors use a merch vs
+      // PHOTO style-code offset (EF style 4940 -> photo 4960, all same color),
+      // so ~1000 codes "disagree" while the color is right. The false-positive-
+      // free signal is a CONFIRMED LEAK: the image's color matches a DIFFERENT
+      // active sibling SKU's color in the same product — i.e. it literally shows
+      // another color's photo. Reads COALESCE(original_url, url) so it still sees
+      // the vendor URL after an image is mirrored to /uploads. Generalizes the
+      // per-scraper guards (shaw-data-api.js, enrich-ef-cloudinary.cjs).
+      const fnOf = (u) => (u || '').split('/').pop().split('?')[0];
+      const EXTRACT = {
+        EF: {
+          sku: (vs) => { const p = (vs || '').split('-'); return p.length >= 3 ? (p[2] || '').replace(/^0+/, '') : null; },
+          url: (u) => { const p = fnOf(u).split('_'); return p.length >= 2 ? (p[1] || '').replace(/^0+/, '') : null; },
+        },
+        SHAW: {
+          sku: (vs) => { const m = String(vs || '').match(/(\d{3})(?!.*\d)/); return m ? m[1] : null; },
+          url: (u) => { const m = fnOf(u).match(/_[0]*(\d{3,6})\./); return m ? m[1].slice(-3) : null; },
+        },
+      };
+      const { rows } = await pool.query(`
+        SELECT s.id AS sku_id, s.product_id, s.internal_sku, s.vendor_sku, v.code AS vendor_code,
+               v.id AS vendor_id, p.name, COALESCE(ma.original_url, ma.url) AS src
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        JOIN vendors v ON v.id = p.vendor_id
+        JOIN media_assets ma ON ma.sku_id = s.id AND ma.asset_type = 'primary'
+        WHERE s.status = 'active' AND p.status = 'active'
+          AND v.code IN ('EF', 'SHAW')
+          AND COALESCE(ma.original_url, ma.url) ~ '^https?://'
+          AND ($1::uuid IS NULL OR v.id = $1)
+      `, [vendorId]);
+
+      // Sibling color sets per product (to confirm a leak points at a real sibling).
+      const skuColor = new Map();
+      const prodColors = new Map();
+      for (const r of rows) {
+        const c = EXTRACT[r.vendor_code].sku(r.vendor_sku);
+        if (!c) continue;
+        skuColor.set(r.sku_id, c);
+        if (!prodColors.has(r.product_id)) prodColors.set(r.product_id, new Set());
+        prodColors.get(r.product_id).add(c);
+      }
+      const out = [];
+      for (const r of rows) {
+        const mine = skuColor.get(r.sku_id);
+        const urlColor = EXTRACT[r.vendor_code].url(r.src);
+        if (!mine || !urlColor || urlColor === mine) continue;
+        const sibs = prodColors.get(r.product_id);
+        if (!sibs || !sibs.has(urlColor)) continue; // not a sibling => code-offset, not a leak
+        out.push({
+          sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+          summary: `${r.vendor_code}: "${r.name}" primary image shows color ${urlColor} but this SKU is color ${mine} — image belongs to a sibling`,
+          detail: { sku_color: mine, image_color: urlColor, src: r.src },
+        });
+      }
+      return out;
+    },
+  },
+
+  {
     key: 'broken-image',
     title: 'Primary image URL does not resolve',
     severity: 'warn',
