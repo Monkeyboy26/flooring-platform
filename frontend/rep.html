@@ -19260,6 +19260,22 @@
             </div>
           </div>
 
+          {/* Lifecycle stepper */}
+          <div className={'qw-stepper cols-' + lifecycle.length}>
+            {lifecycle.map((s, i) => {
+              const state = lifeState(i);
+              return (
+                <div key={s.label} className={'qw-step ' + state}>
+                  <div className="qw-step-label">
+                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
+                    <span>{s.label}</span>
+                  </div>
+                  <div className="qw-step-meta">{s.meta}</div>
+                </div>
+              );
+            })}
+          </div>
+
           {/* KPI strip — request stats under the title, ws-kpis DNA (values already computed above) */}
           <div className="ws-kpis">
             <div className="ws-kpi">
@@ -19284,22 +19300,6 @@
               <div className="ws-kpi-l">Requested</div>
               <div className="ws-kpi-v">{fmtD(sr.created_at)}</div>
             </div>
-          </div>
-
-          {/* Lifecycle stepper */}
-          <div className={'qw-stepper cols-' + lifecycle.length}>
-            {lifecycle.map((s, i) => {
-              const state = lifeState(i);
-              return (
-                <div key={s.label} className={'qw-step ' + state}>
-                  <div className="qw-step-label">
-                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
-                    <span>{s.label}</span>
-                  </div>
-                  <div className="qw-step-meta">{s.meta}</div>
-                </div>
-              );
-            })}
           </div>
 
           {/* Send confirmation popup — the last gate before the customer email fires.
@@ -21029,6 +21029,22 @@
             </div>
           </div>
 
+          {/* Lifecycle stepper */}
+          <div className="qw-stepper cols-4">
+            {steps.map((s, i) => {
+              const state = i < stepRank ? 'done' : i === stepRank ? 'now' : 'next';
+              return (
+                <div key={s.label} className={'qw-step ' + state}>
+                  <div className="qw-step-label">
+                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'now' ? '●' : '○'}</span>
+                    <span>{s.label}</span>
+                  </div>
+                  <div className="qw-step-meta">{s.meta}</div>
+                </div>
+              );
+            })}
+          </div>
+
           {/* KPI strip — recap stats under the title, ws-kpis DNA (values already computed above) */}
           <div className="ws-kpis">
             <div className="ws-kpi">
@@ -21047,22 +21063,6 @@
               <div className="ws-kpi-l">Carted</div>
               <div className="ws-kpi-v" style={visit.items_carted_at ? { color: 'var(--rod-green)' } : undefined}>{visit.items_carted_at ? fmtDT(visit.items_carted_at) : '—'}</div>
             </div>
-          </div>
-
-          {/* Lifecycle stepper */}
-          <div className="qw-stepper cols-4">
-            {steps.map((s, i) => {
-              const state = i < stepRank ? 'done' : i === stepRank ? 'now' : 'next';
-              return (
-                <div key={s.label} className={'qw-step ' + state}>
-                  <div className="qw-step-label">
-                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'now' ? '●' : '○'}</span>
-                    <span>{s.label}</span>
-                  </div>
-                  <div className="qw-step-meta">{s.meta}</div>
-                </div>
-              );
-            })}
           </div>
 
           <div className="qw-grid">
@@ -23123,6 +23123,25 @@
             </div>
           </div>
 
+          {/* Lifecycle stepper — unified qw-stepper */}
+          <div className="qw-stepper cols-5">
+            {orderStages.map((s, i) => {
+              const state = orderIsDead ? 'dead'
+                : s.done ? 'done'
+                : i === currentStageIdx ? 'now'
+                : 'next';
+              return (
+                <div key={s.label} className={'qw-step ' + state}>
+                  <div className="qw-step-label">
+                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
+                    <span>{s.label}</span>
+                  </div>
+                  <div className="qw-step-meta">{s.meta}</div>
+                </div>
+              );
+            })}
+          </div>
+
           {/* KPI strip — doc stats under the title, cdv-kpis DNA */}
           <div className="ws-kpis">
             <div className="ws-kpi">
@@ -23160,25 +23179,6 @@
               onConfirm={submitReassignOrder}
             />
           )}
-
-          {/* Lifecycle stepper — unified qw-stepper */}
-          <div className="qw-stepper cols-5">
-            {orderStages.map((s, i) => {
-              const state = orderIsDead ? 'dead'
-                : s.done ? 'done'
-                : i === currentStageIdx ? 'now'
-                : 'next';
-              return (
-                <div key={s.label} className={'qw-step ' + state}>
-                  <div className="qw-step-label">
-                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
-                    <span>{s.label}</span>
-                  </div>
-                  <div className="qw-step-meta">{s.meta}</div>
-                </div>
-              );
-            })}
-          </div>
 
           {/* Alert banners */}
           {order.status === 'cancelled' && order.cancel_reason && (
@@ -27756,6 +27756,22 @@
             </div>
           </div>
 
+          {/* Lifecycle stepper */}
+          <div className="qw-stepper cols-5">
+            {steps.map((s, i) => {
+              const state = stepState(i);
+              return (
+                <div key={s.label} className={'qw-step ' + state}>
+                  <div className="qw-step-label">
+                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
+                    <span>{s.label}</span>
+                  </div>
+                  <div className="qw-step-meta">{s.meta}</div>
+                </div>
+              );
+            })}
+          </div>
+
           {/* KPI strip — quote stats under the title, ws-kpis DNA (values already computed above) */}
           <div className="ws-kpis">
             <div className="ws-kpi">
@@ -27797,22 +27813,6 @@
               {sendFeedback.message}
             </div>
           )}
-
-          {/* Lifecycle stepper */}
-          <div className="qw-stepper cols-5">
-            {steps.map((s, i) => {
-              const state = stepState(i);
-              return (
-                <div key={s.label} className={'qw-step ' + state}>
-                  <div className="qw-step-label">
-                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
-                    <span>{s.label}</span>
-                  </div>
-                  <div className="qw-step-meta">{s.meta}</div>
-                </div>
-              );
-            })}
-          </div>
 
           <div className="qw-grid">
             {/* ── Working column ── */}
@@ -30771,6 +30771,36 @@
             </div>
           </div>
 
+          {/* Lifecycle stepper */}
+          <div className="qw-stepper cols-5">
+            {estSteps.map((s, i) => {
+              const state = estStepState(i);
+              return (
+                <div key={s.label} className={'qw-step ' + state}>
+                  <div className="qw-step-label">
+                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
+                    <span>{s.label}</span>
+                  </div>
+                  <div className="qw-step-meta">{s.meta}</div>
+                </div>
+              );
+            })}
+          </div>
+          {/* Declined / expired reason banner */}
+          {isTerminalNeg && (
+            <div style={{ marginTop: '-12px', marginBottom: '24px', padding: '0.75rem 1rem',
+              background: effStatus === 'declined' ? 'rgba(197,71,49,0.08)' : 'rgba(28,25,23,0.05)',
+              border: '0.5px solid ' + (effStatus === 'declined' ? 'rgba(197,71,49,0.35)' : 'rgba(28,25,23,0.18)'),
+              font: '400 0.8125rem/1.5 Inter, sans-serif', color: 'rgba(28,25,23,0.75)' }}>
+              <strong style={{ color: effStatus === 'declined' ? '#c54731' : '#8a7e68' }}>
+                {effStatus === 'declined' ? 'Declined' : 'Expired'}:
+              </strong>{' '}
+              {effStatus === 'declined'
+                ? (estimate.decline_reason ? 'Reason: ' + estimate.decline_reason : 'The customer declined this estimate.')
+                : 'Re-send to renew for 14 days.'}
+            </div>
+          )}
+
           {/* KPI strip — estimate stats under the title, ws-kpis DNA (values already computed above) */}
           <div className="ws-kpis">
             <div className="ws-kpi">
@@ -30844,36 +30874,6 @@
                   Convert to Order {'→'}
                 </button>
               )}
-            </div>
-          )}
-
-          {/* Lifecycle stepper */}
-          <div className="qw-stepper cols-5">
-            {estSteps.map((s, i) => {
-              const state = estStepState(i);
-              return (
-                <div key={s.label} className={'qw-step ' + state}>
-                  <div className="qw-step-label">
-                    <span className="qw-step-mark">{state === 'done' ? '✓' : state === 'dead' ? '✕' : state === 'now' ? '●' : '○'}</span>
-                    <span>{s.label}</span>
-                  </div>
-                  <div className="qw-step-meta">{s.meta}</div>
-                </div>
-              );
-            })}
-          </div>
-          {/* Declined / expired reason banner */}
-          {isTerminalNeg && (
-            <div style={{ marginTop: '-12px', marginBottom: '24px', padding: '0.75rem 1rem',
-              background: effStatus === 'declined' ? 'rgba(197,71,49,0.08)' : 'rgba(28,25,23,0.05)',
-              border: '0.5px solid ' + (effStatus === 'declined' ? 'rgba(197,71,49,0.35)' : 'rgba(28,25,23,0.18)'),
-              font: '400 0.8125rem/1.5 Inter, sans-serif', color: 'rgba(28,25,23,0.75)' }}>
-              <strong style={{ color: effStatus === 'declined' ? '#c54731' : '#8a7e68' }}>
-                {effStatus === 'declined' ? 'Declined' : 'Expired'}:
-              </strong>{' '}
-              {effStatus === 'declined'
-                ? (estimate.decline_reason ? 'Reason: ' + estimate.decline_reason : 'The customer declined this estimate.')
-                : 'Re-send to renew for 14 days.'}
             </div>
           )}
 
