@@ -71,16 +71,18 @@ const CATEGORY_MAP = {
   // LVP / LVT
   'luxury vinyl plank':  'luxury-vinyl',
   'luxury vinyl tile':   'luxury-vinyl',
-  'lvp':                 'luxury-vinyl',
-  'lvt':                 'luxury-vinyl',
-  'spc':                 'luxury-vinyl',
-  'wpc':                 'luxury-vinyl',
-  'vinyl plank':         'luxury-vinyl',
-  'vinyl tile':          'luxury-vinyl',
-  'floorte':             'luxury-vinyl',
-  'floorte pro':         'luxury-vinyl',
-  'floorte elite':       'luxury-vinyl',
-  'resilient':           'luxury-vinyl',
+  // LEAF categories, not the parent 'luxury-vinyl' bucket — a parent isn't
+  // browsable and the non-leaf-category quality rule flags it (2026-08-27).
+  'lvp':                 'lvp-plank',
+  'lvt':                 'lvt-tile',
+  'spc':                 'lvp-plank',
+  'wpc':                 'lvp-plank',
+  'vinyl plank':         'lvp-plank',
+  'vinyl tile':          'lvt-tile',
+  'floorte':             'lvp-plank',
+  'floorte pro':         'lvp-plank',
+  'floorte elite':       'lvp-plank',
+  'resilient':           'lvp-plank',
   // Laminate
   'laminate':            'laminate',
   'repel laminate':      'laminate',
@@ -106,7 +108,7 @@ const MAC_CATEGORY_MAP = {
   CARTIL: 'carpet-tile',   // Modular carpet tile
   WOO:    'engineered-hardwood',
   WOOMIS: 'transitions-moldings',
-  VINTIL: 'luxury-vinyl',
+  VINTIL: 'lvp-plank',      // Shaw resilient lines are plank format
   VINMIS: 'transitions-moldings',
   CERFLO: 'porcelain-tile',
   CERMIS: 'transitions-moldings',
@@ -652,8 +654,8 @@ function finalizeItem(item) {
   // Refine using PID*F*12 subcategory
   if (item.subcategory) {
     const sub = item.subcategory.toUpperCase();
-    if (/\bSPC\b|\bWPC\b/.test(sub)) item.category = 'luxury-vinyl';
-    else if (/DRYBACK|DRYBAC/.test(sub)) item.category = 'luxury-vinyl';
+    if (/\bSPC\b|\bWPC\b/.test(sub)) item.category = 'lvp-plank';
+    else if (/DRYBACK|DRYBAC/.test(sub)) item.category = 'lvp-plank';
     else if (/ENGINEERED HARDWOOD/.test(sub)) item.category = 'engineered-hardwood';
     else if (/RESIDENTIAL FLOOR TILE|COMMERCIAL FLOOR TILE/.test(sub)) item.category = /CERAMIC/.test(sub) ? 'ceramic-tile' : 'porcelain-tile';
     else if (/\bADHESIVE\b/.test(sub) && !/CARIND|CARTIL/.test(item.material_class || '')) item.category = 'adhesives-sealants';

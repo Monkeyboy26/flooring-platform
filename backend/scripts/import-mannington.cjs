@@ -18,13 +18,24 @@ const DRY = process.argv.includes('--dry-run');
 
 // ── Categories ──
 const CAT = {
-  lvt:  '650e8400-e29b-41d4-a716-446655440030',
+  lvt:  '650e8400-e29b-41d4-a716-446655440030', // parent 'luxury-vinyl' — resolved per-row to a LEAF below
+  lvpPlank: '650e8400-e29b-41d4-a716-446655440031', // lvp-plank leaf
+  lvtTile:  'c45886d9-5e2c-4cdf-9a91-4be58b67f471', // lvt-tile leaf
   eng:  '650e8400-e29b-41d4-a716-446655440021',
   lam:  '650e8400-e29b-41d4-a716-446655440090',
   inst: '650e8400-e29b-41d4-a716-446655440110',
   adh:  '650e8400-e29b-41d4-a716-446655440111',
   und:  '650e8400-e29b-41d4-a716-446655440112',
 };
+
+// ADURA has both plank (Nx48/60/72) and tile (12x24, 18x18) formats — resolve
+// the parent 'luxury-vinyl' to a browsable LEAF per row width. The
+// non-leaf-category quality rule flags anything left in the parent (2026-08-27).
+function lvCategoryFor(width) {
+  const w = String(width || '').toLowerCase();
+  if (/12\s*x\s*24|18\s*x\s*18|16\s*x\s*16|12\s*x\s*12|24\s*x\s*24/.test(w)) return CAT.lvtTile;
+  return CAT.lvpPlank;
+}
 
 // ── Attribute IDs ──
 const ATTR = {
@@ -767,13 +778,14 @@ async function processFlooring(client, vendorId, collections, accTypes, defaultA
       const cleanPattern = freight ? pattern.slice(0, -1) : pattern;
 
       // Upsert product
+      const rowCat = col.k === CAT.lvt ? lvCategoryFor(width) : col.k;
       const prodRes = await client.query(`
         INSERT INTO products (id, vendor_id, name, collection, category_id, status)
         VALUES (gen_random_uuid(), $1, $2, $3, $4, 'active')
         ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique
         DO UPDATE SET category_id = EXCLUDED.category_id, status = 'active'
         RETURNING id
-      `, [vendorId, cleanPattern, col.c, col.k]);
+      `, [vendorId, cleanPattern, col.c, rowCat]);
       const productId = prodRes.rows[0].id;
       stats.products++;
 

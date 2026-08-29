@@ -24,8 +24,8 @@ const CAT = {
   eng:     '650e8400-e29b-41d4-a716-446655440021', // Engineered Hardwood
   solid:   '650e8400-e29b-41d4-a716-446655440022', // Solid Hardwood
   lvp:     '650e8400-e29b-41d4-a716-446655440031', // LVP (Plank) — SPC/WPC
-  laminate:'a50e8400-e29b-41d4-a716-446655440201', // Laminate Flooring
-  lvt:     '650e8400-e29b-41d4-a716-446655440030', // Luxury Vinyl — Glue Down LVT
+  laminate:'650e8400-e29b-41d4-a716-446655440090', // 'laminate' LEAF (was parent laminate-flooring — not browsable)
+  lvt:     '650e8400-e29b-41d4-a716-446655440031', // lvp-plank LEAF — SLCC glue-down LVT is plank format (6x48/7x48)
 };
 
 // ============ MOLDING ACCESSORIES BY FLOORING TYPE ============

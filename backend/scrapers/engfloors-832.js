@@ -58,14 +58,16 @@ const TRANSITION_SUFFIXES = /\s+(2-stair Treads|End Cap|Flush Stairnose|Overlap 
 
 // Map EDI category text → category slugs in our DB
 const CATEGORY_MAP = {
-  'luxury vinyl plank':  'luxury-vinyl',
-  'luxury vinyl tile':   'luxury-vinyl',
-  'lvp':                 'luxury-vinyl',
-  'lvt':                 'luxury-vinyl',
-  'spc':                 'luxury-vinyl',
-  'wpc':                 'luxury-vinyl',
-  'vinyl plank':         'luxury-vinyl',
-  'vinyl tile':          'luxury-vinyl',
+  // LEAF categories, not the parent 'luxury-vinyl' bucket — a parent isn't
+  // browsable and the non-leaf-category quality rule flags it (2026-08-27).
+  'luxury vinyl plank':  'lvp-plank',
+  'luxury vinyl tile':   'lvt-tile',
+  'lvp':                 'lvp-plank',
+  'lvt':                 'lvt-tile',
+  'spc':                 'lvp-plank',
+  'wpc':                 'lvp-plank',
+  'vinyl plank':         'lvp-plank',
+  'vinyl tile':          'lvt-tile',
   'engineered hardwood': 'hardwood',
   'hardwood':            'hardwood',
   'laminate':            'laminate',
@@ -359,8 +361,8 @@ const MAC_CATEGORY_MAP = {
   CARINDC: 'carpet',        // Carpet Indoor Commercial (broadloom)
   CARTILR: 'carpet-tile',   // Carpet Tile Residential
   CARTILC: 'carpet-tile',   // Carpet Tile Commercial
-  VINTILR: 'luxury-vinyl',  // Vinyl Tile/LVP Residential
-  VINTILC: 'luxury-vinyl',  // Vinyl Tile/LVP Commercial
+  VINTILR: 'lvp-plank',     // Vinyl Tile/LVP Residential (EF lines are plank format)
+  VINTILC: 'lvp-plank',     // Vinyl Tile/LVP Commercial
   VINMISR: 'installation-sundries', // Vinyl Misc (accessories)
 };
 
