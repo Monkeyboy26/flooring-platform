@@ -32260,6 +32260,40 @@ cron.schedule('0 4 * * 0', async () => {
   }
 });
 
+// ==================== Image Mirror Cron ====================
+// Self-host new/un-mirrored active-product PRIMARY images to uploads/mirror so a
+// vendor CDN can't break them (uploads/ is synced to S3 nightly). Bounded per
+// run so it can't run for hours; the one-time bulk was mirror-images-backfill.mjs.
+// Fragile CDNs (already-failing Caesarstone/Mapei/Wix/Cloudinary) go first.
+const IMAGE_MIRROR_BATCH = parseInt(process.env.IMAGE_MIRROR_BATCH || '3000', 10);
+cron.schedule('30 4 * * *', async () => {
+  if (process.env.IMAGE_MIRROR_DISABLE === '1') return;
+  try {
+    const { mirrorMediaRow } = await import('./lib/imageMirror.js');
+    const fragile = 'caesarstone|cdnmedia\\.mapei|wixstatic|cloudinary';
+    const { rows } = await pool.query(`
+      SELECT ma.id, ma.url, ma.original_url
+      FROM media_assets ma JOIN products p ON p.id = ma.product_id
+      WHERE ma.asset_type = 'primary' AND p.status = 'active'
+        AND ma.mirrored_at IS NULL AND ma.url ~ '^https?://'
+      ORDER BY (ma.url ~ '${fragile}') DESC, md5(ma.id::text)
+      LIMIT $1
+    `, [IMAGE_MIRROR_BATCH]);
+    if (!rows.length) return;
+    let ok = 0, cursor = 0;
+    const worker = async () => {
+      while (cursor < rows.length) {
+        const row = rows[cursor++];
+        try { if (await mirrorMediaRow(pool, row)) ok++; } catch { /* keep vendor url */ }
+      }
+    };
+    await Promise.all(Array.from({ length: 8 }, worker));
+    console.log(`[Cron] Image mirror: ${ok}/${rows.length} newly self-hosted`);
+  } catch (err) {
+    console.error('[Cron] Image mirror failed:', err.message);
+  }
+});
+
 // ==================== Bank Transfer Expiration Cron ====================
 
 // Run daily at 5 AM UTC — cancel expired awaiting_payment bank transfer orders

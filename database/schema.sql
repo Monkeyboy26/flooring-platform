@@ -412,7 +412,13 @@ CREATE TABLE media_assets (
     url TEXT NOT NULL,
     original_url TEXT,
     sort_order INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    -- Self-hosting: when set, url points at a mirrored copy under /uploads/mirror
+    -- (see backend/lib/imageMirror.js) and original_url holds the vendor source
+    -- for refresh. Backfilled by mirror-images-backfill.mjs, kept current by the
+    -- nightly mirror cron in server.js. uploads/ is synced to S3 nightly.
+    mirrored_at TIMESTAMP,
+    mirror_bytes INTEGER
 );
 -- Separate unique indexes for SKU-level and product-level images
 CREATE UNIQUE INDEX IF NOT EXISTS media_assets_unique_sku
