@@ -50,7 +50,7 @@ INSERT INTO categories (id, parent_id, name, slug, sort_order) VALUES
 -- ── Hardscaping ──
 ('650e8400-e29b-41d4-a716-446655440060', NULL, 'Hardscaping', 'hardscaping', 6),
 -- Walling & Wall Caps: leaf under Hardscaping (2026-08-27; live DBs created it with a generated id via slug-gated INSERT — slug is the stable key)
-('650e8400-e29b-41d4-a716-446655440063', '650e8400-e29b-41d4-a716-446655440060', 'Walling & Wall Caps', 'walling-caps', 2),
+('650e8400-e29b-41d4-a716-446655440065', '650e8400-e29b-41d4-a716-446655440060', 'Walling & Wall Caps', 'walling-caps', 2),
 ('650e8400-e29b-41d4-a716-446655440061', '650e8400-e29b-41d4-a716-446655440060', 'Stacked Stone', 'stacked-stone', 1),
 ('650e8400-e29b-41d4-a716-446655440062', '650e8400-e29b-41d4-a716-446655440060', 'Pavers', 'pavers', 2),
 ('650e8400-e29b-41d4-a716-446655440063', '650e8400-e29b-41d4-a716-446655440060', 'Artificial Turf', 'artificial-turf', 3),
