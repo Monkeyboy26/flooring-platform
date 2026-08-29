@@ -100,6 +100,33 @@ export const RULES = [
   },
 
   {
+    key: 'non-leaf-category',
+    title: 'Product sits in a parent (non-leaf) category — not browsable to a specific type',
+    severity: 'warn',
+    async run(pool, { vendorId }) {
+      // A parent bucket (e.g. "Luxury Vinyl", "Installation & Sundries") isn't a
+      // browsable leaf — the product needs a specific subtype (lvp-plank,
+      // tools-trowels, …). This is the durable guard: anything a scraper couldn't
+      // classify to a leaf, or that regresses, surfaces here for the nightly diff.
+      const { rows } = await pool.query(`
+        SELECT p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code, p.name,
+               c.name AS cat_name, c.slug
+        FROM products p
+        JOIN vendors v ON v.id = p.vendor_id
+        JOIN categories c ON c.id = p.category_id
+        WHERE p.status = 'active'
+          AND EXISTS (SELECT 1 FROM categories ch WHERE ch.parent_id = p.category_id)
+          AND ($1::uuid IS NULL OR v.id = $1)
+      `, [vendorId]);
+      return rows.map(r => ({
+        product_id: r.product_id, vendor_id: r.vendor_id,
+        summary: `${r.vendor_code}: "${r.name}" is in parent category "${r.cat_name}" — needs a specific subtype`,
+        detail: { parent_category: r.slug },
+      }));
+    },
+  },
+
+  {
     key: 'name-abbrev-soup',
     title: 'Product name is abbreviation soup (e.g. "Spectra Matte Bo/Ce/Ho/Na")',
     severity: 'warn',
