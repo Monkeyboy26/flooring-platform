@@ -428,6 +428,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS media_assets_unique_product
     ON media_assets (product_id, asset_type, sort_order)
     WHERE sku_id IS NULL;
 CREATE INDEX idx_media_assets_product ON media_assets(product_id);
+
+-- Cached AI-vision color-correctness verdicts (Phase 2b image quality). Populated
+-- by backend/verify-image-vision.mjs (bounded/on-demand, cost-tracked); read by
+-- the cheap image-vision-mismatch quality rule so vision never runs inside audits.
+CREATE TABLE IF NOT EXISTS image_vision_checks (
+  sku_id UUID PRIMARY KEY REFERENCES skus(id) ON DELETE CASCADE,
+  media_id UUID,
+  matched BOOLEAN,
+  confidence NUMERIC(3,2),
+  observed_color TEXT,
+  note TEXT,
+  model TEXT,
+  image_url TEXT,
+  checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ivc_mismatch ON image_vision_checks(matched) WHERE matched = false;
 CREATE INDEX idx_media_assets_type ON media_assets(product_id, asset_type);
 
 CREATE TABLE inventory_snapshots (

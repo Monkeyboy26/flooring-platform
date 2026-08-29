@@ -479,6 +479,38 @@ export const RULES = [
   },
 
   {
+    key: 'image-vision-mismatch',
+    title: 'Vision check: primary image color clearly differs from the stated color',
+    severity: 'warn',
+    async run(pool, { vendorId }) {
+      // Reads CACHED verdicts from image_vision_checks (populated by the bounded
+      // verify-image-vision.mjs runner / vision cron) — this rule itself makes no
+      // API call. Surfaces only high-confidence, non-accessory mismatches; the
+      // runner's prompt is tuned to pass marketing color names ("River Jade") and
+      // flag only customer-surprising color-family swaps (ordered white, got black).
+      const { rows } = await pool.query(`
+        SELECT s.id AS sku_id, s.product_id, v.id AS vendor_id, v.code AS vendor_code, p.name,
+               ivc.observed_color, ivc.confidence, ivc.note,
+               (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+                 WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) AS color
+        FROM image_vision_checks ivc
+        JOIN skus s ON s.id = ivc.sku_id
+        JOIN products p ON p.id = s.product_id
+        JOIN vendors v ON v.id = p.vendor_id
+        WHERE ivc.matched = false AND ivc.confidence >= 0.8
+          AND s.status = 'active' AND p.status = 'active'
+          AND s.variant_type IS DISTINCT FROM 'accessory'
+          AND ($1::uuid IS NULL OR v.id = $1)
+      `, [vendorId]);
+      return rows.map(r => ({
+        sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+        summary: `${r.vendor_code}: "${r.name}" stated color "${r.color}" but the image looks ${r.observed_color} — ${r.note || 'verify'}`,
+        detail: { stated: r.color, observed: r.observed_color, confidence: parseFloat(r.confidence) },
+      }));
+    },
+  },
+
+  {
     key: 'broken-image',
     title: 'Primary image URL does not resolve',
     severity: 'warn',
