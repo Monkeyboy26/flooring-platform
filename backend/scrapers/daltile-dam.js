@@ -286,7 +286,8 @@ async function loadProductsWithoutImages(pool) {
     JOIN vendors v ON v.id = p.vendor_id
     JOIN skus s ON s.product_id = p.id
     WHERE v.code IN ('DAL', 'AO', 'MZ')
-      AND p.status = 'active'
+      AND p.status = ANY(CASE WHEN ${process.env.DAM_INCLUDE_DRAFT === '1' ? "'t'" : "'f'"}::boolean
+        THEN ARRAY['active','draft'] ELSE ARRAY['active'] END)
       AND NOT EXISTS (
         SELECT 1 FROM media_assets ma
         WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
