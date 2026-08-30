@@ -581,6 +581,35 @@ export const RULES = [
   },
 
   {
+    key: 'placeholder-price',
+    title: 'Item has a placeholder price ($0 retail, or the $1.00 sentinel cost) instead of call-for-pricing',
+    severity: 'error',
+    async run(pool, { vendorId }) {
+      // Unpriced items must be call-for-pricing (NO pricing row), never a fake
+      // price. Two placeholder tells that reach customers: retail_price = $0 (shows
+      // "$0.00" and is purchasable), and the $1.00 sentinel cost on an area-priced
+      // covering item — no tile/plank costs exactly $1.00/sqft, so the covering
+      // floor turns it into a fake ~$1.99 retail that sells below cost. Fix: delete
+      // the pricing row (call-for-pricing) or enter the real price. Trim/accessory
+      // ($1 can be legit per_unit) is not flagged by the cost tell.
+      const { rows } = await pool.query(`
+        SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
+               p.name, s.variant_name, pr.cost, pr.retail_price, pr.price_basis
+        ${SKU_FROM}
+          AND (
+            pr.retail_price = 0
+            OR (pr.cost = 1.00 AND pr.price_basis = 'per_sqft')
+          )
+      `, [vendorId]);
+      return rows.map(r => ({
+        sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+        summary: `${r.vendor_code}: "${r.name}${r.variant_name ? ' — ' + r.variant_name : ''}" has a placeholder price (cost $${parseFloat(r.cost).toFixed(2)}, retail $${parseFloat(r.retail_price).toFixed(2)}) — should be call-for-pricing or a real price`,
+        detail: { cost: parseFloat(r.cost), retail_price: parseFloat(r.retail_price), price_basis: r.price_basis },
+      }));
+    },
+  },
+
+  {
     key: 'sheet-shares-field-price',
     title: 'Per-sheet mosaic/mesh shares a field tile’s exact price (collapsed pricing)',
     severity: 'error',
