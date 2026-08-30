@@ -1,0 +1,41 @@
+{
+ "nuheat-standard-mat": {
+  "image": "https://www.nuheat.com/images/default-source/default-album/standard-mats-header-image1aa5330bb076636c92f5ff000089d360.jpg?sfvrsn=55d35007_0"
+ },
+ "nuheat-custom-mat": {
+  "image": "https://www.nuheat.com/images/default-source/default-album/custommatsimage.jpg?sfvrsn=40095607_0"
+ },
+ "nuheat-cable": {
+  "image": "https://www.nuheat.com/images/default-source/default-album/cable2a7f350bb076636c92f5ff000089d360.jpg?sfvrsn=65095607_0"
+ },
+ "nuheat-mesh": {
+  "image": "https://www.nuheat.com/images/default-source/default-album/membraneandcable.jpg?sfvrsn=464e5607_0"
+ },
+ "nuheat-home-thermostat": {
+  "image": "https://www.nuheat.com/images/default-source/default-album/nuheat-home-thermostat-header.jpg?sfvrsn=b75a5707_0"
+ },
+ "nuheat-signature-thermostat": {
+  "image": "https://www.nuheat.com/images/default-source/default-album/signature.jpg?sfvrsn=845c5707_0"
+ },
+ "nuheat-mat-repair-kit": {
+  "image": "https://www.nuheat.com/images/default-source/default-album/ac0014-matrepairkit.png?sfvrsn=5c15707_0"
+ },
+ "nuheat-cable-repair-kit": {
+  "image": "https://www.nuheat.com/images/default-source/default-album/ac0040-cablerepairkit.png?sfvrsn=13c15707_0"
+ },
+ "strata-heat-wire": {
+  "image": "https://cdnmdm.laticrete.com/ProductAssets/Feature%20Image/b458357aa7b04b69bf1f036f85ad3dd1-237232797-1672634848.png"
+ },
+ "strata-heat-wifi-thermostat": {
+  "image": "https://cdnmdm.laticrete.com/ProductAssets/Feature%20Image/79ff58c73b5b488cbfd00cd385acae8b-1681083366-1672634846.png"
+ },
+ "strata-heat-smart-thermostat": {
+  "image": "https://cdnmdm.laticrete.com/ProductAssets/Feature%20Image/8439026fd3ea40cdad037233dc0124d4-1667115728-1672634786.png"
+ },
+ "nuheat-membrane": {
+  "image": "https://www.nuheat.com/images/default-source/default-album/nuheat-3d-h84246-membrane-sheets-ml-1809-frp.png?sfvrsn=352b5607_0"
+ },
+ "nuheat-peel-stick-membrane": {
+  "image": "https://www.nuheat.com/images/default-source/default-album/nuheat-3d-h87392-peelandstickmembrane-en-2110.jpg?sfvrsn=82745b07_0"
+ }
+}
