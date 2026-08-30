@@ -91,7 +91,9 @@ async function main() {
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const backup = { movers, renames, bedCalacatta };
-  const backupPath = `backend/data/mosaics-out-of-natural-stone-backup-${stamp}.json`;
+  // repo root cwd locally; /app (= backend/) inside the api container on prod
+  const dataDir = fs.existsSync('backend/data') ? 'backend/data' : 'data';
+  const backupPath = `${dataDir}/mosaics-out-of-natural-stone-backup-${stamp}.json`;
   fs.writeFileSync(backupPath, JSON.stringify(backup, null, 2));
   console.log(`\nBackup: ${backupPath}`);
 
