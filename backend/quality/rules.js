@@ -532,6 +532,52 @@ export const RULES = [
   },
 
   {
+    key: 'carton-coverage-per-piece',
+    title: 'Box coverage equals a single piece (per-piece area stored as carton sqft)',
+    severity: 'error',
+    async run(pool, { vendorId }) {
+      // The inverse of undercounted-pieces: a box with pieces_per_box > 1 whose
+      // sqft_per_box is ~= the area of ONE piece, not pieces × that. This is the
+      // MSI 832 per-piece leak (scrapers/msi-unified.js:523-529, healed at
+      // :1076-1079) that showed Balboa Amber as "0.987 sqft/box · $2.56 per box"
+      // instead of "16.779 · $43.46". Customer-visible: wrong coverage AND wrong
+      // per-box price (price × sqft_per_box). Cross-vendor via name-parsed size,
+      // same technique as undercounted-pieces. Mosaics/slabs excluded (their name
+      // size is chip/thickness, not a face dimension).
+      const CATS = ['porcelain-tile', 'ceramic-tile', 'wood-look-tile', 'large-format-tile',
+        'backsplash-wall', 'engineered-hardwood', 'solid-hardwood', 'laminate', 'lvp-plank', 'lvt-tile'];
+      const { rows } = await pool.query(`
+        SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
+               p.name, s.variant_name, pk.sqft_per_box AS sf, pk.pieces_per_box AS pcs,
+               (regexp_match(s.variant_name,'([0-9]+(?:\\.[0-9]+)?)x([0-9]+(?:\\.[0-9]+)?)'))[1]::numeric AS w,
+               (regexp_match(s.variant_name,'([0-9]+(?:\\.[0-9]+)?)x([0-9]+(?:\\.[0-9]+)?)'))[2]::numeric AS h
+        ${SKU_FROM}
+          AND s.sell_by = 'box' AND pk.pieces_per_box > 1 AND pk.sqft_per_box > 0
+          AND s.variant_type IS DISTINCT FROM 'accessory'
+          AND c.slug = ANY($2)
+          AND s.variant_name ~ '[0-9]+(\\.[0-9]+)?x[0-9]+'
+      `, [vendorId, CATS]);
+      const out = [];
+      for (const r of rows) {
+        const w = parseFloat(r.w), h = parseFloat(r.h), sf = parseFloat(r.sf), pcs = parseInt(r.pcs, 10);
+        if (!(w >= 3 && w <= 130 && h >= 3 && h <= 130)) continue;
+        const pieceArea = w * h / 144;
+        const expected = pieceArea * pcs;
+        // Leak signature: stored coverage ~= ONE piece (±15%) yet the carton holds
+        // several — i.e. sqft_per_box is far below the real carton area.
+        if (Math.abs(sf - pieceArea) > 0.15 * pieceArea) continue;
+        if (sf >= expected * 0.6) continue;
+        out.push({
+          sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+          summary: `${r.vendor_code}: "${r.name}${r.variant_name ? ' — ' + r.variant_name : ''}" lists ${sf} sqft/box for ${pcs}× the ${w}x${h} piece — coverage should be ~${expected.toFixed(2)} (per-piece area stored as carton)`,
+          detail: { sqft_per_box: sf, pieces_per_box: pcs, size: `${w}x${h}`, expected_sqft_per_box: Math.round(expected * 10000) / 10000 },
+        });
+      }
+      return out;
+    },
+  },
+
+  {
     key: 'missing-roll-width',
     title: 'Roll goods without roll_width_ft (cut math incomplete)',
     severity: 'warn',
