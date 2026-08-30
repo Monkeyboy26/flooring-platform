@@ -71,9 +71,12 @@ export async function run(pool, job, source) {
     };
 
     // Step 3: SKU-matched enrichment
+    // stem→color map over the full API catalog: lets the image loop reject
+    // assets whose embedded SKU code belongs to a different color
+    const stemColorMap = buildStemColorMap(apiProducts);
     for (let i = 0; i < apiProducts.length; i++) {
         try {
-            enrichProduct(apiProducts[i], existingSkus, stats, catMap, null);
+            enrichProduct(apiProducts[i], existingSkus, stats, catMap, stemColorMap);
         } catch (err) {
             stats.errors++;
             if (stats.errors <= 30) {
@@ -195,6 +198,52 @@ const ATTR_MAP = [
 /** Extract the display value for a named attribute from the attributeTypes array.
  *  API structure: attributeTypes[].attributeValues[] — values are nested.
  *  Uses startsWith matching because API names have suffixes like "(IMSRP3)". */
+// ── Wrong-color image guard helpers ──────────────────────────────────────────
+// Emser CDN filenames embed the source SKU code (catch_taupe_f14catcFA0410m =
+// the Fawn scan). Their API sometimes attaches another color's asset to a SKU;
+// the embedded code is the ground truth (same lesson as Shaw/EF).
+
+const EMBEDDED_CODE_RE = /(?:^|_)([a-z]\d{2}[a-z]{4,}[0-9][a-z0-9]*)(?:_|-|\.)/;
+
+/** prefix-stripped stem: f14catcta0410m → catcta0410m (F84/F22-style prefix drift) */
+function skuStem(code) {
+    return (code || '').toLowerCase().replace(/v[23]$/, '').slice(3);
+}
+
+/** colors equal or within trivial spelling drift (Havana/Havanna) */
+function sameColorish(a, b) {
+    a = (a || '').toLowerCase(); b = (b || '').toLowerCase();
+    if (!a || !b || a === b) return a === b && !!a;
+    if (Math.abs(a.length - b.length) > 2) return false;
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++)
+        for (let j = 1; j <= b.length; j++)
+            d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length] <= 2;
+}
+
+/** Parse a SKU's color from API structured attrs, falling back to title */
+function parseApiColor(apiProduct) {
+    const structured = extractAttributeValue(apiProduct.attributeTypes || [], 'Color');
+    if (structured) return titleCase(structured);
+    const parts = (apiProduct.productTitle || '').split(/\s*-\s*/);
+    const afterDash = parts.length > 1 ? parts.slice(1).join(' - ').split(/\s*,\s*/) : [];
+    return titleCase(afterDash[1] || '');
+}
+
+/** stem → color map over the whole API catalog, for cross-color image detection */
+function buildStemColorMap(apiProducts) {
+    const map = new Map();
+    for (const p of apiProducts) {
+        const num = (p.productNumber || '').toLowerCase();
+        if (!num) continue;
+        const color = parseApiColor(p);
+        if (color && !map.has(skuStem(num))) map.set(skuStem(num), color);
+    }
+    return map;
+}
+
 function extractAttributeValue(attributeTypes, namePrefix) {
     if (!attributeTypes || !attributeTypes.length) return null;
     for (const at of attributeTypes) {
@@ -437,6 +486,24 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
         const fileName = (img.name || imageUrl.split('/').pop() || '').toLowerCase();
         const apiSortOrder = img.sortOrder ?? img.sort_order ?? 0;
 
+        // Wrong-color guard: skip assets whose embedded SKU code belongs to a
+        // DIFFERENT color (Emser's API occasionally serves a sibling color's
+        // file). Dual-coded filenames containing our own code stay.
+        if (skuColorMap) {
+            const codeMatch = fileName.match(EMBEDDED_CODE_RE);
+            const ownStem = skuStem(productNumber);
+            if (codeMatch && ownStem && !fileName.includes(ownStem)) {
+                const imgStem = skuStem(codeMatch[1]);
+                if (imgStem !== ownStem) {
+                    const imgColor = skuColorMap.get(imgStem);
+                    if (imgColor && colorVal && !sameColorish(imgColor, colorVal)) {
+                        stats.imagesSkippedWrongColor = (stats.imagesSkippedWrongColor || 0) + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+
         // Classify by Emser filename patterns
         let type;
         if (/_scan_f\d/i.test(fileName)) {
@@ -620,16 +687,18 @@ async function matchImagesByName(pool, vendorId, apiProducts, job) {
 
     if (noImg.rows.length === 0) return 0;
 
-    // Build lookup maps from API data: collection:color → images
+    // Build lookup map from API data: collection:color → images.
+    // NO collection-wide fallback: it used to hand the collection's FIRST
+    // color's image to every imageless product in that collection, which is
+    // how 398 products ended up showing another product's photo (fixed
+    // 2026-08-30, fix-emser-borrowed-images.mjs). A missing image is honest;
+    // a wrong image is not.
     const byName = new Map();    // "collection color" → imageUrl
-    const bySeries = new Map();  // "collection" → imageUrl
 
     for (const p of apiProducts) {
         const props = p.properties || {};
         const collection = titleCase(props.parentNumber || '');
-        const title = p.productTitle || '';
-        const afterDash = title.split(/\s*-\s*/).slice(1).join(' - ').split(/\s*,\s*/);
-        const color = titleCase(afterDash[1] || '');
+        const color = parseApiColor(p);
 
         const images = p.images || [];
         const imageUrl = pickBestImage(images);
@@ -638,9 +707,6 @@ async function matchImagesByName(pool, vendorId, apiProducts, job) {
         if (collection && color) {
             const key = `${collection} ${color}`.toLowerCase();
             if (!byName.has(key)) byName.set(key, imageUrl);
-        }
-        if (collection && !bySeries.has(collection.toLowerCase())) {
-            bySeries.set(collection.toLowerCase(), imageUrl);
         }
     }
 
@@ -652,9 +718,6 @@ async function matchImagesByName(pool, vendorId, apiProducts, job) {
 
         let imageUrl = byName.get(compositeKey);
         if (!imageUrl) imageUrl = byName.get(prod.name.toLowerCase());
-        if (!imageUrl && prod.collection) {
-            imageUrl = bySeries.get(prod.collection.toLowerCase());
-        }
         if (!imageUrl) continue;
 
         await upsertMediaAsset(pool, {
@@ -711,9 +774,13 @@ async function matchImagesBySeries(pool, vendorId, apiProducts, job) {
 
     if (noImg.rows.length === 0) return 0;
 
-    // Build series → images map from API products
-    // Each series gets the best product shot + any room scenes
-    const seriesMap = new Map();
+    // Build series → images map from API products.
+    // GUARDED (2026-08-30): a series image may only be used as a fallback when
+    // the series has ONE distinct color — multi-color series made every
+    // imageless sibling show the first color's photo. Fuzzy word-overlap
+    // matching removed for the same reason ("Catalyst Pl Sa" → words
+    // ['catalyst'] → matched "catalyst ox hy" → Hydrogen's image).
+    const seriesMap = new Map(); // series → { urls: [], colors: Set }
 
     for (const p of apiProducts) {
         const title = p.productTitle || '';
@@ -725,10 +792,12 @@ async function matchImagesBySeries(pool, vendorId, apiProducts, job) {
         if (!bestUrl) continue;
 
         if (!seriesMap.has(series)) {
-            seriesMap.set(series, []);
+            seriesMap.set(series, { urls: [], colors: new Set() });
         }
-        const urls = seriesMap.get(series);
-        if (!urls.includes(bestUrl)) urls.push(bestUrl);
+        const entry = seriesMap.get(series);
+        const color = parseApiColor(p);
+        if (color) entry.colors.add(color.toLowerCase());
+        if (!entry.urls.includes(bestUrl)) entry.urls.push(bestUrl);
 
         // Also collect room scene / lifestyle images from this product
         for (const img of images) {
@@ -736,7 +805,7 @@ async function matchImagesBySeries(pool, vendorId, apiProducts, job) {
             if (!url || url.includes('placeholder')) continue;
             const fileName = (img.name || url).toLowerCase();
             if (/room|scene|lifestyle|roomscene|application|vignette/i.test(fileName)) {
-                if (!urls.includes(url)) urls.push(url);
+                if (!entry.urls.includes(url)) entry.urls.push(url);
             }
         }
     }
@@ -747,29 +816,23 @@ async function matchImagesBySeries(pool, vendorId, apiProducts, job) {
         if (!dbSeries) continue;
 
         // 1. Exact series match
-        let urls = seriesMap.get(dbSeries);
+        let entry = seriesMap.get(dbSeries);
 
         // 2. Try collection name as series
-        if (!urls && prod.collection) {
-            urls = seriesMap.get(prod.collection.toLowerCase());
+        if (!entry && prod.collection) {
+            entry = seriesMap.get(prod.collection.toLowerCase());
         }
 
         // 3. Try collection stripped of qualifiers
-        if (!urls && prod.collection) {
-            urls = seriesMap.get(extractSeriesFromName(prod.collection));
+        if (!entry && prod.collection) {
+            entry = seriesMap.get(extractSeriesFromName(prod.collection));
         }
 
-        // 4. Fuzzy: find best series where all significant words overlap
-        if (!urls) {
-            const dbWords = dbSeries.split(/\s+/).filter(w => w.length >= 3);
-            if (dbWords.length > 0) {
-                for (const [seriesName, seriesUrls] of seriesMap) {
-                    const allIn = dbWords.every(w => seriesName.includes(w));
-                    if (allIn) { urls = seriesUrls; break; }
-                }
-            }
-        }
+        // Single-color series only — otherwise we can't know which color the
+        // imageless product should show, and a wrong image is worse than none
+        if (!entry || entry.colors.size > 1) continue;
 
+        const urls = entry.urls;
         if (!urls || urls.length === 0) continue;
 
         // Save primary image
