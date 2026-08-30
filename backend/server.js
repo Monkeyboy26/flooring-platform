@@ -5207,7 +5207,8 @@ app.post('/api/checkout/update-payment-intent-shipping', async (req, res) => {
 
 // ==================== Sequential Number Generation ====================
 
-// One MAX-based allocator for every document number: read the real table, take
+// MAX-based allocator for per-series document numbers (INV/RMA/CM/REL; the
+// RD-family uses the shared-pool variant below): read the real table, take
 // the highest trailing number for the prefix, +1. A sequence can drift from
 // what's actually in the table (imports, restores, manual rows) and then issue
 // duplicates — the table itself can't. Unique constraints on every number
@@ -5222,16 +5223,40 @@ async function nextDocNumber(db, table, column, prefix, pad = 0, floor = 0) {
   return prefix + String(Math.max(result.rows[0].maxnum || 0, floor) + 1).padStart(pad, '0');
 }
 
+// RD-family global sequence: orders, quotes, estimates, sample requests, and
+// POs all draw the next number from ONE shared pool, so a bare number like
+// "10042" identifies exactly one document across the family (the prefixes are
+// nested — RD-/RDQ-/RDE-/RDS-/RDP- — and people drop them when talking).
+// Same MAX-based, no-stored-counter approach as nextDocNumber, just scanning
+// all five tables. Shared floor 10000 → the family starts at 10001. Numbers
+// within one series are no longer consecutive by design. Per-table unique
+// constraints still backstop same-type races; a cross-type race merely yields
+// a shared bare number, which was the guaranteed norm under per-series
+// numbering.
+const RD_FAMILY = [
+  ['orders', 'order_number', 'RD-'],
+  ['quotes', 'quote_number', 'RDQ-'],
+  ['estimates', 'estimate_number', 'RDE-'],
+  ['sample_requests', 'request_number', 'RDS-'],
+  ['purchase_orders', 'po_number', 'RDP-'],
+];
+
+async function nextRdFamilyNumber(db, prefix, floor = 10000) {
+  const subqueries = RD_FAMILY.map(([table, column], i) =>
+    `SELECT COALESCE(MAX((substring(${column} FROM '([0-9]+)$'))::int), 0) AS n
+     FROM ${table} WHERE ${column} LIKE $${i + 1}`
+  ).join(' UNION ALL ');
+  const params = RD_FAMILY.map(([, , pfx]) => pfx + '%');
+  const result = await db.query(`SELECT MAX(n) AS maxnum FROM (${subqueries}) u`, params);
+  return prefix + String(Math.max(result.rows[0].maxnum || 0, floor) + 1);
+}
+
 async function getNextOrderNumber() {
-  // Floor 1000: production launched with a clean orders table — start the
-  // public series at RD-1001 rather than RD-1.
-  return nextDocNumber(pool, 'orders', 'order_number', 'RD-', 0, 1000);
+  return nextRdFamilyNumber(pool, 'RD-');
 }
 
 async function getNextQuoteNumber() {
-  // Floor 10000: like orders (RD-1001), don't let early documents advertise a
-  // brand-new store — the public series starts at RDQ-10001.
-  return nextDocNumber(pool, 'quotes', 'quote_number', 'RDQ-', 0, 10000);
+  return nextRdFamilyNumber(pool, 'RDQ-');
 }
 
 // Append a lifecycle/engagement event to a quote's thread. Never throws —
@@ -5248,8 +5273,7 @@ async function logQuoteEvent(db, quoteId, eventType, { body = null, meta = {}, a
 }
 
 async function getNextEstimateNumber() {
-  // Floor 10000 — see getNextQuoteNumber.
-  return nextDocNumber(pool, 'estimates', 'estimate_number', 'RDE-', 0, 10000);
+  return nextRdFamilyNumber(pool, 'RDE-');
 }
 
 // Same contract as logQuoteEvent: never throws.
@@ -5265,12 +5289,11 @@ async function logEstimateEvent(db, estimateId, eventType, { body = null, meta =
 }
 
 async function getNextSampleNumber() {
-  // Floor 10000 — see getNextQuoteNumber.
-  return nextDocNumber(pool, 'sample_requests', 'request_number', 'RDS-', 0, 10000);
+  return nextRdFamilyNumber(pool, 'RDS-');
 }
 
 async function getNextPONumber() {
-  return nextDocNumber(pool, 'purchase_orders', 'po_number', 'RDP-');
+  return nextRdFamilyNumber(pool, 'RDP-');
 }
 
 // ==================== Purchase Order Generation ====================
