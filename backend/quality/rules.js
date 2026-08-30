@@ -581,6 +581,51 @@ export const RULES = [
   },
 
   {
+    key: 'field-tile-sold-per-piece',
+    title: 'Field tile sold per piece — its "per box" coverage is a single tile (should sell per sqft by the box)',
+    severity: 'error',
+    async run(pool, { vendorId }) {
+      // A rectangular FIELD/subway/plank tile (3x6, 4x12, 12x24 …) priced
+      // unit/per_unit whose sqft_per_box equals ONE tile's face area — i.e. the
+      // storefront shows ".333 sqft/box" (a single 4x12) and charges the per-sqft
+      // price per PIECE, ~3x too high (Bay Blue 4x12 rang up at $16.79/sqft vs
+      // $5.59). Field tiles belong on box/per_sqft with real carton coverage.
+      // EXCLUDES (legitimately per-piece): mosaics/deco sold per sheet, natural
+      // stone (per-piece stone model), trim, and genuine single big slabs/panels.
+      const SKIP = 'mosaic|mesh|\\mhex\\M|penny|basket|round|chevron|herring|pinwheel|'
+        + 'estrella|floralis|\\mfan\\M|arabesque|picket|3d|ellipse|liner|pencil|'
+        + 'bullnose|\\mtrim\\M|\\mcap\\M|corner|chair|quarter|jolly|listello|\\mdot\\M';
+      const { rows } = await pool.query(`
+        SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
+               p.name, s.variant_name, c.slug AS category, pr.retail_price, pk.sqft_per_box AS sf,
+               (regexp_match(COALESCE(s.variant_name,'')||' '||p.name,'([0-9]+(?:\\.[0-9]+)?)x([0-9]+(?:\\.[0-9]+)?)'))[1]::numeric AS w,
+               (regexp_match(COALESCE(s.variant_name,'')||' '||p.name,'([0-9]+(?:\\.[0-9]+)?)x([0-9]+(?:\\.[0-9]+)?)'))[2]::numeric AS h
+        ${SKU_FROM}
+          AND s.sell_by = 'unit' AND pr.price_basis = 'per_unit'
+          AND s.variant_type IS DISTINCT FROM 'accessory'
+          AND pk.sqft_per_box > 0 AND pk.sqft_per_box < 2.5
+          AND c.slug IN ('porcelain-tile','ceramic-tile','wood-look-tile','large-format-tile','backsplash-wall','mosaic-tile')
+          AND (COALESCE(s.variant_name,'')||' '||p.name) ~ '[0-9]+(\\.[0-9]+)?x[0-9]+'
+          AND (COALESCE(s.variant_name,'')||' '||p.name) !~* '${SKIP}'
+      `, [vendorId]);
+      const out = [];
+      for (const r of rows) {
+        const w = parseFloat(r.w), h = parseFloat(r.h), sf = parseFloat(r.sf);
+        if (!(w >= 1 && w <= 24 && h >= 4 && h <= 48)) continue; // a field/subway/plank rectangle
+        const nominal = w * h / 144;
+        // "per box" is ~one tile: sqft_per_box matches this single tile's face area
+        if (Math.abs(sf - nominal) > 0.2 * nominal) continue;
+        out.push({
+          sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+          summary: `${r.vendor_code}: "${r.name}${r.variant_name ? ' — ' + r.variant_name : ''}" sells per piece with a ${sf} sqft "box" (one ${w}x${h} tile) — a field tile should sell per sqft by the carton`,
+          detail: { size: `${w}x${h}`, sqft_per_box: sf, category: r.category, retail_price: parseFloat(r.retail_price) },
+        });
+      }
+      return out;
+    },
+  },
+
+  {
     key: 'placeholder-price',
     title: 'Item has a placeholder price ($0 retail, or the $1.00 sentinel cost) instead of call-for-pricing',
     severity: 'error',
