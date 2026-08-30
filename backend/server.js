@@ -5229,7 +5229,9 @@ async function getNextOrderNumber() {
 }
 
 async function getNextQuoteNumber() {
-  return nextDocNumber(pool, 'quotes', 'quote_number', 'RDQ-');
+  // Floor 10000: like orders (RD-1001), don't let early documents advertise a
+  // brand-new store — the public series starts at RDQ-10001.
+  return nextDocNumber(pool, 'quotes', 'quote_number', 'RDQ-', 0, 10000);
 }
 
 // Append a lifecycle/engagement event to a quote's thread. Never throws —
@@ -5246,7 +5248,8 @@ async function logQuoteEvent(db, quoteId, eventType, { body = null, meta = {}, a
 }
 
 async function getNextEstimateNumber() {
-  return nextDocNumber(pool, 'estimates', 'estimate_number', 'RDE-');
+  // Floor 10000 — see getNextQuoteNumber.
+  return nextDocNumber(pool, 'estimates', 'estimate_number', 'RDE-', 0, 10000);
 }
 
 // Same contract as logQuoteEvent: never throws.
@@ -5262,7 +5265,8 @@ async function logEstimateEvent(db, estimateId, eventType, { body = null, meta =
 }
 
 async function getNextSampleNumber() {
-  return nextDocNumber(pool, 'sample_requests', 'request_number', 'RDS-');
+  // Floor 10000 — see getNextQuoteNumber.
+  return nextDocNumber(pool, 'sample_requests', 'request_number', 'RDS-', 0, 10000);
 }
 
 async function getNextPONumber() {
