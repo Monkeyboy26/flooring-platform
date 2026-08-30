@@ -1847,12 +1847,25 @@
     useEffect(() => {
       const el = ref.current;
       if (!el) return;
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setIsVisible(true);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) {
+        setIsVisible(true);
+        return;
+      }
+      if (rect.bottom <= 0) {
+        setIsVisible(true);
+        return;
+      }
       const observer = new IntersectionObserver(([entry]) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
-          observer.unobserve(el);
+          observer.disconnect();
         }
-      }, { threshold: options.threshold || 0.15, rootMargin: options.rootMargin || "-60px" });
+      }, { threshold: 0, rootMargin: options.rootMargin || "0px 0px -80px 0px" });
       observer.observe(el);
       return () => observer.disconnect();
     }, []);

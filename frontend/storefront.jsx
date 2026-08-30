@@ -1912,12 +1912,28 @@
       useEffect(() => {
         const el = ref.current;
         if (!el) return;
+        // Reveal immediately when animation would misfire or adds nothing:
+        // reduced-motion users, and sections already in (or above) the viewport
+        // at mount — deep links and restored scroll positions land mid-page,
+        // where waiting on an observer leaves the section invisible.
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          setIsVisible(true);
+          return;
+        }
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) { setIsVisible(true); return; }
+        if (rect.bottom <= 0) { setIsVisible(true); return; }
+        // threshold 0 — fire on the first visible pixel. A fractional threshold
+        // (was 0.15) can be unreachable for tall sections on short mobile
+        // viewports (max ratio = viewport/section height), leaving the page
+        // permanently blank. Bottom-only rootMargin keeps the "starts just
+        // before fully scrolled in" feel without shrinking the top edge.
         const observer = new IntersectionObserver(([entry]) => {
           if (entry.isIntersecting) {
             setIsVisible(true);
-            observer.unobserve(el);
+            observer.disconnect();
           }
-        }, { threshold: options.threshold || 0.15, rootMargin: options.rootMargin || '-60px' });
+        }, { threshold: 0, rootMargin: options.rootMargin || '0px 0px -80px 0px' });
         observer.observe(el);
         return () => observer.disconnect();
       }, []);
