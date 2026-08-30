@@ -63,10 +63,13 @@ const NOREPLY_FROM = `"${BRAND_NAME}" <${NOREPLY_ADDR}>`;
 // the shared sales inbox or the whole staff list.
 export const SCRAPER_ALERT_ADDR = process.env.SCRAPER_ALERT_EMAIL || 'kian@romaflooringdesigns.com';
 
-// Customer-facing mail is sent AS the responsible sales rep — reps use
-// @romaflooringdesigns.com addresses, so this passes SPF/DKIM for the domain.
-// Falls back to the brand address when no rep is known (e.g. self-serve
-// storefront orders, system notifications). Reply-To is also the rep.
+// POLICY: every customer-facing email is sent AS the responsible sales rep —
+// reps use @romaflooringdesigns.com addresses, so this passes SPF/DKIM for the
+// domain. Falls back to the brand address (Sales@ via SMTP_FROM) when no rep
+// is known (e.g. self-serve storefront signups). Reply-To is also the rep.
+// Vendor-facing email (POs, vendor sample requests) always sends from Sales@
+// (SALES_FROM). Auth/security email (2FA, password reset/set, email change)
+// stays on the no-reply address by design.
 function repFrom(d = {}) {
   const email = d && d.rep_email;
   if (!email) return DEFAULT_FROM;
@@ -348,8 +351,9 @@ export async function sendTradeApproval(customer) {
     const tiers = await loadTradeTiers();
     const html = generateTradeApprovalHTML(customer, tiers);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(customer),
       to: customer.email,
+      replyTo: customer.rep_email || undefined,
       subject: 'Trade Application Approved — Welcome!',
       html
     });
@@ -370,8 +374,9 @@ export async function sendTradeDenial(customer) {
   try {
     const html = generateTradeDenialHTML(customer);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(customer),
       to: customer.email,
+      replyTo: customer.rep_email || undefined,
       subject: 'Trade Application Update',
       html
     });
@@ -393,8 +398,9 @@ export async function sendTierPromotion(customer, tierName) {
     const tiers = await loadTradeTiers();
     const html = generateTierPromotionHTML(customer, tierName, tiers);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(customer),
       to: customer.email,
+      replyTo: customer.rep_email || undefined,
       subject: `Congratulations! You've been promoted to ${tierName}`,
       html
     });
@@ -653,8 +659,9 @@ export async function sendInstallationInquiryConfirmation(inquiry) {
   try {
     const html = generateInstallationInquiryConfirmationHTML(inquiry);
     await deliver({
-      from: `"${BRAND_NAME}" <${SMTP_FROM}>`,
+      from: repFrom(inquiry),
       to: inquiry.customer_email,
+      replyTo: inquiry.rep_email || undefined,
       subject: 'Installation Inquiry Received — Roma Flooring Designs',
       html
     });
@@ -1131,8 +1138,9 @@ export async function sendStockAlert(data) {
   try {
     const html = generateStockAlertHTML(data);
     await deliver({
-      from: NOREPLY_FROM,
+      from: repFrom(data),
       to: data.email,
+      replyTo: data.rep_email || undefined,
       subject: `Back in Stock — ${data.product_name}`,
       html
     });
@@ -1445,14 +1453,15 @@ export async function sendWelcomeSetPassword(toEmail, firstName, resetUrl) {
 }
 
 // Welcome for a first-time customer who already has a login (self sign-up / Google).
-export async function sendWelcomeCustomer(toEmail, firstName) {
+export async function sendWelcomeCustomer(toEmail, firstName, rep = null) {
   if (!transporter) {
     console.log(`[Email] Skipping welcome for ${toEmail} — SMTP not configured`);
     return { sent: false };
   }
   try {
     await deliver({
-      from: NOREPLY_FROM,
+      from: repFrom(rep || {}),
+      replyTo: (rep && rep.rep_email) || undefined,
       to: toEmail,
       subject: 'Welcome to Roma Flooring Designs',
       html: generateWelcomeCustomerHTML(firstName)

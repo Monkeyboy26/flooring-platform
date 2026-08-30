@@ -13392,6 +13392,21 @@ app.get('/api/admin/trade-customers/:id/documents', staffAuth, requireRole('admi
   }
 });
 
+// Customer-facing trade emails send AS a rep: the customer's assigned rep when
+// set, else the acting staffer/rep, else the brand fallback inside emailService.
+async function withTradeRep(tc, actor = null) {
+  let rep = null;
+  if (tc && tc.assigned_rep_id) {
+    try {
+      const r = await pool.query('SELECT email, first_name, last_name FROM staff_accounts WHERE id = $1 AND is_active = true', [tc.assigned_rep_id]);
+      if (r.rows.length) rep = r.rows[0];
+    } catch {}
+  }
+  if (!rep && actor && actor.email) rep = actor;
+  if (!rep) return tc;
+  return { ...tc, rep_email: rep.email, rep_first_name: rep.first_name, rep_last_name: rep.last_name };
+}
+
 // Admin: approve trade customer (grants access; tier is spend-based, starts at Silver)
 app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
   const client = await pool.connect();
@@ -13445,7 +13460,7 @@ app.post('/api/admin/trade-customers/:id/approve', staffAuth, requireRole('admin
     // Send approval email
     try {
       const { sendTradeApproval } = await import('./services/emailService.js');
-      if (sendTradeApproval) await sendTradeApproval(tc);
+      if (sendTradeApproval) await sendTradeApproval(await withTradeRep(tc, req.staff));
     } catch {}
 
     const full = await pool.query(`
@@ -13489,7 +13504,7 @@ app.post('/api/admin/trade-customers/:id/deny', staffAuth, requireRole('admin', 
     // Send denial email
     try {
       const { sendTradeDenial } = await import('./services/emailService.js');
-      if (sendTradeDenial) await sendTradeDenial(tc);
+      if (sendTradeDenial) await sendTradeDenial(await withTradeRep(tc, req.staff));
     } catch {}
 
     res.json({ customer: result.rows[0] });
@@ -13566,7 +13581,12 @@ async function recomputeTradeTier(tradeCustomerId, client) {
   const promoted = targetTier.tier_level > currentLevel;
   if (promoted) {
     // Congratulate on promotion; demotions are applied silently.
-    const custData = await db.query('SELECT email, contact_name, company_name FROM trade_customers WHERE id = $1', [tradeCustomerId]);
+    const custData = await db.query(`
+      SELECT tc.email, tc.contact_name, tc.company_name,
+        rep.email AS rep_email, rep.first_name AS rep_first_name, rep.last_name AS rep_last_name
+      FROM trade_customers tc
+      LEFT JOIN staff_accounts rep ON rep.id = tc.assigned_rep_id AND rep.is_active = true
+      WHERE tc.id = $1`, [tradeCustomerId]);
     if (custData.rows.length) {
       setImmediate(() => sendTierPromotion(custData.rows[0], targetTier.name));
     }
@@ -15693,7 +15713,7 @@ app.post('/api/rep/trade-customers/:id/approve', repAuth, requireRepManager, asy
     // Send approval email
     try {
       const { sendTradeApproval } = await import('./services/emailService.js');
-      if (sendTradeApproval) await sendTradeApproval(tc);
+      if (sendTradeApproval) await sendTradeApproval(await withTradeRep(tc, req.rep));
     } catch {}
 
     const full = await pool.query(`
@@ -15738,7 +15758,7 @@ app.post('/api/rep/trade-customers/:id/deny', repAuth, requireRepManager, async 
     // Send denial email
     try {
       const { sendTradeDenial } = await import('./services/emailService.js');
-      if (sendTradeDenial) await sendTradeDenial(tc);
+      if (sendTradeDenial) await sendTradeDenial(await withTradeRep(tc, req.rep));
     } catch {}
 
     const { password_hash, password_salt, ...customer } = tc;
@@ -32168,10 +32188,17 @@ async function checkAndSendStockAlerts(skuId, newQtyOnHand) {
     const alerts = await pool.query(`
       SELECT sa.id, sa.email,
         COALESCE(p.display_name, p.name) as product_name, s.variant_name, s.internal_sku as sku_code, s.id as sku_id,
-        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+        (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image,
+        rep.email AS rep_email, rep.first_name AS rep_first_name, rep.last_name AS rep_last_name
       FROM stock_alerts sa
       JOIN skus s ON s.id = sa.sku_id
       JOIN products p ON p.id = s.product_id
+      LEFT JOIN LATERAL (
+        SELECT r.email, r.first_name, r.last_name
+        FROM customers c JOIN staff_accounts r ON r.id = c.assigned_rep_id AND r.is_active = true
+        WHERE LOWER(c.email) = LOWER(sa.email)
+        LIMIT 1
+      ) rep ON true
       WHERE sa.sku_id = $1 AND sa.status = 'active'
     `, [skuId]);
     for (const alert of alerts.rows) {
@@ -32182,7 +32209,10 @@ async function checkAndSendStockAlerts(skuId, newQtyOnHand) {
         sku_code: alert.sku_code,
         primary_image: alert.primary_image,
         product_url: productUrl,
-        email: alert.email
+        email: alert.email,
+        rep_email: alert.rep_email,
+        rep_first_name: alert.rep_first_name,
+        rep_last_name: alert.rep_last_name
       });
       await pool.query("UPDATE stock_alerts SET status = 'notified', notified_at = CURRENT_TIMESTAMP WHERE id = $1", [alert.id]);
     }
