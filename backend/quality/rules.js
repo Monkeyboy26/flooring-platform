@@ -560,7 +560,10 @@ export const RULES = [
       const out = [];
       for (const r of rows) {
         const w = parseFloat(r.w), h = parseFloat(r.h), sf = parseFloat(r.sf), pcs = parseInt(r.pcs, 10);
-        if (!(w >= 3 && w <= 130 && h >= 3 && h <= 130)) continue;
+        // Cap at 63": no box-sold tile has a face dimension over ~5ft. A larger
+        // number is metric (cm) dims in the name — e.g. WPT Bosco "22.5x119.5" is
+        // really 9x48 — or a slab; parsing it as inches invents a giant piece.
+        if (!(w >= 3 && w <= 63 && h >= 3 && h <= 63)) continue;
         const pieceArea = w * h / 144;
         const expected = pieceArea * pcs;
         // Leak signature: stored coverage ~= ONE piece (±15%) yet the carton holds

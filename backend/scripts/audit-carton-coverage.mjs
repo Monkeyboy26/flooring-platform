@@ -76,7 +76,7 @@ async function main() {
   const heurHits = [];
   for (const r of all.rows) {
     const w = parseFloat(r.w), h = parseFloat(r.h), sf = parseFloat(r.sf), pcs = parseInt(r.pcs, 10);
-    if (!(w >= 3 && w <= 130 && h >= 3 && h <= 130)) continue;
+    if (!(w >= 3 && w <= 63 && h >= 3 && h <= 63)) continue; // >63" = cm dims (e.g. WPT "22.5x119.5" = 9x48) or slab
     const pieceArea = w * h / 144, expected = pieceArea * pcs;
     if (Math.abs(sf - pieceArea) > 0.15 * pieceArea) continue;
     if (sf >= expected * 0.6) continue;
