@@ -686,14 +686,27 @@ function finalizeItem(item) {
   }
 
   // Carton-priced lines flagged SF: some feed lines carry $/carton dollars with
-  // an SF unit (Revify deco kits, cove-base strip cartons). No tile costs
-  // $40+/sqft at dealer, so treat the dollars as per-carton: tiny-coverage
-  // multi-piece kits become per-piece units; coverage-less cartons sell as one
-  // unit at the carton price. Named piece-packs are per-carton regardless.
+  // an SF unit (Revify deco kits, cove-base strip cartons, large-format panels).
+  // No tile costs $40+/sqft at dealer, so treat the dollars as per-carton:
+  // multi-piece kits become per-piece units; SINGLE large panels (e.g. Zambia
+  // 47x109) sell as ONE unit at the panel price — otherwise the storefront
+  // multiplies by the panel's ~36 sqft and a $123 panel rings up at $4,418;
+  // coverage-less cartons sell as one unit. Named piece-packs are per-carton.
   if (item.sell_by === 'box' && item.cost > 40) {
     const pieces = item.pieces_per_box || 0;
     const sqftBox = item.sqft_per_box || 0;
+    const perPieceSqft = sqftBox / Math.max(pieces, 1);
     if (!sqftBox) {
+      item.sell_by = 'unit';
+    } else if (perPieceSqft >= 6) {
+      // Large-format PANEL(s) (e.g. Zambia 47x109 = 35.7 sqft, or a 2-panel
+      // 24x47 carton): the >$40 "SF" dollars are per-CARTON, so per panel =
+      // cost/pieces sold as a unit. Otherwise the storefront multiplies by the
+      // panel area and a ~$123 panel rings up at $4,418. Keyed on per-PIECE area
+      // (>=6 sqft) so premium marble/stone (small pieces at $40+/sqft) and dense
+      // mosaics/deco kits are never swept in — coverage (sqft_per_box) kept.
+      item.cost = parseFloat((item.cost / Math.max(pieces, 1)).toFixed(4));
+      if (item.retail_price) item.retail_price = parseFloat((item.retail_price / Math.max(pieces, 1)).toFixed(4));
       item.sell_by = 'unit';
     } else if (pieces >= 4 && (item.cost / sqftBox > 40 || /^revify/i.test(item.product_name || ''))) {
       item.cost = parseFloat((item.cost / pieces).toFixed(4));
