@@ -278,6 +278,15 @@ async function main() {
     if (!vendor) { console.log('ERROR: MSI vendor not found'); return; }
 
     // 2. Get target MSI SKUs (missing images OR generic /colornames/ images)
+    // Sundry/trim categories are excluded: msisurfaces.com product search can't
+    // resolve third-party sundries (Millennium/Profloor/CustomBP etc.), and the
+    // product-page fallback then attaches flooring images to adhesives/tools
+    // (e.g. XLVTHMADH-4G ← andover LVP hero). Those need a brand-site pass.
+    const EXCLUDED_CATEGORIES = [
+      'Adhesives & Sealants', 'Tools & Trowels', 'Surface Prep & Levelers',
+      'Installation & Sundries', 'Underlayment',
+      'Transitions & Moldings', 'Trim & Accessories',
+    ];
     const imageCondition = REPLACE_GENERIC
       ? `AND EXISTS (
           SELECT 1 FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type = 'primary'
@@ -297,9 +306,9 @@ async function main() {
       WHERE p.vendor_id = $1
         AND p.status IN ('active', 'draft') AND s.status = 'active'
         ${imageCondition}
-        ${CATEGORY_FILTER ? "AND c.name = $2" : ""}
+        ${CATEGORY_FILTER ? "AND c.name = $2" : "AND c.name != ALL($2)"}
       ORDER BY c.name, p.name, s.vendor_sku
-    `, CATEGORY_FILTER ? [vendor.id, CATEGORY_FILTER] : [vendor.id]);
+    `, [vendor.id, CATEGORY_FILTER || EXCLUDED_CATEGORIES]);
 
     const modeLabel = REPLACE_GENERIC ? 'SKUs with generic /colornames/ images' : 'SKUs missing primary images';
     console.log(`Found ${missingSkus.length} ${modeLabel}\n`);

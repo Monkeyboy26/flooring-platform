@@ -1,13 +1,13 @@
 {
-  "generated": "2026-06-11T21:37:03.263Z",
+  "generated": "2026-08-30T02:48:39.281Z",
   "summary": {
-    "collections": 408,
-    "products": 2027,
+    "collections": 431,
+    "products": 2026,
     "skus": 3235
   },
   "collections": {
     "Uncategorized": {
-      "category": "installation-sundries",
+      "category": "tools-trowels",
       "products": {
         "1/2\" Carbide Scoring Wheel": {
           "skus": [],
@@ -112,7 +112,7 @@
           "skus": [
             {
               "vendorSku": "NALMGLO3X6-N",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6 Glossy"
             },
             {
@@ -1472,7 +1472,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GL-T-MID36",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6"
             },
             {
@@ -4504,7 +4504,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ABANI-3X3H",
-              "size": "3X3",
+              "size": "3x3",
               "variantName": "3X3 Honed"
             }
           ],
@@ -4523,7 +4523,7 @@
       }
     },
     "Abatec": {
-      "category": "lvp-plank",
+      "category": "underlayment",
       "products": {
         "Rigid Core Underlayment": {
           "skus": [
@@ -4645,12 +4645,12 @@
             {
               "vendorSku": "NADECAL1224",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Adella Calacatta"
             },
             {
               "vendorSku": "NADECAL1224-N",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, White-Cool"
             },
             {
               "vendorSku": "NADECAL1818",
@@ -4672,12 +4672,12 @@
             {
               "vendorSku": "NADEGRI1224",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Adella Gris, 5/16"
             },
             {
               "vendorSku": "NADEGRI1224-N",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Gray-Light, 0.31INCH"
             },
             {
               "vendorSku": "NADEGRI1818",
@@ -4692,12 +4692,12 @@
             {
               "vendorSku": "NADEVISCAL1224",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Satin, 5/16"
             },
             {
               "vendorSku": "NADEVISCAL1224-N",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, 3/8"
             }
           ],
           "accessories": []
@@ -4707,12 +4707,12 @@
             {
               "vendorSku": "NADEVISGRI1224",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Gray-Light, Satin, 5/16"
             },
             {
               "vendorSku": "NADEVISGRI1224-N",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Adella Viso Gris, 3/8"
             }
           ],
           "accessories": []
@@ -4722,12 +4722,12 @@
             {
               "vendorSku": "NADEVISWHI1224",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Adella Viso White, 5/16"
             },
             {
               "vendorSku": "NADEVISWHI1224-N",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, White-Cool, 3/8"
             }
           ],
           "accessories": []
@@ -4756,7 +4756,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-AKACOP8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -4766,12 +4766,12 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-AKANER8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             },
             {
               "vendorSku": "SMOT-GLSIL-AKOYA8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -4877,7 +4877,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-ALGRY",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -4892,7 +4892,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ALGRY-SFIL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Splitface"
             }
           ],
@@ -4932,7 +4932,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PNS-ALPICE-4MM",
-              "size": "2X6",
+              "size": "2x6",
               "variantName": "2X6"
             }
           ],
@@ -4999,7 +4999,7 @@
           "skus": [
             {
               "vendorSku": "P-SMOT-SGLSIL-AC6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -5046,7 +5046,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSBIL-ANA6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -5836,7 +5836,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ANGORA-BWP10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -5876,7 +5876,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ANGORA-FRM10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -5886,7 +5886,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ANGORA-GEOP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -6067,7 +6067,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-AW-ARABESQ",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -6077,7 +6077,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-AW-PK8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -6086,7 +6086,7 @@
       }
     },
     "Antoni": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Antoni Café": {
           "skus": [
@@ -6215,7 +6215,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ARA-2HEXH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -6265,7 +6265,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ARA-BWP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -6275,7 +6275,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-FRMWRK-POL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -6285,7 +6285,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ARA-HBH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -6400,7 +6400,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ARAVEN-2HEXH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -6420,7 +6420,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ARAVEN-ARGH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -6430,7 +6430,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ARAVEN-CUBEH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -6440,7 +6440,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ARAVEN-PKH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -6665,7 +6665,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GL-T-AI36",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6"
             },
             {
@@ -6680,7 +6680,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-AS-10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -6690,7 +6690,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-AS-ARABESQUE",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Multi Finish"
             }
           ],
@@ -6700,7 +6700,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PNS-ASIL3D-6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -6938,7 +6938,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-ARTA36",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6 Glossy"
             },
             {
@@ -6965,7 +6965,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-ARTISTA8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -7002,7 +7002,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-AR8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -7181,7 +7181,7 @@
       }
     },
     "Aspenwood": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Aspenwood Amber": {
           "skus": [
@@ -7247,7 +7247,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ATHGOL-2HEXH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -7277,7 +7277,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ATHGOL-CHEVH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -7297,7 +7297,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ATHGOL-GEOH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -7307,7 +7307,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ATHGOL-LOLP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -7317,7 +7317,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ATHGOL-PENRDH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -7327,7 +7327,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ATHGOL-REGP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -7342,7 +7342,7 @@
           "skus": [
             {
               "vendorSku": "SAUT-ASH-3-G",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Gauged"
             }
           ],
@@ -7475,7 +7475,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-AZULA-BWP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -7485,7 +7485,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-AZULA-FLORP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -7495,7 +7495,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-AZULA-HATHWRKP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -7564,7 +7564,7 @@
       }
     },
     "Balboa": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Balboa Amber": {
           "skus": [
@@ -7630,7 +7630,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-BSLTB-BMP10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -7677,7 +7677,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-BAYBLU36",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6 Glossy"
             }
           ],
@@ -7702,7 +7702,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMT-BAYVIEW10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -7833,7 +7833,7 @@
       }
     },
     "Belmond": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Belmond Mercury": {
           "skus": [
@@ -7884,7 +7884,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-BERGAMO-IP10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -7894,7 +7894,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-BERGAMO-MP10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -8048,12 +8048,12 @@
           "skus": [
             {
               "vendorSku": "SMOT-BIA-QTRFOILP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             },
             {
               "vendorSku": "SMOT-PT-BIANCO-ARABESQ",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -8165,7 +8165,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-BIANDOL-LOLP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -8205,7 +8205,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-BIANDOL-REGP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -8235,7 +8235,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-BIANDOL-GRIDP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -8245,7 +8245,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-PENRD-BIA",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -8255,7 +8255,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-BIANDOL-STARP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -8381,56 +8381,6 @@
           ],
           "accessories": []
         },
-        "Black And White 1\" Hexagon": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIANER-1HEXM",
-              "size": null,
-              "variantName": "Matte"
-            }
-          ],
-          "accessories": []
-        },
-        "Black And White Pebbles Mesh Backed": {
-          "skus": [
-            {
-              "vendorSku": "THDW1-SH-PEB",
-              "size": "PATTERN",
-              "variantName": "Tumbled"
-            }
-          ],
-          "accessories": []
-        },
-        "Black Galaxy": {
-          "skus": [
-            {
-              "vendorSku": "TBGXY1212",
-              "size": "12x12",
-              "variantName": "12x12 Polished"
-            },
-            {
-              "vendorSku": "TBGXY1212-C",
-              "size": "12x12",
-              "variantName": "12x12 Polished"
-            },
-            {
-              "vendorSku": "TBGXY1224",
-              "size": "12x24",
-              "variantName": "12x24 Polished"
-            },
-            {
-              "vendorSku": "TBGXY181850",
-              "size": "18x18",
-              "variantName": "18x18 Polished"
-            },
-            {
-              "vendorSku": "TBGXY242450",
-              "size": "24x24",
-              "variantName": "24x24 Polished"
-            }
-          ],
-          "accessories": []
-        },
         "Black Glossy 1\" Hex 6mm": {
           "skus": [
             {
@@ -8481,6 +8431,81 @@
           ],
           "accessories": []
         },
+        "Black Pebbles Mesh Backed": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PEB-BLK",
+              "size": null,
+              "variantName": "Tumbled"
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
+    "Black And White": {
+      "category": "mosaic-tile",
+      "products": {
+        "Black And White 1\" Hexagon": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIANER-1HEXM",
+              "size": null,
+              "variantName": "Matte"
+            }
+          ],
+          "accessories": []
+        },
+        "Black And White Pebbles Mesh Backed": {
+          "skus": [
+            {
+              "vendorSku": "THDW1-SH-PEB",
+              "size": null,
+              "variantName": "Tumbled"
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
+    "Black Galaxy": {
+      "category": "natural-stone",
+      "products": {
+        "Black Galaxy": {
+          "skus": [
+            {
+              "vendorSku": "TBGXY1212",
+              "size": "12x12",
+              "variantName": "12x12 Polished"
+            },
+            {
+              "vendorSku": "TBGXY1212-C",
+              "size": "12x12",
+              "variantName": "12x12 Polished"
+            },
+            {
+              "vendorSku": "TBGXY1224",
+              "size": "12x24",
+              "variantName": "12x24 Polished"
+            },
+            {
+              "vendorSku": "TBGXY181850",
+              "size": "18x18",
+              "variantName": "18x18 Polished"
+            },
+            {
+              "vendorSku": "TBGXY242450",
+              "size": "24x24",
+              "variantName": "24x24 Polished"
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
+    "Black Oak": {
+      "category": "natural-stone",
+      "products": {
         "Black Oak 12x24": {
           "skus": [
             {
@@ -8490,17 +8515,12 @@
             }
           ],
           "accessories": []
-        },
-        "Black Pebbles Mesh Backed": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PEB-BLK",
-              "size": "PATTERN",
-              "variantName": "Tumbled"
-            }
-          ],
-          "accessories": []
-        },
+        }
+      }
+    },
+    "Black With Vein": {
+      "category": "natural-stone",
+      "products": {
         "Black With Vein 12x12": {
           "skus": [
             {
@@ -8520,7 +8540,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTL-BLALYN8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -8535,7 +8555,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-BLOBLA8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -8543,7 +8563,7 @@
         }
       }
     },
-    "Blue": {
+    "Blue Pearl": {
       "category": "natural-stone",
       "products": {
         "Blue Pearl 12x12polished": {
@@ -8555,7 +8575,12 @@
             }
           ],
           "accessories": []
-        },
+        }
+      }
+    },
+    "Blue Shimmer": {
+      "category": "mosaic-tile",
+      "products": {
         "Blue Shimmer 2x6 Subway": {
           "skus": [
             {
@@ -8570,7 +8595,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-BLUSHI8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -8580,7 +8605,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-BLUSHICH6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -8590,7 +8615,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSPK-BLUSHI6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -8605,7 +8630,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSPK-BOATBLU8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -8651,7 +8676,7 @@
       }
     },
     "Braxton": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Braxton Blanca 10x40": {
           "skus": [
@@ -8872,12 +8897,12 @@
           "skus": [
             {
               "vendorSku": "NBRIGOL1224",
-              "size": "12X24",
+              "size": "12x24",
               "variantName": "12X24 Matte"
             },
             {
               "vendorSku": "NBRIGOL1224P",
-              "size": "12X24",
+              "size": "12x24",
               "variantName": "12X24 Polished"
             },
             {
@@ -8922,12 +8947,12 @@
           "skus": [
             {
               "vendorSku": "NBRIGRE1224",
-              "size": "12X24",
+              "size": "12x24",
               "variantName": "12X24 Matte"
             },
             {
               "vendorSku": "NBRIGRE1224P",
-              "size": "12X24",
+              "size": "12x24",
               "variantName": "12X24 Polished"
             },
             {
@@ -9008,7 +9033,7 @@
       }
     },
     "Cabana": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Cabana Blonde 9x47": {
           "skus": [
@@ -9079,7 +9104,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CALBLA-POL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -9099,7 +9124,7 @@
           "skus": [
             {
               "vendorSku": "TCALCRE36H",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6 Honed"
             },
             {
@@ -9138,7 +9163,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CALCRE-ARABESQ",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -9148,7 +9173,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CALCRE-BWH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -9158,7 +9183,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CALCRE-HBH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -9168,7 +9193,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CALCRE-2HEXH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -9178,7 +9203,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PNS-CALCREIL3D-6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -9188,7 +9213,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CALCRE-LEAFH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -9243,7 +9268,7 @@
             },
             {
               "vendorSku": "TCALAGOLD36P",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6 Polished"
             }
           ],
@@ -9263,7 +9288,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CALAGOLD-2HEX",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -9348,7 +9373,7 @@
           "skus": [
             {
               "vendorSku": "P-SMOT-PNS-CMARBEL-6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -9357,7 +9382,7 @@
       }
     },
     "Caldera": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Caldera Blanca 8x47 Rectified": {
           "skus": [
@@ -9436,7 +9461,7 @@
           "skus": [
             {
               "vendorSku": "SCALGLD-ASH-3-G",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Gauged"
             }
           ],
@@ -9496,7 +9521,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSPK-CALYP8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -9511,7 +9536,7 @@
           "skus": [
             {
               "vendorSku": "NWGCAM2448-7MM",
-              "size": "24X48",
+              "size": "24x48",
               "variantName": "24X48 Matte"
             }
           ],
@@ -9662,7 +9687,7 @@
       }
     },
     "Carolina": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Carolina Timber Beige": {
           "skus": [
@@ -9701,14 +9726,14 @@
             {
               "vendorSku": "SMOT-PENCIL-CAR",
               "size": "3/4x3/4",
-              "variantName": "Trim",
-              "type": "Trim"
+              "variantName": "Trim, Polished, 3/4x3/4",
+              "type": "Trim, Polished, 3/4x3/4"
             },
             {
               "vendorSku": "SMOT-PENCIL-CARH",
               "size": null,
-              "variantName": "Trim",
-              "type": "Trim"
+              "variantName": "Trim, Honed",
+              "type": "Trim, Honed"
             }
           ]
         },
@@ -9806,7 +9831,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CAR-2HEXP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -9816,7 +9841,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CAR-2HEXH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -9846,7 +9871,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CAR-BWH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -9856,7 +9881,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CAR-BW2P",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -9866,7 +9891,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CAR-BLAH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -9876,7 +9901,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CAR-ELLIP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -9886,7 +9911,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CAR-FACEP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -10055,7 +10080,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-CECILY-POL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -10175,7 +10200,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-CHBEHB8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -10195,7 +10220,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-CHABLE6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -10205,7 +10230,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMTIL-CHATST4MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -10426,7 +10451,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSMTIL-CS8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -10498,7 +10523,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SPIL-COBRELLO8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -10513,7 +10538,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-COCSWI8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -10857,7 +10882,7 @@
       }
     },
     "Country": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Country River Bark": {
           "skus": [
@@ -10908,12 +10933,12 @@
           "skus": [
             {
               "vendorSku": "SMOT-CRECAP-BWP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             },
             {
               "vendorSku": "TTCAPU-PAT-HCB",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Brushed"
             },
             {
@@ -10938,7 +10963,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ARCH-CREM-HBP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -11048,7 +11073,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-CRIS8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -11063,7 +11088,7 @@
           "skus": [
             {
               "vendorSku": "THDWG-GLMT-CCB-8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -11078,7 +11103,7 @@
           "skus": [
             {
               "vendorSku": "NCRYPEA2448P",
-              "size": "24X48",
+              "size": "24x48",
               "variantName": "24X48 Polished"
             }
           ],
@@ -11088,7 +11113,7 @@
           "skus": [
             {
               "vendorSku": "NCRYSHE2448P",
-              "size": "24X48",
+              "size": "24x48",
               "variantName": "24X48 Polished"
             }
           ],
@@ -11098,7 +11123,7 @@
           "skus": [
             {
               "vendorSku": "NCRYSIL2448P",
-              "size": "24X48",
+              "size": "24x48",
               "variantName": "24X48 Polished"
             }
           ],
@@ -11108,7 +11133,7 @@
           "skus": [
             {
               "vendorSku": "NCRYWHI2448P",
-              "size": "24X48",
+              "size": "24x48",
               "variantName": "24X48 Polished"
             }
           ],
@@ -11890,7 +11915,7 @@
           "skus": [
             {
               "vendorSku": "VTRCHEHIL7X48-5MM-12MIL",
-              "size": "7x48",
+              "size": "13x48",
               "variantName": "7x48 Low Gloss"
             }
           ],
@@ -13665,7 +13690,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-DANARA-POL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -13680,7 +13705,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLS-DELBLA6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -13689,7 +13714,7 @@
       }
     },
     "Dellano": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Dellano Exotic Blue": {
           "skus": [
@@ -13769,7 +13794,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMT-DIA8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -13982,7 +14007,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-DORADO",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -14029,7 +14054,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-DG-ARABESQ",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -14039,7 +14064,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-DG-BRK",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -14049,7 +14074,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-DG-DIAMOND",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -14059,7 +14084,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-DG-HB",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -14116,7 +14141,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-DRIFT6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Matte"
             }
           ],
@@ -14126,7 +14151,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-DRIFT6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Matte"
             }
           ],
@@ -14372,7 +14397,7 @@
       }
     },
     "Dymo": {
-      "category": "backsplash-tile",
+      "category": "backsplash-wall",
       "products": {
         "Dymo Calacatta Chex White": {
           "skus": [
@@ -14495,7 +14520,7 @@
           "accessories": [
             {
               "vendorSku": "NDYMWHI3x24BNP",
-              "size": "3X24",
+              "size": "3x24",
               "variantName": "3x24 Polished Bullnose",
               "type": "3x24 Polished Bullnose"
             }
@@ -14510,7 +14535,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTIL-ECLIP8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -14620,35 +14645,7 @@
               "vendorSku": "NEDECAL2424",
               "size": "24x24",
               "variantName": "24x24 Matte"
-            }
-          ],
-          "accessories": [
-            {
-              "vendorSku": "NEDECAL4X24BN",
-              "size": "4x24",
-              "variantName": "4x24 Bullnose",
-              "type": "4x24 Bullnose"
             },
-            {
-              "vendorSku": "NEDECAL4X24BNP",
-              "size": "4x24",
-              "variantName": "4x24 Polished Bullnose",
-              "type": "4x24 Polished Bullnose"
-            }
-          ]
-        },
-        "Eden Calacatta Chevron 12x15 Mosaic": {
-          "skus": [
-            {
-              "vendorSku": "NEDECALCHE12X15",
-              "size": "12x15",
-              "variantName": "12x15 Matte"
-            }
-          ],
-          "accessories": []
-        },
-        "Eden Calcatta": {
-          "skus": [
             {
               "vendorSku": "NEDECAL2424P",
               "size": "24x24",
@@ -14675,9 +14672,22 @@
               "variantName": "32x32 Polished"
             }
           ],
-          "accessories": []
+          "accessories": [
+            {
+              "vendorSku": "NEDECAL4X24BN",
+              "size": "4x24",
+              "variantName": "4x24 Bullnose",
+              "type": "4x24 Bullnose"
+            },
+            {
+              "vendorSku": "NEDECAL4X24BNP",
+              "size": "4x24",
+              "variantName": "4x24 Polished Bullnose",
+              "type": "4x24 Polished Bullnose"
+            }
+          ]
         },
-        "Eden Calcatta 2x2 Hexagon": {
+        "Eden Calacatta 2x2 Hexagon": {
           "skus": [
             {
               "vendorSku": "NEDECAL2X2HEX",
@@ -14687,12 +14697,22 @@
           ],
           "accessories": []
         },
-        "Eden Calcatta 3x3 Hexagon": {
+        "Eden Calacatta 3x3 Hexagon": {
           "skus": [
             {
               "vendorSku": "NEDECAL3X3HEX",
               "size": "3x3",
               "variantName": "3X3 Matte"
+            }
+          ],
+          "accessories": []
+        },
+        "Eden Calacatta Chevron 12x15 Mosaic": {
+          "skus": [
+            {
+              "vendorSku": "NEDECALCHE12X15",
+              "size": "12x15",
+              "variantName": "12x15 Matte"
             }
           ],
           "accessories": []
@@ -14775,7 +14795,7 @@
             {
               "vendorSku": "NEDESTA1224",
               "size": "12x24",
-              "variantName": "12x24 Polished"
+              "variantName": "12x24 Polished, Matte"
             },
             {
               "vendorSku": "NEDESTA1224P",
@@ -15035,7 +15055,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTL-ELEPIN",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -15050,7 +15070,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-EMPBB-BMP10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -15060,7 +15080,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-EMPB-SFIL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Split Pol"
             }
           ],
@@ -15085,7 +15105,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-EMP-SFIL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Split Pol"
             }
           ],
@@ -15179,7 +15199,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SPIL-EVER8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -15194,7 +15214,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GL-T-EVE39",
-              "size": "3X9",
+              "size": "3x9",
               "variantName": "3X9"
             }
           ],
@@ -15219,7 +15239,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-EVICE8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -15264,7 +15284,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-FLORITA-POL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -15338,7 +15358,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-FOG-ARABESQ",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -15347,7 +15367,7 @@
       }
     },
     "Folk": {
-      "category": "porcelain-tile",
+      "category": "fluted-tile",
       "products": {
         "Folk Charcoal 7x16": {
           "skus": [
@@ -15437,7 +15457,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-FOUHIL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -15461,7 +15481,7 @@
       }
     },
     "Gems": {
-      "category": "porcelain-tile",
+      "category": "fluted-tile",
       "products": {
         "Gems Bianco": {
           "skus": [
@@ -15741,7 +15761,7 @@
           "skus": [
             {
               "vendorSku": "NGLACPEA3264P-SET",
-              "size": "32X64",
+              "size": "32x64",
               "variantName": "32X64 Polished"
             }
           ],
@@ -15751,7 +15771,7 @@
           "skus": [
             {
               "vendorSku": "NGLACPEA3296P-SET",
-              "size": "32X64",
+              "size": "32x64",
               "variantName": "32X64 Polished"
             }
           ],
@@ -15761,7 +15781,7 @@
           "skus": [
             {
               "vendorSku": "NGLACSTA3264P-SET",
-              "size": "32X64",
+              "size": "32x64",
               "variantName": "32X64 Polished"
             },
             {
@@ -15984,7 +16004,7 @@
         }
       }
     },
-    "Gold": {
+    "Gold Green": {
       "category": "natural-stone",
       "products": {
         "Gold Green 12x12": {
@@ -15996,7 +16016,12 @@
             }
           ],
           "accessories": []
-        },
+        }
+      }
+    },
+    "Gold Rush": {
+      "category": "mosaic-tile",
+      "products": {
         "Gold Rush 6x12 Peel And Stick Veneer": {
           "skus": [
             {
@@ -16028,7 +16053,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PNS-VNR-GR6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Natural"
             }
           ],
@@ -16098,7 +16123,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PNS-VNR-GH6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Natural"
             }
           ],
@@ -16141,7 +16166,7 @@
           "skus": [
             {
               "vendorSku": "SGLDQTZ-ASH-3-G",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Gauged"
             }
           ],
@@ -16167,16 +16192,6 @@
     "Gray": {
       "category": "mosaic-tile",
       "products": {
-        "Gray Cliff Interlocking": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-SGLSIL-GRACLI4MM",
-              "size": "PATTERN",
-              "variantName": null
-            }
-          ],
-          "accessories": []
-        },
         "Gray Glossy 2x4 Beveled": {
           "skus": [
             {
@@ -16247,6 +16262,36 @@
           ],
           "accessories": []
         },
+        "Gray Scallop Glossy 6mm": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETGRA-SCALOP",
+              "size": null,
+              "variantName": "Glossy"
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
+    "Gray Cliff": {
+      "category": "mosaic-tile",
+      "products": {
+        "Gray Cliff Interlocking": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-SGLSIL-GRACLI4MM",
+              "size": null,
+              "variantName": null
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
+    "Gray Oak": {
+      "category": "stacked-stone",
+      "products": {
         "Gray Oak 3d Honed Panel": {
           "skus": [
             {
@@ -16280,16 +16325,6 @@
               "type": "6x18 Ledger Corner"
             }
           ]
-        },
-        "Gray Scallop Glossy 6mm": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETGRA-SCALOP",
-              "size": null,
-              "variantName": "Glossy"
-            }
-          ],
-          "accessories": []
         }
       }
     },
@@ -16300,7 +16335,7 @@
           "skus": [
             {
               "vendorSku": "THDW1-T-GRE-3x6",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6 Polished"
             }
           ],
@@ -16330,7 +16365,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GRE-2HEXP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -16350,7 +16385,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GRE-3HEXP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -16370,7 +16405,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GRE-AREBESQ",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -16380,7 +16415,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GRE-BWP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -16390,7 +16425,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GRE-HBP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -16400,7 +16435,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GRE-ILP10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -16410,7 +16445,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-VNR-GRE-T",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -16538,7 +16573,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-GRILAG8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -16553,7 +16588,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSBIL-GROAZU6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -16568,7 +16603,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GL-T-HAISAP39",
-              "size": "3X9",
+              "size": "3x9",
               "variantName": "3X9"
             }
           ],
@@ -16593,7 +16628,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-HARCEL6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -16623,7 +16658,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMT-HARCHE8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -16633,7 +16668,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMT-HARCUB8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -16643,7 +16678,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMTIL-HAR8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -16653,7 +16688,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMT-HARPK8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -16662,7 +16697,7 @@
       }
     },
     "Havenwood": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Havenwood Beige": {
           "skus": [
@@ -16788,7 +16823,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-HENLEY-2HEX",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -16893,7 +16928,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-HONCOM-2HEX",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -16943,7 +16978,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-ICEBEHB8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -16973,7 +17008,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GL-T-IC36",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6"
             },
             {
@@ -16993,7 +17028,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-IC8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -17040,7 +17075,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ICEGRE-PKP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -17048,7 +17083,7 @@
         }
       }
     },
-    "Ivory": {
+    "Ivory Amber": {
       "category": "mosaic-tile",
       "products": {
         "Ivory Amber Beveled Subway": {
@@ -17067,7 +17102,12 @@
               "type": "Pencil Molding"
             }
           ]
-        },
+        }
+      }
+    },
+    "Ivory Iridescent": {
+      "category": "mosaic-tile",
+      "products": {
         "Ivory Iridescent": {
           "skus": [
             {
@@ -17077,7 +17117,12 @@
             }
           ],
           "accessories": []
-        },
+        }
+      }
+    },
+    "Ivory White": {
+      "category": "mosaic-tile",
+      "products": {
         "Ivory White Mini Pebble": {
           "skus": [
             {
@@ -17557,7 +17602,7 @@
           "skus": [
             {
               "vendorSku": "VTWDUNOVA7X48-3/8-1.2MM",
-              "size": "7X48",
+              "size": "7x48",
               "variantName": "7X48 Brushed"
             }
           ],
@@ -17567,7 +17612,7 @@
           "skus": [
             {
               "vendorSku": "VTWLAZURA7X48-3/8-1.2MM",
-              "size": "7X48",
+              "size": "7x48",
               "variantName": "7X48 Brushed"
             }
           ],
@@ -17577,7 +17622,7 @@
           "skus": [
             {
               "vendorSku": "VTWMESRID7X48-3/8-1.2MM",
-              "size": "7X48",
+              "size": "7x48",
               "variantName": "7X48 Brushed"
             }
           ],
@@ -17587,7 +17632,7 @@
           "skus": [
             {
               "vendorSku": "VTWSANDOR7X48-3/8-1.2MM",
-              "size": "7X48",
+              "size": "7x48",
               "variantName": "7X48 Brushed"
             }
           ],
@@ -17597,7 +17642,7 @@
           "skus": [
             {
               "vendorSku": "VTWSUNDEL7X48-3/8-1.2MM",
-              "size": "7X48",
+              "size": "7x48",
               "variantName": "7X48 Brushed"
             }
           ],
@@ -17607,7 +17652,7 @@
           "skus": [
             {
               "vendorSku": "VTWVEXTON7X48-3/8-1.2MM",
-              "size": "7X48",
+              "size": "7x48",
               "variantName": "7X48 Brushed"
             }
           ],
@@ -17762,7 +17807,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSMT-KESHI8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -17814,7 +17859,7 @@
           "skus": [
             {
               "vendorSku": "P-SMOT-PNS-LACRESTA-6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -17824,7 +17869,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-LAFLEUR-POL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -17839,7 +17884,7 @@
           "skus": [
             {
               "vendorSku": "VTWADROAK7.5X75-1/2-2MM",
-              "size": "7X75",
+              "size": "7x75",
               "variantName": "7X75 Glossy"
             }
           ],
@@ -17849,7 +17894,7 @@
           "skus": [
             {
               "vendorSku": "VTWATWOOD7.5X75-1/2-2MM",
-              "size": "7X74",
+              "size": "7x74",
               "variantName": "7X74 Brushed"
             }
           ],
@@ -17909,7 +17954,7 @@
           "skus": [
             {
               "vendorSku": "VTWLEAOAK7.5X75-1/2-2MM",
-              "size": "7X75",
+              "size": "7x75",
               "variantName": "7X75 Brushed"
             }
           ],
@@ -17919,7 +17964,7 @@
           "skus": [
             {
               "vendorSku": "VTWMABLE7.5X75-1/2-2MM",
-              "size": "7X75",
+              "size": "7x75",
               "variantName": "7X75 Brushed"
             }
           ],
@@ -17959,7 +18004,7 @@
           "skus": [
             {
               "vendorSku": "VTWSCABUF7.5X75-1/2-2MM",
-              "size": "7X75",
+              "size": "7x75",
               "variantName": "7X75 Glossy"
             }
           ],
@@ -18139,7 +18184,7 @@
           "skus": [
             {
               "vendorSku": "VTRMEADOW9X48-5MM-20MIL",
-              "size": null,
+              "size": "9x48",
               "variantName": "9X48"
             }
           ],
@@ -18209,7 +18254,7 @@
           "skus": [
             {
               "vendorSku": "VTRVENTAR9X48-5MM-20MIL",
-              "size": null,
+              "size": "9x48",
               "variantName": "9X48"
             }
           ],
@@ -18234,7 +18279,7 @@
           "skus": [
             {
               "vendorSku": "VTRBAYBUFF9X48-8MM-22MIL",
-              "size": "9x48",
+              "size": "98x48",
               "variantName": "9x48 Low Gloss"
             }
           ],
@@ -18244,7 +18289,7 @@
           "skus": [
             {
               "vendorSku": "VTRCABANA9X48-8MM-22MIL",
-              "size": "9x48",
+              "size": "98x48",
               "variantName": "9x48 Low Gloss"
             }
           ],
@@ -18304,7 +18349,7 @@
           "skus": [
             {
               "vendorSku": "VTRHYDHAV9X48-8MM-22MIL",
-              "size": "9x48",
+              "size": "98x48",
               "variantName": "9x48 Low Gloss"
             }
           ],
@@ -18334,7 +18379,7 @@
           "skus": [
             {
               "vendorSku": "VTRMALTA9X48-8MM-22MIL",
-              "size": "9x48",
+              "size": "98x48",
               "variantName": "9x48 Low Gloss"
             }
           ],
@@ -18344,7 +18389,7 @@
           "skus": [
             {
               "vendorSku": "VTRMEADOW9X48-8MM-22MIL",
-              "size": null,
+              "size": "9x48",
               "variantName": "9X48"
             }
           ],
@@ -18384,7 +18429,7 @@
           "skus": [
             {
               "vendorSku": "VTRSELBOU9X48-8MM-22MIL",
-              "size": "9x48",
+              "size": "98x48",
               "variantName": "9x48 Low Gloss"
             }
           ],
@@ -18414,7 +18459,7 @@
           "skus": [
             {
               "vendorSku": "VTRVENTAR9X48-8MM-22MIL",
-              "size": null,
+              "size": "9x48",
               "variantName": "9X48"
             }
           ],
@@ -18843,7 +18888,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-LORGRI4MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -18858,7 +18903,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSMTIL-LUCSKY4MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -18915,7 +18960,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLS-LUPA8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -18950,7 +18995,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-LUX8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -18965,7 +19010,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTL-LUXKOGOL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -18975,7 +19020,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTL-LUXROYLGOL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -18985,7 +19030,7 @@
           "skus": [
             {
               "vendorSku": "THDW1-SH-LV-8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -18994,7 +19039,7 @@
       }
     },
     "Lvt": {
-      "category": "adhesives-sealants",
+      "category": "surface-prep-levelers",
       "products": {
         "Adhesive Concrete Primer 4g": {
           "skus": [
@@ -19080,7 +19125,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSMTIL-MA8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -19095,7 +19140,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLS-MAG6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -19243,7 +19288,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSMT-MB8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -19258,7 +19303,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-MARDIA-POL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -19314,7 +19359,7 @@
       }
     },
     "Marza": {
-      "category": "backsplash-tile",
+      "category": "backsplash-wall",
       "products": {
         "Marza Aqua 4x12": {
           "skus": [
@@ -19493,7 +19538,7 @@
           "skus": [
             {
               "vendorSku": "TMAYWHI-PAT-BR",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Brushed"
             }
           ],
@@ -19508,7 +19553,7 @@
           "skus": [
             {
               "vendorSku": "VTWADROAK9.5X86-5/8-4MM",
-              "size": "9X86",
+              "size": "9x86",
               "variantName": "9X86 Brushed"
             }
           ],
@@ -19578,7 +19623,7 @@
           "skus": [
             {
               "vendorSku": "VTWLEAOAK9.5X86-5/8-4MM",
-              "size": "9X86",
+              "size": "9x86",
               "variantName": "9X86 Brushed"
             }
           ],
@@ -19588,7 +19633,7 @@
           "skus": [
             {
               "vendorSku": "VTWMABLE9.5X86-5/8-4MM",
-              "size": "9X86",
+              "size": "9x86",
               "variantName": "9X86 Brushed"
             }
           ],
@@ -19628,7 +19673,7 @@
           "skus": [
             {
               "vendorSku": "VTWSCABUF9.5X86-5/8-4MM",
-              "size": "9X86",
+              "size": "9x86",
               "variantName": "9X86 Brushed"
             }
           ],
@@ -19683,7 +19728,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTL-MEDGOL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -19693,7 +19738,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTL-MEDSIL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -19708,7 +19753,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GL-T-MG36",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6"
             },
             {
@@ -19733,7 +19778,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-MEGRBEHB8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -19778,7 +19823,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-METGLA8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -19788,7 +19833,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTL-METGOL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -19798,7 +19843,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-METGRI8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -19808,7 +19853,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTL-METSIL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -19939,7 +19984,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-MTRPLTN",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -19949,7 +19994,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-MTRPLTN-PK10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -20067,7 +20112,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PNS-VNR-MA6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -20148,7 +20193,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMT-MNPRL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -20258,7 +20303,7 @@
       }
     },
     "Mititec": {
-      "category": "lvp-plank",
+      "category": "underlayment",
       "products": {
         "Flexible Gluedown Lvt Underlayment": {
           "skus": [
@@ -20279,7 +20324,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-MIXMAR",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -20289,7 +20334,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-MIXRVR",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Natural"
             }
           ],
@@ -20304,7 +20349,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-MODGRI6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -20334,7 +20379,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-MONBLU-POL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -20409,7 +20454,7 @@
           "skus": [
             {
               "vendorSku": "SMONBLK-ASH-3-G",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Gauged"
             }
           ],
@@ -20444,7 +20489,7 @@
             },
             {
               "vendorSku": "SMONBLU36G",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6 Gauged"
             },
             {
@@ -20556,7 +20601,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-MOFOG-ARABESQ",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -20566,7 +20611,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-MOFOG-OGEE",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -20628,7 +20673,7 @@
           "skus": [
             {
               "vendorSku": "SMCLAS-ASH-3-G",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Gauged"
             }
           ],
@@ -20742,7 +20787,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-BSLTB-3DH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -20849,7 +20894,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-NIGSKY8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -21111,7 +21156,7 @@
           "skus": [
             {
               "vendorSku": "VTGAKADIA9X48-2.5MM-22MIL",
-              "size": "9X48",
+              "size": "9x48",
               "variantName": "9x48"
             }
           ],
@@ -21121,7 +21166,7 @@
           "skus": [
             {
               "vendorSku": "VTGBAYBLO9X48-2.5MM-22MIL",
-              "size": "9X48",
+              "size": "9x48",
               "variantName": "9x48"
             }
           ],
@@ -21131,7 +21176,7 @@
           "skus": [
             {
               "vendorSku": "VTGBAYBUF9X48-2.5MM-22MIL",
-              "size": "9X48",
+              "size": "9x48",
               "variantName": "9x48"
             }
           ],
@@ -21141,7 +21186,7 @@
           "skus": [
             {
               "vendorSku": "VTGFALLON9X48-2.5MM-22MIL",
-              "size": "9X48",
+              "size": "9x48",
               "variantName": "9x48"
             }
           ],
@@ -21151,7 +21196,7 @@
           "skus": [
             {
               "vendorSku": "VTGHATFIE9X48-2.5MM-22MIL",
-              "size": "9X48",
+              "size": "9x48",
               "variantName": "9x48"
             }
           ],
@@ -21161,7 +21206,7 @@
           "skus": [
             {
               "vendorSku": "VTGHYDHAV9X48-2.5MM-22MIL",
-              "size": "9X48",
+              "size": "9x48",
               "variantName": "9x48"
             }
           ],
@@ -21171,7 +21216,7 @@
           "skus": [
             {
               "vendorSku": "VTGSCANDI9X48-2.5MM-22MIL",
-              "size": "9X48",
+              "size": "9x48",
               "variantName": "9x48"
             }
           ],
@@ -21181,7 +21226,7 @@
           "skus": [
             {
               "vendorSku": "VTGSELBOU9X48-2.5MM-22MIL",
-              "size": "9X48",
+              "size": "9x48",
               "variantName": "9x48"
             }
           ],
@@ -21241,7 +21286,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMTIL-OCO4MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -21533,7 +21578,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GL-T-OYGR36",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6"
             },
             {
@@ -21563,7 +21608,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PALI-CHEVRON10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -21582,7 +21627,7 @@
       }
     },
     "Palma": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Palma Maple": {
           "skus": [
@@ -21607,7 +21652,7 @@
       }
     },
     "Palmetto": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Palmetto Bianco": {
           "skus": [
@@ -21671,6 +21716,136 @@
         }
       }
     },
+    "Parc": {
+      "category": "lvp-plank",
+      "products": {
+        "Parc - Andaz": {
+          "skus": [
+            {
+              "vendorSku": "VTRANDAZ9X60-10MM-22MIL",
+              "size": "9x60",
+              "variantName": "9X60 Low Gloss"
+            }
+          ],
+          "accessories": []
+        },
+        "Parc - Bluffview": {
+          "skus": [
+            {
+              "vendorSku": "VTRBLUFFV9X60-10MM-22MIL",
+              "size": "9x60",
+              "variantName": "9X60 Low Gloss"
+            }
+          ],
+          "accessories": []
+        },
+        "Parc - Elwood": {
+          "skus": [
+            {
+              "vendorSku": "VTRELWOOD9X60-10MM-22MIL",
+              "size": "9x60",
+              "variantName": "9X60 Low Gloss"
+            }
+          ],
+          "accessories": []
+        },
+        "Parc - Macland": {
+          "skus": [
+            {
+              "vendorSku": "VTRMACLAN9X60-10MM-22MIL",
+              "size": "9x60",
+              "variantName": "9X60 Low Gloss"
+            }
+          ],
+          "accessories": []
+        },
+        "Parc - Mellshire": {
+          "skus": [
+            {
+              "vendorSku": "VTRMELSHI9X60-10MM-22MIL",
+              "size": "9x60",
+              "variantName": "9X60 Low Gloss"
+            }
+          ],
+          "accessories": []
+        },
+        "Parc - Waldron": {
+          "skus": [
+            {
+              "vendorSku": "VTRWALDRO9X60-10MM-22MIL",
+              "size": "9x60",
+              "variantName": "9X60 Low Gloss"
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
+    "Parc Res.": {
+      "category": "lvp-plank",
+      "products": {
+        "Parc Res.- Andaz": {
+          "skus": [
+            {
+              "vendorSku": "VTRANDAZ9X72-12MM-30MIL",
+              "size": "9x72",
+              "variantName": "9x72 Low Gloss"
+            }
+          ],
+          "accessories": []
+        },
+        "Parc Res.- Bluffview": {
+          "skus": [
+            {
+              "vendorSku": "VTRBLUFFV9X72-12MM-30MIL",
+              "size": "9x72",
+              "variantName": "9x72 Low Gloss"
+            }
+          ],
+          "accessories": []
+        },
+        "Parc Res.- Elwood": {
+          "skus": [
+            {
+              "vendorSku": "VTRELWOOD9X72-12MM-30MIL",
+              "size": "9x72",
+              "variantName": "9x72 Low Gloss"
+            }
+          ],
+          "accessories": []
+        },
+        "Parc Res.- Macland": {
+          "skus": [
+            {
+              "vendorSku": "VTRMACLAN9X72-12MM-30MIL",
+              "size": "9x72",
+              "variantName": "9x72 Low Gloss"
+            }
+          ],
+          "accessories": []
+        },
+        "Parc Res.- Mellshire": {
+          "skus": [
+            {
+              "vendorSku": "VTRMELSHI9X72-12MM-30MIL",
+              "size": "9x72",
+              "variantName": "9x72 Low Gloss"
+            }
+          ],
+          "accessories": []
+        },
+        "Parc Res.- Waldron": {
+          "skus": [
+            {
+              "vendorSku": "VTRWALDRO9X72-12MM-30MIL",
+              "size": "9x72",
+              "variantName": "9x72 Low Gloss"
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
     "Pavilion": {
       "category": "mosaic-tile",
       "products": {
@@ -21678,7 +21853,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-BIANDOL-PAVPK8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -21693,7 +21868,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-PEAARA8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -21718,7 +21893,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-PEBARA8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -21728,7 +21903,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-PE8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -21819,7 +21994,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-PENRD-GRIMIX",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -21874,7 +22049,7 @@
             },
             {
               "vendorSku": "TTPHIL-PAT-HUCB",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -21896,7 +22071,7 @@
           "skus": [
             {
               "vendorSku": "TTPICASSO-PAT-HUCB",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Hufcb"
             }
           ],
@@ -22158,7 +22333,7 @@
       }
     },
     "Placero": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Placero Maple": {
           "skus": [
@@ -22231,7 +22406,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-PORPEA-ARABESQ",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -22241,7 +22416,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-PORPEA-HB",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -22256,7 +22431,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-POS6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -22272,42 +22447,42 @@
             {
               "vendorSku": "NPRACAR1224",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, White-Cool"
             },
             {
               "vendorSku": "NPRACAR1224-N",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Praia Carrara"
             },
             {
               "vendorSku": "NPRACAR1224P",
               "size": "12x24",
-              "variantName": "12x24 Polished"
+              "variantName": "12x24 Polished, White-Cool"
             },
             {
               "vendorSku": "NPRACAR1224P-N",
               "size": "12x24",
-              "variantName": "12x24 Polished"
+              "variantName": "12x24 Polished, Praia Carrara"
             },
             {
               "vendorSku": "NPRACAR2448",
               "size": "24x48",
-              "variantName": "24x48 Matte"
+              "variantName": "24x48 Matte, White-Cool, 8.1mm"
             },
             {
               "vendorSku": "NPRACAR2448-N",
               "size": "24x48",
-              "variantName": "24x48 Matte"
+              "variantName": "24x48 Matte, Praia Carrara, 3/8"
             },
             {
               "vendorSku": "NPRACAR2448P",
               "size": "24x48",
-              "variantName": "24x48 Polished"
+              "variantName": "24x48 Polished, White-Cool, 8.1mm"
             },
             {
               "vendorSku": "NPRACAR2448P-N",
               "size": "24x48",
-              "variantName": "24x48 Polished"
+              "variantName": "24x48 Polished, Praia Carrara, 3/8"
             }
           ],
           "accessories": [
@@ -22346,42 +22521,42 @@
             {
               "vendorSku": "NPRACRE1224",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Beige"
             },
             {
               "vendorSku": "NPRACRE1224-N",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Praia Crema"
             },
             {
               "vendorSku": "NPRACRE1224P",
               "size": "12x24",
-              "variantName": "12x24 Polished"
+              "variantName": "12x24 Polished, Beige"
             },
             {
               "vendorSku": "NPRACRE1224P-N",
               "size": "12x24",
-              "variantName": "12x24 Polished"
+              "variantName": "12x24 Polished, Praia Crema"
             },
             {
               "vendorSku": "NPRACRE2448",
               "size": "24x48",
-              "variantName": "24x48 Matte"
+              "variantName": "24x48 Matte, Beige, 8.1mm"
             },
             {
               "vendorSku": "NPRACRE2448-N",
               "size": "24x48",
-              "variantName": "24x48 Matte"
+              "variantName": "24x48 Matte, Praia Crema, 3/8"
             },
             {
               "vendorSku": "NPRACRE2448P",
               "size": "24x48",
-              "variantName": "24x48 Polished"
+              "variantName": "24x48 Polished, Beige, 8.1mm"
             },
             {
               "vendorSku": "NPRACRE2448P-N",
               "size": "24x48",
-              "variantName": "24x48 Polished"
+              "variantName": "24x48 Polished, Praia Crema, 3/8"
             }
           ],
           "accessories": [
@@ -22410,12 +22585,12 @@
             {
               "vendorSku": "NPRACRE2X2",
               "size": "2x2",
-              "variantName": "2x2 Matte"
+              "variantName": "2x2 Matte, Beige"
             },
             {
               "vendorSku": "NPRACRE2X2-N",
               "size": "2x2",
-              "variantName": "2x2 Matte"
+              "variantName": "2x2 Matte, Praia Crema Mosaic"
             }
           ],
           "accessories": []
@@ -22425,42 +22600,42 @@
             {
               "vendorSku": "NPRAGRE1224",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Gray-Light"
             },
             {
               "vendorSku": "NPRAGRE1224-N",
               "size": "12x24",
-              "variantName": "12x24 Matte"
+              "variantName": "12x24 Matte, Praia Grey"
             },
             {
               "vendorSku": "NPRAGRE1224P",
               "size": "12x24",
-              "variantName": "12x24 Polished"
+              "variantName": "12x24 Polished, Gray-Light"
             },
             {
               "vendorSku": "NPRAGRE1224P-N",
               "size": "12x24",
-              "variantName": "12x24 Polished"
+              "variantName": "12x24 Polished, Praia Grey"
             },
             {
               "vendorSku": "NPRAGRE2448",
               "size": "24x48",
-              "variantName": "24x48 Matte"
+              "variantName": "24x48 Matte, Gray-Light, 8.1mm"
             },
             {
               "vendorSku": "NPRAGRE2448-N",
               "size": "24x48",
-              "variantName": "24x48 Matte"
+              "variantName": "24x48 Matte, Praia Grey, 3/8"
             },
             {
               "vendorSku": "NPRAGRE2448P",
               "size": "24x48",
-              "variantName": "24x48 Polished"
+              "variantName": "24x48 Polished, Gray-Light, 8.1mm"
             },
             {
               "vendorSku": "NPRAGRE2448P-N",
               "size": "24x48",
-              "variantName": "24x48 Polished"
+              "variantName": "24x48 Polished, Praia Grey, 3/8"
             }
           ],
           "accessories": [
@@ -22554,7 +22729,7 @@
             {
               "vendorSku": "TPBLACK18180.50-C",
               "size": "18x18",
-              "variantName": "18x18 Polished"
+              "variantName": "18x18 Polished, Premium Black"
             },
             {
               "vendorSku": "TPREMBLK1224",
@@ -22568,13 +22743,13 @@
             },
             {
               "vendorSku": "TPREMBLK24240.5",
-              "size": "24X24",
+              "size": "24x24",
               "variantName": "24X24 Polished"
             },
             {
               "vendorSku": "TPREMSUD1818",
               "size": "18x18",
-              "variantName": "18x18 Polished"
+              "variantName": "18x18 Polished, Black"
             }
           ],
           "accessories": [
@@ -23053,7 +23228,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-PUEGREI",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -23349,7 +23524,7 @@
       }
     },
     "Renzo": {
-      "category": "backsplash-tile",
+      "category": "backsplash-wall",
       "products": {
         "Renzo Denim": {
           "skus": [
@@ -23588,7 +23763,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-RETFRET-POL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -23598,7 +23773,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSB-RETSTA6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -23660,7 +23835,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-ROC8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -23682,7 +23857,7 @@
           "accessories": [
             {
               "vendorSku": "LPNLQSEDPLA66COR",
-              "size": "6X6",
+              "size": "6x6",
               "variantName": "6\" Ledger Corner",
               "type": "6\" Ledger Corner"
             }
@@ -23751,7 +23926,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PNS-RBSF-6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Splitface"
             }
           ],
@@ -23761,7 +23936,7 @@
           "skus": [
             {
               "vendorSku": "NWGROMSTA1224",
-              "size": "12X24",
+              "size": "12x24",
               "variantName": "12X24 Matte"
             }
           ],
@@ -23801,7 +23976,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ROYLNK-POL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -23811,7 +23986,7 @@
           "skus": [
             {
               "vendorSku": "THDWG-SGL-ROBI-8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -23901,7 +24076,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-RUSTIQUE-3DIL",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -24241,7 +24416,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-SAND6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -24251,7 +24426,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-SAND6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -24394,7 +24569,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-SAVOY8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -24404,7 +24579,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSPK-SAVOY8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -24471,13 +24646,13 @@
           "accessories": [
             {
               "vendorSku": "LPNLDSEDBEI66COR",
-              "size": "6X6",
+              "size": "6x6",
               "variantName": "6\" Ledger Corner",
               "type": "6\" Ledger Corner"
             },
             {
               "vendorSku": "LPNLSSEDMLT66COR",
-              "size": "6X6",
+              "size": "6x6",
               "variantName": "6\" Ledger Corner",
               "type": "6\" Ledger Corner"
             }
@@ -24494,7 +24669,7 @@
           "accessories": [
             {
               "vendorSku": "LPNLDSEDFOS66COR",
-              "size": "6X6",
+              "size": "6x6",
               "variantName": "6\" Ledger Corner",
               "type": "6\" Ledger Corner"
             }
@@ -24536,7 +24711,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SERENITY-PEB10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -24551,7 +24726,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-SHISLV8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -24700,7 +24875,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-SILVA6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -24710,7 +24885,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-SILVA6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -24740,12 +24915,12 @@
             },
             {
               "vendorSku": "TTSIL-PAT-HUCB",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Hufcb"
             },
             {
               "vendorSku": "TTSIL-PAT-TUM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             },
             {
@@ -24756,26 +24931,61 @@
           ],
           "accessories": []
         },
+        "Silver Herringbone Mosaic": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-SILTRA-HBH",
+              "size": null,
+              "variantName": "Honed"
+            }
+          ],
+          "accessories": []
+        },
+        "Silver Splitface Interlocking Mosaic": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-SILTRA-SF10MM",
+              "size": null,
+              "variantName": "Splitface"
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
+    "Silver Aluminum": {
+      "category": "mosaic-tile",
+      "products": {
         "Silver Aluminum Brushed 3d": {
           "skus": [
             {
               "vendorSku": "SMOT-MET-SLVAL",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
           "accessories": []
-        },
+        }
+      }
+    },
+    "Silver Canvas": {
+      "category": "mosaic-tile",
+      "products": {
         "Silver Canvas Interlocking": {
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-SILCAN8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
           "accessories": []
-        },
+        }
+      }
+    },
+    "Silver Canyon": {
+      "category": "stacked-stone",
+      "products": {
         "Silver Canyon Panel": {
           "skus": [
             {
@@ -24792,17 +25002,12 @@
               "type": "6x18 Ledger Corner"
             }
           ]
-        },
-        "Silver Herringbone Mosaic": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-SILTRA-HBH",
-              "size": "PATTERN",
-              "variantName": "Honed"
-            }
-          ],
-          "accessories": []
-        },
+        }
+      }
+    },
+    "Silver Shadow": {
+      "category": "natural-stone",
+      "products": {
         "Silver Shadow": {
           "skus": [
             {
@@ -24812,17 +25017,12 @@
             }
           ],
           "accessories": []
-        },
-        "Silver Splitface Interlocking Mosaic": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-SILTRA-SF10MM",
-              "size": "PATTERN",
-              "variantName": "Splitface"
-            }
-          ],
-          "accessories": []
-        },
+        }
+      }
+    },
+    "Silver Tip": {
+      "category": "mosaic-tile",
+      "products": {
         "Silver Tip": {
           "skus": [
             {
@@ -24832,7 +25032,12 @@
             }
           ],
           "accessories": []
-        },
+        }
+      }
+    },
+    "Silver Travertine": {
+      "category": "stacked-stone",
+      "products": {
         "Silver Travertine Mini Panel": {
           "skus": [
             {
@@ -24886,7 +25091,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PNS-SILVER-5MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -24895,7 +25100,7 @@
       }
     },
     "Sinfonia": {
-      "category": "porcelain-tile",
+      "category": "fluted-tile",
       "products": {
         "Sinfonia Hiphop Abedul": {
           "skus": [
@@ -24986,7 +25191,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-ASH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -25006,7 +25211,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-COAL",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -25016,7 +25221,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-EARTH",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -25046,7 +25251,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-TRUFFLE",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -25186,7 +25391,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSPIL-SMOALP8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25211,7 +25416,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GL-T-SNWHT36",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6 Glossy"
             },
             {
@@ -25251,7 +25456,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-SONVAL4MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25384,7 +25589,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-STACEL6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25401,7 +25606,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-STACEL36",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6"
             }
           ],
@@ -25411,7 +25616,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-STACEL6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25486,7 +25691,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMT-STEL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25541,7 +25746,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSGG-SG8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25556,7 +25761,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-STNELA6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25566,7 +25771,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-STNELA6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25728,7 +25933,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-SUPNOV8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25773,7 +25978,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-TAOS8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25783,7 +25988,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSPK-TAOS8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25798,7 +26003,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-TARVOS6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25813,7 +26018,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-TEARDRPTU",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -25828,7 +26033,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-TEK36",
-              "size": "3X6",
+              "size": "3x6",
               "variantName": "3X6"
             }
           ],
@@ -25883,7 +26088,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-TETBLA-10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -25893,7 +26098,7 @@
           "skus": [
             {
               "vendorSku": "TTETBLANCO66",
-              "size": "6X6",
+              "size": "6x6",
               "variantName": "6x6 Polished"
             }
           ],
@@ -25903,7 +26108,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-TETNERO-10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -25918,7 +26123,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-TEXHER6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -25948,7 +26153,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SPIL-TI8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -26048,7 +26253,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-TRAVBLND",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -26213,7 +26418,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-TUNGRY-BWP",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             },
             {
@@ -26263,7 +26468,7 @@
           "skus": [
             {
               "vendorSku": "TTBEIG-PAT-HF",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Hf"
             }
           ],
@@ -26273,7 +26478,7 @@
           "skus": [
             {
               "vendorSku": "TTBEIG-PAT-HUFC",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Hufc"
             }
           ],
@@ -26283,7 +26488,7 @@
           "skus": [
             {
               "vendorSku": "TTBEIG-PAT-HUCB",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Hufcb"
             }
           ],
@@ -26293,7 +26498,7 @@
           "skus": [
             {
               "vendorSku": "TTBEIG-PAT-TUM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Tumbled"
             }
           ],
@@ -26309,12 +26514,12 @@
             {
               "vendorSku": "TTCLASLT1212HF",
               "size": "12x12",
-              "variantName": "12x12"
+              "variantName": "12x12, Dual Finish – Honed, Filled"
             },
             {
               "vendorSku": "TTCLASLT1224HF",
               "size": "12x24",
-              "variantName": "12x24"
+              "variantName": "12x24, Beige, Honed"
             },
             {
               "vendorSku": "TTCLASLT1818HF",
@@ -26324,7 +26529,7 @@
             {
               "vendorSku": "TTIVORY1212HF",
               "size": "12x12",
-              "variantName": "12x12"
+              "variantName": "12x12, Honed"
             },
             {
               "vendorSku": "TTIVORY1818HF",
@@ -26339,7 +26544,7 @@
             {
               "vendorSku": "TTIVORYVC1224HF",
               "size": "12x24",
-              "variantName": "12x24"
+              "variantName": "12x24, Hand Finished"
             }
           ],
           "accessories": []
@@ -26383,7 +26588,7 @@
           "skus": [
             {
               "vendorSku": "TTPOR-PAT-HUFC",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Hufc"
             }
           ],
@@ -26398,17 +26603,17 @@
             },
             {
               "vendorSku": "TTSCAB-PAT-HUCB",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             },
             {
               "vendorSku": "TTSCAB-PAT-HUFC",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             },
             {
               "vendorSku": "TTSCAB-PAT-TUM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             },
             {
@@ -26430,7 +26635,7 @@
           "skus": [
             {
               "vendorSku": "TTSTRM-PAT-HUFC",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Hufc"
             }
           ],
@@ -26440,7 +26645,7 @@
           "skus": [
             {
               "vendorSku": "TTSTRM-PAT-HUCB",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Hufcb"
             }
           ],
@@ -26470,7 +26675,7 @@
           "skus": [
             {
               "vendorSku": "TTWAL-PAT-HUFC",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Hufc"
             }
           ],
@@ -26480,7 +26685,7 @@
           "skus": [
             {
               "vendorSku": "TTWAL-PAT-HUCB",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Hufcb"
             }
           ],
@@ -26490,7 +26695,7 @@
           "skus": [
             {
               "vendorSku": "TTWAL-PAT-TUM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Tumbled"
             }
           ],
@@ -26510,7 +26715,7 @@
           "skus": [
             {
               "vendorSku": "TTWAL-PAT-HUCB-C",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Versailles Hufcb"
             }
           ],
@@ -26519,7 +26724,7 @@
       }
     },
     "Upscape": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Upscape Bruno": {
           "skus": [
@@ -26560,7 +26765,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMTIL-URBLOF4MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -26570,7 +26775,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-UT6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -26580,7 +26785,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-UT6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -26635,7 +26840,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSMTIL-URBNKA6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -26650,7 +26855,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SGLSIL-URB8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -26848,7 +27053,7 @@
       }
     },
     "Urbanslat": {
-      "category": "porcelain-tile",
+      "category": "fluted-tile",
       "products": {
         "Urbanslat Blonde": {
           "skus": [
@@ -26984,7 +27189,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-VALBLND-OCTEL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -27226,7 +27431,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-VERAN-POL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -27241,7 +27446,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-VERGRE-GEOP10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -27281,7 +27486,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTL-VERGOL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -27291,7 +27496,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-SMTL-VERSIL8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -27331,7 +27536,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-VICLTARAB8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -27365,7 +27570,7 @@
       }
     },
     "Vintage": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Vintage Lace": {
           "skus": [
@@ -27411,7 +27616,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLS-VISAZU6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Matte"
             }
           ],
@@ -27520,131 +27725,6 @@
         }
       }
     },
-    "Wayne": {
-      "category": "lvp-plank",
-      "products": {
-        "Parc - Andaz": {
-          "skus": [
-            {
-              "vendorSku": "VTRANDAZ9X60-10MM-22MIL",
-              "size": "9x60",
-              "variantName": "9X60 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc - Bluffview": {
-          "skus": [
-            {
-              "vendorSku": "VTRBLUFFV9X60-10MM-22MIL",
-              "size": "9x60",
-              "variantName": "9X60 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc - Elwood": {
-          "skus": [
-            {
-              "vendorSku": "VTRELWOOD9X60-10MM-22MIL",
-              "size": "9x60",
-              "variantName": "9X60 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc - Macland": {
-          "skus": [
-            {
-              "vendorSku": "VTRMACLAN9X60-10MM-22MIL",
-              "size": "9x60",
-              "variantName": "9X60 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc - Mellshire": {
-          "skus": [
-            {
-              "vendorSku": "VTRMELSHI9X60-10MM-22MIL",
-              "size": "9x60",
-              "variantName": "9X60 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc - Waldron": {
-          "skus": [
-            {
-              "vendorSku": "VTRWALDRO9X60-10MM-22MIL",
-              "size": "9x60",
-              "variantName": "9X60 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc Res.- Andaz": {
-          "skus": [
-            {
-              "vendorSku": "VTRANDAZ9X72-12MM-30MIL",
-              "size": "9x72",
-              "variantName": "9x72 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc Res.- Bluffview": {
-          "skus": [
-            {
-              "vendorSku": "VTRBLUFFV9X72-12MM-30MIL",
-              "size": "9x72",
-              "variantName": "9x72 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc Res.- Elwood": {
-          "skus": [
-            {
-              "vendorSku": "VTRELWOOD9X72-12MM-30MIL",
-              "size": "9x72",
-              "variantName": "9x72 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc Res.- Macland": {
-          "skus": [
-            {
-              "vendorSku": "VTRMACLAN9X72-12MM-30MIL",
-              "size": "9x72",
-              "variantName": "9x72 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc Res.- Mellshire": {
-          "skus": [
-            {
-              "vendorSku": "VTRMELSHI9X72-12MM-30MIL",
-              "size": "9x72",
-              "variantName": "9x72 Low Gloss"
-            }
-          ],
-          "accessories": []
-        },
-        "Parc Res.- Waldron": {
-          "skus": [
-            {
-              "vendorSku": "VTRWALDRO9X72-12MM-30MIL",
-              "size": "9x72",
-              "variantName": "9x72 Low Gloss"
-            }
-          ],
-          "accessories": []
-        }
-      }
-    },
     "Wellington": {
       "category": "mosaic-tile",
       "products": {
@@ -27694,7 +27774,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PT-WW-ARABESQ",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Glossy"
             }
           ],
@@ -27719,7 +27799,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSPIL-WHISTIC8MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -27746,126 +27826,6 @@
               "vendorSku": "SMOT-PT-RETBIA-2X4BG",
               "size": "2x4",
               "variantName": "2x4 Glossy"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Black 2x2": {
-          "skus": [
-            {
-              "vendorSku": "NWHIBLA2X2",
-              "size": "2x2",
-              "variantName": "2x2 Matte"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Black 4\" Checkered": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIANER-4X4M",
-              "size": "4x4",
-              "variantName": "Matte"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Black Glossy Octagon 6mm": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIA-2OCTG",
-              "size": null,
-              "variantName": "Glossy"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Black Glossy Penny Round": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-PENRD-BIANER",
-              "size": "PATTERN",
-              "variantName": "Glossy"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Black Hive Pattern": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIANER-HIVM",
-              "size": "1 HEX",
-              "variantName": "1 HEX Tumbled"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Black Matte Basketweave 6mm": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIA-BW",
-              "size": null,
-              "variantName": "Matte"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Black Matte Octagon Mosaic": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIA-2OCTM",
-              "size": null,
-              "variantName": "Matte"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Black Mod Petal Pattern": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIANER-MODPETM",
-              "size": "1 HEX",
-              "variantName": "1 HEX Matte"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Gray Hive Pattern": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIAGRA-HIVM",
-              "size": "1 HEX",
-              "variantName": "1 HEX Matte"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Gray Matte 2\" Octagon": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIAGRA-2OCTM",
-              "size": "PATTERN",
-              "variantName": "Matte"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Gray Matte Basketweave": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIAGRA-BWM",
-              "size": "PATTERN",
-              "variantName": "Matte"
-            }
-          ],
-          "accessories": []
-        },
-        "White And Gray Mod Petal Pattern": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PT-RETBIAGRA-MODPETM",
-              "size": "1 HEX",
-              "variantName": "1 HEX Matte"
             }
           ],
           "accessories": []
@@ -28020,6 +27980,161 @@
           ],
           "accessories": []
         },
+        "White Pebbles Mesh Backed": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PEB-WHT",
+              "size": null,
+              "variantName": "Tumbled"
+            }
+          ],
+          "accessories": []
+        },
+        "White Polished 2x2 Mosaic": {
+          "skus": [
+            {
+              "vendorSku": "NWHI2X2P-N",
+              "size": "2x2",
+              "variantName": "2x2 Polished"
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
+    "White And Black": {
+      "category": "backsplash-wall",
+      "products": {
+        "White And Black 2x2": {
+          "skus": [
+            {
+              "vendorSku": "NWHIBLA2X2",
+              "size": "2x2",
+              "variantName": "2x2 Matte"
+            }
+          ],
+          "accessories": []
+        },
+        "White And Black 4\" Checkered": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIANER-4X4M",
+              "size": "4x4",
+              "variantName": "Matte"
+            }
+          ],
+          "accessories": []
+        },
+        "White And Black Glossy Octagon 6mm": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIA-2OCTG",
+              "size": null,
+              "variantName": "Glossy"
+            }
+          ],
+          "accessories": []
+        },
+        "White And Black Glossy Penny Round": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-PENRD-BIANER",
+              "size": null,
+              "variantName": "Glossy"
+            }
+          ],
+          "accessories": []
+        },
+        "White And Black Hive Pattern": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIANER-HIVM",
+              "size": "1 HEX",
+              "variantName": "1 HEX Tumbled"
+            }
+          ],
+          "accessories": []
+        },
+        "White And Black Matte Basketweave 6mm": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIA-BW",
+              "size": null,
+              "variantName": "Matte"
+            }
+          ],
+          "accessories": []
+        },
+        "White And Black Matte Octagon Mosaic": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIA-2OCTM",
+              "size": null,
+              "variantName": "Matte"
+            }
+          ],
+          "accessories": []
+        },
+        "White And Black Mod Petal Pattern": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIANER-MODPETM",
+              "size": "1 HEX",
+              "variantName": "1 HEX Matte"
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
+    "White And Gray": {
+      "category": "mosaic-tile",
+      "products": {
+        "White And Gray Hive Pattern": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIAGRA-HIVM",
+              "size": "1 HEX",
+              "variantName": "1 HEX Matte"
+            }
+          ],
+          "accessories": []
+        },
+        "White And Gray Matte 2\" Octagon": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIAGRA-2OCTM",
+              "size": null,
+              "variantName": "Matte"
+            }
+          ],
+          "accessories": []
+        },
+        "White And Gray Matte Basketweave": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIAGRA-BWM",
+              "size": null,
+              "variantName": "Matte"
+            }
+          ],
+          "accessories": []
+        },
+        "White And Gray Mod Petal Pattern": {
+          "skus": [
+            {
+              "vendorSku": "SMOT-PT-RETBIAGRA-MODPETM",
+              "size": "1 HEX",
+              "variantName": "1 HEX Matte"
+            }
+          ],
+          "accessories": []
+        }
+      }
+    },
+    "White Oak": {
+      "category": "natural-stone",
+      "products": {
         "White Oak 12x24": {
           "skus": [
             {
@@ -28118,7 +28233,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PEB-WHTOAK",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Tumbled"
             }
           ],
@@ -28140,32 +28255,17 @@
               "type": "6x18 Ledger Corner"
             }
           ]
-        },
-        "White Pebbles Mesh Backed": {
-          "skus": [
-            {
-              "vendorSku": "SMOT-PEB-WHT",
-              "size": "PATTERN",
-              "variantName": "Tumbled"
-            }
-          ],
-          "accessories": []
-        },
-        "White Polished 2x2 Mosaic": {
-          "skus": [
-            {
-              "vendorSku": "NWHI2X2P-N",
-              "size": "2x2",
-              "variantName": "2x2 Polished"
-            }
-          ],
-          "accessories": []
-        },
+        }
+      }
+    },
+    "White Quarry": {
+      "category": "mosaic-tile",
+      "products": {
         "White Quarry Chevron": {
           "skus": [
             {
               "vendorSku": "SMOT-WQ-CHEVRON10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -28175,7 +28275,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-PNS-WQIL3D-6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Honed"
             }
           ],
@@ -28185,7 +28285,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-WQSAV-HON10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Polished"
             }
           ],
@@ -28195,12 +28295,17 @@
           "skus": [
             {
               "vendorSku": "SMOT-WQ-SFIL10MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": "Split Hon"
             }
           ],
           "accessories": []
-        },
+        }
+      }
+    },
+    "White Vena": {
+      "category": "porcelain-tile",
+      "products": {
         "White Vena": {
           "skus": [
             {
@@ -28227,12 +28332,17 @@
             }
           ],
           "accessories": []
-        },
+        }
+      }
+    },
+    "White Wave": {
+      "category": "mosaic-tile",
+      "products": {
         "White Wave Interlocking": {
           "skus": [
             {
               "vendorSku": "SMOT-SGLSMTIL-WHTWA4MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -28241,7 +28351,7 @@
       }
     },
     "Whitehill": {
-      "category": "porcelain-tile",
+      "category": "wood-look-tile",
       "products": {
         "Whitehill Ashwood 9x48": {
           "skus": [
@@ -28282,7 +28392,7 @@
           "skus": [
             {
               "vendorSku": "VTGBLEELM7X48-2.5MM-20MIL",
-              "size": "7X48",
+              "size": "7x48",
               "variantName": "7X48 Low Gloss"
             }
           ],
@@ -28589,7 +28699,7 @@
           "skus": [
             {
               "vendorSku": "VTRXLCHEHIL9X60-5MM-12MIL",
-              "size": "9x60",
+              "size": "98x60",
               "variantName": "9x60 Low Gloss"
             }
           ],
@@ -28874,7 +28984,7 @@
           "skus": [
             {
               "vendorSku": "VTRXLAMBFOR9X60-6.5MM-20MIL",
-              "size": "9X60",
+              "size": "9x60",
               "variantName": "9X60 Low Gloss"
             }
           ],
@@ -28894,7 +29004,7 @@
           "skus": [
             {
               "vendorSku": "VTRXLBARSTO9X60-6.5MM-20MIL",
-              "size": "9X60",
+              "size": "9x60",
               "variantName": "9X60 Low Gloss"
             }
           ],
@@ -28974,7 +29084,7 @@
           "skus": [
             {
               "vendorSku": "VTRXLBROKIN9X60-6.5MM-20MIL",
-              "size": "9X60",
+              "size": "9x60",
               "variantName": "9X60 Low Gloss"
             }
           ],
@@ -29024,7 +29134,7 @@
           "skus": [
             {
               "vendorSku": "VTRXLDULTAI9X60-6.5MM-20MIL",
-              "size": "9X60",
+              "size": "9x60",
               "variantName": "9X60 Low Gloss"
             }
           ],
@@ -29094,7 +29204,7 @@
           "skus": [
             {
               "vendorSku": "VTRXLHONBEL9X60-6.5MM-20MIL",
-              "size": "9X60",
+              "size": "9x60",
               "variantName": "9X60 Low Gloss"
             }
           ],
@@ -29374,7 +29484,7 @@
           "skus": [
             {
               "vendorSku": "VTRXLSTOBOU18X36-5MM-12MIl",
-              "size": "18X36",
+              "size": "18x36",
               "variantName": "18X36 Low Gloss"
             }
           ],
@@ -29634,7 +29744,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-GLSIL-ZODIA6MM",
-              "size": "PATTERN",
+              "size": null,
               "variantName": null
             }
           ],
@@ -29649,7 +29759,7 @@
           "skus": [
             {
               "vendorSku": "SMOT-ZOULI-3X3H",
-              "size": "3X3",
+              "size": "3x3",
               "variantName": "3X3 Honed"
             }
           ],
