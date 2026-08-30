@@ -2626,6 +2626,12 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
           WHERE ${whereSQL}
           ORDER BY ${browseGroupKey},
             CASE WHEN COALESCE(si.url, pi.url, sli.url, sai.url, pai.url) IS NOT NULL THEN 0 ELSE 1 END,
+            -- Outside the mosaic category, don't let a mosaic-sheet variant front the
+            -- card (mixed stone lines made Natural Stone look full of mosaics). Ranked
+            -- below image presence: an imaged mosaic still beats an imageless field tile.
+            CASE WHEN c.slug IS DISTINCT FROM 'mosaic-tile'
+                  AND s.variant_name ~* '(mosaic|hexagon|chevron|herringbone|basketweave|penny round|picket|arabesque)'
+                 THEN 1 ELSE 0 END,
             ${facetDedup}s.created_at
         ) browse_deduped
         ORDER BY ${outerOrderBy}
