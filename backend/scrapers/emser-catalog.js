@@ -71,9 +71,23 @@ export async function run(pool, job, source) {
     };
 
     // Step 3: SKU-matched enrichment
-    // stem→color map over the full API catalog: lets the image loop reject
-    // assets whose embedded SKU code belongs to a different color
-    const stemColorMap = buildStemColorMap(apiProducts);
+    // stem→color map for the image wrong-color guard. Seed from the DB first
+    // (covers discontinued siblings absent from the live API — their codes
+    // still appear in image filenames), then overlay the live API's parsing.
+    const stemColorMap = new Map();
+    const { rows: dbColorRows } = await pool.query(`
+        SELECT lower(s.vendor_sku) vsku, sa.value color
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        JOIN sku_attributes sa ON sa.sku_id = s.id
+          AND sa.attribute_id = (SELECT id FROM attributes WHERE slug = 'color')
+        WHERE p.vendor_id = $1 AND sa.value IS NOT NULL
+    `, [vendorId]);
+    for (const r of dbColorRows) {
+        const s = skuStem(r.vsku);
+        if (s && !stemColorMap.has(s)) stemColorMap.set(s, r.color);
+    }
+    for (const [s, c] of buildStemColorMap(apiProducts)) stemColorMap.set(s, c);
     for (let i = 0; i < apiProducts.length; i++) {
         try {
             enrichProduct(apiProducts[i], existingSkus, stats, catMap, stemColorMap);
@@ -336,7 +350,12 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
     const productNumber = (apiProduct.productNumber || '').toUpperCase();
     if (!productNumber) { stats.skipped++; return; }
 
-    const existing = existingSkus.get(productNumber);
+    let existing = existingSkus.get(productNumber);
+    if (!existing && existingSkus.stemIndex) {
+        // Prefix-drift fallback (F72→F04 etc.) — stem must be unambiguous
+        existing = existingSkus.stemIndex.get(productNumber.replace(/V[23]$/, '').slice(3)) || null;
+        if (existing) stats.stemMatched = (stats.stemMatched || 0) + 1;
+    }
     if (!existing) { stats.skipped++; return; }
 
     stats.matched++;
@@ -1045,6 +1064,20 @@ async function loadExistingSkus(pool, vendorId) {
             map.set(row.vendor_sku.toUpperCase(), row);
         }
     }
+    // Secondary index: prefix-stripped stem → row. Emser recodes warehouse
+    // prefixes over time (F72→F04, A40→F08, A95→F23) while the collection+
+    // color+size+finish stem stays stable — exact-productNumber matching
+    // alone silently orphans those SKUs from enrichment. Only unambiguous
+    // stems are indexed.
+    const stems = new Map();
+    for (const row of result.rows) {
+        if (!row.vendor_sku) continue;
+        const stem = row.vendor_sku.toUpperCase().replace(/V[23]$/, '').slice(3);
+        if (!stem) continue;
+        if (stems.has(stem)) { stems.set(stem, null); continue; } // ambiguous — disable
+        stems.set(stem, row);
+    }
+    map.stemIndex = stems;
     return map;
 }
 
