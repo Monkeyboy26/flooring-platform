@@ -655,6 +655,38 @@ export function generateResaleCertificateHtml(data = {}) {
   </div></body></html>`;
 }
 
+// Shared Chromium launch for document rendering. In the API container
+// (non-root appuser, unwritable HOME) crashpad cannot create its database and
+// Chromium refuses to start ("chrome_crashpad_handler: --database is
+// required") — point HOME at /tmp and disable crash reporting entirely, the
+// same proven fix as scrapers/base.js (commit bbcf645).
+async function launchPdfBrowser() {
+  const puppeteer = await import('puppeteer');
+  const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+  const inContainer = chromePath === '/usr/bin/chromium';
+  return puppeteer.default.launch({
+    headless: true,
+    executablePath: chromePath,
+    env: inContainer
+      ? { ...process.env, HOME: '/tmp', XDG_CONFIG_HOME: '/tmp/.config', XDG_CACHE_HOME: '/tmp/.cache' }
+      : undefined,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-background-networking',
+      '--disable-default-apps',
+      '--disable-translate',
+      '--no-first-run',
+      '--single-process',
+      '--disable-crash-reporter',
+      '--disable-crashpad',
+    ]
+  });
+}
+
 export async function generatePDF(html, filename, req, res, options = {}) {
   // Preview mode: return HTML directly for iframe rendering
   if (req.query.preview === 'true') {
@@ -664,12 +696,7 @@ export async function generatePDF(html, filename, req, res, options = {}) {
   const defaultMargin = { top: '0.6in', bottom: '0.6in', left: '0.65in', right: '0.65in' };
   const margin = options.margin || defaultMargin;
   try {
-    const puppeteer = await import('puppeteer');
-    const browser = await puppeteer.default.launch({
-      headless: true,
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    const browser = await launchPdfBrowser();
     const page = await browser.newPage();
     // If a straggling asset keeps the network busy past the timeout, render
     // with whatever has loaded rather than degrading to raw HTML.
@@ -694,12 +721,7 @@ export async function generatePDF(html, filename, req, res, options = {}) {
 export async function generatePDFBuffer(html, options = {}) {
   const defaultMargin = { top: '0.6in', bottom: '0.6in', left: '0.65in', right: '0.65in' };
   const margin = options.margin || defaultMargin;
-  const puppeteer = await import('puppeteer');
-  const browser = await puppeteer.default.launch({
-    headless: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+  const browser = await launchPdfBrowser();
   const page = await browser.newPage();
   await page.setContent(html, { waitUntil: 'networkidle0', timeout: 15000 })
     .catch(err => console.warn('generatePDFBuffer: assets still loading at timeout, rendering anyway:', err.message));
@@ -2580,12 +2602,7 @@ export async function renderLabelPngs(labels, { dpi = 203 } = {}) {
   const LABEL_W_CSS = 384, LABEL_H_CSS = 192; // 4in x 2in at 96 CSS dpi
   const dsf = dpi / 96;                       // 96 CSS dpi -> 203 device dpi (exact: 4*203, 2*203)
   const html = generateLabelRollHtml(labels);
-  const puppeteer = await import('puppeteer');
-  const browser = await puppeteer.default.launch({
-    headless: true,
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
-  });
+  const browser = await launchPdfBrowser();
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: LABEL_W_CSS, height: LABEL_H_CSS * labels.length, deviceScaleFactor: dsf });
