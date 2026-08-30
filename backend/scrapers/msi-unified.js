@@ -36,6 +36,7 @@ import {
   preferProductShot, isLifestyleUrl, filterImageUrls, filterImagesByVariant,
   appendLog, addJobError, applySheetSelling, isTrimPiece, PER_SHEET_CATEGORY_SLUGS,
 } from './base.js';
+import { classifyName } from '../lib/categoryClassifier.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -144,20 +145,13 @@ const WOOD_LOOK_COLLECTIONS = /^(country river|palma|upscape)\b/i;
 // VINMISR, 'accessories') — split them into leaf categories by name.
 // First match wins; keep the tools rule ahead of the adhesives rule so
 // "Grout Float" / "Caulking Gun" land in tools, not adhesives.
-const SUNDRY_RULES = [
-  { slug: 'wall-panels', pattern: /^(?!.*display).*(\bwpft\b|wallpaper)/i },
-  { slug: 'underlayment', pattern: /underlayment/i },
-  { slug: 'surface-prep-levelers', pattern: /self.?lvl|self.?level|level set|skim coat|\bpatch\b|floor mud|primer|hydraflex|liqui.?dam|backer|gypsum|encapsulator|board tape/i },
-  { slug: 'tools-trowels', pattern: /trowel|float|nipper|glove|knee pad|\bsaws?\b|blade|scraper|mallet|knife|knives|scoring wheel|tacker|staple|caulking gun|sponge|cheesecloth|towel|wipe|chalk|tape measure|box level|spacer|puller|rubbing stone|snips|plumb|probilt|levolution|masking tape|inseam tape/i },
-  { slug: 'trim-accessories', pattern: /drain frame|wax bowl/i },
-  { slug: 'adhesives-sealants', pattern: /grout|caulk|mortar|mastic|adhesive|\badh\b|sealant|sealer|ult6|accucolor|fusion|millennium|permaflex|permalastic|signature|type1|flexera/i },
-];
-
+// Split generic sundry/accessory buckets into leaf categories by name. Delegates
+// to the central classifier (lib/categoryClassifier.js), which merged and
+// superseded this scraper's original SUNDRY_RULES together with Emser's. Same
+// contract: a leaf slug on a confident match, else null (caller leaves it on the
+// parent for the choke-point net to best-guess + flag).
 function classifySundry(name) {
-  for (const rule of SUNDRY_RULES) {
-    if (rule.pattern.test(name)) return rule.slug;
-  }
-  return null;
+  return classifyName(name, 'installation-sundries');
 }
 
 // Clean up EDI product names: strip packaging info, encoding artifacts, extra whitespace
@@ -1799,6 +1793,13 @@ async function phase3_tier1_cdnProbe(pool, skuIndex, log) {
 
     // Skip accessories — they inherit from parent in Phase 5
     if (entry.variant_type === 'accessory') {
+      skipped++;
+      continue;
+    }
+
+    // Skip SKUs that already have a primary — re-runs (--skip-edi) must not
+    // replace curated/Puppeteer-sourced images with generic CDN probe hits
+    if (entry._hasImage) {
       skipped++;
       continue;
     }

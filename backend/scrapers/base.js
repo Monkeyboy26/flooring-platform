@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream/promises';
 import { dedupeStoredName } from '../lib/productName.js';
+import { netCategory } from '../lib/categoryClassifier.js';
 
 export function launchBrowser() {
   const chromePath = process.env.PUPPETEER_EXECUTABLE_PATH
@@ -408,7 +409,7 @@ export async function upsertProduct(pool, rawData, opts = {}) {
         description_long = COALESCE(EXCLUDED.description_long, products.description_long),
         slug = COALESCE(products.slug, EXCLUDED.slug),
         updated_at = CURRENT_TIMESTAMP
-      RETURNING id, (xmax = 0) AS is_new
+      RETURNING id, (xmax = 0) AS is_new, category_id
     `, [vendor_id, name, collection || '', category_id || null, brand_id || null, description_short || null, description_long || null, slug]);
   } catch (err) {
     // Slug collision — retry without slug (will be assigned by backfill script)
@@ -422,14 +423,35 @@ export async function upsertProduct(pool, rawData, opts = {}) {
           description_short = COALESCE(EXCLUDED.description_short, products.description_short),
           description_long = COALESCE(EXCLUDED.description_long, products.description_long),
           updated_at = CURRENT_TIMESTAMP
-        RETURNING id, (xmax = 0) AS is_new
+        RETURNING id, (xmax = 0) AS is_new, category_id
       `, [vendor_id, name, collection || '', category_id || null, brand_id || null, description_short || null, description_long || null]);
     } else {
       throw err;
     }
   }
-  // Refresh search vector for this product
+  // Categorization safety net — the single guarantee that NO product, from any
+  // scraper present or future, ships on a NULL or parent (non-leaf) category.
+  // The scraper's own category logic runs first (COALESCE above); this only
+  // fires when the *stored* result is still NULL or a parent, and never
+  // overrides a leaf the scraper already chose. Best-guess landings are flagged
+  // category_needs_review=true for the nightly quality diff. See
+  // lib/categoryClassifier.js. Never let a net failure break the import.
   const productId = result.rows[0].id;
+  try {
+    const net = await netCategory(pool, { name, collection, categoryId: result.rows[0].category_id });
+    if (net.changed) {
+      await pool.query(
+        `UPDATE products SET category_id = $1, category_needs_review = $2, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3 AND (category_id IS NULL OR category_id = $4)`,
+        [net.categoryId, net.needsReview, productId, result.rows[0].category_id]
+      );
+      result.rows[0].category_id = net.categoryId;
+    }
+  } catch (e) {
+    if (opts.jobId) logValidationWarnings(pool, opts.jobId, name, [`category net: ${e.message}`]).catch(() => {});
+  }
+
+  // Refresh search vector for this product
   pool.query('SELECT refresh_search_vectors($1)', [productId]).catch(() => {});
   return result.rows[0];
 }

@@ -129,11 +129,16 @@ CREATE TABLE products (
     format_label VARCHAR(50),
     sort_priority INTEGER NOT NULL DEFAULT 0,
     prop65_warning BOOLEAN DEFAULT false,
-    prop65_chemicals TEXT
+    prop65_chemicals TEXT,
+    -- Set true by the categoryClassifier safety net (lib/categoryClassifier.js)
+    -- when a product's leaf category is a best-guess (no confident keyword match).
+    -- Surfaced by the category-needs-review quality rule for human confirmation.
+    category_needs_review BOOLEAN DEFAULT false
 );
 
 CREATE UNIQUE INDEX products_slug_unique ON products (slug) WHERE slug IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
+CREATE INDEX IF NOT EXISTS idx_products_cat_review ON products(category_needs_review) WHERE category_needs_review = true;
 
 CREATE TABLE skus (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

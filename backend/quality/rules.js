@@ -188,6 +188,57 @@ export const RULES = [
   },
 
   {
+    key: 'missing-category',
+    title: 'Active product has no category at all (NULL) — invisible to browse/filter',
+    severity: 'error',
+    async run(pool, { vendorId }) {
+      // Complements non-leaf-category: that rule inner-joins categories, so a
+      // NULL category slips past it. An active product with no category can't be
+      // browsed or filtered to. The choke-point net (lib/categoryClassifier.js)
+      // should prevent this; anything here is a name with zero classifiable
+      // signal (usually a broken import) that needs a human/source fix.
+      const { rows } = await pool.query(`
+        SELECT p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code, p.name
+        FROM products p
+        JOIN vendors v ON v.id = p.vendor_id
+        WHERE p.status = 'active' AND p.category_id IS NULL
+          AND ($1::uuid IS NULL OR v.id = $1)
+      `, [vendorId]);
+      return rows.map(r => ({
+        product_id: r.product_id, vendor_id: r.vendor_id,
+        summary: `${r.vendor_code}: "${r.name}" has no category — not browsable`,
+        detail: {},
+      }));
+    },
+  },
+
+  {
+    key: 'category-needs-review',
+    title: 'Category is a best-guess (classifier had no confident match) — confirm the leaf',
+    severity: 'warn',
+    async run(pool, { vendorId }) {
+      // The categoryClassifier net could only best-guess this product's leaf from
+      // its parent family (no keyword matched), so it flagged category_needs_review.
+      // A human confirms the leaf or, better, adds a keyword rule to the central
+      // classifier so it (and every sibling) classifies confidently next scrape.
+      const { rows } = await pool.query(`
+        SELECT p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code, p.name,
+               c.name AS cat_name, c.slug
+        FROM products p
+        JOIN vendors v ON v.id = p.vendor_id
+        LEFT JOIN categories c ON c.id = p.category_id
+        WHERE p.status = 'active' AND p.category_needs_review = true
+          AND ($1::uuid IS NULL OR v.id = $1)
+      `, [vendorId]);
+      return rows.map(r => ({
+        product_id: r.product_id, vendor_id: r.vendor_id,
+        summary: `${r.vendor_code}: "${r.name}" was best-guessed into ${r.cat_name || 'no category'} — confirm the leaf`,
+        detail: { guessed_category: r.slug || null },
+      }));
+    },
+  },
+
+  {
     key: 'name-abbrev-soup',
     title: 'Product name is abbreviation soup (e.g. "Spectra Matte Bo/Ce/Ho/Na")',
     severity: 'warn',

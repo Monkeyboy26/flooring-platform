@@ -7744,7 +7744,10 @@ app.patch('/api/admin/products/bulk/category', staffAuth, requireRole('admin', '
     const { ids, category_id } = req.body;
     if (!ids || !ids.length) return res.status(400).json({ error: 'ids array is required' });
     const result = await pool.query(
-      'UPDATE products SET category_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = ANY($2) RETURNING id',
+      `UPDATE products SET category_id = $1,
+              category_needs_review = CASE WHEN $1::uuid IS NOT NULL THEN false ELSE category_needs_review END,
+              updated_at = CURRENT_TIMESTAMP
+       WHERE id = ANY($2) RETURNING id`,
       [category_id || null, ids]
     );
     clearSearchCaches();
@@ -7982,6 +7985,7 @@ app.put('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
         collection = COALESCE($2, collection),
         vendor_id = COALESCE($3, vendor_id),
         category_id = COALESCE($4, category_id),
+        category_needs_review = CASE WHEN $4::uuid IS NOT NULL THEN false ELSE category_needs_review END,
         brand_id = COALESCE($5, brand_id),
         status = COALESCE($6, status),
         description_short = COALESCE($7, description_short),
