@@ -32420,7 +32420,20 @@ cron.schedule('0 7 * * *', async () => {
         // Guard against a status change between the query and now.
         if (!bundle || bundle.estimate.status !== 'sent') continue;
         const rep = { first_name: row.rep_first_name, last_name: row.rep_last_name, email: row.rep_email };
-        const emailResult = await sendEstimateSent(estimateEmailData(bundle, rep), { reminder: true });
+        // Attach the branded estimate PDF, same as the initial send. If
+        // rendering fails, the reminder still goes out without it.
+        let attachments;
+        try {
+          const pdfBuffer = await generatePDFBuffer(buildEstimatePdfHtml(bundle));
+          attachments = [{
+            filename: `Roma-Estimate-${bundle.estimate.estimate_number || String(bundle.estimate.id).substring(0, 8)}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
+          }];
+        } catch (pdfErr) {
+          console.error('[Cron] Estimate reminder PDF attachment failed — sending without it:', pdfErr.message);
+        }
+        const emailResult = await sendEstimateSent(estimateEmailData(bundle, rep), { reminder: true, attachments });
         // Only stamp/log on a real send so an unconfigured SMTP box retries once
         // it's wired up, rather than silently burning the single reminder.
         if (emailResult && emailResult.sent) {
