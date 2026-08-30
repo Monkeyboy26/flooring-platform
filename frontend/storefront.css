@@ -1,6 +1,6 @@
 /* ── RESET & VARIABLES ── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html { scroll-behavior: smooth; overflow-x: clip; }
+html { overflow-x: clip; }
 ::selection { background: var(--gold); color: white; }
 *:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .skip-nav { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; z-index: 10001; background: var(--stone-900); color: #fff; padding: 0.75rem 1.5rem; font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; text-decoration: none; border-radius: 0 0 var(--radius-md) 0; }

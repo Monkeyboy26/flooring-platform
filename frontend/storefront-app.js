@@ -3038,6 +3038,7 @@
       fetchSkus({ cat: slug, coll: null, search: "", activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1, sort: "name_asc" });
       fetchFacets({ cat: slug, coll: null, search: "", activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
       pushShopUrl(slug, null, "", {}, false, [], null, null, []);
+      window.scrollTo(0, 0);
     };
     const handleAxisSelect = (attrSlug, value) => {
       setSelectedCategory(null);
