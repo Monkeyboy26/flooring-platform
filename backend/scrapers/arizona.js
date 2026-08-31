@@ -419,8 +419,9 @@ function resolveBestCategory(apiProduct, azCategoryMap, categoryLookup) {
 function classifyVariation(sizeAttr, originalFormatSlug, originalSlabSlug) {
   const size = sizeAttr || '';
   // Explicitly mosaic keywords (subset of MOSAIC_KW without "stack"/"mesh" which
-  // are ambiguous — stacked stone panels can also be mesh-mounted)
-  const MOSAIC_EXPLICIT = /mosaic|hex|penny|basketweave|herringbone|sheet/i;
+  // are ambiguous — stacked stone panels can also be mesh-mounted). Modella is
+  // AZ's mesh-mounted multi-shape pattern format (sold per sheet).
+  const MOSAIC_EXPLICIT = /mosaic|hex|penny|basketweave|herringbone|sheet|modella/i;
   // Mosaic-explicit sizes always win — even inside stacked-stone products,
   // a "2x2 Hex Mosaic" is a mosaic, not a ledger panel.
   if (MOSAIC_EXPLICIT.test(size)) return 'mosaic';
@@ -963,7 +964,7 @@ export async function run(pool, job, source) {
           const hasFieldSize = varSizes.some(s => isFieldTileSize(s));
           // Check if at least one variant has a recognized wall-tile size
           // Handles raw (4x16), WC-slugified (4-x-16), and fractional (2-1-4-x-9-3-4)
-          const WALL_PATTERN = /\b(3-?x-?6|4-?x-?12|4-?x-?16|2-?x-?6|3-?x-?12|3-?x-?9|2\.?5-?x-?8|6-?x-?6|8-?x-?24)\b|\d-\d+-?\d*-x-\d/;
+          const WALL_PATTERN = /\b(3-?x-?6|4-?x-?12|4-?x-?16|2-?x-?6|2-?x-?8|2-?x-?12|2-?x-?16|3-?x-?12|3-?x-?9|2\.?5-?x-?8|6-?x-?6|8-?x-?24)\b|\d-\d+-?\d*-x-\d/;
           const hasWallSize = varSizes.some(s => WALL_PATTERN.test(s));
           if (hasWallSize && !hasFieldSize) {
             categoryId = categoryLookup.get('backsplash-wall');
@@ -1075,8 +1076,19 @@ export async function run(pool, job, source) {
                 if (mosaicId) { effectiveCatId = mosaicId; effectiveCatSlug = 'mosaic-tile'; }
                 if (needsSuffix) effectiveCollection += ' Mosaics';
               } else if (fmt === 'stacked') {
-                const stackedId = categoryLookup.get('stacked-stone');
-                if (stackedId) { effectiveCatId = stackedId; effectiveCatSlug = 'stacked-stone'; }
+                // Porcelain series' "stack" groups (Canyon, Marvel, Shibusa, …)
+                // are mesh-mounted stacked-LOOK mosaic sheets, not stone ledger
+                // — browse them under mosaic-tile. Real stone pages keep
+                // stacked-stone. The " Stacked Stone" collection suffix stays
+                // either way: it names the look, and product identity keys on
+                // (vendor, collection, name).
+                const porcelainStack = apiProduct.categoryIds.some(id => {
+                  const az = azCategoryMap.get(id);
+                  return az && (az.slug === 'porcelain-and-ceramic' || az.slug === 'porcelain-stack');
+                });
+                const stackSlug = porcelainStack ? 'mosaic-tile' : 'stacked-stone';
+                const stackedId = categoryLookup.get(stackSlug);
+                if (stackedId) { effectiveCatId = stackedId; effectiveCatSlug = stackSlug; }
                 if (needsSuffix) effectiveCollection += ' Stacked Stone';
               } else if (fmt === 'paver') {
                 const paverId = categoryLookup.get('pavers');
@@ -1095,6 +1107,46 @@ export async function run(pool, job, source) {
                   }
                 }
                 if (needsSuffix) effectiveCollection += ' Tile';
+              } else if (fmt === 'default' && effectiveCatSlug === 'mosaic-tile') {
+                // Piece-format leftovers of a mosaic-tagged series (Gem fluted
+                // 2x16 strips, S-Series 2x12, Thin Brick 2x8, Atlantic Grey
+                // 4x16 Split): the series page's mesh-mount tags describe the
+                // sibling mosaic groups, not these loose pieces. Demote to the
+                // material category when EVERY size in the group is a clean
+                // integer piece size ≤4" on one side (mesh sheets have
+                // fractional dims — Geometro et al. stay mosaics).
+                const pieceSizes = fmtVariations
+                  .map(e => e.v.attributes?.attribute_pa_size || '')
+                  .filter(s => s && s !== 'sample');
+                const allWallPieces = pieceSizes.length > 0 && pieceSizes.every(s => {
+                  if (MOSAIC_KW.test(s)) return false;
+                  const d = parseSizeDims(s);
+                  return d && Number.isInteger(d[0]) && Number.isInteger(d[1])
+                    && Math.min(d[0], d[1]) <= 4 && Math.max(d[0], d[1]) <= 24;
+                });
+                if (allWallPieces) {
+                  // Strongest non-format material tag. The ≥50 floor skips the
+                  // generic special-order/outer-limits fallbacks so tag-less
+                  // glass mosaic series (Geo-Solid etc.) keep mosaic-tile.
+                  let altSlug = null, altP = 49;
+                  for (const catId of apiProduct.categoryIds) {
+                    const azCat = azCategoryMap.get(catId);
+                    if (!azCat || CATEGORY_SKIP.has(azCat.slug)) continue;
+                    const mapping = CATEGORY_MAP[azCat.slug];
+                    if (!mapping) continue;
+                    const [slug, priority] = mapping;
+                    if (FORMAT_CATS.has(slug) || SLAB_CATEGORIES.has(slug)) continue;
+                    if (priority > altP && categoryLookup.has(slug)) { altP = priority; altSlug = slug; }
+                  }
+                  const fluted = /flut/i.test(`${apiProduct.title} ${apiProduct.description || ''}`);
+                  const target = fluted && categoryLookup.has('fluted-tile') ? 'fluted-tile'
+                    : (!altSlug || altSlug === 'porcelain-tile' || altSlug === 'ceramic-tile')
+                      ? 'backsplash-wall' : altSlug;
+                  if (categoryLookup.has(target)) {
+                    effectiveCatId = categoryLookup.get(target);
+                    effectiveCatSlug = target;
+                  }
+                }
               } else if (slabCollision && SLAB_CATEGORIES.has(effectiveCatSlug)) {
                 effectiveCollection += ' Slab';
               }
@@ -1102,8 +1154,11 @@ export async function run(pool, job, source) {
             // ── Mosaic shape sub-grouping ──
             // For mosaics, group variants by shape/pattern so each shape gets its
             // own product with the shape in the name (e.g., "Bardiglio Herringbone").
+            // Skip for 'stacked' groups routed to mosaic-tile: their sizes hit
+            // shape words ("Straight Stack", "Long Rhomboid") and renaming would
+            // fork existing products.
             const shapeSubGroups = [];
-            if (effectiveCatSlug === 'mosaic-tile') {
+            if (effectiveCatSlug === 'mosaic-tile' && fmt !== 'stacked') {
               const shapeMap = new Map();
               for (const entry of fmtVariations) {
                 const shape = extractMosaicShape(entry.v.attributes?.attribute_pa_size);
