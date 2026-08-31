@@ -22278,6 +22278,8 @@
       const [editingInvoiceNote, setEditingInvoiceNote] = useState(false);
       const [invoiceNoteText, setInvoiceNoteText] = useState('');
       const [savingInvoiceNote, setSavingInvoiceNote] = useState(false);
+      // editingPoNoteId toggles the per-PO note editor; reuses poNoteText/savingPoNote above.
+      const [editingPoNoteId, setEditingPoNoteId] = useState(null);
       // Manual order discount editor (Totals card).
       const [showDiscountEdit, setShowDiscountEdit] = useState(false);
       const [discountType, setDiscountType] = useState('fixed');
@@ -23615,24 +23617,40 @@
                             </div>
                           )}
 
-                          {/* Note to vendor — editable while draft; printed on this PO's PDF */}
+                          {/* Note to vendor — Add/Edit while draft (matches invoice note); printed on this PO's PDF */}
                           <div style={{ padding: '0.5rem 1.125rem 0.75rem', borderTop: '0.5px solid rgba(28,25,23,0.07)' }}>
-                            <div style={{ font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: MUTED, marginBottom: 6 }}>
-                              Note to vendor {'·'} printed on this PO
+                            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+                              <span style={{ font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: MUTED }}>
+                                Note to vendor {'·'} printed on this PO
+                              </span>
+                              {isDraft && editingPoNoteId !== po.id && (
+                                <a onClick={() => { setEditingPoNoteId(po.id); setPoNoteText(po.notes || ''); }}
+                                  style={{ cursor: 'pointer', font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rod-accent)' }}>
+                                  {po.notes ? '✎ Edit' : '+ Add'}
+                                </a>
+                              )}
                             </div>
-                            {isDraft ? (
-                              <textarea
-                                key={'note-' + po.id}
-                                defaultValue={po.notes || ''}
-                                onBlur={async e => {
-                                  const v = e.target.value.trim();
-                                  if (v === (po.notes || '')) return;
-                                  try { await repFetch('/api/rep/purchase-orders/' + po.id, { method: 'PUT', body: JSON.stringify({ notes: v }) }); loadPOs(); }
-                                  catch (err) { alert(err.message || 'Failed to save note'); }
-                                }}
-                                rows={2} maxLength={2000}
-                                placeholder="e.g. Confirm lead time · deliver to will-call · hold for pickup Fri"
-                                style={{ width: '100%', padding: '7px 9px', resize: 'vertical', boxSizing: 'border-box', font: '400 12px/1.5 var(--roma-sans)', color: INK, border: '0.5px solid rgba(28,25,23,0.2)', background: '#fff' }} />
+                            {editingPoNoteId === po.id ? (
+                              <div>
+                                <textarea value={poNoteText} onChange={e => setPoNoteText(e.target.value)} autoFocus rows={2} maxLength={2000}
+                                  placeholder="e.g. Confirm lead time · deliver to will-call · hold for pickup Fri"
+                                  style={{ width: '100%', padding: '7px 9px', resize: 'vertical', boxSizing: 'border-box', font: '400 12px/1.5 var(--roma-sans)', color: INK, border: '0.5px solid rgba(28,25,23,0.2)', background: '#fff' }} />
+                                <div style={{ display: 'flex', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
+                                  <button onClick={() => { setEditingPoNoteId(null); setPoNoteText(''); }}
+                                    style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                                  <button disabled={savingPoNote} onClick={async () => {
+                                    const v = poNoteText.trim();
+                                    setSavingPoNote(true);
+                                    try {
+                                      await repFetch('/api/rep/purchase-orders/' + po.id, { method: 'PUT', body: JSON.stringify({ notes: v }) });
+                                      setEditingPoNoteId(null); setPoNoteText(''); loadPOs();
+                                    } catch (err) { alert(err.message || 'Failed to save note'); }
+                                    setSavingPoNote(false);
+                                  }}
+                                    style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: savingPoNote ? 'default' : 'pointer' }}>
+                                    {savingPoNote ? 'Saving…' : 'Save note'}</button>
+                                </div>
+                              </div>
                             ) : (
                               <div style={{ font: '400 12px/1.5 var(--roma-sans)', color: po.notes ? INK : MUTED, whiteSpace: 'pre-wrap' }}>
                                 {po.notes || 'No note added'}
