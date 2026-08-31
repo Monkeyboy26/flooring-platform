@@ -313,6 +313,11 @@ export const RULES = [
     title: 'Mosaic / stacked stone not sold per sheet',
     severity: 'error',
     async run(pool, { vendorId }) {
+      // Loose stone veneer (MSI Ledgestone/Fieldstone crates, STX "Veneers" and
+      // 4"/6"xRandom strips, engineered-stone flats) legitimately sells by the
+      // sqft — it is not mesh-mounted sheet goods. Completely unpriced SKUs are
+      // call-for-price, not a basis error — the rule only judges priced rows.
+      const VENEER_NAME_RE = '(veneer|fieldstone|ledgestone|\\mashlar\\M|sq rec|engineered stone|\\mrandom\\M)';
       const { rows } = await pool.query(`
         SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
                p.name, s.variant_name, s.sell_by, pr.price_basis, c.slug AS category
@@ -320,8 +325,10 @@ export const RULES = [
           AND c.slug = ANY($2)
           AND s.variant_type IS DISTINCT FROM 'accessory'
           AND p.name !~* $3 AND COALESCE(s.variant_name, '') !~* $3
+          AND p.name !~* $4 AND COALESCE(s.variant_name, '') !~* $4
+          AND pr.cost > 0
           AND (s.sell_by IS DISTINCT FROM 'unit' OR pr.price_basis IS DISTINCT FROM 'per_unit')
-      `, [vendorId, SHEET_SLUGS, TRIM_NAME_RE]);
+      `, [vendorId, SHEET_SLUGS, TRIM_NAME_RE, VENEER_NAME_RE]);
       return rows.map(r => ({
         sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
         summary: `${r.vendor_code}: ${r.category} "${r.name}${r.variant_name ? ' — ' + r.variant_name : ''}" is ${r.sell_by || 'no sell_by'}/${r.price_basis || 'no basis'} — mosaics/ledger sell per sheet (unit/per_unit)`,
