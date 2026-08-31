@@ -2630,7 +2630,8 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
             -- card (mixed stone lines made Natural Stone look full of mosaics). Ranked
             -- below image presence: an imaged mosaic still beats an imageless field tile.
             CASE WHEN c.slug IS DISTINCT FROM 'mosaic-tile'
-                  AND s.variant_name ~* '(mosaic|hexagon|chevron|herringbone|basketweave|penny round|picket|arabesque)'
+                  AND (s.variant_name ~* '(mosaic|hexagon|chevron|herringbone|basketweave|penny round|picket|arabesque)'
+                       OR s.vendor_sku ILIKE 'SMOT-%')
                  THEN 1 ELSE 0 END,
             ${facetDedup}s.created_at
         ) browse_deduped

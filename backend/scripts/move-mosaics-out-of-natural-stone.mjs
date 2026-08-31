@@ -44,6 +44,21 @@ const MOVES = [
   ['BED', 'Crema Marfil Select'],  // display "Crema Marfil Select Wall" — only box SKU is the 10.5x12 hexagon sheet
   ['BED', 'White Carrara'],        // display "White Carrara Wall" — hexagon + mosaic sheets
   ['EMS', 'Opuscar Pebbles Honed'],
+  // Round 2 (2026-08-30): MSI deco/waterjet mosaic sheets hiding behind plain
+  // names — every product is a single SMOT- (Stone MOsaic Tile) sheet SKU, plus
+  // Tetris (deco pattern series). Verified visually against the card images.
+  // msi-unified.js now routes these at source (SMOT every-SKU rule + tetris in
+  // MOSAIC_NAME_PATTERN) so re-scrapes agree.
+  ['MSI', 'Abani Stak'],
+  ['MSI', 'Abani Subway'],
+  ['MSI', 'Zouli Stak'],
+  ['MSI', 'Zouli Subway'],
+  ['MSI', 'Bianco Gridwork'],
+  ['MSI', 'Bianco Starlite'],
+  ['MSI', 'Carrara White Blanco'],
+  ['MSI', 'Carrara White Ellipsis'],
+  ['MSI', 'Carrara White Faceted'],
+  ['MSI', 'Tetris Florita Blanco'],
 ];
 
 async function main() {

@@ -126,7 +126,7 @@ const CATEGORY_MAP = {
 };
 
 // Name patterns that indicate a mosaic product regardless of EDI material classification
-const MOSAIC_NAME_PATTERN = /mosaic|hexagon|herringbone|basketweave|chevron|arabesque|pinwheel|octagon|penny\s*round|picket|pencil|dotty|lynx|fretwork|interlocking|peel.*stick/i;
+const MOSAIC_NAME_PATTERN = /mosaic|hexagon|herringbone|basketweave|chevron|arabesque|pinwheel|octagon|penny\s*round|picket|pencil|dotty|lynx|fretwork|interlocking|peel.*stick|\btetris\b/i;
 
 // Backsplash/subway product series — override 'mosaic' → 'backsplash-wall'
 // (platform-wide canonical wall-tile slug; 'backsplash-tile' is retired)
@@ -951,6 +951,15 @@ async function phase2_edi832(pool, vendorId, source, log) {
     const _resolvedSlug = CATEGORY_MAP[(group.category || '').toLowerCase().trim()] || group.category;
     const _isLedgerPiece = /\b(ledger|rockmount)\b|l panel/i.test(group.baseName);
     if (/^(natural-stone|porcelain-tile|ceramic-tile)$/.test(_resolvedSlug) && MOSAIC_NAME_PATTERN.test(group.baseName) && !_isLedgerPiece) {
+      categoryId = catCache['mosaic-tile'] || categoryId;
+    }
+    // SMOT- = MSI's Stone MOsaic Tile SKU prefix. Deco/waterjet sheets carry plain
+    // names with no mosaic word (Abani Stak, Bianco Starlite, Carrara White Blanco…)
+    // so the name override above misses them and the EDI material class files them
+    // under natural-stone. Every-SKU check so mixed field lines that bundle one
+    // SMOT pencil/pattern SKU (Arabescato Carrara, Calacatta Gold) stay field tile.
+    if (/^(natural-stone|porcelain-tile|ceramic-tile)$/.test(_resolvedSlug) && !_isLedgerPiece
+        && group.items.length && group.items.every(it => /^SMOT-/i.test(it.vendor_sku || ''))) {
       categoryId = catCache['mosaic-tile'] || categoryId;
     }
     if (_isLedgerPiece && /^(natural-stone|porcelain-tile|ceramic-tile)$/.test(_resolvedSlug)) {
