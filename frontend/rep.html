@@ -24209,107 +24209,26 @@
                 </RodCard>
               )}
 
-              {/* Activity — unified qw-thread (system events + internal notes + composer) */}
-              <RodCard title={'Activity' + (orderActivity ? ' · ' + (orderActivity.length + orderNotes.length) : '')}>
+              {/* Activity — system-event ledger (internal notes live in the side rail) */}
+              <RodCard title={'Activity' + (orderActivity ? ' · ' + orderActivity.length : '')}>
                 {orderActivity === null ? (
                   <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading activity...</div>
-                ) : (() => {
-                  // Merge the system event log and internal notes into one thread,
-                  // oldest first — quote-workspace conversation convention.
-                  const thread = [
-                    ...orderActivity.map(e => ({ kind: 'event', ts: e.created_at, e })),
-                    ...orderNotes.map((n, i) => ({ kind: 'note', ts: n.created_at, n, i })),
-                  ].sort((a, b) => new Date(a.ts) - new Date(b.ts));
-                  if (thread.length === 0) {
-                    return <div className="qw-thread-empty">No activity recorded yet</div>;
-                  }
-                  return (
-                    <div className="qw-thread-list">
-                      {thread.map(t => {
-                        if (t.kind === 'event') {
-                          const entry = t.e;
-                          const name = entry.performer_name || 'System';
-                          const initials2 = (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
-                          return (
-                            <div key={'ev-' + entry.id} className="qw-msg">
-                              <div className="qw-msg-avatar">{initials2}</div>
-                              <div style={{ minWidth: 0 }}>
-                                <div className="qw-msg-head">
-                                  <span className="qw-msg-name">{name}</span>
-                                  <span className="qw-msg-time">{rodFmtDT(entry.created_at)}</span>
-                                </div>
-                                <div className="qw-msg-body sys">
-                                  {orderActionLabel(entry.action)}{orderActivityDetail(entry) ? ' · ' + orderActivityDetail(entry) : ''}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
-                        const n = t.n;
-                        const noteName = n.staff_name || 'Roma staff';
-                        const noteInitials = (noteName || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
-                        return (
-                          <div key={'note-' + (n.id || t.i)} className="qw-msg rep">
-                            <div className="qw-msg-avatar">{noteInitials}</div>
-                            <div style={{ minWidth: 0 }}>
-                              <div className="qw-msg-head">
-                                <span className="qw-msg-name">{noteName}</span>
-                                <span className="qw-msg-time">{n.created_at ? rodFmtDT(n.created_at) : ''}</span>
-                                <span className="qw-msg-tag">Internal note</span>
-                                {n.id && n.staff_id === repInfo.id && editingNoteId !== n.id && (
-                                  <span className="qw-msg-time">
-                                    <a onClick={() => { setEditingNoteId(n.id); setEditNoteText(n.note); }}
-                                      style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--rod-muted)' }}>Edit</a>
-                                    <span style={{ margin: '0 5px', color: 'var(--rod-muted)' }}>·</span>
-                                    <a onClick={() => deleteNote(n)}
-                                      style={{ cursor: 'pointer', textDecoration: 'underline', color: 'var(--rod-red)' }}>Delete</a>
-                                  </span>
-                                )}
-                              </div>
-                              {editingNoteId === n.id ? (
-                                <div style={{ marginTop: 4 }}>
-                                  <textarea value={editNoteText} onChange={e => setEditNoteText(e.target.value)} autoFocus
-                                    style={{ width: '100%', minHeight: 46, padding: 8, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
-                                  <div style={{ display: 'flex', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
-                                    <button onClick={() => { setEditingNoteId(null); setEditNoteText(''); }}
-                                      style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
-                                    <button disabled={!editNoteText.trim()} onClick={() => saveNoteEdit(n)}
-                                      style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: 'pointer' }}>Save</button>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="qw-msg-body note">{n.note}</div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-                <div className="qw-composer">
-                  <textarea rows={2} maxLength={2000} placeholder="Add a note — visible only to Roma staff…"
-                    value={orderNoteText} onChange={e => setOrderNoteText(e.target.value)} disabled={savingOrderNote} />
-                  <div className="qw-composer-bar">
-                    <span className="qw-composer-hint">Internal record — nothing here emails the customer</span>
-                    <div className="qw-composer-actions">
-                      <button className="qw-composer-btn" disabled={!orderNoteText.trim() || savingOrderNote} onClick={async () => {
-                        setSavingOrderNote(true);
-                        try {
-                          const data = await repFetch('/api/rep/orders/' + editId + '/notes', {
-                            method: 'POST',
-                            body: JSON.stringify({ note: orderNoteText.trim() })
-                          });
-                          if (data.note) setOrderNotes(prev => [data.note, ...prev]);
-                          setOrderNoteText('');
-                        } catch (err) {}
-                        setSavingOrderNote(false);
-                      }}>
-                        {savingOrderNote ? 'Saving…' : '+ Internal note'}
-                      </button>
-                    </div>
+                ) : orderActivity.length === 0 ? (
+                  <div style={{ padding: '14px 18px', fontSize: '0.8125rem', color: 'var(--stone-400)' }}>No activity recorded yet</div>
+                ) : (
+                  <div style={{ padding: '6px 20px 14px' }}>
+                    {orderActivity.map(entry => (
+                      <div className="rov-activity-row" key={entry.id}>
+                        <RovMicro>{rodFmtDT(entry.created_at)}</RovMicro>
+                        <span className="rov-activity-dot" />
+                        <span style={{ font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }}>
+                          {orderActionLabel(entry.action)}{orderActivityDetail(entry) ? ' · ' + orderActivityDetail(entry) : ''}
+                        </span>
+                        <RovMicro>{entry.performer_name || 'System'}</RovMicro>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
               </RodCard>
 
             </div>
@@ -24679,6 +24598,9 @@
                   })}
                 </div>
               </RodCard>
+
+              {/* Internal notes — side rail (matches quote/estimate/sample workspaces) */}
+              <InternalNotesCard basePath={'/api/rep/orders/' + editId} bg="#f5f0e8" />
 
             </div>
           </div>
