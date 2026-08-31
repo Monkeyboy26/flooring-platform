@@ -338,6 +338,28 @@ export const RULES = [
   },
 
   {
+    key: 'zero-cost-with-retail',
+    title: 'Active SKU sells with a retail price but cost is $0',
+    severity: 'warn',
+    async run(pool, { vendorId }) {
+      // cost is NOT NULL in the schema, so $0 is the de-facto "unknown" — but a
+      // $0 cost under a live retail silently blinds every margin guard
+      // (covering floor, cost-outlier, reports). Surface them.
+      const { rows } = await pool.query(`
+        SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
+               p.name, s.variant_name, pr.retail_price
+        ${SKU_FROM}
+          AND pr.cost = 0 AND pr.retail_price > 0
+      `, [vendorId]);
+      return rows.map(r => ({
+        sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+        summary: `${r.vendor_code}: "${r.name}${r.variant_name ? ' — ' + r.variant_name : ''}" retails at $${r.retail_price} with $0 cost — margin guards blind`,
+        detail: { retail_price: r.retail_price },
+      }));
+    },
+  },
+
+  {
     key: 'nonstandard-units',
     title: 'Nonstandard sell_by or price_basis value',
     severity: 'error',

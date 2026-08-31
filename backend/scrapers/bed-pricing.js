@@ -166,7 +166,7 @@ function extractPdfText(pdfPath) {
  *
  * We extract: series name, size, finish (from description), unit, net price.
  */
-function parsePriceList(text) {
+export function parsePriceList(text) {
   const entries = [];
   const lines = text.split('\n');
 
@@ -330,7 +330,7 @@ function extractFinish(description) {
  * DB:  '12" x 24"', '8.5" x 10"', '0.5" x 8"', '2.5" x 12"'
  * Output: "12x24", "8.5x10", "0.5x8", "2.5x12"
  */
-function normalizeSize(size) {
+export function normalizeSize(size) {
   if (!size) return '';
   let s = size
     .replace(/["\s]/g, '')   // Remove quotes and spaces
@@ -383,7 +383,7 @@ async function loadSkusWithAttributes(pool, vendorId) {
  * Strip diacritics/accents and special characters for fuzzy matching.
  * "Cloé" → "cloe", "Le Café" → "le cafe", "90°" → "90"
  */
-function normalizeSeriesName(name) {
+export function normalizeSeriesName(name) {
   return name
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')  // Strip combining diacritics
