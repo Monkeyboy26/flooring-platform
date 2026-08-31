@@ -187,8 +187,13 @@ app.post('/api/dev/lowes-harvest', express.text({ type: '*/*', limit: '50mb' }),
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:3000').split(',').map(s => s.trim());
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) callback(null, true);
-    else callback(new Error('Not allowed by CORS'));
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    // Unlisted origin: omit CORS headers rather than erroring. Browsers send
+    // Origin on ALL POSTs (even same-origin), so throwing here 500s every POST
+    // from any host not in the allowlist — e.g. phone → Mac LAN IP, or prod
+    // domain missing from CORS_ORIGINS. Cross-origin callers are still blocked
+    // client-side by the missing Access-Control-Allow-Origin header.
+    callback(null, false);
   },
   credentials: true
 }));

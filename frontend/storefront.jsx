@@ -15,7 +15,10 @@
     function getSessionId() {
       let id = localStorage.getItem('cart_session_id');
       if (!id) {
-        id = 'sess_' + crypto.randomUUID();
+        // crypto.randomUUID is secure-context-only (and iOS Safari 15.4+) — absent on
+        // http:// LAN/IP visits and older mobile browsers; without the fallback the
+        // whole app crashes at mount ("Something Went Wrong" on every page).
+        id = 'sess_' + ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Math.random().toString(36).slice(2) + Date.now().toString(36)));
         try { localStorage.setItem('cart_session_id', id); } catch(e) { /* quota exceeded */ }
       }
       return id;
@@ -3503,11 +3506,25 @@
         setSortBy(newSort);
         setCurrentPage(1);
         fetchSkus({ sort: newSort, page: 1 });
+        // Sort resets to page 1 but doesn't rebuild the URL — drop a stale ?page=
+        const sortUrl = new URL(window.location.href);
+        if (sortUrl.searchParams.has('page')) {
+          sortUrl.searchParams.delete('page');
+          history.replaceState({ ...(history.state || {}), page: 1 }, '', sortUrl.pathname + sortUrl.search);
+        }
       };
 
       const handlePageChange = (page) => {
         setCurrentPage(page);
         fetchSkus({ page });
+        // Mirror the page into the URL so a refresh (or shared link) lands on the
+        // same page instead of resetting to 1. Filter/category/sort changes go
+        // through pushShopUrl, which builds a fresh URL without ?page= — correct,
+        // since they all reset to page 1.
+        const pageUrl = new URL(window.location.href);
+        if (page > 1) pageUrl.searchParams.set('page', String(page));
+        else pageUrl.searchParams.delete('page');
+        history.replaceState({ ...(history.state || {}), page }, '', pageUrl.pathname + pageUrl.search);
         window.scrollTo(0, 0);
       };
 
@@ -3589,7 +3606,9 @@
           setSelectedCollection(slug);
           setCollVendor(cv);
           setView('browse');
-          fetchSkus({ coll: slug, collVendor: cv, activeFilters: {}, tags: [] });
+          const collPg = Math.max(1, parseInt(sp.get('page'), 10) || 1);
+          if (collPg > 1) setCurrentPage(collPg);
+          fetchSkus({ coll: slug, collVendor: cv, activeFilters: {}, tags: [], page: collPg });
           fetchFacets({ coll: slug, collVendor: cv, activeFilters: {}, tags: [] });
         } else if (path === '/trade/apply') {
           setView('trade-apply');
@@ -3645,7 +3664,7 @@
           const coll = sp.get('collection');
           const collVendor = sp.get('collection_vendor');
           const q = sp.get('q');
-          const reserved = ['category', 'collection', 'collection_vendor', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags'];
+          const reserved = ['category', 'collection', 'collection_vendor', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags', 'page'];
           const af = {};
           sp.forEach((val, key) => {
             if (!reserved.includes(key)) af[key] = val.split('|');
@@ -3654,6 +3673,7 @@
           const prMin = sp.get('price_min') ? parseFloat(sp.get('price_min')) : null;
           const prMax = sp.get('price_max') ? parseFloat(sp.get('price_max')) : null;
           const tf = sp.get('tags') ? sp.get('tags').split('|') : [];
+          const pg = Math.max(1, parseInt(sp.get('page'), 10) || 1);
           if (cat) setSelectedCategory(cat);
           if (coll) setSelectedCollection(coll);
           setCollVendor(coll ? collVendor : null);
@@ -3662,8 +3682,9 @@
           if (vf.length) setVendorFilters(vf);
           if (tf.length) setTagFilters(tf);
           if (prMin != null || prMax != null) setUserPriceRange({ min: prMin, max: prMax });
-          if (cat || coll || q || Object.keys(af).length > 0 || vf.length > 0 || tf.length > 0) {
-            fetchSkus({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, sort: q ? 'relevance' : undefined });
+          if (pg > 1) setCurrentPage(pg);
+          if (cat || coll || q || Object.keys(af).length > 0 || vf.length > 0 || tf.length > 0 || pg > 1) {
+            fetchSkus({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg, sort: q ? 'relevance' : undefined });
             fetchFacets({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
             // Fetch related searches & matching categories for URL-based search
             if (q) {
@@ -3735,7 +3756,7 @@
               const coll = sp2.get('collection');
               const collVendor = sp2.get('collection_vendor');
               const q = sp2.get('q');
-              const reserved2 = ['category', 'collection', 'collection_vendor', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags'];
+              const reserved2 = ['category', 'collection', 'collection_vendor', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags', 'page'];
               const af = {};
               sp2.forEach((val, key) => {
                 if (!reserved2.includes(key)) af[key] = val.split('|');
@@ -3744,6 +3765,7 @@
               const prMin = sp2.get('price_min') ? parseFloat(sp2.get('price_min')) : null;
               const prMax = sp2.get('price_max') ? parseFloat(sp2.get('price_max')) : null;
               const tf = sp2.get('tags') ? sp2.get('tags').split('|') : [];
+              const pg2 = Math.max(1, parseInt(sp2.get('page'), 10) || 1);
               setSelectedCategory(cat);
               setSelectedCollection(coll);
               setCollVendor(coll ? collVendor : null);
@@ -3752,8 +3774,8 @@
               setVendorFilters(vf);
               setTagFilters(tf);
               setUserPriceRange({ min: prMin, max: prMax });
-              setCurrentPage(1);
-              fetchSkusRef.current({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: 1 });
+              setCurrentPage(pg2);
+              fetchSkusRef.current({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg2 });
               fetchFacetsRef.current({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
             }
           }
