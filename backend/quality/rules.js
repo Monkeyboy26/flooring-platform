@@ -328,6 +328,10 @@ export const RULES = [
           AND p.name !~* $4 AND COALESCE(s.variant_name, '') !~* $4
           AND pr.cost > 0
           AND (s.sell_by IS DISTINCT FROM 'unit' OR pr.price_basis IS DISTINCT FROM 'per_unit')
+          -- the per-piece stone model (unit + per_sqft rate + packaged piece
+          -- area) is also legitimate here: piece price = rate × area at runtime
+          AND NOT (s.sell_by = 'unit' AND pr.price_basis = 'per_sqft'
+                   AND COALESCE(pk.pieces_per_box, 0) = 1 AND COALESCE(pk.sqft_per_box, 0) > 0)
       `, [vendorId, SHEET_SLUGS, TRIM_NAME_RE, VENEER_NAME_RE]);
       return rows.map(r => ({
         sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
