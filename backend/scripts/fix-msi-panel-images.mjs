@@ -43,7 +43,9 @@ import pg from 'pg';
 
 const DRY_RUN = process.argv.includes('--dry-run');
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DAM_DIR = path.resolve(__dirname, '..', '..', 'uploads', 'msi-dam');
+// In the api container uploads mounts at $UPLOADS_PATH (/app/uploads), not ../../uploads
+const UPLOADS_BASE = process.env.UPLOADS_PATH || path.resolve(__dirname, '..', '..', 'uploads');
+const DAM_DIR = path.join(UPLOADS_BASE, 'msi-dam');
 const CDN = 'https://cdn.msisurfaces.com/images';
 
 const pool = new pg.Pool({
