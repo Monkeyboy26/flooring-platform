@@ -7361,6 +7361,7 @@ app.post('/api/admin/enrichment/review/:id', staffAuth, requireRole('admin', 'ma
       // Apply the categorization
       await pool.query(
         `UPDATE products SET category_id = (SELECT id FROM categories WHERE slug = $2),
+                category_source = 'classifier',
                 updated_at = CURRENT_TIMESTAMP
          WHERE id = $1 AND category_id IS NULL
            AND EXISTS (SELECT 1 FROM categories WHERE slug = $2)`,
@@ -7758,6 +7759,7 @@ app.patch('/api/admin/products/bulk/category', staffAuth, requireRole('admin', '
     const result = await pool.query(
       `UPDATE products SET category_id = $1,
               category_needs_review = CASE WHEN $1::uuid IS NOT NULL THEN false ELSE category_needs_review END,
+              category_source = CASE WHEN $1::uuid IS NOT NULL THEN 'manual' ELSE category_source END,
               updated_at = CURRENT_TIMESTAMP
        WHERE id = ANY($2) RETURNING id`,
       [category_id || null, ids]
@@ -7998,6 +8000,7 @@ app.put('/api/admin/products/:id', staffAuth, requireRole('admin', 'manager'), a
         vendor_id = COALESCE($3, vendor_id),
         category_id = COALESCE($4, category_id),
         category_needs_review = CASE WHEN $4::uuid IS NOT NULL THEN false ELSE category_needs_review END,
+        category_source = CASE WHEN $4::uuid IS NOT NULL THEN 'manual' ELSE category_source END,
         brand_id = COALESCE($5, brand_id),
         status = COALESCE($6, status),
         description_short = COALESCE($7, description_short),
@@ -11504,6 +11507,21 @@ async function runScraper(source, configOverride = null) {
         const vsRes = await pool.query('SELECT vendor_id FROM vendor_sources WHERE id = $1', [source.id]);
         const scrapeVendorId = vsRes.rows[0]?.vendor_id;
         if (scrapeVendorId) {
+          // Tile-leaf validator BEFORE the audit: auto-corrects wrong tile
+          // leaves on strong structural evidence (never touches pinned
+          // category_source='manual' products), so the audit only reports what
+          // auto-fix deliberately skipped. See quality/tileLeafValidator.js.
+          try {
+            const { validateTileLeaves } = await import('./quality/tileLeafValidator.js');
+            const tlv = await validateTileLeaves(pool, { vendorId: scrapeVendorId, apply: true });
+            if (tlv.moved.length || tlv.flagged.length || tlv.cleared.length) {
+              console.log(`[Quality] tile-leaf validator after ${source.scraper_key}: ` +
+                `${tlv.moved.length} moved, ${tlv.flagged.length} flagged, ${tlv.cleared.length} review flags cleared`);
+              for (const m of tlv.moved) {
+                console.log(`[Quality]   moved ${m.vendor_code} "${m.name}": ${m.from} → ${m.to} (${m.reasons.join('; ')})`);
+              }
+            }
+          } catch (tlvErr) { console.error('Tile-leaf validation failed:', tlvErr.message); }
           const audit = await runQualityAuditExclusive({
             vendorId: scrapeVendorId,
             triggeredBy: `scrape:${source.scraper_key}`,
@@ -32298,6 +32316,17 @@ cron.schedule('*/30 * * * *', async () => {
 // that the per-vendor post-scrape hooks don't see. Alerts only on new findings.
 cron.schedule('45 5 * * *', async () => {
   try {
+    // Tile-leaf validator first (auto-fix strong / report weak), so the audit
+    // that follows only surfaces what auto-fix skipped.
+    try {
+      const { validateTileLeaves } = await import('./quality/tileLeafValidator.js');
+      const tlv = await validateTileLeaves(pool, { apply: true });
+      console.log(`[Quality] Nightly tile-leaf validator: checked ${tlv.checked}, ` +
+        `${tlv.moved.length} moved, ${tlv.flagged.length} flagged, ${tlv.cleared.length} review flags cleared`);
+      for (const m of tlv.moved) {
+        console.log(`[Quality]   moved ${m.vendor_code} "${m.name}": ${m.from} → ${m.to} (${m.reasons.join('; ')})`);
+      }
+    } catch (tlvErr) { console.error('[Quality] Nightly tile-leaf validation failed:', tlvErr.message); }
     const audit = await runQualityAuditExclusive({ triggeredBy: 'cron' });
     console.log(`[Quality] Nightly audit: ${audit.newCount} new, ${audit.fixedCount} fixed, ${audit.openTotal} open`);
     if (audit.newCount + audit.reopenedCount > 0) {

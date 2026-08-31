@@ -133,7 +133,13 @@ CREATE TABLE products (
     -- Set true by the categoryClassifier safety net (lib/categoryClassifier.js)
     -- when a product's leaf category is a best-guess (no confident keyword match).
     -- Surfaced by the category-needs-review quality rule for human confirmation.
-    category_needs_review BOOLEAN DEFAULT false
+    category_needs_review BOOLEAN DEFAULT false,
+    -- Who decided category_id: 'vendor' = scraper taxonomy, 'classifier' = the
+    -- central net/validator (lib/categoryClassifier.js, quality/tileLeafValidator.js),
+    -- 'manual' = human or fix script — PINNED: scrapers and the validator never
+    -- overwrite a manual category.
+    category_source TEXT NOT NULL DEFAULT 'vendor'
+        CHECK (category_source IN ('vendor', 'classifier', 'manual'))
 );
 
 CREATE UNIQUE INDEX products_slug_unique ON products (slug) WHERE slug IS NOT NULL;

@@ -122,6 +122,218 @@ const TILE_RULES = [
   { slug: 'pavers', re: /\bpaver\b|\bcoping\b|cobble|artificial ?turf/ },
 ];
 
+// ── Tile-family evidence resolver ───────────────────────────────────────────
+// The tile leaves encode two orthogonal axes: FORM FACTOR (field tile / mesh
+// mosaic sheet / ledger panel / paver / trim / slab / wall format) and MATERIAL
+// (porcelain / ceramic / natural stone / glass). Every historical crossover
+// (mesh mosaics filed as porcelain-tile, stone field lines filed as
+// mosaic-tile, ledgers in natural-stone) came from classifying one axis and
+// ignoring the other. classifyTileLeaf() resolves FORM first from structural
+// evidence (names + sell basis + sheet packaging), then splits field tile by
+// material. It powers the post-scrape validator (quality/tileLeafValidator.js),
+// the tile-leaf-mismatch quality rule and the validate-tile-leaves CLI — one
+// ruleset, so detection == prevention == fix.
+
+// Free-text vendor material → canonical family. Returns null when the value
+// carries no material signal ("re1") or describes form, not material
+// ("mosaic", "pebble"). NOTE: the `look` attribute is NOT material evidence —
+// look=marble is porcelain that looks like marble.
+export function canonicalMaterial(text) {
+  const s = (text || '').toLowerCase();
+  if (!s) return null;
+  if (/engineer/.test(s)) return null;               // "engineer marble" is not stone
+  if (/porcelain|colorbody|color body|gres|stoneware|quarry|e-quarry/.test(s)) return 'porcelain';
+  if (/ceramic|wall body|white body|red body|terracotta/.test(s)) return 'ceramic';
+  if (/marble|travertine|limestone|\bslate\b|granite|quartzite|basalt|dolomite|onyx|sandstone|\bpebble|natural stone|\bstone\b/.test(s)) return 'stone';
+  if (/glass/.test(s)) return 'glass';
+  if (/metal|aluminum|stainless/.test(s)) return 'metal';
+  return null;
+}
+
+const TILE_FAMILY_LEAVES = new Set([
+  'porcelain-tile', 'ceramic-tile', 'mosaic-tile', 'natural-stone', 'stacked-stone',
+  'backsplash-wall', 'backsplash-tile', 'fluted-tile', 'wood-look-tile', 'pavers',
+  'pool-tile', 'large-format-tile', 'commercial-tile', 'artificial-turf', 'hardscaping',
+]);
+
+const MOSAIC_NAME_RE = /\bmosaics?\b|\bmosaico\b|\bmalla\b|\bmesh([ -](mounted|backed))?\b|penny ?round|\bpennyround\b|hex(agon)? mosaic|picket|basket ?weave|\bpebbles?\b|standing pebble|\bchevron mosaic|herringbone mosaic|\bmini brick\b|\bsmot\b/;
+// Ledger/stacked-stone panels are ALSO mesh-backed and sold per sheet (see
+// selling-conventions), so panel words must be checked before any per-sheet
+// packaging is read as mosaic evidence.
+const LEDGER_NAME_RE = /\bledgers?\b|stack(ed)? ?stone|\bl ?panel\b|rockmount|\bveneer panel\b|split ?face|\b3d (mini )?panel\b|\bpanels?\b/;
+// Loose veneer is palletized rubble, not a mesh sheet — never per-sheet, and a
+// box-sold veneer product is NOT field-tile evidence (see mosaic-not-per-sheet
+// rule exclusions).
+const LOOSE_VENEER_RE = /fieldstone|ledgestone|\bashlar\b|random strip|loose veneer|thin veneer/;
+const TRIM_NAME_RE = /bullnose|pencil ?liner|\bv-?cap\b|mud ?cap|chair rail|\blistello\b|\bbeak\b|shark ?nose|quarter ?round|cove base|\bthresholds?\b|window ?sills?|\bout(side)? corner\b|\bin(side)? corner\b/;
+const PAVER_NAME_RE = /\bpavers?\b|\bcobble(stone)?\b|remodel pool/;
+const COPING_NAME_RE = /\bcoping\b/;
+const SLAB_NAME_RE = /\bslab\b|\b[23] ?cm\b/;
+const STONE_NAME_RE = /travertine|\bmarble\b|limestone|\bslate\b|\bgranite\b|quartzite|\bbasalt\b|dolomite|\bonyx\b|sandstone|\btrav\b/;
+const WOOD_LOOK_RE = /wood ?look|\bwood plank\b/;
+// Wall formats (2x8, 2x12, 3x6, 4x12, 4x16…): suggestive of backsplash-wall but
+// the catalog legitimately keeps wall-body tile in ceramic-tile too, so this
+// only ever yields a WEAK suggestion.
+const WALL_SIZE_RE = /\b[2-4]\s*x\s*(6|8|10|12|16)\b/;
+
+// Sheet-sized piece: a mesh sheet is 0.25–4.6 sqft. (Same window the
+// mosaic-not-per-sheet rule and fix-mosaic-per-sheet.mjs use.)
+export const SHEET_AREA_MIN = 0.25, SHEET_AREA_MAX = 4.6;
+
+function frac(n, d) { return d > 0 ? n / d : 0; }
+
+// Evidence, aggregated per product over its ACTIVE skus:
+//   name, collection, currentLeaf
+//   materials     : raw material attribute values (one per sku, may be empty)
+//   looks         : raw look attribute values
+//   variantNames  : sku variant names
+//   totalSkus, unitSkus, boxSkus
+//   sheetAreaSkus : skus sold per unit (per_unit basis) whose piece area is in
+//                   the sheet window — the structural "this is a mesh sheet"
+//   perSqftUnitSkus: unit skus priced per_sqft (the per-piece stone model —
+//                   large stone pieces, NOT sheets)
+// Returns { slug, confidence: 'strong'|'weak'|null, reasons: [] }.
+//   slug === currentLeaf (confidence null) means the evidence confirms the
+//   current leaf; reasons then say why (used to clear stale needs_review).
+export function classifyTileLeaf(ev) {
+  const name = `${ev.name || ''} ${ev.collection || ''}`.toLowerCase();
+  const variants = (ev.variantNames || []).map(v => (v || '').toLowerCase());
+  const total = ev.totalSkus || 0;
+  const mats = (ev.materials || []).map(canonicalMaterial).filter(Boolean);
+  const matCounts = {};
+  for (const m of mats) matCounts[m] = (matCounts[m] || 0) + 1;
+  const domMaterial = Object.entries(matCounts).sort((a, b) => b[1] - a[1])[0];
+  // Dominant material must describe ≥80% of the skus that have one.
+  const material = domMaterial && domMaterial[1] >= mats.length * 0.8 ? domMaterial[0] : null;
+  const rawMaterials = (ev.materials || []).join(' ').toLowerCase();
+
+  const nameMosaic = MOSAIC_NAME_RE.test(name);
+  const variantMosaicFrac = frac(variants.filter(v => MOSAIC_NAME_RE.test(v)).length, variants.length || 1);
+  // Mosaic material must describe the product, not one variant: Daltile lines
+  // deliberately mix mosaic variants (material "Glazed Mosaics") into field
+  // products — that's normal structure, not a miscategorization.
+  const mosaicMatFrac = frac((ev.materials || []).filter(m => /mosaic|pebble/i.test(m || '')).length,
+    (ev.materials || []).length || 1);
+  const materialMosaic = mosaicMatFrac >= 0.8 && (ev.materials || []).length > 0;
+  const sheetFrac = frac(ev.sheetAreaSkus || 0, total);
+  const boxFrac = frac(ev.boxSkus || 0, total);
+  const looseVeneer = LOOSE_VENEER_RE.test(name);
+  const ledgerName = LEDGER_NAME_RE.test(name);
+  const woodLook = WOOD_LOOK_RE.test(name) || (ev.looks || []).some(l => /wood/.test((l || '').toLowerCase()));
+
+  const out = (slug, confidence, reasons) =>
+    ({ slug, confidence: slug === ev.currentLeaf ? null : confidence, reasons });
+
+  // ── Form factor, most-specific first ──────────────────────────────────────
+  if (TRIM_NAME_RE.test(name)) {
+    return out('trim-accessories', 'strong', ['trim keywords in product name']);
+  }
+  // Porcelain/ceramic "stacked stone LOOK" mesh sheets are mosaics, not
+  // ledgers (AZT convention: "Marvel Stacked Stone" straight-stack mesh →
+  // mosaic-tile). Only skip to the ledger branch when the product isn't a
+  // manufactured mesh sheet.
+  const meshVariant = nameMosaic || variantMosaicFrac > 0
+    || variants.some(v => /\bmesh\b/.test(v));
+  const manufactured = material === 'porcelain' || material === 'ceramic' || material === 'glass';
+  if ((looseVeneer || ledgerName)
+      && !(meshVariant && (manufactured || sheetFrac >= 0.8 || ev.currentLeaf === 'mosaic-tile'))
+      // "Stacked stone" on a product already in mosaic-tile is a LOOK word
+      // (AZT stack mesh convention) unless the material really is stone
+      // (BED marble-ledger-in-mosaic case).
+      && (ev.currentLeaf !== 'mosaic-tile' || material === 'stone')) {
+    // Ledger/panel words are only decisive TOGETHER WITH stone material —
+    // without material data a "Stacked Stone" line can just as well be a
+    // porcelain stack-look mesh (AZT), so it flags instead of moving.
+    const explicit = /\bledgers?\b|stack(ed)? ?stone|rockmount|split ?face/.test(name);
+    return out('stacked-stone',
+      explicit && material === 'stone' && !meshVariant && !looseVeneer ? 'strong' : 'weak',
+      [looseVeneer ? 'loose-veneer name' : 'ledger/panel name']);
+  }
+  if (COPING_NAME_RE.test(name)) {
+    return out('pool-coping', 'strong', ['coping in product name']);
+  }
+  if (PAVER_NAME_RE.test(name)) {
+    // "Cobble"/"Brick" style names show up on interior brick-look tile —
+    // strong only with outdoor corroboration (2cm/paver word proper).
+    const strongPaver = /\bpavers?\b/.test(name) && /\b2 ?cm\b|\b20 ?mm\b|outdoor|exterior/.test(name);
+    return out('pavers', strongPaver ? 'strong' : 'weak', ['paver name']);
+  }
+
+  // Mosaic detection only fires FROM field-tile leaves. Other leaves hold
+  // mesh/per-sheet products by design (stacked-stone panels, fluted-tile mesh,
+  // backsplash-wall thin brick, pool-tile penny rounds) — the application/form
+  // axis outranks "it's on a mesh sheet" there (AZT fix direction).
+  const FIELD_LEAVES = ['porcelain-tile', 'ceramic-tile', 'natural-stone', 'wood-look-tile', 'large-format-tile'];
+  {
+    const signals = [];
+    if (nameMosaic || variantMosaicFrac >= 0.8) signals.push('mosaic name');
+    if (sheetFrac >= 0.8 && total >= 1) signals.push(`per-sheet packaging ×${ev.sheetAreaSkus}/${total} skus`);
+    if (materialMosaic) signals.push('mosaic material attribute');
+    const fieldContradiction = boxFrac >= 0.5 && !nameMosaic;
+    if (signals.length && !fieldContradiction
+        && (ev.currentLeaf === 'mosaic-tile' || FIELD_LEAVES.includes(ev.currentLeaf))) {
+      return out('mosaic-tile', signals.length >= 2 ? 'strong' : 'weak', signals);
+    }
+  }
+
+  if (SLAB_NAME_RE.test(name)) {
+    return out('porcelain-slabs', 'weak', ['slab/2cm name']); // gauged panels vs pavers is fuzzy — flag only
+  }
+
+  // ── Field tile: current leaf must match the material axis ─────────────────
+  // A field product sitting in mosaic-tile (the BED failure mode). Field-model
+  // selling (box-sold, or the per-piece stone model: unit + per_sqft rate) is
+  // the mandatory precondition — sheet/medallion products never leave
+  // mosaic-tile on material alone.
+  const fieldFrac = frac((ev.boxSkus || 0) + (ev.perSqftUnitSkus || 0), total);
+  if (ev.currentLeaf === 'mosaic-tile'
+      && fieldFrac >= 0.8 && total >= 1
+      && !nameMosaic && variantMosaicFrac < 0.2 && !materialMosaic && sheetFrac < 0.2) {
+    const signals = [`field-model selling ×${(ev.boxSkus || 0) + (ev.perSqftUnitSkus || 0)}/${total} skus`];
+    if (material && material !== 'glass') signals.push(`material=${material}`);
+    const target = material === 'stone' ? 'natural-stone'
+      : material === 'ceramic' ? 'ceramic-tile'
+      : STONE_NAME_RE.test(name) && !material ? 'natural-stone'
+      : woodLook ? 'wood-look-tile' : 'porcelain-tile';
+    return out(target, signals.length >= 2 ? 'strong' : 'weak', signals);
+  }
+
+  // Stone field tile filed under a manufactured leaf. Material attribute is
+  // REQUIRED — vendors constantly name porcelain after stones ("Continental
+  // Slate", "Quebec Onyx"), so the name only corroborates, never decides.
+  if (material === 'stone'
+      && ['porcelain-tile', 'ceramic-tile', 'wood-look-tile', 'backsplash-wall', 'pool-tile'].includes(ev.currentLeaf)) {
+    const signals = ['material=stone'];
+    if (STONE_NAME_RE.test(name)) signals.push('stone name');
+    return out('natural-stone', signals.length >= 2 ? 'strong' : 'weak', signals);
+  }
+
+  // Manufactured field tile filed under natural-stone. Material alone is one
+  // signal → weak (flag, never auto-move); porcelain look-alikes of stone are
+  // common and the name rarely helps.
+  if (ev.currentLeaf === 'natural-stone' && (material === 'porcelain' || material === 'ceramic')
+      && !STONE_NAME_RE.test(name)) {
+    return out(material === 'ceramic' ? 'ceramic-tile' : 'porcelain-tile', 'weak', [`material=${material}`]);
+  }
+
+  // Wall-format hint (weak by design — see WALL_SIZE_RE note).
+  if (['porcelain-tile', 'ceramic-tile'].includes(ev.currentLeaf)
+      && /backsplash/.test(name) && WALL_SIZE_RE.test(name)) {
+    return out('backsplash-wall', 'weak', ['backsplash name + wall format']);
+  }
+
+  // Evidence supports (or at least doesn't contradict) the current leaf.
+  const confirm = [];
+  if (ev.currentLeaf === 'mosaic-tile' && (nameMosaic || sheetFrac >= 0.5 || materialMosaic)) confirm.push('mosaic evidence');
+  if (ev.currentLeaf === 'natural-stone' && (material === 'stone' || STONE_NAME_RE.test(name))) confirm.push('stone evidence');
+  if (ev.currentLeaf === 'stacked-stone' && (ledgerName || looseVeneer)) confirm.push('ledger/panel evidence');
+  if (['porcelain-tile', 'wood-look-tile'].includes(ev.currentLeaf) && material === 'porcelain') confirm.push('porcelain material');
+  if (ev.currentLeaf === 'ceramic-tile' && material === 'ceramic') confirm.push('ceramic material');
+  return { slug: ev.currentLeaf, confidence: null, reasons: confirm };
+}
+
+export { TILE_FAMILY_LEAVES };
+
 // ── MATERIAL splitters for the flooring/countertop parents ──────────────────
 function splitMaterial(family, s) {
   switch (family) {

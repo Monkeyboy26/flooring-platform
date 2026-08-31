@@ -1,0 +1,312 @@
+{
+ "products": [
+  {
+   "id": "97105b8c-2579-4af8-b401-27b0a64b1a15",
+   "name": "Gem Bianco",
+   "collection": "Gem",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "371a38d8-0e5b-4dee-a545-3cba02f4e351",
+   "name": "Gem Cotto",
+   "collection": "Gem",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "0ec334a2-3a9b-4507-9130-813235dce5ee",
+   "name": "Gem Grigio",
+   "collection": "Gem",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "4f1cd3bf-a295-4dbc-9dcb-a58b8b6131e4",
+   "name": "Gem Notte",
+   "collection": "Gem",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "aace4c1e-b1ac-4285-9d78-119458e5593c",
+   "name": "Gem Salvia",
+   "collection": "Gem",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "07410910-f318-49a6-98ce-8119bebd991e",
+   "name": "Gem Tabacco",
+   "collection": "Gem",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "022fb938-3c88-44d3-b967-919ee1839e99",
+   "name": "Gem Verde",
+   "collection": "Gem",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "1392beb1-d23e-4109-a253-ab4f91b8a85c",
+   "name": "Gem Vino",
+   "collection": "Gem",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "ce2c5f3a-2c49-4215-97a1-4b1946269028",
+   "name": "S-Series Canvas White",
+   "collection": "S-Series",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "313b4646-18f3-4411-8ddb-fff0c90d14b4",
+   "name": "S-Series Cloud Blue",
+   "collection": "S-Series",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "f4ec7578-5576-405d-9963-2517b33e05b4",
+   "name": "S-Series Gallery Grey",
+   "collection": "S-Series",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "aec23f07-1b57-4ba2-bf98-06941df70b00",
+   "name": "S-Series Halo Grey",
+   "collection": "S-Series",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "c33a803e-3fb0-47cf-aca5-03c40a725c67",
+   "name": "S-Series Soft Sage",
+   "collection": "S-Series",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "21084574-6c6c-4267-ae0d-6422e9c4cde0",
+   "name": "S-Series Vintage Grey",
+   "collection": "S-Series",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "5e6ddd65-1c63-496d-8d72-4537be87649b",
+   "name": "Thin Brick Skyline",
+   "collection": "Thin Brick",
+   "cat": "mosaic-tile"
+  },
+  {
+   "id": "ff4c3729-805d-4294-9e1a-723123697c08",
+   "name": "Atlantic Grey",
+   "collection": "Atlantic Grey",
+   "cat": "mosaic-tile"
+  }
+ ],
+ "skus": [
+  {
+   "sku_id": "5361823b-224a-49cf-bf71-a32d6c638a8e",
+   "vendor_sku": "333005",
+   "product_id": "371a38d8-0e5b-4dee-a545-3cba02f4e351",
+   "name": "Gem Cotto",
+   "variant_name": "2x16",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "8.37",
+   "retail_price": "13.39",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "1e62fac5-e13f-4ad4-8506-b30576a41098",
+   "vendor_sku": "333007",
+   "product_id": "4f1cd3bf-a295-4dbc-9dcb-a58b8b6131e4",
+   "name": "Gem Notte",
+   "variant_name": "2x16",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "8.37",
+   "retail_price": "13.39",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "cb011682-3824-44f7-8166-03a9180cff88",
+   "vendor_sku": "333009",
+   "product_id": "aace4c1e-b1ac-4285-9d78-119458e5593c",
+   "name": "Gem Salvia",
+   "variant_name": "2x16",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "8.37",
+   "retail_price": "13.39",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "5bdd13e7-a447-4a98-80e6-26b1c586f2df",
+   "vendor_sku": "333011",
+   "product_id": "07410910-f318-49a6-98ce-8119bebd991e",
+   "name": "Gem Tabacco",
+   "variant_name": "2x16",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "8.37",
+   "retail_price": "13.39",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "18039789-adab-40ef-84f5-6aff252fffb0",
+   "vendor_sku": "333013",
+   "product_id": "022fb938-3c88-44d3-b967-919ee1839e99",
+   "name": "Gem Verde",
+   "variant_name": "2x16",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "8.37",
+   "retail_price": "13.39",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "c28e812b-2e1b-4dbf-a07d-f5657a789db2",
+   "vendor_sku": "333015",
+   "product_id": "1392beb1-d23e-4109-a253-ab4f91b8a85c",
+   "name": "Gem Vino",
+   "variant_name": "2x16",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "8.37",
+   "retail_price": "13.39",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "fdc809ef-f348-4892-a0b7-26302180e5fa",
+   "vendor_sku": "333017",
+   "product_id": "97105b8c-2579-4af8-b401-27b0a64b1a15",
+   "name": "Gem Bianco",
+   "variant_name": "2x16",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "8.37",
+   "retail_price": "13.39",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "7dcc98d5-d7d5-4916-b1c5-b44e8ba52357",
+   "vendor_sku": "333019",
+   "product_id": "0ec334a2-3a9b-4507-9130-813235dce5ee",
+   "name": "Gem Grigio",
+   "variant_name": "2x16",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "8.37",
+   "retail_price": "13.39",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "c3b6114c-c150-466d-8f96-7ec6f8b2f50b",
+   "vendor_sku": "324810",
+   "product_id": "ce2c5f3a-2c49-4215-97a1-4b1946269028",
+   "name": "S-Series Canvas White",
+   "variant_name": "2x12, Glossy",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "4.16",
+   "retail_price": "6.59",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "00541bce-5ba3-4432-b2a8-8120a727c14c",
+   "vendor_sku": "324838",
+   "product_id": "313b4646-18f3-4411-8ddb-fff0c90d14b4",
+   "name": "S-Series Cloud Blue",
+   "variant_name": "2x12, Glossy",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "4.16",
+   "retail_price": "6.59",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "eac05b92-22b6-45bc-aed3-1cd68628908e",
+   "vendor_sku": "324856",
+   "product_id": "aec23f07-1b57-4ba2-bf98-06941df70b00",
+   "name": "S-Series Halo Grey",
+   "variant_name": "2x12, Glossy",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "4.16",
+   "retail_price": "6.59",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "ba4ff06f-b294-4b6c-aa2d-fd59a4d50cc5",
+   "vendor_sku": "324859",
+   "product_id": "f4ec7578-5576-405d-9963-2517b33e05b4",
+   "name": "S-Series Gallery Grey",
+   "variant_name": "2x12, Glossy",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "4.16",
+   "retail_price": "6.59",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "8f079070-ac7b-4df0-b1d6-eb0dab3c4c24",
+   "vendor_sku": "324863",
+   "product_id": "c33a803e-3fb0-47cf-aca5-03c40a725c67",
+   "name": "S-Series Soft Sage",
+   "variant_name": "2x12, Glossy",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "4.16",
+   "retail_price": "6.59",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "eed778cc-49e0-4d87-8056-093683739efc",
+   "vendor_sku": "324868",
+   "product_id": "21084574-6c6c-4267-ae0d-6422e9c4cde0",
+   "name": "S-Series Vintage Grey",
+   "variant_name": "2x12, Glossy",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "4.16",
+   "retail_price": "6.59",
+   "sqft_per_box": null,
+   "pieces_per_box": null
+  },
+  {
+   "sku_id": "14a8ee23-913f-4b0d-b9ec-a437a5c056d3",
+   "vendor_sku": "331247",
+   "product_id": "ff4c3729-805d-4294-9e1a-723123697c08",
+   "name": "Atlantic Grey",
+   "variant_name": "4x16, Split",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "4.65",
+   "retail_price": "7.49",
+   "sqft_per_box": "2.2220",
+   "pieces_per_box": 5
+  }
+ ],
+ "reparents": [
+  {
+   "sku_id": "149e7f63-5a91-40cc-acba-eccb162c26fc",
+   "vendor_sku": "331252",
+   "product_id": "ff4c3729-805d-4294-9e1a-723123697c08",
+   "name": "Atlantic Grey",
+   "variant_name": "Modella, Multi Finish",
+   "sell_by": "unit",
+   "price_basis": "per_unit",
+   "cost": "16.79",
+   "retail_price": "26.79",
+   "sqft_per_box": "4.9010",
+   "pieces_per_box": 5
+  }
+ ]
+}

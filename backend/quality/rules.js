@@ -47,19 +47,17 @@ export const NAME_CATEGORY_RULES = [
     pattern: 'bullnose|pencil liner|\\mv-?cap\\M|mud ?cap|chair rail|\\mlistello\\M',
     fireIn: ['porcelain-tile', 'ceramic-tile', 'natural-stone', 'wood-look-tile', 'backsplash-wall',
              'large-format-tile', 'functional-hardware', 'bath-accessories'] },
-  { key: 'mosaic', label: 'a mosaic', target: 'mosaic-tile',
-    pattern: '\\mmosaics?\\M',
-    unless: 'bullnose|pencil liner|trim|\\mv-?cap\\M',
-    fireIn: ['porcelain-tile', 'ceramic-tile', 'natural-stone', 'wood-look-tile', 'large-format-tile', 'pavers'] },
+  // NOTE (2026-08-31): the former 'mosaic', 'penny-hex' and 'ledger' entries
+  // are retired — the tile-leaf-mismatch rule below covers those directions
+  // with structural evidence (sell basis, sheet packaging, material attrs) via
+  // the same resolver the post-scrape validator uses. Non-tile / cross-family
+  // patterns stay here.
   { key: 'ledger', label: 'ledger / stacked stone', target: 'stacked-stone',
     pattern: '\\mledger\\M|stack(ed)? ?stone',
-    fireIn: ['porcelain-tile', 'ceramic-tile', 'natural-stone', 'mosaic-tile', 'hardware-specialty', 'functional-hardware'] },
+    fireIn: ['hardware-specialty', 'functional-hardware'] },
   { key: 'coping', label: 'coping', target: 'pool-coping',
     pattern: '\\mcoping\\M',
     fireIn: ['porcelain-tile', 'ceramic-tile', 'natural-stone', 'pavers'] },
-  { key: 'penny-hex', label: 'a mosaic (penny/hex/picket)', target: 'mosaic-tile',
-    pattern: 'penny round|hexagon mosaic|picket mosaic',
-    fireIn: ['porcelain-tile', 'ceramic-tile', 'natural-stone'] },
   { key: 'carpet-tile', label: 'carpet tile', target: 'carpet-tile',
     pattern: 'carpet ?tile',
     fireIn: ['broadloom-carpet', 'lvp-plank', 'porcelain-tile'] },
@@ -157,6 +155,36 @@ export const RULES = [
         }
       }
       return out;
+    },
+  },
+
+  {
+    key: 'tile-leaf-mismatch',
+    title: 'Tile-family product sits on a leaf its structural evidence contradicts',
+    severity: 'warn',
+    async run(pool, { vendorId }) {
+      // Same evidence + resolver as the post-scrape auto-correct
+      // (quality/tileLeafValidator.js) run in detect-only mode: what remains
+      // here is what auto-fix deliberately skipped — weak evidence, and strong
+      // contradictions on pinned (category_source='manual') products.
+      const { validateTileLeaves } = await import('./tileLeafValidator.js');
+      const res = await validateTileLeaves(pool, { vendorId, apply: false });
+      const vendorIds = new Map(); // vendor_code → vendor_id for findings
+      // Report strong ones too: post-scrape/nightly the validator has already
+      // applied them (so they won't appear here), but a standalone audit run
+      // must still surface them; they auto-close once the validator runs.
+      const findings = [...res.moved, ...res.flagged];
+      if (findings.length) {
+        const { rows } = await pool.query(`SELECT id, code FROM vendors`);
+        for (const r of rows) vendorIds.set(r.code, r.id);
+      }
+      return findings.map(f => ({
+        product_id: f.product_id, vendor_id: vendorIds.get(f.vendor_code) || null,
+        discriminator: f.to,
+        summary: `${f.vendor_code}: "${f.name}" evidence says ${f.to} (${f.reasons.join('; ')}) but sits in ${f.from}` +
+          (f.pinned ? ' [pinned manual]' : ''),
+        detail: { current: f.from, suggested: f.to, confidence: f.confidence, reasons: f.reasons, pinned: f.pinned },
+      }));
     },
   },
 

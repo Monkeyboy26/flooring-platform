@@ -403,13 +403,14 @@ export async function upsertProduct(pool, rawData, opts = {}) {
       INSERT INTO products (vendor_id, name, collection, category_id, brand_id, status, description_short, description_long, slug)
       VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7, $8)
       ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique DO UPDATE SET
-        category_id = COALESCE(EXCLUDED.category_id, products.category_id),
+        category_id = CASE WHEN products.category_source = 'manual' THEN products.category_id
+                           ELSE COALESCE(EXCLUDED.category_id, products.category_id) END,
         brand_id = COALESCE(EXCLUDED.brand_id, products.brand_id),
         description_short = COALESCE(EXCLUDED.description_short, products.description_short),
         description_long = COALESCE(EXCLUDED.description_long, products.description_long),
         slug = COALESCE(products.slug, EXCLUDED.slug),
         updated_at = CURRENT_TIMESTAMP
-      RETURNING id, (xmax = 0) AS is_new, category_id
+      RETURNING id, (xmax = 0) AS is_new, category_id, category_source
     `, [vendor_id, name, collection || '', category_id || null, brand_id || null, description_short || null, description_long || null, slug]);
   } catch (err) {
     // Slug collision — retry without slug (will be assigned by backfill script)
@@ -418,12 +419,13 @@ export async function upsertProduct(pool, rawData, opts = {}) {
         INSERT INTO products (vendor_id, name, collection, category_id, brand_id, status, description_short, description_long)
         VALUES ($1, $2, $3, $4, $5, 'draft', $6, $7)
         ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique DO UPDATE SET
-          category_id = COALESCE(EXCLUDED.category_id, products.category_id),
+          category_id = CASE WHEN products.category_source = 'manual' THEN products.category_id
+                             ELSE COALESCE(EXCLUDED.category_id, products.category_id) END,
           brand_id = COALESCE(EXCLUDED.brand_id, products.brand_id),
           description_short = COALESCE(EXCLUDED.description_short, products.description_short),
           description_long = COALESCE(EXCLUDED.description_long, products.description_long),
           updated_at = CURRENT_TIMESTAMP
-        RETURNING id, (xmax = 0) AS is_new, category_id
+        RETURNING id, (xmax = 0) AS is_new, category_id, category_source
       `, [vendor_id, name, collection || '', category_id || null, brand_id || null, description_short || null, description_long || null]);
     } else {
       throw err;
@@ -439,10 +441,12 @@ export async function upsertProduct(pool, rawData, opts = {}) {
   const productId = result.rows[0].id;
   try {
     const net = await netCategory(pool, { name, collection, categoryId: result.rows[0].category_id });
-    if (net.changed) {
+    if (net.changed && result.rows[0].category_source !== 'manual') {
       await pool.query(
-        `UPDATE products SET category_id = $1, category_needs_review = $2, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3 AND (category_id IS NULL OR category_id = $4)`,
+        `UPDATE products SET category_id = $1, category_needs_review = $2,
+                category_source = 'classifier', updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3 AND (category_id IS NULL OR category_id = $4)
+           AND category_source <> 'manual'`,
         [net.categoryId, net.needsReview, productId, result.rows[0].category_id]
       );
       result.rows[0].category_id = net.categoryId;
