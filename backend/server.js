@@ -18697,6 +18697,7 @@ app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
 
     const pos = await pool.query(`
       SELECT po.id, po.po_number, po.status, po.subtotal, po.vendor_id, po.recipient_email, po.cc_emails, po.notes, po.sent_via,
+        po.approved_at, po.edi_ack_status, po.edi_interchange_id,
         v.name AS vendor_name, v.code AS vendor_code, v.public_code AS vendor_public_code, v.email AS vendor_email,
         (SELECT vc.email FROM vendor_contacts vc WHERE vc.vendor_id = po.vendor_id AND vc.email IS NOT NULL
            ORDER BY vc.is_primary DESC, vc.name LIMIT 1) AS vendor_contact_email,
@@ -18712,7 +18713,8 @@ app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
     if (poIds.length) {
       const items = await pool.query(`
         SELECT poi.id, poi.purchase_order_id, poi.sku_id, poi.product_name, poi.vendor_sku,
-          poi.description, poi.sell_by, poi.qty, poi.cost, poi.subtotal, poi.line_note
+          poi.description, poi.sell_by, poi.qty, poi.cost, poi.subtotal, poi.line_note,
+          poi.status, poi.edi_line_status
         FROM purchase_order_items poi
         WHERE poi.purchase_order_id = ANY($1)
         ORDER BY poi.created_at

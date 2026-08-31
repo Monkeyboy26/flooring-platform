@@ -23496,48 +23496,135 @@
                 }); })()}
               </RodCard>
 
-              {/* Vendor POs — v2 */}
+              {/* Vendor POs — v3 (order-flow card design) */}
               {purchaseOrders.length > 0 && (
                 <RodCard title={'Vendor POs · ' + sentPOCount + ' of ' + purchaseOrders.length + ' transmitted'}>
                   <input type="file" ref={confirmFileRef} onChange={handleConfirmationFile} accept="application/pdf,image/*" style={{ display: 'none' }} />
-                  <div className="rod-po-section">
-                    {posLoading ? <div style={{ padding: '18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading...</div> : purchaseOrders.map(po => {
+                  <div className="rod-po-section" style={{ padding: '0.875rem 1rem 0.25rem' }}>
+                    {posLoading ? <div style={{ padding: '18px', fontSize: '0.8125rem', color: 'var(--rod-muted)' }}>Loading...</div> : purchaseOrders.map((po, gi) => {
                       const chip = poChip(po);
                       const poItems = po.items || [];
                       const receivedCount = poItems.filter(i => i.status === 'received').length;
+                      const isDraft = po.status === 'draft';
+                      const ediSent = po.sent_via === 'edi' || !!po.edi_interchange_id;
+                      const ackLine = poAckLine(po);
+                      const lineAck = poLineAckSummary(po);
+                      const poCost = parseFloat(po.subtotal || 0);
+                      const menuOpen = poMenuOpen === po.id;
+                      const INK = '#1c1917', MUTED = '#8a7e68', GREEN = '#3a7a4e', WARM = '#d8cdb6';
+                      const openPdf = async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number, type: 'po', po: po }); } catch(e) { alert('Failed to load PO'); } };
+                      const qtyUnit = (it) => (it.sell_by === 'unit' || it.sell_by === 'piece') ? 'ea' : (it.sell_by === 'roll' ? 'rl' : 'bx');
                       return (
-                        <div className="rov-po-row" key={po.id}>
-                          <div className="rov-po-code">{(po.vendor_code || po.vendor_name || '?').slice(0, 3).toUpperCase()}</div>
-                          <div>
-                            <div style={{ font: '400 14px/1.2 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
-                              <a style={{ cursor: 'pointer', textDecoration: 'underline rgba(28,25,23,0.2)', color: 'var(--rod-ink)' }}
-                                onClick={async () => { try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number, type: 'po', po: po }); } catch(e) { alert('Failed to load PO'); } }}>{po.po_number}</a>
-                              {' · ' + po.vendor_name + (po.vendor_public_code ? ' · ' + po.vendor_public_code : '')}
+                        <div key={po.id} style={{ border: '0.5px solid rgba(28,25,23,0.15)', background: '#f4efe5', marginBottom: '0.875rem' }}>
+                          {/* Header */}
+                          <div style={{
+                            padding: '0.875rem 1.125rem',
+                            display: 'grid', gridTemplateColumns: showCost ? '1fr auto auto' : '1fr auto', gap: '1.125rem', alignItems: 'center',
+                            borderBottom: '0.5px solid rgba(28,25,23,0.1)',
+                          }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: isDraft ? MUTED : GREEN }}>
+                                <span>PO {gi + 1} of {purchaseOrders.length}</span>
+                                {ediSent && <span style={{ padding: '2px 6px', background: INK, color: '#ece5d8', letterSpacing: '0.12em' }}>EDI 850</span>}
+                              </div>
+                              <div style={{ font: '400 18px/1.2 var(--roma-serif)', color: INK, letterSpacing: '-0.012em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <a style={{ cursor: 'pointer', color: INK, textDecoration: 'underline rgba(28,25,23,0.2)' }} onClick={openPdf}>{po.po_number}</a>
+                                {' · '}{po.vendor_name}{po.vendor_public_code ? <span style={{ color: MUTED, fontSize: 14 }}>{' · '}{po.vendor_public_code}</span> : null}
+                              </div>
+                              <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase', marginTop: 3 }}>
+                                {poItems.length} line{poItems.length !== 1 ? 's' : ''}{receivedCount > 0 ? ' · ' + receivedCount + ' received' : ''} {'·'} {ackLine}
+                              </div>
+                              {lineAck && (
+                                <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.12em', color: 'var(--rod-accent)', textTransform: 'uppercase', marginTop: 2 }}>{lineAck}</div>
+                              )}
                             </div>
-                            <RovMicro style={{ marginTop: 3 }}>
-                              {poChannel(po)}
-                              {po.approved_at ? ' · sent ' + rodFmtDT(po.approved_at) : ' · not sent'}
-                              {' · $' + parseFloat(po.subtotal || 0).toFixed(2)}
-                            </RovMicro>
+                            {showCost && (
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: MUTED }}>Vendor cost</div>
+                                <div style={{ font: '300 22px/1 var(--roma-serif)', color: INK, letterSpacing: '-0.012em', marginTop: 4 }}>${poCost.toFixed(2)}</div>
+                              </div>
+                            )}
+                            <div style={{ textAlign: 'right' }}>
+                              <RovChip tone={chip.tone}>{chip.label}</RovChip>
+                            </div>
                           </div>
-                          <div>
-                            <div style={{ font: '400 13px/1.3 "Inter", sans-serif', color: 'var(--rod-ink)' }}>
-                              {poItems.length} item{poItems.length !== 1 ? 's' : ''}
-                              {receivedCount > 0 ? ' · ' + receivedCount + ' received' : ''}
+
+                          {/* Lines */}
+                          {poItems.length > 0 && (
+                            <div style={{ padding: '0.25rem 1.125rem' }}>
+                              {poItems.map((item, li) => (
+                                <div key={item.id} style={{
+                                  padding: '0.5rem 0',
+                                  display: 'grid', gridTemplateColumns: showCost ? '1fr 62px 72px 80px' : '1fr 62px', gap: '0.75rem', alignItems: 'center',
+                                  borderBottom: li < poItems.length - 1 ? '0.5px solid rgba(28,25,23,0.07)' : 'none',
+                                }}>
+                                  <div style={{ minWidth: 0 }}>
+                                    <div style={{ font: '400 12.5px/1.2 var(--roma-sans)', color: INK, letterSpacing: '-0.005em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {item.product_name || item.description || 'Line item'}
+                                    </div>
+                                    <div style={{ font: '500 8.5px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: MUTED, textTransform: 'uppercase', marginTop: 2 }}>
+                                      {item.vendor_sku || '—'}{item.edi_line_status && item.edi_line_status !== 'accepted' ? ' · ' + item.edi_line_status : ''}
+                                    </div>
+                                  </div>
+                                  <span style={{ textAlign: 'right', font: '400 12px/1.2 var(--roma-serif)', color: INK }}>
+                                    {parseFloat(item.qty || 0)} {qtyUnit(item)}
+                                  </span>
+                                  {showCost && (
+                                    <span style={{ textAlign: 'right', font: '400 12px/1 var(--roma-serif)', color: MUTED }}>${parseFloat(item.cost || 0).toFixed(2)}</span>
+                                  )}
+                                  {showCost && (
+                                    <span style={{ textAlign: 'right', font: '400 13px/1 var(--roma-serif)', color: INK }}>${parseFloat(item.subtotal || 0).toFixed(2)}</span>
+                                  )}
+                                </div>
+                              ))}
                             </div>
-                            <RovMicro style={{ marginTop: 3 }}>{poAckLine(po)}</RovMicro>
-                            {poLineAckSummary(po) && (
-                              <RovMicro style={{ marginTop: 2, color: 'var(--rod-accent)' }}>{poLineAckSummary(po)}</RovMicro>
+                          )}
+
+                          {/* Note to vendor — editable while draft; printed on this PO's PDF */}
+                          <div style={{ padding: '0.5rem 1.125rem 0.75rem', borderTop: '0.5px solid rgba(28,25,23,0.07)' }}>
+                            <div style={{ font: '500 8px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: MUTED, marginBottom: 6 }}>
+                              Note to vendor {'·'} printed on this PO
+                            </div>
+                            {isDraft ? (
+                              <textarea
+                                key={'note-' + po.id}
+                                defaultValue={po.notes || ''}
+                                onBlur={async e => {
+                                  const v = e.target.value.trim();
+                                  if (v === (po.notes || '')) return;
+                                  try { await repFetch('/api/rep/purchase-orders/' + po.id, { method: 'PUT', body: JSON.stringify({ notes: v }) }); loadPOs(); }
+                                  catch (err) { alert(err.message || 'Failed to save note'); }
+                                }}
+                                rows={2} maxLength={2000}
+                                placeholder="e.g. Confirm lead time · deliver to will-call · hold for pickup Fri"
+                                style={{ width: '100%', padding: '7px 9px', resize: 'vertical', boxSizing: 'border-box', font: '400 12px/1.5 var(--roma-sans)', color: INK, border: '0.5px solid rgba(28,25,23,0.2)', background: '#fff' }} />
+                            ) : (
+                              <div style={{ font: '400 12px/1.5 var(--roma-sans)', color: po.notes ? INK : MUTED, whiteSpace: 'pre-wrap' }}>
+                                {po.notes || 'No note added'}
+                              </div>
                             )}
                           </div>
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <RovChip tone={chip.tone}>{chip.label}</RovChip>
-                            {po.status === 'draft' && (
-                              <button className="rov-hbtn" style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => approvePO(po.id)} disabled={poUpdating}>Send</button>
-                            )}
-                            <div style={{ position: 'relative' }}>
-                              <button className="rov-doc-link rov-po-menu-trigger" style={{ fontSize: 15 }} aria-label="PO actions" onClick={() => setPoMenuOpen(m => m === po.id ? null : po.id)}>{'⋯'}</button>
-                              {poMenuOpen === po.id && (
+
+                          {/* Footer */}
+                          <div style={{
+                            padding: '0.625rem 1.125rem', background: WARM,
+                            display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.875rem', alignItems: 'center',
+                          }}>
+                            <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.12em', color: MUTED, textTransform: 'uppercase' }}>
+                              {isDraft
+                                ? 'Draft · not yet transmitted'
+                                : poChannel(po) + (po.approved_at ? ' · sent ' + rodFmtDT(po.approved_at) : '')}
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.375rem', alignItems: 'center', position: 'relative' }}>
+                              {isDraft ? (
+                                <button className="rof-btn-light primary" style={{ padding: '0.375rem 0.875rem' }} onClick={() => approvePO(po.id)} disabled={poUpdating}>
+                                  {'Review & send →'}
+                                </button>
+                              ) : (
+                                <button className="rof-btn-light" style={{ padding: '0.375rem 0.875rem' }} onClick={() => setPoEmailModal(po)} disabled={poUpdating}>Resend</button>
+                              )}
+                              <button className="rof-btn-light" style={{ padding: '0.375rem 0.625rem' }} aria-label="PO actions" onClick={() => setPoMenuOpen(m => m === po.id ? null : po.id)}>{'⋯'}</button>
+                              {menuOpen && (
                                 <>
                                   <div className="rov-po-menu-scrim" onClick={() => setPoMenuOpen(null)} />
                                   <div className="rov-po-menu" role="menu">
@@ -23545,47 +23632,17 @@
                                     <button className="rov-po-menu-item" role="menuitem" onClick={() => { setPoMenuOpen(null); navigate('purchase-order-detail', po.id); }}>
                                       <span className="rov-po-menu-ico">↗</span>View PO detail
                                     </button>
-                                    <button className="rov-po-menu-item" role="menuitem" onClick={() => { setPoMenuOpen(null); setPoEmailModal(po); }}>
-                                      <span className="rov-po-menu-ico">✉</span>Resend PO
-                                    </button>
-                                    <button className="rov-po-menu-item" role="menuitem" onClick={async () => { setPoMenuOpen(null); try { const url = await repOpenDoc('/api/rep/purchase-orders/' + po.id + '/pdf?preview=true'); setDocPreview({ url, title: 'Purchase Order - ' + po.po_number, type: 'po', po: po }); } catch(e) { alert('Failed to load PO'); } }}>
+                                    <button className="rov-po-menu-item" role="menuitem" onClick={() => { setPoMenuOpen(null); openPdf(); }}>
                                       <span className="rov-po-menu-ico">▤</span>View PDF
                                     </button>
                                     <button className="rov-po-menu-item" role="menuitem" disabled={confirmUploadingPoId === po.id} onClick={() => { setPoMenuOpen(null); pickConfirmationFor(po.id); }}>
                                       <span className="rov-po-menu-ico">📎</span>{confirmUploadingPoId === po.id ? 'Uploading…' : 'Attach confirmation'}
                                     </button>
-                                    {po.status === 'draft' && (
-                                      <button className="rov-po-menu-item" role="menuitem" onClick={() => { setPoMenuOpen(null); setNoteForPoId(po.id); setPoNoteText(po.notes || ''); }}>
-                                        <span className="rov-po-menu-ico">✎</span>{po.notes ? 'Edit PO note' : 'Add PO note'}
-                                      </button>
-                                    )}
                                   </div>
                                 </>
                               )}
                             </div>
                           </div>
-                          {noteForPoId === po.id && (
-                            <div className="rov-po-note-compose" style={{ gridColumn: '1 / -1', padding: '2px 0 0 54px' }}>
-                              <textarea value={poNoteText} onChange={e => setPoNoteText(e.target.value)} autoFocus
-                                placeholder={'Note for the vendor on ' + po.po_number + ' — prints on the PO…'}
-                                style={{ width: '100%', minHeight: 46, padding: 8, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
-                                <span style={{ marginRight: 'auto', font: '400 10px/1.3 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>Prints on the PO PDF</span>
-                                <button onClick={() => { setNoteForPoId(null); setPoNoteText(''); }}
-                                  style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
-                                <button disabled={savingPoNote} onClick={async () => {
-                                  setSavingPoNote(true);
-                                  try {
-                                    await repFetch('/api/rep/purchase-orders/' + po.id, { method: 'PUT', body: JSON.stringify({ notes: poNoteText.trim() }) });
-                                    setNoteForPoId(null); setPoNoteText(''); loadPOs();
-                                  } catch (err) { alert(err.message || 'Failed to save note'); }
-                                  setSavingPoNote(false);
-                                }}
-                                  style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: savingPoNote ? 'default' : 'pointer' }}>
-                                  {savingPoNote ? 'Saving…' : 'Save note'}</button>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       );
                     })}
