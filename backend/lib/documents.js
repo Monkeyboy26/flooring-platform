@@ -56,9 +56,11 @@ function priceUnitSuffix(i) {
  *   roll / per_sqyd  → "sqyd"   (carpet is sold by the SQUARE YARD, never "rolls"
  *                                or "boxes"; see the num_boxes note below)
  *   LF               → "LF"     (rug carpet cut off the roll by the linear foot)
- *   sqft             → "sqft"   (loose-lay / sheet goods)
+ *   sqft / box       → "box(es)"(tile is box-packaged and ordered/counted in whole
+ *                                boxes — the stored quantity is num_boxes, NOT raw
+ *                                sqft, even when the storefront sells it "by sqft";
+ *                                its per-box cost is cost/sqft × sqft_per_box)
  *   unit / piece     → "unit(s)"
- *   box (default)    → "box(es)"
  *
  * Carpet stores its coverage in sqft_needed while num_boxes is a placeholder 1
  * (storefront) — so when the raw quantity is the placeholder we recover the real
@@ -82,10 +84,12 @@ export function lineQtyUnit(i = {}, rawQty) {
     return { value, label: 'sqyd', text: fmt(value) };
   }
   if (sb === 'lf') return { value: q, label: 'LF', text: fmt(q) };
-  if (sb === 'sqft') return { value: q, label: 'sqft', text: fmt(q) };
   if (sb === 'unit' || sb === 'piece') return { value: q, label: q === 1 ? 'unit' : 'units', text: fmt(q) };
   if (sb === 'each') return { value: q, label: 'each', text: fmt(q) };
-  if (!sb || sb === 'box') return { value: q, label: q === 1 ? 'box' : 'boxes', text: fmt(q) };
+  // Tile: box-packaged, ordered by whole boxes. The stored quantity is always the
+  // box count (num_boxes / poi.qty), so a 'sqft'-sold tile is labelled in boxes too
+  // — never "N sqft", which would mislabel the box count. Matches rep qtyLabel().
+  if (!sb || sb === 'box' || sb === 'sqft') return { value: q, label: q === 1 ? 'box' : 'boxes', text: fmt(q) };
   // Unknown UOM — generic pluralization (mirrors the legacy PO logic).
   return { value: q, label: q === 1 ? sb : (/(x|s|ch|sh)$/.test(sb) ? sb + 'es' : sb + 's'), text: fmt(q) };
 }
@@ -770,11 +774,12 @@ export async function generatePOHtml(pool, poId) {
   const items = await pool.query(`
     SELECT poi.*, ma.url as primary_image, sk.internal_sku,
            sk.variant_name, sk.accessory_label, sk.variant_type,
-           pr.collection AS collection,
+           pr.collection AS collection, pk.sqft_per_box,
            sac.value AS color, sac_sz.value AS size
     FROM purchase_order_items poi
     LEFT JOIN skus sk ON sk.id = poi.sku_id
     LEFT JOIN products pr ON pr.id = sk.product_id
+    LEFT JOIN packaging pk ON pk.sku_id = poi.sku_id
     LEFT JOIN sku_attributes sac ON sac.sku_id = poi.sku_id
       AND sac.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
     LEFT JOIN sku_attributes sac_sz ON sac_sz.sku_id = poi.sku_id
@@ -988,6 +993,11 @@ ${items.rows.map((it, idx) => {
   if (isRugLine && lineNote) lineNote = lineNote.replace(/^[^\u2014]*\u2014\s*/, '');
   // Qty + unit via the canonical helper (carpet -> sqyd, LF -> LF, box -> box/boxes).
   const { text: qtyText, label: uomLabel } = lineQtyUnit(it, it.qty);
+  // Box-sold tile: show the ordered coverage (boxes x sqft/box) under the box count,
+  // mirroring the invoice/order docs. Carpet/LF/unit lines have no per-box coverage.
+  const isBoxUom = uomLabel === 'box' || uomLabel === 'boxes';
+  const sqftPerBox = parseFloat(it.sqft_per_box || 0);
+  const coverSf = (isBoxUom && sqftPerBox > 0) ? parseFloat(it.qty || 0) * sqftPerBox : null;
   const cost = parseFloat(it.cost || 0).toFixed(2);
   const sub = parseFloat(it.subtotal || 0).toFixed(2);
   const isLast = idx === items.rows.length - 1;
@@ -999,7 +1009,7 @@ ${swatch}
 ${lineNote ? `<div style="font:400 9.5px/1.45 var(--sans);color:#1c1917cc;font-style:italic;margin-top:4px;padding-left:8px;border-left:2px solid var(--accent);">${lineNote}</div>` : ''}
 </div>
 <div style="font:500 10px/1.2 ui-monospace,monospace;color:var(--ink);letter-spacing:0.04em;padding-top:1px;">${vsku}</div>
-<div class="num">${qtyText}<div class="numsub">${uomLabel}</div></div>
+<div class="num">${qtyText}<div class="numsub">${uomLabel}</div>${coverSf ? `<div class="numsub">${coverSf.toFixed(1)} sf</div>` : ''}</div>
 <div class="num">$${cost}</div>
 <div class="line-total">$${sub}</div>
 </div>`;

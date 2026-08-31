@@ -23629,10 +23629,12 @@ app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
       const itemsResult = await pool.query(`
         SELECT poi.*, s.variant_name, s.accessory_label, s.variant_type, s.internal_sku,
           sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
+          pk.sqft_per_box,
           COALESCE(v.name, p_vendor.name) AS vendor_name
         FROM purchase_order_items poi
         LEFT JOIN skus s ON s.id = poi.sku_id
         LEFT JOIN products p ON p.id = s.product_id
+        LEFT JOIN packaging pk ON pk.sku_id = poi.sku_id
         LEFT JOIN vendors p_vendor ON p_vendor.id = p.vendor_id
         LEFT JOIN purchase_orders po_v ON po_v.id = poi.purchase_order_id
         LEFT JOIN vendors v ON v.id = po_v.vendor_id
@@ -29277,10 +29279,12 @@ app.get('/api/admin/orders/:id/purchase-orders', staffAuth, async (req, res) => 
       const itemsResult = await pool.query(`
         SELECT poi.*, s.variant_name, s.accessory_label, s.variant_type, s.internal_sku,
           sa_c.value AS color, sa_sz.value AS size, p.collection AS current_collection,
+          pk.sqft_per_box,
           COALESCE(v.name, p_vendor.name) AS vendor_name
         FROM purchase_order_items poi
         LEFT JOIN skus s ON s.id = poi.sku_id
         LEFT JOIN products p ON p.id = s.product_id
+        LEFT JOIN packaging pk ON pk.sku_id = poi.sku_id
         LEFT JOIN vendors p_vendor ON p_vendor.id = p.vendor_id
         LEFT JOIN purchase_orders po_v ON po_v.id = poi.purchase_order_id
         LEFT JOIN vendors v ON v.id = po_v.vendor_id
