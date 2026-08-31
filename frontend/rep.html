@@ -23093,7 +23093,7 @@
                 <button className="rov-hbtn" onClick={() => setShowReassign(true)}><span className="rov-hico">⇄</span>Reassign rep</button>
               )}
               {order.status === 'pending' && (
-                <button className="rov-hbtn" onClick={() => setCatalogOpen(true)}><span className="rov-hico">✎</span>Change order</button>
+                <button className="rov-hbtn" onClick={() => navigate('change-order', order.id)}><span className="rov-hico">✎</span>Change order</button>
               )}
               {paidDone && ['confirmed', 'shipped', 'ready_for_pickup'].includes(order.status) && (
                 <button className="rov-hbtn" onClick={() => navigate('change-order', order.id)}><span className="rov-hico">✎</span>Change order</button>
@@ -23279,15 +23279,7 @@
               {/* Line Items */}
               <RodCard title={'Line items · ' + items.length + (showReady ? ' · ' + readyCount + '/' + readyTotal + ' ready for pickup' : '')}
                 action={['pending', 'confirmed'].includes(order.status) ? 'Change order' : null}
-                onAction={() => {
-                  // Paid, not-yet-delivered orders use the staged change-order page;
-                  // pending/unpaid orders edit inline via the catalog wizard.
-                  if (paidDone && ['confirmed', 'shipped', 'ready_for_pickup'].includes(order.status)) {
-                    navigate('change-order', order.id);
-                  } else {
-                    setCatalogOpen(true);
-                  }
-                }}>
+                onAction={() => navigate('change-order', order.id)}>
                 <div className={'rod-li-head' + (showCost ? '' : ' nocost')}>
                   <span></span>
                   <span>Item</span>
