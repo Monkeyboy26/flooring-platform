@@ -23494,6 +23494,44 @@
                     </React.Fragment>
                   );
                 }); })()}
+                {/* Invoice note — bottom of the line item section; prints on the
+                    invoice PDF as its own boxed block (mirrors the PO note). */}
+                <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(28,25,23,0.13)' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                    <span style={{ font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>Invoice note</span>
+                    {!editingInvoiceNote && (
+                      <a onClick={() => { setInvoiceNoteText(order.invoice_notes || ''); setEditingInvoiceNote(true); }}
+                        style={{ cursor: 'pointer', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--rod-accent)' }}>
+                        {order.invoice_notes ? '✎ Edit' : '+ Add'}
+                      </a>
+                    )}
+                  </div>
+                  {editingInvoiceNote ? (
+                    <div>
+                      <textarea value={invoiceNoteText} onChange={e => setInvoiceNoteText(e.target.value)} autoFocus maxLength={2000}
+                        placeholder={'Note to the customer on ' + (order.order_number || 'this order') + ' — prints on the invoice…'}
+                        style={{ width: '100%', minHeight: 72, padding: 8, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
+                        <span style={{ marginRight: 'auto', font: '400 10px/1.3 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>Prints on the invoice PDF</span>
+                        <button onClick={() => { setEditingInvoiceNote(false); setInvoiceNoteText(''); }}
+                          style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                        <button disabled={savingInvoiceNote} onClick={async () => {
+                          setSavingInvoiceNote(true);
+                          try {
+                            const res = await repFetch('/api/rep/orders/' + editId + '/invoice-notes', { method: 'PUT', body: JSON.stringify({ invoice_notes: invoiceNoteText.trim() }) });
+                            if (res && res.order) setOrder(o => ({ ...o, invoice_notes: res.order.invoice_notes }));
+                            setEditingInvoiceNote(false); setInvoiceNoteText('');
+                          } catch (err) { alert(err.message || 'Failed to save note'); }
+                          setSavingInvoiceNote(false);
+                        }}
+                          style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: savingInvoiceNote ? 'default' : 'pointer' }}>
+                          {savingInvoiceNote ? 'Saving…' : 'Save note'}</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <RovMicro style={{ whiteSpace: 'pre-wrap' }}>{order.invoice_notes ? order.invoice_notes : 'No note · prints on the invoice PDF'}</RovMicro>
+                  )}
+                </div>
               </RodCard>
 
               {/* Vendor POs — v3 (order-flow card design) */}
@@ -24100,40 +24138,6 @@
                     </div>
                   </div>
                 )}
-              </RodCard>
-
-              {/* Invoice note — above the log; prints on the invoice PDF as its
-                  own boxed block (mirrors the PO's "Note to vendor"). */}
-              <RodCard title="Invoice note"
-                action={editingInvoiceNote ? undefined : (order.invoice_notes ? '✎ Edit' : '+ Add')}
-                onAction={editingInvoiceNote ? undefined : () => { setInvoiceNoteText(order.invoice_notes || ''); setEditingInvoiceNote(true); }}>
-                <div className="rod-card-body-padded">
-                  {editingInvoiceNote ? (
-                    <div>
-                      <textarea value={invoiceNoteText} onChange={e => setInvoiceNoteText(e.target.value)} autoFocus maxLength={2000}
-                        placeholder={'Note to the customer on ' + (order.order_number || 'this order') + ' — prints on the invoice…'}
-                        style={{ width: '100%', minHeight: 72, padding: 8, background: 'transparent', border: '0.5px solid rgba(28,25,23,0.2)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }} />
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, justifyContent: 'flex-end' }}>
-                        <span style={{ marginRight: 'auto', font: '400 10px/1.3 Inter, sans-serif', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>Prints on the invoice PDF</span>
-                        <button onClick={() => { setEditingInvoiceNote(false); setInvoiceNoteText(''); }}
-                          style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', cursor: 'pointer' }}>Cancel</button>
-                        <button disabled={savingInvoiceNote} onClick={async () => {
-                          setSavingInvoiceNote(true);
-                          try {
-                            const res = await repFetch('/api/rep/orders/' + editId + '/invoice-notes', { method: 'PUT', body: JSON.stringify({ invoice_notes: invoiceNoteText.trim() }) });
-                            if (res && res.order) setOrder(o => ({ ...o, invoice_notes: res.order.invoice_notes }));
-                            setEditingInvoiceNote(false); setInvoiceNoteText('');
-                          } catch (err) { alert(err.message || 'Failed to save note'); }
-                          setSavingInvoiceNote(false);
-                        }}
-                          style={{ padding: '4px 9px', fontSize: 10, fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em', textTransform: 'uppercase', border: 'none', background: '#1c1917', color: '#ece5d8', cursor: savingInvoiceNote ? 'default' : 'pointer' }}>
-                          {savingInvoiceNote ? 'Saving…' : 'Save note'}</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <RovMicro style={{ whiteSpace: 'pre-wrap' }}>{order.invoice_notes ? order.invoice_notes : 'No note · prints on the invoice PDF'}</RovMicro>
-                  )}
-                </div>
               </RodCard>
 
               {/* Payments — v2 */}
