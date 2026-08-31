@@ -527,6 +527,11 @@ function matchDamToSku(damSku, skuIndex) {
 const UPLOADS_BASE = process.env.UPLOADS_PATH || path.join(__dirname, '..', '..', 'uploads');
 const DAM_IMG_DIR  = path.join(UPLOADS_BASE, 'msi-dam');
 
+// Generic source-stone swatches / field-tile shots that older image passes left
+// on unrelated SKUs (e.g. colornames/white-oak-marble.jpg on a ledger panel) —
+// an exact-SKU DAM match may overwrite these.
+const REPLACEABLE_SWATCH_RE = /\/colornames\/(?:videos\/)?[^/]*-(marble|granite|slate|travertine|quartzite|limestone|sandstone|onyx)\.jpg$|\/images\/skus\//i;
+
 /**
  * Download a single image from the DAM via the authenticated Puppeteer page.
  * Returns the local file path on success, or null on failure.
@@ -592,7 +597,7 @@ async function processMatches(pool, page, matches, { assetType, sortOrder, fileS
 
     // Check if this SKU already has this asset type
     const { rows: existing } = await pool.query(
-      'SELECT id, original_url FROM media_assets WHERE sku_id = $1 AND asset_type = $2 AND sort_order = $3 LIMIT 1',
+      'SELECT id, url, original_url FROM media_assets WHERE sku_id = $1 AND asset_type = $2 AND sort_order = $3 LIMIT 1',
       [match.sku_id, assetType, sortOrder]
     );
 
@@ -600,7 +605,11 @@ async function processMatches(pool, page, matches, { assetType, sortOrder, fileS
       const existingUrl = existing[0].original_url || '';
       // Skip if already has an image (unless it's a DAM image from a previous run — allow re-download)
       const isDamImage = existingUrl.includes('msi-dam/') || existingUrl.includes('images.msisurfaces.com');
-      if (!isDamImage) {
+      // Source-stone swatches / field-tile shots from older passes are downgrades
+      // vs an exact-SKU DAM asset — always replaceable (keep in sync with
+      // fix-msi-panel-images.mjs isBadPanelImage)
+      const isLowQualitySwatch = REPLACEABLE_SWATCH_RE.test(existing[0].url || '');
+      if (!isDamImage && !isLowQualitySwatch) {
         if (VERBOSE) log(`  SKIP (has ${assetType}): ${match.vendor_sku}`);
         skipped++;
         continue;
@@ -692,8 +701,12 @@ async function inheritSiblings(pool, skuIndex, matchedSkuIds) {
       );
       if (existing.length > 0) continue;
 
-      // Find a sibling with an image (prefer same color prefix)
-      const sibling = withImage[0]; // Same product = same color
+      // Find a sibling with an image — only donors from the same SKU-code line.
+      // Mixed-line products exist (e.g. LPNLTPHI panel + TTPHIL pattern grouped
+      // together); inheriting across lines puts a panel shot on a field tile.
+      const alphaPrefix = (sku) => ((sku.match(/^[A-Za-z]+/) || [''])[0]).slice(0, 3).toUpperCase();
+      const sibling = withImage.find(e => alphaPrefix(e.vendor_sku) === alphaPrefix(entry.vendor_sku));
+      if (!sibling) continue;
       const { rows: sibImg } = await pool.query(
         "SELECT url FROM media_assets WHERE sku_id = $1 AND asset_type = 'primary' LIMIT 1",
         [sibling.sku_id]
@@ -825,13 +838,14 @@ function buildCdnCandidates(entry) {
   }
 
   // ── Stacked Stone / Ledger ──
+  // NO colornames fallback here: colornames slugs resolve to the source stone's
+  // field-tile line (white-oak-marble etc.), not the panel product.
   if (/stacked.stone|ledger/i.test(catLower)) {
     if (nameSlug) {
       for (const pat of ['ledger-panel', 'stacked-stone-panel', 'rockmount-stacked-stone']) {
         urls.push(`${CDN}/hardscaping/detail/${nameSlug}-${pat}.jpg`);
       }
       urls.push(`${CDN}/hardscaping/detail/${nameSlug}.jpg`);
-      urls.push(`${CDN}/colornames/${nameSlug}.jpg`);
     }
     return [...new Set(urls)];
   }
