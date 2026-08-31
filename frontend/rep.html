@@ -15561,8 +15561,8 @@
               else { setOneOff(false); onChange(val, '', ''); }
             }}>
             <option value="">Select vendor…</option>
-            {vendors.map(v => <option key={v.id} value={v.id}>{v.name}{v.public_code ? ' · ' + v.public_code : ''}</option>)}
             <option value="__oneoff">{'✎'} One-off vendor (not in system)…</option>
+            {vendors.map(v => <option key={v.id} value={v.id}>{v.name}{v.public_code ? ' · ' + v.public_code : ''}</option>)}
           </select>
           {oneOff && !vendorId && (
             <React.Fragment>
@@ -15636,18 +15636,11 @@
                 placeholder="e.g. Special-order Nero Marquina slab · book-matched pair" style={field} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-              <div>
-                <label style={lbl}>Vendor / source *</label>
-                <OneOffVendorPicker vendors={vendors} vendorId={f.vendor_id} customVendor={f.custom_vendor} customVendorEmail={f.custom_vendor_email}
-                  onChange={(vid, cv, cve) => setF(prev => ({ ...prev, vendor_id: vid, custom_vendor: cv, custom_vendor_email: cve }))}
-                  selectStyle={{ ...field, cursor: 'pointer' }} inputStyle={field} />
-              </div>
-              <div>
-                <label style={lbl}>Internal note</label>
-                <input maxLength={500} value={f.description} onChange={e => set('description', e.target.value)}
-                  placeholder="Lead time, PO reference, cut sheet… (optional)" style={field} />
-              </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={lbl}>Vendor / source *</label>
+              <OneOffVendorPicker vendors={vendors} vendorId={f.vendor_id} customVendor={f.custom_vendor} customVendorEmail={f.custom_vendor_email}
+                onChange={(vid, cv, cve) => setF(prev => ({ ...prev, vendor_id: vid, custom_vendor: cv, custom_vendor_email: cve }))}
+                selectStyle={{ ...field, cursor: 'pointer' }} inputStyle={field} />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: showCost ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: 14, marginBottom: 18 }}>
