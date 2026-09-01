@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roma-v407';
+const CACHE_NAME = 'roma-v408';
 const IMAGE_CACHE = 'roma-images-v9';
 const IMAGE_CACHE_LIMIT = 2000;
 const SHELL_ASSETS = [

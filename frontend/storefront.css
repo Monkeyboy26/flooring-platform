@@ -3947,6 +3947,13 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .tv2-page a { transition: color 0.15s, opacity 0.15s; }
 .tv2-page a:hover { color: var(--gold); }
 .tv2-page button:hover:not(:disabled) { opacity: 0.9; }
+/* The page inherits body's overflow-x:clip, so anything wider than the viewport
+   is silently *cut off on the right* rather than scrollable. The offender on
+   phones is the upload dropzone: its inline flex row (label group + Browse
+   button) uses the default min-width:auto and refuses to shrink. Let the label
+   group shrink and the button wrap below instead of overflowing. */
+.tv2-page .tv2-dropzone { flex-wrap: wrap; }
+.tv2-page .tv2-dropzone > div:first-child { min-width: 0; flex: 1 1 auto; }
 @media (max-width: 1100px) {
   .tv2-page section { padding-left: 40px !important; padding-right: 40px !important; }
   .tv2-page [data-tv2-grid] { grid-template-columns: 1fr 1fr !important; }
@@ -3957,4 +3964,14 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   .tv2-page [data-tv2-grid], .tv2-page [data-tv2-2col] { grid-template-columns: 1fr !important; gap: 14px !important; }
   .tv2-page h1 { font-size: clamp(40px, 13vw, 84px) !important; }
   .tv2-page h2 { font-size: clamp(30px, 8vw, 52px) !important; }
+  /* The white form card sits inside the already-padded section — halve its own
+     inner padding so inputs keep a usable width on phones. */
+  .tv2-page .tv2-form-card { padding: 28px 22px !important; }
+}
+@media (max-width: 440px) {
+  .tv2-page section { padding-left: 16px !important; padding-right: 16px !important; }
+  .tv2-page .tv2-form-card { padding: 22px 16px !important; }
+  /* Stack the dropzone (label + Browse) so the button never crowds the label. */
+  .tv2-page .tv2-dropzone { flex-direction: column; align-items: stretch !important; gap: 12px !important; }
+  .tv2-page .tv2-dropzone > div:last-child { justify-content: flex-end; }
 }

@@ -17279,7 +17279,7 @@
       const busy = uploading === docType;
       const success = '#3f7a52';
       return (
-        <div style={{ padding: '16px 20px', border: `0.5px ${done ? 'solid' : 'dashed'} ${done ? success : ink + '44'}`, background: done ? '#3f7a520d' : 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+        <div className="tv2-dropzone" style={{ padding: '16px 20px', border: `0.5px ${done ? 'solid' : 'dashed'} ${done ? success : ink + '44'}`, background: done ? '#3f7a520d' : 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <span style={{ width: 26, height: 26, borderRadius: '50%', flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${done ? success : busy ? ink + '55' : ink + '33'}`, background: done ? success : 'transparent', color: done ? '#fff' : muted, font: '600 13px/1 var(--roma-sans)' }}>{busy ? '…' : done ? '✓' : '+'}</span>
             <div style={{ minWidth: 0 }}>
@@ -17597,7 +17597,7 @@
 
             {/* Form (the submitted confirmation is a full-width early return above) */}
             {submitted ? null : (
-              <div style={{ background: '#fff', border: `0.5px solid ${ink}22`, padding: '40px 44px' }}>
+              <div className="tv2-form-card" style={{ background: '#fff', border: `0.5px solid ${ink}22`, padding: '40px 44px' }}>
                 {error && <div style={{ marginBottom: 24, padding: '12px 16px', background: '#c0392b12', border: '0.5px solid #c0392b55', font: '400 13px/1.5 var(--roma-sans)', color: '#8a2a1e' }}>{error}</div>}
                 {retailExists && onCustomerSignIn && (
                   <div style={{ marginBottom: 24 }}>
