@@ -228,17 +228,21 @@ export function classifyTileLeaf(ev) {
     ({ slug, confidence: slug === ev.currentLeaf ? null : confidence, reasons });
 
   // ── Form factor, most-specific first ──────────────────────────────────────
+  // Pool products keep their trim (waterline listellos, borders) in pool-tile —
+  // pool shoppers browse them there (same reasoning as the Fujiwa penny-round
+  // exemption in NAME_CATEGORY_RULES) — so trim only flags, never moves.
+  const trimConf = ev.currentLeaf === 'pool-tile' ? 'weak' : 'strong';
   if (STAIR_NAME_RE.test(name)) {
-    return out('stair-treads-nosing', 'strong', ['stair keywords in product name']);
+    return out('stair-treads-nosing', trimConf, ['stair keywords in product name']);
   }
   if (TRIM_NAME_RE.test(name)) {
-    return out('trim-accessories', 'strong', ['trim keywords in product name']);
+    return out('trim-accessories', trimConf, ['trim keywords in product name']);
   }
   // Trim often hides in the VARIANT names (ELY products whose only variants
   // are "Bullnose 3 x 12", SA "Universal Jolly"): every variant must match —
   // a single trim variant inside a field line is normal structure.
   if (variants.length && variants.every(v => TRIM_NAME_RE.test(v))) {
-    return out('trim-accessories', 'strong', ['all variants are trim pieces']);
+    return out('trim-accessories', trimConf, ['all variants are trim pieces']);
   }
   // Porcelain/ceramic "stacked stone LOOK" mesh sheets are mosaics, not
   // ledgers (AZT convention: "Marvel Stacked Stone" straight-stack mesh →
