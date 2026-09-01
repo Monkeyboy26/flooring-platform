@@ -2473,7 +2473,7 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
     // grid shows one card per model+size (finishes are selectable on the PDP) instead
     // of one card per finish. All other products keep one-card-per-product.
     const browseGroupKey = `CASE
-      WHEN c.slug = 'vanity' AND v.code = 'HR'
+      WHEN c.slug = 'vanities' AND v.code = 'HR'
         THEN p.collection || '|' || COALESCE(substring(upper(s.vendor_sku) from '^VN2[A-Z]+-([0-9]+)'), s.id::text)
       WHEN c.slug = 'bath-mirrors' AND v.code = 'HR' AND upper(s.vendor_sku) ~ '^(MIR2|VMIR)'
         THEN p.collection || '|' || COALESCE(substring(upper(s.vendor_sku) from '^MIR2[A-Z]+-([0-9]+)'), substring(upper(s.vendor_sku) from 'VMIR-MET[CR]-([0-9]+)'), s.id::text)

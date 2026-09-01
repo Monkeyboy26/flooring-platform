@@ -84,8 +84,14 @@ const CHILD_CATEGORIES = [
   { slug: 'organizers',          name: 'Organizers',          masterClass: 'Organizers',          variantType: 'organizer' },
   { slug: 'light-power',         name: 'Light & Power',       masterClass: 'Light & Power',       variantType: 'lighting' },
   { slug: 'sinks',               name: 'Sinks',               masterClass: 'Sinks',               variantType: 'sink' },
-  { slug: 'vanity',              name: 'Vanity',              masterClass: 'Vanity',              variantType: 'vanity' },
 ];
+
+// HR vanities are filed under the canonical Bath > Vanities category (slug
+// 'vanities'), NOT a hardware-specialty child. It is intentionally NOT in
+// CHILD_CATEGORIES above: that loop force-sets parent_id, which would yank
+// Vanities out of Bath on every import. Instead we look it up by slug and
+// reuse it as-is (see main()).
+const VANITY_CATEGORY = { slug: 'vanities', masterClass: 'Vanity', variantType: 'vanity' };
 
 const ATTR_SLUGS = [
   'finish', 'species', 'diameter', 'width',
@@ -525,6 +531,19 @@ async function main() {
     variantTypeByMasterClass[c.masterClass] = c.variantType;
   }
   console.log(`  ${CHILD_CATEGORIES.length} child categories upserted`);
+
+  // HR vanities → canonical Bath > Vanities category. Look up by slug only;
+  // do NOT create or re-parent it (JMV vanities live here too, under Bath).
+  const vanRes = await pool.query(
+    `SELECT id FROM categories WHERE slug = $1`,
+    [VANITY_CATEGORY.slug]
+  );
+  if (vanRes.rows.length === 0) {
+    throw new Error(`Vanities category (slug '${VANITY_CATEGORY.slug}') not found — expected it under Bath.`);
+  }
+  categoryByMasterClass[VANITY_CATEGORY.masterClass] = vanRes.rows[0].id;
+  variantTypeByMasterClass[VANITY_CATEGORY.masterClass] = VANITY_CATEGORY.variantType;
+  console.log(`  vanity master-class → existing vanities category ${vanRes.rows[0].id}`);
 
   for (const slug of ATTR_SLUGS) {
     const name = slug.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
