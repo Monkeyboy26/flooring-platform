@@ -727,28 +727,44 @@ export const RULES = [
       // Bio Attitude's 1x24 stacked-stone mesh sold at the 8x48 plank's $3.67
       // instead of $18.89/sheet. Trim (bullnose/jolly/liner/pencil/corner) is
       // excluded — per-piece trim priced ~= field per-sqft is legitimate.
-      const SHEET = `(s.variant_name ~* 'mesh|mosaic|\\mhex\\M|stack|ledger|penny|herring|basket')
-                     AND s.variant_name !~* 'bullnose|jolly|liner|pencil|corner|chair|\\mtrim\\M|\\mcap\\M|bull ?nose'`;
-      const FIELD = `(s.variant_name ~ '[0-9]+(\\.[0-9]+)?x[0-9]+')
-                     AND s.variant_name !~* 'mesh|mosaic|\\mhex\\M|stack|ledger|penny|herring|basket|bullnose|jolly|liner|pencil|corner|chair|\\mtrim\\M|\\mcap\\M'`;
+      // Perf: the cheap sell_by / price_basis equality filters run FIRST and the
+      // (product_id, cost) equi-join collapses to a tiny candidate set BEFORE the
+      // expensive multi-alternation regexes run in the outer WHERE. The old form
+      // computed is_sheet/is_field regexes over every active priced SKU (~84k) and
+      // then self-joined — >120s, which timed out and aborted the ENTIRE nightly
+      // audit (so auto-close never ran). Keep the regexes outermost.
+      const SHEET_POS = `~* 'mesh|mosaic|\\mhex\\M|stack|ledger|penny|herring|basket'`;
+      const SHEET_NEG = `!~* 'bullnose|jolly|liner|pencil|corner|chair|\\mtrim\\M|\\mcap\\M|bull ?nose'`;
+      const FIELD_POS = `~ '[0-9]+(\\.[0-9]+)?x[0-9]+'`;
+      const FIELD_NEG = `!~* 'mesh|mosaic|\\mhex\\M|stack|ledger|penny|herring|basket|bullnose|jolly|liner|pencil|corner|chair|\\mtrim\\M|\\mcap\\M'`;
       const { rows } = await pool.query(`
-        WITH sk AS (
+        WITH u AS (
           SELECT s.id AS sku_id, s.product_id, v.id AS vendor_id, v.code AS vendor_code,
-                 p.name, s.variant_name, s.sell_by, pr.price_basis, pr.cost,
-                 (${SHEET}) AS is_sheet, (${FIELD}) AS is_field
+                 p.name, s.variant_name, pr.cost
           FROM skus s
           JOIN products p ON p.id = s.product_id
           JOIN vendors v ON v.id = p.vendor_id
           JOIN pricing pr ON pr.sku_id = s.id
           WHERE s.status = 'active' AND p.status = 'active' AND s.is_sample IS NOT TRUE
-            AND pr.cost > 0 AND ($1::uuid IS NULL OR v.id = $1)
+            AND pr.cost > 0 AND s.sell_by = 'unit' AND ($1::uuid IS NULL OR v.id = $1)
+        ),
+        b AS (
+          SELECT s.product_id, s.variant_name AS field_variant, pr.cost
+          FROM skus s
+          JOIN products p ON p.id = s.product_id
+          JOIN pricing pr ON pr.sku_id = s.id
+          WHERE s.status = 'active' AND p.status = 'active' AND s.is_sample IS NOT TRUE
+            AND pr.cost > 0 AND s.sell_by = 'box' AND pr.price_basis = 'per_sqft'
+        ),
+        cand AS (
+          SELECT u.sku_id, u.product_id, u.vendor_id, u.vendor_code, u.name,
+                 u.variant_name, u.cost, b.field_variant
+          FROM u JOIN b ON b.product_id = u.product_id AND b.cost = u.cost
         )
-        SELECT DISTINCT sheet.sku_id, sheet.product_id, sheet.vendor_id, sheet.vendor_code,
-               sheet.name, sheet.variant_name, sheet.cost, field.variant_name AS field_variant
-        FROM sk sheet
-        JOIN sk field ON field.product_id = sheet.product_id AND field.cost = sheet.cost
-        WHERE sheet.is_sheet AND sheet.sell_by = 'unit'
-          AND field.is_field AND field.sell_by = 'box' AND field.price_basis = 'per_sqft'
+        SELECT DISTINCT sku_id, product_id, vendor_id, vendor_code, name, variant_name, cost, field_variant
+        FROM cand
+        WHERE variant_name ${SHEET_POS} AND variant_name ${SHEET_NEG}
+          AND field_variant ${FIELD_POS} AND field_variant ${FIELD_NEG}
       `, [vendorId]);
       return rows.map(r => ({
         sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,

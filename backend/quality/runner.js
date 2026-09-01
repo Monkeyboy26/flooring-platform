@@ -43,10 +43,22 @@ export async function runQualityAudit(pool, opts = {}) {
     const exempt = new Set(exemptRes.rows.map(r => `${r.rule_key}|${r.vendor_id}`));
 
     // Run rules sequentially — each is one heavy SQL query; parallelism would
-    // just contend for pool connections.
+    // just contend for pool connections. A rule that throws (e.g. statement
+    // timeout) must NOT abort the whole audit: previously one slow rule aborted
+    // the run before the auto-close step, so resolved violations never cleared.
+    // Failed rules are recorded and EXCLUDED from auto-close below — leaving
+    // their existing violations untouched rather than mass-closing them.
     const findings = [];
+    const failedKeys = [];
     for (const rule of rules) {
-      const results = await rule.run(pool, { vendorId, imageLimit });
+      let results;
+      try {
+        results = await rule.run(pool, { vendorId, imageLimit });
+      } catch (ruleErr) {
+        failedKeys.push(rule.key);
+        console.error(`[Quality] rule '${rule.key}' failed, skipping: ${ruleErr.message}`);
+        continue;
+      }
       for (const v of results) {
         if (v.vendor_id && exempt.has(`${rule.key}|${v.vendor_id}`)) continue;
         findings.push({
@@ -58,8 +70,19 @@ export async function runQualityAudit(pool, opts = {}) {
       }
     }
 
+    // Collapse duplicate fingerprints before persisting. A single rule can emit
+    // two rows that map to the same (rule_key|entity|discriminator) — e.g.
+    // sheet-shares-field-price returns one sheet SKU matched to two field
+    // variants. The batched `ON CONFLICT (fingerprint) DO UPDATE` errors with
+    // "cannot affect row a second time" if one batch touches a fingerprint
+    // twice, so keep only the last finding per fingerprint (they describe the
+    // same violation).
+    const byFingerprint = new Map();
+    for (const f of findings) byFingerprint.set(f.fingerprint, f);
+    const uniqueFindings = [...byFingerprint.values()];
+
     // Classify against existing rows to count new vs reopened.
-    const allFps = findings.map(f => f.fingerprint);
+    const allFps = uniqueFindings.map(f => f.fingerprint);
     const known = new Map();
     for (let i = 0; i < allFps.length; i += 5000) {
       const chunk = allFps.slice(i, i + 5000);
@@ -69,12 +92,12 @@ export async function runQualityAudit(pool, opts = {}) {
       );
       for (const r of res.rows) known.set(r.fingerprint, r.status);
     }
-    const newFindings = findings.filter(f => !known.has(f.fingerprint));
-    const reopened = findings.filter(f => known.get(f.fingerprint) === 'fixed');
+    const newFindings = uniqueFindings.filter(f => !known.has(f.fingerprint));
+    const reopened = uniqueFindings.filter(f => known.get(f.fingerprint) === 'fixed');
 
     // Upsert current findings in batches.
-    for (let i = 0; i < findings.length; i += 500) {
-      const chunk = findings.slice(i, i + 500);
+    for (let i = 0; i < uniqueFindings.length; i += 500) {
+      const chunk = uniqueFindings.slice(i, i + 500);
       const values = [];
       const params = [];
       chunk.forEach((f, j) => {
@@ -97,8 +120,10 @@ export async function runQualityAudit(pool, opts = {}) {
     }
 
     // Auto-close open violations that no longer reproduce — but only for the
-    // rules and vendor scope this run actually covered.
-    const ranKeys = rules.map(r => r.key);
+    // rules and vendor scope this run actually covered. A rule that FAILED this
+    // run is excluded, so its open violations are left as-is (not mass-closed
+    // just because the rule couldn't produce findings).
+    const ranKeys = rules.map(r => r.key).filter(k => !failedKeys.includes(k));
     const fixedRes = await pool.query(`
       UPDATE quality_violations qv
       SET status = 'fixed', resolved_at = CURRENT_TIMESTAMP
@@ -115,14 +140,18 @@ export async function runQualityAudit(pool, opts = {}) {
 
     await pool.query(`
       UPDATE quality_runs SET finished_at = CURRENT_TIMESTAMP, rules_run = $2,
-        new_count = $3, reopened_count = $4, fixed_count = $5, open_total = $6
+        new_count = $3, reopened_count = $4, fixed_count = $5, open_total = $6,
+        error = $7
       WHERE id = $1
-    `, [runId, rules.length, newFindings.length, reopened.length, fixedRes.rowCount, openTotalRes.rows[0].n]);
+    `, [runId, rules.length - failedKeys.length, newFindings.length, reopened.length,
+        fixedRes.rowCount, openTotalRes.rows[0].n,
+        failedKeys.length ? `rules failed: ${failedKeys.join(', ')}` : null]);
 
     return {
       runId,
       rulesRun: rules.length,
-      total: findings.length,
+      failedKeys,
+      total: uniqueFindings.length,
       newCount: newFindings.length,
       reopenedCount: reopened.length,
       fixedCount: fixedRes.rowCount,
