@@ -6862,7 +6862,12 @@
       return (
         <div className="sku-card" onClick={onClick} data-sku={sku.vendor_sku || sku.internal_sku}>
           <div className="sku-card-image">
-            {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} {...optimizeSrcSet(sku.primary_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt={sku.product_name} loading={isAboveFold ? 'eager' : 'lazy'} fetchPriority={isAboveFold ? 'high' : 'auto'} decoding={isAboveFold ? 'sync' : 'async'} width="300" height="280" />}
+            {/* Grid is paginated at 24/page, so we eager-load every card image (not
+                native lazy, whose mobile/iOS-Safari margin is too stingy and pops
+                blank on scroll). fetchPriority tiers it: the first 8 load high-pri,
+                the rest stream in low-pri in the background so they're ready before
+                the user scrolls to them — "preload ahead" without a fragile observer. */}
+            {sku.primary_image && <img onLoad={handleProductImgLoad} src={optimizeImg(sku.primary_image, 400)} {...optimizeSrcSet(sku.primary_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt={sku.product_name} loading="eager" fetchPriority={isAboveFold ? 'high' : 'low'} decoding={isAboveFold ? 'sync' : 'async'} width="300" height="280" />}
             {CAN_HOVER && sku.alternate_image && <img className="sku-card-alt-img" onLoad={handleProductImgLoad} src={optimizeImg(sku.alternate_image, 400)} {...optimizeSrcSet(sku.alternate_image, [200, 400, 600])} sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw" alt="" loading="lazy" decoding="async" width="300" height="280" />}
             {onSale && <span className="sale-badge">SALE</span>}
             {/* Hover overlay with wishlist + compare */}
