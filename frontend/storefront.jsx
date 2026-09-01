@@ -733,6 +733,21 @@
       }
     }
 
+    // Hero images (PDP + QuickView) fade in from opacity:0 → :1 when the `is-loaded`
+    // class is added by their onLoad. But when the SW/edge serves /api/img from cache,
+    // the image can finish loading BEFORE React wires up onLoad — the load event never
+    // fires, `is-loaded` is never added, and the fully-loaded image is stuck invisible
+    // (the "image is there but the page won't show it" bug, intermittent by cache state,
+    // worst on mobile where the SW serves images instantly). This ref runs on mount and
+    // marks an already-complete image loaded, closing the race. onLoad still covers the
+    // normal async path.
+    function markHeroLoadedIfComplete(el) {
+      if (el && el.complete && el.naturalWidth > 0) {
+        el.classList.add('is-loaded');
+        handleProductImgLoad({ target: el });
+      }
+    }
+
     // Touch devices have no hover, so the card's hover-swap "alternate" image
     // is never seen — loading it just doubles the browse grid's image requests
     // (a real problem on phones: one session fired 500+ /api/img/min). Skip it
@@ -5145,7 +5160,7 @@
                   <button className="quick-view-gallery-arrow left" disabled={imgIndex === 0} onClick={() => setImgIndex(i => i - 1)}>{'\u2039'}</button>
                 )}
                 {currentImg.url && <img className="qv-hero-lowres" aria-hidden="true" src={optimizeImg(currentImg.url, 400)} alt="" decoding="async" />}
-                {currentImg.url && <img key={currentImg.url} className="qv-hero-main" onLoad={e => { e.currentTarget.classList.add('is-loaded'); handleProductImgLoad(e); }} src={optimizeImg(currentImg.url, 800)} {...optimizeSrcSet(currentImg.url, [400, 600, 800])} sizes="(max-width: 768px) 90vw, 540px" alt={activeSku.product_name} decoding="async" width={540} height={540} />}
+                {currentImg.url && <img key={currentImg.url} ref={markHeroLoadedIfComplete} className="qv-hero-main" onLoad={e => { e.currentTarget.classList.add('is-loaded'); handleProductImgLoad(e); }} src={optimizeImg(currentImg.url, 800)} {...optimizeSrcSet(currentImg.url, [400, 600, 800])} sizes="(max-width: 768px) 90vw, 540px" alt={activeSku.product_name} decoding="async" width={540} height={540} />}
                 {media.length > 1 && (
                   <button className="quick-view-gallery-arrow right" disabled={imgIndex >= media.length - 1} onClick={() => setImgIndex(i => i + 1)}>{'\u203A'}</button>
                 )}
@@ -7706,7 +7721,7 @@
                 {/* Blur-up: the 400px variant is already warm (grid/quick-view fetched it),
                     so it paints instantly while the full-size hero streams in over it. */}
                 {mainImage && <img className="pdp-hero-lowres" aria-hidden="true" src={optimizeImg(mainImage.url, 400)} alt="" decoding="async" />}
-                {mainImage && <img key={mainImage.url} className="pdp-hero-main" onLoad={e => { e.currentTarget.classList.add('is-loaded'); handleProductImgLoad(e); }} src={optimizeImg(mainImage.url, 800)} {...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200])} sizes="(max-width: 768px) 100vw, 50vw" alt={sku.product_name} fetchPriority="high" decoding="async" />}
+                {mainImage && <img key={mainImage.url} ref={markHeroLoadedIfComplete} className="pdp-hero-main" onLoad={e => { e.currentTarget.classList.add('is-loaded'); handleProductImgLoad(e); }} src={optimizeImg(mainImage.url, 800)} {...optimizeSrcSet(mainImage.url, [400, 600, 800, 1200])} sizes="(max-width: 768px) 100vw, 50vw" alt={sku.product_name} fetchPriority="high" decoding="async" />}
               </div>
               {images.length > 1 && (
                 <div className="gallery-thumbs">
