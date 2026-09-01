@@ -36,8 +36,8 @@ const CATEGORY_OVERRIDES = {
   'aurelius white':          'porcelain-slabs',
   'cristallo illuminates':   'porcelain-slabs',
   'gvx desert silver jumbo': 'porcelain-slabs',
-  'blue forest':             'backsplash-wall',  // deco/wall-paper porcelain panel
-  'palma':                   'backsplash-wall',  // deco/wall-paper porcelain panel
+  'blue forest':             'porcelain-tile',   // 24x48 (60x120cm) rectified porcelain tile, 2/box
+  'palma':                   'porcelain-tile',   // 24x48 (60x120cm) rectified porcelain tile, 2/box
 };
 
 // Title keywords that override category to wood-look-tile
@@ -549,8 +549,18 @@ function parseOrionTitle(title) {
 
   let name = title.trim();
 
-  // Extract size before cleaning (24x48, 24"×48", etc.)
-  const sizeMatch = name.match(TITLE_SIZE_RE);
+  // Extract size before cleaning (24x48, 24"×48", etc.). Orion titles often list
+  // BOTH the metric size and the nominal inch size (e.g. "60X120 Cm 24x48"); we
+  // want inches, so drop any metric pair first — otherwise TITLE_SIZE_RE would
+  // grab it (the metric pair usually appears first). A pair is treated as metric
+  // if it's followed by "cm" OR either dimension is >= 50 (no Orion tile reaches
+  // 50"; slabs carry no size). If only a metric size is given this yields null
+  // and the caller falls back to the price-list SIZE_MAP.
+  const inchOnly = name.replace(
+    /(\d+\.?\d*)\s*[x×X]\s*(\d+\.?\d*)(\s*cm\b)?/gi,
+    (m, a, b, cm) => (cm || parseFloat(a) >= 50 || parseFloat(b) >= 50) ? ' ' : m
+  );
+  const sizeMatch = inchOnly.match(TITLE_SIZE_RE);
   const size = sizeMatch ? normalizeSize(`${sizeMatch[1]}x${sizeMatch[2]}`) : null;
 
   // Extract finish keywords before heavy cleaning
