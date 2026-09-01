@@ -238,9 +238,10 @@ async function main() {
     }
   }
 
-  // Write manifest for review
+  // Write manifest for review (best-effort — prod bind mount may be read-only)
   const mfPath = path.join(__dirname, '..', 'data', 'msi', 'quartz-slabs-manifest.json');
-  fs.writeFileSync(mfPath, JSON.stringify(manifest, null, 2));
+  try { fs.writeFileSync(mfPath, JSON.stringify(manifest, null, 2)); }
+  catch (e) { console.warn(`! manifest not written (${e.code}) — continuing`); }
 
   console.log(`Products: ${stats.products} (active ${stats.active}, discontinued ${stats.disc}) | quartz ${stats.quartz}, marble ${stats.marble}`);
   console.log(`SKUs: ${stats.skus}`);
