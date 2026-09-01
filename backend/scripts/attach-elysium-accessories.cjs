@@ -48,11 +48,31 @@ const TYPE_KEYWORDS = [
   [/book\s*match\s*deco/i, 'Book Match Deco'],
 ];
 
+// Drop a trailing thickness clause (e.g. ", 3/8 in (9 mm)" or ", 9 mm") — trim
+// is picked by profile + size + finish, not wall thickness, and the clause only
+// clutters the label. Leaves size/finish intact.
+function stripThickness(s) {
+  return (s || '')
+    .replace(/,\s*\d+(?:\.\d+)?(?:\s*\/\s*\d+)?\s*(?:in|mm|cm)\b[^,]*/gi, '')
+    .replace(/\s*\(\s*\d+(?:\.\d+)?\s*(?:in|mm|cm)\s*\)/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s*,\s*$/, '')
+    .trim();
+}
+
 function deriveLabel(variantName, productName) {
-  const vn = variantName || '';
+  const vn = (variantName || '').trim();
   const pn = productName || '';
 
-  // Check variant_name
+  // The variant name already reads "Type Size[, Finish[, Thickness]]"
+  // (e.g. "Bullnose 3 x 24, Glossy"). When it carries a size, THAT is the
+  // specific label — one PDP can list up to 7 bullnoses differing only by
+  // size/finish, so a bare "Bullnose" makes them indistinguishable. Keep the
+  // size + finish, drop only the thickness clutter.
+  const specific = stripThickness(vn);
+  if (specific && /\d\s*[x×]\s*\d/i.test(specific)) return specific;
+
+  // No size on the variant → fall back to a canonical type keyword.
   for (const [re, label] of TYPE_KEYWORDS) {
     if (re.test(vn)) return label;
   }
@@ -67,8 +87,7 @@ function deriveLabel(variantName, productName) {
   if (/trim/i.test(vn)) return 'Trim';
 
   // Fallback: clean up variant_name
-  const cleaned = vn
-    .replace(/,?\s*\d[\d.\-\/]*\s*x\s*\d[\d.\-\/]*/gi, '')
+  const cleaned = specific
     .replace(/\s*\(.*?\)\s*/g, '')
     .trim();
   return cleaned || 'Accessory';

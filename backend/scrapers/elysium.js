@@ -51,6 +51,17 @@ const ACCESSORY_KEYWORDS = [
   'Threshold', 'V-Cap', 'Jolly', 'Liner', 'Cane',
 ];
 
+// Build a specific accessory display label from its parts so a PDP that lists
+// several trims of the same profile (e.g. Bullnose 3x24 Glossy vs 3x12 Matte)
+// stays distinguishable, instead of showing a stack of bare "Bullnose" cards.
+// Mirrored by deriveLabel() in scripts/attach-elysium-accessories.cjs — keep in sync.
+function buildAccessoryLabel(keyword, size, finish) {
+  let label = keyword || 'Accessory';
+  if (size) label += ` ${size}`;
+  if (finish) label += `, ${finish}`;
+  return label.replace(/\s{2,}/g, ' ').trim();
+}
+
 // ── Finish Words (used for name parsing) ──
 
 const FINISH_WORDS = [
@@ -698,7 +709,8 @@ export async function run(pool, job, source) {
         });
         if (sku.is_new) stats.skusCreated++;
         if (accessoryKeyword) {
-          await pool.query('UPDATE skus SET accessory_label = $1 WHERE id = $2', [accessoryKeyword, sku.id]);
+          const accLabel = buildAccessoryLabel(accessoryKeyword, entry.size, finish);
+          await pool.query('UPDATE skus SET accessory_label = $1 WHERE id = $2', [accLabel, sku.id]);
           accessoryProductIds.add(product.id);
         }
 
