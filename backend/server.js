@@ -18362,9 +18362,20 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         const retailUnit = isPerSqftSlab
           ? parseFloat(sku.retail_price || 0) * slabSqft
           : parseFloat(sku.retail_price || 0);
-        const unitPrice = tradeDiscount > 0
-          ? retailUnit * (1 - effTradeDiscount(tradeDiscount, sku.retail_locked) / 100)
-          : retailUnit;
+        // Honor a rep-entered customer price override. The order-flow lets a rep set
+        // any per-line customer price (deals, price-matching); the client price already
+        // reflects any trade discount, and it is sent in the same per-unit basis as
+        // retailUnit (per sqft / per sqyd / per slab / per unit). Cost stays
+        // server-authoritative (from the SKU) below for margin/commission. Falls back
+        // to retail (less trade discount) when the rep didn't set a price.
+        const overridePrice = item.unit_price != null && item.unit_price !== ''
+          && !isNaN(parseFloat(item.unit_price)) && parseFloat(item.unit_price) >= 0
+          ? parseFloat(item.unit_price) : null;
+        const unitPrice = overridePrice != null
+          ? overridePrice
+          : (tradeDiscount > 0
+              ? retailUnit * (1 - effTradeDiscount(tradeDiscount, sku.retail_locked) / 100)
+              : retailUnit);
         const lineCost = isPerSqftSlab
           ? parseFloat(sku.cost || 0) * slabSqft
           : parseFloat(sku.cost || 0);
