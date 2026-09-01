@@ -15121,6 +15121,12 @@
         if (n[acc.sku_id]) delete n[acc.sku_id]; else n[acc.sku_id] = { acc, parent, qty: 1 };
         return n;
       });
+      // Direct qty entry for an added accessory — 0 (or blank) removes the line.
+      const setAccQty = (acc, parent, qty) => setAccAdded(a => {
+        const n = { ...a };
+        if (qty <= 0) delete n[acc.sku_id]; else n[acc.sku_id] = { acc, parent, qty };
+        return n;
+      });
 
       const lineList = Object.values(added);
       const accList = Object.values(accAdded);
@@ -15246,6 +15252,7 @@
                       accessories={accCache[p.sku_id]}
                       accAdded={accAdded}
                       onToggleAcc={(acc) => toggleAcc(acc, p)}
+                      onSetAccQty={(acc, q) => setAccQty(acc, p, q)}
                       onRug={onAddRug ? setRugFor : null}
                     />
                   ))}
@@ -15365,7 +15372,7 @@
     }
 
     // --- Product card inside the catalog popup ---
-    function RofCatCard({ p, showCost, discount, qty, onBump, onSet, expanded, onToggleExpand, accessories, accAdded, onToggleAcc, onRug }) {
+    function RofCatCard({ p, showCost, discount, qty, onBump, onSet, expanded, onToggleExpand, accessories, accAdded, onToggleAcc, onSetAccQty, onRug }) {
       const TH = { ink: '#1c1917', paper: '#ece5d8', accent: '#a87935', muted: '#8a7e68', warm: '#d8cdb6' };
       const mono = (c) => ({ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: c });
       const fmtMoney = (n) => '$' + parseFloat(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -15499,13 +15506,15 @@
               )}
               {!accLoading && accList.map((a, i) => {
                 const on = !!accAdded[a.sku_id];
+                const aQty = on ? accAdded[a.sku_id].qty : 0;
                 const aPrice = parseFloat(a.retail_price || 0);
                 const aTrade = rofTradeUnit(aPrice, a.retail_locked, discount || 0);
                 const aDiscounted = aPrice > 0 && aTrade < aPrice;
                 const aUnit = skuPriceSuffix(a);
+                const accStepBtn = { width: 26, height: 28, border: 'none', background: 'transparent', color: TH.ink, cursor: 'pointer', font: '400 15px/1 var(--roma-sans)' };
                 return (
                   <div key={a.sku_id} style={{
-                    display: 'grid', gridTemplateColumns: '30px 1fr auto 30px', gap: 10, alignItems: 'center',
+                    display: 'grid', gridTemplateColumns: '30px 1fr auto auto', gap: 10, alignItems: 'center',
                     padding: '9px 13px', borderTop: i ? '0.5px solid rgba(28,25,23,0.06)' : 'none',
                     background: on ? 'rgba(168,121,53,0.08)' : 'transparent',
                   }}>
@@ -15531,11 +15540,22 @@
                         </React.Fragment>
                       ) : '—'}
                     </span>
-                    <button onClick={() => onToggleAcc(a)} style={{
-                      width: 28, height: 28, flexShrink: 0, cursor: 'pointer',
-                      background: on ? TH.accent : 'transparent', color: on ? '#fff' : TH.ink,
-                      border: on ? 'none' : '0.5px solid rgba(28,25,23,0.2)', font: '400 15px/1 var(--roma-sans)',
-                    }}>{on ? '✓' : '+'}</button>
+                    {on ? (
+                      <div style={{ display: 'flex', alignItems: 'center', border: '0.5px solid ' + TH.accent, flexShrink: 0 }}>
+                        <button onClick={() => onSetAccQty(a, aQty - 1)} style={accStepBtn}>{'−'}</button>
+                        <input value={aQty} onChange={e => onSetAccQty(a, Math.max(0, parseInt(e.target.value) || 0))} style={{
+                          width: 34, textAlign: 'center', border: 'none', borderLeft: '0.5px solid rgba(28,25,23,0.13)', borderRight: '0.5px solid rgba(28,25,23,0.13)',
+                          background: 'transparent', outline: 'none', font: '400 13px/1 var(--roma-serif)', color: TH.ink, padding: '6px 0',
+                        }} />
+                        <button onClick={() => onSetAccQty(a, aQty + 1)} style={accStepBtn}>+</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => onToggleAcc(a)} style={{
+                        width: 28, height: 28, flexShrink: 0, cursor: 'pointer',
+                        background: 'transparent', color: TH.ink,
+                        border: '0.5px solid rgba(28,25,23,0.2)', font: '400 15px/1 var(--roma-sans)',
+                      }}>{'+'}</button>
+                    )}
                   </div>
                 );
               })}
@@ -17200,7 +17220,11 @@
 
     // --- Step 3: Send POs ---
     function RofSendPOsStep({ data, setData, showCost, setStep }) {
-      const items = (data.items || []).filter(i => i.sku_id);
+      // Mirror backend generatePurchaseOrders: catalog lines (sku_id) AND custom
+      // lines tied to a known vendor (vendor_id) both land on a vendor PO. One-off
+      // vendor lines (custom_vendor free text, no vendor_id) never do, so keep them
+      // off this step too — otherwise a custom item silently vanishes from the POs.
+      const items = (data.items || []).filter(i => !i.is_sample && (i.sku_id || i.vendor_id));
       const vendorGroups = {};
       items.forEach(item => {
         const vKey = item.vendor_id || '_unknown';
@@ -17253,14 +17277,18 @@
               recipient[po.vendor_id] = po.recipient_email || '';
               cc[po.vendor_id] = Array.isArray(po.cc_emails) ? po.cc_emails : [];
               notes[po.vendor_id] = po.notes || '';
-              poItemsByVendor[po.vendor_id] = (po.items || []).map(it => ({ id: it.id, sku_id: it.sku_id, _used: false }));
+              poItemsByVendor[po.vendor_id] = (po.items || []).map(it => ({ id: it.id, sku_id: it.sku_id, product_name: it.product_name, _used: false }));
             });
             // Match each in-memory line to its PO item by vendor + sku (in order).
             const line = {};
             Object.entries(vendorGroups).forEach(([vKey, group]) => {
               const avail = poItemsByVendor[vKey] || [];
               group.items.forEach(item => {
-                const m = avail.find(pi => !pi._used && String(pi.sku_id) === String(item.sku_id));
+                // Catalog lines match by sku_id; custom lines (no sku_id) match by
+                // product_name so two null-sku lines don't collide on "null===null".
+                const m = item.sku_id
+                  ? avail.find(pi => !pi._used && String(pi.sku_id) === String(item.sku_id))
+                  : avail.find(pi => !pi._used && !pi.sku_id && String(pi.product_name || '') === String(item.product_name || ''));
                 if (m) { m._used = true; line[item._key] = m.id; }
               });
             });
