@@ -16984,7 +16984,7 @@
     function Tv2Stats({ theme }) {
       const { ink, muted } = theme;
       const stats = [
-        { v: '12.5–21.875%', l: 'Contracted trade margin', s: 'Tiered by annual spend' },
+        { v: '13–22%', l: 'Contracted trade margin', s: 'Tiered by annual spend' },
         { v: '$0', l: 'Membership fee', s: 'Free to apply and join' },
         { v: '2 days', l: 'Typical approval', s: '4 hours with a CSLB #' },
         { v: 'Since 1999', l: 'Family-owned in Anaheim', s: 'License #830966' },
@@ -17008,9 +17008,9 @@
     function Tv2Tiers({ theme }) {
       const { ink, accent, muted, warm } = theme;
       const tiers = [
-        { name: 'Silver', pct: '12.5%', spend: 'On approval', note: 'Every new trade account starts here — the margin applies from your very first order.', perks: ['Trade pricing on every SKU', 'A dedicated Roma rep', 'Bulk order + branded quotes'] },
-        { name: 'Gold', pct: '18.75%', spend: '$10,000+ / yr', note: 'Where most working studios land within their first year of ordering with us.', perks: ['Everything in Silver', 'Priority fulfillment', 'Automatic — no reapplying'], hot: true },
-        { name: 'Platinum', pct: '21.875%', spend: '$20,000+ / yr', note: 'Design-build firms and builders running several concurrent jobs at once.', perks: ['Everything in Gold', 'Custom quotes', 'Job-site delivery'] },
+        { name: 'Silver', pct: '13%', spend: 'On approval', note: 'Every new trade account starts here — the margin applies from your very first order.', perks: ['Trade pricing on every SKU', 'A dedicated Roma rep', 'Bulk order + branded quotes'] },
+        { name: 'Gold', pct: '19%', spend: '$10,000+ / yr', note: 'Where most working studios land within their first year of ordering with us.', perks: ['Everything in Silver', 'Priority fulfillment', 'Automatic — no reapplying'], hot: true },
+        { name: 'Platinum', pct: '22%', spend: '$20,000+ / yr', note: 'Design-build firms and builders running several concurrent jobs at once.', perks: ['Everything in Gold', 'Custom quotes', 'Job-site delivery'] },
       ];
       return (
         <section style={{ padding: '80px 80px' }}>
@@ -17047,7 +17047,7 @@
     function Tv2Benefits({ theme }) {
       const { ink, accent, muted } = theme;
       const benefits = [
-        { n: '01', t: 'Trade pricing, baked in', b: 'A contracted 12.5–21.875% on every SKU that survives sales, promos, and clearance — sale prices stack on top, and you see both deductions on the line.', detail: 'All categories' },
+        { n: '01', t: 'Trade pricing, baked in', b: 'A contracted 13–22% on every SKU that survives sales, promos, and clearance — sale prices stack on top, and you see both deductions on the line.', detail: 'All categories' },
         { n: '02', t: 'A dedicated rep', b: 'One assigned Roma rep for your account — reachable by phone and email, and attached to every order and quote you place.', detail: 'Phone + email' },
         { n: '03', t: 'Bulk & quick order', b: 'Enter SKU and quantity line by line and drop a whole job into the cart at once — built for repeat buyers restocking known material.', detail: 'SKU + qty entry' },
         { n: '04', t: 'Branded quotes', b: 'Build a cart into a branded PDF quote that holds for 14 days, then convert it to an order in one click when the client signs off.', detail: '14-day hold' },
@@ -17131,7 +17131,7 @@
         { q: 'What if I’m an individual designer, not a firm?', a: 'Apply as a sole proprietor. We verify your membership (ASID / IIDA / CCIDC) or a portfolio of real projects, plus your resale certificate.' },
         { q: 'Does Roma offer Net-30 or other terms?', a: 'No — every order is paid in full before shipment. We accept card, ACH, and Klarna, and you can keep a default payment method on file.' },
         { q: 'Does the discount stack with sales?', a: 'Yes. Trade pricing is a contracted margin, so sale prices apply on top of it. You see both deductions on the line item.' },
-        { q: 'How do the tiers move?', a: 'Automatically, on your trailing 12-month spend — 12.5% to start, 18.75% past $10,000, 21.875% past $20,000. Nothing to reapply for.' },
+        { q: 'How do the tiers move?', a: 'Automatically, on your trailing 12-month spend — 13% to start, 19% past $10,000, 22% past $20,000. Nothing to reapply for.' },
         { q: 'Do you ship outside Orange County?', a: 'Anywhere in California by LTL freight, with the trade margin still in effect. Ask your rep about accounts further out.' },
       ];
       return (
@@ -17588,7 +17588,7 @@
               <div style={{ padding: '18px 22px', border: `0.5px solid ${accent}55` }}>
                 <TapMicro theme={theme} color={accent} style={{ marginBottom: 8 }}>What you get on approval</TapMicro>
                 <div style={{ font: '400 13px/1.6 var(--roma-sans)', color: ink }}>
-                  Your tier (starts at 12.5% off list, contracted), your dedicated rep’s direct line, and
+                  Your tier (starts at 13% off list, contracted), your dedicated rep’s direct line, and
                   your trade dashboard for orders, quotes, and projects.
                 </div>
               </div>
