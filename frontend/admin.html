@@ -9114,7 +9114,7 @@
                 </div>
                 <div className="form-group" style={{ flex: 1 }}>
                   <label>Spend Threshold ($, trailing 12 mo)</label>
-                  <input type="number" step="1" min="0" value={spendThreshold} onChange={e => setSpendThreshold(e.target.value)} placeholder="e.g. 12500" />
+                  <input type="number" step="1" min="0" value={spendThreshold} onChange={e => setSpendThreshold(e.target.value)} placeholder="e.g. 10000" />
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button className="btn btn-primary" onClick={handleSave} disabled={saving || !name || !discountPercent}>

@@ -9,8 +9,8 @@ import { emailShell, heroSection, ctaButton, warmCard, section, sectionLabel, T,
 // the DB rows: { name, discount_percent, spend_threshold, tier_level }.
 const DEFAULT_TIERS = [
   { name: 'Silver', discount_percent: 12.5, spend_threshold: 0, tier_level: 0 },
-  { name: 'Gold', discount_percent: 18.75, spend_threshold: 12500, tier_level: 1 },
-  { name: 'Platinum', discount_percent: 21.875, spend_threshold: 25000, tier_level: 2 },
+  { name: 'Gold', discount_percent: 18.75, spend_threshold: 10000, tier_level: 1 },
+  { name: 'Platinum', discount_percent: 21.875, spend_threshold: 20000, tier_level: 2 },
 ];
 
 // numeric(6,3) like 12.500 → "12.5%"; trailing zeros dropped by parseFloat.
