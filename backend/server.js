@@ -13852,6 +13852,24 @@ async function finalizeSettledPayment(order_id, payment_request_id, paidAmount, 
   const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [order_id]);
   if (!orderResult.rows.length) return;
   const paidOrder = orderResult.rows[0];
+  // Auto-confirm + cut vendor POs when this online payment settles the balance in
+  // full. Mirrors the in-store rep payment path (auto-confirm when fully paid) and
+  // the ACH / bank_transfer webhook branches — a card payment on a payment link
+  // must behave the same, otherwise the order sits paid-but-pending with no POs.
+  // A partial deposit leaves the order pending (the rep confirms manually; the
+  // deposit nudge below still fires).
+  if (paidOrder.status === 'pending') {
+    const bal = await recalculateBalance(pool, order_id);
+    if (bal && bal.balance_status === 'paid') {
+      await pool.query(
+        "UPDATE orders SET status = 'confirmed', confirmed_at = COALESCE(confirmed_at, CURRENT_TIMESTAMP) WHERE id = $1 AND status = 'pending'",
+        [order_id]);
+      await logOrderActivity(pool, order_id, 'status_changed', null, 'System',
+        { from: 'pending', to: 'confirmed', reason: 'Auto-confirmed after full online payment' });
+      await generatePurchaseOrders(order_id, pool);
+      paidOrder.status = 'confirmed';
+    }
+  }
   // Confirmation email carries the updated invoice PDF (balance due $0 / paid-in-full).
   // PDF render is heavy (Puppeteer) and degrades gracefully to a no-attachment send.
   setImmediate(async () => {
