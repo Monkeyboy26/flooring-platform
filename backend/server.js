@@ -1767,6 +1767,61 @@ if (process.env.NODE_ENV === 'production') {
   setTimeout(warmBrowseCaches, 20 * 1000);            // shortly after boot
   setInterval(warmBrowseCaches, 9 * 60 * 1000);       // inside the 10-min facets TTL
 }
+
+// One-shot purge of placeholder-poisoned image cache entries. The /api/img guard
+// (isWidenPlaceholder) stops NEW placeholders from being cached, but resized
+// outputs cached BEFORE that guard shipped still serve straight off disk (they're
+// returned before any guard runs) and would sit there for their 30-day TTL as
+// permanently-blank product cards. This deletes them so the next request re-fetches
+// and the guard rejects the placeholder → client falls back to the raw image.
+//
+// Signature is deliberately narrow: a cached OUTPUT that is tiny (<3KB), small
+// (≤800px long edge), AND near-uniform (low per-channel stddev — a flat grey
+// banner). Real tile photos have texture (high stddev) so they never match, even
+// small ones; the worst case for a false positive is re-encoding one legit tiny
+// image on its next request (same bytes back). Marker-guarded so it runs once per
+// deploy of this purge, not on every restart. Runs off the hot path, low priority.
+async function purgePlaceholderImageCacheOnce() {
+  const marker = path.join(IMG_CACHE_DIR, '.placeholder-purge-v1');
+  try { if (fs.existsSync(marker)) return; } catch { return; }
+  const started = Date.now();
+  let scanned = 0, deleted = 0;
+  const isFlatPlaceholder = async (buf) => {
+    if (buf.length >= 3072) return false;
+    try {
+      const img = sharp(buf);
+      const meta = await img.metadata();
+      if (Math.max(meta.width || 0, meta.height || 0) > 800) return false;
+      const stats = await img.stats();
+      const maxStd = Math.max(...stats.channels.map(c => c.stdev));
+      return maxStd < 12; // flat grey banner; textured photos are far higher
+    } catch { return false; }
+  };
+  const sweep = async (dir) => {
+    let files;
+    try { files = await fs.promises.readdir(dir); } catch { return; }
+    for (const f of files) {
+      if (f.startsWith('.')) continue;
+      const fp = path.join(dir, f);
+      let st; try { st = await fs.promises.stat(fp); } catch { continue; }
+      if (!st.isFile() || st.size >= 3072) continue;
+      scanned++;
+      try {
+        const buf = await fs.promises.readFile(fp);
+        if (await isFlatPlaceholder(buf)) { await fs.promises.unlink(fp); deleted++; }
+      } catch {}
+    }
+  };
+  try {
+    await sweep(IMG_CACHE_DIR);       // resized outputs (the ones served as blanks)
+    await sweep(IMG_ORIG_CACHE_DIR);  // originals, so a re-resize can't re-poison
+    try { await fs.promises.writeFile(marker, `purged ${deleted}/${scanned} @${started}\n`); } catch {}
+    console.log(`[img-purge] removed ${deleted} placeholder cache files (scanned ${scanned} small files) in ${Date.now() - started}ms`);
+  } catch (err) { console.warn('[img-purge]', err.message); }
+}
+if (process.env.NODE_ENV === 'production') {
+  setTimeout(purgePlaceholderImageCacheOnce, 45 * 1000); // after the first warm pass
+}
 const popularCache = new SearchCache(1, 10 * 60 * 1000); // 10 min TTL
 
 function clearSearchCaches() {
