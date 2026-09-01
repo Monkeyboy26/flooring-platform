@@ -66,8 +66,13 @@
     ]
   }
   </script>
-  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
-  <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <!-- Self-hosted React (was cdnjs). A third-party CDN as a BLOCKING dependency
+       is a single point of failure: on a flaky mobile network a slow/failed
+       cdnjs fetch left storefront-app.js throwing "React is not defined" and the
+       whole SPA never mounted (blank page). Serving from our own origin lets the
+       service worker precache it, so boot no longer depends on cdnjs uptime. -->
+  <script src="/vendor/react-18.3.1.production.min.js"></script>
+  <script src="/vendor/react-dom-18.3.1.production.min.js"></script>
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&family=Pinyon+Script&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Inter:wght@300;400;500&family=Pinyon+Script&display=swap" rel="stylesheet"></noscript>
   <script async src="https://js.stripe.com/v3/"></script>

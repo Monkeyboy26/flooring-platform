@@ -262,6 +262,23 @@ const BAD_IMAGE_HASHES = new Set([
   'ed35f9e3649f263f7086f75487ab71e8', // Widen CDN 300×300 "PREVIEW NOT AVAILABLE" placeholder (8KB)
 ]);
 
+// Widen serves a small grey "PREVIEW NOT AVAILABLE" banner for dead or embargoed
+// assets. Its exact bytes AND dimensions vary between assets (seen: 300×300 8KB,
+// 650×325 6.4KB), so neither the hash list above nor a fixed size catches them —
+// and a slipped-through placeholder gets resized and cached for 30 days, showing
+// as a permanently blank product card. The reliable tell is scale: placeholders
+// are tiny banners (<12KB, ≤800px on the long edge) while real Widen tile renders
+// are ~2048px and 100KB+. Scoped to widen URLs by the caller so it can never
+// false-positive on a legitimately small image from another origin.
+async function isWidenPlaceholder(buf) {
+  if (BAD_IMAGE_HASHES.has(crypto.createHash('md5').update(buf).digest('hex'))) return true;
+  if (buf.length >= 12000) return false; // real renders are 100KB+ — cheap early-out
+  try {
+    const meta = await sharp(buf).metadata();
+    return Math.max(meta.width || 0, meta.height || 0) <= 800;
+  } catch { return false; }
+}
+
 // True if an IP literal (v4 or v6) falls in a private/loopback/link-local/reserved range.
 function isPrivateIp(ip) {
   const v = String(ip).toLowerCase();
@@ -393,11 +410,14 @@ app.get('/api/img', imgLimiter, async (req, res) => {
                       return null;
                     }
                     buf = Buffer.from(await resp.arrayBuffer());
-                    // Check for Widen placeholder before accepting
-                    const tmpHash = crypto.createHash('md5').update(buf).digest('hex');
-                    if (isWiden && BAD_IMAGE_HASHES.has(tmpHash) && attempt < maxAttempts - 1) {
-                      await new Promise(r => setTimeout(r, 300));
-                      continue;
+                    // Reject Widen placeholders before accepting — by hash AND by the
+                    // 300×300 tell-tale (catches variants the hash list misses). Retry
+                    // in case the CDN was mid-processing; on the last attempt return
+                    // null so a dead asset is NOT cached and the client's onerror
+                    // handler can fall back to the raw URL instead of a blank tile.
+                    if (isWiden && await isWidenPlaceholder(buf)) {
+                      if (attempt < maxAttempts - 1) { await new Promise(r => setTimeout(r, 300)); continue; }
+                      return null;
                     }
                     break;
                   } catch { clearTimeout(timeout); if (attempt >= maxAttempts - 1) return null; await new Promise(r => setTimeout(r, 300)); }
@@ -418,6 +438,14 @@ app.get('/api/img', imgLimiter, async (req, res) => {
         const inputHash = crypto.createHash('md5').update(inputBuffer).digest('hex');
         if (BAD_IMAGE_HASHES.has(inputHash)) {
           console.warn(`[img] Blocked bad image (hash ${inputHash}): ${url}`);
+          return null;
+        }
+        // Second-guard for Widen placeholders: the download loop retries fresh
+        // fetches, but a placeholder already sitting in the origin-cache (or a
+        // hash-variant not enumerated above) would otherwise be resized and
+        // served here. Catch it by dimensions before it becomes a blank card.
+        if (url.includes('.widen.net') && await isWidenPlaceholder(inputBuffer)) {
+          console.warn(`[img] Blocked Widen placeholder (300×300): ${url}`);
           return null;
         }
         const resizeOpts = { width: w, fit: fitMode, withoutEnlargement: fitMode === 'inside' };
@@ -1691,14 +1719,44 @@ const browseCache = new SearchCache(500, 10 * 60 * 1000); // 10 min TTL (warmer 
 // Cache warmer: re-heat the hottest browse URLs just inside their TTLs so no
 // visitor ever pays the cold-query cost (multi-second facet aggregations).
 // Serial requests, production only.
+//
+// CRITICAL: browseCache keys on req.originalUrl (the exact query string), so the
+// warmed URL must match BYTE-FOR-BYTE what the storefront actually requests, or
+// the warm entry is dead weight and every first visit still pays the cold cost.
+// The grid always sends offset=0 on page 1, param order category → sort → limit
+// → offset (see fetchSkus in storefront.jsx). There are TWO equivalent forms of
+// the same default-sorted grid, by entry point, so we warm both:
+//   • first paint / deep link / crawler → sort omitted (mount parser passes
+//     sort:undefined, line ~3687)                     ?category=X&limit=24&offset=0
+//   • in-SPA click / popstate → explicit default sort ?category=X&sort=name_asc&limit=24&offset=0
+// (The old warmer used ?category=X&limit=24 — missing offset=0 — so it matched
+// neither, and every first browse still paid the multi-second cold cost.)
+// Facets send only ?category=SLUG. Keep all three in lockstep with storefront.jsx.
+const WARM_SKUS_QS = ['limit=24&offset=0', 'sort=name_asc&limit=24&offset=0'];
 async function warmBrowseCaches() {
   try {
-    const cats = await pool.query(
-      "SELECT slug FROM categories WHERE is_active IS NOT FALSE AND parent_id IS NULL ORDER BY sort_order NULLS LAST LIMIT 12");
-    const urls = ['/api/storefront/facets', '/api/storefront/skus?limit=24'];
-    for (const c of cats.rows) {
-      urls.push('/api/storefront/facets?category=' + encodeURIComponent(c.slug));
-      urls.push('/api/storefront/skus?category=' + encodeURIComponent(c.slug) + '&limit=24');
+    // Warm the top-level categories (the mega-menu targets) AND the heaviest
+    // leaf categories (porcelain-tile ~3.9k, mosaic-tile ~3.5k, ceramic-tile,
+    // …). The old warmer only touched the 11 parents, so every leaf grid — the
+    // pages users actually browse into — was cold on first hit each TTL.
+    const [parents, leaves] = await Promise.all([
+      pool.query("SELECT slug FROM categories WHERE is_active IS NOT FALSE AND parent_id IS NULL ORDER BY sort_order NULLS LAST"),
+      pool.query(`SELECT c.slug
+        FROM categories c
+        JOIN products p ON p.category_id = c.id AND p.status = 'active'
+        JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+        WHERE c.is_active IS NOT FALSE
+        GROUP BY c.slug
+        ORDER BY COUNT(s.id) DESC
+        LIMIT 40`),
+    ]);
+    const slugs = [...new Set([...parents.rows, ...leaves.rows].map(r => r.slug))];
+    // Default (no-category) browse first — the /shop landing grid.
+    const urls = ['/api/storefront/facets', ...WARM_SKUS_QS.map(qs => '/api/storefront/skus?' + qs)];
+    for (const slug of slugs) {
+      const enc = encodeURIComponent(slug);
+      urls.push('/api/storefront/facets?category=' + enc);
+      for (const qs of WARM_SKUS_QS) urls.push('/api/storefront/skus?category=' + enc + '&' + qs);
     }
     for (const u of urls) {
       try { await fetch('http://localhost:' + (process.env.PORT || 3001) + u); } catch {}
