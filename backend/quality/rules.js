@@ -401,7 +401,7 @@ export const RULES = [
                p.name, s.variant_name, s.sell_by, pr.price_basis
         ${SKU_FROM}
           AND (
-            s.sell_by IS NULL OR s.sell_by NOT IN ('box', 'unit', 'roll')
+            s.sell_by IS NULL OR s.sell_by NOT IN ('box', 'unit', 'roll', 'sqft')
             OR (pr.sku_id IS NOT NULL AND (pr.price_basis IS NULL OR pr.price_basis NOT IN ('per_sqft', 'per_unit', 'per_sqyd')))
           )
       `, [vendorId]);
@@ -418,17 +418,20 @@ export const RULES = [
     title: 'sell_by / price_basis combination inconsistent',
     severity: 'warn',
     async run(pool, { vendorId }) {
-      // Canonical pairs: box+per_sqft, unit+per_unit, roll+per_sqyd.
+      // Canonical pairs: box+per_sqft, unit+per_unit, roll+per_sqyd,
+      // sqft+per_sqft (continuous square-foot goods — coping/pavers/loose stone,
+      // a schema-sanctioned sell_by, see skus_sell_by_check).
       // Allowed exception: unit+per_sqft with packaging area (natural stone
       // per-piece model) or in slab categories (rep enters dimensions).
       const { rows } = await pool.query(`
         SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
                p.name, s.variant_name, s.sell_by, pr.price_basis, c.slug AS category
         ${SKU_FROM}
-          AND s.sell_by IN ('box', 'unit', 'roll')
+          AND s.sell_by IN ('box', 'unit', 'roll', 'sqft')
           AND pr.price_basis IN ('per_sqft', 'per_unit', 'per_sqyd')
           AND NOT (
             (s.sell_by = 'box' AND pr.price_basis = 'per_sqft')
+            OR (s.sell_by = 'sqft' AND pr.price_basis = 'per_sqft')
             OR (s.sell_by = 'unit' AND pr.price_basis = 'per_unit')
             OR (s.sell_by = 'roll' AND pr.price_basis = 'per_sqyd')
             OR (s.sell_by = 'unit' AND pr.price_basis = 'per_sqft'
