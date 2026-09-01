@@ -142,7 +142,9 @@ export function canonicalMaterial(text) {
   const s = (text || '').toLowerCase();
   if (!s) return null;
   if (/engineer/.test(s)) return null;               // "engineer marble" is not stone
-  if (/porcelain|colorbody|color body|gres|stoneware|quarry|e-quarry/.test(s)) return 'porcelain';
+  // "Sintered Stone" is a manufactured ceramic-family surface, not stone —
+  // must be checked before the stone words.
+  if (/sintered|porcelain|colorbody|color body|gres|stoneware|quarry|e-quarry/.test(s)) return 'porcelain';
   if (/ceramic|wall body|white body|red body|terracotta/.test(s)) return 'ceramic';
   if (/marble|travertine|limestone|\bslate\b|granite|quartzite|basalt|dolomite|onyx|sandstone|\bpebble|natural stone|\bstone\b/.test(s)) return 'stone';
   if (/glass/.test(s)) return 'glass';
@@ -165,7 +167,8 @@ const LEDGER_NAME_RE = /\bledgers?\b|stack(ed)? ?stone|\bl ?panel\b|rockmount|\b
 // box-sold veneer product is NOT field-tile evidence (see mosaic-not-per-sheet
 // rule exclusions).
 const LOOSE_VENEER_RE = /fieldstone|ledgestone|\bashlar\b|random strip|loose veneer|thin veneer/;
-const TRIM_NAME_RE = /bullnose|pencil ?liner|\bv-?cap\b|mud ?cap|chair rail|\blistello\b|\bbeak\b|shark ?nose|quarter ?round|cove base|\bthresholds?\b|window ?sills?|\bout(side)? corner\b|\bin(side)? corner\b/;
+const TRIM_NAME_RE = /bullnose|pencil ?liner|\bv-?cap\b|mud ?cap|chair rail|\blistello\b|\bbeak\b|shark ?nose|quarter ?round|cove base|\bthresholds?\b|window ?sills?|\bsills?\b|\bjolly\b|\bcigaro\b|\bout(side)? corner\b|\bin(side)? corner\b/;
+const STAIR_NAME_RE = /stair ?(riser|tread|nos)|\briserpvc\b|\bpeldano\b|step ?nose/;
 const PAVER_NAME_RE = /\bpavers?\b|\bcobble(stone)?\b|remodel pool/;
 const COPING_NAME_RE = /\bcoping\b/;
 const SLAB_NAME_RE = /\bslab\b|\b[23] ?cm\b/;
@@ -225,8 +228,17 @@ export function classifyTileLeaf(ev) {
     ({ slug, confidence: slug === ev.currentLeaf ? null : confidence, reasons });
 
   // ── Form factor, most-specific first ──────────────────────────────────────
+  if (STAIR_NAME_RE.test(name)) {
+    return out('stair-treads-nosing', 'strong', ['stair keywords in product name']);
+  }
   if (TRIM_NAME_RE.test(name)) {
     return out('trim-accessories', 'strong', ['trim keywords in product name']);
+  }
+  // Trim often hides in the VARIANT names (ELY products whose only variants
+  // are "Bullnose 3 x 12", SA "Universal Jolly"): every variant must match —
+  // a single trim variant inside a field line is normal structure.
+  if (variants.length && variants.every(v => TRIM_NAME_RE.test(v))) {
+    return out('trim-accessories', 'strong', ['all variants are trim pieces']);
   }
   // Porcelain/ceramic "stacked stone LOOK" mesh sheets are mosaics, not
   // ledgers (AZT convention: "Marvel Stacked Stone" straight-stack mesh →
