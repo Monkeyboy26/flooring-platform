@@ -1318,8 +1318,8 @@ export async function sendOrderInvoiceEmail({ order, items, balance, checkout_ur
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border:1px solid #e7e5e4;">
   <tr><td style="padding:24px 40px;border-bottom:1px solid #e7e5e4;text-align:center;">
     <div style="text-align:center;">
-<p style="margin:0;font-family:'Cormorant Garamond',Georgia,serif;font-size:24px;line-height:1;font-weight:400;letter-spacing:0.34em;color:#1c1917;">ROMA <span style="font-size:24px;letter-spacing:normal;color:#1c1917;">FLOORING</span></p>
-<p style="margin:-10px 0 0;font-family:'Pinyon Script','Brush Script MT','Segoe Script','Cormorant Garamond',cursive;font-size:33px;line-height:1;color:#a87935;">Designs</p>
+<p style="margin:0;font-family:Georgia,'Times New Roman',Times,serif;font-size:24px;line-height:1.1;font-weight:400;letter-spacing:0.3em;color:#1c1917;">ROMA <span style="letter-spacing:normal;">FLOORING</span></p>
+<p style="margin:4px 0 0;font-family:Georgia,'Times New Roman',Times,serif;font-style:italic;font-size:22px;line-height:1;color:#a87935;">Designs</p>
 </div>
   </td></tr>
   <tr><td style="padding:32px 40px 16px;text-align:center;">
