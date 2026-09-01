@@ -22289,13 +22289,21 @@
       const orderActionLabel = (action) => {
         const labels = {
           order_created: 'Order Created', status_changed: 'Status Changed',
-          delivery_method_changed: 'Delivery Changed',
+          delivery_method_changed: 'Delivery Changed', discount_changed: 'Discount Changed',
           refund_issued: 'Refund Issued', item_added: 'Item Added', item_removed: 'Item Removed',
           payment_request_sent: 'Payment Request', payment_request_cancelled: 'Request Cancelled',
+          payment_collected: 'Payment Collected', payment_received: 'Payment Received',
+          payment_processing: 'Payment Processing', payment_failed: 'Payment Failed',
           rep_assigned: 'Rep Assigned', price_adjusted: 'Price Adjusted', cost_updated: 'Cost Updated',
           item_ready: 'Item Ready', item_unready: 'Item Unmarked',
-          payment_collected: 'Payment Collected', invoice_sent: 'Invoice Sent',
-          po_created: 'PO Created', po_approved: 'PO Approved', note_added: 'Note Added',
+          invoice_sent: 'Invoice Sent', invoice_notes_updated: 'Invoice Note Updated',
+          po_created: 'PO Created', po_approved: 'PO Sent', po_confirmed: 'Vendor Confirmed',
+          note_added: 'Note Added', note_edited: 'Note Edited', note_deleted: 'Note Deleted',
+          document_uploaded: 'Document Added', document_deleted: 'Document Removed',
+          material_released: 'Material Released', return_processed: 'Return Processed',
+          release_completed: 'Release Completed', release_uncompleted: 'Release Reopened',
+          release_void: 'Release Voided', install_scheduled: 'Install Scheduled',
+          order_cancelled: 'Order Cancelled',
           job_name_updated: 'Job / Sidemark Updated'
         };
         return labels[action] || action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -22326,8 +22334,22 @@
           case 'payment_collected': return '$' + (d.amount || '0') + ' via ' + (d.method || '?') + (d.status === 'pending' ? ' (pending)' : '');
           case 'invoice_sent': return d.sent_to ? 'to ' + d.sent_to : '';
           case 'po_created': return d.po_number ? d.po_number + (d.vendor_name ? ' — ' + d.vendor_name : '') : '';
-          case 'po_approved': return d.po_number || '';
-          case 'note_added': return '';
+          case 'po_approved': return (d.po_number || '') + (d.vendor_name ? ' — ' + d.vendor_name : '') + (d.sent_via ? ' (' + d.sent_via + ')' : '');
+          case 'po_confirmed': return [d.po_number, d.file_name].filter(Boolean).join(' · ');
+          case 'discount_changed': return (d.previous_discount != null ? d.previous_discount + '%' : '?') + ' → ' + (d.new_discount != null ? d.new_discount + '%' : '?') + (d.reason ? ' — ' + d.reason : '');
+          case 'payment_received':
+          case 'payment_processing': return '$' + (d.amount || '0') + (d.method ? ' via ' + d.method : '') + (entry.action === 'payment_processing' ? ' (pending)' : '');
+          case 'payment_failed': return (d.method ? d.method + ' — ' : '') + (d.error || 'failed');
+          case 'invoice_notes_updated': return d.cleared ? 'cleared' : (d.preview ? '“' + d.preview + '”' : 'updated');
+          case 'note_added':
+          case 'note_edited':
+          case 'note_deleted': return d.preview ? '“' + d.preview + '”' : '';
+          case 'document_uploaded':
+          case 'document_deleted': return [d.doc_type, d.file_name].filter(Boolean).join(' · ');
+          case 'material_released': return (d.release_number || '') + (d.release_method ? ' · ' + d.release_method : '') + (d.line_count ? ' · ' + d.line_count + ' line' + (d.line_count !== 1 ? 's' : '') : '');
+          case 'return_processed': return [d.rma, d.refund_total ? '$' + parseFloat(d.refund_total).toFixed(2) + ' refunded' : null, d.store_credit ? '$' + parseFloat(d.store_credit).toFixed(2) + ' credit' : null].filter(Boolean).join(' · ');
+          case 'install_scheduled': return [d.scheduled_at ? new Date(d.scheduled_at).toLocaleDateString() : null, d.window, d.crew].filter(Boolean).join(' · ');
+          case 'order_cancelled': return d.reason || '';
           default: return '';
         }
       };

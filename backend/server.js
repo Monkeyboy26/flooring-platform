@@ -5567,6 +5567,8 @@ async function generatePurchaseOrders(orderId, client) {
           itemSubtotal.toFixed(2)]);
     }
 
+    await logOrderActivity(client, orderId, 'po_created', null, 'System',
+      { po_number: po.po_number, vendor_name: (group.items[0] && group.items[0].vendor_name) || null });
     createdPOs.push(po);
   }
 
@@ -18791,6 +18793,7 @@ app.post('/api/rep/orders/:id/notes', repAuth, async (req, res) => {
       VALUES ($1, $2, $3, $4, $5) RETURNING *`, [ct, cref, req.params.id, req.rep.id, note.slice(0, 4000)]);
     const newNote = result.rows[0];
     newNote.staff_name = req.rep.first_name + ' ' + req.rep.last_name;
+    await logOrderActivity(pool, req.params.id, 'note_added', req.rep.id, newNote.staff_name, { preview: note.slice(0, 60) });
     res.json({ note: newNote });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -18813,6 +18816,7 @@ app.put('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
         (SELECT sa.first_name || ' ' || sa.last_name FROM staff_accounts sa WHERE sa.id = $1),
         (SELECT sr.first_name || ' ' || sr.last_name FROM staff_accounts sr WHERE sr.id = $1), 'Staff') AS n`,
       [upd.staff_id])).rows[0].n;
+    await logOrderActivity(pool, req.params.id, 'note_edited', req.rep.id, upd.staff_name, { preview: note.slice(0, 60) });
     res.json({ note: upd });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -18821,13 +18825,14 @@ app.delete('/api/rep/orders/:id/notes/:noteId', repAuth, async (req, res) => {
   try {
     const order = await orderForNotes(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    const owns = await pool.query('SELECT staff_id FROM customer_notes WHERE id = $1 AND order_id = $2', [req.params.noteId, req.params.id]);
+    const owns = await pool.query('SELECT staff_id, note FROM customer_notes WHERE id = $1 AND order_id = $2', [req.params.noteId, req.params.id]);
     if (!owns.rows.length) return res.status(404).json({ error: 'Note not found' });
     if (owns.rows[0].staff_id !== req.rep.id) return res.status(403).json({ error: 'You can only delete your own notes' });
     const result = await pool.query(
       'DELETE FROM customer_notes WHERE id = $1 AND order_id = $2 RETURNING id',
       [req.params.noteId, req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Note not found' });
+    await logOrderActivity(pool, req.params.id, 'note_deleted', req.rep.id, req.rep.first_name + ' ' + req.rep.last_name, { preview: String(owns.rows[0].note || '').slice(0, 60) });
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -19393,6 +19398,8 @@ app.put('/api/rep/orders/:id/invoice-notes', repAuth, async (req, res) => {
     const own = await pool.query('SELECT id FROM orders WHERE id = $1', [id]);
     if (!own.rows.length) return res.status(404).json({ error: 'Order not found' });
     const updated = await pool.query('UPDATE orders SET invoice_notes = $1 WHERE id = $2 RETURNING *', [invoiceNotes, id]);
+    await logOrderActivity(pool, id, 'invoice_notes_updated', req.rep.id, req.rep.first_name + ' ' + req.rep.last_name,
+      invoiceNotes ? { preview: invoiceNotes.slice(0, 60) } : { cleared: true });
     res.json({ order: updated.rows[0] });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
@@ -22674,6 +22681,7 @@ app.post('/api/rep/orders/documents/upload', repAuth, docUpload.single('file'), 
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, file_key`,
       [order_id || null, doc_type, req.file.originalname, fileKey, req.file.size, req.file.mimetype]
     );
+    if (order_id) await logOrderActivity(pool, order_id, 'document_uploaded', req.rep.id, req.rep.first_name + ' ' + req.rep.last_name, { doc_type, file_name: req.file.originalname });
     res.json({ document_id: result.rows[0].id, file_key: result.rows[0].file_key });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -22743,6 +22751,7 @@ app.post('/api/rep/purchase-orders/:poId/documents', repAuth, docUpload.single('
       );
       newStatus = 'acknowledged';
     }
+    if (po.order_id) await logOrderActivity(pool, po.order_id, 'po_confirmed', req.rep.id, repName, { po_number: po.po_number, file_name: req.file.originalname });
     res.json({ success: true, document_id: ins.rows[0].id, po_number: po.po_number, po_status: newStatus });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -22758,7 +22767,7 @@ app.delete('/api/rep/orders/documents/:docId', repAuth, async (req, res) => {
       DELETE FROM order_documents od
       USING orders o
       WHERE od.id = $1 AND od.order_id = o.id
-      RETURNING od.id, od.doc_type, od.purchase_order_id`, [docId]);
+      RETURNING od.id, od.doc_type, od.purchase_order_id, od.order_id, od.file_name`, [docId]);
     if (!del.rows.length) return res.status(404).json({ error: 'Document not found' });
 
     // Deleting the vendor's confirmation removes the proof it was confirmed, so
@@ -22784,6 +22793,7 @@ app.delete('/api/rep/orders/documents/:docId', repAuth, async (req, res) => {
         }
       }
     }
+    if (gone.order_id) await logOrderActivity(pool, gone.order_id, 'document_deleted', req.rep.id, req.rep.first_name + ' ' + req.rep.last_name, { doc_type: gone.doc_type, file_name: gone.file_name });
     res.json({ success: true, po_reverted: poReverted });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -24003,6 +24013,7 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
           `${repName} placed the PO for ${poOrder.rows[0].order_number} ${phrase}`,
           'order', po.order_id));
       }
+      await logOrderActivity(pool, po.order_id, 'po_approved', req.rep.id, repName, { po_number: po.po_number, vendor_name: po.vendor_name, sent_via: manualMethod });
       return res.json({ purchase_order: updated.rows[0], sent_via: manualMethod });
     }
 
@@ -24110,6 +24121,7 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
             'order', po.order_id));
         }
 
+        await logOrderActivity(pool, po.order_id, 'po_approved', req.rep.id, repName, { po_number: po.po_number, vendor_name: po.vendor_name, sent_via: 'edi' });
         return res.json({ purchase_order: updatedPO.rows[0], sent_via: 'edi', edi: ediDetails });
       }
 
@@ -24164,6 +24176,7 @@ app.post('/api/rep/purchase-orders/:poId/approve', repAuth, async (req, res) => 
     }
 
     await pool.query(`UPDATE purchase_orders SET sent_via = $2 WHERE id = $1`, [poId, sentVia]);
+    await logOrderActivity(pool, po.order_id, 'po_approved', req.rep.id, repName, { po_number: po.po_number, vendor_name: po.vendor_name, sent_via: sentVia });
     const updatedPO = await pool.query('SELECT * FROM purchase_orders WHERE id = $1', [poId]);
     res.json({ purchase_order: updatedPO.rows[0], email_sent: emailSent, sent_via: sentVia });
   } catch (err) {

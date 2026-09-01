@@ -53,7 +53,8 @@ export async function recalcOrderTotals(db, orderId) {
 // discount-edit endpoint) — it's wired here so a future discount edit counts
 // automatically once it logs that action.
 const REVISION_EDIT_ACTIONS = new Set([
-  'item_added', 'item_removed', 'price_adjusted', 'delivery_method_changed', 'discount_changed'
+  'item_added', 'item_removed', 'price_adjusted', 'delivery_method_changed', 'discount_changed',
+  'invoice_notes_updated'
 ]);
 
 export async function logOrderActivity(queryable, orderId, action, performerId, performerName, details = {}) {
