@@ -22219,6 +22219,7 @@
       const [costDraft, setCostDraft] = useState('');
       const [purchaseOrders, setPurchaseOrders] = useState([]);
       const [posLoading, setPosLoading] = useState(false);
+      const [posGenerating, setPosGenerating] = useState(false);
       const [editingPOItem, setEditingPOItem] = useState(null);
       const [newCost, setNewCost] = useState('');
       const [poUpdating, setPoUpdating] = useState(false);
@@ -22452,6 +22453,19 @@
           .then(data => { setPurchaseOrders(data.purchase_orders || []); setPoRepEmail(data.rep_email || ''); setPosLoading(false); })
           .catch(() => setPosLoading(false));
       }, [editId]);
+
+      // Cut draft vendor POs on demand so a rep can reserve material before the
+      // customer pays. Idempotent server-side; drafts don't transmit until sent.
+      const generatePOs = useCallback(async () => {
+        if (!editId) return;
+        setPosGenerating(true);
+        try {
+          const res = await repFetch('/api/rep/orders/' + editId + '/generate-pos', { method: 'POST', body: JSON.stringify({}) });
+          loadPOs();
+          if (res && res.created === 0) alert('No vendor POs to generate — every line is already on a PO (or has no vendor).');
+        } catch (err) { alert(err.message || 'Failed to generate POs'); }
+        setPosGenerating(false);
+      }, [editId, loadPOs]);
 
       const load = useCallback(() => {
         if (!editId) return;
@@ -23577,6 +23591,25 @@
                   )}
                 </div>
               </RodCard>
+
+              {/* No POs yet — let the rep cut drafts to reserve material even
+                  before the customer has paid (drafts don't transmit until sent). */}
+              {!posLoading && purchaseOrders.length === 0 && order && !['cancelled','refunded'].includes(order.status) && (
+                <RodCard title="Vendor POs">
+                  <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                    <div style={{ maxWidth: 460 }}>
+                      <div style={{ font: '400 13px/1.4 Inter, sans-serif', color: 'var(--rod-ink)' }}>No vendor POs yet.</div>
+                      <div style={{ font: '400 11.5px/1.5 Inter, sans-serif', color: 'var(--rod-muted)', marginTop: 4 }}>
+                        Generate draft POs to reserve material with the vendor — you can send them now even if the customer hasn’t paid yet. Drafts don’t transmit until you send each one.
+                      </div>
+                    </div>
+                    <button disabled={posGenerating} onClick={generatePOs}
+                      style={{ padding: '9px 16px', border: 'none', background: '#1c1917', color: '#ece5d8', font: '500 11px/1 ui-monospace, monospace', letterSpacing: '0.1em', textTransform: 'uppercase', cursor: posGenerating ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>
+                      {posGenerating ? 'Generating…' : 'Generate POs · reserve material'}
+                    </button>
+                  </div>
+                </RodCard>
+              )}
 
               {/* Vendor POs — v3 (order-flow card design) */}
               {purchaseOrders.length > 0 && (

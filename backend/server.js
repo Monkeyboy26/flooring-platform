@@ -5570,6 +5570,14 @@ async function generatePurchaseOrders(orderId, client) {
 
   const createdPOs = [];
 
+  // Idempotent: a vendor that already has a live (non-cancelled) PO on this order
+  // must never get a second one. Reps can generate/send draft POs to reserve
+  // material BEFORE payment, and order confirm + payment settlement also call this
+  // — so it may run several times for one order. Skip vendors already covered.
+  const existingVendorPOs = await client.query(
+    "SELECT DISTINCT vendor_id FROM purchase_orders WHERE order_id = $1 AND status <> 'cancelled'", [orderId]);
+  const vendorsWithLivePO = new Set(existingVendorPOs.rows.map(r => String(r.vendor_id)));
+
   // Custom bound area rug → order carpet by the LINEAR FOOT off the roll. The
   // cut is roll_width × linearFeet per rug; the vendor bills per sqyd, so cost
   // per LF = cost/sqyd × (rollWidth / 9). Qty is whole LF (rounded up — you buy
@@ -5592,6 +5600,7 @@ async function generatePurchaseOrders(orderId, client) {
   };
 
   for (const group of Object.values(vendorGroups)) {
+    if (vendorsWithLivePO.has(String(group.vendor_id))) continue;
     const poNumber = await getNextPONumber();
 
     // Calculate subtotal — cost per box * qty (boxes), or cost per sqyd * sqyd for carpet
@@ -18667,10 +18676,12 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       );
     }
 
-    // Generate POs if confirmed
-    if (orderStatus === 'confirmed') {
-      await generatePurchaseOrders(order.id, client);
-    }
+    // Generate vendor POs up front — as DRAFTS — even when the order is still
+    // pending (unpaid). Reps need to send POs to reserve material before the
+    // customer pays the link; drafts don't transmit until a rep sends them, and
+    // generatePurchaseOrders is idempotent so the later confirm/payment re-run
+    // won't duplicate. [[po-generation-on-payment]]
+    await generatePurchaseOrders(order.id, client);
 
     // Log activity
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
@@ -18848,6 +18859,31 @@ app.get('/api/rep/orders/:id', repAuth, async (req, res) => {
 // capability (vendors.edi_config.enabled) and line items. Powers the order-entry
 // "Send POs" step so the transmit channel reflects whether the vendor actually
 // has EDI, and so line costs can be adjusted before the PO is transmitted.
+// Generate vendor POs for an order on demand — lets a rep RESERVE MATERIAL by
+// cutting (and then sending) draft POs before the customer has paid. Idempotent:
+// generatePurchaseOrders skips any vendor that already has a live PO, so this is
+// safe to call repeatedly and alongside the confirm/payment auto-generation.
+// Draft POs never transmit on their own — the rep still sends each one.
+app.post('/api/rep/orders/:id/generate-pos', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const ord = await client.query('SELECT id, status FROM orders WHERE id = $1', [id]);
+    if (!ord.rows.length) { client.release(); return res.status(404).json({ error: 'Order not found' }); }
+    if (ord.rows[0].status === 'cancelled') { client.release(); return res.status(400).json({ error: 'Order is cancelled' }); }
+    await client.query('BEGIN');
+    const created = await generatePurchaseOrders(id, client);
+    await client.query('COMMIT');
+    res.json({ created: created.length });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('[Rep] Generate POs error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
 app.get('/api/rep/orders/:id/purchase-orders', repAuth, async (req, res) => {
   try {
     const { id } = req.params;
