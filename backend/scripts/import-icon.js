@@ -237,15 +237,30 @@ async function main() {
       }
     }
 
-    // media (product-level) — present only if a later image pass populated images.json
-    const img = p.slug ? images[p.slug] : (images[p.name] || null);
-    const primary = img && (img.primary || (img.gallery && img.gallery[0]));
-    if (primary) {
-      await upsertMedia(prod.id, primary, 'primary', 0);
-      mediaN++;
-      const gallery = (img.gallery || []).filter(u => u !== primary);
-      for (let i = 0; i < gallery.length && i < 5; i++) await upsertMedia(prod.id, gallery[i], 'alternate', i + 1);
-    } else { noImg++; }
+    // media (product-level) — present only if a later image pass populated images.json.
+    // SKIP for MULTI-format mosaics & trim: when one product carries many distinct formats
+    // (1x1 / 2x2 / Wavy / Split Face, or pencil vs crown vs bullnose profiles), ONE shared
+    // product photo leaks onto every imageless format SKU through the storefront's pi.url
+    // fallback — e.g. a 2x2 Square would show the 2x4 Wavy brick-lay. Such products rely on
+    // per-SKU images only (build-icon-sku-images.py); a format with no matched vendor photo
+    // stays photoless rather than borrowing a wrong-format sibling, and the grid card still
+    // falls back to a representative SKU primary. We also PURGE any product-level rows a prior
+    // run attached so re-imports converge. A SINGLE-format mosaic/trim (one SKU) keeps its
+    // product photo — with only one format there is nothing to mismatch. [[icon-mosaic-format-images]]
+    const perFormat = (p.form === 'mosaic' || p.form === 'trim') && p.skus.length > 1;
+    let primary = null;
+    if (perFormat) {
+      await pool.query('DELETE FROM media_assets WHERE product_id=$1 AND sku_id IS NULL', [prod.id]);
+    } else {
+      const img = p.slug ? images[p.slug] : (images[p.name] || null);
+      primary = img && (img.primary || (img.gallery && img.gallery[0]));
+      if (primary) {
+        await upsertMedia(prod.id, primary, 'primary', 0);
+        mediaN++;
+        const gallery = (img.gallery || []).filter(u => u !== primary);
+        for (let i = 0; i < gallery.length && i < 5; i++) await upsertMedia(prod.id, gallery[i], 'alternate', i + 1);
+      } else { noImg++; }
+    }
     productMeta.push({ id: prod.id, color: p.color || null, material: p.material || null, form: p.form || null, primary: primary || null });
   }
 
