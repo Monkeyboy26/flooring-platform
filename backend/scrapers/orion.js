@@ -983,6 +983,12 @@ function classifyProduct(wcCategory, title, productName, categorySlug) {
   const catLower = (wcCategory || '').toLowerCase();
   const nameLower = (productName || '').toLowerCase().trim();
 
+  // L-series = painted Mexican (Talavera) decorative tile sold PER PIECE (owner
+  // 2026-09-02) — unit / per_unit so the storefront reads "$X /ea", not /sqft.
+  if (MEXICAN_DECO_TILE.has(nameLower)) {
+    return { sellBy: 'unit', variantType: 'wall_tile', priceBasis: 'per_unit' };
+  }
+
   // Category-driven classification (authoritative when we have the slug).
   if (categorySlug) {
     const COUNTERTOP = new Set(['porcelain-slabs', 'marble-countertops',
