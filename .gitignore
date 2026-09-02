@@ -61,3 +61,10 @@ frontend/elysium-check.html
 backend/data/*.pdf
 backend/data/*.csv
 backend/data/formamondo/pdf-swatches-src/
+
+# Throwaway scrape/audit scratch outputs (not source of truth)
+backend/data/**/_scrape.log
+backend/data/daltile-broken-image-dryrun.json
+backend/data/daltile/edi-593-check.json
+backend/data/msi/quartz-slabs-manifest.json
+backend/data/siena/reonboard-plan.json
