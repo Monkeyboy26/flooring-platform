@@ -34,6 +34,7 @@ import { generateCreditMemoIssuedHTML } from '../templates/creditMemoIssued.js';
 import { generateMaterialReleaseHTML } from '../templates/materialRelease.js';
 import { generateInstallScheduledHTML } from '../templates/installScheduled.js';
 import { generateInstallCompleteHTML } from '../templates/installComplete.js';
+import { generateVendorPoEmailHTML } from '../templates/vendorPo.js';
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -674,7 +675,7 @@ export async function sendInstallationInquiryConfirmation(inquiry) {
 /**
  * Send purchase order PDF to vendor via email.
  */
-export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_number, is_revised, pdf_buffer, rep_email, rep_name, vendor_contact_email, cc_list, notes }) {
+export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_number, is_revised, pdf_buffer, rep_email, rep_name, vendor_contact_email, cc_list, notes, po, items }) {
   if (!transporter) {
     console.log(`[Email] Skipping PO email for ${po_number} to ${vendor_email} — SMTP not configured`);
     return { sent: false };
@@ -683,7 +684,19 @@ export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_
     const subject = is_revised
       ? `Revised Purchase Order — ${po_number}`
       : `Purchase Order — ${po_number}`;
-    const html = `<!DOCTYPE html>
+    const pdfFilename = `${po_number}.pdf`;
+    // Preferred: the Brass Charcoal PO email (Vendor PO Email design). Needs the
+    // PO row + line items (both returned by generatePOHtml). Fall back to the
+    // legacy plain body if a caller can't supply them.
+    const html = po
+      ? generateVendorPoEmailHTML({
+          po: { ...po, vendor_name: po.vendor_name || vendor_name },
+          items,
+          pdf_filename: pdfFilename,
+          rep_name, rep_email,
+          notes,
+        })
+      : `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#fafaf9;font-family:Inter,Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#fafaf9;padding:40px 0;">
@@ -726,7 +739,7 @@ export async function sendPurchaseOrderToVendor({ vendor_email, vendor_name, po_
       replyTo: rep_email || SALES_FROM,
       subject,
       html,
-      attachments: [{ filename: `${po_number}.pdf`, content: pdf_buffer, contentType: 'application/pdf' }]
+      attachments: [{ filename: pdfFilename, content: pdf_buffer, contentType: 'application/pdf' }]
     });
     console.log(`[Email] PO ${po_number} sent to ${vendor_email}${cc.length ? ' (cc ' + cc.join(', ') + ')' : ''}`);
     return { sent: true };
