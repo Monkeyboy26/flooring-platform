@@ -20078,18 +20078,17 @@ app.put('/api/rep/orders/:id/items/:itemId/cost', repAuth, async (req, res) => {
     // preserving any PO-level notes/recipient the rep set. Already-SENT POs are left
     // untouched — they've gone to the vendor; edit the PO line directly to change those.
     const draftPOs = await client.query(
-      "SELECT DISTINCT po.id, po.vendor_id, po.notes, po.recipient_email, po.cc_emails FROM purchase_orders po JOIN purchase_order_items poi ON poi.purchase_order_id = po.id WHERE poi.order_item_id = $1 AND po.status = 'draft'", [itemId]);
+      "SELECT DISTINCT po.id, po.vendor_id, po.po_number, po.notes, po.recipient_email, po.cc_emails FROM purchase_orders po JOIN purchase_order_items poi ON poi.purchase_order_id = po.id WHERE poi.order_item_id = $1 AND po.status = 'draft'", [itemId]);
     if (draftPOs.rows.length) {
       for (const d of draftPOs.rows) {
         await client.query('DELETE FROM purchase_orders WHERE id = $1', [d.id]);
       }
       await generatePurchaseOrders(id, client);
+      // Keep the draft's original PO number + any rep-set notes/recipient across the rebuild.
       for (const d of draftPOs.rows) {
-        if (d.notes || d.recipient_email || (Array.isArray(d.cc_emails) && d.cc_emails.length)) {
-          await client.query(
-            "UPDATE purchase_orders SET notes = COALESCE($2, notes), recipient_email = COALESCE($3, recipient_email), cc_emails = COALESCE($4, cc_emails) WHERE order_id = $1 AND vendor_id = $5 AND status = 'draft'",
-            [id, d.notes || null, d.recipient_email || null, Array.isArray(d.cc_emails) && d.cc_emails.length ? d.cc_emails : null, d.vendor_id]);
-        }
+        await client.query(
+          "UPDATE purchase_orders SET po_number = $2, notes = COALESCE($3, notes), recipient_email = COALESCE($4, recipient_email), cc_emails = COALESCE($5, cc_emails) WHERE order_id = $1 AND vendor_id = $6 AND status = 'draft'",
+          [id, d.po_number, d.notes || null, d.recipient_email || null, Array.isArray(d.cc_emails) && d.cc_emails.length ? d.cc_emails : null, d.vendor_id]);
       }
     }
     await client.query('COMMIT');
