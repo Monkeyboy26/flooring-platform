@@ -27,6 +27,7 @@ INSERT INTO categories (id, parent_id, name, slug, sort_order) VALUES
 -- Terrazzo Tile + Medallions & Inlays: leaves under Tile (2026-09-02, Stone Pride onboarding)
 ('650e8400-e29b-41d4-a716-4466554400f1', '650e8400-e29b-41d4-a716-446655440010', 'Terrazzo Tile', 'terrazzo-tile', 16),
 ('650e8400-e29b-41d4-a716-4466554400f2', '650e8400-e29b-41d4-a716-446655440010', 'Medallions & Inlays', 'medallions', 17),
+('650e8400-e29b-41d4-a716-4466554400f3', '650e8400-e29b-41d4-a716-446655440010', 'Borders & Liners', 'borders', 18),
 -- ── Luxury Vinyl ──
 ('650e8400-e29b-41d4-a716-446655440030', NULL, 'Luxury Vinyl', 'luxury-vinyl', 2),
 ('650e8400-e29b-41d4-a716-446655440031', '650e8400-e29b-41d4-a716-446655440030', 'LVP (Plank)', 'lvp-plank', 1),

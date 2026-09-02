@@ -352,21 +352,21 @@ def main():
 
         elif pfx == "ML-":
             prod = get_product(("border","ml"), "Waterjet Marble Borders", "Marble Borders",
-                               "trim-accessories", "Waterjet marble border / liner strip (4\"x12\" typical).")
+                               "borders", "Waterjet marble border / liner strip (4\"x12\" typical).")
             prod["skus"].append({
                 "vendor_sku": code, "internal_sku": sanitize_sku(code),
                 "variant_name": border_variant(code, desc, pfx), "sell_by": "unit",
-                "variant_type": "accessory", "cost": cost, "retail": retail,
+                "variant_type": None, "cost": cost, "retail": retail,   # own 'borders' category → browsable (not a linked accessory)
                 "price_basis": "per_unit", "status": status, "packaging": None,
                 "attrs": {}, "desc": desc,
             })
         elif pfx == "MSL-":
             prod = get_product(("liner","msl"), "Marble Mosaic Liners", "Marble Borders",
-                               "trim-accessories", "Marble mosaic liner / border (10mm mosaic pieces on 4\"x12\").")
+                               "borders", "Marble mosaic liner / border (10mm mosaic pieces on 4\"x12\").")
             prod["skus"].append({
                 "vendor_sku": code, "internal_sku": sanitize_sku(code),
                 "variant_name": border_variant(code, desc, pfx), "sell_by": "unit",
-                "variant_type": "accessory", "cost": cost, "retail": retail,
+                "variant_type": None, "cost": cost, "retail": retail,   # own 'borders' category → browsable (not a linked accessory)
                 "price_basis": "per_unit", "status": status, "packaging": None,
                 "attrs": {}, "desc": desc,
             })
