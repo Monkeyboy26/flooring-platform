@@ -13834,7 +13834,7 @@
             // fabrication). Without these fields it falls through to the plain-SKU
             // branch and prices as 1 sqyd of carpet. [[custom-rug-calculator]]
             if (i.is_custom_rug && i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, is_custom_rug: true, custom_width_ft: i.custom_width_ft, custom_length_ft: i.custom_length_ft };
-            if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, sell_by: i.sell_by, slab_sqft: i.slab_sqft || undefined };
+            if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, cost: i.cost != null ? i.cost : undefined, sell_by: i.sell_by, slab_sqft: i.slab_sqft || undefined };
             return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, custom_vendor: i.custom_vendor || undefined, custom_vendor_email: i.custom_vendor_email || undefined, cost: i.cost || undefined, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
           });
 

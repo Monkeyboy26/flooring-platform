@@ -5496,7 +5496,7 @@ async function generatePurchaseOrders(orderId, client) {
   const itemsResult = await client.query(`
     SELECT oi.id as order_item_id, oi.product_name, oi.num_boxes as qty, oi.unit_price,
            oi.sqft_needed, oi.sell_by, oi.description, oi.price_tier,
-           oi.is_custom_rug, oi.custom_width_ft, oi.custom_length_ft,
+           oi.is_custom_rug, oi.custom_width_ft, oi.custom_length_ft, oi.cost as line_cost,
            p.vendor_id, v.code as vendor_code, v.public_code as vendor_public_code, v.name as vendor_name,
            s.id as sku_id, s.vendor_sku,
            COALESCE(pr.cost, 0) as vendor_cost,
@@ -5616,6 +5616,13 @@ async function generatePurchaseOrders(orderId, client) {
       } else if (item.price_tier === 'cut' && item.cut_cost != null) {
         vendorCost = parseFloat(item.cut_cost);
       }
+      // Rep-edited vendor cost wins. order_items.cost starts equal to the SKU cost,
+      // so a value differing from the SKU base cost (item.vendor_cost) means the rep
+      // overrode it on the order line — honor that on the PO. It is in the same
+      // per-basis unit as the SKU cost, so the conversion below still applies.
+      if (item.line_cost != null && Math.abs(parseFloat(item.line_cost) - parseFloat(item.vendor_cost || 0)) > 0.005) {
+        vendorCost = parseFloat(item.line_cost);
+      }
       let itemCost;
       if (item.price_basis === 'per_sqyd') {
         // Carpet: cost/sqyd * sqyd (sqft_needed is in sqft, convert to sqyd)
@@ -5658,6 +5665,13 @@ async function generatePurchaseOrders(orderId, client) {
         vendorCost = parseFloat(item.roll_cost);
       } else if (item.price_tier === 'cut' && item.cut_cost != null) {
         vendorCost = parseFloat(item.cut_cost);
+      }
+      // Rep-edited vendor cost wins. order_items.cost starts equal to the SKU cost,
+      // so a value differing from the SKU base cost (item.vendor_cost) means the rep
+      // overrode it on the order line — honor that on the PO. It is in the same
+      // per-basis unit as the SKU cost, so the conversion below still applies.
+      if (item.line_cost != null && Math.abs(parseFloat(item.line_cost) - parseFloat(item.vendor_cost || 0)) > 0.005) {
+        vendorCost = parseFloat(item.line_cost);
       }
       let costPerBox, retailPerBox, itemSubtotal, poQty = item.qty;
       if (item.price_basis === 'per_sqyd') {
@@ -18403,9 +18417,16 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
           : (tradeDiscount > 0
               ? retailUnit * (1 - effTradeDiscount(tradeDiscount, sku.retail_locked) / 100)
               : retailUnit);
-        const lineCost = isPerSqftSlab
+        // Honor a rep-edited vendor cost (order-flow cost cell); fall back to the
+        // SKU cost. Stored per-basis (per sqft / sqyd / unit — or per slab for a
+        // sized slab), matching what generatePurchaseOrders expects so it flows to
+        // the PO. Cost never affects the customer price/subtotal below.
+        const skuLineCost = isPerSqftSlab
           ? parseFloat(sku.cost || 0) * slabSqft
           : parseFloat(sku.cost || 0);
+        const lineCost = (item.cost != null && item.cost !== '' && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) >= 0)
+          ? parseFloat(item.cost)
+          : skuLineCost;
         let subtotal;
         if (isPerSqftSlab) {
           subtotal = unitPrice * numBoxes;
@@ -20050,6 +20071,27 @@ app.put('/api/rep/orders/:id/items/:itemId/cost', repAuth, async (req, res) => {
     const repName = req.rep.first_name + ' ' + req.rep.last_name;
     await logOrderActivity(client, id, 'cost_updated', req.rep.id, repName,
       { product_name: it.rows[0].product_name, previous_cost: it.rows[0].cost, new_cost: cost != null ? cost.toFixed(2) : null });
+
+    // Flow the new cost onto any still-DRAFT vendor PO that covers this line, so the
+    // PO + PDF reflect it. Rebuild the draft (generatePurchaseOrders is idempotent
+    // and honors the order-line cost, applying the correct per-basis conversion),
+    // preserving any PO-level notes/recipient the rep set. Already-SENT POs are left
+    // untouched — they've gone to the vendor; edit the PO line directly to change those.
+    const draftPOs = await client.query(
+      "SELECT DISTINCT po.id, po.vendor_id, po.notes, po.recipient_email, po.cc_emails FROM purchase_orders po JOIN purchase_order_items poi ON poi.purchase_order_id = po.id WHERE poi.order_item_id = $1 AND po.status = 'draft'", [itemId]);
+    if (draftPOs.rows.length) {
+      for (const d of draftPOs.rows) {
+        await client.query('DELETE FROM purchase_orders WHERE id = $1', [d.id]);
+      }
+      await generatePurchaseOrders(id, client);
+      for (const d of draftPOs.rows) {
+        if (d.notes || d.recipient_email || (Array.isArray(d.cc_emails) && d.cc_emails.length)) {
+          await client.query(
+            "UPDATE purchase_orders SET notes = COALESCE($2, notes), recipient_email = COALESCE($3, recipient_email), cc_emails = COALESCE($4, cc_emails) WHERE order_id = $1 AND vendor_id = $5 AND status = 'draft'",
+            [id, d.notes || null, d.recipient_email || null, Array.isArray(d.cc_emails) && d.cc_emails.length ? d.cc_emails : null, d.vendor_id]);
+        }
+      }
+    }
     await client.query('COMMIT');
     setImmediate(() => recalculateCommission(pool, id));
     const updatedItems = await pool.query(`
