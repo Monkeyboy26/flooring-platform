@@ -1,20 +1,15 @@
 {
  "MS-EDEL-2-Random-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EDEL-2-Random-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EDEL-2-Random-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-HO-1-Hex-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "Tile-BM-6x12-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-BM-6x12-Polished.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-BM-6x12-Polished.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-BM-6x12-Honed.jpg"
   ]
  },
@@ -22,205 +17,310 @@
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-CW-12x24-Honed.jpg",
   "gallery": [
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-CW-12x24-Polished.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-CW-12x24-Polished.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-CW-12x24-Polished-1.jpg"
   ]
  },
  "Tile-CW-12x24-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-CW-12x24-Polished.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-CW-12x24-Polished.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-CW-12x24-Polished-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-CW-12x24-Honed.jpg"
+  ]
+ },
+ "Tile-Cont.CG-12x12-H(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-12X12-POLISHED-2-1.jpg",
+  "gallery": [
+   "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-12X12-POLISHED-2.jpg",
+   "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-12X12-POLISHED-2-cc.jpg",
+   "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-12X12-POLISHED-2testpng.png"
+  ]
+ },
+ "Tile-Cont.CG-12x12-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-12X12-POLISHED-2-1.jpg",
+  "gallery": [
+   "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-12X12-POLISHED-2.jpg",
+   "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-12X12-POLISHED-2-cc.jpg",
+   "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-12X12-POLISHED-2testpng.png"
   ]
  },
  "Tile-ARdb-12x24-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x24-Honed-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x24-Honed-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x24-Polished-Thumbnail.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x24-Polished-Thumbnail.jpg"
   ]
  },
  "Tile-ARdb-12x24-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x24-Polished-Thumbnail.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x24-Polished-Thumbnail.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x24-Honed-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x24-Honed-1.jpg"
   ]
  },
  "Tile-TW-6x12-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/12/Tile-TW-6x12-honed-s.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/12/Tile-TW-6x12-honed-s.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2021/01/Tile-TW-6x12-honed-s.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2021/01/Tile-TW-6x12-honed-s.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2021/01/Tile-TW-6x12-polished-s.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2021/01/Tile-TW-6x12-polished-s.jpg"
   ]
  },
+ "MS-WJ-BMTW-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/WJ-BMTW-P.jpg",
+  "gallery": []
+ },
+ "MS-WJ-CWCM-BlueRound(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/WJ-CWCM-BlueRound-P.jpg",
+  "gallery": []
+ },
  "ML-80-Olympus": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-80-Olympus.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-80-Olympus.jpg"
-  ]
+  "gallery": []
  },
  "ML-81-Grace6x18": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-81-Grace-6x18.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-81-Grace-6x18.jpg"
-  ]
+  "gallery": []
  },
  "ML-79-Aroma": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-79-Aroma.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-79-Aroma.jpg"
-  ]
+  "gallery": []
  },
  "ML-83-Casablanca6x18(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-83-Casablanca-6x18.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-83-Casablanca-6x18.jpg"
-  ]
+  "gallery": []
  },
  "ML-82-Carolina6x18": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-82-Carolina-6x18.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-82-Carolina-6x18.jpg"
-  ]
+  "gallery": []
  },
  "ML-82-Carolina4x12 (v2)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-82-Carolina-4x12.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-82-Carolina-4x12.jpg"
-  ]
+  "gallery": []
  },
  "ML-82-Carolina4x12(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-82-Carolina-4x12.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-82-Carolina-4x12.jpg"
-  ]
+  "gallery": []
  },
  "ML-76ED(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-76ED.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-76ED.jpg"
-  ]
+  "gallery": []
  },
  "ML-53RA(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-53RA.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-53RA.jpg"
-  ]
+  "gallery": []
  },
  "ML-53ED(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-53ED.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-53ED.jpg"
-  ]
+  "gallery": []
  },
  "ML-50CM(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-50CM.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-50CM.jpg"
-  ]
+  "gallery": []
  },
  "ML-16BW(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-16BW.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-16BW.jpg"
-  ]
+  "gallery": []
+ },
+ "ML-18B": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-18B.jpg",
+  "gallery": []
  },
  "ML-17ED(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-17ED.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-17ED.jpg"
-  ]
+  "gallery": []
  },
  "ML-03-BWG": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-03BWG.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/ML-03BWG.jpg"
-  ]
+  "gallery": []
  },
  "ML-90-Crescent(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/ML-90Crescent.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/ML-90Crescent.jpg"
-  ]
+  "gallery": []
  },
  "ML-78-Daphne(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/ML-78-Daphne.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/ML-78-Daphne.jpg"
-  ]
+  "gallery": []
  },
  "ML-77-Harmony(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/ML-77Harmony.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/ML-77Harmony.jpg"
-  ]
+  "gallery": []
+ },
+ "MSL-21-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-21.jpg",
+  "gallery": []
  },
  "MSL-50CM-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-50CM.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-50CM.jpg"
-  ]
+  "gallery": []
+ },
+ "MSL-76-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-76.jpg",
+  "gallery": []
+ },
+ "MSL-57-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-57.jpg",
+  "gallery": []
  },
  "MSL-76EL-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-76EL.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-76EL.jpg"
-  ]
+  "gallery": []
+ },
+ "MSL-51-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-51-P.jpg",
+  "gallery": []
  },
  "MSL-79-Aroma-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-79Aroma-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-79Aroma-P.jpg"
-  ]
+  "gallery": []
  },
  "MSL-102(Simplicity)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-102Simplicity.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-102Simplicity.jpg"
-  ]
+  "gallery": []
+ },
+ "MSL-99(Cascade)(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-99Cascade.jpg",
+  "gallery": []
  },
  "MSL-103(Celebration)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-103Celebration.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-103Celebration.jpg"
-  ]
+  "gallery": []
  },
  "MSL-104(Gardena)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-104Gardena.jpg",
+  "gallery": []
+ },
+ "MSL-84-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-84.jpg",
+  "gallery": []
+ },
+ "FR-AR(EW)-Baseboard-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/AR-Baseboard.jpg",
+  "gallery": []
+ },
+ "FR-AR-Baseboard-H(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/AR-Baseboard.jpg",
+  "gallery": []
+ },
+ "FR-AR-Baseboard-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/AR-Baseboard.jpg",
+  "gallery": []
+ },
+ "FR-CW-Baseboard-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/CW-Baseboard-P.jpg",
+  "gallery": []
+ },
+ "FR-CM-Baseboard-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/CM-Baseboard-CM-P.jpg",
+  "gallery": []
+ },
+ "FR-CG-Baseboard-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/CG-Baseboard.jpg",
+  "gallery": []
+ },
+ "FR-BA-Baseboard-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/BA-Baseboard-P.jpg",
+  "gallery": []
+ },
+ "FR-BG-Baseboard-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/BG-Baseboard-P.jpg",
+  "gallery": []
+ },
+ "FR-EL-Baseboard-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/EL-baseboard-.jpg",
+  "gallery": []
+ },
+ "FR-BA-F1-P (A+)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/BA-F1-P.jpg",
+  "gallery": []
+ },
+ "FR-BA-F5-P (A+)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/BA-F5-P-TOP.jpg",
+  "gallery": []
+ },
+ "FR-AR-P20-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/AR-P20-H.jpg",
+  "gallery": []
+ },
+ "FR-CW-P20-H": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/CW-P20-H.jpg",
+  "gallery": []
+ },
+ "FR-CW-P20-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/CW-P20-H.jpg",
+  "gallery": []
+ },
+ "FR-CW-P20-P(BD)(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/CW-P20-H.jpg",
+  "gallery": []
+ },
+ "FR-CM-P20-H": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/CM-P20-H.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MSL-104Gardena.jpg"
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/CM-P20-P.jpg"
   ]
+ },
+ "FR-CM-P20-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/CM-P20-H.jpg",
+  "gallery": [
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/CM-P20-P.jpg"
+  ]
+ },
+ "FR-ED-P20-H": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/ED-P20-ED-P.jpg",
+  "gallery": []
+ },
+ "FR-EL-P20-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/EL-P20-P.jpg",
+  "gallery": []
+ },
+ "FR-RA-P20-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/RA-P20-P.jpg",
+  "gallery": []
+ },
+ "FR-BA-P20-P(A+)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/BA-P20-P.jpg",
+  "gallery": []
+ },
+ "FR-BM-P20-H": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/BM-P20-P.jpg",
+  "gallery": []
+ },
+ "FR-BM-P20-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/BM-P20-P.jpg",
+  "gallery": []
  },
  "FR-BA-P12.5-P(A+)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/FR-BA-P12.5-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/FR-BA-P12.5-P.jpg"
-  ]
+  "gallery": []
  },
  "FR-CM-P12.5-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/FR-CM-P12.5-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/FR-CM-P12.5-P.jpg"
-  ]
+  "gallery": []
  },
  "FR-CW-P12.5-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/FR-CW-P12.5-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/FR-CW-P12.5-P.jpg"
-  ]
+  "gallery": []
  },
  "FR-TW-P12.5-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/FR-TW-P12.5-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/FR-TW-P12.5-P.jpg"
-  ]
+  "gallery": []
+ },
+ "Tile-Terrazzo Silver4x12-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/Terrazzo-Silver-4x12-1.jpg",
+  "gallery": []
+ },
+ "Tile-Terrazzo Blue4x12-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/Terrazzo-Blue-4x12.jpg",
+  "gallery": []
+ },
+ "Tile-Terrazzo Gold4x12-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/Terrazzo-Gold-4x12-3.jpg",
+  "gallery": []
+ },
+ "Tile-Terrazzo Blue6x12-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/Terrazzo-Blue-6x12.jpg",
+  "gallery": []
+ },
+ "Tile-Terrazzo Gold6x12-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/Terrazzo-Gold-6x12-2.jpg",
+  "gallery": []
  },
  "MS-AR-Vase-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-AR-Vase-PPolished-Vase-Marble-Mosaic-1.jpg",
@@ -242,741 +342,635 @@
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-AR-5-8-P-5-8thMarble-Mosaic-available-in-polished-and-honed.jpg",
   "gallery": []
  },
+ "MS-ARdb-1x3-Herringbone-H(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2018/02/Arabescato-1x3-Herringbone_available-polished-and-honed.jpg",
+  "gallery": []
+ },
+ "MS-ARdb-1x3-Herringbone-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2018/02/Arabescato-1x3-Herringbone_available-polished-and-honed.jpg",
+  "gallery": []
+ },
  "MS-CW-3-Long Hex-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Long-Hexagon-P.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Long-Hexagon-blackdot-P.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Long-Hexagon-P.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Long-Hexagon-blackdot-P.jpg"
   ]
  },
  "MS-CW-3-Long-Hex-P(BD)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Long-Hexagon-P.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Long-Hexagon-blackdot-P.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Long-Hexagon-P.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Long-Hexagon-blackdot-P.jpg"
   ]
  },
  "MS-CW-3-Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-3-Hex-H(Dark blend)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-3-Hex-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-3-Hex-P(BD)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-3-Hex-T(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-3-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-5/8-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-58-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-58-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-5/8-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-58-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-58-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-2x4-Beveled-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-2x4-Beveled-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-2x4-Beveled-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-2x4-Beveled-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-2x4-Beveled-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-2x4-Beveled-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-2x6Herringbone-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-2x6-Herringbone-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-2x6-Herringbone-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-2x6Herringbone-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-2x6-Herringbone-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-2x6-Herringbone-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-Leaf-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-Leaf.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-Leaf.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-Leaf-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-Leaf.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-Leaf.jpg"
-  ]
+  "gallery": []
  },
  "MS-CWBY-Basket-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CWBY-Basket-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CWBY-Basket-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CWBM-Basket-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CWBM-Basket-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CWBM-Basket-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CWBM-Basket-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CWBM-Basket-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CWBM-Basket-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-Large-Small-Round-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-Large-Small-round-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CW-Large-Small-round-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-Wave-W(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-Wave-Wimage.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-Wave-Wimage.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-1.5x6Herringbone-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1.5x6-Herringbone.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1.5x6-Herringbone.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-1.5x6Herringbone-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1.5x6-Herringbone.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1.5x6-Herringbone.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-2-Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2-Hexagon.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2-Hexagon.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-2-Hex-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2-Hexagon.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2-Hexagon.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-2-Hex-P(BD)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2-Hexagon.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2-Hexagon.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-2-Hex-T": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2-Hexagon.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2-Hexagon.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-1-Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1-Hex-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1-Hex-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-1-Hex-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1-Hex-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1-Hex-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-1-Hex-P(BD)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1-Hex-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1-Hex-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-1x2Herringbone-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1x2-Herringbone-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1x2-Herringbone-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-1x2Herringbone-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1x2-Herringbone-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1x2-Herringbone-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-1x2-Rhomboid-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1x2Rhomboid-P-new-lot.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1x2Rhomboid-P-new-lot.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-1x3-Herringbone-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1x3-Herringbone.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1x3-Herringbone.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-1x3-Herringbone-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1x3-Herringbone.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-1x3-Herringbone.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-2x4-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2x4.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2x4.jpg"
-  ]
+  "gallery": []
  },
  "MS-CW-2x4-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2x4.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CW-2x4.jpg"
-  ]
+  "gallery": []
  },
  "MS-CWTW-Chevron-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CWTW-Chevron-P-2.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CWTW-Chevron-P-2.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-1-Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-1-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-1-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-1-Hex-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-1-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-1-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-2-Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-2-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-2-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-2-Hex-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-2-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-2-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-3-Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-3-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-3-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-3-Hex-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-3-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-3-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-1x2-Brick-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-1x2-Brick.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-1x2-Brick.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-2x4-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-2x4-H.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-2x4-P.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-2x4-H.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-2x4-P.jpg"
   ]
  },
  "MS-CG-2x4-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-2x4-H.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-2x4-P.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-2x4-H.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-2x4-P.jpg"
   ]
  },
  "MS-CG-Random Strip-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-RandomStrip-P-3.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-RandomStrip-P-3.jpg"
-  ]
+  "gallery": []
  },
  "MS-CGBY-Basket-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CGBY-Basket-H.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CGBY-Basket-H.jpg"
-  ]
+  "gallery": []
  },
  "MS-CGBY-Basket-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CGBY-Basket-H.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CGBY-Basket-H.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-Basket-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-Basket-Honed.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-Basket-Honed.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-Fan-3\"-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-Fan-3-P_Calacatta-Gold.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-Fan-3-P_Calacatta-Gold.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-Fan-3\"-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-Fan-3-P_Calacatta-Gold.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-Fan-3-P_Calacatta-Gold.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-MiniMorocco-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-Mini-Morocco-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-Mini-Morocco-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-MiniMorocco-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-Mini-Morocco-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CG-Mini-Morocco-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-L.S.Round-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-L.S.Round-cleaned.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-L.S.Round-cleaned.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-2x4-Beveled-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-2x4-Beveled.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-2x4-Beveled.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-2x6Herringbone-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-2x6-Herringbone.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-2x6-Herringbone.jpg"
-  ]
+  "gallery": []
  },
  "MS-CG-2x6Herringbone-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-2x6-Herringbone.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/11/MS-CG-2x6-Herringbone.jpg"
-  ]
+  "gallery": []
+ },
+ "MS-TW-1.5X6Chevron-H(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/12/TW-1.5x6-Chevron-P-e1609278601131.jpg",
+  "gallery": []
+ },
+ "MS-TW-1.5X6Chevron-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/12/TW-1.5x6-Chevron-P-e1609278601131.jpg",
+  "gallery": []
  },
  "MS-TWBY-Basket-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TWBY-Basket-P..jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TWBY-Basket-P..jpg"
-  ]
+  "gallery": []
  },
  "MS-TWBY-Basketweave-Strip(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TWBY-Basketweave-StripThassos-White-and-Blue-Grey.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TWBY-Basketweave-StripThassos-White-and-Blue-Grey.jpg"
-  ]
+  "gallery": []
  },
  "MS-TWBY-Wreathe-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TWBY-Wreathe-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TWBY-Wreathe-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-TW-3-Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-3-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-3-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-TW-3-Hex-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-3-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-3-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-TW-2-Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-2-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-2-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-TW-2-Hex-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-2-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-2-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-TW-1-Hex-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-1-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-1-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-TW-1X2Herringbone-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-1x2-Herringbone-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-1x2-Herringbone-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-TW-1X2Herringbone-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-1x2-Herringbone-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-1x2-Herringbone-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-TW-2X4-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-2x4-Honed.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-2x4-Honed.jpg"
-  ]
+  "gallery": []
  },
  "MS-TW-2X4-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-2x4-Honed.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-2x4-Honed.jpg"
-  ]
+  "gallery": []
  },
  "MS-TW-Random Strip-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-Random-Strip-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-TW-Random-Strip-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-1-Hex-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-1-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-1-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-2-Hex-P-8mm(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-2-Hex-T(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2-Hexagon-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-2-Hex-T-8mm(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2-Hexagon-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2-Hexagon-P.jpg"
-  ]
+  "gallery": []
+ },
+ "MS-CM-2-P-8mm(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2-P-2.jpg",
+  "gallery": []
+ },
+ "MS-CM-2-T-8mm(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2-P-2.jpg",
+  "gallery": []
  },
  "MS-CM-5/8-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-58-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-58-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-5/8-T(BD)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-58-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-58-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-5/8-T-8mm": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-58-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-58-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-1x2-Rhomboid-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-1x2-Rhomboid-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-1x2-Rhomboid-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-1x2-Rhomboid-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-1x2-Rhomboid-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-1x2-Rhomboid-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-2x4-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2x4-P.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2x4-Beveled-P.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2x4-P.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2x4-Beveled-P.jpg"
   ]
  },
  "MS-CM-2x4-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2x4-P.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2x4-Beveled-P.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2x4-P.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-2x4-Beveled-P.jpg"
   ]
  },
  "MS-CMED-Basket-P(BD)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CMED-Basket-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CMED-Basket-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-Mini Morocco-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/04/MS-CM-Mini-Morocco-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/04/MS-CM-Mini-Morocco-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-CM-Vase-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-Vase-P-2.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-CM-Vase-P-2.jpg"
-  ]
+  "gallery": []
  },
  "MS-BA-1x2-Rhomboid-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BA-1x2-Rhomboid-P-1in-x2in-Polished-Rhomboid-Mosaic.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BA-1x2-Rhomboid-P-1in-x2in-Polished-Rhomboid-Mosaic.jpg"
-  ]
+  "gallery": []
  },
  "MS-BA-2-Hex-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BA-2-Hexagon-P-2in-Polished-Hexagon-Mosaic.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BA-2-Hexagon-P-2in-Polished-Hexagon-Mosaic.jpg"
-  ]
+  "gallery": []
  },
  "MS-BA-2-Hex-P(A+)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BA-2-Hexagon-P-2in-Polished-Hexagon-Mosaic.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BA-2-Hexagon-P-2in-Polished-Hexagon-Mosaic.jpg"
-  ]
+  "gallery": []
  },
  "MS-BA-2-Hex-P(GRN)(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BA-2-Hexagon-P-2in-Polished-Hexagon-Mosaic.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BA-2-Hexagon-P-2in-Polished-Hexagon-Mosaic.jpg"
-  ]
+  "gallery": []
  },
  "MS-BA-5/8-P (A+)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BA-58-P-58x58-Polished-Mosaic.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BA-58-P-58x58-Polished-Mosaic.jpg"
-  ]
+  "gallery": []
  },
  "MS-BG-1x2-Brick-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BG-1x2-Brick-P1in-x-2in-Polished-Brick-Mosaic.jpg",
+  "gallery": []
+ },
+ "MS-BG-2-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BG-2-P-2in-x-2in-Polished-Mosaic.jpg",
+  "gallery": []
+ },
+ "MS-BM-1-T(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2021/05/MS-BM-1x4-Herringbone-P.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BG-1x2-Brick-P1in-x-2in-Polished-Brick-Mosaic.jpg"
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BM-1-P1in-x-1in-Mosaic-available-in-polished-tumbled-honed.jpg"
   ]
  },
  "MS-BM-2x4-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BM-2x4-H-2in-x-4in-Mosaic-available-in-polished-and-honed.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BM-2x4-H-2in-x-4in-Mosaic-available-in-polished-and-honed.jpg"
-  ]
+  "gallery": []
  },
  "MS-BM-2-Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BM-2-Hexagon-P-2in-Hexagon-Mosaic-available-in-polished-and-honed.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BM-2-Hexagon-P-2in-Hexagon-Mosaic-available-in-polished-and-honed.jpg"
-  ]
+  "gallery": []
  },
  "MS-BM-2-Hex-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BM-2-Hexagon-P-2in-Hexagon-Mosaic-available-in-polished-and-honed.jpg",
+  "gallery": []
+ },
+ "MS-ED-1-T(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-ED-1-Hexagon-P.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-BM-2-Hexagon-P-2in-Hexagon-Mosaic-available-in-polished-and-honed.jpg"
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-ED-1-P.jpg"
+  ]
+ },
+ "MS-ED-1-T-8mm": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-ED-1-Hexagon-P.jpg",
+  "gallery": [
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-ED-1-P.jpg"
   ]
  },
  "MS-ED-2x4-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-ED-2x4-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-ED-2x4-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-ED-1x2-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-ED-1x2-P.jpg",
+  "gallery": []
+ },
+ "MS-EL-1-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EL-1-P.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-ED-1x2-P.jpg"
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EL-1x2-P-brick-pattern-.jpg",
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EL-1x2-Rhomboid-P.jpg"
   ]
+ },
+ "MS-EL-2-H-8mm(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EL-2-P.jpg",
+  "gallery": []
+ },
+ "MS-EL-2-P-8mm(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EL-2-P.jpg",
+  "gallery": []
+ },
+ "MS-EL-2-T(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EL-2-P.jpg",
+  "gallery": []
  },
  "MS-EL-5/8-P-8mm(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EL-58-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EL-58-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-EL-5/8-T(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EL-58-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-EL-58-P.jpg"
-  ]
+  "gallery": []
  },
  "MS-HB-1X2-Herringbone-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HB-1x2-Herringbone-P.jpg",
   "gallery": []
  },
+ "MS-HO-2-H(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-2-P.jpg",
+  "gallery": []
+ },
+ "MS-HO-2-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-2-P.jpg",
+  "gallery": []
+ },
+ "MS-HO-1-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1-P.jpg",
+  "gallery": [
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1x2-Rhomboid-P.jpg",
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1x2-P.jpg"
+  ]
+ },
+ "MS-HO-1-T(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1-P.jpg",
+  "gallery": [
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1x2-Rhomboid-P.jpg",
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1x2-P.jpg"
+  ]
+ },
+ "MS-HO-1-T-8mm(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1-P.jpg",
+  "gallery": [
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1x2-Rhomboid-P.jpg",
+   "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-1x2-P.jpg"
+  ]
+ },
  "MS-HO-2-Hex-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-HO-2-Hexagon-P.jpg",
+  "gallery": []
+ },
+ "MS-RA-2-T(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-RA-2-P.jpg",
+  "gallery": []
+ },
+ "MS-RA-2-T-8mm(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-RA-2-P.jpg",
+  "gallery": []
+ },
+ "MS-RA-1-T(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-RA-1-P.jpg",
   "gallery": []
  },
  "MS-RA-5/8-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2017/05/MS-RA-58-P.jpg",
   "gallery": []
  },
+ "Tile-Cont.CG-4x12-H(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-4X12-HONED-2.jpg",
+  "gallery": []
+ },
+ "Tile-Cont.CG-4x12-P(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-4X12-HONED-2.jpg",
+  "gallery": []
+ },
+ "Tile-Cont.CG-12x24-H(D)": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-12X24-HONED-2.jpg",
+  "gallery": []
+ },
+ "Tile-Cont.CG-12x24-P": {
+  "primary": "https://www.stone-pride.com/wp-content/uploads/2020/11/CONT.CG-12X24-HONED-2.jpg",
+  "gallery": []
+ },
  "Tile-ARdb-2x12-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-ARdb-2x12-P.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-ARdb-2x12-P.jpg"
-  ]
+  "gallery": []
  },
  "Tile-ARdb-24x24-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-24x24-Polishedjpg-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-24x24-Polishedjpg-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-24x24-Honed-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-24x24-Honed-1.jpg"
   ]
  },
  "Tile-ARdb-18x18-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-18x18-Honed-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-18x18-Honed-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-18x18-Polished-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-18x18-Polished-1.jpg"
   ]
  },
  "Tile-ARdb-12x12-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x12-Honed-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x12-Honed-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x12-Polished-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-12x12-Polished-1.jpg"
   ]
  },
  "Tile-ARdb-6x18-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x18-Honed-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x18-Honed-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x18-Polished-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x18-Polished-1.jpg"
   ]
  },
  "Tile-ARdb-6x18-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x18-Polished-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x18-Polished-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x18-Honed-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x18-Honed-1.jpg"
   ]
  },
  "Tile-ARdb-6Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6-Hexagon-Honed-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6-Hexagon-Honed-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6-Hexagon-Polished-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6-Hexagon-Polished-1.jpg"
   ]
  },
  "Tile-ARdb-6Hex-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6-Hexagon-Polished-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6-Hexagon-Polished-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6-Hexagon-Honed-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6-Hexagon-Honed-1.jpg"
   ]
  },
  "Tile-ARdb-6x12-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x12-Honed-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x12-Honed-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x12-Polished-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x12-Polished-1.jpg"
   ]
  },
  "Tile-ARdb-6x12-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x12-Polished-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x12-Polished-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x12-Honed-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-6x12-Honed-1.jpg"
   ]
  },
  "Tile-ARdb-4x12-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-4x12-Honed-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-4x12-Honed-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-4x12-Polished-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-4x12-Polished-1.jpg"
   ]
  },
  "Tile-ARdb-4x12-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-4x12-Polished-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-4x12-Polished-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-4x12-Honed-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-4x12-Honed-1.jpg"
   ]
  },
  "Tile-ARdb-3x6-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Honed-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Honed-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Polished-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Polished-1.jpg"
   ]
  },
  "Tile-ARdb-3x6-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Polished-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Polished-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Honed-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Honed-1.jpg"
   ]
  },
  "Tile-ARdb-3x6-Beveled-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Beveled-Honed-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Beveled-Honed-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Beveled-Polished-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Beveled-Polished-1.jpg"
   ]
  },
  "Tile-ARdb-3x6-Beveled-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Beveled-Polished-1.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Beveled-Polished-1.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Beveled-Honed-1.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-ARdb-3x6-Beveled-Honed-1.jpg"
   ]
  },
@@ -995,30 +989,22 @@
  "Tile-CG-6x12-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-6x12-Honed.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-6x12-Honed.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-6x12-Polished.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-6x12-Polished.jpg"
   ]
  },
  "Tile-CG-6x12-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-6x12-Polished.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-6x12-Polished.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-6x12-Honed.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-6x12-Honed.jpg"
   ]
  },
  "Tile-CG-3x6-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-3x6-Honed.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-3x6-Honed.jpg"
-  ]
+  "gallery": []
  },
  "Tile-CG-3x6-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-3x6-Honed.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-CG-3x6-Honed.jpg"
-  ]
+  "gallery": []
  },
  "Tile-CW-24x24-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/01/Tile-CW-24x24-Honed.jpg",
@@ -1087,29 +1073,21 @@
  "Tile-TW-3x6-H(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-TW-3x6-Honed.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-TW-3x6-Honed.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-TW-3x6-Polished.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-TW-3x6-Polished.jpg"
   ]
  },
  "Tile-TW-3x6-P": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-TW-3x6-Polished.jpg",
   "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-TW-3x6-Polished.jpg",
-   "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-TW-3x6-Honed.jpg",
    "https://www.stone-pride.com/wp-content/uploads/2018/02/Tile-TW-3x6-Honed.jpg"
   ]
  },
  "Tile-TW-8Hex-H": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/Tile-TW-8Hex-H.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/Tile-TW-8Hex-H.jpg"
-  ]
+  "gallery": []
  },
  "Tile-TW-8Hex-P(D)": {
   "primary": "https://www.stone-pride.com/wp-content/uploads/2020/01/Tile-TW-8Hex-H.jpg",
-  "gallery": [
-   "https://www.stone-pride.com/wp-content/uploads/2020/01/Tile-TW-8Hex-H.jpg"
-  ]
+  "gallery": []
  }
 }
