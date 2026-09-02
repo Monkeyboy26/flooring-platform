@@ -19000,6 +19000,21 @@
         setPaymentActing(false);
       };
 
+      // Refund the sample-shipping fee to the customer's card. Only offered for
+      // sample-only checkouts, where the request carries its own PaymentIntent.
+      const refundSampleShipping = async () => {
+        if (!window.confirm('Refund the sample shipping fee to the customer’s card?')) return;
+        setPaymentActing(true);
+        try {
+          const data = await repFetch('/api/rep/sample-requests/' + editId + '/refund', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+          });
+          repToast('Refunded $' + (data && data.refunded != null ? Number(data.refunded).toFixed(2) : ''));
+          load();
+        } catch (err) { alert('Error: ' + (err.message || 'Refund failed')); }
+        setPaymentActing(false);
+      };
+
       const [addSkuSearch, setAddSkuSearch] = useState('');
       const [addSkuResults, setAddSkuResults] = useState([]);
       const [addSkuSearching, setAddSkuSearching] = useState(false);
@@ -19133,16 +19148,25 @@
       const isShipping = !isPickup;
       const isOpen = sr.status === 'requested';
 
+      // Shipping-fee refund state (sample-only checkouts carry a PaymentIntent).
+      const shipRefunded = parseFloat(sr.shipping_refunded_amount || 0);
+      const shipRefundable = parseFloat((parseFloat(sr.shipping_amount_paid || 0) - shipRefunded).toFixed(2));
+      const shipOnlinePaid = !!sr.shipping_payment_intent_id;
+
       // Workflow steps (same logic as before, rendered in the right rail)
       const steps = [];
       if (isShipping) {
         steps.push({
           label: 'Shipping payment collected',
           done: !!sr.shipping_payment_collected,
-          detail: sr.shipping_payment_collected
+          detail: shipRefunded > 0
+            ? 'Refunded $' + shipRefunded.toFixed(2)
+            : sr.shipping_payment_collected
             ? ['Collected', sr.shipping_payment_method, sr.shipping_payment_collected_at ? new Date(sr.shipping_payment_collected_at).toLocaleDateString() : null].filter(Boolean).join(' · ')
             : '$12 flat rate',
-          action: !sr.shipping_payment_collected ? 'collect_payment' : 'uncollect_payment'
+          action: !sr.shipping_payment_collected
+            ? (shipRefunded > 0 ? null : 'collect_payment')
+            : (shipOnlinePaid && shipRefundable > 0 ? 'refund_payment' : 'uncollect_payment')
         });
       }
       const vendorsTotal = new Set(activeItems.map(i => i.vendor_id || 'unknown')).size;
@@ -19662,6 +19686,8 @@
                           <button style={{ ...sdSmallBtn, background: 'var(--rod-ink)', color: '#fff', borderColor: 'var(--rod-ink)' }} disabled={paymentActing} onClick={() => setShowPayModal(true)}>Card $12</button>
                           <button style={sdSmallBtn} disabled={paymentActing} onClick={() => markPaymentCollected(true, 'cash')}>{paymentActing ? '…' : 'Cash'}</button>
                         </span>
+                      ) : step.action === 'refund_payment' ? (
+                        <button className="qw-link" style={{ color: 'var(--rod-red)' }} disabled={paymentActing} onClick={refundSampleShipping}>{paymentActing ? '…' : 'Refund $' + shipRefundable.toFixed(2)}</button>
                       ) : step.action === 'uncollect_payment' ? (
                         <button className="qw-link muted" disabled={paymentActing} onClick={() => markPaymentCollected(false)}>Undo</button>
                       ) : (

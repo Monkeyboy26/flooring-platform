@@ -5716,6 +5716,47 @@ async function generatePurchaseOrders(orderId, client) {
   return createdPOs;
 }
 
+// Resolve each cart sample line's product data (name/collection/variant/image)
+// and insert it as a sample_request_item. Shared by the mixed-cart order path
+// and the sample-only path so the two never drift. Returns the enriched rows.
+async function insertSampleRequestItems(client, sampleRequestId, sampleItems) {
+  const resolved = [];
+  for (let i = 0; i < sampleItems.length; i++) {
+    const item = sampleItems[i];
+    let productName = item.product_name || 'Unknown';
+    let collection = item.collection || null;
+    let variantName = null;
+    let primaryImage = null;
+    let productId = item.product_id || null;
+    let skuId = item.sku_id || null;
+    if (item.sku_id) {
+      const sRes = await client.query(`
+        SELECT s.variant_name, s.product_id,
+          COALESCE(p.display_name, p.name) as product_name, p.collection,
+          (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        WHERE s.id = $1
+      `, [item.sku_id]);
+      if (sRes.rows.length) {
+        const s = sRes.rows[0];
+        productId = s.product_id;
+        productName = s.product_name;
+        collection = s.collection;
+        variantName = s.variant_name;
+        primaryImage = s.primary_image;
+      }
+    }
+    const itemRes = await client.query(`
+      INSERT INTO sample_request_items (sample_request_id, product_id, sku_id, product_name, collection, variant_name, primary_image, sort_order)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+    `, [sampleRequestId, productId, skuId, productName, collection, variantName, primaryImage, i]);
+    resolved.push(itemRes.rows[0]);
+  }
+  await enrichItemsForNaming(resolved);
+  return resolved;
+}
+
 app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, async (req, res) => {
   // Honeypot: hidden field that real users never fill in
   if (req.body.company_url) {
@@ -5868,6 +5909,25 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     const productItems = items.filter(i => !i.is_sample);
     const sampleItems = items.filter(i => i.is_sample);
 
+    // Sample-only checkout: the cart has samples and no products. We record the
+    // whole transaction on the sample_request itself (it carries the $12 shipping
+    // payment + its own refund) and create NO order — an order with zero
+    // order_items renders as a blank order and double-emails the customer.
+    const sampleOnly = productItems.length === 0 && sampleItems.length > 0;
+
+    // Sample-only idempotency: the orders-by-PI guard above can't fire when no
+    // order is created, so guard a double-submit here against the sample request.
+    if (sampleOnly && payment_intent_id) {
+      const existingSr = await pool.query('SELECT * FROM sample_requests WHERE shipping_payment_intent_id = $1 LIMIT 1', [payment_intent_id]);
+      if (existingSr.rows.length) {
+        const sr = existingSr.rows[0];
+        const its = await pool.query('SELECT * FROM sample_request_items WHERE sample_request_id = $1 ORDER BY sort_order', [sr.id]);
+        await enrichItemsForNaming(its.rows);
+        sr.items = its.rows;
+        return res.json({ order: null, sample_request: sr, already_placed: true });
+      }
+    }
+
     // Re-check stock: an item could have sold out at the vendor between
     // payment-intent creation and now. Same gate as create-payment-intent
     // (only blocks vendors that report public inventory). Payment already
@@ -5982,6 +6042,118 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
 
     const tradeCustomerId = req.tradeCustomer ? req.tradeCustomer.id : null;
     const existingCustomerId = req.customer ? req.customer.id : null;
+
+    // ── Sample-only checkout ──────────────────────────────────────────────
+    // No products in the cart: record everything on the sample_request (it
+    // holds the $12 shipping payment + its own refund path) and create NO
+    // order. Returns early, skipping all the order/PO/ledger machinery below.
+    if (sampleOnly) {
+      // Store credit fully covering the $12 would have to redeem against an
+      // order (redeemStoreCredit writes an order_payments tender keyed to an
+      // order). There's no order here, so require the small shipping fee be
+      // paid by card rather than open a store-credit accounting hole.
+      if (fullyCovered) {
+        return res.status(400).json({ error: 'Please pay the $12 sample shipping with a payment card — store credit can’t be applied to sample-only orders.' });
+      }
+
+      await client.query('BEGIN');
+
+      // Account creation at checkout (mirrors the order path): create the
+      // customer, claim any earlier guest records, mint a session token.
+      let newCustomerToken = null;
+      let newCustomerData = null;
+      if (create_account && account_password && !req.customer) {
+        const nameParts = customer_name.trim().split(/\s+/);
+        const { hash, salt } = await hashPassword(account_password);
+        const custResult = await client.query(
+          `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone, company_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           ON CONFLICT (email) DO NOTHING RETURNING *`,
+          [customer_email, hash, salt, titleCaseName(nameParts[0] || ''), titleCaseName(nameParts.slice(1).join(' ') || ''),
+           formatPhone(phone) || null, collapse(company_name)]);
+        const newCust = custResult.rows[0];
+        if (newCust) {
+          await claimGuestRecords(client, newCust.id, newCust.email).catch(e => console.error('[claim] checkout-sample-signup:', e.message));
+          newCustomerToken = crypto.randomBytes(32).toString('hex');
+          await client.query('INSERT INTO customer_sessions (customer_id, token, expires_at) VALUES ($1, $2, $3)',
+            [newCust.id, hashToken(newCustomerToken), new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)]);
+          newCustomerData = { id: newCust.id, email: newCust.email, first_name: newCust.first_name, last_name: newCust.last_name };
+        }
+      }
+
+      // Resolve the customer to attach the request to.
+      let srCustomerId = existingCustomerId || (newCustomerData ? newCustomerData.id : null);
+      if (!srCustomerId) {
+        const nameParts = customer_name.trim().split(/\s+/);
+        const { customer: cust } = await findOrCreateCustomer(client, {
+          email: customer_email, firstName: nameParts[0] || '', lastName: nameParts.slice(1).join(' ') || '',
+          phone: phone || null, companyName: company_name, createdVia: 'checkout_sample' });
+        srCustomerId = cust.id;
+      }
+
+      // Route to an owning rep — the customer's existing rep, or a random one
+      // assigned now (and persisted on the customer for future activity).
+      const assignedRep = await assignRepForStorefront(client, { customer_id: srCustomerId, customer_email });
+
+      const srNumber = await getNextSampleNumber();
+      const dm = isPickup ? 'pickup' : 'shipping';
+      // The customer paid sampleShipping ($12) now; record it + the PaymentIntent
+      // on the request so it can be refunded from the rep sample workspace.
+      const srRes = await client.query(`
+        INSERT INTO sample_requests (request_number, rep_id, customer_name, customer_email, customer_phone,
+          shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
+          delivery_method, status, customer_id, company_name,
+          shipping_payment_collected, shipping_payment_collected_at, shipping_payment_method, shipping_payment_intent_id, shipping_amount_paid)
+        VALUES ($1, $16, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'requested', $11, $12, true, NOW(), $13, $14, $15) RETURNING *
+      `, [srNumber, customer_name, customer_email || null, phone || null,
+          isPickup ? null : (shipping ? shipping.line1 : null),
+          isPickup ? null : (shipping ? shipping.line2 || null : null),
+          isPickup ? null : (shipping ? shipping.city : null),
+          isPickup ? null : (shipping ? shipping.state : null),
+          isPickup ? null : (shipping ? shipping.zip : null),
+          dm, srCustomerId, company_name,
+          reqPaymentMethod || 'stripe', payment_intent_id, sampleShipping.toFixed(2),
+          assignedRep ? assignedRep.id : null]);
+      const sampleRequest = srRes.rows[0];
+      sampleRequest.items = await insertSampleRequestItems(client, sampleRequest.id, sampleItems);
+
+      await client.query('DELETE FROM cart_items WHERE session_id = $1', [session_id]);
+      await client.query('COMMIT');
+
+      const response = { order: null, sample_request: sampleRequest };
+      if (newCustomerToken && newCustomerData) {
+        response.customer_token = newCustomerToken;
+        response.customer = newCustomerData;
+      }
+      res.json(response);
+
+      // Fire-and-forget: the single sample confirmation to the customer (this is
+      // the ONE customer email for a sample-only checkout — no order email).
+      if (customer_email) {
+        setImmediate(() => sendSampleRequestConfirmation({
+          customer_name, customer_email, request_number: sampleRequest.request_number,
+          delivery_method: sampleRequest.delivery_method, items: sampleRequest.items,
+          shipping_address_line1: isPickup ? null : (shipping ? shipping.line1 : null),
+          shipping_address_line2: isPickup ? null : (shipping ? shipping.line2 || null : null),
+          shipping_city: isPickup ? null : (shipping ? shipping.city : null),
+          shipping_state: isPickup ? null : (shipping ? shipping.state : null),
+          shipping_zip: isPickup ? null : (shipping ? shipping.zip : null) }));
+      }
+      // Fire-and-forget: internal rep alert (staff-only, not a customer email).
+      // Routes to the assigned rep (resolved/assigned above).
+      const srTitle = 'New Sample Request ' + sampleRequest.request_number;
+      const srBody = sampleRequest.customer_name + ' requested ' + sampleRequest.items.length + ' sample(s)';
+      setImmediate(async () => {
+        const rep = assignedRep || await resolveCustomerRep({ trade_customer_id: tradeCustomerId, customer_id: srCustomerId, customer_email });
+        if (rep) {
+          sendNewSampleRequestRepAlert({ ...sampleRequest, phone: sampleRequest.customer_phone, rep_email: rep.email, rep_first_name: rep.first_name, rep_last_name: rep.last_name });
+          createRepNotification(pool, rep.id, 'sample_request_created', srTitle, srBody, 'sample_request', sampleRequest.id);
+        } else {
+          notifyAllActiveReps(pool, 'sample_request_created', srTitle, srBody, 'sample_request', sampleRequest.id);
+        }
+      });
+      return;
+    }
 
     const orderNumber = await getNextOrderNumber();
 
@@ -6181,45 +6353,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
           dm, srCustomerId,
           dm === 'shipping', dm === 'shipping' ? new Date() : null, company_name]);
       sampleRequest = srRes.rows[0];
-
-      // Insert sample request items with resolved product data
-      const resolvedSampleItems = [];
-      for (let i = 0; i < sampleItems.length; i++) {
-        const item = sampleItems[i];
-        let productName = item.product_name || 'Unknown';
-        let collection = item.collection || null;
-        let variantName = null;
-        let primaryImage = null;
-        let productId = item.product_id || null;
-        let skuId = item.sku_id || null;
-
-        if (item.sku_id) {
-          const sRes = await client.query(`
-            SELECT s.variant_name, s.product_id,
-              COALESCE(p.display_name, p.name) as product_name, p.collection,
-              (SELECT url FROM media_assets WHERE product_id = p.id AND asset_type = 'primary' ORDER BY sort_order LIMIT 1) as primary_image
-            FROM skus s
-            JOIN products p ON p.id = s.product_id
-            WHERE s.id = $1
-          `, [item.sku_id]);
-          if (sRes.rows.length) {
-            const s = sRes.rows[0];
-            productId = s.product_id;
-            productName = s.product_name;
-            collection = s.collection;
-            variantName = s.variant_name;
-            primaryImage = s.primary_image;
-          }
-        }
-
-        const itemRes = await client.query(`
-          INSERT INTO sample_request_items (sample_request_id, product_id, sku_id, product_name, collection, variant_name, primary_image, sort_order)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
-        `, [sampleRequest.id, productId, skuId, productName, collection, variantName, primaryImage, i]);
-        resolvedSampleItems.push(itemRes.rows[0]);
-      }
-      await enrichItemsForNaming(resolvedSampleItems);
-      sampleRequest.items = resolvedSampleItems;
+      sampleRequest.items = await insertSampleRequestItems(client, sampleRequest.id, sampleItems);
     }
 
     // Trade customer: recompute tier from trailing 365-day spend
@@ -6250,6 +6384,17 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
           );
         }
       }
+    }
+
+    // Ensure an owning rep for the order — the customer's existing rep, or a
+    // random one assigned now (trade ownership is handled just above; this also
+    // covers retail + guest checkouts). Stamp the order so it surfaces under
+    // that rep in their workspace + routes commission/alerts.
+    const orderCustomerId = existingCustomerId || (newCustomerData && newCustomerData.id) || null;
+    const orderRep = await assignRepForStorefront(client, { trade_customer_id: tradeCustomerId, customer_id: orderCustomerId, customer_email });
+    if (orderRep) {
+      await client.query('UPDATE orders SET sales_rep_id = $1 WHERE id = $2 AND sales_rep_id IS NULL', [orderRep.id, order.id]);
+      order.sales_rep_id = order.sales_rep_id || orderRep.id;
     }
 
     // Clear cart
@@ -14312,6 +14457,40 @@ async function getNextAvailableRep() {
   return result.rows[0] || null;
 }
 
+// Give a storefront transaction/lead an owning rep. Returns the customer's
+// existing ACTIVE rep, or — when they have none — a randomly chosen active rep,
+// persisted on the customer record (retail or trade) so all of that customer's
+// future activity routes to the same person. Accepts a txn client or the pool;
+// returns null only when there are no active reps at all. Never throws.
+async function assignRepForStorefront(db, { customer_id, trade_customer_id, customer_email } = {}) {
+  try {
+    const REP = 'sa.id, sa.email, sa.first_name, sa.last_name';
+    const one = async (sql, val) => (await db.query(sql, [val])).rows[0] || null;
+    // 1) Existing active owner (transaction-visible read).
+    let owner = null;
+    if (trade_customer_id) owner = await one(`SELECT ${REP} FROM staff_accounts sa JOIN trade_customers tc ON tc.assigned_rep_id = sa.id WHERE tc.id = $1 AND sa.is_active = true`, trade_customer_id);
+    if (!owner && customer_id) owner = await one(`SELECT ${REP} FROM staff_accounts sa JOIN customers c ON c.assigned_rep_id = sa.id WHERE c.id = $1 AND sa.is_active = true`, customer_id);
+    if (!owner && customer_email) owner = await one(`SELECT ${REP} FROM staff_accounts sa JOIN customers c ON c.assigned_rep_id = sa.id WHERE LOWER(c.email) = LOWER($1) AND sa.is_active = true`, String(customer_email).toLowerCase());
+    if (owner) return owner;
+
+    // 2) Unowned — pick a random active rep and persist ownership.
+    const rep = await getNextAvailableRep();
+    if (!rep) return null;
+    if (trade_customer_id) {
+      const u = await db.query('UPDATE trade_customers SET assigned_rep_id = $1, assigned_at = CURRENT_TIMESTAMP WHERE id = $2 AND assigned_rep_id IS NULL', [rep.id, trade_customer_id]);
+      if (u.rowCount) await db.query("INSERT INTO customer_rep_history (trade_customer_id, from_rep_id, to_rep_id, reason) VALUES ($1, NULL, $2, 'Auto-assigned on storefront activity')", [trade_customer_id, rep.id]);
+    }
+    if (customer_id) {
+      await db.query('UPDATE customers SET assigned_rep_id = $1, assigned_at = CURRENT_TIMESTAMP WHERE id = $2 AND assigned_rep_id IS NULL', [rep.id, customer_id]);
+    } else if (customer_email) {
+      await db.query('UPDATE customers SET assigned_rep_id = $1, assigned_at = CURRENT_TIMESTAMP WHERE LOWER(email) = LOWER($2) AND assigned_rep_id IS NULL', [rep.id, String(customer_email).toLowerCase()]);
+    }
+    // Return the full rep row (with email) for record stamping + alerts.
+    const full = await db.query('SELECT id, email, first_name, last_name FROM staff_accounts WHERE id = $1', [rep.id]);
+    return full.rows[0] || rep;
+  } catch (e) { console.error('[assignRepForStorefront]', e.message); return null; }
+}
+
 app.put('/api/admin/trade-customers/:id/assign-rep', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -17860,6 +18039,52 @@ app.put('/api/rep/sample-requests/:id/payment-status', repAuth, async (req, res)
     res.json({ sample_request: updated.rows[0] });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Refund the sample-shipping fee paid on a sample-only checkout (the request
+// carries its own PaymentIntent since no order was created). Partial-refund
+// safe: never refunds more than the collected amount minus prior refunds.
+app.post('/api/rep/sample-requests/:id/refund', repAuth, async (req, res) => {
+  try {
+    const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
+    if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
+    const sr = srRes.rows[0];
+
+    if (!sr.shipping_payment_intent_id) {
+      return res.status(400).json({ error: 'No Stripe payment on this sample request to refund' });
+    }
+    const collected = parseFloat(sr.shipping_amount_paid || 0);
+    const alreadyRefunded = parseFloat(sr.shipping_refunded_amount || 0);
+    const maxRefundable = parseFloat((collected - alreadyRefunded).toFixed(2));
+    if (!(maxRefundable > 0)) {
+      return res.status(400).json({ error: 'No refundable amount remaining' });
+    }
+
+    const { amount } = req.body || {};
+    let refundAmount = maxRefundable;
+    if (amount != null) {
+      refundAmount = parseFloat(parseFloat(amount).toFixed(2));
+      if (isNaN(refundAmount) || refundAmount <= 0) return res.status(400).json({ error: 'Invalid refund amount' });
+      if (refundAmount > maxRefundable) return res.status(400).json({ error: `Refund amount exceeds maximum refundable ($${maxRefundable.toFixed(2)})` });
+    }
+
+    const refund = await stripe.refunds.create({ payment_intent: sr.shipping_payment_intent_id, amount: Math.round(refundAmount * 100) });
+
+    const newRefunded = parseFloat((alreadyRefunded + refundAmount).toFixed(2));
+    const fullyRefunded = newRefunded >= collected - 0.001;
+    await pool.query(
+      `UPDATE sample_requests
+         SET shipping_refunded_amount = $1, shipping_refunded_at = NOW(),
+             shipping_payment_collected = $2
+       WHERE id = $3`,
+      [newRefunded.toFixed(2), !fullyRefunded, req.params.id]);
+
+    const updated = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
+    res.json({ sample_request: updated.rows[0], refund_id: refund.id, refunded: refundAmount });
+  } catch (err) {
+    console.error('[Sample Refund]', err.message);
+    res.status(500).json({ error: err.message || 'Refund failed' });
   }
 });
 
@@ -33413,8 +33638,16 @@ app.post('/api/installation-inquiries', async (req, res) => {
     sendInstallationInquiryNotification(inquiry).catch(err => console.error('[Install Inquiry] Staff email error:', err.message));
     sendInstallationInquiryConfirmation(inquiry).catch(err => console.error('[Install Inquiry] Confirmation email error:', err.message));
 
-    // Fire-and-forget: a customer dedicated to a rep alerts ONLY that rep
-    // (personal email + in-app); unowned customers broadcast to all active reps.
+    // Assign the inquiry to a rep — the inquirer's existing rep, or a random
+    // active rep chosen now (also becomes the customer's owner if a customer
+    // record exists). Stamp assigned_to so it shows under that rep.
+    const inqRep = await assignRepForStorefront(pool, { customer_email });
+    if (inqRep) {
+      await pool.query('UPDATE installation_inquiries SET assigned_to = $1 WHERE id = $2', [inqRep.id, result.rows[0].id]);
+    }
+
+    // Fire-and-forget: route the alert to the assigned rep (personal email +
+    // in-app); if there are no active reps at all, broadcast to everyone.
     const inqDetails = [];
     if (product_name) inqDetails.push(product_name + (collection ? ' (' + collection + ')' : ''));
     const inqSqft = parseFloat(estimated_sqft);
@@ -33423,10 +33656,9 @@ app.post('/api/installation-inquiries', async (req, res) => {
     const inqTitle = 'Installation inquiry from ' + customer_name;
     const inqBody = inqDetails.join(' · ') || null;
     setImmediate(async () => {
-      const rep = await resolveCustomerRep({ customer_email });
-      if (rep) {
-        sendNewInstallInquiryRepAlert({ ...inquiry, rep_email: rep.email, rep_first_name: rep.first_name, rep_last_name: rep.last_name });
-        createRepNotification(pool, rep.id, 'installation_inquiry', inqTitle, inqBody, 'installation_inquiry', result.rows[0].id);
+      if (inqRep) {
+        sendNewInstallInquiryRepAlert({ ...inquiry, rep_email: inqRep.email, rep_first_name: inqRep.first_name, rep_last_name: inqRep.last_name });
+        createRepNotification(pool, inqRep.id, 'installation_inquiry', inqTitle, inqBody, 'installation_inquiry', result.rows[0].id);
       } else {
         notifyAllActiveReps(pool, 'installation_inquiry', inqTitle, inqBody, 'installation_inquiry', result.rows[0].id);
       }

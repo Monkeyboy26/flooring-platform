@@ -11874,6 +11874,12 @@
       const items = order ? (order.items || []) : [];
       const sampleItems = sampleRequest ? (sampleRequest.items || []) : [];
       const orderTotal = order ? parseFloat(order.total || 0) : 0;
+      // Sample-only checkout: no order was created — the sample request holds
+      // the paid $12 shipping fee. Render sample-appropriate copy throughout.
+      const sampleOnly = !order && !!sampleRequest;
+      const sampleShipPaid = sampleRequest && sampleRequest.shipping_amount_paid != null
+        ? parseFloat(sampleRequest.shipping_amount_paid)
+        : (sampleRequest && sampleRequest.delivery_method === 'pickup' ? 0 : 12);
 
       return (
         <div className="conf-wrap">
@@ -11884,8 +11890,11 @@
             </div>
             <h1>Thank You</h1>
             {order && <div className="conf-order-num">Order {order.order_number}</div>}
+            {sampleOnly && <div className="conf-order-num">Sample Request {sampleRequest.request_number}</div>}
             <div className="conf-hero-sub">
-              {order && order.delivery_method !== 'pickup'
+              {sampleOnly
+                ? 'Your sample request has been received. We’ll email you when your samples ship — they typically arrive within 2-3 business days.'
+                : order && order.delivery_method !== 'pickup'
                 ? 'Your order has been placed. Freight is quoted and billed separately — we’ll email your shipping cost to approve before delivery.'
                 : 'Your order has been placed. We’ll email a confirmation; your materials will be ready for pickup in 3-5 business days.'}
             </div>
@@ -11949,28 +11958,40 @@
           <div className="conf-details">
             <div className="conf-detail-card">
               <div className="conf-detail-label">Delivery</div>
-              <div className="conf-detail-title">{order && order.delivery_method === 'pickup' ? 'Showroom Pickup' : 'Freight'}</div>
+              <div className="conf-detail-title">
+                {sampleOnly ? (sampleRequest.delivery_method === 'pickup' ? 'Showroom Pickup' : 'Sample Shipping') : (order && order.delivery_method === 'pickup' ? 'Showroom Pickup' : 'Freight')}
+              </div>
               <div className="conf-detail-text">
-                {order && order.delivery_method === 'pickup'
+                {sampleOnly
+                  ? (sampleRequest.delivery_method === 'pickup'
+                      ? '1440 S. State College Blvd., Suite 6M, Anaheim, CA 92806'
+                      : (sampleRequest.shipping_address_line1 ? `${sampleRequest.shipping_address_line1}, ${sampleRequest.shipping_city}, ${sampleRequest.shipping_state} ${sampleRequest.shipping_zip}` : 'Address on file'))
+                  : order && order.delivery_method === 'pickup'
                   ? '1440 S. State College Blvd., Suite 6M, Anaheim, CA 92806'
                   : order && order.shipping_address ? `${order.shipping_address.line1}, ${order.shipping_address.city}, ${order.shipping_address.state} ${order.shipping_address.zip}` : 'Address on file'
                 }
               </div>
               <div className="conf-detail-text" style={{ marginTop: '0.5rem' }}>
-                {order && order.delivery_method === 'pickup' ? 'Ready in 3-5 business days' : 'Freight quoted separately — we’ll email your shipping cost to approve'}
+                {sampleOnly
+                  ? 'Samples ship separately within 2-3 business days'
+                  : order && order.delivery_method === 'pickup' ? 'Ready in 3-5 business days' : 'Freight quoted separately — we’ll email your shipping cost to approve'}
               </div>
             </div>
             <div className="conf-detail-card">
               <div className="conf-detail-label">Payment</div>
               <div className="conf-detail-title">
-                {order && order.card_last4
+                {sampleOnly
+                  ? 'Card payment'
+                  : order && order.card_last4
                   ? (order.card_brand ? order.card_brand.charAt(0).toUpperCase() + order.card_brand.slice(1) + ' ' : 'Card ') + 'ending in ' + order.card_last4
                   : order && order.payment_method === 'klarna' ? 'Klarna'
                   : order && order.payment_method === 'ach' ? 'Bank payment (ACH)'
                   : order && order.payment_method === 'bank_transfer' ? 'Bank transfer' : 'Card payment'}
               </div>
               <div className="conf-detail-text">
-                {order && order.payment_method === 'ach'
+                {sampleOnly
+                  ? (sampleShipPaid > 0 ? `Sample shipping paid: $${sampleShipPaid.toFixed(2)}` : 'No charge — showroom pickup')
+                  : order && order.payment_method === 'ach'
                   ? `Bank transfer of $${orderTotal.toFixed(2)} initiated — your order is confirmed once it clears (about 4–5 business days).`
                   : `Total charged: $${orderTotal.toFixed(2)}`}
               </div>

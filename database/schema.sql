@@ -1255,6 +1255,12 @@ CREATE INDEX IF NOT EXISTS idx_sample_requests_status ON sample_requests(status)
 ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS all_ready_notified_at TIMESTAMP;
 -- Job/project reference (sidemark) shown on the sample workspace + confirmation/shipped emails.
 ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS sidemark VARCHAR(200);
+-- Sample-only storefront checkouts create NO order — the paid sample-shipping fee
+-- ($12) lives here so it can be refunded straight from the rep sample workspace.
+-- (shipping_payment_intent_id / _method / _collected already exist above.)
+ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS shipping_amount_paid NUMERIC(10,2);
+ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS shipping_refunded_amount NUMERIC(10,2) DEFAULT 0;
+ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS shipping_refunded_at TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS sample_request_items (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
