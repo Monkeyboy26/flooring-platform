@@ -17,6 +17,13 @@ export function launchBrowser() {
   return puppeteer.launch({
     headless: 'new',
     executablePath: chromePath,
+    // Chromium's CDP is single-threaded per process; on the prod box (t3.large,
+    // 2 burstable vCPUs shared with api+db) --single-process starved it so hard
+    // that protocol calls (Network.enable, addScriptToEvaluateOnNewDocument) blew
+    // past the 180s default and crashed every scrape ~8min in. Drop --single-process
+    // so Chromium can use its normal multi-process model, and raise protocolTimeout
+    // to absorb the remaining CPU-contention spikes. Fine on the fast local Mac too.
+    protocolTimeout: 300000,
     env: inContainer
       ? { ...process.env, HOME: '/tmp', XDG_CONFIG_HOME: '/tmp/.config', XDG_CACHE_HOME: '/tmp/.cache' }
       : undefined,
@@ -30,7 +37,6 @@ export function launchBrowser() {
       '--disable-default-apps',
       '--disable-translate',
       '--no-first-run',
-      '--single-process',
       '--disable-crash-reporter',
       '--disable-crashpad',
     ]
