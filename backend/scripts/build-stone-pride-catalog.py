@@ -168,6 +168,35 @@ def fmt_of(code, prefix, stone_code):
     pretty = re.sub(r'\s+', ' ', f.replace('-', ' ')).strip()
     return pretty
 
+BORDER_DESIGNS = {'harmony', 'daphne', 'aroma', 'olympus', 'grace', 'carolina',
+                  'casablanca', 'crescent', 'aquielia', 'simplicity', 'celebration',
+                  'gardena', 'cascade', 'nostalgia'}
+def border_variant(code, desc, pfx):
+    """Readable border/liner variant: '<Design or Design NN>[ WxH][ Corner]'."""
+    rest = code[len(pfx):]
+    corner = 'corner' in (code + ' ' + desc).lower()
+    design = None
+    m = re.search(r'[Dd]esign(?:\s*name)?\s*[:\-]?\s*([A-Za-z]+)', desc)
+    if m and m.group(1).lower() in BORDER_DESIGNS:
+        design = m.group(1).title()
+    if not design:                                   # substring: "Grace5x5Corner" -> Grace
+        low = (rest + ' ' + desc).lower()
+        for w in BORDER_DESIGNS:
+            if w in low:
+                design = w.title(); break
+    num_m = re.match(r'(\d+)(?![xX])', rest)          # leading number, but not a size like 6x18
+    num = num_m.group(1) if num_m else None
+    sz_m = re.search(r'(\d+)\s*[xX]\s*(\d+)', code) or re.search(r'(\d+)"?\s*[xX]\s*(\d+)"?', desc)
+    size = f'{sz_m.group(1)}×{sz_m.group(2)}' if sz_m else None
+    base = design or (f'Design {num}' if num else re.sub(r'\(.*', '', rest).strip(' -'))
+    parts = [base]
+    if size and size != '4×12' and (design or num):  # only size-qualify a real design/number
+        parts.append(size)
+    name = ' '.join(parts)
+    if corner:
+        name += ' Corner'
+    return re.sub(r'\s+', ' ', name).strip()[:120]
+
 def sanitize_sku(code):
     s = re.sub(r'[^A-Za-z0-9]+', '-', code).strip('-')
     return ("SP-" + s)[:120]
@@ -326,7 +355,7 @@ def main():
                                "trim-accessories", "Waterjet marble border / liner strip (4\"x12\" typical).")
             prod["skus"].append({
                 "vendor_sku": code, "internal_sku": sanitize_sku(code),
-                "variant_name": re.sub(r'^ML-','',code)[:120], "sell_by": "unit",
+                "variant_name": border_variant(code, desc, pfx), "sell_by": "unit",
                 "variant_type": "accessory", "cost": cost, "retail": retail,
                 "price_basis": "per_unit", "status": status, "packaging": None,
                 "attrs": {}, "desc": desc,
@@ -336,7 +365,7 @@ def main():
                                "trim-accessories", "Marble mosaic liner / border (10mm mosaic pieces on 4\"x12\").")
             prod["skus"].append({
                 "vendor_sku": code, "internal_sku": sanitize_sku(code),
-                "variant_name": re.sub(r'^MSL-','',code)[:120], "sell_by": "unit",
+                "variant_name": border_variant(code, desc, pfx), "sell_by": "unit",
                 "variant_type": "accessory", "cost": cost, "retail": retail,
                 "price_basis": "per_unit", "status": status, "packaging": None,
                 "attrs": {}, "desc": desc,

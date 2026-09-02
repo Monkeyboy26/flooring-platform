@@ -105,8 +105,11 @@ for p in catalog:
         if sc and sc.upper() in STONE_NAME:                   # arabescato1x3herring
             after = re.sub(r'^' + re.escape(sc) + r'-?', '', base[len(pm.group(0)):], flags=re.I)
             keys.add(norm(STONE_NAME[sc.upper()] + after))
+        # borders/frames normalize to 4-char codes (ml51, cwf1); tiles/mosaics are longer.
+        # page-section scoping + longest-prefix keep the short keys from over-matching.
+        minlen = 4 if itype in ('ML', 'MSL', 'FR') else 5
         for k in keys:
-            if len(k) >= 5:
+            if len(k) >= minlen:
                 key_group[(itype, k)].append(vs)
 
 # ---------- medallion designs ----------
@@ -254,6 +257,30 @@ for p in catalog:
         if imgs:
             sku_out[s["vendor_sku"]] = {"primary": imgs[0], "gallery": imgs[1:6]}
             med_sku += 1
+
+# borders/liners: a design looks the same across sizes & corners — share one design
+# image across every SKU of the same design (leading number, else design name)
+_BORDER_DESIGNS = {'harmony', 'daphne', 'aroma', 'olympus', 'grace', 'carolina',
+                   'casablanca', 'crescent', 'aquielia', 'simplicity', 'celebration',
+                   'gardena', 'cascade', 'nostalgia'}
+def _border_key(vs):
+    rest = re.sub(r'^(ML|MSL)-', '', vs)
+    m = re.match(r'(\d+)(?![xX])', rest)
+    if m: return 'n' + m.group(1)
+    for w in _BORDER_DESIGNS:
+        if w in rest.lower(): return 'd' + w
+    return None
+for p in catalog:
+    if p["name"] not in ("Waterjet Marble Borders", "Marble Mosaic Liners"): continue
+    kimg = {}
+    for s in p["skus"]:
+        u, k = sku_out.get(s["vendor_sku"]), _border_key(s["vendor_sku"])
+        if u and k and k not in kimg: kimg[k] = u["primary"]
+    for s in p["skus"]:
+        if s["vendor_sku"] in sku_out: continue
+        k = _border_key(s["vendor_sku"])
+        if k and k in kimg:
+            sku_out[s["vendor_sku"]] = {"primary": kimg[k], "gallery": []}
 
 prod_out = {}
 n_from_sku = n_from_med = n_from_swatch = 0

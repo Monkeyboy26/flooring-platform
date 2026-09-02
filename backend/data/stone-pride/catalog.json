@@ -10112,7 +10112,7 @@
    {
     "vendor_sku": "ML-03(D)",
     "internal_sku": "SP-ML-03-D",
-    "variant_name": "03(D)",
+    "variant_name": "Design 03",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.29,
@@ -10126,7 +10126,7 @@
    {
     "vendor_sku": "ML-03-BWG",
     "internal_sku": "SP-ML-03-BWG",
-    "variant_name": "03-BWG",
+    "variant_name": "Design 03",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 20.0,
@@ -10140,7 +10140,7 @@
    {
     "vendor_sku": "ML-16BW(D)",
     "internal_sku": "SP-ML-16BW-D",
-    "variant_name": "16BW(D)",
+    "variant_name": "Design 16",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10154,7 +10154,7 @@
    {
     "vendor_sku": "ML-17ED(D)",
     "internal_sku": "SP-ML-17ED-D",
-    "variant_name": "17ED(D)",
+    "variant_name": "Design 17",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10168,7 +10168,7 @@
    {
     "vendor_sku": "ML-18B",
     "internal_sku": "SP-ML-18B",
-    "variant_name": "18B",
+    "variant_name": "Design 18",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10182,7 +10182,7 @@
    {
     "vendor_sku": "ML-19(D)",
     "internal_sku": "SP-ML-19-D",
-    "variant_name": "19(D)",
+    "variant_name": "Design 19",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10196,7 +10196,7 @@
    {
     "vendor_sku": "ML-20(D)",
     "internal_sku": "SP-ML-20-D",
-    "variant_name": "20(D)",
+    "variant_name": "Design 20",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10210,7 +10210,7 @@
    {
     "vendor_sku": "ML-21-Corner(D)",
     "internal_sku": "SP-ML-21-Corner-D",
-    "variant_name": "21-Corner(D)",
+    "variant_name": "Design 21 4\u00d74 Corner",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 8.47,
@@ -10224,7 +10224,7 @@
    {
     "vendor_sku": "ML-50CM(D)",
     "internal_sku": "SP-ML-50CM-D",
-    "variant_name": "50CM(D)",
+    "variant_name": "Design 50",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10238,7 +10238,7 @@
    {
     "vendor_sku": "ML-51(D)",
     "internal_sku": "SP-ML-51-D",
-    "variant_name": "51(D)",
+    "variant_name": "Design 51",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10252,7 +10252,7 @@
    {
     "vendor_sku": "ML-53ED(D)",
     "internal_sku": "SP-ML-53ED-D",
-    "variant_name": "53ED(D)",
+    "variant_name": "Design 53",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 16.94,
@@ -10266,7 +10266,7 @@
    {
     "vendor_sku": "ML-53RA(D)",
     "internal_sku": "SP-ML-53RA-D",
-    "variant_name": "53RA(D)",
+    "variant_name": "Design 53",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 16.94,
@@ -10280,7 +10280,7 @@
    {
     "vendor_sku": "ML-57(D)",
     "internal_sku": "SP-ML-57-D",
-    "variant_name": "57(D)",
+    "variant_name": "Design 57",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10294,7 +10294,7 @@
    {
     "vendor_sku": "ML-62(D)",
     "internal_sku": "SP-ML-62-D",
-    "variant_name": "62(D)",
+    "variant_name": "Design 62",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10308,7 +10308,7 @@
    {
     "vendor_sku": "ML-63-Aquielia(D)",
     "internal_sku": "SP-ML-63-Aquielia-D",
-    "variant_name": "63-Aquielia(D)",
+    "variant_name": "Aquielia",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10322,7 +10322,7 @@
    {
     "vendor_sku": "ML-6x18-CZ556(D)",
     "internal_sku": "SP-ML-6x18-CZ556-D",
-    "variant_name": "6x18-CZ556(D)",
+    "variant_name": "6x18-CZ556",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 32.34,
@@ -10336,7 +10336,7 @@
    {
     "vendor_sku": "ML-76ED(D)",
     "internal_sku": "SP-ML-76ED-D",
-    "variant_name": "76ED(D)",
+    "variant_name": "Design 76",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10350,7 +10350,7 @@
    {
     "vendor_sku": "ML-77-Harmony(D)",
     "internal_sku": "SP-ML-77-Harmony-D",
-    "variant_name": "77-Harmony(D)",
+    "variant_name": "Harmony",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 16.94,
@@ -10364,7 +10364,7 @@
    {
     "vendor_sku": "ML-77-Harmony-Corner(D)",
     "internal_sku": "SP-ML-77-Harmony-Corner-D",
-    "variant_name": "77-Harmony-Corner(D)",
+    "variant_name": "Harmony 4\u00d74 Corner",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 9.24,
@@ -10378,7 +10378,7 @@
    {
     "vendor_sku": "ML-78-Daphne(D)",
     "internal_sku": "SP-ML-78-Daphne-D",
-    "variant_name": "78-Daphne(D)",
+    "variant_name": "Daphne",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 16.94,
@@ -10392,7 +10392,7 @@
    {
     "vendor_sku": "ML-78-Daphne2",
     "internal_sku": "SP-ML-78-Daphne2",
-    "variant_name": "78-Daphne2",
+    "variant_name": "Daphne",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10406,7 +10406,7 @@
    {
     "vendor_sku": "ML-79-Aroma",
     "internal_sku": "SP-ML-79-Aroma",
-    "variant_name": "79-Aroma",
+    "variant_name": "Aroma",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10420,7 +10420,7 @@
    {
     "vendor_sku": "ML-80-Olympus",
     "internal_sku": "SP-ML-80-Olympus",
-    "variant_name": "80-Olympus",
+    "variant_name": "Olympus",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10434,7 +10434,7 @@
    {
     "vendor_sku": "ML-81-Grace4x12",
     "internal_sku": "SP-ML-81-Grace4x12",
-    "variant_name": "81-Grace4x12",
+    "variant_name": "Grace",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10448,7 +10448,7 @@
    {
     "vendor_sku": "ML-81-Grace5X18(D)",
     "internal_sku": "SP-ML-81-Grace5X18-D",
-    "variant_name": "81-Grace5X18(D)",
+    "variant_name": "Grace 5\u00d718",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 38.0,
@@ -10462,7 +10462,7 @@
    {
     "vendor_sku": "ML-81-Grace5x5Corner(D)",
     "internal_sku": "SP-ML-81-Grace5x5Corner-D",
-    "variant_name": "81-Grace5x5Corner(D)",
+    "variant_name": "Grace 5\u00d75 Corner",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.09,
@@ -10476,7 +10476,7 @@
    {
     "vendor_sku": "ML-81-Grace6x18",
     "internal_sku": "SP-ML-81-Grace6x18",
-    "variant_name": "81-Grace6x18",
+    "variant_name": "Grace 6\u00d718",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 45.0,
@@ -10490,7 +10490,7 @@
    {
     "vendor_sku": "ML-81-Grace6x6Corner(D)",
     "internal_sku": "SP-ML-81-Grace6x6Corner-D",
-    "variant_name": "81-Grace6x6Corner(D)",
+    "variant_name": "Grace 6\u00d76 Corner",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 16.17,
@@ -10504,7 +10504,7 @@
    {
     "vendor_sku": "ML-82-Carolina4x12 (v2)",
     "internal_sku": "SP-ML-82-Carolina4x12-v2",
-    "variant_name": "82-Carolina4x12 (v2)",
+    "variant_name": "Carolina",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 18.0,
@@ -10518,7 +10518,7 @@
    {
     "vendor_sku": "ML-82-Carolina4x12(D)",
     "internal_sku": "SP-ML-82-Carolina4x12-D",
-    "variant_name": "82-Carolina4x12(D)",
+    "variant_name": "Carolina",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10532,7 +10532,7 @@
    {
     "vendor_sku": "ML-82-Carolina5x18(D)",
     "internal_sku": "SP-ML-82-Carolina5x18-D",
-    "variant_name": "82-Carolina5x18(D)",
+    "variant_name": "Carolina 5\u00d718",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 20.02,
@@ -10546,7 +10546,7 @@
    {
     "vendor_sku": "ML-82-Carolina6x18",
     "internal_sku": "SP-ML-82-Carolina6x18",
-    "variant_name": "82-Carolina6x18",
+    "variant_name": "Carolina 6\u00d718",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 41.0,
@@ -10560,7 +10560,7 @@
    {
     "vendor_sku": "ML-82-Carolina6x6Corner(D)",
     "internal_sku": "SP-ML-82-Carolina6x6Corner-D",
-    "variant_name": "82-Carolina6x6Corner(D)",
+    "variant_name": "Carolina 6\u00d76 Corner",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10574,7 +10574,7 @@
    {
     "vendor_sku": "ML-83-Casablanca6x18(D)",
     "internal_sku": "SP-ML-83-Casablanca6x18-D",
-    "variant_name": "83-Casablanca6x18(D)",
+    "variant_name": "Casablanca 6\u00d718",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 31.96,
@@ -10588,7 +10588,7 @@
    {
     "vendor_sku": "ML-83-Casablanca6x6Corner(D)",
     "internal_sku": "SP-ML-83-Casablanca6x6Corner-D",
-    "variant_name": "83-Casablanca6x6Corner(D)",
+    "variant_name": "Casablanca 6\u00d76 Corner",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 13.86,
@@ -10602,7 +10602,7 @@
    {
     "vendor_sku": "ML-84",
     "internal_sku": "SP-ML-84",
-    "variant_name": "84",
+    "variant_name": "Design 84",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10616,7 +10616,7 @@
    {
     "vendor_sku": "ML-86",
     "internal_sku": "SP-ML-86",
-    "variant_name": "86",
+    "variant_name": "Design 86",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10630,7 +10630,7 @@
    {
     "vendor_sku": "ML-87",
     "internal_sku": "SP-ML-87",
-    "variant_name": "87",
+    "variant_name": "Design 87",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10644,7 +10644,7 @@
    {
     "vendor_sku": "ML-88",
     "internal_sku": "SP-ML-88",
-    "variant_name": "88",
+    "variant_name": "Design 88",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10658,7 +10658,7 @@
    {
     "vendor_sku": "ML-90-Crescent(D)",
     "internal_sku": "SP-ML-90-Crescent-D",
-    "variant_name": "90-Crescent(D)",
+    "variant_name": "Crescent",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 16.94,
@@ -10672,7 +10672,7 @@
    {
     "vendor_sku": "ML-91",
     "internal_sku": "SP-ML-91",
-    "variant_name": "91",
+    "variant_name": "Design 91",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10686,7 +10686,7 @@
    {
     "vendor_sku": "ML-92",
     "internal_sku": "SP-ML-92",
-    "variant_name": "92",
+    "variant_name": "Design 92",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 24.0,
@@ -10708,7 +10708,7 @@
    {
     "vendor_sku": "MSL-102(Simplicity)(D)",
     "internal_sku": "SP-MSL-102-Simplicity-D",
-    "variant_name": "102(Simplicity)(D)",
+    "variant_name": "Simplicity",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10722,7 +10722,7 @@
    {
     "vendor_sku": "MSL-103(Celebration)(D)",
     "internal_sku": "SP-MSL-103-Celebration-D",
-    "variant_name": "103(Celebration)(D)",
+    "variant_name": "Celebration",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10736,7 +10736,7 @@
    {
     "vendor_sku": "MSL-104(Gardena)(D)",
     "internal_sku": "SP-MSL-104-Gardena-D",
-    "variant_name": "104(Gardena)(D)",
+    "variant_name": "Gardena",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10750,7 +10750,7 @@
    {
     "vendor_sku": "MSL-21-Corner-P(D)",
     "internal_sku": "SP-MSL-21-Corner-P-D",
-    "variant_name": "21-Corner-P(D)",
+    "variant_name": "Design 21 4\u00d74 Corner",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 3.47,
@@ -10764,7 +10764,7 @@
    {
     "vendor_sku": "MSL-21-P(D)",
     "internal_sku": "SP-MSL-21-P-D",
-    "variant_name": "21-P(D)",
+    "variant_name": "Design 21",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10778,7 +10778,7 @@
    {
     "vendor_sku": "MSL-50CM-Corner-P(D)",
     "internal_sku": "SP-MSL-50CM-Corner-P-D",
-    "variant_name": "50CM-Corner-P(D)",
+    "variant_name": "Design 50 4\u00d74 Corner",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 3.47,
@@ -10792,7 +10792,7 @@
    {
     "vendor_sku": "MSL-50CM-P(D)",
     "internal_sku": "SP-MSL-50CM-P-D",
-    "variant_name": "50CM-P(D)",
+    "variant_name": "Design 50",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10806,7 +10806,7 @@
    {
     "vendor_sku": "MSL-51-P(D)",
     "internal_sku": "SP-MSL-51-P-D",
-    "variant_name": "51-P(D)",
+    "variant_name": "Design 51",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10820,7 +10820,7 @@
    {
     "vendor_sku": "MSL-57-P(D)",
     "internal_sku": "SP-MSL-57-P-D",
-    "variant_name": "57-P(D)",
+    "variant_name": "Design 57",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10834,7 +10834,7 @@
    {
     "vendor_sku": "MSL-76EL-P(D)",
     "internal_sku": "SP-MSL-76EL-P-D",
-    "variant_name": "76EL-P(D)",
+    "variant_name": "Design 76",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10848,7 +10848,7 @@
    {
     "vendor_sku": "MSL-76-P(D)",
     "internal_sku": "SP-MSL-76-P-D",
-    "variant_name": "76-P(D)",
+    "variant_name": "Design 76",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10862,7 +10862,7 @@
    {
     "vendor_sku": "MSL-79-Aroma-Corner-P(D)",
     "internal_sku": "SP-MSL-79-Aroma-Corner-P-D",
-    "variant_name": "79-Aroma-Corner-P(D)",
+    "variant_name": "Aroma 4\u00d74 Corner",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 3.47,
@@ -10876,7 +10876,7 @@
    {
     "vendor_sku": "MSL-79-Aroma-P(D)",
     "internal_sku": "SP-MSL-79-Aroma-P-D",
-    "variant_name": "79-Aroma-P(D)",
+    "variant_name": "Aroma",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10890,7 +10890,7 @@
    {
     "vendor_sku": "MSL-84-P(D)",
     "internal_sku": "SP-MSL-84-P-D",
-    "variant_name": "84-P(D)",
+    "variant_name": "Design 84",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10904,7 +10904,7 @@
    {
     "vendor_sku": "MSL-99(Cascade)(D)",
     "internal_sku": "SP-MSL-99-Cascade-D",
-    "variant_name": "99(Cascade)(D)",
+    "variant_name": "Cascade",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
@@ -10918,7 +10918,7 @@
    {
     "vendor_sku": "MSL-Olympus-Corner-P(D)",
     "internal_sku": "SP-MSL-Olympus-Corner-P-D",
-    "variant_name": "Olympus-Corner-P(D)",
+    "variant_name": "Olympus 4\u00d74 Corner",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 3.47,
@@ -10932,7 +10932,7 @@
    {
     "vendor_sku": "MSL-Olympus-P(D)",
     "internal_sku": "SP-MSL-Olympus-P-D",
-    "variant_name": "Olympus-P(D)",
+    "variant_name": "Olympus",
     "sell_by": "unit",
     "variant_type": "accessory",
     "cost": 6.55,
