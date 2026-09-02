@@ -121,7 +121,7 @@ def norm_design(s):
     return s
 med_design = {}     # normalized design -> product name
 for p in catalog:
-    if p["category_slug"] == "medallions" and p["name"] != "Aluminum-Backed Marble Medallion":
+    if p["category_slug"] == "medallions" and p["name"] != "Aluminum-Backed":
         d = norm_design(p["name"].replace(" Marble Medallion", ""))
         if d: med_design[d] = p["name"]
 med_keys = list(med_design.keys())

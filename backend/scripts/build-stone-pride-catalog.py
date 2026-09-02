@@ -304,10 +304,10 @@ def main():
         elif pfx == "MM-":
             design = medallion_design(code, desc)
             if design:
-                pname = f"{design} Marble Medallion"
-                key = ("medallion", design.lower())
+                pname = design   # collection "Marble Medallions" supplies the type; avoids
+                key = ("medallion", design.lower())   # "Marble Medallions Grace Marble Medallion"
             else:
-                pname = "Aluminum-Backed Marble Medallion"
+                pname = "Aluminum-Backed"
                 key = ("medallion", "_misc")
             # variant name = size/shape phrase from the description (design is the product)
             ms = re.search(r'(\d[\d.\'"\s]*(?:ft)?\s*(?:x\s*\d[\d.\'"\s]*(?:ft)?)?\s*(?:Round|Square|Squared|Oval|Rectangular|Rect\.?|Corner))', desc, re.I)
