@@ -30,14 +30,15 @@ const CATEGORY_MAP = {
 // Products whose name would otherwise resolve to the wrong category
 // (slab-named tiles, tile-named slabs, deco wall panels). Keyed by
 // normalized product name — checked before all other rules.
-const CATEGORY_OVERRIDES = {
+export const CATEGORY_OVERRIDES = {
   'calacatta black':         'porcelain-tile',   // 24x48 tile twin of the slab name
   'rosso verona':            'porcelain-tile',   // Marmorea 24x24 tile twin
-  'aurelius white':          'porcelain-slabs',
-  'cristallo illuminates':   'porcelain-slabs',
-  'gvx desert silver jumbo': 'porcelain-slabs',
   'blue forest':             'porcelain-tile',   // 24x48 (60x120cm) rectified porcelain tile, 2/box
   'palma':                   'porcelain-tile',   // 24x48 (60x120cm) rectified porcelain tile, 2/box
+  'natural terrazzo':        'natural-stone',    // real terrazzo, not a porcelain look (owner 2026-09-02)
+  // NOTE: natural-stone slab-named products (aurelius white, cristallo illuminates,
+  // gvx desert silver jumbo, …) are NOT listed here — their category is resolved by
+  // material via SLAB_MATERIAL below (natural stone → the matching Countertops leaf).
 };
 
 // Title keywords that override category to wood-look-tile
@@ -68,6 +69,73 @@ const SLAB_PRODUCT_NAMES = new Set([
   'siberia', 'super white calacatta', 'tempest blue', 'titanium',
   'vancouver', 'waterfall', 'white paradise',
 ]);
+
+// L01–L08 are painted Mexican (Talavera-style) decorative wall tile — NOT slabs
+// (owner 2026-09-02). They live in SLAB_PRODUCT_NAMES for name parsing but are
+// intercepted here for category (backsplash-wall), classify (wall tile) & material.
+export const MEXICAN_DECO_TILE = new Set([
+  'l01', 'l02', 'l03', 'l03m', 'l04', 'l05', 'l06', 'l07', 'l08',
+]);
+
+// Slab material map (owner-reviewed, 2026-09-02). Keyed by normalized full product
+// name → true material. Drives the Countertops leaf via MATERIAL_CATEGORY below, so
+// natural-stone slabs stop being mislabeled "Porcelain Slabs". Mirrors the reviewed
+// backend/scripts/orion-slab-materials.json. conf L entries are name-based guesses —
+// safe to correct here (re-scrape updates in place via the stable slab SKU id).
+export const SLAB_MATERIAL = {
+  // marble
+  'calacatta gold': 'marble', 'marmorea carrara': 'marble',
+  'marmorea verde alpi': 'marble', 'nero marquinia': 'marble',
+  // quartzite
+  'cristallo illuminates': 'quartzite', 'matarazzo': 'quartzite', 'matira': 'quartzite',
+  'meridian': 'quartzite', 'onic': 'quartzite', 'opus white': 'quartzite',
+  'perla santana': 'quartzite', 'white paradise': 'quartzite', 'gold macaubas': 'quartzite',
+  'quartzito azul': 'quartzite', 'super white calacatta': 'quartzite', 'fusion': 'quartzite',
+  'ruby fusion': 'quartzite', 'bianco superior': 'quartzite', 'feline': 'quartzite',
+  'feline crystal': 'quartzite', 'nebulato azul': 'quartzite', 'siberia': 'quartzite',
+  'waterfall': 'quartzite', 'lunar': 'quartzite', 'alpine': 'quartzite',
+  'multifios bidese': 'quartzite', 'multifios breton': 'quartzite', 'multifios hedel': 'quartzite',
+  // granite
+  'natural granite': 'granite', 'nilo': 'granite', 'orinoco': 'granite',
+  'titanium': 'granite', 'delicattus': 'granite', 'brown persa': 'granite',
+  'black raj': 'granite', 'blue eagle': 'granite', 'tempest blue': 'granite',
+  'matrix': 'granite', 'gabana': 'granite', 'vancouver': 'granite',
+  'mountain mist': 'granite', 'ete et serena': 'granite', 'gvx desert silver jumbo': 'granite',
+  // engineered quartz
+  'frost cz': 'quartz',
+  // genuine porcelain slabs (stay in porcelain-slabs)
+  'aurelius white': 'porcelain', 'calacatta': 'porcelain', 'calacatta da vinci': 'porcelain',
+  'carrara': 'porcelain', 'pedre': 'porcelain', 'platino': 'porcelain', 'reverse': 'porcelain',
+};
+
+// Material → PIM Countertops leaf slug.
+export const MATERIAL_CATEGORY = {
+  marble:    'marble-countertops',
+  quartzite: 'quartzite-countertops',
+  granite:   'granite-countertops',
+  quartz:    'quartz-countertops',
+  soapstone: 'soapstone-countertops',
+  porcelain: 'porcelain-slabs',
+};
+
+// Resolve a slab's material by exact name, else longest matching stem (handles
+// color suffixes, e.g. "Aurelius White" → 'aurelius white').
+export function slabMaterialFor(nameLower) {
+  if (SLAB_MATERIAL[nameLower]) return SLAB_MATERIAL[nameLower];
+  let best = null;
+  for (const key of Object.keys(SLAB_MATERIAL)) {
+    if (nameLower === key || nameLower.startsWith(key + ' ')) {
+      if (!best || key.length > best.length) best = key;
+    }
+  }
+  return best ? SLAB_MATERIAL[best] : null;
+}
+
+// Stable slug from a product name (lowercase, accent-fold, hyphenate).
+function slugifyName(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
 
 // ──────────────────────────────────────────────
 // Attribute Classification Data
@@ -329,22 +397,40 @@ const SIZE_MAP = [
 ];
 
 // Application by PIM category slug
-const APP_BY_SLUG = {
+export const APP_BY_SLUG = {
   'porcelain-tile': 'Floor & Wall',
   'wood-look-tile': 'Floor & Wall',
   'porcelain-slabs': 'Countertop',
+  'marble-countertops': 'Countertop',
+  'quartzite-countertops': 'Countertop',
+  'granite-countertops': 'Countertop',
+  'quartz-countertops': 'Countertop',
+  'soapstone-countertops': 'Countertop',
+  'natural-stone': 'Floor & Wall',
   'backsplash-wall': 'Wall',
   'lvp-plank': 'Floor',
 };
 
 // Material by PIM category slug
-const MATERIAL_BY_SLUG = {
+export const MATERIAL_BY_SLUG = {
   'porcelain-tile': 'Porcelain',
   'wood-look-tile': 'Porcelain',
   'porcelain-slabs': 'Sintered Stone',
+  'marble-countertops': 'Marble',
+  'quartzite-countertops': 'Quartzite',
+  'granite-countertops': 'Granite',
+  'quartz-countertops': 'Quartz',
+  'soapstone-countertops': 'Soapstone',
+  'natural-stone': 'Natural Stone',
   'backsplash-wall': 'Porcelain',
   'lvp-plank': 'SPC Vinyl',
 };
+
+// Per-name material overrides (win over MATERIAL_BY_SLUG). L-series = painted
+// Mexican decorative tile → Ceramic (not the backsplash-wall default 'Porcelain').
+export const MATERIAL_OVERRIDES_BY_NAME = Object.fromEntries(
+  [...MEXICAN_DECO_TILE].map(n => [n, 'Ceramic'])
+);
 
 /** Find look attribute from product name */
 function findLook(productName) {
@@ -531,6 +617,100 @@ function stripWpThumbSuffix(url) {
   return url.replace(/-\d+x\d+(\.\w+)(?:\?.*)?$/, '$1');
 }
 
+// Filename/name tokens that don't identify a product (material/format words).
+// Colours are deliberately KEPT (blanco/ivory/etc. distinguish siblings).
+const IMG_STOPWORDS = new Set([
+  'porcelain', 'tile', 'tiles', 'wall', 'floor', 'slab', 'natural', 'stone',
+  'countertop', 'life', 'style', 'lifestyle', 'main', 'mian', 'img', 'image',
+  'rettificato', 'marble', 'look', 'effect', 'orion', 'flooring', 'ceramic',
+  'sintered', 'matte', 'polished', 'lappato', 'the', 'and', 'collection', 'cm',
+]);
+const imgTokens = (url) => {
+  let base = (url || '').split('/').pop() || '';
+  base = base.replace(/\?.*$/, '').replace(/\.\w+$/, '').replace(/-\d+x\d+$/, '');
+  base = base.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return base.split(/[^a-z0-9]+/)
+    .filter(t => t && t.length >= 3 && !/^\d+$/.test(t) && !IMG_STOPWORDS.has(t));
+};
+const nameTokens = (name) => (name || '').toLowerCase().normalize('NFD')
+  .replace(/[̀-ͯ]/g, '').split(/[^a-z0-9]+/)
+  .filter(t => t && t.length >= 3 && !IMG_STOPWORDS.has(t));
+
+/**
+ * Post-scrape image-integrity pass for Orion (idempotent).
+ *
+ * Orion's WooCommerce product pages frequently carry the WRONG image: a generic
+ * shared file reused across unrelated products (e.g. `.../1.jpg` on both Blue
+ * Forest and Lux Danae) or a sibling's swatch (Montclair Ivory showing a
+ * `MONTCLAIR-BLANCO` / `CARRARA` file). A per-page heuristic can't catch these —
+ * it needs the full catalog view. This pass:
+ *
+ *   (a) Wrong owner: deletes any asset whose filename fully contains ANOTHER
+ *       product's name tokens (and not its own) — the file belongs to that
+ *       product. Fixes wrong-color / cross-product swatches.
+ *   (b) Shared URL: when one URL is used by several products, keeps it on the
+ *       best owner (filename-token overlap → most images → earliest created) and
+ *       drops the borrowed copies. Generic-named shared files (no tokens) end up
+ *       on the fullest gallery; the borrowers go photoless (correct — they have
+ *       no real image of their own).
+ *
+ * @returns {{deleted:number}}
+ */
+export async function fixOrionBorrowedImages(pool, vendorId) {
+  const prods = (await pool.query(
+    'SELECT id, name, created_at FROM products WHERE vendor_id = $1', [vendorId])).rows;
+  const pTokens = new Map(prods.map(p => [p.id, new Set(nameTokens(p.name))]));
+  const assets = (await pool.query(
+    'SELECT id, product_id, url FROM media_assets WHERE product_id = ANY($1)',
+    [prods.map(p => p.id)])).rows;
+
+  const imgCount = new Map();
+  for (const a of assets) imgCount.set(a.product_id, (imgCount.get(a.product_id) || 0) + 1);
+  const createdAt = new Map(prods.map(p => [p.id, new Date(p.created_at).getTime()]));
+  const toDelete = new Set();
+
+  // (a) Wrong-owner deletion.
+  for (const a of assets) {
+    const bt = new Set(imgTokens(a.url));
+    if (bt.size === 0) continue;
+    const selfT = pTokens.get(a.product_id) || new Set();
+    const selfMatch = selfT.size > 0 && [...selfT].every(t => bt.has(t));
+    if (selfMatch) continue;
+    for (const p of prods) {
+      if (p.id === a.product_id) continue;
+      const ot = pTokens.get(p.id);
+      if (ot && ot.size > 0 && [...ot].every(t => bt.has(t))) { toDelete.add(a.id); break; }
+    }
+  }
+
+  // (b) Shared-URL dedup among survivors.
+  const byUrl = new Map();
+  for (const a of assets) {
+    if (toDelete.has(a.id)) continue;
+    if (!byUrl.has(a.url)) byUrl.set(a.url, []);
+    byUrl.get(a.url).push(a);
+  }
+  const overlap = (pid, bt) => { let s = 0; for (const t of (pTokens.get(pid) || [])) if (bt.has(t)) s++; return s; };
+  for (const [url, group] of byUrl) {
+    if (group.length < 2) continue;
+    const bt = new Set(imgTokens(url));
+    let keep = group[0];
+    for (const a of group) {
+      const sa = overlap(a.product_id, bt), sk = overlap(keep.product_id, bt);
+      if (sa !== sk) { if (sa > sk) keep = a; continue; }
+      const ca = imgCount.get(a.product_id) || 0, ck = imgCount.get(keep.product_id) || 0;
+      if (ca !== ck) { if (ca > ck) keep = a; continue; }
+      if ((createdAt.get(a.product_id) || 0) < (createdAt.get(keep.product_id) || 0)) keep = a;
+    }
+    for (const a of group) if (a.id !== keep.id) toDelete.add(a.id);
+  }
+
+  if (toDelete.size) {
+    await pool.query('DELETE FROM media_assets WHERE id = ANY($1)', [[...toDelete]]);
+  }
+  return { deleted: toDelete.size };
+}
+
 // ──────────────────────────────────────────────
 // Title / Product Parsing
 // ──────────────────────────────────────────────
@@ -596,6 +776,14 @@ function parseOrionTitle(title) {
     .replace(/\bFinish\s*Terrazzo\b/gi, '')
     .replace(/\bTerrazzo\s*look\b/gi, '')
     .replace(/\bSlab\s*Countertop\b/gi, '')
+    // Orion renamed slab product URLs/titles to "<Name> Slab Natural Stone
+    // [Countertop]" (2026-09). Strip the marketing suffix so the title collapses
+    // back to the bare collection name and re-scrapes update the existing record
+    // instead of minting a zero-priced duplicate. Order matters: longest first.
+    .replace(/\bSlab\s+Natural\s+Stone(\s+Countertop)?\b/gi, '')
+    .replace(/\bNatural\s+Stone\s+Countertop\b/gi, '')
+    .replace(/\bSintered\s+Stone\b/gi, '')
+    .replace(/\bCountertop\b/gi, '')
     .replace(/\bGlossy\s*White\b/gi, '')
     .replace(/\bPolished\b/gi, '')
     .replace(/\bMatte\b/gi, '')
@@ -738,6 +926,12 @@ function resolveCategory(wcCategory, title, categoryLookup, productName) {
     return { id: categoryLookup.get(override) || null, slug: override };
   }
 
+  // 0b. L-series = painted Mexican decorative wall tile (checked before slabs —
+  //     they live in SLAB_PRODUCT_NAMES for name parsing but aren't slabs).
+  if (MEXICAN_DECO_TILE.has(nameLower)) {
+    return { id: categoryLookup.get('backsplash-wall') || null, slug: 'backsplash-wall' };
+  }
+
   // 1. Check slab names (from the dealer price list). Prefix match so color
   //    suffixes still resolve ("Aurelius White" → 'aurelius'), but a tile size
   //    in the title means it's the boxed-tile twin of a slab name — skip.
@@ -745,7 +939,11 @@ function resolveCategory(wcCategory, title, categoryLookup, productName) {
   const isSlabName = SLAB_PRODUCT_NAMES.has(nameLower)
     || [...SLAB_PRODUCT_NAMES].some(s => nameLower.startsWith(s + ' '));
   if (isSlabName && !hasTileSize) {
-    return { id: categoryLookup.get('porcelain-slabs') || categoryLookup.get('porcelain-tile') || null, slug: 'porcelain-slabs' };
+    // Route to the real Countertops leaf by material (marble/quartzite/granite/
+    // quartz → …-countertops; porcelain / unknown → porcelain-slabs).
+    const material = slabMaterialFor(nameLower);
+    const slug = (material && MATERIAL_CATEGORY[material]) || 'porcelain-slabs';
+    return { id: categoryLookup.get(slug) || categoryLookup.get('porcelain-slabs') || null, slug };
   }
 
   // 2. Vinyl/SPC detection from title
@@ -776,11 +974,27 @@ function resolveCategory(wcCategory, title, categoryLookup, productName) {
 }
 
 /**
- * Determine sell_by and variant_type from product characteristics.
+ * Determine sell_by and variant_type. When the resolved category slug is known
+ * (passed by the caller), classify from it so category overrides (deco tile,
+ * terrazzo, natural-stone, per-material slabs) stay consistent; fall back to the
+ * legacy title/name heuristics when no slug is available.
  */
-function classifyProduct(wcCategory, title, productName) {
+function classifyProduct(wcCategory, title, productName, categorySlug) {
   const catLower = (wcCategory || '').toLowerCase();
   const nameLower = (productName || '').toLowerCase().trim();
+
+  // Category-driven classification (authoritative when we have the slug).
+  if (categorySlug) {
+    const COUNTERTOP = new Set(['porcelain-slabs', 'marble-countertops',
+      'quartzite-countertops', 'granite-countertops', 'quartz-countertops',
+      'soapstone-countertops']);
+    if (COUNTERTOP.has(categorySlug)) return { sellBy: 'sqft', variantType: 'stone_tile', priceBasis: 'per_sqft' };
+    if (categorySlug === 'natural-stone')  return { sellBy: 'sqft', variantType: 'stone_tile', priceBasis: 'per_sqft' };
+    if (categorySlug === 'backsplash-wall') return { sellBy: 'box', variantType: 'wall_tile', priceBasis: 'per_sqft' };
+    if (categorySlug === 'wood-look-tile')  return { sellBy: 'box', variantType: 'floor_tile', priceBasis: 'per_sqft' };
+    if (categorySlug === 'lvp-plank')       return { sellBy: 'box', variantType: 'lvt', priceBasis: 'per_sqft' };
+    if (categorySlug === 'porcelain-tile')  return { sellBy: 'box', variantType: 'floor_tile', priceBasis: 'per_sqft' };
+  }
 
   // Countertop slabs sold by sqft
   if (SLAB_PRODUCT_NAMES.has(nameLower) || catLower.includes('countertop') || catLower.includes('slab')) {
@@ -1038,8 +1252,8 @@ export async function run(pool, job, source) {
           continue;
         }
 
-        const { sellBy, variantType, priceBasis } = classifyProduct(data.category, data.title, productName);
         const { id: categoryId, slug: categorySlug } = resolveCategory(data.category, data.title, categoryLookup, productName);
+        const { sellBy, variantType, priceBasis } = classifyProduct(data.category, data.title, productName, categorySlug);
 
         // ── Upsert Product ──
         const product = await upsertProduct(pool, {
@@ -1055,10 +1269,17 @@ export async function run(pool, job, source) {
         touchedProductIds.push(product.id);
 
         // ── Build internal SKU ──
-        // Use URL slug as stable identifier
+        // Tiles use the URL slug as a stable identifier. SLABS use the normalized
+        // product NAME instead: Orion periodically renames slab product URLs (e.g.
+        // "…-slab-natural-stone-countertop"), which would otherwise mint duplicate
+        // SKUs on every rename. Name-based ids match the existing priced records
+        // (ORN-alpine, …) so a re-scrape updates them in place. (owner 2026-09-02)
         const urlSlug = url.split('/product/')[1]?.replace(/\/$/, '') || '';
-        const vendorSku = data.sku || urlSlug;
-        const internalSku = `ORN-${urlSlug}`.slice(0, 100);
+        const isSlab = MATERIAL_CATEGORY[slabMaterialFor((productName || '').toLowerCase().trim())] != null
+          && !MEXICAN_DECO_TILE.has((productName || '').toLowerCase().trim());
+        const stableSlabSlug = slugifyName(productName);
+        const vendorSku = isSlab ? (stableSlabSlug || urlSlug) : (data.sku || urlSlug);
+        const internalSku = (isSlab ? `ORN-${stableSlabSlug}` : `ORN-${urlSlug}`).slice(0, 100);
 
         const variantName = parsed.size
           ? buildVariantName(parsed.size, parsed.finish)
@@ -1081,7 +1302,11 @@ export async function run(pool, job, source) {
         const mapPrice = data.regularPrice && data.salePrice ? data.regularPrice : null;
         await upsertPricing(pool, sku.id, {
           cost: 0,  // dealer cost from PDF — set separately
-          retail_price: retailPrice || 0,
+          // Pass null (not 0) when the site quotes no price so a re-scrape can't
+          // WIPE an existing retail. Orion's slab/countertop pages are "call for
+          // price" ($0); the real prices come from the dealer PDF import. upsert
+          // COALESCEs null onto the existing value (and INSERTs 0 on new rows).
+          retail_price: retailPrice > 0 ? retailPrice : null,
           price_basis: priceBasis,
           map_price: mapPrice,
         });
@@ -1117,8 +1342,9 @@ export async function run(pool, job, source) {
         const application = APP_BY_SLUG[categorySlug];
         if (application) await upsertSkuAttribute(pool, sku.id, 'application', application);
 
-        // Material (corrected per category, not raw WooCommerce breadcrumb)
-        const material = MATERIAL_BY_SLUG[categorySlug];
+        // Material (corrected per category, not raw WooCommerce breadcrumb).
+        // Per-name overrides win (L-series painted deco tile → Ceramic).
+        const material = MATERIAL_OVERRIDES_BY_NAME[nameLower] || MATERIAL_BY_SLUG[categorySlug];
         if (material) await upsertSkuAttribute(pool, sku.id, 'material', material);
 
         // Edge: all non-LVP Orion tiles are rectified
@@ -1217,6 +1443,14 @@ export async function run(pool, job, source) {
         [touchedProductIds]
       );
       await appendLog(pool, job.id, `Activated ${activateResult.rowCount} products`);
+    }
+
+    // Post-scrape image integrity: Orion's product pages reuse generic/foreign
+    // images (borrowed shared files + wrong-color swatches). Resolve each to its
+    // rightful owner by filename and drop the borrowed copies. See function docs.
+    const imgFix = await fixOrionBorrowedImages(pool, vendor_id);
+    if (imgFix.deleted > 0) {
+      await appendLog(pool, job.id, `Image integrity: removed ${imgFix.deleted} borrowed/wrong-color images`);
     }
 
   } finally {
