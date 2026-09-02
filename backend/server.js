@@ -17920,9 +17920,16 @@ app.post('/api/rep/sample-requests/:id/add-items', repAuth, async (req, res) => 
 
 app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res) => {
   try {
-    const { vendor_id, ship_to } = req.body;
+    const { vendor_id, ship_to, recipient_email, cc_emails } = req.body;
     if (!vendor_id) return res.status(400).json({ error: 'vendor_id is required' });
     if (!['store', 'customer'].includes(ship_to)) return res.status(400).json({ error: 'ship_to must be store or customer' });
+    if (recipient_email != null && String(recipient_email).trim() && !isValidEmailAddr(recipient_email)) {
+      return res.status(400).json({ error: 'Enter a valid recipient email' });
+    }
+    const ccList = Array.isArray(cc_emails) ? cc_emails.map(e => String(e).trim()).filter(Boolean) : [];
+    if (ccList.some(e => !isValidEmailAddr(e))) {
+      return res.status(400).json({ error: 'One or more CC emails are invalid' });
+    }
 
     const srRes = await pool.query('SELECT * FROM sample_requests WHERE id = $1', [req.params.id]);
     if (!srRes.rows.length) return res.status(404).json({ error: 'Sample request not found' });
@@ -17938,7 +17945,10 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
       FROM vendors WHERE id = $1`, [vendor_id]);
     if (!vendorRes.rows.length) return res.status(404).json({ error: 'Vendor not found' });
     const vendor = vendorRes.rows[0];
-    if (!vendor.email) return res.status(400).json({ error: 'Vendor has no email configured' });
+    // The rep can override the recipient in the send popup; fall back to the
+    // vendor's email on file. Allows sending even when the vendor has no email.
+    const toEmail = (recipient_email && String(recipient_email).trim()) ? String(recipient_email).trim() : vendor.email;
+    if (!toEmail) return res.status(400).json({ error: 'No recipient email — enter one to send' });
 
     // Get rep name
     const repRes = await pool.query('SELECT first_name, last_name FROM staff_accounts WHERE id = $1', [req.rep.id]);
@@ -17993,12 +18003,13 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
     const pdfBuffer = await generatePDFBuffer(html);
 
     const emailResult = await sendSampleRequestToVendor({
-      vendor_email: vendor.email,
+      vendor_email: toEmail,
       vendor_name: vendor.name,
       request_number: sr.request_number,
       rep_name: repName,
       rep_email: req.rep.email,
       vendor_contact_email: vendor.contact_email,
+      cc_emails: ccList,
       item_count: itemsRes.rows.length,
       ship_to: shipToAddress,
       pdf_buffer: pdfBuffer
@@ -18009,11 +18020,11 @@ app.post('/api/rep/sample-requests/:id/send-to-vendor', repAuth, async (req, res
       const itemIds = itemsRes.rows.map(i => i.id);
       await pool.query(
         'UPDATE sample_request_items SET vendor_notified_at = NOW(), vendor_notified_email = $1 WHERE id = ANY($2::uuid[])',
-        [vendor.email, itemIds]
+        [toEmail, itemIds]
       );
     }
 
-    res.json({ vendor_name: vendor.name, vendor_email: vendor.email, sent: emailResult.sent, error: emailResult.error || null });
+    res.json({ vendor_name: vendor.name, vendor_email: toEmail, sent: emailResult.sent, error: emailResult.error || null });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }

@@ -1212,7 +1212,7 @@ export async function sendInvoiceReminder(invoice) {
 /**
  * Send sample request PDF to vendor via email.
  */
-export async function sendSampleRequestToVendor({ vendor_email, vendor_name, request_number, rep_name, rep_email, vendor_contact_email, item_count, ship_to, pdf_buffer }) {
+export async function sendSampleRequestToVendor({ vendor_email, vendor_name, request_number, rep_name, rep_email, vendor_contact_email, cc_emails, item_count, ship_to, pdf_buffer }) {
   if (!transporter) {
     console.log(`[Email] Skipping sample request email for ${request_number} to ${vendor_email} — SMTP not configured`);
     return { sent: false };
@@ -1222,7 +1222,10 @@ export async function sendSampleRequestToVendor({ vendor_email, vendor_name, req
       vendor_name, request_number, rep_name, item_count, ship_to
     });
 
-    const cc = [rep_email, vendor_contact_email].filter(Boolean);
+    // rep + vendor contact are always CC'd; the rep can add more from the send
+    // popup. De-dupe and drop the To address if it slipped into CC.
+    const cc = [...new Set([rep_email, vendor_contact_email, ...(cc_emails || [])].filter(Boolean))]
+      .filter(e => e.toLowerCase() !== String(vendor_email).toLowerCase());
     await deliver({
       from: `"${BRAND_NAME} Purchasing" <${SALES_FROM}>`,
       to: vendor_email,

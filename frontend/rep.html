@@ -19085,18 +19085,29 @@
       const [vendorShipTo, setVendorShipTo] = useState({}); // { [vendor_id]: 'store' | 'customer' }
       const [sendingVendorId, setSendingVendorId] = useState(null);
       const [vendorSendResults, setVendorSendResults] = useState({}); // { [vendor_id]: { sent, error, vendor_email } }
+      const [sendVendorTarget, setSendVendorTarget] = useState(null); // vendor group pending send confirmation
+      const [sendTo, setSendTo] = useState('');   // editable recipient in the send popup
+      const [sendCc, setSendCc] = useState('');   // comma-separated CC in the send popup
 
-      const sendToVendor = async (vendorId, vendorName) => {
+      // Actually send — invoked from the confirmation popup opened by the
+      // "Send to vendor" button (setSendVendorTarget).
+      const confirmSendToVendor = async () => {
+        if (!sendVendorTarget) return;
+        const vendorId = sendVendorTarget.vendor_id;
         const shipTo = vendorShipTo[vendorId] || 'store';
-        if (!confirm(`Send sample request to ${vendorName}? Samples will ship to ${shipTo === 'store' ? 'store' : 'customer'}.`)) return;
         setSendingVendorId(vendorId);
         try {
           const data = await repFetch('/api/rep/sample-requests/' + editId + '/send-to-vendor', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ vendor_id: vendorId, ship_to: shipTo })
+            body: JSON.stringify({
+              vendor_id: vendorId, ship_to: shipTo,
+              recipient_email: sendTo.trim(),
+              cc_emails: sendCc.split(',').map(s => s.trim()).filter(Boolean)
+            })
           });
           setVendorSendResults(prev => ({ ...prev, [vendorId]: data }));
+          setSendVendorTarget(null);
         } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
         setSendingVendorId(null);
       };
@@ -19474,8 +19485,8 @@
                         {sendResult && !sendResult.sent && <span style={sdBadge('rgba(197,71,49,0.12)', 'var(--rod-red)')}>Failed: {sendResult.error}</span>}
                         {!sendResult && notifiedItem && <span style={sdBadge('rgba(58,122,78,0.12)', 'var(--rod-green)')}>✓ Sent {new Date(notifiedItem.vendor_notified_at).toLocaleDateString()}</span>}
                         <button className="sd-btn sd-btn-primary sd-btn-sm"
-                          disabled={!group.vendor_email || isSending || !group.vendor_id}
-                          onClick={() => sendToVendor(group.vendor_id, group.vendor_name)}>
+                          disabled={isSending || !group.vendor_id}
+                          onClick={() => { setSendVendorTarget(group); setSendTo(group.vendor_email || ''); setSendCc(''); }}>
                           {isSending ? 'Sending…' : <React.Fragment>Send to vendor <span style={{ opacity: 0.6 }}>→</span></React.Fragment>}
                         </button>
                       </div>
@@ -19823,6 +19834,64 @@
               </div>
             </div>
           )}
+
+          {/* Confirm before emailing the sample request to a vendor */}
+          {sendVendorTarget && (() => {
+            const t = sendVendorTarget;
+            const tShipTo = isPickup ? 'store' : (vendorShipTo[t.vendor_id] || 'store');
+            const sending = sendingVendorId === t.vendor_id;
+            const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || '').trim());
+            const toValid = emailOk(sendTo);
+            const ccInvalid = sendCc.split(',').map(s => s.trim()).filter(Boolean).some(e => !emailOk(e));
+            const canSend = toValid && !ccInvalid && !sending;
+            return (
+              <div className="modal-overlay" onClick={() => !sending && setSendVendorTarget(null)}>
+                <div className="modal-box" onClick={e => e.stopPropagation()} style={{ width: 460, padding: 0, background: '#f5f0e8', overflow: 'hidden' }}>
+                  {/* Header */}
+                  <div style={{ padding: '22px 28px 18px', borderBottom: '0.5px solid rgba(28,25,23,0.12)' }}>
+                    <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--rod-accent)', marginBottom: 12 }}>{'●'} Send to vendor</div>
+                    <h3 style={{ margin: 0, font: '300 26px/1.15 "Cormorant Garamond", serif', color: 'var(--rod-ink)', letterSpacing: '-0.01em' }}>
+                      Email this sample request to {t.vendor_name}?
+                    </h3>
+                  </div>
+                  {/* Body */}
+                  <div style={{ padding: '18px 28px 22px' }}>
+                    <p style={{ margin: 0, font: '400 14px/1.6 Inter, sans-serif', color: 'rgba(28,25,23,0.72)' }}>
+                      {t.items.length} sample{t.items.length !== 1 ? 's' : ''} on {sr.request_number} will be emailed with the request PDF attached, shipping to {tShipTo === 'store' ? 'the Anaheim showroom' : 'the customer'}.
+                    </p>
+                    {/* Vendor identity */}
+                    <div style={{ marginTop: 15, display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--rod-ink)', color: '#ece5d8', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '500 12px/1 Inter, sans-serif', flexShrink: 0 }}>{'✉'}</div>
+                      <div style={{ font: '400 14px/1.2 Inter, sans-serif', color: 'var(--rod-ink)' }}>{t.vendor_name}{t.vendor_public_code ? ' · ' + t.vendor_public_code : ''}</div>
+                    </div>
+                    {/* Editable recipient */}
+                    <div style={{ marginTop: 14 }}>
+                      <label style={{ display: 'block', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginBottom: 6 }}>Send to</label>
+                      <input type="email" value={sendTo} onChange={e => setSendTo(e.target.value)} placeholder="vendor@example.com"
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', font: '400 13px/1.3 Inter, sans-serif', color: 'var(--rod-ink)', background: '#fff', border: '0.5px solid ' + (sendTo.trim() && !toValid ? 'var(--rod-red)' : 'var(--rod-border)') }} />
+                      {sendTo.trim() && !toValid && <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.06em', color: 'var(--rod-red)', marginTop: 4, textTransform: 'uppercase' }}>Enter a valid email</div>}
+                      {!t.vendor_email && !sendTo.trim() && <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.06em', color: 'var(--rod-accent)', marginTop: 4, textTransform: 'uppercase' }}>No email on file — enter one to send</div>}
+                    </div>
+                    {/* CC */}
+                    <div style={{ marginTop: 12 }}>
+                      <label style={{ display: 'block', font: '500 9px/1 ui-monospace, monospace', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--rod-muted)', marginBottom: 6 }}>CC <span style={{ textTransform: 'none', letterSpacing: 0 }}>· comma-separated</span></label>
+                      <input type="text" value={sendCc} onChange={e => setSendCc(e.target.value)} placeholder="you@romaflooringdesigns.com"
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '9px 11px', font: '400 13px/1.3 Inter, sans-serif', color: 'var(--rod-ink)', background: '#fff', border: '0.5px solid ' + (ccInvalid ? 'var(--rod-red)' : 'var(--rod-border)') }} />
+                      {ccInvalid && <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.06em', color: 'var(--rod-red)', marginTop: 4, textTransform: 'uppercase' }}>One or more CC emails are invalid</div>}
+                      <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.08em', color: 'var(--rod-muted)', marginTop: 6, textTransform: 'uppercase' }}>Your rep email is always CC{'’'}d</div>
+                    </div>
+                  </div>
+                  {/* Footer */}
+                  <div style={{ padding: '16px 28px', borderTop: '0.5px solid rgba(28,25,23,0.12)', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button className="sd-btn" disabled={sending} onClick={() => setSendVendorTarget(null)}>Cancel</button>
+                    <button className="sd-btn sd-btn-primary" disabled={!canSend} onClick={confirmSendToVendor}>
+                      {sending ? 'Sending…' : 'Send to vendor'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       );
     }
