@@ -935,6 +935,9 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS trade_customer_id UUID REFERENCES
 CREATE INDEX IF NOT EXISTS idx_customers_trade_customer ON customers(trade_customer_id);
 
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
+-- Public secret for the emailed "pay online" link — lets a customer pay a quote
+-- straight from the email without signing in (same model as estimates.public_token).
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS public_token UUID UNIQUE DEFAULT uuid_generate_v4();
 ALTER TABLE sample_requests ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
 ALTER TABLE showroom_visits ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id);
 ALTER TABLE showroom_visits ADD COLUMN IF NOT EXISTS quote_requested_at TIMESTAMP;

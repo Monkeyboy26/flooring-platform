@@ -18,6 +18,14 @@
 //                             miscategorized as lvp-plank / engineered-hardwood are
 //                             12'/6' residential SHEET VINYL: -> sheet-vinyl, roll,
 //                             per_sqyd (price x9), roll_width_ft from the TW feed.
+//   5. deactivate not-carried— unpriced wood/vinyl SKUs from lines confirmed absent
+//                             from the Tri-West feed (discontinued colors/products):
+//                             TW Studio/Ellicott Point/Louvre/Mediterranean/Timeless
+//                             Classics + Orion "Rigid Core". Guarded to unpriced SKUs
+//                             only (priced colors of the same lines stay active); a
+//                             product left with zero active SKUs is deactivated too.
+//                             SHAW unpriced stragglers are intentionally NOT touched
+//                             (can't verify not-carried without the Shaw feed).
 
 import { pool } from '../db.js';
 
@@ -125,6 +133,38 @@ async function main() {
     summary.sheet_vinyl_skus = targets.rows.length;
     summary.sheet_vinyl_products = products.size;
     summary.sheet_vinyl_widths_set = widthSet;
+
+    // 5. Deactivate unpriced, not-carried wood/vinyl SKUs (discontinued lines/
+    //    colors confirmed absent from the Tri-West feed). Guarded to unpriced
+    //    (no pricing row) so priced colors of the same product stay active.
+    const NOT_CARRIED = [
+      { code: 'TW',  names: ['Studio','Ellicott Point','Louvre','Mediterranean','Timeless Classics'] },
+      { code: '169', names: ['Rigid Core'] },
+    ];
+    const WV_SLUGS = ['engineered-hardwood','solid-hardwood','waterproof-wood','laminate','lvp-plank','lvt-tile'];
+    let deactSkus = 0;
+    for (const { code, names } of NOT_CARRIED) {
+      const r = await client.query(`
+        UPDATE skus s SET status = 'inactive'
+        FROM products p, vendors v, categories c
+        WHERE s.product_id = p.id AND p.vendor_id = v.id AND p.category_id = c.id
+          AND v.code = $1 AND p.name = ANY($2) AND c.slug = ANY($3)
+          AND s.status = 'active' AND s.variant_type IS DISTINCT FROM 'accessory'
+          AND NOT EXISTS (SELECT 1 FROM pricing pr WHERE pr.sku_id = s.id)`,
+        [code, names, WV_SLUGS]);
+      deactSkus += r.rowCount;
+    }
+    // Deactivate products in those lines that now have zero active SKUs.
+    const dp = await client.query(`
+      UPDATE products p SET status = 'inactive'
+      FROM vendors v
+      WHERE p.vendor_id = v.id AND p.status = 'active'
+        AND ((v.code = 'TW'  AND p.name = ANY($1))
+          OR (v.code = '169' AND p.name = ANY($2)))
+        AND NOT EXISTS (SELECT 1 FROM skus s WHERE s.product_id = p.id AND s.status = 'active')`,
+      [['Studio','Ellicott Point','Louvre','Mediterranean','Timeless Classics'], ['Rigid Core']]);
+    summary.deactivated_skus = deactSkus;
+    summary.deactivated_products = dp.rowCount;
 
     await client.query('COMMIT');
     console.log('[fix-data-quality-2026-09-01] applied:', JSON.stringify(summary, null, 2));

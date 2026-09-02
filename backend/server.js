@@ -15136,6 +15136,253 @@ app.post('/api/customer/quotes/:id/accept-pay', customerAuth, async (req, res) =
   }
 });
 
+// ==================== Public quote payment link (no login) ====================
+// The emailed quote CTA points here so a customer can pay straight from the
+// email without signing in — same model as the estimate public link. The
+// quotes.public_token UUID is the secret. We mint a FRESH Stripe Checkout on
+// each click: Stripe caps a session at 24h, but a quote is valid ~10 days, so
+// minting-on-click keeps the emailed link alive for the quote's whole life.
+// Settlement (quote → order) reuses settleDeferredCheckout, identical to the
+// in-account flow; ToS is captured via Stripe's consent_collection.
+
+// Small self-contained branded page for the non-redirect states (no frontend
+// route needed — this is opened directly from an email link).
+function quotePayPage(res, { status = 200, title, message, cta } = {}) {
+  const btn = cta
+    ? `<a href="${cta.href}" style="display:inline-block;margin-top:26px;padding:14px 30px;background:#1c1917;color:#fff;text-decoration:none;font:600 13px/1 'Inter',system-ui,sans-serif;letter-spacing:0.08em;text-transform:uppercase;">${cta.label}</a>`
+    : '';
+  res.status(status).type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} — Roma Flooring Designs</title></head>
+<body style="margin:0;background:#faf7f2;color:#1c1917;font:16px/1.6 'Inter',system-ui,-apple-system,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:72px 24px;text-align:center;">
+    <div style="font:600 11px/1 'Inter',sans-serif;letter-spacing:0.26em;text-transform:uppercase;color:#a8a29e;">Roma Flooring Designs</div>
+    <h1 style="margin:28px 0 14px;font:300 30px/1.15 Georgia,serif;letter-spacing:-0.01em;">${title}</h1>
+    <p style="margin:0;color:#57534e;">${message}</p>
+    ${btn}
+    <p style="margin:36px 0 0;font-size:13px;color:#a8a29e;">Questions? Call (714) 999-0009 — our Anaheim showroom.</p>
+  </div>
+</body></html>`);
+}
+
+// Return landing after Stripe (must be registered BEFORE the :token route so
+// Express doesn't match "return" as a token). Settles on arrival (idempotent
+// with the webhook backstop) and shows a branded confirmation — no login.
+app.get('/api/quote-pay/return', async (req, res) => {
+  const { session_id, cancelled } = req.query;
+  if (cancelled || !session_id) {
+    return quotePayPage(res, { title: 'Payment not completed',
+      message: "No worries — nothing was charged. Reopen your quote email and use the pay link whenever you're ready." });
+  }
+  try {
+    let session;
+    try { session = await stripe.checkout.sessions.retrieve(session_id); }
+    catch (e) {
+      return quotePayPage(res, { status: 404, title: 'Payment not found',
+        message: "We couldn't look up that payment. If your card was charged it's safe — call (714) 999-0009 and we'll confirm it for you." });
+    }
+    if (session.payment_status === 'paid') {
+      try { await settleDeferredCheckout(session); }
+      catch (e) { console.error('[QuotePay] settle failed:', e.message); }
+      return quotePayPage(res, { title: 'Payment received',
+        message: 'Thank you! Your quote is now a confirmed order and your rep will follow up with next steps. A receipt is on its way to your inbox.' });
+    }
+    return quotePayPage(res, { title: 'Payment processing',
+      message: "Your payment is still processing — we'll email your confirmation as soon as it clears. No need to pay again." });
+  } catch (err) {
+    console.error('[QuotePay] return', err);
+    return quotePayPage(res, { title: 'Payment received',
+      message: "Thanks! If your payment went through, your confirmation email will arrive shortly." });
+  }
+});
+
+// Shared: resolve a public quote token into a payable Stripe Checkout URL, or a
+// terminal state ('not_found' | 'paid' | 'expired' | 'empty' | 'error'). Used by
+// BOTH the SPA pay endpoint (JSON) and the GET redirect (email direct link), so
+// the two never drift. Mints a fresh deferred quote_checkout session on demand.
+async function resolveQuotePayment(token, { site }) {
+  // Return into the SPA quote page so it confirms + shows the converted state
+  // (mirrors the estimate flow); the webhook is the async settlement backstop.
+  const returnUrl = `${site}/quote/${encodeURIComponent(token)}?payment=success&session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${site}/quote/${encodeURIComponent(token)}?payment=cancelled`;
+  // Compare as text so a malformed token is a clean miss, not a UUID cast error.
+  const qRes = await pool.query('SELECT * FROM quotes WHERE public_token::text = $1', [token]);
+  if (!qRes.rows.length || qRes.rows[0].status === 'draft') return { state: 'not_found' };
+  const q = qRes.rows[0];
+
+  // Already converted to an order — resume its balance, or report paid.
+  if (q.status === 'converted' && q.converted_order_id) {
+    const orderRes = await pool.query('SELECT * FROM orders WHERE id = $1', [q.converted_order_id]);
+    if (orderRes.rows.length) {
+      const order = orderRes.rows[0];
+      const pending = await pool.query(
+        "SELECT stripe_checkout_url FROM payment_requests WHERE order_id = $1 AND status = 'pending' AND stripe_checkout_url IS NOT NULL AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY created_at DESC LIMIT 1",
+        [order.id]);
+      if (pending.rows.length) return { checkout_url: pending.rows[0].stripe_checkout_url };
+      const balanceInfo = await recalculateBalance(pool, order.id);
+      if (!balanceInfo || balanceInfo.balance_status !== 'balance_due') return { state: 'paid' };
+      const prResult = await pool.query(`
+        INSERT INTO payment_requests (order_id, amount, sent_to_email, sent_by_name, expires_at)
+        VALUES ($1, $2, $3, 'Quote pay link', $4) RETURNING *`,
+        [order.id, balanceInfo.balance.toFixed(2), order.customer_email, new Date(Date.now() + 24 * 3600 * 1000)]);
+      let session;
+      try {
+        session = await stripe.checkout.sessions.create({
+          mode: 'payment', customer_email: order.customer_email,
+          line_items: [{ price_data: { currency: 'usd', product_data: { name: `Balance Due — Order ${order.order_number}` }, unit_amount: Math.round(balanceInfo.balance * 100) }, quantity: 1 }],
+          metadata: { order_id: order.id, payment_request_id: prResult.rows[0].id, type: 'payment_request' },
+          consent_collection: { terms_of_service: 'required' },
+          success_url: returnUrl, cancel_url: cancelUrl,
+          expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+        });
+      } catch (stripeErr) {
+        await pool.query('DELETE FROM payment_requests WHERE id = $1', [prResult.rows[0].id]);
+        console.error('[QuotePay] balance session failed:', stripeErr.message);
+        return { state: 'error' };
+      }
+      await pool.query('UPDATE payment_requests SET stripe_checkout_session_id = $1, stripe_checkout_url = $2 WHERE id = $3',
+        [session.id, session.url, prResult.rows[0].id]);
+      return { checkout_url: session.url };
+    }
+  }
+
+  if (q.expires_at && new Date(q.expires_at) < new Date()) return { state: 'expired' };
+  const hasItems = await pool.query('SELECT 1 FROM quote_items WHERE quote_id = $1 LIMIT 1', [q.id]);
+  if (!hasItems.rows.length) return { state: 'empty' };
+
+  // DEFERRED: the order is created + quote marked converted only after Stripe
+  // confirms payment (settleDeferredCheckout via the return page + webhook).
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      mode: 'payment', customer_email: q.customer_email,
+      line_items: [{ price_data: { currency: 'usd', product_data: { name: `Payment — Quote ${q.quote_number}` }, unit_amount: Math.round(parseFloat(q.total || 0) * 100) }, quantity: 1 }],
+      metadata: { type: 'quote_checkout', quote_id: q.id, scope: q.trade_customer_id ? 'trade' : 'customer', terms_accepted: '0' },
+      consent_collection: { terms_of_service: 'required' },
+      success_url: returnUrl, cancel_url: cancelUrl,
+      expires_at: Math.floor(Date.now() / 1000) + 24 * 3600
+    });
+  } catch (stripeErr) {
+    console.error('[QuotePay] session create failed:', stripeErr.message);
+    return { state: 'error' };
+  }
+  return { checkout_url: session.url };
+}
+
+// Maps a resolveQuotePayment terminal state to the branded HTML page (GET redirect).
+const QUOTE_PAY_STATE_PAGES = {
+  not_found: { status: 404, title: 'Quote not found', message: "We couldn't find this quote — the link may be out of date. Reply to your quote email or call and we'll help." },
+  paid: { status: 200, title: 'Already paid', message: 'This quote has been paid and is now a confirmed order — thank you! Your rep will be in touch with next steps.' },
+  expired: { status: 410, title: 'This quote has expired', message: "Pricing on this quote has lapsed. Reply to your quote email or call — we'll refresh it for you in a minute." },
+  empty: { status: 400, title: 'Nothing to pay yet', message: "This quote has no items on it. Reply to your quote email and we'll take a look." },
+  error: { status: 500, title: 'Something went wrong', message: "We couldn't start checkout just now — please try the link again in a moment, or call (714) 999-0009." },
+};
+
+// Direct email link → 302 straight to Stripe (or a branded page for terminal states).
+app.get('/api/quote-pay/:token', async (req, res) => {
+  const site = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+  // Bounce-back from a cancelled Stripe session — friendly page + one-click retry
+  // (never auto-remint, which would loop straight back to Stripe).
+  if (req.query.cancelled) {
+    return quotePayPage(res, { title: 'Payment not completed',
+      message: "Nothing was charged. Whenever you're ready, pick up right where you left off.",
+      cta: { href: `${site}/api/quote-pay/${encodeURIComponent(req.params.token)}`, label: 'Pay now' } });
+  }
+  try {
+    const r = await resolveQuotePayment(req.params.token, { site });
+    if (r.checkout_url) return res.redirect(303, r.checkout_url);
+    return quotePayPage(res, QUOTE_PAY_STATE_PAGES[r.state] || QUOTE_PAY_STATE_PAGES.error);
+  } catch (err) {
+    console.error('[QuotePay]', err);
+    return quotePayPage(res, QUOTE_PAY_STATE_PAGES.error);
+  }
+});
+
+// ==================== Public quote view page (/quote/:token) ====================
+// Token-based, no auth: mirrors the estimate customer view. Backs the branded
+// review-and-accept page the quote email links to.
+
+// Item query shared by the view + PDF — same joins the rep send endpoint uses.
+async function loadPublicQuoteItems(quoteId) {
+  const r = await pool.query(`
+    SELECT qi.*, COALESCE(v.name, cv.name, qi.custom_vendor) as vendor_name,
+      COALESCE(br.name, v.name, cv.name, qi.custom_vendor) as brand_name,
+      (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden,
+      v.code AS vendor_code, v.public_code AS vendor_public_code,
+      s.vendor_sku, s.internal_sku, s.variant_name, s.accessory_label, s.variant_type,
+      sa_c.value as color, sa_sz.value as size, p.collection as current_collection,
+      (SELECT ma.url FROM media_assets ma WHERE ma.product_id = p.id AND ma.asset_type = 'primary'
+       ORDER BY CASE WHEN ma.sku_id = qi.sku_id THEN 0 WHEN ma.sku_id IS NULL THEN 1 ELSE 2 END, ma.sort_order LIMIT 1) as primary_image
+    FROM quote_items qi
+    LEFT JOIN skus s ON s.id = qi.sku_id
+    LEFT JOIN products p ON p.id = COALESCE(s.product_id, qi.product_id)
+    LEFT JOIN vendors v ON v.id = p.vendor_id
+    LEFT JOIN vendors cv ON cv.id = qi.vendor_id
+    LEFT JOIN brands br ON br.id = p.brand_id
+    LEFT JOIN sku_attributes sa_c ON sa_c.sku_id = qi.sku_id
+      AND sa_c.attribute_id = (SELECT id FROM attributes WHERE slug = 'color' LIMIT 1)
+    LEFT JOIN sku_attributes sa_sz ON sa_sz.sku_id = qi.sku_id
+      AND sa_sz.attribute_id = (SELECT id FROM attributes WHERE slug = 'size' LIMIT 1)
+    WHERE qi.quote_id = $1 ORDER BY qi.id`, [quoteId]);
+  await enrichItemsForNaming(r.rows);
+  return r.rows;
+}
+
+app.get('/api/quote-view/:token', async (req, res) => {
+  try {
+    const qRes = await pool.query(`
+      SELECT q.*, TRIM(CONCAT(sa.first_name, ' ', sa.last_name)) AS rep_name, sa.email AS rep_email
+      FROM quotes q LEFT JOIN staff_accounts sa ON sa.id = q.sales_rep_id
+      WHERE q.public_token::text = $1`, [req.params.token]);
+    if (!qRes.rows.length || qRes.rows[0].status === 'draft') {
+      return res.status(404).json({ error: 'Quote not found' });
+    }
+    const q = qRes.rows[0];
+    if (q.status !== 'converted' && q.expires_at && new Date(q.expires_at) < new Date()) {
+      return res.status(410).json({
+        error: 'This quote has expired',
+        quote: { quote_number: q.quote_number, rep_name: q.rep_name, rep_email: q.rep_email, expires_at: q.expires_at }
+      });
+    }
+    // Mark first view (best-effort, non-blocking).
+    const items = await loadPublicQuoteItems(q.id);
+    res.json({ quote: q, items });
+  } catch (err) {
+    console.error('[QuoteView]', err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// SPA "Accept & Pay" — returns a Stripe Checkout URL (JSON) for the whole total.
+app.post('/api/quote-view/:token/pay', async (req, res) => {
+  const site = process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:3000';
+  try {
+    const r = await resolveQuotePayment(req.params.token, { site });
+    if (r.checkout_url) return res.json({ checkout_url: r.checkout_url });
+    const page = QUOTE_PAY_STATE_PAGES[r.state] || QUOTE_PAY_STATE_PAGES.error;
+    return res.status(page.status === 200 ? 400 : page.status).json({ error: page.message, state: r.state });
+  } catch (err) {
+    console.error('[QuoteView] pay', err); res.status(500).json({ error: 'Could not start checkout — please try again.' });
+  }
+});
+
+// Branded quote PDF (same document the rep/email attach), token-gated, no login.
+app.get('/api/quote-view/:token/pdf', async (req, res) => {
+  try {
+    const qRes = await pool.query('SELECT * FROM quotes WHERE public_token::text = $1', [req.params.token]);
+    if (!qRes.rows.length || qRes.rows[0].status === 'draft') return res.status(404).send('Quote not found');
+    const q = qRes.rows[0];
+    const repRes = await pool.query('SELECT first_name, last_name, email FROM staff_accounts WHERE id = $1', [q.sales_rep_id]);
+    const rep = repRes.rows[0] || {};
+    const items = await loadPublicQuoteItems(q.id);
+    const pdfBuffer = await generatePDFBuffer(generateQuoteHtml({
+      ...q, rep_name: [rep.first_name, rep.last_name].filter(Boolean).join(' '), rep_email: rep.email
+    }, items));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="Roma-Quote-${q.quote_number || String(q.id).substring(0, 8)}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('[QuoteView] pdf', err); res.status(500).send('Could not render the quote PDF');
+  }
+});
+
 // Trade showroom visits
 app.get('/api/trade/visits', tradeAuth, async (req, res) => {
   try {

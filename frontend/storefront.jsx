@@ -2603,6 +2603,7 @@
       // Visit recap
       const [visitRecapToken, setVisitRecapToken] = useState(null);
       const [estimateToken, setEstimateToken] = useState(null);
+      const [quoteToken, setQuoteToken] = useState(null);
 
       // Auth
       const [tradeCustomer, setTradeCustomer] = useState(null);
@@ -3193,6 +3194,14 @@
           window.scrollTo(0, 0);
           return;
         }
+        if (path.startsWith('/quote/')) {
+          const token = path.replace('/quote/', '').split('?')[0];
+          setQuoteToken(token);
+          setView('quote-view');
+          history.pushState({ view: 'quote-view', token }, '', path);
+          window.scrollTo(0, 0);
+          return;
+        }
         // Service page placeholders
         const servicePages = {
           '/design-services': 'Design Services'
@@ -3639,6 +3648,9 @@
         } else if (path.startsWith('/estimate/')) {
           setEstimateToken(path.replace('/estimate/', ''));
           setView('estimate-view');
+        } else if (path.startsWith('/quote/')) {
+          setQuoteToken(path.replace('/quote/', ''));
+          setView('quote-view');
         } else if (path === '/reset-password') {
           setView('reset-password');
         } else if (path === '/signin') {
@@ -3745,6 +3757,7 @@
             }
             if (state.view === 'visit-recap' && state.token) setVisitRecapToken(state.token);
             if (state.view === 'estimate-view' && state.token) setEstimateToken(state.token);
+            if (state.view === 'quote-view' && state.token) setQuoteToken(state.token);
             if (state.view === 'coming-soon' && state.title) setComingSoonTitle(state.title);
           } else {
             // Re-parse URL for unknown states — no saved position exists, so top
@@ -3764,6 +3777,7 @@
             else if (p === '/about') { setView('about'); }
             else if (p.startsWith('/visit/')) { setVisitRecapToken(p.replace('/visit/', '')); setView('visit-recap'); }
             else if (p.startsWith('/estimate/')) { setEstimateToken(p.replace('/estimate/', '')); setView('estimate-view'); }
+            else if (p.startsWith('/quote/')) { setQuoteToken(p.replace('/quote/', '')); setView('quote-view'); }
             else {
               setView('browse');
               const sp2 = new URLSearchParams(window.location.search);
@@ -4146,6 +4160,10 @@
 
           {view === 'estimate-view' && estimateToken && (
             <EstimatePage token={estimateToken} />
+          )}
+
+          {view === 'quote-view' && quoteToken && (
+            <QuotePage token={quoteToken} />
           )}
 
           {view === 'reset-password' && (
@@ -18135,9 +18153,6 @@
         }
         return (
           <div key={'l' + idx} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', padding: '0.9rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
-            <div style={{ width: 56, height: 56, flexShrink: 0, background: 'var(--stone-100)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--stone-400)' }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 22, height: 22 }}><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--stone-800)' }}>{label}</span>
@@ -18384,6 +18399,308 @@
                   <button className="btn" style={{ width: '100%', padding: '0.9rem' }} onClick={approveEstimate} disabled={approveLoading}>{approveLabel}</button>
                 )}
                 {depositError && <div className="checkout-error" style={{ marginTop: '0.5rem', textAlign: 'center' }}>{depositError}</div>}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ==================== Customer Quote Page (/quote/:token) ====================
+    // Public, token-based (no login) — mirrors EstimatePage's visual system for
+    // the legacy materials-only quotes. Accept = pay the FULL total via Stripe.
+    function QuotePage({ token }) {
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null); // 'not_found' | 'expired'
+      const [expiredInfo, setExpiredInfo] = useState(null);
+      const [isNarrow, setIsNarrow] = useState(typeof window !== 'undefined' && window.innerWidth <= 640);
+      const [isWide, setIsWide] = useState(typeof window !== 'undefined' && window.innerWidth >= 900);
+      const [payLoading, setPayLoading] = useState(false);
+      const [payError, setPayError] = useState('');
+      const [payResult, setPayResult] = useState(() => {
+        if (typeof window === 'undefined') return null;
+        const p = new URLSearchParams(window.location.search).get('payment');
+        return (p === 'success' || p === 'cancelled') ? p : null;
+      });
+
+      useEffect(() => {
+        const onResize = () => { setIsNarrow(window.innerWidth <= 640); setIsWide(window.innerWidth >= 900); };
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+      }, []);
+
+      // Confirm on return from Stripe (?payment=success&session_id=…) — idempotent
+      // with the webhook; re-fetches so the converted state shows.
+      useEffect(() => {
+        if (payResult !== 'success') return;
+        const sid = new URLSearchParams(window.location.search).get('session_id');
+        if (!sid) return;
+        fetch(API + '/api/checkout/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: sid }) })
+          .then(() => fetch(API + '/api/quote-view/' + token))
+          .then(r => (r && r.ok) ? r.json() : null)
+          .then(d => { if (d) setData(d); })
+          .catch(() => {});
+      }, []);
+
+      useEffect(() => {
+        let cancelled = false;
+        setLoading(true); setError(null); setData(null);
+        fetch(API + '/api/quote-view/' + token)
+          .then(async r => {
+            if (r.status === 404) throw { kind: 'not_found' };
+            if (r.status === 410) { const b = await r.json().catch(() => ({})); throw { kind: 'expired', quote: b && b.quote }; }
+            if (!r.ok) throw { kind: 'not_found' };
+            return r.json();
+          })
+          .then(d => { if (cancelled) return; setData(d); setLoading(false); })
+          .catch(err => { if (cancelled) return; setError(err.kind || 'not_found'); if (err.kind === 'expired') setExpiredInfo(err.quote || null); setLoading(false); });
+        return () => { cancelled = true; };
+      }, [token]);
+
+      const money = (v) => '$' + parseFloat(v || 0).toFixed(2);
+      const fmtDay = (d) => d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+
+      const acceptPay = async () => {
+        setPayError(''); setPayLoading(true);
+        try {
+          const resp = await fetch(API + '/api/quote-view/' + token + '/pay', { method: 'POST' });
+          const body = await resp.json().catch(() => ({}));
+          if (!resp.ok || !body.checkout_url) { setPayError(body.error || 'Something went wrong. Please try again.'); setPayLoading(false); return; }
+          window.location.href = body.checkout_url;
+        } catch (e) { setPayError('Something went wrong. Please try again.'); setPayLoading(false); }
+      };
+
+      if (loading) return (
+        <div style={{ maxWidth: 820, margin: '4rem auto', padding: '0 1.5rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--stone-500)' }}>Loading your quote…</p>
+        </div>
+      );
+
+      if (error === 'expired') {
+        const q = expiredInfo || {};
+        return (
+          <div style={{ maxWidth: 620, margin: '4rem auto 6rem', padding: '0 1.5rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.6875rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.75rem' }}>Quote{q.quote_number ? ' · ' + q.quote_number : ''}</div>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.25rem', fontWeight: 400, margin: '0 0 1rem' }}>This quote has expired</h1>
+            <p style={{ color: 'var(--stone-600)', fontSize: '1rem', lineHeight: 1.65, margin: '0 auto 1.5rem', maxWidth: 460 }}>
+              This quote is no longer valid{q.expires_at ? ' (it was valid through ' + fmtDay(q.expires_at) + ')' : ''}. Pricing and availability may have changed — please reach out to your rep for an updated quote.
+            </p>
+            {(q.rep_name || q.rep_email) && (
+              <div style={{ display: 'inline-block', textAlign: 'left', background: 'var(--stone-50)', border: '0.5px solid rgba(28,25,23,0.12)', borderRadius: 6, padding: '1.25rem 1.5rem' }}>
+                <div style={{ fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--stone-500)', marginBottom: '0.4rem' }}>Your rep</div>
+                {q.rep_name && <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.125rem', color: 'var(--stone-800)' }}>{q.rep_name}</div>}
+                {q.rep_email && <div style={{ marginTop: '0.35rem' }}><a href={'mailto:' + q.rep_email} style={{ color: 'var(--stone-700)', textDecoration: 'underline', fontSize: '0.9375rem' }}>{q.rep_email}</a></div>}
+                <div style={{ marginTop: '0.35rem', fontSize: '0.9375rem', color: 'var(--stone-600)' }}>(714) 999-0009</div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      if (error) return (
+        <div style={{ maxWidth: 620, margin: '4rem auto 6rem', padding: '0 1.5rem', textAlign: 'center' }}>
+          <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '2.25rem', fontWeight: 400, margin: '0 0 1rem' }}>Quote not found</h1>
+          <p style={{ color: 'var(--stone-600)', fontSize: '1rem', lineHeight: 1.65 }}>We couldn't find this quote. The link may be incorrect or the quote may have been removed.</p>
+          <p style={{ color: 'var(--stone-400)', fontSize: '0.875rem', marginTop: '1.5rem' }}>Questions? Contact us at (714) 999-0009</p>
+        </div>
+      );
+
+      const q = data.quote;
+      const items = data.items || [];
+      const status = q.status;
+      const subtotal = parseFloat(q.subtotal || 0);
+      const discount = parseFloat(q.discount_amount || 0);
+      const shipping = parseFloat(q.shipping || 0);
+      const total = parseFloat(q.total || 0);
+      const showActions = status === 'sent';
+      const acceptLabel = payLoading ? 'Redirecting…' : 'Accept & pay · ' + money(total);
+
+      const addr = [
+        q.shipping_address_line1, q.shipping_address_line2,
+        [q.shipping_city, q.shipping_state].filter(Boolean).join(', ') + (q.shipping_zip ? ' ' + q.shipping_zip : '')
+      ].filter(s => s && s.trim());
+
+      // Shared surface styling — matches EstimatePage (warm editorial).
+      const cardBase = { background: '#fffdf9', border: '1px solid rgba(28,25,23,0.14)', borderRadius: 3 };
+      const softShadow = '0 2px 5px rgba(21,18,15,0.04), 0 14px 34px -22px rgba(21,18,15,0.20)';
+      const railShadow = '0 3px 8px rgba(21,18,15,0.05), 0 26px 60px -30px rgba(21,18,15,0.38)';
+      const microLabel = { fontSize: '0.625rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--gold-dark)', fontWeight: 600, fontFamily: 'var(--font-body)' };
+      const sectionHead = (num, title, amount) => (
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '1rem', paddingBottom: '0.65rem', borderBottom: '1.5px solid var(--charcoal, #2a2523)', marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.65rem' }}>
+            {num != null && <span style={{ fontFamily: 'var(--font-body)', fontSize: '0.6875rem', color: 'var(--gold-dark)', fontWeight: 700, letterSpacing: '0.12em', fontVariantNumeric: 'tabular-nums' }}>{num}</span>}
+            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', color: 'var(--stone-900)', lineHeight: 1 }}>{title}</span>
+          </div>
+          {amount != null && <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: 'var(--stone-700)', whiteSpace: 'nowrap', fontSize: '1rem' }}>{amount}</span>}
+        </div>
+      );
+
+      const renderItemRow = (item, idx) => {
+        const qtyLabel = item.sell_by === 'unit'
+          ? (parseFloat(item.quantity || item.num_boxes || 0)) + ' ea'
+          : [
+              (item.sqft_needed != null ? parseFloat(item.sqft_needed).toLocaleString() + ' sqft' : null),
+              (item.num_boxes != null ? item.num_boxes + ' box' + (Number(item.num_boxes) !== 1 ? 'es' : '') : null)
+            ].filter(Boolean).join(' · ');
+        return (
+          <div key={'q' + idx} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', padding: '0.9rem 0', borderBottom: '0.5px solid rgba(28,25,23,0.08)' }}>
+            <div style={{ width: 56, height: 56, flexShrink: 0, background: 'var(--stone-100)', borderRadius: 4, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {item.primary_image
+                ? <img src={optimizeImg(item.primary_image, 96)} alt="" width={56} height={56} style={{ width: '100%', height: '100%', objectFit: 'cover' }} loading="lazy" decoding="async" />
+                : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 22, height: 22, color: 'var(--stone-300)' }}><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', color: 'var(--stone-800)', lineHeight: 1.3 }}>{itemLineName(item) || 'Product'}</div>
+              {qtyLabel && <div style={{ fontSize: '0.8125rem', color: 'var(--warm-muted, var(--stone-500))', marginTop: '0.25rem', fontVariantNumeric: 'tabular-nums' }}>{qtyLabel}</div>}
+            </div>
+            <div style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', color: 'var(--stone-800)' }}>{money(item.subtotal)}</div>
+          </div>
+        );
+      };
+
+      const metaCells = [
+        q.customer_name && { k: 'Prepared for', v: q.customer_name },
+        q.created_at && { k: 'Issued', v: fmtDay(q.created_at) },
+        q.expires_at && { k: 'Valid through', v: fmtDay(q.expires_at) },
+        { k: 'Quote total', v: money(total), accent: true },
+      ].filter(Boolean);
+
+      const summaryCard = (
+        <div style={{ ...cardBase, boxShadow: railShadow, overflow: 'hidden' }}>
+          <div style={{ padding: '1.35rem 1.5rem 1.25rem' }}>
+            <div style={{ ...microLabel, marginBottom: '0.9rem' }}>Quote summary</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.3rem 0' }}>
+              <span>Materials</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(subtotal)}</span>
+            </div>
+            {discount > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--sage-dark, #4c6b3c)', padding: '0.3rem 0' }}>
+                <span>Discount{q.promo_code ? ' · ' + q.promo_code : ''}</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>−{money(discount)}</span>
+              </div>
+            )}
+            {shipping > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9375rem', color: 'var(--stone-600)', padding: '0.3rem 0' }}>
+                <span>Shipping</span><span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(shipping)}</span>
+              </div>
+            )}
+          </div>
+          <div style={{ background: 'linear-gradient(180deg, rgba(200,166,104,0.14), rgba(168,121,53,0.10))', borderTop: '1px solid rgba(168,121,53,0.28)', padding: '0.95rem 1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', color: 'var(--stone-900)' }}>Total</span>
+              <span style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', lineHeight: 1, color: 'var(--gold-dark)', fontVariantNumeric: 'tabular-nums' }}>{money(total)}</span>
+            </div>
+          </div>
+          {showActions && !isNarrow && (
+            <div style={{ padding: '1.25rem 1.5rem 1.4rem' }}>
+              <button className="btn" style={{ width: '100%', padding: '0.95rem', fontSize: '0.9375rem' }} onClick={acceptPay} disabled={payLoading}>{acceptLabel}</button>
+              {payError && <div className="checkout-error" style={{ marginTop: '0.6rem' }}>{payError}</div>}
+              <div style={{ marginTop: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--stone-400)', textAlign: 'center' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" width="12" height="12"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>Secure payment via Stripe{q.expires_at ? ' · valid through ' + fmtDay(q.expires_at) : ''}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+
+      const repCard = (q.rep_name || q.rep_email) ? (
+        <div style={{ ...cardBase, boxShadow: softShadow, padding: '1.25rem 1.4rem' }}>
+          <div style={{ ...microLabel, marginBottom: '0.55rem' }}>Your representative</div>
+          {q.rep_name && <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', color: 'var(--stone-800)', lineHeight: 1.2 }}>{q.rep_name}</div>}
+          <div style={{ marginTop: '0.5rem', fontSize: '0.9375rem', color: 'var(--stone-600)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            {q.rep_email && <a href={'mailto:' + q.rep_email} style={{ color: 'var(--gold-dark)', textDecoration: 'none' }}>{q.rep_email}</a>}
+            <a href="tel:+17149990009" style={{ color: 'var(--stone-600)', textDecoration: 'none' }}>(714) 999-0009</a>
+          </div>
+        </div>
+      ) : null;
+
+      return (
+        <div style={{ maxWidth: isWide ? 1080 : 820, margin: '0 auto', padding: isNarrow ? '1.75rem 1.15rem' : '3rem 1.5rem', paddingBottom: (showActions && isNarrow) ? '7rem' : (isNarrow ? '3rem' : '4rem') }}>
+          {/* Letterhead masthead — matches the estimate page */}
+          <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 3, background: 'radial-gradient(120% 140% at 15% 0%, #35302b 0%, #241f1b 55%, #1a1613 100%)', color: '#f3ecdd', boxShadow: '0 3px 8px rgba(21,18,15,0.06), 0 30px 70px -34px rgba(21,18,15,0.6)', padding: isNarrow ? '2rem 1.5rem 1.75rem' : '3rem 3rem 2.5rem', marginBottom: '1.25rem' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, var(--gold-dark), var(--gold-light) 55%, var(--gold))' }} />
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', marginBottom: isNarrow ? '1.5rem' : '2rem' }}>
+              <div style={{ fontFamily: 'var(--font-heading)', letterSpacing: '0.32em', textIndent: '0.32em', fontSize: '0.8125rem', color: '#e8dcc4', textTransform: 'uppercase', paddingTop: '0.35rem' }}>Roma Flooring Designs</div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: isNarrow ? 'flex-start' : 'flex-end', gap: '0.65rem' }}>
+                <div style={{ fontSize: '0.6875rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--gold-light)', fontWeight: 600 }}>
+                  Quote{q.quote_number ? ' · ' + q.quote_number : ''}
+                </div>
+                <a href={API + '/api/quote-view/' + token + '/pdf'} target="_blank" rel="noopener" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', border: '1px solid rgba(200,166,104,0.55)', color: '#f3ecdd', background: 'rgba(200,166,104,0.08)', padding: '0.45rem 0.9rem', borderRadius: 3, fontSize: '0.6875rem', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 600, textDecoration: 'none' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(200,166,104,0.2)'; e.currentTarget.style.borderColor = 'var(--gold-light)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(200,166,104,0.08)'; e.currentTarget.style.borderColor = 'rgba(200,166,104,0.55)'; }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="13" height="13"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Download PDF
+                </a>
+              </div>
+            </div>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: isNarrow ? '2.25rem' : '3.25rem', fontWeight: 400, lineHeight: 1.04, margin: '0 0 0.55rem', color: '#fdfaf3' }}>
+              Your Quote
+            </h1>
+            {addr.length > 0 && (
+              <div style={{ color: 'rgba(243,236,221,0.62)', fontSize: '0.9375rem', lineHeight: 1.5 }}>
+                {addr.map((line, i) => <div key={i}>{line}</div>)}
+              </div>
+            )}
+            <div style={{ marginTop: isNarrow ? '1.75rem' : '2.25rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(200,166,104,0.28)', display: 'flex', flexWrap: 'wrap', rowGap: '1.1rem' }}>
+              {metaCells.map((c, i) => (
+                <div key={i} style={{ flex: '1 1 auto', minWidth: 128, padding: i === 0 ? '0 1.5rem 0 0' : '0 1.5rem', borderLeft: i === 0 ? 'none' : '1px solid rgba(200,166,104,0.22)' }}>
+                  <div style={{ fontSize: '0.625rem', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--gold-light)', fontWeight: 600, marginBottom: '0.4rem' }}>{c.k}</div>
+                  <div style={c.accent
+                    ? { fontFamily: 'var(--font-heading)', fontSize: '1.5rem', color: '#f6d99a', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }
+                    : { fontSize: '0.9375rem', color: '#f3ecdd', fontWeight: 500 }}>{c.v}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {status === 'converted' && (
+            <div style={{ background: 'rgba(216,205,182,0.35)', border: '1px solid rgba(168,121,53,0.3)', color: '#7a5a1e', borderRadius: 3, padding: '1.15rem 1.4rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24" style={{ flexShrink: 0 }}><path d="M20 6L9 17l-5-5"/></svg>
+              <div style={{ fontWeight: 600, fontSize: '1rem' }}>This quote has been converted to an order.</div>
+            </div>
+          )}
+          {payResult === 'success' && (
+            <div style={{ background: 'linear-gradient(180deg, rgba(135,153,107,0.16), rgba(135,153,107,0.09))', border: '1px solid rgba(107,127,85,0.42)', color: 'var(--sage-dark)', borderRadius: 3, padding: '1.15rem 1.4rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24" style={{ flexShrink: 0 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <div style={{ fontWeight: 600, fontSize: '1rem' }}>Payment received — thank you! Your order is confirmed and your rep will follow up.</div>
+            </div>
+          )}
+          {payResult === 'cancelled' && status === 'sent' && (
+            <div style={{ background: 'var(--stone-50)', border: '1px solid rgba(28,25,23,0.14)', color: 'var(--stone-700)', borderRadius: 3, padding: '1.15rem 1.4rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="24" height="24" style={{ flexShrink: 0, marginTop: '0.05rem' }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '1rem' }}>Payment cancelled</div>
+                <div style={{ fontSize: '0.8125rem', opacity: 0.9, marginTop: '0.3rem' }}>No charge was made — you can accept and pay anytime from this page.</div>
+              </div>
+            </div>
+          )}
+
+          {/* Body: line items (left) + sticky summary rail (right) */}
+          <div style={{ display: isWide ? 'grid' : 'block', gridTemplateColumns: isWide ? 'minmax(0, 1fr) 340px' : 'none', gap: isWide ? '2rem' : 0, alignItems: 'start' }}>
+            <div>
+              <div style={{ ...cardBase, boxShadow: softShadow, padding: isNarrow ? '1.35rem 1.35rem 0.5rem' : '1.75rem 2rem 0.75rem', marginBottom: '1.5rem' }}>
+                <div style={{ marginBottom: '1rem' }}>
+                  {sectionHead(null, 'Your Selections', money(subtotal))}
+                  <div>{items.map((item, ii) => renderItemRow(item, ii))}</div>
+                </div>
+              </div>
+            </div>
+            <div style={{ position: isWide ? 'sticky' : 'static', top: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: isWide ? 0 : '0.5rem' }}>
+              {summaryCard}
+              {repCard}
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center', paddingTop: '2.5rem', marginTop: '1.5rem', borderTop: '1px solid var(--stone-200)' }}>
+            <p style={{ color: 'var(--stone-500)', fontSize: '0.875rem', marginBottom: '0.25rem' }}>Questions? Contact us at (714) 999-0009</p>
+            <p style={{ color: 'var(--stone-400)', fontSize: '0.8125rem' }}>Roma Flooring Designs · 1440 S. State College Blvd Suite 6M, Anaheim, CA 92806 · Lic. #830966</p>
+          </div>
+
+          {showActions && isNarrow && (
+            <div className="est-sticky-bar" style={{ position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900, background: '#fff', borderTop: '1px solid var(--stone-200)', boxShadow: '0 -4px 20px rgba(0,0,0,0.08)', padding: '0.75rem 1rem' }}>
+              <div style={{ maxWidth: 820, margin: '0 auto' }}>
+                <button className="btn" style={{ width: '100%', padding: '0.9rem' }} onClick={acceptPay} disabled={payLoading}>{acceptLabel}</button>
+                {payError && <div className="checkout-error" style={{ marginTop: '0.5rem', textAlign: 'center' }}>{payError}</div>}
               </div>
             </div>
           )}

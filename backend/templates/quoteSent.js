@@ -67,7 +67,7 @@ export function generateQuoteSentHTML(quoteData, opts = {}) {
   const {
     id, quote_number, customer_name,
     subtotal, shipping, discount_amount, promo_code, total,
-    created_at, expires_at,
+    created_at, expires_at, public_token,
     rep_first_name, rep_last_name, rep_email,
     items = []
   } = quoteData;
@@ -161,7 +161,11 @@ export function generateQuoteSentHTML(quoteData, opts = {}) {
     })}
     ${itemsBlock}
     ${totalsBlock}
-    ${ctaButton({
+    ${ctaButton(public_token ? {
+      href: `${siteUrl}/quote/${public_token}`,
+      label: 'View &amp; accept your quote &rarr;',
+      note: `Review your itemized quote and check out securely &mdash; no account or sign-in needed &middot; or reply to this email`
+    } : {
       href: `${siteUrl}/account/quotes`,
       label: 'Accept &amp; pay online &rarr;',
       note: `Sign in to your Roma account to review and check out securely &middot; or reply to this email`
