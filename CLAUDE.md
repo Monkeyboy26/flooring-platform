@@ -6,7 +6,7 @@ Custom PIM + storefront for a flooring/remodeling e-commerce business. No Shopif
 
 - **Database:** PostgreSQL (19 tables — see `database/schema.sql`)
 - **Backend:** Node.js + Express (`backend/server.js` ~12.6K lines, monolithic)
-- **Frontend:** 3 React SPAs using CDN React + in-browser Babel (no build step)
+- **Frontend:** 3 React SPAs using self-hosted React. `admin.html` + `rep.html` transpile JSX in-browser via Babel (no build step). `storefront.html` is the exception: it loads a **compiled** bundle `storefront-app.js` built from `storefront.jsx` with esbuild — run `npm run build` after editing the `.jsx`, then bump `?v=` in `storefront.html` + `sw.js` (`SHELL_ASSETS`) and bump `sw.js` `CACHE_NAME`
 - **Infrastructure:** Docker Compose, Nginx reverse proxy, MinIO (S3) — no Redis; caching is nginx proxy_cache + in-process (see Caching)
 - **Scrapers:** 29 Puppeteer-based vendor scrapers (`backend/scrapers/`)
 
