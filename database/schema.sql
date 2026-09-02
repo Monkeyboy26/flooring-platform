@@ -2075,6 +2075,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_rep_tasks_source_unique
   ON rep_tasks(rep_id, source_type, source_id)
   WHERE source = 'auto' AND status != 'dismissed';
 CREATE INDEX IF NOT EXISTS idx_rep_tasks_snoozed ON rep_tasks(snoozed_until) WHERE status = 'open' AND snoozed_until IS NOT NULL;
+-- Tasks can be attached to a sample request (like orders/quotes/estimates/deals).
+ALTER TABLE rep_tasks ADD COLUMN IF NOT EXISTS linked_sample_request_id UUID REFERENCES sample_requests(id) ON DELETE SET NULL;
 
 -- ==================== Full-Text Search ====================
 

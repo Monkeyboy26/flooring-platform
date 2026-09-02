@@ -17704,7 +17704,8 @@ app.put('/api/rep/sample-requests/:id/ship', repAuth, async (req, res) => {
     // Auto-task: check in on samples after shipping
     setImmediate(() => createAutoTask(pool, req.rep.id, 'sample_shipped', sr.id,
       `Check in on samples — ${sr.customer_name}`, {
-        customer_name: sr.customer_name, customer_email: sr.customer_email, customer_phone: sr.customer_phone
+        customer_name: sr.customer_name, customer_email: sr.customer_email, customer_phone: sr.customer_phone,
+        linked_sample_request_id: sr.id
       }).catch(err => console.error('[AutoTask] sample_shipped error:', err.message)));
 
     res.json({ sample_request: sr });
@@ -29260,7 +29261,7 @@ app.get('/api/rep/tasks', repAuth, async (req, res) => {
       [req.rep.id]
     );
 
-    const { status, priority, due_from, due_to, completed_from, linked_type, search, source, snoozed } = req.query;
+    const { status, priority, due_from, due_to, completed_from, linked_type, search, source, snoozed, linked_sample_request_id } = req.query;
     let where = 'WHERE t.rep_id = $1';
     const params = [req.rep.id];
     let idx = 2;
@@ -29277,6 +29278,8 @@ app.get('/api/rep/tasks', repAuth, async (req, res) => {
     else if (linked_type === 'quote') { where += ' AND t.linked_quote_id IS NOT NULL'; }
     else if (linked_type === 'estimate') { where += ' AND t.linked_estimate_id IS NOT NULL'; }
     else if (linked_type === 'deal') { where += ' AND t.linked_deal_id IS NOT NULL'; }
+    else if (linked_type === 'sample') { where += ' AND t.linked_sample_request_id IS NOT NULL'; }
+    if (linked_sample_request_id) { where += ` AND t.linked_sample_request_id = $${idx++}`; params.push(linked_sample_request_id); }
     if (search) { where += ` AND (t.title ILIKE $${idx} OR t.description ILIKE $${idx} OR t.customer_name ILIKE $${idx})`; params.push(`%${search}%`); idx++; }
     if (snoozed === 'true') {
       // Snoozed view: only open tasks parked for a future date
@@ -29301,12 +29304,14 @@ app.get('/api/rep/tasks', repAuth, async (req, res) => {
         o.order_number AS linked_order_number,
         q.quote_number AS linked_quote_number,
         e.estimate_number AS linked_estimate_number,
-        d.title AS linked_deal_title
+        d.title AS linked_deal_title,
+        srq.request_number AS linked_sample_request_number
       FROM rep_tasks t
       LEFT JOIN orders o ON o.id = t.linked_order_id
       LEFT JOIN quotes q ON q.id = t.linked_quote_id
       LEFT JOIN estimates e ON e.id = t.linked_estimate_id
       LEFT JOIN deals d ON d.id = t.linked_deal_id
+      LEFT JOIN sample_requests srq ON srq.id = t.linked_sample_request_id
       ${where}
       ORDER BY ${orderBy}
     `, params);
@@ -29356,12 +29361,14 @@ app.get('/api/rep/tasks/dashboard', repAuth, async (req, res) => {
         o.order_number AS linked_order_number,
         q.quote_number AS linked_quote_number,
         e.estimate_number AS linked_estimate_number,
-        d.title AS linked_deal_title
+        d.title AS linked_deal_title,
+        srq.request_number AS linked_sample_request_number
       FROM rep_tasks t
       LEFT JOIN orders o ON o.id = t.linked_order_id
       LEFT JOIN quotes q ON q.id = t.linked_quote_id
       LEFT JOIN estimates e ON e.id = t.linked_estimate_id
       LEFT JOIN deals d ON d.id = t.linked_deal_id
+      LEFT JOIN sample_requests srq ON srq.id = t.linked_sample_request_id
       WHERE t.rep_id = $1 AND t.status = 'open'
         AND (t.due_date IS NULL OR t.due_date <= $2)
         AND (t.snoozed_until IS NULL OR t.snoozed_until <= CURRENT_DATE)
@@ -29391,20 +29398,21 @@ app.post('/api/rep/tasks', repAuth, async (req, res) => {
     const { title, description, due_date, priority,
       customer_name, customer_email, customer_phone,
       linked_customer_type, linked_customer_ref,
-      linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id } = req.body;
+      linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id, linked_sample_request_id } = req.body;
     if (!title || !title.trim()) return res.status(400).json({ error: 'Title is required' });
 
     const result = await pool.query(`
       INSERT INTO rep_tasks (rep_id, title, description, due_date, priority, source,
         customer_name, customer_email, customer_phone,
         linked_customer_type, linked_customer_ref,
-        linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id)
-      VALUES ($1, $2, $3, $4, $5, 'manual', $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id, linked_sample_request_id)
+      VALUES ($1, $2, $3, $4, $5, 'manual', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [req.rep.id, title.trim(), description || null, due_date || null, priority || 'medium',
         customer_name || null, customer_email || null, customer_phone || null,
         linked_customer_type || null, linked_customer_ref || null,
-        linked_order_id || null, linked_quote_id || null, linked_estimate_id || null, linked_deal_id || null]);
+        linked_order_id || null, linked_quote_id || null, linked_estimate_id || null, linked_deal_id || null,
+        linked_sample_request_id || null]);
     res.json({ task: result.rows[0] });
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
@@ -29418,7 +29426,7 @@ app.put('/api/rep/tasks/:id', repAuth, async (req, res) => {
     const { title, description, due_date, priority,
       customer_name, customer_email, customer_phone,
       linked_customer_type, linked_customer_ref,
-      linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id } = req.body;
+      linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id, linked_sample_request_id } = req.body;
 
     const existing = await pool.query('SELECT * FROM rep_tasks WHERE id = $1 AND rep_id = $2', [id, req.rep.id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Task not found' });
@@ -29438,8 +29446,9 @@ app.put('/api/rep/tasks/:id', repAuth, async (req, res) => {
         linked_quote_id = $11,
         linked_estimate_id = $12,
         linked_deal_id = $13,
+        linked_sample_request_id = $14,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $14 AND rep_id = $15
+      WHERE id = $15 AND rep_id = $16
       RETURNING *
     `, [title || null, description !== undefined ? description : existing.rows[0].description,
         due_date !== undefined ? due_date : existing.rows[0].due_date,
@@ -29453,6 +29462,7 @@ app.put('/api/rep/tasks/:id', repAuth, async (req, res) => {
         linked_quote_id !== undefined ? linked_quote_id : existing.rows[0].linked_quote_id,
         linked_estimate_id !== undefined ? linked_estimate_id : existing.rows[0].linked_estimate_id,
         linked_deal_id !== undefined ? linked_deal_id : existing.rows[0].linked_deal_id,
+        linked_sample_request_id !== undefined ? linked_sample_request_id : existing.rows[0].linked_sample_request_id,
         id, req.rep.id]);
     res.json({ task: result.rows[0] });
   } catch (err) {

@@ -34,8 +34,8 @@ export async function createAutoTask(pool, repId, sourceType, sourceId, title, o
     const result = await pool.query(`
       INSERT INTO rep_tasks (rep_id, title, description, due_date, priority, source, source_type, source_id,
         customer_name, customer_email, customer_phone,
-        linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id)
-      VALUES ($1, $2, $3, $4, $5, 'auto', $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        linked_order_id, linked_quote_id, linked_estimate_id, linked_deal_id, linked_sample_request_id)
+      VALUES ($1, $2, $3, $4, $5, 'auto', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       ON CONFLICT (rep_id, source_type, source_id) WHERE source = 'auto' AND status != 'dismissed'
       DO NOTHING
       RETURNING *
@@ -43,7 +43,8 @@ export async function createAutoTask(pool, repId, sourceType, sourceId, title, o
         sourceType, String(sourceId),
         options.customer_name || null, options.customer_email || null, options.customer_phone || null,
         options.linked_order_id || null, options.linked_quote_id || null,
-        options.linked_estimate_id || null, options.linked_deal_id || null]);
+        options.linked_estimate_id || null, options.linked_deal_id || null,
+        options.linked_sample_request_id || null]);
     return result.rows[0] || null;
   } catch (err) {
     console.error('[AutoTask] Failed to create auto-task:', err.message);

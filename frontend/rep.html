@@ -18890,6 +18890,7 @@
       const [trackingInput, setTrackingInput] = useState('');
       const [showTrackingInput, setShowTrackingInput] = useState(false);
       const [acting, setActing] = useState(false);
+      const [sampleTasks, setSampleTasks] = useState([]);
 
       const load = useCallback(() => {
         setLoading(true);
@@ -18898,7 +18899,20 @@
           .catch(() => setLoading(false));
       }, [editId]);
 
+      const loadSampleTasks = useCallback(() => {
+        repFetch('/api/rep/tasks?linked_sample_request_id=' + editId)
+          .then(d => setSampleTasks(d.tasks || [])).catch(() => {});
+      }, [editId]);
+
       useEffect(load, [load]);
+      useEffect(loadSampleTasks, [loadSampleTasks]);
+
+      const toggleTaskDone = async (t) => {
+        try {
+          await repFetch('/api/rep/tasks/' + t.id + '/' + (t.status === 'completed' ? 'reopen' : 'complete'), { method: 'PUT' });
+          loadSampleTasks();
+        } catch (err) { alert('Error: ' + (err.message || 'Failed')); }
+      };
 
       const markShipped = async () => {
         setActing(true);
@@ -19707,6 +19721,50 @@
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Tasks */}
+              <div className="qw-rail-card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <h3 style={{ margin: 0 }}>Tasks</h3>
+                  <AddTaskButton
+                    navigate={navigate}
+                    label="+ Task"
+                    className="qw-link"
+                    prefill={{
+                      linked_sample_request_id: sr.id,
+                      context_label: sr.request_number,
+                      customer_name: sr.customer_name,
+                      customer_email: sr.customer_email,
+                      customer_phone: sr.customer_phone,
+                      linked_customer_type: sr.customer_id ? 'retail' : null,
+                      linked_customer_ref: sr.customer_id || sr.customer_email || null
+                    }}
+                    onSaved={loadSampleTasks}
+                  />
+                </div>
+                {sampleTasks.length === 0 ? (
+                  <div style={{ font: '400 12px/1.5 Inter, sans-serif', color: 'var(--rod-muted)' }}>No tasks yet.</div>
+                ) : (
+                  sampleTasks.map(t => {
+                    const done = t.status === 'completed';
+                    const due = t.due_date ? new Date(String(t.due_date).split('T')[0] + 'T12:00:00') : null;
+                    const overdue = !done && due && due < new Date(new Date().toDateString());
+                    return (
+                      <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 0', borderBottom: '0.5px solid var(--rod-border)' }}>
+                        <button onClick={() => toggleTaskDone(t)} title={done ? 'Reopen' : 'Complete'}
+                          style={{ width: 16, height: 16, marginTop: 1, borderRadius: '50%', flexShrink: 0, cursor: 'pointer', padding: 0, border: '1.5px solid ' + (done ? 'var(--rod-green)' : 'var(--rod-border)'), background: done ? 'var(--rod-green)' : 'transparent', color: '#fff', font: '700 9px/1 Inter, sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          {done ? '✓' : ''}
+                        </button>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ font: '400 12.5px/1.35 Inter, sans-serif', color: done ? 'var(--rod-muted)' : 'var(--rod-ink)', textDecoration: done ? 'line-through' : 'none' }}>{t.title}</div>
+                          {t.due_date && <div style={{ font: '500 9px/1.4 ui-monospace, monospace', letterSpacing: '0.04em', marginTop: 2, color: overdue ? 'var(--rod-red)' : 'var(--rod-muted)' }}>{overdue ? 'Overdue · ' : 'Due '}{due.toLocaleDateString()}</div>}
+                        </div>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', marginTop: 6, flexShrink: 0, background: t.priority === 'high' ? 'var(--rod-red)' : t.priority === 'low' ? 'var(--rod-border)' : 'var(--rod-accent)' }} />
+                      </div>
+                    );
+                  })
+                )}
               </div>
 
               {/* Timeline */}
@@ -32451,6 +32509,7 @@
               {t.linked_quote_number && <span className="tk-ref" onClick={() => navigate('quote-edit', t.linked_quote_id)}>{t.linked_quote_number}</span>}
               {t.linked_estimate_number && <span className="tk-ref" onClick={() => navigate('estimate-edit', t.linked_estimate_id)}>{t.linked_estimate_number}</span>}
               {t.linked_deal_title && <span className="tk-ref" style={{ cursor: 'default' }}>{t.linked_deal_title}</span>}
+              {t.linked_sample_request_number && <span className="tk-ref" onClick={() => navigate('sample-detail', t.linked_sample_request_id)}>{t.linked_sample_request_number}</span>}
               {viewKey === 'snoozed' && t.snoozed_until && (
                 <span className="tk-due" style={{ color: '#8a7e68', background: 'rgba(28,25,23,0.06)' }}>Wakes {fmtWake(t.snoozed_until)}</span>
               )}
@@ -32580,6 +32639,7 @@
       const [linkedQuoteId] = useState(task ? task.linked_quote_id : (prefill && prefill.linked_quote_id) || null);
       const [linkedEstimateId] = useState(task ? task.linked_estimate_id : (prefill && prefill.linked_estimate_id) || null);
       const [linkedDealId] = useState(task ? task.linked_deal_id : (prefill && prefill.linked_deal_id) || null);
+      const [linkedSampleRequestId] = useState(task ? task.linked_sample_request_id : (prefill && prefill.linked_sample_request_id) || null);
       const [linkedCustomerType] = useState(task ? task.linked_customer_type : (prefill && prefill.linked_customer_type) || null);
       const [linkedCustomerRef] = useState(task ? task.linked_customer_ref : (prefill && prefill.linked_customer_ref) || null);
       const [customerName] = useState(task ? task.customer_name : (prefill && prefill.customer_name) || null);
@@ -32589,8 +32649,8 @@
 
       // A one-line "For: …" banner so the rep sees what this task is attached to.
       const contextLabel = (prefill && prefill.context_label)
-        || (task && (task.linked_order_number || task.linked_quote_number || task.linked_estimate_number || task.linked_deal_title
-             ? [task.linked_order_number, task.linked_quote_number, task.linked_estimate_number, task.linked_deal_title].filter(Boolean).join(' · ')
+        || (task && (task.linked_order_number || task.linked_quote_number || task.linked_estimate_number || task.linked_deal_title || task.linked_sample_request_number
+             ? [task.linked_order_number, task.linked_quote_number, task.linked_estimate_number, task.linked_deal_title, task.linked_sample_request_number].filter(Boolean).join(' · ')
              : null))
         || customerName || null;
 
@@ -32612,7 +32672,8 @@
           customer_name: customerName, customer_email: customerEmail, customer_phone: customerPhone,
           linked_customer_type: linkedCustomerType, linked_customer_ref: linkedCustomerRef,
           linked_order_id: linkedOrderId, linked_quote_id: linkedQuoteId,
-          linked_estimate_id: linkedEstimateId, linked_deal_id: linkedDealId
+          linked_estimate_id: linkedEstimateId, linked_deal_id: linkedDealId,
+          linked_sample_request_id: linkedSampleRequestId
         };
         try {
           if (task) await repFetch('/api/rep/tasks/' + task.id, { method: 'PUT', body: JSON.stringify(body) });
