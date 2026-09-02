@@ -140,14 +140,38 @@ def design_from_filename(fn):
     toks = []
     for t in re.split(r'[-_\s]+', base):
         t = t.strip()
-        if not t or re.match(r'^\d', t) or re.match(r'(?i)^\d*in$', t): continue
-        if t.lower() in _FILL: continue
+        if len(t) < 2 or re.match(r'^\d', t) or re.match(r'(?i)^\d*in$', t): continue
+        if t.lower() in _FILL or t.lower() in ('ft', 'in', 'cm', 'mm', 'sq', 'rd'): continue
         toks.append(t)
     return norm_design(' '.join(toks))
 
+# shape of a medallion IMAGE (page URL is authoritative; filename is fallback)
+def shape_from_page(pages):
+    s = ' '.join(pages).lower()
+    if 'round-medallion' in s: return 'round'
+    if 'square-medallion' in s: return 'square'
+    if 'oval-medallion' in s: return 'oval'
+    if 'rectangular' in s: return 'rect'
+    return None
+def shape_from_fn(fn):
+    f = fn.lower()
+    if 'oval' in f: return 'oval'
+    if re.search(r'\dft?\s?x\s?\d|rect', f): return 'rect'
+    if 'square' in f or re.search(r'\bsq\b', f): return 'square'
+    if re.search(r'\d+in', f): return 'round'
+    return None
+# shape of a SKU from its variant name ("36\" Round", "3ft x 5ft Rectangular", ...)
+def sku_shape(variant):
+    v = (variant or '').lower()
+    if 'oval' in v: return 'oval'
+    if 'rect' in v: return 'rect'
+    if 'squar' in v or 'corner' in v: return 'square'
+    if 'round' in v: return 'round'
+    return None
+
 # ---------- assign images ----------
-sku_imgs = defaultdict(list)      # vendor_sku -> [(url, finish)]
-med_prod_imgs = defaultdict(list) # product name -> [url]
+sku_imgs = defaultdict(list)             # vendor_sku -> [(url, finish)]
+med_shape_imgs = defaultdict(list)       # (product name, shape) -> [url]
 for im in images:
     fn, url, sec = im["filename"], https(im["url"]), section(im["pages"])
     fk = norm(fn)
@@ -160,7 +184,9 @@ for im in images:
         if not hit:
             close = difflib.get_close_matches(d, med_keys, n=1, cutoff=0.84)
             hit = med_design[close[0]] if close else None
-        if hit: med_prod_imgs[hit].append(url)
+        if not hit: continue
+        shape = shape_from_page(im["pages"]) or shape_from_fn(fn) or 'round'
+        med_shape_imgs[(hit, shape)].append(url)
         continue
 
     allowed = SEC_TYPES.get(sec)
@@ -209,16 +235,35 @@ def product_stone(p):
         if m: return stone_code(vs, m.group(0))
     return None
 
+_LIFESTYLE = ('installed', 'custom-size', 'project', 'lobby', 'showroom', 'stairs', 'meeting', 'partial', 'resting')
+def _med_rank(u):
+    return 1 if any(k in u.lower() for k in _LIFESTYLE) else 0   # clean product shots first
+def _dedupe(urls):
+    out = []
+    for u in sorted(urls, key=_med_rank):
+        if u not in out: out.append(u)
+    return out
+
+# medallions: give each SIZE/SHAPE sku a photo of ITS OWN shape (round/square/oval/rect)
+med_products = {p["name"] for p in catalog if p["category_slug"] == "medallions"}
+med_sku = 0
+for p in catalog:
+    if p["name"] not in med_products: continue
+    for s in p["skus"]:
+        imgs = _dedupe(med_shape_imgs.get((p["name"], sku_shape(s["variant_name"])), []))
+        if imgs:
+            sku_out[s["vendor_sku"]] = {"primary": imgs[0], "gallery": imgs[1:6]}
+            med_sku += 1
+
 prod_out = {}
 n_from_sku = n_from_med = n_from_swatch = 0
 for p in catalog:
     name = p["name"]
-    if name in med_prod_imgs:                       # medallion design photo
-        gal = []
-        for u in med_prod_imgs[name]:
-            if u not in gal: gal.append(u)
-        prod_out[name] = {"primary": gal[0], "gallery": gal[1:6]}
-        n_from_med += 1
+    if name in med_products:                        # hero prefers round, else any shape
+        shapes = {sh: _dedupe(urls) for (nm, sh), urls in med_shape_imgs.items() if nm == name}
+        hero = next((shapes[pref][0] for pref in ("round", "square", "oval", "rect") if shapes.get(pref)), None)
+        if hero:
+            prod_out[name] = {"primary": hero}; n_from_med += 1
         continue
     hero = None                                     # first SKU that got a photo
     for s in p["skus"]:
@@ -246,4 +291,4 @@ print(f"Harvested: {len(images)} images")
 print(f"SKUs with a photo:    {len(sku_out)} / {nsku}")
 print(f"Products with a hero:  {len(prod_out)} / {len(catalog)}  "
       f"(sku:{n_from_sku}  medallion:{n_from_med}  swatch:{n_from_swatch}  +3 terrazzo)")
-print(f"Medallion products w/ photo: {n_from_med} / {nmed}")
+print(f"Medallion products w/ photo: {n_from_med} / {nmed}  (per-shape sku photos: {med_sku})")
