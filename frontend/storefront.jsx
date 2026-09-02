@@ -7377,6 +7377,13 @@
       const isSoldPerSqft = sku && sku.sell_by === 'sqft';
       const hasBoxCalc = !isPerUnit && !isSoldPerSqft && sqftPerBox > 0;
       const isSqftNoBox = !isPerUnit && !isSoldPerSqft && sqftPerBox <= 0;
+      // Countertop slabs are quoted per sqft but sold call-to-order (fabrication +
+      // per-slab dimensions vary), so we show the /sqft price but replace the buy
+      // calculator with a "Please Inquire" call CTA — like our other slabs.
+      const isCountertopSlab = isSoldPerSqft && (
+        /slab|countertop/i.test(sku.category_name || '')
+        || /slab/i.test(sku.product_name || '')
+        || /slab/i.test(sku.variant_name || ''));
       // Sheet vinyl roll calculator — keyed off category so vinyl never gets the
       // carpet calculator and carpet never gets this one. Covers both roll-priced
       // (per-sqyd cut price) and per-sqft box SKUs.
@@ -9662,7 +9669,7 @@
               )}
 
               {/* Coverage Calculator (sqft-sold products — no box rounding) */}
-              {!isCarpetSku && isSoldPerSqft && effectivePrice > 0 && !isOutOfStock && (
+              {!isCarpetSku && isSoldPerSqft && !isCountertopSlab && effectivePrice > 0 && !isOutOfStock && (
                 <div className="calculator-widget">
                   <h3>Coverage Calculator</h3>
                   <div className="calc-input-row">
@@ -9687,6 +9694,20 @@
                     onClick={handleAddToCart} disabled={sqftCalcAmount <= 0 || isOutOfStock}>
                     {isOutOfStock ? 'Out of Stock' : ('Add to Cart ' + (sqftCalcAmount > 0 ? '\u2014 $' + sqftCalcSubtotal.toFixed(2) : ''))}
                   </button>
+                </div>
+              )}
+
+              {/* Countertop slab — priced per sqft, sold call-to-order (fabrication) */}
+              {isCountertopSlab && (
+                <div className="pdp-inquiry-banner">
+                  <p className="pdp-inquiry-title">Slab — Please Inquire</p>
+                  <p className="pdp-inquiry-sub">
+                    Priced per square foot. Contact us to confirm slab dimensions, availability &amp; fabrication.
+                  </p>
+                  <a href="tel:7149990009" className="pdp-btn pdp-btn-gold" style={{ marginTop: '1rem', textDecoration: 'none' }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 16, height: 16 }}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                    Call (714) 999-0009
+                  </a>
                 </div>
               )}
 
