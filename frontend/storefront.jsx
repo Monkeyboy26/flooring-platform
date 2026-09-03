@@ -8388,6 +8388,20 @@
                 if (_nonAccCollSiblings.length > 0) collColorKeys.add(siblingColorKey(sku.product_name));
                 const multiColorCollection = collColorKeys.size > 1;
 
+                // One-SKU-per-color collections (Stanza pebble collections): every product is
+                // a distinct color with exactly one variant, so ANY attribute difference
+                // across the collection (finish, pack_size…) is a property of some OTHER
+                // color, not a choice on this one. Collection-augmented pills there are
+                // either dead (no route) or color-jumping traps (a finish pill routed via
+                // sku_map lands on a different color) — the color swatch row is the complete
+                // navigation, and the values stay visible in the specs. Collections that
+                // split the SAME color across products (MOMA finish-splits → duplicate color
+                // keys) are excluded: there the finish row is the only route to the other
+                // finishes.
+                const _oneSkuPerColor = mainSiblings.length === 0 && _nonAccCollSiblings.length > 0
+                  && !_nonAccCollSiblings.some(cs => (cs.available_sizes || []).length > 1 || (cs.available_finishes || []).length > 1)
+                  && collColorKeys.size === _nonAccCollSiblings.length + 1;
+
                 // Size pills from collection siblings (vanities where sizes are separate products)
                 // Computed BEFORE the merge so we can skip merging sizes into colorItems
                 const _isDecorativeHW = (sku.vendor_code || '') === 'HR' && !['Vanity', 'Mirrors'].includes(sku.category_name || ''); // HR decorative hardware suppresses attr pills, but NOT vanities/mirrors (finish/size selectable)
@@ -8469,7 +8483,8 @@
                   }
                 }
                 // Augment collectionFinishItems with collection-wide finishes not yet present
-                if (collectionAttributes.finish && (collectionAttributes.finish.values || []).length >= 2 && collectionSiblings.length > 0) {
+                // (skipped for one-SKU-per-color collections — see _oneSkuPerColor above)
+                if (!_oneSkuPerColor && collectionAttributes.finish && (collectionAttributes.finish.values || []).length >= 2 && collectionSiblings.length > 0) {
                   const existingFinishes = new Set(collectionFinishItems.map(f => f.label));
                   const curSize = currentAttrs['size'] || '';
                   const curFinish2 = currentAttrs['finish'] || '';
@@ -8663,9 +8678,13 @@
                   // that split finish into separate products (MOMA: "…12x24, R11" vs "…, Natural")
                   // otherwise leak finish variants in as bogus color swatches labeled ", R11".
                   // Finish already has its own pill row, so drop differing-finish siblings here.
+                  // Only engage when color keys actually collide (the finish-split signature) —
+                  // a comma inside a color name ("Black, Tan & Green Honeycomb…") must not get
+                  // a sibling dropped from a collection where every product is a distinct color.
                   const _finClause = (n) => { const m = (n || '').match(/,\s*(.+?)(?:\s*\(|$)/); return m ? m[1].trim().toLowerCase() : ''; };
                   const _curFinClause = _finClause(sku.product_name);
-                  const _colorSibs = _nonAccCollSiblings.filter(s => _finClause(s.product_name) === _curFinClause);
+                  const _hasDupColorKeys = collColorKeys.size < _nonAccCollSiblings.length + 1;
+                  const _colorSibs = _hasDupColorKeys ? _nonAccCollSiblings.filter(s => _finClause(s.product_name) === _curFinClause) : _nonAccCollSiblings;
                   const candidates = [
                     { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
                     ..._colorSibs
@@ -8698,9 +8717,21 @@
                     });
                     if (byColorKey.size > 1) {
                       // Label swatches with the marketing color from the name, not the
-                      // facet-family color attribute (White-Warm → Bianco)
-                      colorItems = [...byColorKey.values()]
-                        .map(c => ({ ...c, color: siblingColorLabel(c.product_name) }))
+                      // facet-family color attribute (White-Warm → Bianco). But when every
+                      // product's color attribute is distinct AND baked into its own name
+                      // (one product per color, e.g. Stanza's "Tan Flat Indonesian Stone
+                      // Mosaic" with color "Tan"), the attribute IS the marketing color and
+                      // the name-derived label would drag the type suffix in
+                      // ("Tan Flat Indonesian Stone") — prefer the clean attribute then.
+                      // The name-containment check is what excludes facet families: MSI's
+                      // "Bernini Bianco 2x2 Mosaic" never contains "White-Warm".
+                      const _vals = [...byColorKey.values()];
+                      const _colorIs1to1 = _vals.every(c => {
+                        const cv = (c.color || '').trim();
+                        return cv && (c.product_name || '').toLowerCase().includes(cv.toLowerCase());
+                      }) && new Set(_vals.map(c => c.color.trim().toLowerCase())).size === _vals.length;
+                      colorItems = _vals
+                        .map(c => ({ ...c, color: _colorIs1to1 ? c.color.trim() : siblingColorLabel(c.product_name) }))
                         .sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
                     } else if (!showSizePills) {
                       colorItems = candidates.sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
@@ -8779,7 +8810,8 @@
 
                 // Augment attrMap with collection-wide attribute values for consistent pills across colors
                 const collectionAugmentedSlugs = new Set();
-                if (collectionSiblings.length > 0 && Object.keys(collectionAttributes).length > 0) {
+                // Skipped for one-SKU-per-color collections — see _oneSkuPerColor above.
+                if (!_oneSkuPerColor && collectionSiblings.length > 0 && Object.keys(collectionAttributes).length > 0) {
                   Object.entries(collectionAttributes).forEach(([slug, ca]) => {
                     if (!ca || !ca.values || ca.values.length < 2) return;
                     if (NON_SELECTABLE.has(slug) || slug === 'color') return;
@@ -9032,6 +9064,14 @@
                   const curSize = (_isSlabVariant || slabSizeItems.length > 0) ? undefined : currentAttrs['size'];
                   // Quick exit: nothing selected to conflict with
                   if (!curSize && attrSlugs.every(s => !currentAttrs[s])) return true;
+                  // Cross-product swatch to a single-variant product: nothing can be "lost"
+                  // by switching — there is no size/finish choice to preserve on the other
+                  // side, the click is a whole-product jump (same reasoning as slabs above).
+                  // Greying these out just dashes half the collection's colors (Stanza:
+                  // per-color finishes) without protecting any selection.
+                  if (mainSiblings.length === 0 &&
+                      (!c.available_sizes || c.available_sizes.length <= 1) &&
+                      (!c.available_finishes || c.available_finishes.length <= 1)) return true;
                   // Collection siblings have available_sizes/available_finishes from API
                   if (c.available_sizes || c.available_finishes) {
                     const sizeOk = !curSize || !c.available_sizes || c.available_sizes.some(s => normalizeSize(s) === normalizeSize(curSize));

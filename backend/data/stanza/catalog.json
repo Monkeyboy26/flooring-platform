@@ -1,12 +1,12 @@
 [
   {
-    "collection": "Tumbled Pebble Mesh",
+    "collection": "Tumbled Pebble Mosaic",
     "name": "Tahiti Tumbled Pebble Mosaic",
     "slug": "stanza-tt102",
     "category_slug": "mosaic-tile",
     "description": "Naturally hard river pebbles, ideal for indoor and outdoor use on floors, walls, driveways, and high-traffic areas. Matte black tumbled. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Tumbled Pebble Mesh",
+      "collection": "Tumbled Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Tahiti",
       "color_family": "Black",
@@ -35,13 +35,13 @@
     ]
   },
   {
-    "collection": "Tumbled Pebble Mesh",
+    "collection": "Tumbled Pebble Mosaic",
     "name": "Rio Tumbled Pebble Mosaic",
     "slug": "stanza-tt104",
     "category_slug": "mosaic-tile",
     "description": "Naturally hard river pebbles, ideal for indoor and outdoor use on floors, walls, driveways, and high-traffic areas. Matte mixed grey-black tumbled. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Tumbled Pebble Mesh",
+      "collection": "Tumbled Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Rio",
       "color_family": "Multicolor",
@@ -70,13 +70,13 @@
     ]
   },
   {
-    "collection": "Polished Pebble Mesh",
+    "collection": "Polished Pebble Mosaic",
     "name": "Black Pearl Polished Pebble Mosaic",
     "slug": "stanza-pt102",
     "category_slug": "mosaic-tile",
     "description": "Naturally hard river pebbles, ideal for indoor and outdoor use on floors, walls, driveways, and high-traffic areas, and capable of achieving a beautiful high polish. Polished black. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Polished Pebble Mesh",
+      "collection": "Polished Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Black Pearl",
       "color_family": "Black",
@@ -105,13 +105,13 @@
     ]
   },
   {
-    "collection": "Polished Pebble Mesh",
+    "collection": "Polished Pebble Mosaic",
     "name": "Mixed Salad Polished Pebble Mosaic",
     "slug": "stanza-pt104",
     "category_slug": "mosaic-tile",
     "description": "Naturally hard, exceptionally durable river pebbles suited for indoor and outdoor use on floors, walls, driveways, and high-traffic areas, with polished finishing capability. Polished mixed colors. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Polished Pebble Mesh",
+      "collection": "Polished Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Mixed Salad",
       "color_family": "Multicolor",
@@ -140,13 +140,13 @@
     ]
   },
   {
-    "collection": "Polished Pebble Mesh",
+    "collection": "Polished Pebble Mosaic",
     "name": "Red Cranberry Polished Pebble Mosaic",
     "slug": "stanza-pt105",
     "category_slug": "mosaic-tile",
     "description": "Naturally hard river pebbles capable of achieving a beautiful red polish, ideal for floors, walls, driveways, and high-traffic areas. Polished red / cranberry. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Polished Pebble Mesh",
+      "collection": "Polished Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Red Cranberry",
       "color_family": "Red",
@@ -420,13 +420,13 @@
     ]
   },
   {
-    "collection": "Standing Pebble",
+    "collection": "Standing Pebble Mosaic",
     "name": "Eclipse Standing Pebble Mosaic",
     "slug": "stanza-sp102",
     "category_slug": "mosaic-tile",
     "description": "Natural standing pebbles arranged vertically create a rich, dimensional surface. Ideal for feature walls, water features, and spa environments. Round polished river rocks, black. Each 4\" x 12\" mesh-mounted sheet covers 0.33 sq ft.",
     "attrs": {
-      "collection": "Standing Pebble",
+      "collection": "Standing Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Eclipse",
       "color_family": "Black",
@@ -455,13 +455,13 @@
     ]
   },
   {
-    "collection": "Standing Pebble",
+    "collection": "Standing Pebble Mosaic",
     "name": "Dark Knight Standing Pebble Mosaic",
     "slug": "stanza-sp102h",
     "category_slug": "mosaic-tile",
     "description": "Natural standing pebbles arranged vertically create a rich, dimensional surface. Ideal for feature walls, water features, and spa environments. Round honed pebble stone, grey-black, Indonesia. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Standing Pebble",
+      "collection": "Standing Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Dark Knight",
       "color_family": "Black",
@@ -490,13 +490,13 @@
     ]
   },
   {
-    "collection": "Standing Pebble",
+    "collection": "Standing Pebble Mosaic",
     "name": "Rainbow Standing Pebble Mosaic",
     "slug": "stanza-sp104",
     "category_slug": "mosaic-tile",
     "description": "Natural standing pebbles arranged vertically create a rich, dimensional surface. Ideal for feature walls, water features, and spa environments. Round polished river rocks, mixed color. Each 4\" x 12\" mesh-mounted sheet covers 0.33 sq ft.",
     "attrs": {
-      "collection": "Standing Pebble",
+      "collection": "Standing Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Rainbow",
       "color_family": "Multicolor",
@@ -525,13 +525,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Charcoal Flat Pebble Mosaic",
     "slug": "stanza-fp102",
     "category_slug": "mosaic-tile",
     "description": "A deep charcoal natural stone mosaic featuring smooth, hand-selected pebbles. Its rich dark tone creates a bold, modern look, perfect for showers, feature walls, and contemporary spaces. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Charcoal",
       "color_family": "Black",
@@ -560,13 +560,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Birch Flat Pebble Mosaic",
     "slug": "stanza-fp103",
     "category_slug": "mosaic-tile",
     "description": "A natural stone pebble mosaic featuring hand-selected stones in warm ivory and beige tones. The organic shapes and soft texture create a calm, natural look, ideal for showers, floors, and feature walls. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Birch",
       "color_family": "White",
@@ -595,13 +595,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Forrest Flat Pebble Mosaic",
     "slug": "stanza-fp104",
     "category_slug": "mosaic-tile",
     "description": "A natural stone pebble mosaic featuring warm brown, rust, amber, and soft beige tones. The rich earthy palette and smooth organic shapes create a warm, inviting look, ideal for floors, showers, and feature walls. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Forrest",
       "color_family": "Multicolor",
@@ -630,13 +630,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Redwood Flat Pebble Mosaic",
     "slug": "stanza-fp105",
     "category_slug": "mosaic-tile",
     "description": "A natural stone pebble mosaic in warm terracotta and rust tones, creating a rich, earthy look ideal for floors, showers, and feature walls. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Redwood",
       "color_family": "Red",
@@ -665,13 +665,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Mountain Grey Flat Pebble Mosaic",
     "slug": "stanza-fp107",
     "category_slug": "mosaic-tile",
     "description": "A balanced mix of gray and neutral stones brings a natural river-pebble appearance that complements both modern and rustic designs. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Mountain Grey",
       "color_family": "Multicolor",
@@ -700,13 +700,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Sandy Beach Flat Pebble Mosaic",
     "slug": "stanza-fp108",
     "category_slug": "mosaic-tile",
     "description": "A gentle blend of beige and warm gray tones gives this mosaic a soft, natural appearance suitable for both contemporary and traditional interiors. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Sandy Beach",
       "color_family": "Grey",
@@ -735,13 +735,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Rustic Birch Flat Pebble Mosaic",
     "slug": "stanza-fp201",
     "category_slug": "mosaic-tile",
     "description": "Soft taupe and warm gray stones with natural texture create a calm, modern look inspired by weathered stone. Athens Grey + Wooden White marble, driftwood blend tone. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Marble",
       "color": "Rustic Birch",
       "color_family": "White",
@@ -770,13 +770,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Poppy Seed Flat Pebble Mosaic",
     "slug": "stanza-fp202",
     "category_slug": "mosaic-tile",
     "description": "Black flat pebble mosaic with a matte finish. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Poppy Seed",
       "color_family": "Black",
@@ -805,13 +805,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Island White Flat Pebble Mosaic",
     "slug": "stanza-fp203",
     "category_slug": "mosaic-tile",
     "description": "Island White Flat Pebble Mosaic — flat-topped natural pebble mosaic in oval-shape Timor White flat pebble. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft. Natural stone; expect natural variation in veining, pits and shade.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Island White",
       "color_family": "White",
@@ -840,13 +840,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Coin Island White Flat Pebble Mosaic",
     "slug": "stanza-fp203r",
     "category_slug": "mosaic-tile",
     "description": "A blend of soft white and light ivory stones, creating a clean, bright, and natural look inspired by sun-washed coastal pebbles. Coin-shaped Timor White pebbles. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Coin Island White",
       "color_family": "White",
@@ -875,13 +875,13 @@
     ]
   },
   {
-    "collection": "Flat Pebble Mesh",
+    "collection": "Flat Pebble Mosaic",
     "name": "Greco-Roman Flat Pebble Mosaic",
     "slug": "stanza-fp207",
     "category_slug": "mosaic-tile",
     "description": "A natural Athens Grey + Wooden White + Carrara White marble stone pebble mosaic in soft white and warm taupe tones, inspired by classic Greco-Roman stonework. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Flat Pebble Mesh",
+      "collection": "Flat Pebble Mosaic",
       "material": "Natural Marble",
       "color": "Greco-Roman",
       "color_family": "Multicolor",
@@ -981,14 +981,14 @@
   },
   {
     "collection": "Jade Stone Mosaic",
-    "name": "Flat Jade Stone Mosaic",
+    "name": "Green Jade Stone Mosaic",
     "slug": "stanza-sa309",
     "category_slug": "mosaic-tile",
     "description": "Natural green jade marble pebbles, celebrated for their crystalline, light emerald appearance and inherent elegance. From Indonesia, 11 sheets per carton. Flat Jade. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
       "collection": "Jade Stone Mosaic",
       "material": "Jade Marble",
-      "color": "Flat Jade",
+      "color": "Green Jade",
       "color_family": "Green",
       "product_type": "Mosaic Tile",
       "finish": "Flat",
@@ -1003,7 +1003,7 @@
       {
         "internal_sku": "STZ-SA309",
         "vendor_sku": "SA 309",
-        "variant_name": "Flat Jade",
+        "variant_name": "Green Jade",
         "cost": 9.98,
         "retail": 15.95,
         "sell_by": "unit",
@@ -1296,14 +1296,14 @@
   },
   {
     "collection": "Flat Indonesian Stone Mosaic",
-    "name": "Flat Green Indonesian Stone Mosaic",
+    "name": "Sage Flat Indonesian Stone Mosaic",
     "slug": "stanza-sacp006",
     "category_slug": "mosaic-tile",
     "description": "Its cool, spa-green tone brings refreshing calm to any space while delivering the durable, slip-resistant performance of premium pebble tile. Sage soft moss green (Flat Green / T G F). Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
       "collection": "Flat Indonesian Stone Mosaic",
       "material": "Natural Pebble Stone",
-      "color": "Flat Green",
+      "color": "Sage",
       "color_family": "Green",
       "product_type": "Mosaic Tile",
       "finish": "Flat",
@@ -1318,7 +1318,7 @@
       {
         "internal_sku": "STZ-SACP006",
         "vendor_sku": "SA-CP006",
-        "variant_name": "Flat Green",
+        "variant_name": "Sage",
         "cost": 8.98,
         "retail": 14.35,
         "sell_by": "unit",
@@ -1610,13 +1610,13 @@
     ]
   },
   {
-    "collection": "Honeycomb Indonesian Pebble",
+    "collection": "Honeycomb Pebble Mosaic",
     "name": "Flat White Honeycomb Pebble Mosaic",
     "slug": "stanza-honeya1",
     "category_slug": "mosaic-tile",
     "description": "A natural stone mosaic set in a distinctive hexagon pattern, creating a unique visual effect suitable for both indoor and outdoor spaces. Flat white. Each 6\" x 6\" Hexagon mesh-mounted sheet covers 0.65 sq ft.",
     "attrs": {
-      "collection": "Honeycomb Indonesian Pebble",
+      "collection": "Honeycomb Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Flat White",
       "color_family": "White",
@@ -1645,13 +1645,13 @@
     ]
   },
   {
-    "collection": "Honeycomb Indonesian Pebble",
+    "collection": "Honeycomb Pebble Mosaic",
     "name": "White & Tan Grey Honeycomb Pebble Mosaic",
     "slug": "stanza-honeya2",
     "category_slug": "mosaic-tile",
     "description": "The distinctive hexagon shape brings a fresh, eye-catching look while natural stone tones make it perfect for both indoor and outdoor applications. White/Tan/Grey, Indonesia. Each 6\" x 6\" Hexagon mesh-mounted sheet covers 0.65 sq ft.",
     "attrs": {
-      "collection": "Honeycomb Indonesian Pebble",
+      "collection": "Honeycomb Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "White & Tan Grey",
       "color_family": "White",
@@ -1680,13 +1680,13 @@
     ]
   },
   {
-    "collection": "Honeycomb Indonesian Pebble",
+    "collection": "Honeycomb Pebble Mosaic",
     "name": "Black, Tan & Green Honeycomb Pebble Mosaic",
     "slug": "stanza-honeya4",
     "category_slug": "mosaic-tile",
     "description": "The distinctive hexagon shape brings a fresh, eye-catching look while natural stone tones make it perfect for both indoor and outdoor applications. Soft Green/White/Tan/Black, Indonesia. Each 6\" x 6\" Hexagon mesh-mounted sheet covers 0.65 sq ft.",
     "attrs": {
-      "collection": "Honeycomb Indonesian Pebble",
+      "collection": "Honeycomb Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Black, Tan & Green",
       "color_family": "Black",
@@ -1715,13 +1715,13 @@
     ]
   },
   {
-    "collection": "Honeycomb Indonesian Pebble",
+    "collection": "Honeycomb Pebble Mosaic",
     "name": "Flat Capucino Honeycomb Pebble Mosaic",
     "slug": "stanza-honeyb1",
     "category_slug": "mosaic-tile",
     "description": "A natural stone mosaic in warm beige tones, set in a distinctive hexagon shape that brings a balanced, organic look to both indoor and outdoor spaces. Flat capucino marble. Each 6\" x 6\" Hexagon mesh-mounted sheet covers 0.65 sq ft.",
     "attrs": {
-      "collection": "Honeycomb Indonesian Pebble",
+      "collection": "Honeycomb Pebble Mosaic",
       "material": "Natural Marble",
       "color": "Flat Capucino",
       "color_family": "Multicolor",
@@ -1750,13 +1750,13 @@
     ]
   },
   {
-    "collection": "Honeycomb Indonesian Pebble",
+    "collection": "Honeycomb Pebble Mosaic",
     "name": "White & Light Grey Honeycomb Pebble Mosaic",
     "slug": "stanza-honeyb2",
     "category_slug": "mosaic-tile",
     "description": "The distinctive hexagon shape brings a fresh, eye-catching look while natural stone tones make it perfect for both indoor and outdoor applications. White/Light Grey marble, Indonesia. Each 6\" x 6\" Hexagon mesh-mounted sheet covers 0.65 sq ft.",
     "attrs": {
-      "collection": "Honeycomb Indonesian Pebble",
+      "collection": "Honeycomb Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "White & Light Grey",
       "color_family": "White",
@@ -1785,13 +1785,13 @@
     ]
   },
   {
-    "collection": "Honeycomb Indonesian Pebble",
+    "collection": "Honeycomb Pebble Mosaic",
     "name": "Flat Grey Honeycomb Pebble Mosaic",
     "slug": "stanza-honeyb4",
     "category_slug": "mosaic-tile",
     "description": "A natural stone mosaic set in a distinctive hexagon pattern, creating a unique visual effect suitable for both indoor and outdoor spaces. Flat grey marble. Each 6\" x 6\" Hexagon mesh-mounted sheet covers 0.65 sq ft.",
     "attrs": {
-      "collection": "Honeycomb Indonesian Pebble",
+      "collection": "Honeycomb Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Flat Grey",
       "color_family": "Grey",
@@ -2061,13 +2061,13 @@
     ]
   },
   {
-    "collection": "Bubble Pebble 3D",
+    "collection": "3D Bubble Pebble Mosaic",
     "name": "Tan/White/Grey 3D Bubble Pebble Mosaic",
     "slug": "stanza-bubble002",
     "category_slug": "mosaic-tile",
     "description": "A 3D natural pebble mosaic with five sides cut flat for a clean layout and rounded tops for an authentic pebble look, suitable for indoor and outdoor use, including water features, floors, and walls. Tan/White/Grey. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Bubble Pebble 3D",
+      "collection": "3D Bubble Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Tan/White/Grey",
       "color_family": "White",
@@ -2095,13 +2095,13 @@
     ]
   },
   {
-    "collection": "Bubble Pebble 3D",
+    "collection": "3D Bubble Pebble Mosaic",
     "name": "Green 3D Bubble Pebble Mosaic",
     "slug": "stanza-bubble006",
     "category_slug": "mosaic-tile",
     "description": "A 3D natural pebble mosaic with five sides cut flat for a clean layout and rounded tops for an authentic pebble look, suitable for indoor and outdoor use, including water features, floors, and walls. Green tones. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Bubble Pebble 3D",
+      "collection": "3D Bubble Pebble Mosaic",
       "material": "Natural Pebble Stone",
       "color": "Green",
       "color_family": "Green",
@@ -2129,13 +2129,13 @@
     ]
   },
   {
-    "collection": "Multi-Finished Hexagon Marble Mosaic",
+    "collection": "Hexagon Marble Mosaic",
     "name": "Crema Marfil Hexagon Marble Mosaic",
     "slug": "stanza-pw101",
     "category_slug": "mosaic-tile",
     "description": "A classic 2\" hexagon marble mosaic featuring multiple finishes (polished, bush-hammered, and linear textured) for a distinctive look with added slip resistance. Crema Marfil marble. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Multi-Finished Hexagon Marble Mosaic",
+      "collection": "Hexagon Marble Mosaic",
       "material": "Natural Marble",
       "color": "Crema Marfil",
       "color_family": "White",
@@ -2163,13 +2163,13 @@
     ]
   },
   {
-    "collection": "Multi-Finished Hexagon Marble Mosaic",
+    "collection": "Hexagon Marble Mosaic",
     "name": "Marmala White Hexagon Marble Mosaic",
     "slug": "stanza-pw102",
     "category_slug": "mosaic-tile",
     "description": "A classic 2\" hexagonal marble mosaic combining multiple surface treatments (polished, bush-hammered, and linear textured) to achieve a distinctive aesthetic with enhanced slip resistance. Marmala White marble. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Multi-Finished Hexagon Marble Mosaic",
+      "collection": "Hexagon Marble Mosaic",
       "material": "Natural Marble",
       "color": "Marmala White",
       "color_family": "White",
@@ -2197,13 +2197,13 @@
     ]
   },
   {
-    "collection": "Multi-Finished Hexagon Marble Mosaic",
+    "collection": "Hexagon Marble Mosaic",
     "name": "Wooden White Hexagon Marble Mosaic",
     "slug": "stanza-pw103",
     "category_slug": "mosaic-tile",
     "description": "A classic 2\" hexagon marble mosaic offering multiple finishes for a distinctive look with added slip resistance. Wooden White marble, cross-cut. Each 12\" x 12\" mesh-mounted sheet covers 1.00 sq ft.",
     "attrs": {
-      "collection": "Multi-Finished Hexagon Marble Mosaic",
+      "collection": "Hexagon Marble Mosaic",
       "material": "Natural Marble",
       "color": "Wooden White",
       "color_family": "White",

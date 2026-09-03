@@ -6136,6 +6136,7 @@
       const collColorKeys = new Set(_nonAccCollSiblings.map((s) => siblingColorKey(s.product_name)));
       if (_nonAccCollSiblings.length > 0) collColorKeys.add(siblingColorKey(sku.product_name));
       const multiColorCollection = collColorKeys.size > 1;
+      const _oneSkuPerColor = mainSiblings.length === 0 && _nonAccCollSiblings.length > 0 && !_nonAccCollSiblings.some((cs) => (cs.available_sizes || []).length > 1 || (cs.available_finishes || []).length > 1) && collColorKeys.size === _nonAccCollSiblings.length + 1;
       const _isDecorativeHW = (sku.vendor_code || "") === "HR" && !["Vanity", "Mirrors"].includes(sku.category_name || "");
       let collectionSizeItems = [];
       if (collectionSiblings.length > 0) {
@@ -6217,7 +6218,7 @@
           }
         }
       }
-      if (collectionAttributes.finish && (collectionAttributes.finish.values || []).length >= 2 && collectionSiblings.length > 0) {
+      if (!_oneSkuPerColor && collectionAttributes.finish && (collectionAttributes.finish.values || []).length >= 2 && collectionSiblings.length > 0) {
         const existingFinishes = new Set(collectionFinishItems.map((f) => f.label));
         const curSize = currentAttrs["size"] || "";
         const curFinish2 = currentAttrs["finish"] || "";
@@ -6437,7 +6438,8 @@
           return m ? m[1].trim().toLowerCase() : "";
         };
         const _curFinClause = _finClause(sku.product_name);
-        const _colorSibs = _nonAccCollSiblings.filter((s) => _finClause(s.product_name) === _curFinClause);
+        const _hasDupColorKeys = collColorKeys.size < _nonAccCollSiblings.length + 1;
+        const _colorSibs = _hasDupColorKeys ? _nonAccCollSiblings.filter((s) => _finClause(s.product_name) === _curFinClause) : _nonAccCollSiblings;
         const candidates = [
           { sku_id: sku.sku_id, product_name: sku.product_name, variant_name: sku.variant_name, color: currentColorVal, primary_image: media && media[0] ? media[0].url : null, is_current: true },
           ..._colorSibs
@@ -6477,7 +6479,12 @@
             if (curDim && _dimOf(c.product_name) === curDim && _dimOf(prev.product_name) !== curDim) byColorKey.set(key, c);
           });
           if (byColorKey.size > 1) {
-            colorItems = [...byColorKey.values()].map((c) => ({ ...c, color: siblingColorLabel(c.product_name) })).sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
+            const _vals = [...byColorKey.values()];
+            const _colorIs1to1 = _vals.every((c) => {
+              const cv = (c.color || "").trim();
+              return cv && (c.product_name || "").toLowerCase().includes(cv.toLowerCase());
+            }) && new Set(_vals.map((c) => c.color.trim().toLowerCase())).size === _vals.length;
+            colorItems = _vals.map((c) => ({ ...c, color: _colorIs1to1 ? c.color.trim() : siblingColorLabel(c.product_name) })).sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
           } else if (!showSizePills) {
             colorItems = candidates.sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
           }
@@ -6542,7 +6549,7 @@
         });
       }
       const collectionAugmentedSlugs = /* @__PURE__ */ new Set();
-      if (collectionSiblings.length > 0 && Object.keys(collectionAttributes).length > 0) {
+      if (!_oneSkuPerColor && collectionSiblings.length > 0 && Object.keys(collectionAttributes).length > 0) {
         Object.entries(collectionAttributes).forEach(([slug, ca]) => {
           if (!ca || !ca.values || ca.values.length < 2) return;
           if (NON_SELECTABLE.has(slug) || slug === "color") return;
@@ -6742,6 +6749,7 @@
         if (c.is_current) return true;
         const curSize = _isSlabVariant || slabSizeItems.length > 0 ? void 0 : currentAttrs["size"];
         if (!curSize && attrSlugs.every((s) => !currentAttrs[s])) return true;
+        if (mainSiblings.length === 0 && (!c.available_sizes || c.available_sizes.length <= 1) && (!c.available_finishes || c.available_finishes.length <= 1)) return true;
         if (c.available_sizes || c.available_finishes) {
           const sizeOk2 = !curSize || !c.available_sizes || c.available_sizes.some((s) => normalizeSize(s) === normalizeSize(curSize));
           const finishOk = _finishIsColor || !currentAttrs["finish"] || !c.available_finishes || c.available_finishes.includes(currentAttrs["finish"]);

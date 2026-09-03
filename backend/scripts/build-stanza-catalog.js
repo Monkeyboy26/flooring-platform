@@ -81,7 +81,10 @@ const COLLECTIONS = [
   ['Jade Stone Mosaic', 'jade & marble flat-pebble mosaic', [
     ['FP 306', 'Snowflake', 'white / crystal', 8.60, '12x12', 5, 'sheet'],
     ['FP 307', 'Alaska', 'Carrara White marble tumbled', 8.60, '12x12', 5, 'sheet'],
-    ['SA 309', 'Flat Jade', 'green jade flat pebble', 9.98, '12x12', 11, 'sheet'],
+    // 'Green Jade' (PDF: "Flat Jade") — a color must not collide with a
+    // non-leading collection token or the name/collection ends-with alignment
+    // breaks and the PDP title builder double-prints ([[public naming]] above)
+    ['SA 309', 'Green Jade', 'green jade flat pebble', 9.98, '12x12', 11, 'sheet'],
     ['PT 311', 'Yellow Jelly', 'yellow onyx flat', 8.98, '12x12', 11, 'sheet'],
     ['PT 312', 'Paladiana', 'capucino & cream white marble', 16.48, '17.7x17.7', 5, 'sheet'],
     ['PT 309', 'Sea Grass', 'flat green jade', 8.60, '12x12', 5, 'sheet'],
@@ -92,7 +95,9 @@ const COLLECTIONS = [
     ['SA-CP002', 'Navajo White', 'white / grey / tan flat pebble', 8.98, '12x12', 11, 'sheet'],
     ['SA-CP004', 'Silver Quartz', 'white / grey / black flat pebble', 8.98, '12x12', 11, 'sheet'],
     ['SA-CP005', 'Sky Green', 'white / green flat pebble', 8.98, '12x12', 11, 'sheet'],
-    ['SA-CP006', 'Flat Green', 'flat green (sage moss green)', 8.98, '12x12', 11, 'sheet'],
+    // 'Sage' (PDF: "Flat Green", described "sage moss green") — same
+    // collection-token collision rule as Green Jade above
+    ['SA-CP006', 'Sage', 'flat green (sage moss green)', 8.98, '12x12', 11, 'sheet'],
     ['SA-CP007', 'Bali Mix', 'white, grey, tan, green & black flat pebble', 8.98, '12x12', 11, 'sheet'],
     ['SA-CP009', 'Ganga Gold', 'Calacatta Gold marble tumbled', 10.98, '12x12', 5, 'sheet'],
     ['SA-CP101', 'Fancy Grey', 'special mix grey flat pebble', 8.98, '12x12', 11, 'sheet'],
@@ -138,7 +143,10 @@ const COLLECTIONS = [
 // The vendor is hidden on the storefront (shows as bare code 563), so neither
 // product names nor collections may carry "Stanza". Hidden-vendor convention
 // (Stone Pride, Icon): name = "{Color} {Descriptive Type}", collection = the
-// series descriptor alone.
+// SAME descriptor — the PDP title builder (fullProductName) prepends the
+// collection unless the product name ends with it, so name suffix and stored
+// collection must stay identical. (Sinks are exempt: variant_type='accessory'
+// takes the label branch, which never prepends the collection.)
 const NAME_SUFFIX = {
   'Tumbled Pebble Mesh': 'Tumbled Pebble Mosaic',
   'Polished Pebble Mesh': 'Polished Pebble Mosaic',
@@ -151,7 +159,6 @@ const NAME_SUFFIX = {
   'Designer Stone Mosaic': 'Designer Stone Mosaic',
   'Bubble Pebble 3D': '3D Bubble Pebble Mosaic',
   'Multi-Finished Hexagon Marble Mosaic': 'Hexagon Marble Mosaic',
-  'Handcrafted Natural Stone Vessel Sink': 'Vessel Sink',
 };
 
 // The PDF's item names are colors, some with the series baked in
@@ -227,7 +234,8 @@ for (const [coll, collDesc, rows] of COLLECTIONS) {
     const categorySlug = isSink ? 'bathroom-sinks' : 'mosaic-tile';
     const cover = COVER[size];
     const color = colorOf(name);
-    const publicName = displayName(color, NAME_SUFFIX[coll] || coll);
+    const publicColl = NAME_SUFFIX[coll] || coll;
+    const publicName = displayName(color, isSink ? 'Vessel Sink' : publicColl);
 
     // pricing / packaging
     let sell_by, price_basis, retail, sqft_per_box, pieces_per_box;
@@ -253,7 +261,7 @@ for (const [coll, collDesc, rows] of COLLECTIONS) {
     // attrs — no `brand` attribute: the vendor is publicly hidden and the PDP
     // spec table renders every sku_attribute (products.brand_id stays for staff)
     const attrs = {
-      collection: coll,
+      collection: publicColl,
       material: materialOf(name, colorDesc),
       color,
       color_family: colorFamily(name + ' ' + colorDesc),
@@ -270,7 +278,7 @@ for (const [coll, collDesc, rows] of COLLECTIONS) {
     }
 
     catalog.push({
-      collection: coll,
+      collection: publicColl,
       name: publicName,
       slug,
       category_slug: categorySlug,
