@@ -17320,14 +17320,26 @@
     // --- Step 3: Send POs ---
     function RofSendPOsStep({ data, setData, showCost, setStep }) {
       // Mirror backend generatePurchaseOrders: catalog lines (sku_id) AND custom
-      // lines tied to a known vendor (vendor_id) both land on a vendor PO. One-off
-      // vendor lines (custom_vendor free text, no vendor_id) never do, so keep them
-      // off this step too — otherwise a custom item silently vanishes from the POs.
-      const items = (data.items || []).filter(i => !i.is_sample && (i.sku_id || i.vendor_id));
+      // lines with a vendor both land on a vendor PO. A ONE-OFF custom line
+      // (custom_vendor free text) has no vendor_id locally — the backend assigns
+      // one (findOrCreateOneOffVendor) at order creation and DOES cut it a PO. So
+      // reconcile each such line with that backend vendor_id (from the created
+      // order's items, matched by product name) instead of dropping it, otherwise
+      // its PO silently vanishes from this step.
+      const createdItems = (data.createdOrder && data.createdOrder.items) || [];
+      const oneOffVendorId = (i) => {
+        const m = createdItems.find(ci => !ci.sku_id && ci.vendor_id && String(ci.product_name || '') === String(i.product_name || ''));
+        return m ? m.vendor_id : null;
+      };
+      const items = (data.items || []).filter(i => !i.is_sample).map(i => {
+        if (i.sku_id || i.vendor_id) return i;
+        const vid = i.custom_vendor ? oneOffVendorId(i) : null;
+        return vid ? { ...i, vendor_id: vid, vendor_name: i.vendor_name || i.custom_vendor } : i;
+      }).filter(i => i.sku_id || i.vendor_id);
       const vendorGroups = {};
       items.forEach(item => {
         const vKey = item.vendor_id || '_unknown';
-        if (!vendorGroups[vKey]) vendorGroups[vKey] = { vendor_name: item.vendor_name || 'Unknown Vendor', vendor_public_code: item.vendor_public_code || null, items: [] };
+        if (!vendorGroups[vKey]) vendorGroups[vKey] = { vendor_name: item.vendor_name || item.custom_vendor || 'Unknown Vendor', vendor_public_code: item.vendor_public_code || null, items: [] };
         vendorGroups[vKey].items.push(item);
       });
 
