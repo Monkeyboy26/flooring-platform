@@ -322,7 +322,7 @@ function resolveSellBy(pimSlug, accessory, parsedSoldBy) {
 // Collections sold by the FULL BOX only (owner rule), even where the AZ list
 // prices the individual patterns per piece (EA). Their EA rows convert to
 // box/per_sqft via Sf/Pc so they sell like field tile.
-const BOX_ONLY_SERIES = /cementine/i;
+const BOX_ONLY_SERIES = /cementine|flash bars|spark bars/i;
 
 // Derive sell_by + cost + price_basis from a price-list entry.
 // Mosaics, ledger/stack panels, and trim are sold per sheet/piece — always,

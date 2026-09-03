@@ -2,16 +2,17 @@
 /**
  * fix-cementine-box.mjs
  *
- * Owner rule (2026-09-03): ALL Cementine items are sold by the box — the AZ
- * price list prices the individual patterns (B&W/Evo/Posa/Retro 1-5) per piece
- * (EA $4.06, sf/pc 0.4304), but the store only sells full 27-pc boxes, exactly
- * like the B&W Mix row the list itself prices per BX ($109.70 → $9.44/sf).
+ * Owner rule (2026-09-03): Cementine, Flash Bars, and Spark Bars are sold by
+ * the box — the AZ price list prices the individual pieces per each (Cementine
+ * patterns EA $4.06 @ 0.4304 sf/pc; Flash/Spark Bars EA $3.11 @ 0.3368 sf/pc),
+ * but the store only sells full boxes, exactly like the B&W Mix row the list
+ * itself prices per BX ($109.70 → $9.44/sf).
  *
- * Converts every Cementine SKU still on unit/per_unit to box/per_sqft with
- * cost = EA net / sf-per-pc (4.06 / 0.4304 = $9.43/sf); retail is recomputed
- * by upsertPricing (keystone 1.6x, nine-ending, covering floor → $15.09/sf,
- * matching the B&W Mix). Packaging (27 pcs / 11.6208 sf per box) is already
- * present on all SKUs and is left untouched.
+ * Converts every matching SKU still on unit/per_unit to box/per_sqft with
+ * cost = EA net / sf-per-pc (derived from the SKU's own packaging:
+ * sqft_per_box / pieces_per_box); retail is recomputed by upsertPricing
+ * (keystone 1.6x, nine-ending, covering floor — Cementine $15.09/sf, matching
+ * the B&W Mix). Packaging is already present on all SKUs and left untouched.
  *
  * The importer is guarded the same way (scrapers/arizona.js BOX_ONLY_SERIES +
  * BX handling in planFromPriceList) so a re-scrape will not revert this.
@@ -35,11 +36,8 @@ const pool = new pg.Pool({
 });
 const r2 = v => Math.round(v * 100) / 100;
 
-// Price-list authoritative: every Cementine pattern row is EA $4.06 @ 0.4304 sf/pc.
-const SF_PER_PC = 0.4304;
-
 async function main() {
-  console.log(`\n=== Cementine sell-by-box fix (${APPLY ? 'APPLY' : 'DRY RUN'}) ===\n`);
+  console.log(`\n=== Box-only collections fix (${APPLY ? 'APPLY' : 'DRY RUN'}) ===\n`);
   const { rows } = await pool.query(`
     SELECT s.id AS sku_id, s.vendor_sku, p.name, s.sell_by,
            pr.cost, pr.retail_price, pr.price_basis, pk.sqft_per_box, pk.pieces_per_box
@@ -48,7 +46,8 @@ async function main() {
     JOIN vendors v ON v.id = p.vendor_id
     LEFT JOIN pricing pr ON pr.sku_id = s.id
     LEFT JOIN packaging pk ON pk.sku_id = s.id
-    WHERE v.code = 'AZT' AND p.name ILIKE '%cementine%'
+    WHERE v.code = 'AZT'
+      AND (p.name ILIKE '%cementine%' OR p.name ILIKE '%flash bars%' OR p.name ILIKE '%spark bars%')
     ORDER BY p.name`);
 
   const plan = [];
@@ -57,7 +56,13 @@ async function main() {
       console.log(`  = ${c.vendor_sku}  ${c.name} — already box/per_sqft @ ${c.cost}, skipped`);
       continue;
     }
-    const cost = r2(parseFloat(c.cost) / SF_PER_PC); // EA net → per-sqft
+    const sfPerPc = c.sqft_per_box && c.pieces_per_box
+      ? parseFloat(c.sqft_per_box) / c.pieces_per_box : null;
+    if (!sfPerPc || !c.cost) {
+      console.log(`  ! ${c.vendor_sku}  ${c.name} — missing packaging or cost, skipped`);
+      continue;
+    }
+    const cost = r2(parseFloat(c.cost) / sfPerPc); // EA net → per-sqft
     plan.push({ cur: c, cost, retail: r2(cost * 1.6) });
   }
 
