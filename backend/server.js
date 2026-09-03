@@ -18337,16 +18337,21 @@ app.post('/api/rep/valor/charge', repAuth, async (req, res) => {
     // ref for reconciliation; fall back to a unique token when charging pre-order.
     const refPart = (req.body.order_ref ? String(req.body.order_ref).replace(/[^A-Za-z0-9]/g, '') : '').slice(0, 12);
     const reqTxnId = (refPart ? refPart + '-' : 'RM-') + Date.now().toString(36).toUpperCase();
+    const vlog = (msg) => console.log(`[Valor] ${reqTxnId} $${amount.toFixed(2)} — ${msg}`);
+    vlog('charge requested by rep ' + (req.rep && req.rep.email || req.rep && req.rep.id || '?'));
 
     let status;
     try {
       status = await valorConnect.deviceStatus();
     } catch (e) {
+      vlog('device unreachable (502): ' + e.message);
       return res.status(502).json({ error: 'Could not reach the terminal on Valor: ' + e.message });
     }
     if (!status.isOnline) {
+      vlog('terminal offline (409)');
       return res.status(409).json({ error: 'The terminal appears to be offline. Make sure it is powered on and connected, then try again.' });
     }
+    vlog('device online — publishing sale to terminal');
 
     let resp;
     try {
@@ -18354,20 +18359,24 @@ app.post('/api/rep/valor/charge', repAuth, async (req, res) => {
     } catch (e) {
       // Connection dropped mid-tap — recover the outcome by REQ_TXN_ID so we
       // never double-charge or lose an approval.
+      vlog('publish connection dropped (' + e.message + ') — recovering via txn_status');
       try {
         resp = await valorConnect.txnStatus(reqTxnId);
       } catch (e2) {
+        vlog('recovery failed (504): ' + e2.message);
         return res.status(504).json({ error: 'The terminal did not respond in time. Check the terminal for the result before retrying.' });
       }
     }
 
     const out = valorConnect.toCardTxn(resp);
     if (!out.approved) {
+      vlog('declined/cancelled (402): ' + out.error);
       return res.status(402).json({ error: out.error, declined: true });
     }
+    vlog(`APPROVED — txn ${out.card_txn.tran_no} ${out.card_txn.brand} ****${out.card_txn.last4}`);
     res.json({ card_txn: out.card_txn, req_txn_id: reqTxnId });
   } catch (err) {
-    console.error('valor charge', err);
+    console.error('[Valor] charge error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
