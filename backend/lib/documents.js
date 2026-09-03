@@ -1656,7 +1656,10 @@ export function generateOrderInvoiceDoc(o, items, payment, milestones = []) {
     if ((!baseName || baseName === 'Product') && i.description) baseName = i.description;
     const name = escDoc(baseName || '—');
     const suffix = escDoc(ci.descriptors.join(' · '));
-    const brandLine = escDoc(ci.vendor || '');
+    // One-off custom lines: never print the vendor name on the customer invoice —
+    // ci.vendor falls back to the one-off custom_vendor, which the customer must not
+    // see (margin protection). Vendor POs / rep docs still show it. [[hide-public-brand]]
+    const brandLine = i.custom_vendor ? '' : escDoc(ci.vendor || '');
     const skuLine = escDoc(ci.sku || '');
     // Coverage: prefer the captured sqft_needed; otherwise fall back to
     // qty × sqft/box so box lines aren't blank. Per-box uses the real packaging
