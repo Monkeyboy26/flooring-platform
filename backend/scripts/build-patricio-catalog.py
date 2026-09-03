@@ -208,7 +208,7 @@ def parse_pavers():
             desc=re.sub(r'(\d)x (\d)',r'\1x\2',desc)  # '3x 3'->'3x3'
             dm=re.match(r'(\d+)x(\d+)',desc); sf=round(int(dm.group(1))*int(dm.group(2))/144.0,4) if dm else None
             skus.append({'size':desc,'cost':cost,'vendor_sku':slug(label+' '+desc),'sqft':sf,'variant':desc,'weight':wt})
-        add(section='Pavers',category='talavera-tile',covering=True,accessory=False,design=slug(label),collection='Mexican Pavers',
+        add(section='Pavers',category='pavers',covering=True,accessory=False,design=slug(label),collection='Mexican Pavers',
             woo_cat='Mexican Pavers',woo_codes=woo_codes,base_name=f'{label} Mexican Paver',name=f'{label} Mexican Paver',skus=skus,
             attrs={'material':'Saltillo Clay','country':'Mexico','collection':'Mexican Pavers','type':'Paver'})
     mk(sal,'Saltillo',['REGULARSALTILLO','SUPERSALTILLO','regular-saltillo'])

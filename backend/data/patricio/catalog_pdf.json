@@ -13729,7 +13729,7 @@
  },
  {
   "section": "Pavers",
-  "category": "talavera-tile",
+  "category": "pavers",
   "covering": true,
   "accessory": false,
   "design": "saltillo",
@@ -13897,7 +13897,7 @@
  },
  {
   "section": "Pavers",
-  "category": "talavera-tile",
+  "category": "pavers",
   "covering": true,
   "accessory": false,
   "design": "lincoln",
