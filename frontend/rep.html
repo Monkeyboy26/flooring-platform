@@ -19306,6 +19306,21 @@
               </div>
             </div>
             <div className="ws-head-actions">
+              <AddTaskButton
+                navigate={navigate}
+                className="ol-header-btn"
+                label="+ Task"
+                prefill={{
+                  linked_sample_request_id: sr.id,
+                  context_label: sr.request_number + (sr.customer_name ? ' · ' + sr.customer_name : ''),
+                  customer_name: sr.customer_name,
+                  customer_email: sr.customer_email,
+                  customer_phone: sr.customer_phone,
+                  linked_customer_type: sr.customer_id ? 'retail' : null,
+                  linked_customer_ref: sr.customer_id || sr.customer_email || null
+                }}
+                onSaved={loadSampleTasks}
+              />
               {allSamplesReady && !sr.all_ready_notified_at && isOpen && (
                 <button className="ol-header-btn" disabled={notifying} onClick={() => setReadyPrompt(true)}>Email customer</button>
               )}
@@ -19611,6 +19626,11 @@
                   </div>
                 </div>
               )}
+
+              {/* Requested timestamp — under the sample items */}
+              <div style={{ marginTop: 14, font: '500 10px/1.4 ui-monospace, monospace', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--rod-muted)' }}>
+                Requested {fmtTs(sr.created_at)}
+              </div>
             </div>
 
             {/* Right rail */}
@@ -19725,24 +19745,7 @@
 
               {/* Tasks */}
               <div className="qw-rail-card">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <h3 style={{ margin: 0 }}>Tasks</h3>
-                  <AddTaskButton
-                    navigate={navigate}
-                    label="+ Task"
-                    className="qw-link"
-                    prefill={{
-                      linked_sample_request_id: sr.id,
-                      context_label: sr.request_number,
-                      customer_name: sr.customer_name,
-                      customer_email: sr.customer_email,
-                      customer_phone: sr.customer_phone,
-                      linked_customer_type: sr.customer_id ? 'retail' : null,
-                      linked_customer_ref: sr.customer_id || sr.customer_email || null
-                    }}
-                    onSaved={loadSampleTasks}
-                  />
-                </div>
+                <h3>Tasks</h3>
                 {sampleTasks.length === 0 ? (
                   <div style={{ font: '400 12px/1.5 Inter, sans-serif', color: 'var(--rod-muted)' }}>No tasks yet.</div>
                 ) : (
