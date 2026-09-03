@@ -19309,7 +19309,7 @@
             : '$12 flat rate',
           action: !sr.shipping_payment_collected
             ? (shipRefunded > 0 ? null : 'collect_payment')
-            : (shipOnlinePaid && shipRefundable > 0 ? 'refund_payment' : 'uncollect_payment')
+            : (shipOnlinePaid ? null : 'uncollect_payment')
         });
       }
       const vendorsTotal = new Set(activeItems.map(i => i.vendor_id || 'unknown')).size;
@@ -19849,8 +19849,6 @@
                           <button style={{ ...sdSmallBtn, background: 'var(--rod-ink)', color: '#fff', borderColor: 'var(--rod-ink)' }} disabled={paymentActing} onClick={() => setShowPayModal(true)}>Card $12</button>
                           <button style={sdSmallBtn} disabled={paymentActing} onClick={() => markPaymentCollected(true, 'cash')}>{paymentActing ? '…' : 'Cash'}</button>
                         </span>
-                      ) : step.action === 'refund_payment' ? (
-                        <button className="qw-link" style={{ color: 'var(--rod-red)' }} disabled={paymentActing} onClick={refundSampleShipping}>{paymentActing ? '…' : 'Refund $' + shipRefundable.toFixed(2)}</button>
                       ) : step.action === 'uncollect_payment' ? (
                         <button className="qw-link muted" disabled={paymentActing} onClick={() => markPaymentCollected(false)}>Undo</button>
                       ) : (
@@ -24530,12 +24528,6 @@
                             {amt < 0 ? '-' : ''}${Math.abs(amt).toFixed(2)}
                           </div>
                           <RovMicro color={stateColor} style={{ marginTop: 3 }}>{state}</RovMicro>
-                          {canCounterRefund(p) && (
-                            <button className="rov-doc-link" style={{ marginTop: 4 }}
-                              onClick={() => { setRefundTarget(p); setRefundAmount(tenderRemaining(p).toFixed(2)); setRefundReason(''); }}>
-                              Refund
-                            </button>
-                          )}
                         </div>
                       </div>
                     );
