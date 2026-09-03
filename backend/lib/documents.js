@@ -1098,7 +1098,9 @@ export function generateQuoteHtml(q, items) {
     if ((!baseName || baseName === 'Product') && i.description) baseName = i.description;
     const name = escDoc(baseName || '—');
     const suffix = escDoc(ci.descriptors.join(' · '));
-    const brandLine = escDoc(ci.vendor || '');
+    // One-off custom lines: hide the vendor name on the customer quote — ci.vendor
+    // falls back to the one-off custom_vendor (margin protection). [[hide-public-brand]]
+    const brandLine = i.custom_vendor ? '' : escDoc(ci.vendor || '');
     const skuLine = escDoc(ci.sku || '');
     const perBoxSqft = parseFloat(i.sqft_per_box || 0);
     let sqft = parseFloat(i.sqft_needed || 0);
@@ -1340,7 +1342,9 @@ export function generateEstimateHtml(e, materials = [], labor = [], milestones =
     const suffix = escDoc(_ci.descriptors.join(' · '));
     const skuLine = [...new Set([
       i.vendor_sku ? 'SKU ' + i.vendor_sku : null,
-      i.brand_hidden ? (i.vendor_public_code || null) : (i.brand_name || i.vendor_name)
+      // One-off custom lines: hide the vendor name on the customer estimate — the
+      // query aliases custom_vendor into brand_name/vendor_name. [[hide-public-brand]]
+      i.custom_vendor ? null : (i.brand_hidden ? (i.vendor_public_code || null) : (i.brand_name || i.vendor_name))
     ].filter(Boolean))].join(' · ');
     const perBoxSqft = parseFloat(i.sqft_per_box || 0);
     let sqft = parseFloat(i.sqft_needed || 0);
