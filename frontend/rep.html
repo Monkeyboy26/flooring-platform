@@ -13767,7 +13767,14 @@
       const phone = data.customer ? data.customer.phone : data.newCustomerPhone || '';
       const companyName = data.customer ? (data.customer.company_name || '') : (data.newCustomerCompany || '');
       const itemCount = (data.items || []).length;
-      const vendorCount = [...new Set((data.items || []).filter(i => i.vendor_id).map(i => i.vendor_id))].length;
+      // Count distinct vendors that will get a PO — including one-off custom lines
+      // (custom_vendor free text with no local vendor_id), each keyed by name, so
+      // the "X vendor POs queued" label isn't wrong ("no POs needed") for one-offs.
+      const vendorCount = new Set(
+        (data.items || [])
+          .filter(i => !i.is_sample && (i.vendor_id || i.custom_vendor))
+          .map(i => i.vendor_id || ('oneoff:' + String(i.custom_vendor || '').trim().toLowerCase()))
+      ).size;
       const itemsSubtotal = (data.items || []).reduce((s, i) => s + i.subtotal, 0);
       const discount = data.promoResult ? data.promoResult.discount_amount : 0;
       const taxableSub = Math.max(0, itemsSubtotal - discount);
@@ -13915,7 +13922,7 @@
           // Move to processed task
           setTaskStatus(taskIdx, 'running');
           await new Promise(r => setTimeout(r, 400));
-          if ((data.items || []).some(i => i.sku_id)) {
+          if ((data.items || []).some(i => i.sku_id || i.vendor_id || i.custom_vendor)) {
             log.push({ ok: true, message: 'Draft purchase orders created', time: now() });
           }
           log.push({ ok: true, message: 'Order ' + (result.order.order_number || '#' + result.order.id) + ' processed', time: now() });
