@@ -1252,6 +1252,16 @@ export async function run(pool, job, source) {
           continue;
         }
 
+        // Skip the L01–L08 Mexican Talavera-style deco tiles. Patricio Tile now
+        // carries the full authoritative L-series (L01–L154 "Sol Hombre", etc.), so
+        // Orion's bare-code duplicates are dropped to kill the catalog overlap
+        // (owner 2026-09-02). MEXICAN_DECO_TILE still drives category/material for any
+        // legacy row, but new scrapes no longer create these.
+        if (MEXICAN_DECO_TILE.has(productName.trim().toLowerCase())) {
+          stats.skipped++;
+          continue;
+        }
+
         // Skip products not in the dealer price list
         if (!isInPriceList(productName)) {
           stats.skipped++;
