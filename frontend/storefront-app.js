@@ -1389,6 +1389,12 @@
         showCollection = "";
       } else if (nameLower.includes(" " + colLower + " ") || nameLower.endsWith(" " + colLower)) {
         showCollection = "";
+      } else if ((() => {
+        const nameToks = new Set(nameLower.split(/[^a-z0-9']+/).filter(Boolean));
+        const colToks = colLower.split(/[^a-z0-9']+/).filter((t) => t && t !== "and");
+        return colToks.length > 0 && colToks.every((t) => nameToks.has(t));
+      })()) {
+        showCollection = "";
       } else if (/\b(series|collection|edition)\b/i.test(name)) {
         showCollection = "";
         const colorAttr = (sku.attributes || []).find((a) => a.slug === "color");

@@ -275,6 +275,17 @@ export function fullProductName(sku) {
     } else if (nameLower.includes(' ' + colLower + ' ') || nameLower.endsWith(' ' + colLower)) {
       // Collection name embedded in middle/end of product name — skip collection display
       showCollection = '';
+    } else if ((() => {
+      // Reordered echo: every word of the collection already appears in the
+      // product name ("Bubble Pebble 3D" vs "Green 3D Bubble Pebble Mosaic"),
+      // just not as one contiguous substring — prefixing the collection would
+      // double the title. Whole-word tokens only ("Arena" never matches
+      // "Arenas"); "&"/"and" don't count as content words.
+      const nameToks = new Set(nameLower.split(/[^a-z0-9']+/).filter(Boolean));
+      const colToks = colLower.split(/[^a-z0-9']+/).filter(t => t && t !== 'and');
+      return colToks.length > 0 && colToks.every(t => nameToks.has(t));
+    })()) {
+      showCollection = '';
     } else if (/\b(series|collection|edition)\b/i.test(name)) {
       // Product name is self-identifying (e.g. "Bohol Series", "Carrara Collection")
       // Skip the broader collection/category prefix to avoid "Pool Tile Bohol Series"
