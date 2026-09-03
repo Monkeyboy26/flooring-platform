@@ -25137,8 +25137,12 @@ app.post('/api/rep/quotes', repAuth, async (req, res) => {
         if (oneOffName && /^\S+@\S+\.\S+$/.test(oneOffEmail)) {
           itemVendorId = await findOrCreateOneOffVendor(client, oneOffName, oneOffEmail);
         }
+        // Save the rep-entered cost for ANY line — catalog cost overrides included,
+        // not just custom lines — so it persists onto the order + PO at conversion.
+        // The order wizard already stores it this way and generatePurchaseOrders
+        // honors an overridden order_items.cost. A rug's server-computed cost wins.
         const rugCost = rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null)
-          : (!item.sku_id && item.cost != null && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) > 0 ? parseFloat(item.cost).toFixed(2) : null);
+          : (item.cost != null && item.cost !== '' && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) >= 0 ? parseFloat(item.cost).toFixed(2) : null);
         await client.query(`
           INSERT INTO quote_items (quote_id, product_id, sku_id, product_name, collection, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost, is_custom_rug, custom_width_ft, custom_length_ft)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
@@ -25440,7 +25444,7 @@ app.post('/api/rep/quotes/:id/items', repAuth, async (req, res) => {
         rug ? false : (is_sample || false),
         rug ? null : quoteItemVendorId,
         rug ? null : (!sku_id ? (customVendorName || null) : null),
-        rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : (!sku_id && customCost != null ? customCost.toFixed(2) : null),
+        rug ? (rug.cost != null ? parseFloat(rug.cost).toFixed(2) : null) : (customCost != null ? customCost.toFixed(2) : null),
         rug ? true : false, rug ? rug.custom_width_ft : null, rug ? rug.custom_length_ft : null]);
 
     // Recalculate quote totals
@@ -27666,10 +27670,11 @@ async function convertQuoteToOrderTx(client, q, items, opts) {
   }
   for (const item of items) {
     await client.query(`
-      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, cost, is_custom_rug, custom_width_ft, custom_length_ft)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      INSERT INTO order_items (order_id, product_id, sku_id, product_name, collection, parent_collection, parent_color, description, sqft_needed, num_boxes, unit_price, subtotal, sell_by, is_sample, vendor_id, custom_vendor, cost, is_custom_rug, custom_width_ft, custom_length_ft)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
     `, [order.id, item.product_id, item.sku_id, item.product_name, item.collection, item.parent_collection || null, item.parent_color || null, item.description,
         item.sqft_needed, item.num_boxes, item.unit_price, item.subtotal, item.sell_by, item.is_sample,
+        item.vendor_id || null, item.custom_vendor || null,
         item.cost || null, item.is_custom_rug || false, item.custom_width_ft || null, item.custom_length_ft || null]);
   }
   // Carry the quote's internal notes onto the order (multi-entry, author+time
