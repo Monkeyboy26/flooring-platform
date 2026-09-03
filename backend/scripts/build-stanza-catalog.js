@@ -134,6 +134,40 @@ const COLLECTIONS = [
   ]],
 ];
 
+// ---------- public naming ----------
+// The vendor is hidden on the storefront (shows as bare code 563), so neither
+// product names nor collections may carry "Stanza". Hidden-vendor convention
+// (Stone Pride, Icon): name = "{Color} {Descriptive Type}", collection = the
+// series descriptor alone.
+const NAME_SUFFIX = {
+  'Tumbled Pebble Mesh': 'Tumbled Pebble Mosaic',
+  'Polished Pebble Mesh': 'Polished Pebble Mosaic',
+  'Leveled Indonesian Pebble Mosaic': 'Leveled Indonesian Pebble Mosaic',
+  'Standing Pebble': 'Standing Pebble Mosaic',
+  'Flat Pebble Mesh': 'Flat Pebble Mosaic',
+  'Jade Stone Mosaic': 'Jade Stone Mosaic',
+  'Flat Indonesian Stone Mosaic': 'Flat Indonesian Stone Mosaic',
+  'Honeycomb Indonesian Pebble': 'Honeycomb Pebble Mosaic',
+  'Designer Stone Mosaic': 'Designer Stone Mosaic',
+  'Bubble Pebble 3D': '3D Bubble Pebble Mosaic',
+  'Multi-Finished Hexagon Marble Mosaic': 'Hexagon Marble Mosaic',
+  'Handcrafted Natural Stone Vessel Sink': 'Vessel Sink',
+};
+
+// The PDF's item names are colors, some with the series baked in
+// ("Honeycomb Flat Grey", "Bubble 3D Green", "River Rock Sink").
+function colorOf(name) {
+  return name.replace(/^Honeycomb\s+/i, '').replace(/^Bubble 3D\s+/i, '').replace(/\s+Sink$/i, '');
+}
+
+// "{Color} {Type}", skipping type words the color already carries
+// ("Flat Green" + "Flat Indonesian Stone Mosaic" → "Flat Green Indonesian Stone Mosaic").
+function displayName(color, suffix) {
+  const have = new Set(color.toLowerCase().split(/\s+/));
+  const toks = suffix.split(/\s+/).filter(t => !have.has(t.toLowerCase()));
+  return [color, ...toks].join(' ');
+}
+
 // ---------- attribute derivation ----------
 const SIZE_LABEL = { '12x12': '12" x 12"', '6x6hex': '6" x 6" Hexagon', '17.7x17.7': '17.7" x 17.7"', '4x12': '4" x 12"', 'sink': '' };
 
@@ -192,6 +226,8 @@ for (const [coll, collDesc, rows] of COLLECTIONS) {
     const isSink = mode === 'unit';
     const categorySlug = isSink ? 'bathroom-sinks' : 'mosaic-tile';
     const cover = COVER[size];
+    const color = colorOf(name);
+    const publicName = displayName(color, NAME_SUFFIX[coll] || coll);
 
     // pricing / packaging
     let sell_by, price_basis, retail, sqft_per_box, pieces_per_box;
@@ -211,15 +247,15 @@ for (const [coll, collDesc, rows] of COLLECTIONS) {
     const coverNote = cover ? ` Each ${SIZE_LABEL[size]} mesh-mounted sheet covers ${cover.toFixed(2)} sq ft.` : '';
     const gen = isSink
       ? `Handcrafted ${colorDesc} vessel sink. Each piece is unique in shape, color and size. Sold per unit.`
-      : `${name} — ${collDesc} in ${colorDesc}.${coverNote} Natural stone; expect natural variation in veining, pits and shade.`;
+      : `${publicName} — ${collDesc} in ${colorDesc}.${coverNote} Natural stone; expect natural variation in veining, pits and shade.`;
     const description = siteDesc ? `${siteDesc}${!isSink ? coverNote : ''}` : gen;
 
-    // attrs
+    // attrs — no `brand` attribute: the vendor is publicly hidden and the PDP
+    // spec table renders every sku_attribute (products.brand_id stays for staff)
     const attrs = {
-      brand: 'Stanza',
-      collection: `Stanza ${coll}`,
+      collection: coll,
       material: materialOf(name, colorDesc),
-      color: name,
+      color,
       color_family: colorFamily(name + ' ' + colorDesc),
       product_type: isSink ? 'Vessel Sink' : 'Mosaic Tile',
     };
@@ -234,8 +270,8 @@ for (const [coll, collDesc, rows] of COLLECTIONS) {
     }
 
     catalog.push({
-      collection: `Stanza ${coll}`,
-      name,
+      collection: coll,
+      name: publicName,
       slug,
       category_slug: categorySlug,
       description,
@@ -244,9 +280,9 @@ for (const [coll, collDesc, rows] of COLLECTIONS) {
         internal_sku: 'STZ-' + key,
         vendor_sku: code,
         // single-SKU products — no size axis, so the variant name is just the
-        // product name (size lives in the `size` attribute). Avoids the
-        // storefront rendering a spurious size variant.
-        variant_name: name,
+        // color (size lives in the `size` attribute). Avoids the storefront
+        // rendering a spurious size variant.
+        variant_name: color,
         cost: money(cost),
         retail: money(retail),
         sell_by,
