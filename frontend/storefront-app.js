@@ -6664,6 +6664,24 @@
         if (!isNaN(na) && !isNaN(nb)) return na - nb;
         return a.localeCompare(b);
       };
+      let _designFallback = false;
+      if (colorItems.length === 0 && !showSibSizes && !showAttrSizes && !showSizePills && !showFinishPills && !showSubLinePill && mainSiblings.length > 0 && !(sku.attributes || []).length && mainSiblings.every((s) => !(s.attributes || []).length)) {
+        const seen = /* @__PURE__ */ new Set();
+        const items = [];
+        const pushItem = (s, isCur, img) => {
+          const key = (s.variant_name || "").trim().toLowerCase();
+          if (!s.variant_name || seen.has(key)) return;
+          seen.add(key);
+          items.push({ sku_id: s.sku_id, product_name: formatVariantName(s.variant_name), variant_name: s.variant_name, primary_image: img, is_current: isCur });
+        };
+        pushItem(sku, true, media && media[0] ? media[0].url : null);
+        mainSiblings.forEach((s) => pushItem(s, false, getVariantImage(s)));
+        if (items.length >= 2) {
+          items.sort((a, b) => (a.product_name || "").localeCompare(b.product_name || "", void 0, { numeric: true }));
+          colorItems = items;
+          _designFallback = true;
+        }
+      }
       const showColors = colorItems.length >= 2;
       const isRomanVariants = showColors && colorItems.some((c) => hasRomanSuffix(c.product_name));
       let romanStyleItems = [];
@@ -6718,7 +6736,7 @@
         }
       }
       const showRomanStylePills = romanStyleItems.length >= 2;
-      const colorLabel = attrMap["countertop_finish"] ? "Cabinet Color" : isRomanVariants ? "Style" : "Color";
+      const colorLabel = _designFallback ? "Design" : attrMap["countertop_finish"] ? "Cabinet Color" : isRomanVariants ? "Style" : "Color";
       const showAttrs = attrSlugs.length > 0;
       const isColorCompatible = (c) => {
         if (c.is_current) return true;

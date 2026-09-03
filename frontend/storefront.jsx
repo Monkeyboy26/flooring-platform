@@ -8925,6 +8925,35 @@
                   if (_drop.size) attrSlugs = attrSlugs.filter(s => !_drop.has(s));
                 }
                 const sizeSort = (a, b) => { const na = parseFractionalInches(a), nb = parseFractionalInches(b); if (!isNaN(na) && !isNaN(nb)) return na - nb; return a.localeCompare(b); };
+                // Fallback design pills: attribute-less multi-SKU products (e.g. Stone Pride
+                // Marble Borders / Marble Mosaic Liners) where each sibling is a distinct
+                // design with its own image but carries no color/size attributes and uses
+                // "6×18"-style dimensions the size heuristics don't parse. Without this, none
+                // of the pill sources above fire and every design is unreachable — the PDP
+                // only ever shows the one SKU you landed on. Surface the raw variant_names as
+                // a Design swatch row, deduped by name. Guarded tightly (no attrs on the SKU
+                // OR any sibling, and no other pill source active) so first-class attribute/
+                // collection products are never touched.
+                let _designFallback = false;
+                if (colorItems.length === 0 && !showSibSizes && !showAttrSizes && !showSizePills
+                    && !showFinishPills && !showSubLinePill && mainSiblings.length > 0
+                    && !(sku.attributes || []).length && mainSiblings.every(s => !(s.attributes || []).length)) {
+                  const seen = new Set();
+                  const items = [];
+                  const pushItem = (s, isCur, img) => {
+                    const key = (s.variant_name || '').trim().toLowerCase();
+                    if (!s.variant_name || seen.has(key)) return;
+                    seen.add(key);
+                    items.push({ sku_id: s.sku_id, product_name: formatVariantName(s.variant_name), variant_name: s.variant_name, primary_image: img, is_current: isCur });
+                  };
+                  pushItem(sku, true, (media && media[0]) ? media[0].url : null);
+                  mainSiblings.forEach(s => pushItem(s, false, getVariantImage(s)));
+                  if (items.length >= 2) {
+                    items.sort((a, b) => (a.product_name || '').localeCompare(b.product_name || '', undefined, { numeric: true }));
+                    colorItems = items;
+                    _designFallback = true;
+                  }
+                }
                 const showColors = colorItems.length >= 2;
                 const isRomanVariants = showColors && colorItems.some(c => hasRomanSuffix(c.product_name));
 
@@ -8992,7 +9021,7 @@
                 }
                 const showRomanStylePills = romanStyleItems.length >= 2;
 
-                const colorLabel = attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : 'Color';
+                const colorLabel = _designFallback ? 'Design' : attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : 'Color';
                 const showAttrs = attrSlugs.length > 0;
                 // Check if the currently selected size/finish is available for a color swatch
                 const isColorCompatible = (c) => {
