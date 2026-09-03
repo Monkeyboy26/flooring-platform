@@ -1298,6 +1298,14 @@
         // Strip category suffix from display_name (e.g., "Prime 3 Engineered Hardwood" → "Prime 3")
         baseName = stripTypeSuffix(baseName, sku.category_name);
         const label = sku.accessory_label || sku.variant_name || '';
+        // Label echo: every word of the label already lives in the product name
+        // ("River Rock Vessel Sink" — label "River Rock") — appending it doubles
+        // the title. Keep the full stored name instead (incl. its type suffix).
+        if (label) {
+          const nameToks = new Set(name.toLowerCase().split(/[^a-z0-9']+/).filter(Boolean));
+          const labToks = label.toLowerCase().split(/[^a-z0-9']+/).filter(Boolean);
+          if (labToks.length && labToks.every(t => nameToks.has(t))) return name;
+        }
         return label ? baseName + ' — ' + label : baseName;
       }
 

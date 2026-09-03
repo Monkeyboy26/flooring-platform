@@ -1361,6 +1361,11 @@
       let baseName = name;
       baseName = stripTypeSuffix(baseName, sku.category_name);
       const label = sku.accessory_label || sku.variant_name || "";
+      if (label) {
+        const nameToks = new Set(name.toLowerCase().split(/[^a-z0-9']+/).filter(Boolean));
+        const labToks = label.toLowerCase().split(/[^a-z0-9']+/).filter(Boolean);
+        if (labToks.length && labToks.every((t) => nameToks.has(t))) return name;
+      }
       return label ? baseName + " \u2014 " + label : baseName;
     }
     name = name.replace(/^\d+\s*[xX×]\s*\d+\w?\s+/, "");
