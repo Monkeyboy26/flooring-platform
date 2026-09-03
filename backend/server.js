@@ -18805,6 +18805,24 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
       return res.status(400).json({ error: 'Card payments require an approved Valor terminal transaction (or a card charge).' });
     }
 
+    // Order-first support. `finalize:false` creates the order in a NOT-yet-finalized
+    // pending state (charge recorded + draft POs, but no confirm / customer emails /
+    // commission) so a captured payment always has a persisted order the instant it
+    // lands; the rep's "Process Order" step calls /finalize afterwards. Omitting the
+    // flag (default true) preserves the original one-shot create-and-confirm behavior
+    // for every other caller. `idempotency_key` makes the create retry-safe.
+    const finalize = req.body.finalize !== false;
+    const idemKey = (req.body.idempotency_key || '').toString().slice(0, 64) || null;
+    if (idemKey) {
+      const dup = await client.query('SELECT * FROM orders WHERE rep_order_key = $1 AND sales_rep_id = $2 LIMIT 1', [idemKey, req.rep.id]);
+      if (dup.rows.length) {
+        const eo = dup.rows[0];
+        const its = await pool.query('SELECT oi.* FROM order_items oi WHERE oi.order_id = $1', [eo.id]);
+        await enrichItemsForNaming(its.rows);
+        return res.json({ order: { ...eo, items: its.rows }, idempotent: true });
+      }
+    }
+
     const isPickup = delivery_method === 'pickup';
     // Will-call = customer picks up at the distributor. Like pickup, it carries no
     // freight and needs no Roma-side shipping address. [[material-releases]]
@@ -19046,7 +19064,9 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     }
     const orderNumber = await getNextOrderNumber();
     const paidInStore = ['cash', 'check', 'card', 'offline'].includes(payment_method);
-    const orderStatus = paidInStore ? 'confirmed' : 'pending';
+    // Order-first: a not-finalized create stays 'pending' even when paid in store —
+    // /finalize confirms it later. Default (finalize=true) keeps the original behavior.
+    const orderStatus = (paidInStore && finalize) ? 'confirmed' : 'pending';
 
     // Partial-payment support: the rep may collect a deposit (less than the full
     // total) at order entry. `payment_amount` is the amount actually collected by
@@ -19104,8 +19124,8 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip,
         subtotal, shipping, total, status, sales_rep_id, payment_method, delivery_method,
         stripe_payment_intent_id, promo_code_id, promo_code, discount_amount,
-        amount_paid, customer_id, tax_rate, tax_amount, notes, trade_customer_id, company_name, job_name, invoice_notes)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25, $26, $27, $28, $29)
+        amount_paid, customer_id, tax_rate, tax_amount, notes, trade_customer_id, company_name, job_name, invoice_notes, rep_order_key)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $24, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $25, $26, $27, $28, $29, $30)
       RETURNING *
     `, [orderNumber, customer_email.toLowerCase().trim(), customer_name, phone || null,
         noFreight ? null : shipping_address.line1, noFreight ? null : (shipping_address.line2 || null),
@@ -19114,7 +19134,7 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         isWillCall ? 'will_call' : isPickup ? 'pickup' : 'shipping',
         stripePaymentIntentId, promoCodeId, promoCodeStr, discountAmount.toFixed(2),
         paidInStore ? collectedNow.toFixed(2) : '0.00', cust.id, taxRate, taxAmount.toFixed(2),
-        shippingCost.toFixed(2), orderNotes, tradeCustomer ? tradeCustomer.id : null, companyName, jobName, invoiceNotes]);
+        shippingCost.toFixed(2), orderNotes, tradeCustomer ? tradeCustomer.id : null, companyName, jobName, invoiceNotes, idemKey]);
 
     const order = orderResult.rows[0];
 
@@ -19223,14 +19243,86 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
     await enrichItemsForNaming(orderItems.rows);
     res.json({ order: { ...order, items: orderItems.rows } });
 
-    // Recalculate commission for rep-created order
-    setImmediate(() => recalculateCommission(pool, order.id));
+    // Order-first: when the order is NOT being finalized in this call (finalize:false),
+    // defer commission, customer emails, and the rep notification to /finalize so a
+    // captured-but-abandoned pending order never emails a receipt or pays commission.
+    if (finalize) {
+      // Recalculate commission for rep-created order
+      setImmediate(() => recalculateCommission(pool, order.id));
 
-    // Fire-and-forget: send confirmation email, plus a paid invoice when payment
-    // was collected in-store (card/cash/check). The invoice PDF renders "Paid in
-    // full" only when amount_paid == total; a partial deposit renders the balance
-    // still due. The receipt reflects the amount actually collected. [[freight-quote-later]]
-    const emailOrder = { ...order, items: orderItems.rows };
+      // Fire-and-forget: send confirmation email, plus a paid invoice when payment
+      // was collected in-store (card/cash/check). The invoice PDF renders "Paid in
+      // full" only when amount_paid == total; a partial deposit renders the balance
+      // still due. The receipt reflects the amount actually collected. [[freight-quote-later]]
+      const emailOrder = { ...order, items: orderItems.rows };
+      setImmediate(async () => {
+        await attachRep(emailOrder);
+        sendOrderConfirmation(emailOrder);
+        if (paidInStore) {
+          try {
+            const invoiceResult = await generateOrderInvoiceHtml(order.id);
+            const pdfBuffer = invoiceResult ? await generatePDFBuffer(invoiceResult.html) : null;
+            await sendPaymentReceived(emailOrder, collectedNow, pdfBuffer);
+          } catch (invErr) {
+            console.error(`[Order] Paid invoice email failed for ${orderNumber}:`, invErr.message);
+          }
+        }
+      });
+
+      // Fire-and-forget: notify creating rep
+      setImmediate(() => createRepNotification(pool, req.rep.id, 'order_created',
+        'Order ' + orderNumber + ' created',
+        'You created order ' + orderNumber + ' for ' + customer_name + ' ($' + total.toFixed(2) + ')',
+        'order', order.id));
+    }
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// Order-first finalize: confirm a pending order created with finalize:false and
+// fire its deferred side-effects (confirm + vendor POs + customer confirmation/
+// receipt emails + commission). Idempotent via finalized_at, so the wizard's
+// Process Order step can call it safely once the payment(s) are attached.
+app.post('/api/rep/orders/:id/finalize', repAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const orderRes = await client.query('SELECT * FROM orders WHERE id = $1', [req.params.id]);
+    if (!orderRes.rows.length) return res.status(404).json({ error: 'Order not found' });
+    let order = orderRes.rows[0];
+
+    // Already finalized → idempotent no-op (safe against double "Process Order").
+    if (order.finalized_at) {
+      const its = await pool.query('SELECT oi.* FROM order_items oi WHERE oi.order_id = $1', [order.id]);
+      await enrichItemsForNaming(its.rows);
+      return res.json({ order: { ...order, items: its.rows }, already_finalized: true });
+    }
+
+    const paidInStore = ['cash', 'check', 'card', 'offline'].includes(order.payment_method);
+
+    await client.query('BEGIN');
+    const newStatus = (paidInStore && order.status === 'pending') ? 'confirmed' : order.status;
+    const confirmStamp = newStatus === 'confirmed' ? new Date() : null;
+    const upd = await client.query(
+      `UPDATE orders SET status = $1, finalized_at = NOW(),
+         confirmed_at = COALESCE(confirmed_at, $2)
+       WHERE id = $3 RETURNING *`,
+      [newStatus, confirmStamp, order.id]);
+    order = upd.rows[0];
+    // Ensure vendor POs exist (idempotent — draft POs from create stay as-is).
+    await generatePurchaseOrders(order.id, client);
+    await client.query('COMMIT');
+
+    const its = await pool.query('SELECT oi.* FROM order_items oi WHERE oi.order_id = $1', [order.id]);
+    await enrichItemsForNaming(its.rows);
+    res.json({ order: { ...order, items: its.rows } });
+
+    // Deferred side-effects — identical to a finalize:true create.
+    setImmediate(() => recalculateCommission(pool, order.id));
+    const emailOrder = { ...order, items: its.rows };
     setImmediate(async () => {
       await attachRep(emailOrder);
       sendOrderConfirmation(emailOrder);
@@ -19238,23 +19330,21 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         try {
           const invoiceResult = await generateOrderInvoiceHtml(order.id);
           const pdfBuffer = invoiceResult ? await generatePDFBuffer(invoiceResult.html) : null;
-          await sendPaymentReceived(emailOrder, collectedNow, pdfBuffer);
+          await sendPaymentReceived(emailOrder, parseFloat(order.amount_paid || 0), pdfBuffer);
         } catch (invErr) {
-          console.error(`[Order] Paid invoice email failed for ${orderNumber}:`, invErr.message);
+          console.error(`[Order] Finalize invoice email failed for ${order.order_number}:`, invErr.message);
         }
       }
     });
-
-    // Fire-and-forget: notify creating rep
     setImmediate(() => createRepNotification(pool, req.rep.id, 'order_created',
-      'Order ' + orderNumber + ' created',
-      'You created order ' + orderNumber + ' for ' + customer_name + ' ($' + total.toFixed(2) + ')',
+      'Order ' + order.order_number + ' created',
+      'You created order ' + order.order_number + ' for ' + order.customer_name + ' ($' + parseFloat(order.total).toFixed(2) + ')',
       'order', order.id));
   } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(err); res.status(500).json({ error: 'Internal server error' });
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error('[Order finalize]', err); res.status(500).json({ error: 'Internal server error' });
   } finally {
-    client.release();
+    try { client.release(); } catch {}
   }
 });
 
@@ -21288,9 +21378,12 @@ app.post('/api/rep/orders/:id/collect-payment', repAuth, async (req, res) => {
       }
     }
 
-    // Auto-confirm pending orders when fully paid
+    // Auto-confirm pending orders when fully paid — UNLESS the caller defers it
+    // (the order-first wizard attaches split tenders then confirms once via
+    // /finalize, so its confirmation emails/commission fire exactly one time).
+    const deferConfirm = req.body.defer_confirm === true;
     const updatedBalance = await recalculateBalance(pool, id, client);
-    if (updatedBalance && updatedBalance.balance_status === 'paid' && order.status === 'pending') {
+    if (!deferConfirm && updatedBalance && updatedBalance.balance_status === 'paid' && order.status === 'pending') {
       await client.query("UPDATE orders SET status = 'confirmed' WHERE id = $1", [id]);
       await logOrderActivity(client, id, 'status_changed', req.rep.id, repName,
         { from: 'pending', to: 'confirmed', reason: 'Auto-confirmed after full payment' });

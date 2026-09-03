@@ -722,6 +722,13 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_number TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipped_at TIMESTAMP;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP;
+-- Order-first flow: a per-wizard-session key so a create-pending POST that loses
+-- its response can be retried without spawning a duplicate order. [[order-first-instore]]
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS rep_order_key VARCHAR(64);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_rep_order_key ON orders(rep_order_key) WHERE rep_order_key IS NOT NULL;
+-- Set when the rep wizard finalizes a pending order (confirm + emails + commission),
+-- so finalize is idempotent and deferred side-effects fire exactly once.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS finalized_at TIMESTAMP;
 
 -- ==================== Trade Application Enhancements ====================
 

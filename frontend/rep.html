@@ -13515,7 +13515,9 @@
           <div className="rof-overlay">
             <div className="rof-modal-card rof-pop">
               <div style={{ padding: '30px 24px 20px', textAlign: 'center', borderBottom: '0.5px solid rgba(28,25,23,0.09)', position: 'relative' }}>
-                <button onClick={handleDone} style={{ position: 'absolute', top: 14, right: 16, width: 26, height: 26, border: '0.5px solid rgba(28,25,23,0.2)', background: 'transparent', color: '#1c1917', cursor: 'pointer', font: '400 13px/1 Inter, sans-serif' }}>{'\u2715'}</button>
+                {/* No dismiss (\u00d7) once the card is captured \u2014 the money is taken, so the
+                    only path forward is Done, which records the tender and (when it
+                    covers the balance) places the order. Prevents orphaned charges. */}
                 <div className="rof-pop-check" style={{ width: 50, height: 50, borderRadius: '50%', background: '#3a7a4e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', font: '500 23px/1 Inter, sans-serif', margin: '0 auto 14px' }}>{'\u2713'}</div>
                 <div style={{ font: '500 10px/1 ui-monospace, monospace', letterSpacing: '0.2em', textTransform: 'uppercase', color: '#3a7a4e', marginBottom: 9 }}>Approved</div>
                 <div style={{ font: '300 32px/1 "Cormorant Garamond", serif', letterSpacing: '-0.015em', color: '#1c1917' }}>{payMoney(amount)} captured</div>
@@ -13827,67 +13829,36 @@
             taskIdx++;
           }
 
-          // Create the order
-          const orderItems = (data.items || []).map(i => {
-            // Custom bound area rug: carries the carpet's sku_id but must be flagged
-            // so the backend reprices it server-authoritatively (material + binding +
-            // fabrication). Without these fields it falls through to the plain-SKU
-            // branch and prices as 1 sqyd of carpet. [[custom-rug-calculator]]
-            if (i.is_custom_rug && i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, is_custom_rug: true, custom_width_ft: i.custom_width_ft, custom_length_ft: i.custom_length_ft };
-            if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, cost: i.cost != null ? i.cost : undefined, sell_by: i.sell_by, slab_sqft: i.slab_sqft || undefined };
-            return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, custom_vendor: i.custom_vendor || undefined, custom_vendor_email: i.custom_vendor_email || undefined, cost: i.cost || undefined, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
-          });
-
-          const body = {
-            customer_name: customerName,
-            customer_email: customerEmail,
-            phone: phone || undefined,
-            company_name: companyName || undefined,
-            delivery_method: data.deliveryMethod,
-            payment_method: primaryTender ? primaryTender.method : 'card',
-            payment_amount: primaryTender ? primaryTender.amount : undefined,
-            items: orderItems,
-            promo_code: data.promoResult ? data.promoResult.code : undefined,
-            stripe_payment_intent_id: (primaryTender && primaryTender.stripePaymentIntentId) || data.stripePaymentIntentId || undefined,
-            card_txn: (primaryTender && primaryTender.card_txn) || undefined,
-            document_ids: data.documentIds || undefined,
-            check_number: (primaryTender && primaryTender.checkNumber) || undefined,
-            notes: data.notes || undefined,
-            invoice_notes: (data.invoiceNotes || '').trim() || undefined,
-            job_name: (data.jobName || '').trim() || undefined,
-            manual_discount_type: (!data.promoResult && parseFloat(data.manualDiscountValue) > 0) ? (data.manualDiscountType || 'fixed') : undefined,
-            manual_discount_value: (!data.promoResult && parseFloat(data.manualDiscountValue) > 0) ? parseFloat(data.manualDiscountValue) : undefined
-          };
-          if (data.deliveryMethod === 'shipping' && data.shippingAddress) {
-            body.shipping_address = {
-              line1: data.shippingAddress.line1,
-              line2: data.shippingAddress.line2 || undefined,
-              city: data.shippingAddress.city,
-              state: data.shippingAddress.state,
-              zip: data.shippingAddress.zip
-            };
-            const freight = parseFloat(data.estShipping) || 0;
-            if (freight > 0) body.shipping_cost = freight;
-            const addonLabels = { liftgate: 'Liftgate', insideDelivery: 'Inside delivery', callBefore: 'Call before delivery', appointmentRequired: 'Appointment required' };
-            const dn = [];
-            if (data.deliveryWindow) dn.push('Window: ' + data.deliveryWindow);
-            if (data.carrierPreference) dn.push('Carrier: ' + data.carrierPreference.replace(/_/g, ' '));
-            const addons = Object.entries(data.fulfillmentAddons || {}).filter(([, v]) => v).map(([k]) => addonLabels[k] || k);
-            if (addons.length) dn.push('Add-ons: ' + addons.join(', '));
-            if (data.deliveryNotes) dn.push(data.deliveryNotes);
-            if (dn.length) body.delivery_notes = dn.join(' · ');
-          }
-
-          // Invoice task
+          // Create or finalize the order.
           setTaskStatus(taskIdx, 'running');
           await new Promise(r => setTimeout(r, 300));
 
-          const result = await repFetch('/api/rep/orders', {
-            method: 'POST',
-            body: JSON.stringify(body)
-          });
-
-          if (!result.order) throw new Error(result.error || 'Order creation failed');
+          let result;
+          if (data.createdOrder && data.createdOrder.id) {
+            // ORDER-FIRST: the order was already created (pending) the instant the
+            // first payment was captured. Attach any in-store tenders that weren't
+            // persisted yet (e.g. a capture whose save failed), then FINALIZE it
+            // (confirm + POs + customer emails + commission), once.
+            const oid = data.createdOrder.id;
+            const toAttach = paymentMethods.filter(pm => ['cash', 'card', 'check'].includes(pm.method) && !pm.persisted);
+            for (const pm of toAttach) {
+              try {
+                await repFetch('/api/rep/orders/' + oid + '/collect-payment', {
+                  method: 'POST',
+                  body: JSON.stringify({ payment_method: pm.method, amount: pm.amount, card_txn: pm.card_txn || undefined, stripe_payment_intent_id: pm.stripePaymentIntentId || undefined, check_number: pm.checkNumber || undefined, defer_confirm: true })
+                });
+                log.push({ ok: true, message: 'Attached ' + payMoney(pm.amount) + ' ' + pm.method, time: now() });
+              } catch (e) { log.push({ ok: false, message: 'Attach payment failed: ' + e.message, time: now() }); }
+            }
+            result = await repFetch('/api/rep/orders/' + oid + '/finalize', { method: 'POST', body: JSON.stringify({}) });
+            if (!result.order) throw new Error(result.error || 'Order finalize failed');
+          } else {
+            // No pre-created order (pure payment-link order, or a create that never
+            // persisted): create it now with the primary tender — original behavior.
+            const body = buildRepOrderBody(data, primaryTender);
+            result = await repFetch('/api/rep/orders', { method: 'POST', body: JSON.stringify(body) });
+            if (!result.order) throw new Error(result.error || 'Order creation failed');
+          }
 
           log.push({ ok: true, message: 'Invoice ' + (result.order.order_number || '#' + result.order.id) + ' issued', time: now() });
           setTaskStatus(taskIdx, 'done');
@@ -13904,8 +13875,10 @@
 
           // Additional in-store split tenders beyond the primary one: post each
           // via collect-payment BEFORE any payment link is sent, so the link is
-          // issued for the true remaining balance.
-          const additionalPayments = inStoreTenders.filter(pm => pm !== primaryTender);
+          // issued for the true remaining balance. SKIP entirely on the order-first
+          // path — those tenders were already persisted at capture / attached above
+          // before finalize, so re-posting here would double-charge the ledger.
+          const additionalPayments = (data.createdOrder && data.createdOrder.id) ? [] : inStoreTenders.filter(pm => pm !== primaryTender);
           for (const pm of additionalPayments) {
             try {
               await repFetch('/api/rep/orders/' + result.order.id + '/collect-payment', {
@@ -16857,7 +16830,63 @@
     }
 
     // --- Step 2: Payment ---
-    function RofPaymentStep({ data, setData, setStep, terminalRef, terminalStatus, connectReader }) {
+    // Shared order-create payload builder — used by the order-first "create pending
+    // on first capture" (RofPaymentStep) and the final Process Order step
+    // (RofProcessOrderModal), so both send an identical body. `primaryTender` supplies
+    // payment_method/amount + gateway refs (card_txn / stripe PI / check number).
+    function buildRepOrderBody(data, primaryTender) {
+      const customerName = data.customer ? data.customer.name : data.newCustomerName || '';
+      const customerEmail = data.customer ? data.customer.email : data.newCustomerEmail || '';
+      const phone = data.customer ? data.customer.phone : data.newCustomerPhone || '';
+      const companyName = data.customer ? (data.customer.company_name || '') : (data.newCustomerCompany || '');
+      const orderItems = (data.items || []).map(i => {
+        if (i.is_custom_rug && i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, is_custom_rug: true, custom_width_ft: i.custom_width_ft, custom_length_ft: i.custom_length_ft };
+        if (i.sku_id) return { sku_id: i.sku_id, num_boxes: i.num_boxes, sqft_needed: i.sqft_needed, unit_price: i.unit_price, cost: i.cost != null ? i.cost : undefined, sell_by: i.sell_by, slab_sqft: i.slab_sqft || undefined };
+        return { product_name: i.product_name, unit_price: i.unit_price, vendor_id: i.vendor_id || null, custom_vendor: i.custom_vendor || undefined, custom_vendor_email: i.custom_vendor_email || undefined, cost: i.cost || undefined, num_boxes: i.num_boxes, description: i.description, sell_by: i.sell_by };
+      });
+      const body = {
+        customer_name: customerName,
+        customer_email: customerEmail,
+        phone: phone || undefined,
+        company_name: companyName || undefined,
+        delivery_method: data.deliveryMethod,
+        payment_method: primaryTender ? primaryTender.method : 'card',
+        payment_amount: primaryTender ? primaryTender.amount : undefined,
+        items: orderItems,
+        promo_code: data.promoResult ? data.promoResult.code : undefined,
+        stripe_payment_intent_id: (primaryTender && primaryTender.stripePaymentIntentId) || data.stripePaymentIntentId || undefined,
+        card_txn: (primaryTender && primaryTender.card_txn) || undefined,
+        document_ids: data.documentIds || undefined,
+        check_number: (primaryTender && primaryTender.checkNumber) || undefined,
+        notes: data.notes || undefined,
+        invoice_notes: (data.invoiceNotes || '').trim() || undefined,
+        job_name: (data.jobName || '').trim() || undefined,
+        manual_discount_type: (!data.promoResult && parseFloat(data.manualDiscountValue) > 0) ? (data.manualDiscountType || 'fixed') : undefined,
+        manual_discount_value: (!data.promoResult && parseFloat(data.manualDiscountValue) > 0) ? parseFloat(data.manualDiscountValue) : undefined
+      };
+      if (data.deliveryMethod === 'shipping' && data.shippingAddress) {
+        body.shipping_address = {
+          line1: data.shippingAddress.line1,
+          line2: data.shippingAddress.line2 || undefined,
+          city: data.shippingAddress.city,
+          state: data.shippingAddress.state,
+          zip: data.shippingAddress.zip
+        };
+        const freight = parseFloat(data.estShipping) || 0;
+        if (freight > 0) body.shipping_cost = freight;
+        const addonLabels = { liftgate: 'Liftgate', insideDelivery: 'Inside delivery', callBefore: 'Call before delivery', appointmentRequired: 'Appointment required' };
+        const dn = [];
+        if (data.deliveryWindow) dn.push('Window: ' + data.deliveryWindow);
+        if (data.carrierPreference) dn.push('Carrier: ' + data.carrierPreference.replace(/_/g, ' '));
+        const addons = Object.entries(data.fulfillmentAddons || {}).filter(([, v]) => v).map(([k]) => addonLabels[k] || k);
+        if (addons.length) dn.push('Add-ons: ' + addons.join(', '));
+        if (data.deliveryNotes) dn.push(data.deliveryNotes);
+        if (dn.length) body.delivery_notes = dn.join(' · ');
+      }
+      return body;
+    }
+
+    function RofPaymentStep({ data, setData, setStep, terminalRef, terminalStatus, connectReader, onAutoPlace }) {
       const [showPayCard, setShowPayCard] = useState(false);
       const [showAchModal, setShowAchModal] = useState(false);
       const [cashDrawerOpen, setCashDrawerOpen] = useState(null);
@@ -16897,18 +16926,72 @@
 
       const handleCardPayment = () => { setPendingCardAmount(collectAmt); setShowPayCard(true); };
 
-      const handleCardSuccess = (res) => {
+      // ── Order-first persistence ──────────────────────────────────────────
+      // A captured payment must ALWAYS have a persisted order. On the FIRST captured
+      // tender we create the order as pending (finalize:false); later in-store tenders
+      // attach via collect-payment with defer_confirm so the order is confirmed exactly
+      // once — at Process Order (finalize). The created id is tracked in a ref
+      // (synchronous) so back-to-back captures can't race the async data.createdOrder
+      // update into a duplicate create; an idempotency key makes a lost-response retry
+      // safe too. This is what makes "back out after payment = nothing happened"
+      // impossible: the money is on a real (pending) order the instant it's captured.
+      const createdOrderRef = useRef(data.createdOrder ? data.createdOrder.id : null);
+      const orderKeyRef = useRef(null);
+      const orderKey = () => {
+        if (!orderKeyRef.current) orderKeyRef.current = 'wiz' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+        return orderKeyRef.current;
+      };
+      const persistTender = async (tender) => {
+        const existingId = createdOrderRef.current;
+        if (existingId) {
+          // collect-payment only accepts cash/card/check; other methods (ach) fall
+          // through unpersisted and are handled at Process Order.
+          if (!['cash', 'card', 'check'].includes(tender.method)) return { ...tender, persisted: false };
+          await repFetch('/api/rep/orders/' + existingId + '/collect-payment', {
+            method: 'POST',
+            body: JSON.stringify({
+              payment_method: tender.method, amount: tender.amount,
+              card_txn: tender.card_txn || undefined,
+              stripe_payment_intent_id: tender.stripePaymentIntentId || undefined,
+              check_number: tender.checkNumber || undefined,
+              defer_confirm: true
+            })
+          });
+          return { ...tender, persisted: true };
+        }
+        const body = buildRepOrderBody(data, tender);
+        body.finalize = false;
+        body.idempotency_key = orderKey();
+        const result = await repFetch('/api/rep/orders', { method: 'POST', body: JSON.stringify(body) });
+        if (!result.order) throw new Error(result.error || 'Could not save the order');
+        createdOrderRef.current = result.order.id;
+        setData(d => ({ ...d, createdOrder: result.order }));
+        return { ...tender, persisted: true };
+      };
+
+      const handleCardSuccess = async (res) => {
         const amount = pendingCardAmount || (remaining > 0 ? remaining : total);
         setCollectNow('');
         // res is { card_txn } (Valor terminal) or { payment_intent_id } (Stripe card-on-file / keyed)
-        const tender = { method: 'card', amount };
+        let tender = { method: 'card', amount };
         if (res && res.card_txn) tender.card_txn = res.card_txn;
         else if (res && res.payment_intent_id) tender.stripePaymentIntentId = res.payment_intent_id;
+        // Persist NOW — the card is captured, so it must land on a real order before
+        // the rep can navigate away. On failure we keep the tender in state so the
+        // Process Order step retries the create/collect.
+        try { tender = await persistTender(tender); }
+        catch (e) { alert('Card captured, but saving it to the order failed: ' + (e.message || '') + '\nIt will be retried when you Process the order.'); }
         setData(d => ({
           ...d,
           paymentMethods: [...(d.paymentMethods || []), tender],
           stripePaymentIntentId: (res && res.payment_intent_id) || d.stripePaymentIntentId || null
         }));
+        // If this card covers the full balance, finalize immediately (onAutoPlace →
+        // the wizard's processOrder). The order already exists from persistTender, so
+        // this is now just a finalize, never a create-from-scratch.
+        if (onAutoPlace && amount >= remaining - 0.01 && (data.items || []).length > 0) {
+          onAutoPlace();
+        }
       };
 
       const handleAchSuccess = (piId, documentIds) => {
@@ -16923,18 +17006,25 @@
         setShowAchModal(false);
       };
 
-      const setCashPayment = () => {
+      const setCashPayment = async () => {
         if (cashDrawerOpen === false || collectAmt <= 0) return;
         const amount = collectAmt;
         setCollectNow('');
-        setData(d => ({ ...d, paymentMethods: [...(d.paymentMethods || []), { method: 'cash', amount }] }));
+        let tender = { method: 'cash', amount };
+        try { tender = await persistTender(tender); }
+        catch (e) { alert('Saving the cash payment to the order failed: ' + (e.message || '')); }
+        setData(d => ({ ...d, paymentMethods: [...(d.paymentMethods || []), tender] }));
       };
 
-      const setCheckPayment = () => {
+      const setCheckPayment = async () => {
         if (!data.checkNumber || !data.checkNumber.trim() || collectAmt <= 0) return;
         const amount = collectAmt;
+        const checkNumber = data.checkNumber;
         setCollectNow('');
-        setData(d => ({ ...d, paymentMethods: [...(d.paymentMethods || []), { method: 'check', amount, checkNumber: d.checkNumber }] }));
+        let tender = { method: 'check', amount, checkNumber };
+        try { tender = await persistTender(tender); }
+        catch (e) { alert('Saving the check payment to the order failed: ' + (e.message || '')); }
+        setData(d => ({ ...d, paymentMethods: [...(d.paymentMethods || []), tender] }));
       };
 
       const setStripeRequest = () => {
@@ -16945,6 +17035,15 @@
       };
 
       const removePayment = (idx) => {
+        // Once a tender is captured + persisted on the order, it holds real money —
+        // it can't be silently dropped here. Reverse it from the order's Payments
+        // (refund/void) instead. Unpersisted entries (e.g. a not-yet-sent payment
+        // link) can still be removed freely.
+        const pm = (data.paymentMethods || [])[idx];
+        if (pm && pm.persisted) {
+          alert('This payment was already captured and recorded on the order. To reverse it, refund it from the order’s Payments section.');
+          return;
+        }
         setData(d => ({ ...d, paymentMethods: (d.paymentMethods || []).filter((_, i) => i !== idx), stripePaymentIntentId: null }));
       };
 
@@ -18099,7 +18198,7 @@
                   </div>
                 )}
                 {step === 2 && (
-                  <RofPaymentStep data={data} setData={setData} setStep={setStep} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} />
+                  <RofPaymentStep data={data} setData={setData} setStep={setStep} terminalRef={terminalRef} terminalStatus={terminalStatus} connectReader={connectReader} onAutoPlace={processOrder} />
                 )}
                 {step === 3 && (
                   <RofSendPOsStep data={data} setData={setData} showCost={showCost} setStep={setStep} />
