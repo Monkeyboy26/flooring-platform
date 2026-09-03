@@ -319,6 +319,11 @@ function resolveSellBy(pimSlug, accessory, parsedSoldBy) {
   return parsedSoldBy || 'box';
 }
 
+// Collections sold by the FULL BOX only (owner rule), even where the AZ list
+// prices the individual patterns per piece (EA). Their EA rows convert to
+// box/per_sqft via Sf/Pc so they sell like field tile.
+const BOX_ONLY_SERIES = /cementine/i;
+
 // Derive sell_by + cost + price_basis from a price-list entry.
 // Mosaics, ledger/stack panels, and trim are sold per sheet/piece — always,
 // even when they ship in boxes (business rule: customers can buy single
@@ -326,8 +331,24 @@ function resolveSellBy(pimSlug, accessory, parsedSoldBy) {
 // price via Sf/Pc so unit pricing is never left on a per-sqft basis; slabs
 // (no piece coverage) keep per-sqft pricing for the inquire flow.
 function planFromPriceList(plEntry, catSlug) {
+  // BX rows carry the whole-box net price — convert to per-sqft or the box
+  // would be costed ~12x (Cementine B&W Mix: $109.70/box → $9.44/sf).
+  if (plEntry.unit === 'BX' && plEntry.sfPerBox > 0) {
+    return {
+      sellBy: 'box',
+      cost: Math.round(plEntry.netPrice / plEntry.sfPerBox * 100) / 100,
+      priceBasis: 'per_sqft',
+    };
+  }
   const perPiece = plEntry.unit === 'EA' || plEntry.unit === 'SHT';
   if (perPiece) {
+    if (BOX_ONLY_SERIES.test(plEntry.series || plEntry.itemId || '') && plEntry.sfPerPc > 0) {
+      return {
+        sellBy: 'box',
+        cost: Math.round(plEntry.netPrice / plEntry.sfPerPc * 100) / 100,
+        priceBasis: 'per_sqft',
+      };
+    }
     return { sellBy: 'unit', cost: plEntry.netPrice, priceBasis: 'per_unit' };
   }
   if (catSlug && UNIT_CATEGORIES.has(catSlug)) {
