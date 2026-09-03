@@ -9,7 +9,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestConfirmation, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -6127,18 +6127,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       }
       res.json(response);
 
-      // Fire-and-forget: the single sample confirmation to the customer (this is
-      // the ONE customer email for a sample-only checkout — no order email).
-      if (customer_email) {
-        setImmediate(() => sendSampleRequestConfirmation({
-          customer_name, customer_email, request_number: sampleRequest.request_number,
-          delivery_method: sampleRequest.delivery_method, items: sampleRequest.items,
-          shipping_address_line1: isPickup ? null : (shipping ? shipping.line1 : null),
-          shipping_address_line2: isPickup ? null : (shipping ? shipping.line2 || null : null),
-          shipping_city: isPickup ? null : (shipping ? shipping.city : null),
-          shipping_state: isPickup ? null : (shipping ? shipping.state : null),
-          shipping_zip: isPickup ? null : (shipping ? shipping.zip : null) }));
-      }
+      // No customer "sample request received" email — the customer is notified
+      // later when the sample ships / is ready for pickup.
       // Fire-and-forget: internal rep alert (staff-only, not a customer email).
       // Routes to the assigned rep (resolved/assigned above).
       const srTitle = 'New Sample Request ' + sampleRequest.request_number;
@@ -6454,19 +6444,9 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
     // order without having to watch the admin.
     setImmediate(() => sendNewOrderStaffAlert(emailOrder));
 
-    // Fire-and-forget: send sample request confirmation email
-    if (sampleRequest && customer_email) {
-      setImmediate(() => sendSampleRequestConfirmation({
-        customer_name, customer_email, request_number: sampleRequest.request_number,
-        delivery_method: sampleRequest.delivery_method,
-        items: sampleRequest.items,
-        shipping_address_line1: isPickup ? null : (shipping ? shipping.line1 : null),
-        shipping_address_line2: isPickup ? null : (shipping ? shipping.line2 || null : null),
-        shipping_city: isPickup ? null : (shipping ? shipping.city : null),
-        shipping_state: isPickup ? null : (shipping ? shipping.state : null),
-        shipping_zip: isPickup ? null : (shipping ? shipping.zip : null)
-      }));
-    }
+    // No customer "sample request received" email for the sample portion — the
+    // customer already gets the order confirmation above, and a shipped/ready
+    // email later when the samples go out.
 
     // Fire-and-forget: rep alerts. A customer dedicated to a rep alerts ONLY
     // that rep (personal email + in-app); unowned customers broadcast the
@@ -17509,15 +17489,8 @@ app.post('/api/rep/sample-requests', repAuth, async (req, res) => {
     await client.query('COMMIT');
     await enrichItemsForNaming(resolvedItems);
 
-    // Fire-and-forget: confirmation email + notification
-    if (customer_email) {
-      setImmediate(() => sendSampleRequestConfirmation({
-        customer_name, customer_email, request_number,
-        delivery_method: dm, sidemark,
-        items: resolvedItems,
-        shipping_address_line1, shipping_address_line2, shipping_city, shipping_state, shipping_zip
-      }));
-    }
+    // No customer "sample request received" email — the customer is notified
+    // later when the sample ships / is ready for pickup.
     setImmediate(() => createRepNotification(pool, req.rep.id, 'sample_request_created',
       `Sample request ${request_number} created`,
       `Sample request for ${customer_name} with ${resolvedItems.length} item(s)`,
@@ -22033,42 +22006,6 @@ async function processRelease(client, { id, order, lines, release_method, recipi
   return { release, computed, releaseNumber, isFull };
 }
 
-// Fire the material-release email after a release commits (non-blocking).
-async function emailMaterialRelease({ order, release, computed, actorName, actorEmail }) {
-  if (!order.customer_email) return;
-  try {
-    // Will-call: pull the distributor's name/address so the email tells the
-    // customer where to pick up and which PO to reference.
-    let distributor = null;
-    if (release.release_method === 'will_call' && release.vendor_id) {
-      const dv = await pool.query('SELECT name, address, phone FROM vendors WHERE id = $1', [release.vendor_id]);
-      if (dv.rows.length) distributor = dv.rows[0];
-    }
-    const releaseEmailItems = computed.map(c => ({
-      sku_id: c.oi.sku_id,
-      product_name: c.oi.product_name, collection: c.oi.collection, current_collection: c.oi.current_collection,
-      color: c.oi.color, variant_name: c.oi.variant_name, accessory_label: c.oi.accessory_label,
-      variant_type: c.oi.variant_type, vendor_name: c.oi.vendor_name, vendor_sku: c.oi.vendor_sku,
-      internal_sku: c.oi.internal_sku, description: c.oi.product_name, qty: c.qty, sell_by: c.oi.sell_by,
-    }));
-    await enrichItemsForNaming(releaseEmailItems);
-    await sendMaterialRelease({
-      release_number: release.release_number, order_number: order.order_number,
-      customer_name: order.customer_name, customer_email: order.customer_email,
-      release_method: release.release_method, recipient_name: release.recipient_name,
-      created_at: release.released_at, notes: release.notes,
-      po_number: release.po_number,
-      distributor_name: distributor ? distributor.name : null,
-      distributor_address: distributor ? distributor.address : null,
-      distributor_phone: distributor ? distributor.phone : null,
-      rep_name: actorName, rep_email: actorEmail,
-      items: releaseEmailItems,
-    });
-  } catch (mailErr) {
-    console.error('[Releases] Release email failed for', release.release_number, '-', mailErr.message);
-  }
-}
-
 // Release context — order + releasable (non-sample) lines with remaining-to-release.
 app.get('/api/rep/orders/:id/release-context', repAuth, async (req, res) => {
   try {
@@ -22148,7 +22085,6 @@ app.post('/api/rep/orders/:id/releases', repAuth, async (req, res) => {
       actor: { performerId: req.rep.id, name: repName, staffId: null },
     });
     await client.query('COMMIT');
-    await emailMaterialRelease({ order, release: result.release, computed: result.computed, actorName: repName, actorEmail: req.rep.email });
     res.json({ success: true, release: result.release, is_full: result.isFull });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
@@ -22402,7 +22338,6 @@ app.post('/api/admin/orders/:id/releases', staffAuth, requireRole('admin', 'mana
       actor: { performerId: req.staff.id, name: staffName, staffId: req.staff.id },
     });
     await client.query('COMMIT');
-    await emailMaterialRelease({ order, release: result.release, computed: result.computed, actorName: staffName, actorEmail: req.staff.email });
     res.json({ success: true, release: result.release, is_full: result.isFull });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});

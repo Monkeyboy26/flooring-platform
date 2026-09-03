@@ -14,7 +14,6 @@ import { generateEmailChangeNoticeHTML } from '../templates/emailChangeNotice.js
 import { generateStaffPasswordResetHTML } from '../templates/staffPasswordReset.js';
 import { generateStaffInviteHTML } from '../templates/staffInvite.js';
 import { generateVisitRecapHTML } from '../templates/visitRecap.js';
-import { generateSampleRequestConfirmationHTML } from '../templates/sampleRequestConfirmation.js';
 import { generateSampleRequestShippedHTML } from '../templates/sampleRequestShipped.js';
 import { generateSampleRequestReadyHTML } from '../templates/sampleRequestReady.js';
 import { generateStockAlertHTML } from '../templates/stockAlert.js';
@@ -31,7 +30,6 @@ import { generateProductShareHTML } from '../templates/productShare.js';
 import { generatePaymentRequestHTML } from '../templates/paymentRequest.js';
 import { generatePaymentReceivedHTML } from '../templates/paymentReceived.js';
 import { generateCreditMemoIssuedHTML } from '../templates/creditMemoIssued.js';
-import { generateMaterialReleaseHTML } from '../templates/materialRelease.js';
 import { generateInstallScheduledHTML } from '../templates/installScheduled.js';
 import { generateInstallCompleteHTML } from '../templates/installComplete.js';
 import { generateVendorPoEmailHTML } from '../templates/vendorPo.js';
@@ -206,34 +204,6 @@ export async function sendCreditMemoIssued(data, opts = {}) {
     return { sent: true };
   } catch (err) {
     console.error(`[Email] Failed to send credit memo email for ${data.cm_number}:`, err.message);
-    return { sent: false };
-  }
-}
-
-export async function sendMaterialRelease(data, opts = {}) {
-  if (!transporter) {
-    console.log(`[Email] Skipping material release email for ${data.release_number} — SMTP not configured`);
-    return { sent: false };
-  }
-  try {
-    const html = generateMaterialReleaseHTML(data);
-    const isDelivery = data.release_method === 'delivery';
-    const isWillCall = data.release_method === 'will_call';
-    const subjectState = isDelivery ? 'released for delivery'
-      : isWillCall ? `ready to pick up at ${data.distributor_name || 'the distributor'}`
-      : 'ready for pickup';
-    await deliver({
-      from: repFrom(data),
-      to: data.customer_email,
-      replyTo: data.rep_email,
-      subject: `Material release ${data.release_number} — your order is ${subjectState}`,
-      html,
-      ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {})
-    });
-    console.log(`[Email] Material release email sent to ${data.customer_email} for ${data.release_number}`);
-    return { sent: true };
-  } catch (err) {
-    console.error(`[Email] Failed to send material release email for ${data.release_number}:`, err.message);
     return { sent: false };
   }
 }
@@ -905,29 +875,6 @@ export async function sendPaymentReceived(order, amount, pdf_buffer = null) {
     console.log(`[Email] Payment received confirmation sent to ${order.customer_email} for ${order.order_number}`);
   } catch (err) {
     console.error(`[Email] Failed to send payment received for ${order.order_number}:`, err.message);
-  }
-}
-
-/**
- * Send sample request confirmation email to customer.
- */
-export async function sendSampleRequestConfirmation(data) {
-  if (!transporter) {
-    console.log(`[Email] Skipping sample request confirmation for ${data.request_number} — SMTP not configured`);
-    return;
-  }
-  try {
-    const html = generateSampleRequestConfirmationHTML(data);
-    await deliver({
-      from: repFrom(data),
-      to: data.customer_email,
-      replyTo: data.rep_email,
-      subject: `Sample Request Received — ${data.request_number}`,
-      html
-    });
-    console.log(`[Email] Sample request confirmation sent to ${data.customer_email} for ${data.request_number}`);
-  } catch (err) {
-    console.error(`[Email] Failed to send sample request confirmation for ${data.request_number}:`, err.message);
   }
 }
 
