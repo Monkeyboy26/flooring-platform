@@ -9,7 +9,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -5417,8 +5417,13 @@ async function getNextSampleNumber() {
   return nextRdFamilyNumber(pool, 'RDS-');
 }
 
-async function getNextPONumber() {
-  return nextRdFamilyNumber(pool, 'RDP-');
+// Pass the transaction `client` when a PO is created inside a transaction (e.g.
+// alongside the order, or with other POs in one generatePurchaseOrders run) so
+// the family MAX scan sees those uncommitted sibling rows and increments past
+// them — otherwise the order and its PO (and multi-vendor POs) collide on the
+// bare number. Defaults to the pool for standalone/autocommit callers.
+async function getNextPONumber(db = pool) {
+  return nextRdFamilyNumber(db, 'RDP-');
 }
 
 // ==================== Purchase Order Generation ====================
@@ -5601,7 +5606,7 @@ async function generatePurchaseOrders(orderId, client) {
 
   for (const group of Object.values(vendorGroups)) {
     if (vendorsWithLivePO.has(String(group.vendor_id))) continue;
-    const poNumber = await getNextPONumber();
+    const poNumber = await getNextPONumber(client);
 
     // Calculate subtotal — cost per box * qty (boxes), or cost per sqyd * sqyd for carpet
     let poSubtotal = 0;
@@ -10546,7 +10551,7 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         // Create new draft PO for this vendor
         const vendorResult = await client.query('SELECT code FROM vendors WHERE id = $1', [itemVendorId]);
         const vendorCode = vendorResult.rows[0]?.code || 'CUST';
-        const poNumber = await getNextPONumber();
+        const poNumber = await getNextPONumber(client);
         const newPO = await client.query(
           `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
            VALUES ($1, $2, $3, 'draft', 0) RETURNING id`,
@@ -15932,6 +15937,8 @@ async function generateReleaseFormHtml(releaseId, opts = {}) {
   return {
     html: generateReleaseFormDoc(release, items.rows),
     filename: `${release.release_number}-release.pdf`,
+    release,
+    items: items.rows,
   };
 }
 
@@ -15943,6 +15950,49 @@ app.get('/api/rep/releases/:id/release-form', repAuth, async (req, res) => {
     await generatePDF(result.html, result.filename, req, res);
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Email the material-release form to the customer. Manual send (any rep) — used
+// mostly for will-call so the customer gets the release number + PO to bring to
+// the distributor. Attaches the release-form PDF. [[material-releases]]
+app.post('/api/rep/releases/:id/email', repAuth, async (req, res) => {
+  try {
+    const built = await generateReleaseFormHtml(req.params.id);
+    if (!built) return res.status(404).json({ error: 'Release not found' });
+    const { release, items } = built;
+    if (release.status === 'void') return res.status(400).json({ error: 'This release is voided.' });
+    if (!release.customer_email) return res.status(400).json({ error: 'This order has no customer email on file.' });
+
+    const emailItems = items.map(it => ({
+      sku_id: it.sku_id, product_name: it.product_name, collection: it.collection, current_collection: it.current_collection,
+      color: it.color, variant_name: it.variant_name, accessory_label: it.accessory_label, variant_type: it.variant_type,
+      vendor_name: it.vendor_name, vendor_sku: it.vendor_sku, internal_sku: it.internal_sku,
+      description: it.product_name, qty: it.release_qty, sell_by: it.sell_by,
+    }));
+
+    // Attach the release-form PDF (best-effort — the email body stands alone).
+    let attachments = [];
+    try {
+      const pdf = await generatePDFBuffer(built.html);
+      if (pdf) attachments = [{ filename: built.filename, content: pdf, contentType: 'application/pdf' }];
+    } catch (pdfErr) { console.error('[Releases] Release-form PDF for email failed:', pdfErr.message); }
+
+    const result = await sendMaterialRelease({
+      release_number: release.release_number, order_number: release.order_number,
+      customer_name: release.customer_name, customer_email: release.customer_email,
+      release_method: release.release_method, recipient_name: release.recipient_name,
+      created_at: release.released_at, notes: release.notes, po_number: release.po_number,
+      distributor_name: release.vendor_name, distributor_address: release.vendor_address, distributor_phone: release.vendor_phone,
+      rep_name: release.rep_name, rep_email: release.rep_email,
+      items: emailItems,
+    }, { attachments });
+
+    if (!result || !result.sent) return res.status(502).json({ error: 'Email could not be sent — SMTP may not be configured.' });
+    res.json({ success: true, sent: true, to: release.customer_email });
+  } catch (err) {
+    console.error('[Releases] Email release failed:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -20865,7 +20915,7 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       } else {
         const vendorResult = await client.query('SELECT code FROM vendors WHERE id = $1', [itemVendorId]);
         const vendorCode = vendorResult.rows[0]?.code || 'CUST';
-        const poNumber = await getNextPONumber();
+        const poNumber = await getNextPONumber(client);
         const newPO = await client.query(
           `INSERT INTO purchase_orders (order_id, vendor_id, po_number, status, subtotal)
            VALUES ($1, $2, $3, 'draft', 0) RETURNING id`,
@@ -22394,6 +22444,46 @@ app.post('/api/admin/releases/:releaseId/void', staffAuth, requireRole('admin', 
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   } finally {
     client.release();
+  }
+});
+
+// Email the material-release form to the customer (staff twin of the rep endpoint).
+app.post('/api/admin/releases/:releaseId/email', staffAuth, requireRole('admin', 'manager', 'warehouse'), async (req, res) => {
+  try {
+    const built = await generateReleaseFormHtml(req.params.releaseId);
+    if (!built) return res.status(404).json({ error: 'Release not found' });
+    const { release, items } = built;
+    if (release.status === 'void') return res.status(400).json({ error: 'This release is voided.' });
+    if (!release.customer_email) return res.status(400).json({ error: 'This order has no customer email on file.' });
+
+    const emailItems = items.map(it => ({
+      sku_id: it.sku_id, product_name: it.product_name, collection: it.collection, current_collection: it.current_collection,
+      color: it.color, variant_name: it.variant_name, accessory_label: it.accessory_label, variant_type: it.variant_type,
+      vendor_name: it.vendor_name, vendor_sku: it.vendor_sku, internal_sku: it.internal_sku,
+      description: it.product_name, qty: it.release_qty, sell_by: it.sell_by,
+    }));
+
+    let attachments = [];
+    try {
+      const pdf = await generatePDFBuffer(built.html);
+      if (pdf) attachments = [{ filename: built.filename, content: pdf, contentType: 'application/pdf' }];
+    } catch (pdfErr) { console.error('[Releases] Release-form PDF for email failed:', pdfErr.message); }
+
+    const result = await sendMaterialRelease({
+      release_number: release.release_number, order_number: release.order_number,
+      customer_name: release.customer_name, customer_email: release.customer_email,
+      release_method: release.release_method, recipient_name: release.recipient_name,
+      created_at: release.released_at, notes: release.notes, po_number: release.po_number,
+      distributor_name: release.vendor_name, distributor_address: release.vendor_address, distributor_phone: release.vendor_phone,
+      rep_name: release.rep_name, rep_email: release.rep_email,
+      items: emailItems,
+    }, { attachments });
+
+    if (!result || !result.sent) return res.status(502).json({ error: 'Email could not be sent — SMTP may not be configured.' });
+    res.json({ success: true, sent: true, to: release.customer_email });
+  } catch (err) {
+    console.error('[Releases] Email release (staff) failed:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

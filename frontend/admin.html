@@ -6560,6 +6560,17 @@
         setRelBusy(false);
       };
 
+      // ── Release: email the release form to the customer (will-call, mostly) ──
+      const emailRelease = async (rel) => {
+        if (!confirm('Email release ' + rel.release_number + ' to the customer?')) return;
+        setRelBusy(true);
+        try {
+          const res = await adminFetch('/api/admin/releases/' + rel.id + '/email', { method: 'POST' });
+          alert('Release ' + rel.release_number + ' emailed to ' + (res && res.to ? res.to : 'the customer') + '.');
+        } catch (err) { alert(err.message || 'Failed to email release'); }
+        setRelBusy(false);
+      };
+
       const loadTracking = async () => {
         if (!editId) return;
         setTrackingLoading(true);
@@ -7763,6 +7774,9 @@
                     <button className="rb-doc-link" onClick={() => {
                       setDocPreview({ path: '/api/staff/releases/' + rel.id + '/release-form', title: 'Release ' + rel.release_number });
                     }}>PDF {'↓'}</button>
+                    {rel.status !== 'void' && order.customer_email && (
+                      <button className="rb-doc-link" disabled={relBusy} onClick={() => emailRelease(rel)}>EMAIL</button>
+                    )}
                     {rel.status === 'released' && (
                       <button className="rb-doc-link" onClick={() => setRelConfirm({ rel, action: 'complete' })}>COMPLETE</button>
                     )}

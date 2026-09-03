@@ -30,6 +30,7 @@ import { generateProductShareHTML } from '../templates/productShare.js';
 import { generatePaymentRequestHTML } from '../templates/paymentRequest.js';
 import { generatePaymentReceivedHTML } from '../templates/paymentReceived.js';
 import { generateCreditMemoIssuedHTML } from '../templates/creditMemoIssued.js';
+import { generateMaterialReleaseHTML } from '../templates/materialRelease.js';
 import { generateInstallScheduledHTML } from '../templates/installScheduled.js';
 import { generateInstallCompleteHTML } from '../templates/installComplete.js';
 import { generateVendorPoEmailHTML } from '../templates/vendorPo.js';
@@ -204,6 +205,34 @@ export async function sendCreditMemoIssued(data, opts = {}) {
     return { sent: true };
   } catch (err) {
     console.error(`[Email] Failed to send credit memo email for ${data.cm_number}:`, err.message);
+    return { sent: false };
+  }
+}
+
+export async function sendMaterialRelease(data, opts = {}) {
+  if (!transporter) {
+    console.log(`[Email] Skipping material release email for ${data.release_number} — SMTP not configured`);
+    return { sent: false };
+  }
+  try {
+    const html = generateMaterialReleaseHTML(data);
+    const isDelivery = data.release_method === 'delivery';
+    const isWillCall = data.release_method === 'will_call';
+    const subjectState = isDelivery ? 'released for delivery'
+      : isWillCall ? `ready to pick up at ${data.distributor_name || 'the distributor'}`
+      : 'ready for pickup';
+    await deliver({
+      from: repFrom(data),
+      to: data.customer_email,
+      replyTo: data.rep_email,
+      subject: `Material release ${data.release_number} — your order is ${subjectState}`,
+      html,
+      ...(opts.attachments && opts.attachments.length ? { attachments: opts.attachments } : {})
+    });
+    console.log(`[Email] Material release email sent to ${data.customer_email} for ${data.release_number}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send material release email for ${data.release_number}:`, err.message);
     return { sent: false };
   }
 }

@@ -22825,6 +22825,17 @@
         setReleaseUpdating(null);
       }, [editId, load, loadOrderActivity]);
 
+      // Email the release form to the customer (will-call pickup, mostly).
+      const emailRelease = useCallback(async (rel) => {
+        if (!confirm('Email release ' + rel.release_number + ' to the customer?')) return;
+        setReleaseUpdating(rel.id);
+        try {
+          const res = await repFetch('/api/rep/releases/' + rel.id + '/email', { method: 'POST', body: JSON.stringify({}) });
+          alert('Release ' + rel.release_number + ' emailed to ' + (res && res.to ? res.to : 'the customer') + '.');
+        } catch (err) { alert(err.message || 'Failed to email release'); }
+        setReleaseUpdating(null);
+      }, []);
+
       const loadDocuments = useCallback(() => {
         if (!editId) return;
         repFetch('/api/rep/orders/' + editId + '/documents')
@@ -24086,6 +24097,9 @@
                           </div>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <RovChip tone={chipTone}>{chipLabel}</RovChip>
+                            {rel.status !== 'void' && order.customer_email && (
+                              <button className="rov-hbtn" style={{ padding: '6px 10px', fontSize: 10 }} disabled={releaseUpdating === rel.id} onClick={() => emailRelease(rel)}>Email</button>
+                            )}
                             {rel.status === 'released' && (
                               <>
                                 <button className="rov-hbtn" style={{ padding: '6px 10px', fontSize: 10 }} disabled={releaseUpdating === rel.id} onClick={() => releaseAction(rel, 'complete')}>{isDelivery ? 'Mark delivered' : 'Mark picked up'}</button>
