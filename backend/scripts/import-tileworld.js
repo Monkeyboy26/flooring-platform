@@ -4,7 +4,7 @@
  *
  * Onboarded as its OWN vendor carrying a single house brand (Tile World). Source:
  * backend/data/tileworld/catalog.json (built by build-tileworld-catalog.js from the
- * MAR 2024 price sheet) + images.json (tileworldusa.com photos staged to
+ * SEPT 2026 price sheet) + images.json (tileworldusa.com photos staged to
  * uploads/tileworld/, matched to designs by normalized name, per-size where the site
  * carries that size — see [[line-item-display]]).
  *
