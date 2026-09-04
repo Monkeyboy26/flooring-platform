@@ -2537,6 +2537,7 @@
         { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: ['admin', 'manager'] },
         { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', roles: ['admin', 'manager'] },
         { key: 'quality', label: 'Data Quality', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.031 9-11.622 0-1.042-.133-2.052-.382-3.016z', roles: ['admin', 'manager'] },
+        { key: 'traffic', label: 'Site Traffic', icon: 'M2 12h4l3-9 4 18 3-9h6', roles: ['admin', 'manager'] },
         { key: 'trade', label: 'Trade', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'promos', label: 'Promo Codes', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4zM17 3h2a2 2 0 012 2v2', roles: ['admin', 'manager'] },
         { key: 'staff', label: 'Staff', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', roles: ['admin', 'manager'] },
@@ -2619,6 +2620,7 @@
             {view === 'promo-edit' && <PromoCodeFormView navigate={navigate} editId={editId} />}
             {view === 'audit' && <AuditLogView navigate={navigate} />}
             {view === 'quality' && <DataQualityView navigate={navigate} />}
+            {view === 'traffic' && <SiteTrafficView navigate={navigate} />}
             {view === 'purchase-orders' && <PurchaseOrdersListView navigate={navigate} staffRole={staffRole} />}
             {view === 'purchase-order-detail' && <PurchaseOrderDetailView navigate={navigate} editId={editId} staffRole={staffRole} />}
           </div>
@@ -2983,6 +2985,309 @@
             </table>
             </div>
           </div>
+        </div>
+      );
+    }
+
+    // ========== SiteTrafficView ==========
+    // Surfaces the internal /api/admin/site-analytics API (fed by storefront
+    // track() events, aggregated nightly at 7 AM Pacific). Funnel, products,
+    // searches, and the live counter query raw events so they include today;
+    // the daily trend and totals come from the nightly rollup.
+    function SiteTrafficView({ navigate }) {
+      const [period, setPeriod] = useState('30d');
+      const [data, setData] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [funnel, setFunnel] = useState([]);
+      const [products, setProducts] = useState([]);
+      const [searches, setSearches] = useState(null);
+      const [realtime, setRealtime] = useState(null);
+      const trendChartRef = React.useRef(null);
+      const trendChartInstance = React.useRef(null);
+      const deviceChartRef = React.useRef(null);
+      const deviceChartInstance = React.useRef(null);
+
+      useEffect(() => {
+        setLoading(true);
+        Promise.all([
+          adminFetch(`/api/admin/site-analytics?period=${period}`),
+          adminFetch(`/api/admin/site-analytics/funnel?period=${period}`),
+          adminFetch(`/api/admin/site-analytics/products?period=${period}&limit=15`),
+          adminFetch(`/api/admin/site-analytics/searches?period=${period}`)
+        ]).then(([d, f, p, s]) => {
+          setData(d); setFunnel(f.steps || []); setProducts(p.products || []); setSearches(s);
+          setLoading(false);
+        }).catch(() => setLoading(false));
+      }, [period]);
+
+      // Live visitors — refresh every 30s while the view is open
+      useEffect(() => {
+        let alive = true;
+        const load = () => adminFetch('/api/admin/site-analytics/realtime').then(r => { if (alive) setRealtime(r); }).catch(() => {});
+        load();
+        const t = setInterval(load, 30000);
+        return () => { alive = false; clearInterval(t); };
+      }, []);
+
+      // Daily trend chart
+      useEffect(() => {
+        if (!data) return;
+        const daily = data.daily || [];
+        if (daily.length === 0) {
+          if (trendChartInstance.current) { trendChartInstance.current.destroy(); trendChartInstance.current = null; }
+          return;
+        }
+        const timer = setTimeout(() => {
+          if (!trendChartRef.current) return;
+          if (trendChartInstance.current) trendChartInstance.current.destroy();
+          const ctx = trendChartRef.current.getContext('2d');
+          trendChartInstance.current = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: daily.map(d => d.stat_date),
+              datasets: [
+                { label: 'Page Views', data: daily.map(d => d.page_views), borderColor: '#d1a35c', backgroundColor: 'rgba(209,163,92,0.10)', fill: true, tension: 0.3, pointRadius: daily.length > 60 ? 0 : 3, pointBackgroundColor: '#d1a35c' },
+                { label: 'Sessions', data: daily.map(d => d.total_sessions), borderColor: '#7cc294', backgroundColor: 'rgba(124,194,148,0.08)', fill: true, tension: 0.3, pointRadius: daily.length > 60 ? 0 : 3, pointBackgroundColor: '#7cc294' }
+              ]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16, font: { size: 11 } } } },
+              scales: { y: { beginAtZero: true } }
+            }
+          });
+        }, 50);
+        return () => { clearTimeout(timer); if (trendChartInstance.current) trendChartInstance.current.destroy(); };
+      }, [data]);
+
+      // Device split doughnut
+      useEffect(() => {
+        if (!data) return;
+        const devices = data.devices || [];
+        if (devices.length === 0) {
+          if (deviceChartInstance.current) { deviceChartInstance.current.destroy(); deviceChartInstance.current = null; }
+          return;
+        }
+        const timer = setTimeout(() => {
+          if (!deviceChartRef.current) return;
+          if (deviceChartInstance.current) deviceChartInstance.current.destroy();
+          const ctx = deviceChartRef.current.getContext('2d');
+          const colorMap = { mobile: '#d1a35c', desktop: '#7cc294', tablet: '#726f6a' };
+          deviceChartInstance.current = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+              labels: devices.map(d => d.device_type),
+              datasets: [{ data: devices.map(d => d.count), backgroundColor: devices.map(d => colorMap[d.device_type] || '#a4a09a'), borderWidth: 2, borderColor: '#191a1d' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 16, font: { size: 11 } } } } }
+          });
+        }, 50);
+        return () => { clearTimeout(timer); if (deviceChartInstance.current) deviceChartInstance.current.destroy(); };
+      }, [data]);
+
+      const fmtDuration = (secs) => {
+        const s = parseInt(secs) || 0;
+        return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+      };
+      const fmtReferrer = (r) => {
+        try { return new URL(r).hostname.replace(/^www\./, ''); } catch (e) { return r; }
+      };
+      const fmtPct = (v) => (parseFloat(v) || 0).toFixed(1) + '%';
+
+      const periods = [
+        { key: '7d', label: '7 Days' },
+        { key: '30d', label: '30 Days' },
+        { key: '90d', label: '90 Days' }
+      ];
+      // External dashboards (GA4 property / Clarity project / Sentry org for this site)
+      const extLinks = [
+        { label: 'GA4 ↗', href: 'https://analytics.google.com/analytics/web/#/a406863800p552662898/reports/intelligenthome' },
+        { label: 'Clarity ↗', href: 'https://clarity.microsoft.com/projects/view/yctmob5wuq/dashboard' },
+        { label: 'Sentry ↗', href: 'https://roma-flooring-designs.sentry.io/issues/' }
+      ];
+      const totals = (data && data.totals) || {};
+      const funnelMax = funnel.length ? Math.max.apply(null, funnel.map(s => s.count)) : 0;
+      const liveCount = realtime ? realtime.active_sessions : null;
+
+      const cards = [
+        { label: 'Sessions', value: (totals.sessions || 0).toLocaleString() },
+        { label: 'Unique Visitors', value: (totals.visitors || 0).toLocaleString() },
+        { label: 'Page Views', value: (totals.page_views || 0).toLocaleString() },
+        { label: 'Product Views', value: (totals.product_views || 0).toLocaleString() },
+        { label: 'Bounce Rate', value: fmtPct(totals.bounce_rate) },
+        { label: 'Avg Session', value: fmtDuration(totals.avg_duration) },
+        { label: 'Cart Abandonment', value: fmtPct(totals.cart_abandonment_rate) },
+        { label: 'Searches', value: (totals.searches || 0).toLocaleString() }
+      ];
+
+      return (
+        <div>
+          <div className="content-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <h1 style={{ marginRight: 'auto' }}>Site Traffic</h1>
+            {liveCount != null && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', color: 'var(--stone-600)' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: liveCount > 0 ? '#7cc294' : 'var(--stone-400)', boxShadow: liveCount > 0 ? '0 0 6px #7cc294' : 'none' }}></span>
+                {liveCount} active in last 30 min
+              </span>
+            )}
+            {extLinks.map(l => (
+              <a key={l.label} href={l.href} target="_blank" rel="noopener" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.375rem 0.75rem' }}>{l.label}</a>
+            ))}
+          </div>
+
+          <div className="analytics-period-bar">
+            {periods.map(p => (
+              <button key={p.key} className={'period-btn' + (period === p.key ? ' active' : '')} onClick={() => setPeriod(p.key)}>{p.label}</button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="stat-grid"><div className="stat-card"><div className="stat-card-label">Loading traffic data...</div></div></div>
+          ) : !data ? (
+            <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '3rem' }}>Failed to load traffic data</div>
+          ) : (
+            <React.Fragment>
+              <div className="analytics-grid">
+                {cards.map(c => (
+                  <div key={c.label} className="stat-card">
+                    <div className="stat-card-label">{c.label}</div>
+                    <div className="stat-card-value">{c.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="chart-container">
+                <h3>Daily Traffic <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--stone-400)' }}>aggregated nightly — today appears tomorrow</span></h3>
+                {(data.daily || []).length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '3rem' }}>No aggregated days yet — the nightly rollup runs at 7 AM</div>
+                )}
+                <div style={{ height: '300px', display: (data.daily || []).length > 0 ? 'block' : 'none' }}>
+                  <canvas ref={trendChartRef}></canvas>
+                </div>
+              </div>
+
+              <div className="chart-container">
+                <h3>Conversion Funnel <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--stone-400)' }}>unique sessions, includes today</span></h3>
+                {funnel.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No data for this period</div>
+                ) : funnel.map((s, i) => (
+                  <div key={s.step} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                    <div style={{ width: '140px', fontSize: '0.8125rem', color: 'var(--stone-600)', textAlign: 'right', flexShrink: 0 }}>{s.step}</div>
+                    <div style={{ flex: 1, background: 'var(--stone-100)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ width: (funnelMax ? Math.max(1.5, s.count / funnelMax * 100) : 0) + '%', background: '#d1a35c', height: '22px', borderRadius: '4px' }}></div>
+                    </div>
+                    <div style={{ width: '160px', fontSize: '0.8125rem', flexShrink: 0 }}>
+                      <b>{(s.count || 0).toLocaleString()}</b>
+                      {i > 0 && s.dropoff != null && <span style={{ color: '#e07a63', marginLeft: '0.5rem' }}>−{s.dropoff}%</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="analytics-two-col">
+                <div className="chart-container" style={{ marginBottom: 0 }}>
+                  <h3>Devices</h3>
+                  {(data.devices || []).length === 0 && (
+                    <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No data for this period</div>
+                  )}
+                  <div style={{ height: '260px', display: (data.devices || []).length > 0 ? 'block' : 'none' }}>
+                    <canvas ref={deviceChartRef}></canvas>
+                  </div>
+                </div>
+                <div className="chart-container" style={{ marginBottom: 0 }}>
+                  <h3>Top Referrers</h3>
+                  {(data.referrers || []).length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>Mostly direct traffic — no external referrers yet</div>
+                  ) : (
+                    <div className="table-scroll-wrapper">
+                    <table className="admin-table">
+                      <thead><tr><th>Source</th><th>Sessions</th></tr></thead>
+                      <tbody>
+                        {data.referrers.map((r, i) => (
+                          <tr key={i}><td>{fmtReferrer(r.referrer)}</td><td>{r.count}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="analytics-two-col" style={{ marginTop: '1.5rem' }}>
+                <div className="chart-container" style={{ marginBottom: 0 }}>
+                  <h3>Top Pages</h3>
+                  {(data.top_pages || []).length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No data for this period</div>
+                  ) : (
+                    <div className="table-scroll-wrapper">
+                    <table className="admin-table">
+                      <thead><tr><th>Path</th><th>Views</th></tr></thead>
+                      <tbody>
+                        {data.top_pages.map((p, i) => (
+                          <tr key={i}><td style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.page_path}</td><td>{p.views}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    </div>
+                  )}
+                </div>
+                <div className="chart-container" style={{ marginBottom: 0 }}>
+                  <h3>Searches</h3>
+                  {!searches || (searches.top_terms || []).length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No searches for this period</div>
+                  ) : (
+                    <React.Fragment>
+                      <div className="table-scroll-wrapper">
+                      <table className="admin-table">
+                        <thead><tr><th>Term</th><th>Count</th></tr></thead>
+                        <tbody>
+                          {searches.top_terms.slice(0, 8).map((t, i) => (
+                            <tr key={i}><td>{t.term}</td><td>{t.count}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      </div>
+                      {(searches.zero_results || []).length > 0 && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#e07a63', marginBottom: '0.375rem' }}>Zero-result searches — catalog gaps</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem' }}>
+                            {searches.zero_results.slice(0, 12).map((t, i) => (
+                              <span key={i} style={{ fontSize: '0.75rem', padding: '0.125rem 0.5rem', borderRadius: '9px', background: 'var(--stone-100)', border: '1px solid var(--line)', color: 'var(--stone-600)' }}>{t.term} · {t.count}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </React.Fragment>
+                  )}
+                </div>
+              </div>
+
+              <div className="chart-container" style={{ marginTop: '1.5rem' }}>
+                <h3>Product Opportunities <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--stone-400)' }}>most viewed, least added to cart</span></h3>
+                {products.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--stone-400)', padding: '2rem' }}>No product views for this period</div>
+                ) : (
+                  <div className="table-scroll-wrapper">
+                  <table className="admin-table">
+                    <thead><tr><th>Product</th><th>Views</th><th>Sessions</th><th>Carts</th><th>Orders</th><th>Missed %</th></tr></thead>
+                    <tbody>
+                      {products.map((p, i) => (
+                        <tr key={p.sku_id || i}>
+                          <td style={{ maxWidth: '320px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.product_name || p.sku_id}</td>
+                          <td>{p.view_count}</td>
+                          <td>{p.unique_sessions}</td>
+                          <td>{p.cart_count}</td>
+                          <td>{p.order_count}</td>
+                          <td style={{ color: parseFloat(p.opportunity_score) > 90 ? '#e07a63' : 'var(--stone-600)' }}>{p.opportunity_score}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  </div>
+                )}
+              </div>
+            </React.Fragment>
+          )}
         </div>
       );
     }
