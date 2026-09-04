@@ -5348,22 +5348,29 @@ async function nextDocNumber(db, table, column, prefix, pad = 0, floor = 0) {
   return prefix + String(Math.max(result.rows[0].maxnum || 0, floor) + 1).padStart(pad, '0');
 }
 
-// RD-family global sequence: orders, quotes, estimates, sample requests, and
-// POs all draw the next number from ONE shared pool, so a bare number like
-// "10042" identifies exactly one document across the family (the prefixes are
-// nested — RD-/RDQ-/RDE-/RDS-/RDP- — and people drop them when talking).
+// RD-family global sequence: orders, quotes, estimates, sample requests, POs,
+// returns (RMA), credit memos, and material releases all draw the next number
+// from ONE shared pool, so a bare number like "10042" identifies exactly one
+// document across the family — people routinely drop the prefix when talking.
 // Same MAX-based, no-stored-counter approach as nextDocNumber, just scanning
-// all five tables. Shared floor 10000 → the family starts at 10001. Numbers
-// within one series are no longer consecutive by design. Per-table unique
-// constraints still backstop same-type races; a cross-type race merely yields
-// a shared bare number, which was the guaranteed norm under per-series
-// numbering.
+// every family table at once. Shared floor 10000 → the family starts at 10001.
+// Numbers within one series are no longer consecutive by design. Per-table
+// unique constraints still backstop same-type races; a cross-type race merely
+// yields a shared bare number, which was the guaranteed norm under per-series
+// numbering. Legacy low/padded numbers (RMA-0010, CM-0004, REL-0031) and old
+// year-scoped formats (RMA-2026-0009) sit below the floor and keep their values;
+// new members continue upward from the shared max. (Invoices/INV- stay a
+// separate per-series book — an AR ledger is expected to be its own consecutive
+// sequence.)
 const RD_FAMILY = [
   ['orders', 'order_number', 'RD-'],
   ['quotes', 'quote_number', 'RDQ-'],
   ['estimates', 'estimate_number', 'RDE-'],
   ['sample_requests', 'request_number', 'RDS-'],
   ['purchase_orders', 'po_number', 'RDP-'],
+  ['returns', 'rma_number', 'RMA-'],
+  ['credit_memos', 'credit_memo_number', 'CM-'],
+  ['material_releases', 'release_number', 'REL-'],
 ];
 
 async function nextRdFamilyNumber(db, prefix, floor = 10000) {
@@ -31712,25 +31719,31 @@ app.get('/api/admin/accounting/expenses/:id/receipt-url', staffAuth, requireRole
 });
 
 // --- Invoices (AR) ---
-// Invoice / RMA / credit-memo / release numbering — same shared MAX-based
-// allocator as orders/quotes/POs (see nextDocNumber). Year scoping was dropped
-// 2026-08-04: new numbers are plain RMA-0010 / CM-0004 / REL-0031, continuing
-// upward from the highest existing number in either format (old RMA-2026-0009
-// rows keep their numbers and still count toward the max).
+// Invoices keep their own per-series book (see nextDocNumber): an AR ledger is
+// expected to be its own consecutive INV- sequence, independent of the shared
+// operational pool.
 async function getNextInvoiceNumber() {
   return nextDocNumber(pool, 'invoices', 'invoice_number', 'INV-', 4);
 }
 
+// RMA / credit-memo / release numbering now draws from the RD-family global
+// pool (see nextRdFamilyNumber), so a bare number identifies exactly one
+// document across orders/quotes/estimates/samples/POs/returns/CMs/releases.
+// Pass the transaction `client` so the family MAX scan sees uncommitted sibling
+// rows and increments past them (same reasoning as getNextPONumber). New numbers
+// are unpadded 5-digit family values (RMA-10001); legacy RMA-0010 / CM-0004 /
+// REL-0031 and year-scoped RMA-2026-0009 rows sit below the floor and keep their
+// values while still counting toward the max.
 async function getNextRMANumber(client) {
-  return nextDocNumber(client || pool, 'returns', 'rma_number', 'RMA-', 4);
+  return nextRdFamilyNumber(client || pool, 'RMA-');
 }
 
 async function getNextCreditMemoNumber(client) {
-  return nextDocNumber(client || pool, 'credit_memos', 'credit_memo_number', 'CM-', 4);
+  return nextRdFamilyNumber(client || pool, 'CM-');
 }
 
 async function getNextReleaseNumber(client) {
-  return nextDocNumber(client || pool, 'material_releases', 'release_number', 'REL-', 4);
+  return nextRdFamilyNumber(client || pool, 'REL-');
 }
 
 // Resolve a customer's store-credit identity from the (type, refId) pair used by
