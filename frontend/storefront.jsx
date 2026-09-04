@@ -2711,6 +2711,20 @@
           }).catch(() => {});
         } catch (e) {}
       };
+      // GA4 e-commerce mirror events. gtag is only present when GA4_MEASUREMENT_ID
+      // is configured (loaded via /api/analytics), so these no-op everywhere else.
+      const gaEvent = (name, params) => {
+        try { if (window.gtag) window.gtag('event', name, params || {}); } catch (e) {}
+      };
+      const gaItem = (it) => {
+        it = it || {};
+        return {
+          item_id: itemSku(it) || it.sku_id || String(it.id || ''),
+          item_name: itemLineName(it) || undefined,
+          price: parseFloat(it.unit_price || 0) || undefined,
+          quantity: parseInt(it.num_boxes) || 1,
+        };
+      };
       const pingSession = () => {
         if (!analyticsAllowed()) return;
         try {
@@ -2898,6 +2912,7 @@
               showToast('Added to cart', 'success');
               setCartDrawerOpen(true);
               track('add_to_cart', { sku_id: item.sku_id, is_sample: !!item.is_sample });
+              gaEvent('add_to_cart', { currency: 'USD', value: parseFloat(data.item.subtotal || 0) || 0, items: [gaItem(data.item)] });
             }
           })
           .catch(err => console.error(err));
@@ -3308,6 +3323,7 @@
         else history.pushState({ view: 'detail', skuId }, '', url);
         window.scrollTo(0, 0);
         track('product_view', { sku_id: skuId });
+        gaEvent('view_item', { items: [{ item_id: skuId }] });
       };
 
       const goBackToBrowse = () => {
@@ -3329,6 +3345,7 @@
         history.pushState({ view: 'checkout' }, '', '/checkout');
         window.scrollTo(0, 0);
         track('checkout_started', { item_count: cart.length });
+        gaEvent('begin_checkout', { currency: 'USD', value: cart.reduce((s, i) => s + (parseFloat(i.subtotal) || 0), 0), items: cart.map(gaItem) });
       };
 
       const goAccount = () => {
@@ -3352,6 +3369,10 @@
         history.pushState({ view: 'confirmation' }, '', '/checkout/confirmation');
         window.scrollTo(0, 0);
         track('order_completed', { order_number: orderData && orderData.order ? orderData.order.order_number : undefined });
+        // GA4 dedupes purchases by transaction_id, so a refresh of the
+        // confirmation page can't double-count revenue.
+        const gaOrder = orderData && orderData.order;
+        if (gaOrder) gaEvent('purchase', { transaction_id: gaOrder.order_number, currency: 'USD', value: parseFloat(gaOrder.total || 0) || 0, items: (gaOrder.items || []).map(gaItem) });
         fetch(API + '/api/cart/clear', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3517,6 +3538,7 @@
 
       const handleSearch = (query) => {
         track('search', { query: query });
+        gaEvent('search', { search_term: query });
         setSearchQuery(query);
         setSearchDidYouMean(null);
         setSelectedCategory(null);
