@@ -1,7 +1,9 @@
 {
   "scripts": {
     "build": "esbuild frontend/storefront.jsx --outfile=frontend/storefront-app.js --format=iife --jsx=transform",
-    "watch": "esbuild frontend/storefront.jsx --outfile=frontend/storefront-app.js --format=iife --jsx=transform --watch"
+    "watch": "esbuild frontend/storefront.jsx --outfile=frontend/storefront-app.js --format=iife --jsx=transform --watch",
+    "build:rep": "esbuild frontend/rep.jsx --outfile=frontend/rep-app.js --format=iife --jsx=transform",
+    "watch:rep": "esbuild frontend/rep.jsx --outfile=frontend/rep-app.js --format=iife --jsx=transform --watch"
   },
   "dependencies": {
     "ssh2-sftp-client": "^12.0.1",

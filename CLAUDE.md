@@ -6,7 +6,9 @@ Custom PIM + storefront for a flooring/remodeling e-commerce business. No Shopif
 
 - **Database:** PostgreSQL (19 tables — see `database/schema.sql`)
 - **Backend:** Node.js + Express (`backend/server.js` ~12.6K lines, monolithic)
-- **Frontend:** 3 React SPAs using self-hosted React. `admin.html` + `rep.html` transpile JSX in-browser via Babel (no build step). `storefront.html` is the exception: it loads a **compiled** bundle `storefront-app.js` built from `storefront.jsx` with esbuild — run `npm run build` after editing the `.jsx`, then bump `?v=` in `storefront.html` + `sw.js` (`SHELL_ASSETS`) and bump `sw.js` `CACHE_NAME`
+- **Frontend:** 3 React SPAs using self-hosted React. `admin.html` transpiles JSX in-browser via Babel (no build step). `storefront.html` and `rep.html` load **compiled** esbuild bundles — no runtime Babel:
+  - `storefront.html` ← `storefront-app.js` from `storefront.jsx`: run `npm run build` after editing the `.jsx`, then bump `?v=` in `storefront.html` + `sw.js` (`SHELL_ASSETS`) and bump `sw.js` `CACHE_NAME`
+  - `rep.html` ← `rep-app.js` from `rep.jsx`: run `npm run build:rep` (or `npm run watch:rep`) after editing `rep.jsx`, then bump `?v=` on the `rep-app.js` tag in `rep.html`. Rep has no service worker, so no `sw.js` bump needed. Edit `rep.jsx` (the source), NOT `rep.html` (a slim shell)
 - **Infrastructure:** Docker Compose, Nginx reverse proxy, MinIO (S3) — no Redis; caching is nginx proxy_cache + in-process (see Caching)
 - **Scrapers:** 29 Puppeteer-based vendor scrapers (`backend/scrapers/`)
 
