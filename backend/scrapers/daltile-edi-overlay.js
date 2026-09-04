@@ -20,10 +20,12 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { parse832, getFtpConfig } from './daltile-832.js';
-import { appendLog } from './base.js';
+import { appendLog, deriveSheetSqft } from './base.js';
 
 const DAL_VENDOR_ID = '550e8400-e29b-41d4-a716-446655440003';
 const KEYSTONE = 1.6;
+// retail: round DOWN to nearest .x9 (platform nine-ending convention)
+const nineEnding = (raw) => Math.round((Math.floor((raw - 0.09) / 0.10) * 0.10 + 0.09) * 100) / 100;
 // Live outbox only — NOT the Archive (stale catalogs would override current prices,
 // and there are ~130 of them). Configurable via source.config.outbox_dir.
 const DEFAULT_OUTBOX = '/users/7149990009/Outbox';
@@ -36,7 +38,10 @@ export function ediPriceMap(items) {
     const uom = (it.unit_of_measure || '').toUpperCase();
     const sell_by = it.sell_by || (uom === 'SF' || uom === 'SY' ? 'box' : 'unit');
     const basis = sell_by === 'box' ? 'per_sqft' : 'per_unit';
-    m.set(it.vendor_sku, { cost: it.cost, basis, sell_by });
+    m.set(it.vendor_sku, {
+      cost: it.cost, basis, sell_by,
+      sqft_per_box: it.sqft_per_box || null, pieces_per_box: it.pieces_per_box || null,
+    });
   }
   return m;
 }
@@ -53,7 +58,7 @@ export function ediPriceMap(items) {
  */
 export async function overlayFromEdiMap(pool, ediMap, { dryRun = false } = {}) {
   const client = await pool.connect();
-  const stats = { mapped: 0, missingEdiPrice: 0, updated: 0, unchanged: 0, basisInit: 0 };
+  const stats = { mapped: 0, missingEdiPrice: 0, updated: 0, unchanged: 0, basisInit: 0, sheetAmbiguous: 0 };
   try {
     await client.query('BEGIN');
     await client.query(`CREATE TABLE IF NOT EXISTS daltile_overlay_backup (
@@ -62,19 +67,38 @@ export async function overlayFromEdiMap(pool, ediMap, { dryRun = false } = {}) {
     const { rows } = await client.query(`
       SELECT ls.id AS sku_id, m.live_vendor_sku, m.edi_vendor_sku,
              pr.cost AS cur_cost, pr.retail_price AS cur_retail, pr.price_basis AS cur_basis,
-             COALESCE(pr.retail_locked, false) AS retail_locked, ls.sell_by AS cur_sell_by
+             COALESCE(pr.retail_locked, false) AS retail_locked, ls.sell_by AS cur_sell_by,
+             ls.variant_type, c.slug AS category,
+             pk.sqft_per_box AS pk_sqft_per_box, pk.pieces_per_box AS pk_pieces_per_box
       FROM daltile_edi_map m
       JOIN skus ls ON ls.vendor_sku = m.live_vendor_sku AND ls.status = 'active'
       JOIN products p ON p.id = ls.product_id AND p.vendor_id = $1
+      LEFT JOIN categories c ON c.id = p.category_id
+      LEFT JOIN packaging pk ON pk.sku_id = ls.id
       LEFT JOIN pricing pr ON pr.sku_id = ls.id`, [DAL_VENDOR_ID]);
     for (const r of rows) {
       stats.mapped++;
       const ep = ediMap.get(r.edi_vendor_sku);
       if (!ep) { stats.missingEdiPrice++; continue; }
-      const newCost = Math.round(ep.cost * 100) / 100;
+      // Per-sheet rule (see migrate-mosaic-per-sheet.mjs): mosaics/stacked stone
+      // sold per sheet carry a per-SHEET cost, but the 832 quotes per-SF. Convert
+      // via sheet coverage (live packaging first, else the feed's per-pack area).
+      // When coverage can't be derived, SKIP — writing a per-SF cost into a
+      // per-sheet row is how sheets ended up retailing below cost.
+      let effCost = ep.cost;
+      const sellsPerSheet = r.cur_basis === 'per_unit'
+        && (r.category === 'mosaic-tile' || r.category === 'stacked-stone')
+        && r.variant_type !== 'accessory';
+      if (sellsPerSheet && ep.basis === 'per_sqft') {
+        const sheetSqft = deriveSheetSqft(r.pk_sqft_per_box, r.pk_pieces_per_box)
+          || deriveSheetSqft(ep.sqft_per_box, ep.pieces_per_box);
+        if (!sheetSqft) { stats.sheetAmbiguous++; continue; }
+        effCost = ep.cost * sheetSqft;
+      }
+      const newCost = Math.round(effCost * 100) / 100;
       const newRetail = r.retail_locked
         ? r.cur_retail
-        : Math.round(ep.cost * KEYSTONE * 100) / 100;
+        : (newCost > 0 ? nineEnding(newCost * KEYSTONE) : 0);
       // Only initialize basis/sell_by when the live value is missing; never overwrite.
       const basisMissing = !r.cur_basis;
       const sellByMissing = !r.cur_sell_by;
@@ -158,7 +182,8 @@ export async function run(pool, job, source) {
   const dryRun = (source.config || {}).dry_run === true;
   const stats = await overlayFromEdiMap(pool, ediMap, { dryRun });
   const msg = `Daltile EDI overlay ${dryRun ? '(DRY RUN) ' : ''}complete: ${stats.updated} repriced, `
-    + `${stats.unchanged} unchanged, ${stats.missingEdiPrice} mapped-but-not-in-feed (of ${stats.mapped} mapped).`;
+    + `${stats.unchanged} unchanged, ${stats.missingEdiPrice} mapped-but-not-in-feed, `
+    + `${stats.sheetAmbiguous} sheet-coverage-unknown skipped (of ${stats.mapped} mapped).`;
   if (job) await appendLog(pool, job.id, msg, stats);
   return stats;
 }

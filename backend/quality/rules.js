@@ -370,6 +370,36 @@ export const RULES = [
   },
 
   {
+    key: 'mosaic-underpriced',
+    title: 'Mosaic priced below any plausible sheet price (stale import / wrong basis?)',
+    severity: 'warn',
+    async run(pool, { vendorId }) {
+      // A mosaic SHEET under $3 (or mosaic tile under $2.50/sqft) is never a
+      // real price — it's a stale import or a per-SF rate stored per sheet.
+      // The Daltile 2026-09 case sold $34 Keystones sheets at $1.69 for months
+      // without any other rule firing: below-cost needs retail < cost, and
+      // cost-outlier only sees per_sqft rows with a 30-SKU category median.
+      // Trim pieces are excluded (a $1.99 dot/pencil piece is legitimate).
+      const { rows } = await pool.query(`
+        SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
+               p.name, s.variant_name, pr.retail_price, pr.price_basis, c.slug AS category
+        ${SKU_FROM}
+          AND c.slug = ANY($2)
+          AND s.variant_type IS DISTINCT FROM 'accessory'
+          AND p.name !~* $3 AND COALESCE(s.variant_name, '') !~* $3
+          AND pr.retail_price > 0
+          AND ( (pr.price_basis IN ('per_unit', 'unit') AND pr.retail_price < 3)
+             OR (pr.price_basis IN ('per_sqft', 'sqft') AND pr.retail_price < 2.5) )
+      `, [vendorId, SHEET_SLUGS, TRIM_NAME_RE]);
+      return rows.map(r => ({
+        sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
+        summary: `${r.vendor_code}: ${r.category} "${r.name}${r.variant_name ? ' — ' + r.variant_name : ''}" retails at $${parseFloat(r.retail_price).toFixed(2)} ${r.price_basis === 'per_unit' ? 'per sheet' : 'per sqft'} — below any plausible mosaic price, check for stale/wrong-basis import`,
+        detail: { retail_price: parseFloat(r.retail_price), price_basis: r.price_basis, category: r.category },
+      }));
+    },
+  },
+
+  {
     key: 'zero-cost-with-retail',
     title: 'Active SKU sells with a retail price but cost is $0',
     severity: 'warn',
