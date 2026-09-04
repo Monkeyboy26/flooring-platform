@@ -100,18 +100,34 @@ const MAPPINGS = {
 };
 
 // ── fetch current (non-archive) 832 feed ──
+// Daltile's FTP resets data sockets intermittently — reconnect + retry per file.
+// A file that still fails after retries is skipped: its SKUs just report
+// "not in feed" and nothing is written for them.
 const cfg = (await pool.query(`SELECT edi_config FROM vendors WHERE id=$1`, [DAL])).rows[0].edi_config;
-const ftp = await createFtpConnection(cfg);
 const items = [];
-try {
-  const files = (await findRemote832Files(ftp)).filter((f) => !/archive/i.test(f.remotePath));
-  for (const f of files) {
-    const local = '/tmp/dal-cheapfix-' + f.name;
-    await ftp.downloadTo(local, f.remotePath);
-    try { items.push(...parse832(fs.readFileSync(local, 'utf-8')).items); } catch (e) { console.error('parse fail', f.name, e.message); }
-    try { fs.unlinkSync(local); } catch {}
-  }
-} finally { try { ftp.close(); } catch {} }
+{
+  let ftp = await createFtpConnection(cfg);
+  try {
+    const files = (await findRemote832Files(ftp)).filter((f) => !/archive/i.test(f.remotePath));
+    for (const f of files) {
+      const local = '/tmp/dal-cheapfix-' + f.name;
+      let ok = false;
+      for (let attempt = 1; attempt <= 3 && !ok; attempt++) {
+        try {
+          await ftp.downloadTo(local, f.remotePath);
+          ok = true;
+        } catch (e) {
+          console.error(`download ${f.name} attempt ${attempt}: ${e.message}`);
+          try { ftp.close(); } catch {}
+          ftp = await createFtpConnection(cfg);
+        }
+      }
+      if (!ok) { console.error(`SKIPPING ${f.name} after 3 attempts`); continue; }
+      try { items.push(...parse832(fs.readFileSync(local, 'utf-8')).items); } catch (e) { console.error('parse fail', f.name, e.message); }
+      try { fs.unlinkSync(local); } catch {}
+    }
+  } finally { try { ftp.close(); } catch {} }
+}
 const byEdiSku = new Map(items.filter((it) => it.vendor_sku).map((it) => [it.vendor_sku.toUpperCase(), it]));
 console.log(`feed: ${items.length} EDI items`);
 
