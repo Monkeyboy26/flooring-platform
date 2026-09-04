@@ -1860,6 +1860,7 @@
       const [lastName, setLastName] = useState('');
       const [error, setError] = useState('');
       const [loading, setLoading] = useState(false);
+      const [show, setShow] = useState(false);
 
       useEffect(() => {
         fetch(API + '/api/staff/setup-check')
@@ -1957,64 +1958,120 @@
           .catch(() => { setError('Cannot reach API'); setLoading(false); });
       };
 
-      if (mode === 'checking') return <div className="loading">Loading...</div>;
+      const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '11px 12px', background: 'var(--bg)', border: '1px solid var(--line2)', color: 'var(--ink)', font: '400 13px/1 var(--sans)', outline: 'none' };
+      const labelStyle = { display: 'block', font: '400 9px/1 var(--mono)', letterSpacing: '0.16em', color: 'var(--faint)', margin: '0 0 8px' };
+      const brassBtn = (disabled) => ({ marginTop: 24, width: '100%', padding: '13px', background: disabled ? 'var(--panel2)' : 'var(--brass)', border: 'none', color: disabled ? 'var(--faint)' : '#17140f', font: '500 13px/1 var(--sans)', cursor: disabled ? 'default' : 'pointer' });
+
+      // Split layout shared with StaffSetPassword — editorial stone panel beside
+      // the form. renderShell is a plain function (not a <Component>) so the
+      // inputs don't remount and lose focus on every keystroke.
+      const renderShell = (children, panel) => (
+        <div className="auth-page" style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--sans)', display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)' }}>
+          <style>{'@media (max-width:880px){.auth-page{grid-template-columns:1fr!important}.auth-panel{display:none!important}}'}</style>
+          <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', boxSizing: 'border-box', padding: '30px 36px', overflow: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+              <span style={{ font: '500 16px/1 var(--sans)', letterSpacing: '0.14em', color: 'var(--ink)' }}>ROMA</span>
+              <span style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.2em', color: 'var(--brass)' }}>OPERATIONS</span>
+            </div>
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '32px 0' }}>
+              <div style={{ width: 'min(400px, 100%)', margin: '0 auto' }}>{children}</div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', font: '400 10px/1.5 var(--mono)', letterSpacing: '0.06em', color: 'var(--faint)' }}>
+              <span>© {new Date().getFullYear()} Roma Flooring Designs</span>
+              <span>Anaheim, CA · License #830966</span>
+            </div>
+          </div>
+          <div className="auth-panel" style={{ position: 'relative', minHeight: '100vh', overflow: 'hidden', borderLeft: '1px solid var(--line)', background: '#0e0f10' }}>
+            <div style={{ position: 'absolute', inset: 0, backgroundImage: "url('https://images.unsplash.com/photo-1659362549741-c32157cc71f4?q=80&w=1471&auto=format&fit=crop')", backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.5 }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(19,20,22,0.55) 0%, rgba(19,20,22,0.30) 42%, rgba(19,20,22,0.94) 100%)' }} />
+            <div style={{ position: 'relative', height: '100%', boxSizing: 'border-box', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '52px 50px' }}>
+              <div style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--brass)' }}>Roma Operations · Staff access</div>
+              <h2 style={{ margin: '18px 0 0', font: '300 40px/1.05 var(--sans)', letterSpacing: '-0.02em', color: 'var(--ink)' }}>{panel.title}</h2>
+              <p style={{ margin: '18px 0 0', maxWidth: 380, font: '400 14px/1.65 var(--sans)', color: 'var(--dim)' }}>{panel.sub}</p>
+            </div>
+          </div>
+        </div>
+      );
+
+      const errBox = error && (
+        <div style={{ margin: '0 0 16px', padding: '10px 12px', background: 'rgba(197,71,49,0.10)', borderLeft: '2px solid var(--hot)', font: '400 12px/1.5 var(--sans)', color: 'var(--ink)' }}>{error}</div>
+      );
+
+      if (mode === 'checking') {
+        return renderShell(
+          <div style={{ font: '400 12px/1 var(--mono)', letterSpacing: '0.14em', color: 'var(--faint)' }}>LOADING…</div>,
+          { title: <span>Roma <em style={{ fontStyle: 'italic', fontWeight: 400 }}>Operations</em>.</span>, sub: 'Orders, purchase orders, releases, vendors, and the catalog — all in one place.' }
+        );
+      }
 
       if (mode === 'setup') {
-        return (
-          <div className="auth-gate">
-            <form className="auth-box" onSubmit={handleSetup}>
-              <h1>Welcome</h1>
-              <p>Create your admin account to get started</p>
-              {error && <div className="auth-error">{error}</div>}
-              <input type="text" placeholder="First Name" value={firstName} onChange={e => setFirstName(e.target.value)} autoFocus />
-              <input type="text" placeholder="Last Name" value={lastName} onChange={e => setLastName(e.target.value)} />
-              <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
-              <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
-              <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-                {loading ? 'Creating Account...' : 'Create Admin Account'}
-              </button>
-            </form>
-          </div>
+        return renderShell(
+          <form onSubmit={handleSetup}>
+            <div style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.2em', color: 'var(--brass)' }}>FIRST-TIME SETUP</div>
+            <h1 style={{ margin: '13px 0 0', font: '400 24px/1.2 var(--sans)', letterSpacing: '-0.015em', color: 'var(--ink)' }}>Create your admin account</h1>
+            <p style={{ margin: '11px 0 22px', font: '400 14px/1.6 var(--sans)', color: 'var(--dim)' }}>This becomes the first staff account for the operations console.</p>
+            {errBox}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <label style={labelStyle}>FIRST NAME</label>
+                <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} autoFocus style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>LAST NAME</label>
+                <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} style={inputStyle} />
+              </div>
+            </div>
+            <label style={labelStyle}>EMAIL</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
+            <label style={labelStyle}>PASSWORD</label>
+            <div style={{ position: 'relative' }}>
+              <input type={show ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} style={{ ...inputStyle, paddingRight: 58 }} />
+              <button type="button" onClick={() => setShow(s => !s)} style={{ position: 'absolute', top: 0, right: 0, height: '100%', padding: '0 12px', background: 'transparent', border: 'none', color: 'var(--faint)', font: '400 10px/1 var(--mono)', letterSpacing: '0.08em', cursor: 'pointer' }}>{show ? 'HIDE' : 'SHOW'}</button>
+            </div>
+            <button type="submit" disabled={loading} style={brassBtn(loading)}>{loading ? 'Creating account…' : 'Create admin account →'}</button>
+          </form>,
+          { title: <span>Let’s get you <em style={{ fontStyle: 'italic', fontWeight: 400 }}>set up</em>.</span>, sub: 'Create the first staff account, then sign in to the console — orders, purchase orders, releases, vendors, and the catalog, all in one place.' }
         );
       }
 
       if (needs2FA) {
-        return (
-          <div className="auth-gate">
-            <form className="auth-box" onSubmit={handleVerify2FA}>
-              <h1>Verification</h1>
-              <p>A 6-digit code was sent to your email. Enter it below.</p>
-              {error && <div className="auth-error">{error}</div>}
-              <input type="text" placeholder="Enter 6-digit code" value={twoFACode} onChange={e => setTwoFACode(e.target.value.replace(/\D/g, '').slice(0, 6))} autoFocus
-                style={{ textAlign: 'center', letterSpacing: '0.3em', fontSize: '1.5rem' }} />
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', color: 'var(--stone-600)', margin: '0.5rem 0 1rem' }}>
-                <input type="checkbox" checked={rememberDevice} onChange={e => setRememberDevice(e.target.checked)} />
-                Trust this device for 30 days
-              </label>
-              <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading || twoFACode.length < 6}>
-                {loading ? 'Verifying...' : 'Verify'}
-              </button>
-              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-                <a onClick={resend2FA} style={{ fontSize: '0.8125rem', color: 'var(--stone-500)', cursor: 'pointer', textDecoration: 'underline' }}>Resend code</a>
-              </div>
-            </form>
-          </div>
+        return renderShell(
+          <form onSubmit={handleVerify2FA}>
+            <div style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.2em', color: 'var(--brass)' }}>TWO-FACTOR</div>
+            <h1 style={{ margin: '13px 0 0', font: '400 24px/1.2 var(--sans)', letterSpacing: '-0.015em', color: 'var(--ink)' }}>Enter your code</h1>
+            <p style={{ margin: '11px 0 22px', font: '400 14px/1.6 var(--sans)', color: 'var(--dim)' }}>A 6-digit code was sent to your email. It expires shortly.</p>
+            {errBox}
+            <label style={labelStyle}>VERIFICATION CODE</label>
+            <input type="text" inputMode="numeric" value={twoFACode} onChange={e => setTwoFACode(e.target.value.replace(/\D/g, '').slice(0, 6))} autoFocus style={{ ...inputStyle, textAlign: 'center', letterSpacing: '0.4em', fontSize: 22, padding: '13px 12px' }} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 9, margin: '14px 0 0', font: '400 12px/1.4 var(--sans)', color: 'var(--dim)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={rememberDevice} onChange={e => setRememberDevice(e.target.checked)} />
+              Trust this device for 30 days
+            </label>
+            <button type="submit" disabled={loading || twoFACode.length < 6} style={brassBtn(loading || twoFACode.length < 6)}>{loading ? 'Verifying…' : 'Verify →'}</button>
+            <div style={{ marginTop: 16, textAlign: 'center' }}>
+              <a onClick={resend2FA} style={{ font: '400 11px/1 var(--mono)', letterSpacing: '0.06em', color: 'var(--faint)', cursor: 'pointer', textDecoration: 'underline' }}>Resend code</a>
+            </div>
+          </form>,
+          { title: <span>One more <em style={{ fontStyle: 'italic', fontWeight: 400 }}>step</em>.</span>, sub: 'Confirm it’s you with the code we just emailed, and you’re into the console.' }
         );
       }
 
-      return (
-        <div className="auth-gate">
-          <form className="auth-box" onSubmit={handleLogin}>
-            <h1>Admin Dashboard</h1>
-            <p>Sign in with your staff account</p>
-            {error && <div className="auth-error">{error}</div>}
-            <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} autoFocus />
-            <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
-            <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
-        </div>
+      return renderShell(
+        <form onSubmit={handleLogin}>
+          <div style={{ font: '400 10px/1 var(--mono)', letterSpacing: '0.2em', color: 'var(--brass)' }}>STAFF SIGN-IN</div>
+          <h1 style={{ margin: '13px 0 0', font: '400 24px/1.2 var(--sans)', letterSpacing: '-0.015em', color: 'var(--ink)' }}>Sign in to the console</h1>
+          <p style={{ margin: '11px 0 22px', font: '400 14px/1.6 var(--sans)', color: 'var(--dim)' }}>Use your Roma staff account.</p>
+          {errBox}
+          <label style={labelStyle}>EMAIL</label>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} autoFocus style={{ ...inputStyle, marginBottom: 12 }} />
+          <label style={labelStyle}>PASSWORD</label>
+          <div style={{ position: 'relative' }}>
+            <input type={show ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} style={{ ...inputStyle, paddingRight: 58 }} />
+            <button type="button" onClick={() => setShow(s => !s)} style={{ position: 'absolute', top: 0, right: 0, height: '100%', padding: '0 12px', background: 'transparent', border: 'none', color: 'var(--faint)', font: '400 10px/1 var(--mono)', letterSpacing: '0.08em', cursor: 'pointer' }}>{show ? 'HIDE' : 'SHOW'}</button>
+          </div>
+          <button type="submit" disabled={loading} style={brassBtn(loading)}>{loading ? 'Signing in…' : 'Sign in →'}</button>
+        </form>,
+        { title: <span>Welcome <em style={{ fontStyle: 'italic', fontWeight: 400 }}>back</em>.</span>, sub: 'Sign in to the operations console — orders, purchase orders, releases, vendors, and the catalog, all in one place.' }
       );
     }
 
