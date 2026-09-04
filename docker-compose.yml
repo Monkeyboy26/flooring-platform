@@ -89,6 +89,11 @@ services:
       ESTES_PASSWORD: ${ESTES_PASSWORD:-}
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      # Storefront analytics (served via /api/analytics) — all optional; each
+      # tracker only loads when its ID is set. See .env.example.
+      GA4_MEASUREMENT_ID: ${GA4_MEASUREMENT_ID:-}
+      CLARITY_PROJECT_ID: ${CLARITY_PROJECT_ID:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
       PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
       MSI_PORTAL_USERNAME: ${MSI_PORTAL_USERNAME:-}

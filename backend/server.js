@@ -28367,6 +28367,46 @@ app.get('/api/config/google-client-id', (req, res) => {
   res.json({ clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '' });
 });
 
+// GET /api/analytics — env-driven analytics loader script for the storefront.
+// Emits GA4 / Microsoft Clarity / Sentry snippets only for the IDs that are
+// configured, so the <script> tag in storefront.html is a harmless no-op until
+// GA4_MEASUREMENT_ID / CLARITY_PROJECT_ID / SENTRY_DSN are set (per environment —
+// local dev stays untracked unless you opt in). No .js extension: nginx's
+// static-asset regex location would shadow the /api/ proxy for *.js paths.
+app.get('/api/analytics', (req, res) => {
+  const ga4 = /^[\w-]+$/.test(process.env.GA4_MEASUREMENT_ID || '') ? process.env.GA4_MEASUREMENT_ID : '';
+  const clarity = /^[\w-]+$/.test(process.env.CLARITY_PROJECT_ID || '') ? process.env.CLARITY_PROJECT_ID : '';
+  const sentryDsn = /^https:\/\/[\w@.\/-]+$/.test(process.env.SENTRY_DSN || '') ? process.env.SENTRY_DSN : '';
+  const parts = [];
+  if (ga4) {
+    parts.push(
+      `(function(){var s=document.createElement('script');s.async=true;` +
+      `s.src='https://www.googletagmanager.com/gtag/js?id=${ga4}';document.head.appendChild(s);` +
+      `window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};` +
+      `gtag('js',new Date());gtag('config',${JSON.stringify(ga4)});})();`
+    );
+  }
+  if (clarity) {
+    parts.push(
+      `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};` +
+      `t=l.createElement(r);t.async=1;t.src='https://www.clarity.ms/tag/'+i;` +
+      `y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})` +
+      `(window,document,'clarity','script',${JSON.stringify(clarity)});`
+    );
+  }
+  if (sentryDsn) {
+    parts.push(
+      `(function(){var s=document.createElement('script');s.async=true;s.crossOrigin='anonymous';` +
+      `s.src='https://browser.sentry-cdn.com/8.55.0/bundle.min.js';` +
+      `s.onload=function(){if(window.Sentry)Sentry.init({dsn:${JSON.stringify(sentryDsn)}});};` +
+      `document.head.appendChild(s);})();`
+    );
+  }
+  res.type('application/javascript');
+  res.set('Cache-Control', 'public, max-age=300');
+  res.send(parts.join('\n') || '/* analytics not configured */');
+});
+
 // GET /api/rep/customers — unified list (mirrors admin endpoint)
 app.get('/api/rep/customers', repAuth, async (req, res) => {
   try {
