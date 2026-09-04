@@ -1,0 +1,112 @@
+[
+ {
+  "sku_id": "f8147d8b-9738-4b0b-9d21-448376f1ccd1",
+  "vendor_sku": "337244",
+  "name": "Flash Bars Blush",
+  "sell_by": "unit",
+  "cost": "3.11",
+  "retail_price": "4.89",
+  "price_basis": "per_unit",
+  "sqft_per_box": "4.7152",
+  "pieces_per_box": 14
+ },
+ {
+  "sku_id": "6c2b5620-f7c7-4d7a-b57e-3a2d8a2a4535",
+  "vendor_sku": "337245",
+  "name": "Flash Bars Cobalt",
+  "sell_by": "unit",
+  "cost": "3.11",
+  "retail_price": "4.89",
+  "price_basis": "per_unit",
+  "sqft_per_box": "4.7152",
+  "pieces_per_box": 14
+ },
+ {
+  "sku_id": "2321a504-1a26-4824-be9a-fa6b15d1b39a",
+  "vendor_sku": "337246",
+  "name": "Flash Bars Cool Grey",
+  "sell_by": "unit",
+  "cost": "3.11",
+  "retail_price": "4.89",
+  "price_basis": "per_unit",
+  "sqft_per_box": "4.7152",
+  "pieces_per_box": 14
+ },
+ {
+  "sku_id": "c3dd4b94-8904-4ec4-9e3a-ac55eb0121ba",
+  "vendor_sku": "337247",
+  "name": "Flash Bars Graphite",
+  "sell_by": "unit",
+  "cost": "3.11",
+  "retail_price": "4.89",
+  "price_basis": "per_unit",
+  "sqft_per_box": "4.7152",
+  "pieces_per_box": 14
+ },
+ {
+  "sku_id": "67ca0ae1-b67d-45e6-8d6d-34ffa4741909",
+  "vendor_sku": "337248",
+  "name": "Flash Bars Ivory",
+  "sell_by": "unit",
+  "cost": "3.11",
+  "retail_price": "4.89",
+  "price_basis": "per_unit",
+  "sqft_per_box": "4.7152",
+  "pieces_per_box": 14
+ },
+ {
+  "sku_id": "6d5a5c31-3263-41ee-b161-417c6c9ca99f",
+  "vendor_sku": "337249",
+  "name": "Flash Bars Lead",
+  "sell_by": "unit",
+  "cost": "3.11",
+  "retail_price": "4.89",
+  "price_basis": "per_unit",
+  "sqft_per_box": "4.7152",
+  "pieces_per_box": 14
+ },
+ {
+  "sku_id": "e3456041-b498-4312-8853-3ca4f5222569",
+  "vendor_sku": "337250",
+  "name": "Flash Bars Light Blue",
+  "sell_by": "unit",
+  "cost": "3.11",
+  "retail_price": "4.89",
+  "price_basis": "per_unit",
+  "sqft_per_box": "4.7152",
+  "pieces_per_box": 14
+ },
+ {
+  "sku_id": "0c68f23c-08c7-4e0d-bc86-63d49afe5c68",
+  "vendor_sku": "337251",
+  "name": "Flash Bars White",
+  "sell_by": "unit",
+  "cost": "3.11",
+  "retail_price": "4.89",
+  "price_basis": "per_unit",
+  "sqft_per_box": "4.7152",
+  "pieces_per_box": 14
+ },
+ {
+  "sku_id": "27ca15a5-4a4b-46e9-ba4a-f0bf79775e57",
+  "vendor_sku": "337275",
+  "name": "Spark Bars Ivory",
+  "sell_by": "unit",
+  "cost": "3.11",
+  "retail_price": "4.89",
+  "price_basis": "per_unit",
+  "sqft_per_box": "4.7152",
+  "pieces_per_box": 14
+ },
+ {
+  "sku_id": "50ce4e55-a600-4be1-8481-b3dc8692d4f8",
+  "vendor_sku": "337276",
+  "name": "Spark Bars White",
+  "sell_by": "unit",
+  "cost": "3.11",
+  "retail_price": "4.89",
+  "price_basis": "per_unit",
+  "sqft_per_box": "4.7152",
+  "pieces_per_box": 14
+ }
+]

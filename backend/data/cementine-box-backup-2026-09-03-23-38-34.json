@@ -1,0 +1,200 @@
+[
+ {
+  "sku_id": "db8a269c-e51f-44f9-b55a-08e9cd789c1e",
+  "vendor_sku": "6350",
+  "name": "Cementine Black And White Bw 1",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "32ab87bc-87a4-4cda-a152-0a6f2c3b50f7",
+  "vendor_sku": "6349",
+  "name": "Cementine Black And White Bw 2",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "29431303-05f5-4b41-809a-de4248e32299",
+  "vendor_sku": "6348",
+  "name": "Cementine Black And White Bw 3",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "e6802eaf-804e-40ab-b380-500521660a8a",
+  "vendor_sku": "6347",
+  "name": "Cementine Black And White Bw 4",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "5b777270-ac47-421f-8a55-8d537cd20500",
+  "vendor_sku": "6346",
+  "name": "Cementine Black And White Bw 5",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "57b59237-ba6f-4c5c-acfa-5c5613e808b2",
+  "vendor_sku": "6407",
+  "name": "Cementine Evo 1",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "8a7992de-ad33-41e7-9f4f-d4107d1fe5fa",
+  "vendor_sku": "6406",
+  "name": "Cementine Evo 2",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "9369f41e-2a5c-4cfd-9808-2c6ccdea8b20",
+  "vendor_sku": "6405",
+  "name": "Cementine Evo 3",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "c9348efe-2c72-4880-9b5b-ae106b3f6129",
+  "vendor_sku": "6404",
+  "name": "Cementine Evo 4",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "8b6314ee-c9ea-4a65-a261-bb577c9fbaa9",
+  "vendor_sku": "6403",
+  "name": "Cementine Evo 5",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "63bbea2f-bb3b-4f2b-b9e0-4a85bbd7c024",
+  "vendor_sku": "6240",
+  "name": "Cementine Posa 1",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "63f28c61-07be-4ceb-8fbb-a62d63f81341",
+  "vendor_sku": "6239",
+  "name": "Cementine Posa 2",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "119c9234-1340-4820-b513-d870505d9f0d",
+  "vendor_sku": "6238",
+  "name": "Cementine Posa 3",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "4ee0a38e-f5ab-42b9-9fa0-1e6e491b0f65",
+  "vendor_sku": "6237",
+  "name": "Cementine Posa 4",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "5e728268-2ea2-4071-935e-b8d047431333",
+  "vendor_sku": "6236",
+  "name": "Cementine Posa 5",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "200e2230-3a27-4eb3-8727-bb4547b97467",
+  "vendor_sku": "6432",
+  "name": "Cementine Retro 1",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "4f56e613-25c0-401c-8fe3-8108c82fcce6",
+  "vendor_sku": "6431",
+  "name": "Cementine Retro 2",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ },
+ {
+  "sku_id": "8d3fcee3-c6bc-4b49-8d27-ab5682c0fd65",
+  "vendor_sku": "6430",
+  "name": "Cementine Retro 3",
+  "sell_by": "unit",
+  "cost": "4.06",
+  "retail_price": "6.49",
+  "price_basis": "per_unit",
+  "sqft_per_box": "11.6208",
+  "pieces_per_box": 27
+ }
+]
