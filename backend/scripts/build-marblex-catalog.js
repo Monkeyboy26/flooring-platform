@@ -803,6 +803,11 @@ function buildImages(products) {
       if (!prodPrimary) prodPrimary = ranked[0];
       for (const u of ranked) if (u !== prodPrimary && !prodAlts.includes(u)) prodAlts.push(u);
     }
+    // Multi-kind trim products get NO product-level fallback: a photoless pencil liner must
+    // show a placeholder, not the chair-rail/L-cap photo via the product primary.
+    const trimKinds = p.kind === 'trim'
+      ? new Set(p.skus.map((s) => String(s.accessory_label || '').replace(/\s*\(.*\)$/, ''))) : null;
+    if (trimKinds && trimKinds.size > 1) { prodPrimary = null; prodAlts.length = 0; }
     if (prodPrimary || Object.keys(skusOut).length) {
       images[p.pkey] = { product: { primary: prodPrimary, alternates: prodAlts.slice(0, 6) }, skus: skusOut };
       prodWith++;

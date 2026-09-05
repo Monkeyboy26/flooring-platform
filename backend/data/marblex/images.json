@@ -8602,10 +8602,8 @@
   },
   "MX-classico-1-pencil-liner-trim-trim": {
     "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/9.jpg",
-      "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2025/11/11.jpg"
-      ]
+      "primary": null,
+      "alternates": []
     },
     "skus": {
       "MX323T": {
@@ -8630,10 +8628,8 @@
   },
   "MX-emperador-light-turkish-deco-liner-trim-trim": {
     "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2023/03/MX113H_Emperor_Turkish_Liner3d.jpg",
-      "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/03/linerIMG_0383.jpg"
-      ]
+      "primary": null,
+      "alternates": []
     },
     "skus": {
       "MX181": {
@@ -8652,7 +8648,7 @@
   },
   "MX-ivory-rope-liner-trim-trim": {
     "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2023/03/linerIMG_0377.jpg",
+      "primary": null,
       "alternates": []
     },
     "skus": {
@@ -8664,11 +8660,8 @@
   },
   "MX-noce-1-pencil-liner-trim-trim": {
     "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/12.jpg",
-      "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2025/11/14.jpg",
-        "https://marblexcorp.com/wp-content/uploads/2025/11/13.jpg"
-      ]
+      "primary": null,
+      "alternates": []
     },
     "skus": {
       "MX324T": {
@@ -8706,11 +8699,8 @@
   },
   "MX-tuscany-gold-dome-liner-trim-trim": {
     "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner2-test.png",
-      "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner3.png",
-        "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner.png"
-      ]
+      "primary": null,
+      "alternates": []
     },
     "skus": {
       "MX232T": {
