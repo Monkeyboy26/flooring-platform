@@ -662,8 +662,59 @@ function imgCompatible(sku, u, source) {
   return true;
 }
 
+// ---------- stone-identity + trim-shape verification ----------
+// Woo occasionally attaches ANOTHER stone's photo to a product (Classico trim wearing a
+// Noce liner image), and trim shapes (pencil/rope/dome/chair rail/coping…) look nothing
+// alike. Verify both from filename words: a filename naming a foreign stone (and not the
+// SKU's own) or a different trim shape is rejected.
+const STONE_STOP = new Set([
+  // shared color adjectives / geography — not stone identity on their own
+  'white', 'black', 'gold', 'grey', 'gray', 'dark', 'light', 'beige', 'blue', 'green', 'red',
+  'silver', 'yellow', 'brown', 'pink', 'royal', 'pure', 'polar', 'snow', 'sky', 'sea', 'ice',
+  'super', 'new', 'extra', 'premium', 'classic', 'mini', 'turkish', 'italian', 'spanish',
+  'with', 'and', 'the', 'see', 'gldn', 'bch', 'color', 'colors', 'mercer',
+]);
+const TRIM_WORDS = new Set(['liner', 'liners', 'coping', 'copings', 'chair', 'rail', 'rails',
+  'pencil', 'dome', 'rope', 'baseboard', 'baseboards', 'cap', 'crown', 'deco', 'waffle',
+  'pool', 'trim']);
+const SHAPE_CLASS = { pencil: 'pencil', rope: 'rope', dome: 'dome', chair: 'rail', crown: 'rail',
+  rail: 'rail', baseboard: 'base', cap: 'lcap', coping: 'coping', pool: 'coping',
+  waffle: 'deco', deco: 'deco' };
+const fileWords = (u) => new Set(
+  decodeURIComponent(String(u).split('/').pop() || '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+const stoneWordsOf = (name) => new Set(
+  baseKey(name).split(' ').filter((w) => w.length > 2 && !STONE_STOP.has(w) && !TRIM_WORDS.has(w)));
+const shapeClassOf = (label) => {
+  for (const w of String(label || '').toLowerCase().split(/[^a-z0-9]+/))
+    if (SHAPE_CLASS[w]) return SHAPE_CLASS[w];
+  return null;
+};
+
 function buildImages(products) {
   const raw = JSON.parse(fs.readFileSync(path.join(DIR, 'wc-images-raw.json'), 'utf8'));
+  // lexicon of every distinctive stone word across the catalog
+  const stoneLex = new Set();
+  for (const p of products) for (const w of stoneWordsOf(p.name)) stoneLex.add(w);
+  // stone check: filename naming a foreign stone (and not this product's own) → reject
+  function stoneOk(p, u) {
+    const fw = fileWords(u);
+    const own = stoneWordsOf(p.name);
+    let foreign = false, ownHit = false;
+    for (const w of fw) {
+      if (own.has(w)) ownHit = true;
+      else if (stoneLex.has(w)) foreign = true;
+    }
+    return !foreign || ownHit;
+  }
+  // trim shape check: filename naming a different shape than the SKU's accessory kind → reject
+  function shapeOk(s, u) {
+    if (!s.accessory_label) return true;
+    const skuClass = shapeClassOf(s.accessory_label);
+    const fileClasses = new Set();
+    for (const w of fileWords(u)) if (SHAPE_CLASS[w]) fileClasses.add(SHAPE_CLASS[w]);
+    if (!fileClasses.size) return true;
+    return skuClass ? fileClasses.has(skuClass) : false;
+  }
   const byCode = new Map();
   const wooIndex = [];   // for name-based fallback matching
   for (const p of raw) {
@@ -702,7 +753,7 @@ function buildImages(products) {
       if (FORMAT_WORDS.some((fw) => w.words.has(fw) && !own.includes(fw))) continue;
       const wooSize = (w.name.match(/(\d+)\s*x\s*(\d+)/) || [])[0];
       if (wooSize && sizeNorm && wooSize.replace(/\s+/g, '') !== sizeNorm) continue;
-      const ok = w.imgs.filter((u) => imgCompatible(s, u, p.kindSource));
+      const ok = w.imgs.filter((u) => imgCompatible(s, u, p.kindSource) && stoneOk(p, u) && shapeOk(s, u));
       if (ok.length) cands.push({ exactSize: !!(wooSize && sizeNorm), imgs: ok });
     }
     if (!cands.length) return null;
@@ -721,7 +772,7 @@ function buildImages(products) {
     for (const s of p.skus) {
       const imgs = byCode.get(s.code);
       if (!imgs || !imgs.length) continue;
-      const ok = rank(imgs).filter((u) => imgCompatible(s, u, source));
+      const ok = rank(imgs).filter((u) => imgCompatible(s, u, source) && stoneOk(p, u) && shapeOk(s, u));
       if (ok.length) accepted.set(s.code, ok);
       else dropped++;
     }
@@ -730,8 +781,12 @@ function buildImages(products) {
       if (accepted.has(s.code)) continue;
       const nm = wooNameMatch(p, s);
       if (nm && nm.length) { accepted.set(s.code, rank(nm)); swapped++; continue; }
+      // trim borrows only from the SAME accessory kind — a pencil liner must never wear
+      // the chair-rail/dome photo (shapes look nothing alike)
+      const labelBase = (x) => String(x.accessory_label || '').replace(/\s*\(.*\)$/, '');
       const sibs = p.skus.filter((o) => o !== s && accepted.has(o.code)
-        && o.finish_base === s.finish_base && (o.fill || null) === (s.fill || null) && (o.cut || null) === (s.cut || null))
+        && o.finish_base === s.finish_base && (o.fill || null) === (s.fill || null) && (o.cut || null) === (s.cut || null)
+        && labelBase(o) === labelBase(s))
         .sort((a, b) => ((b.size === s.size) ? 1 : 0) - ((a.size === s.size) ? 1 : 0));
       if (sibs.length) { accepted.set(s.code, accepted.get(sibs[0].code)); borrowed++; }
     }

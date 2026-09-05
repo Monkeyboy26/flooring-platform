@@ -2774,8 +2774,8 @@
         "https://marblexcorp.com/wp-content/uploads/2024/11/Aurelia-36x36-B.jpg",
         "https://marblexcorp.com/wp-content/uploads/2024/11/Aurelia-36x36-1.jpg",
         "https://marblexcorp.com/wp-content/uploads/2024/11/Aurleia-36x36-R11.jpg",
-        "https://marblexcorp.com/wp-content/uploads/2024/11/Floors-Aurlia-and-Zenobia-12x12-1.jpg",
-        "https://marblexcorp.com/wp-content/uploads/2024/11/Aurelia-12x12-24x24-24x48-1.jpg"
+        "https://marblexcorp.com/wp-content/uploads/2024/11/Aurelia-12x12-24x24-24x48-1.jpg",
+        "https://marblexcorp.com/wp-content/uploads/2024/11/Octavia-and-Aurelia-R11-2cm.jpg"
       ]
     },
     "skus": {
@@ -2785,8 +2785,7 @@
           "https://marblexcorp.com/wp-content/uploads/2024/11/Aurelia-12x12-12x24-1.jpg",
           "https://marblexcorp.com/wp-content/uploads/2024/11/Aurelia-36x36-B.jpg",
           "https://marblexcorp.com/wp-content/uploads/2024/11/Aurelia-36x36-1.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2024/11/Aurleia-36x36-R11.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2024/11/Floors-Aurlia-and-Zenobia-12x12-1.jpg"
+          "https://marblexcorp.com/wp-content/uploads/2024/11/Aurleia-36x36-R11.jpg"
         ]
       },
       "MXTAG-101": {
@@ -2804,16 +2803,12 @@
   "MX-marmi-imperiali-decoro-valentia": {
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2024/11/MARMI-IMPERIALI-DECORO-VALENTIA-60x60-2F-Aurelia-Domitia-P-1cm.jpg",
-      "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2024/11/Aurelia-12x12-12x24-1.jpg"
-      ]
+      "alternates": []
     },
     "skus": {
       "MXTAG-105": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2024/11/MARMI-IMPERIALI-DECORO-VALENTIA-60x60-2F-Aurelia-Domitia-P-1cm.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2024/11/Aurelia-12x12-12x24-1.jpg"
-        ]
+        "alternates": []
       }
     }
   },
@@ -3115,15 +3110,14 @@
   },
   "MX-heritage-porto-9215": {
     "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MX9215_coimbra_9215.jpg",
+      "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MX9216_heritage_porto_9216.jpg",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/04/MX9216_heritage_porto_9216.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/04/MX9221_heritage_porto_9221.jpg"
       ]
     },
     "skus": {
       "MX9215": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MX9215_coimbra_9215.jpg",
+        "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MX9216_heritage_porto_9216.jpg",
         "alternates": []
       },
       "MX9216": {
@@ -3193,11 +3187,11 @@
       "primary": "https://marblexcorp.com/wp-content/uploads/2023/10/3_Noble-stone_60x120_GREY-8.8-mm.jpg",
       "alternates": [
         "https://marblexcorp.com/wp-content/uploads/2023/10/Grey-Floor-Application-4.jpg",
-        "https://marblexcorp.com/wp-content/uploads/2023/10/Grey-wall-qwhite-floor-Application-1.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/10/Grey-Pattern-Group.png",
         "https://marblexcorp.com/wp-content/uploads/2023/10/4_Noble-stone_60X120_GREY_sviluppo-8.8-mm.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/10/Screenshot-2023-10-24-110040-all-in-one.png",
-        "https://marblexcorp.com/wp-content/uploads/2023/10/ALL-Chart.jpg"
+        "https://marblexcorp.com/wp-content/uploads/2023/10/ALL-Chart.jpg",
+        "https://marblexcorp.com/wp-content/uploads/2023/10/Packaging-Info.jpg"
       ]
     },
     "skus": {
@@ -3205,10 +3199,10 @@
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/10/3_Noble-stone_60x120_GREY-8.8-mm.jpg",
         "alternates": [
           "https://marblexcorp.com/wp-content/uploads/2023/10/Grey-Floor-Application-4.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2023/10/Grey-wall-qwhite-floor-Application-1.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/10/Grey-Pattern-Group.png",
           "https://marblexcorp.com/wp-content/uploads/2023/10/4_Noble-stone_60X120_GREY_sviluppo-8.8-mm.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2023/10/Screenshot-2023-10-24-110040-all-in-one.png"
+          "https://marblexcorp.com/wp-content/uploads/2023/10/Screenshot-2023-10-24-110040-all-in-one.png",
+          "https://marblexcorp.com/wp-content/uploads/2023/10/ALL-Chart.jpg"
         ]
       }
     }
@@ -3217,23 +3211,23 @@
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2023/10/3_Noble-stone_60x120_WHITE-8.8-mm.jpg",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/10/Grey-wall-qwhite-floor-Application-1.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/10/Grey-Floor-Application-4.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/10/Screenshot-2023-10-24-110040-all-in-one.png",
         "https://marblexcorp.com/wp-content/uploads/2023/10/ALL-Chart.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/10/White-Pattern-Group.png",
-        "https://marblexcorp.com/wp-content/uploads/2023/10/4_Noble-stone_60X120_WHITE_sviluppo-8.8-mm.jpg"
+        "https://marblexcorp.com/wp-content/uploads/2023/10/4_Noble-stone_60X120_WHITE_sviluppo-8.8-mm.jpg",
+        "https://marblexcorp.com/wp-content/uploads/2023/10/Packaging-Info.jpg"
       ]
     },
     "skus": {
       "MXFAB-11": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/10/3_Noble-stone_60x120_WHITE-8.8-mm.jpg",
         "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/10/Grey-wall-qwhite-floor-Application-1.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/10/Grey-Floor-Application-4.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/10/Screenshot-2023-10-24-110040-all-in-one.png",
           "https://marblexcorp.com/wp-content/uploads/2023/10/ALL-Chart.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2023/10/White-Pattern-Group.png"
+          "https://marblexcorp.com/wp-content/uploads/2023/10/White-Pattern-Group.png",
+          "https://marblexcorp.com/wp-content/uploads/2023/10/4_Noble-stone_60X120_WHITE_sviluppo-8.8-mm.jpg"
         ]
       }
     }
@@ -3260,16 +3254,14 @@
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2023/12/Ontario-10-x-48-Brown_1800x1800.jpg",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/12/Ontario-10-x-48-Brown-2_1800x1800.jpg",
-        "https://marblexcorp.com/wp-content/uploads/2023/12/bruno-brown-graph2.jpg"
+        "https://marblexcorp.com/wp-content/uploads/2023/12/Ontario-10-x-48-Brown-2_1800x1800.jpg"
       ]
     },
     "skus": {
       "MXCER-24": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/12/Ontario-10-x-48-Brown_1800x1800.jpg",
         "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/12/Ontario-10-x-48-Brown-2_1800x1800.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2023/12/bruno-brown-graph2.jpg"
+          "https://marblexcorp.com/wp-content/uploads/2023/12/Ontario-10-x-48-Brown-2_1800x1800.jpg"
         ]
       }
     }
@@ -3941,7 +3933,6 @@
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXMC-221_Oltremare.jpg",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2024/07/Terracreta_bedroom_Marna-dipintoOltremare-20-scaled.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/04/MXMC-221_Oltremare_GROUP.jpg"
       ]
     },
@@ -3949,7 +3940,6 @@
       "MXMC-221": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXMC-221_Oltremare.jpg",
         "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2024/07/Terracreta_bedroom_Marna-dipintoOltremare-20-scaled.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/MXMC-221_Oltremare_GROUP.jpg"
         ]
       }
@@ -4059,7 +4049,6 @@
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXMC-213_MARNA_HEXAGON.png",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/05/Terracreta_bathroom_Argilla-CeselloMarna-esagona-scaled.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/04/MXMC-213_MARNA_HEXAGON.jpg",
         "https://marblexcorp.com/wp-content/uploads/2024/07/Terracreta_still-life_Chamottedecori-scaled.jpg"
       ]
@@ -4068,7 +4057,6 @@
       "MXMC-213": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXMC-213_MARNA_HEXAGON.png",
         "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/05/Terracreta_bathroom_Argilla-CeselloMarna-esagona-scaled.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/MXMC-213_MARNA_HEXAGON.jpg",
           "https://marblexcorp.com/wp-content/uploads/2024/07/Terracreta_still-life_Chamottedecori-scaled.jpg"
         ]
@@ -5589,22 +5577,6 @@
     "skus": {
       "MX152T": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/mx152t-antique-botticino-3x6-tumbledE.jpg",
-        "alternates": []
-      }
-    }
-  },
-  "MX-bottocino": {
-    "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/mx127-antique-botticino-tumbled-4x4e-wed.jpg",
-      "alternates": []
-    },
-    "skus": {
-      "MX127": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/mx127-antique-botticino-tumbled-4x4e-wed.jpg",
-        "alternates": []
-      },
-      "MX128": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/mx127-antique-botticino-tumbled-4x4e-wed.jpg",
         "alternates": []
       }
     }
@@ -8598,18 +8570,6 @@
       }
     }
   },
-  "MX-sky-white-slab-slab": {
-    "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2025/12/Calacatta-Matarazzo-Honed-Marble-Slab-9.jpg",
-      "alternates": []
-    },
-    "skus": {
-      "MX8188": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2025/12/Calacatta-Matarazzo-Honed-Marble-Slab-9.jpg",
-        "alternates": []
-      }
-    }
-  },
   "MX-calacatta-matarazzo-slab-slab": {
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/Calacatta-Matarazzo-Honed-Marble-Slab-2.jpg",
@@ -8642,31 +8602,15 @@
   },
   "MX-classico-1-pencil-liner-trim-trim": {
     "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/Noce-Unfilled-Travertine-L-Cap-Liner-1x12-1.jpg",
+      "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/9.jpg",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2025/11/9.jpg",
         "https://marblexcorp.com/wp-content/uploads/2025/11/11.jpg"
       ]
     },
     "skus": {
-      "MX274T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/Noce-Unfilled-Travertine-L-Cap-Liner-1x12-1.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2025/11/9.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2025/11/11.jpg"
-        ]
-      },
       "MX323T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/Noce-Unfilled-Travertine-L-Cap-Liner-1x12-1.jpg",
+        "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/9.jpg",
         "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2025/11/9.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2025/11/11.jpg"
-        ]
-      },
-      "MX2T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/Noce-Unfilled-Travertine-L-Cap-Liner-1x12-1.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2025/11/9.jpg",
           "https://marblexcorp.com/wp-content/uploads/2025/11/11.jpg"
         ]
       }
@@ -8686,20 +8630,12 @@
   },
   "MX-emperador-light-turkish-deco-liner-trim-trim": {
     "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2023/03/linerIMG_0383.jpg",
+      "primary": "https://marblexcorp.com/wp-content/uploads/2023/03/MX113H_Emperor_Turkish_Liner3d.jpg",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/03/MX113H_Emperor_Turkish_Liner3d.jpg"
+        "https://marblexcorp.com/wp-content/uploads/2023/03/linerIMG_0383.jpg"
       ]
     },
     "skus": {
-      "MX207T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2023/03/linerIMG_0383.jpg",
-        "alternates": []
-      },
-      "MX300": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2023/03/linerIMG_0383.jpg",
-        "alternates": []
-      },
       "MX181": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/03/MX113H_Emperor_Turkish_Liner3d.jpg",
         "alternates": []
@@ -8716,20 +8652,10 @@
   },
   "MX-ivory-rope-liner-trim-trim": {
     "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/MX271T-_Ivory-Honed-Travertine-Pencil-Liner-1x12-1.jpg",
-      "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/03/linerIMG_0377.jpg"
-      ]
+      "primary": "https://marblexcorp.com/wp-content/uploads/2023/03/linerIMG_0377.jpg",
+      "alternates": []
     },
     "skus": {
-      "MX271T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/MX271T-_Ivory-Honed-Travertine-Pencil-Liner-1x12-1.jpg",
-        "alternates": []
-      },
-      "MX224T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/MX271T-_Ivory-Honed-Travertine-Pencil-Liner-1x12-1.jpg",
-        "alternates": []
-      },
       "MX227T": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/03/linerIMG_0377.jpg",
         "alternates": []
@@ -8745,28 +8671,7 @@
       ]
     },
     "skus": {
-      "MX273T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/12.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2025/11/14.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2025/11/13.jpg"
-        ]
-      },
       "MX324T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/12.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2025/11/14.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2025/11/13.jpg"
-        ]
-      },
-      "MX98T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/12.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2025/11/14.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2025/11/13.jpg"
-        ]
-      },
-      "MX154T": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2025/11/12.jpg",
         "alternates": [
           "https://marblexcorp.com/wp-content/uploads/2025/11/14.jpg",
@@ -8809,27 +8714,6 @@
     },
     "skus": {
       "MX232T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner2-test.png",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner3.png",
-          "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner.png"
-        ]
-      },
-      "MX272T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner2-test.png",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner3.png",
-          "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner.png"
-        ]
-      },
-      "MX230T": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner2-test.png",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner3.png",
-          "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner.png"
-        ]
-      },
-      "MX156T": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner2-test.png",
         "alternates": [
           "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner3.png",
