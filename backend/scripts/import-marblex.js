@@ -170,6 +170,7 @@ async function linkAccessory(parentSkuId, accessorySkuId, sortOrder) {
 function applicationFor(p) {
   if (p.kind === 'trim') return null;
   if (p.kind === 'slab') return 'Countertop';
+  if (p.kind === 'coping') return 'Pool · Outdoor';
   if (p.kind === 'paver') return 'Floor · Outdoor';
   if (p.kind === 'medallion') return 'Floor';
   return 'Floor · Wall';
@@ -187,7 +188,7 @@ function descFor(p) {
     };
   }
   const kindWord = p.kind === 'slab' ? 'slab' : p.kind === 'mosaic' ? 'mosaic' : p.kind === 'medallion' ? 'medallion'
-    : p.kind === 'paver' ? 'paver' : p.kind === 'pattern' ? 'pattern' : 'tile';
+    : p.kind === 'paver' ? 'paver' : p.kind === 'pattern' ? 'pattern' : p.kind === 'coping' ? 'pool coping' : 'tile';
   const looksLike = (p.look && p.look.toLowerCase() !== mat) ? `${p.look.toLowerCase()}-look ` : '';
   return {
     short: `${p.material} ${looksLike}${kindWord}${sizes.length ? ' in ' + sizes.join(', ') : ''}${finishes.length ? ' — ' + finishes.join(' / ').toLowerCase() : ''}.`,

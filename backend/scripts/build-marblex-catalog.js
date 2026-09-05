@@ -269,14 +269,18 @@ function parseStone() {
     const material = stoneMaterialFrom(description, sectionMat || 'Marble');
 
     // resolve kind (Type column is unreliable inside the TRIM section → use mode/description)
+    // Pool coping is NOT trim (owner): it's a primary hardscaping product → own kind/product.
     let kind;
-    if (mode === 'TRIM' || /liner|chair rail|baseboard|pool coping|pencil|dome|rope/i.test(description) && mode !== 'field' && mode !== 'MOSAIC') kind = 'trim';
+    if (/coping/i.test(description)) kind = 'coping';
+    else if (mode === 'TRIM' || /liner|chair rail|baseboard|pencil|dome|rope/i.test(description) && mode !== 'field' && mode !== 'MOSAIC') kind = 'trim';
     else if (mode === 'MOSAIC' || type === 'mosaic') kind = 'mosaic';
     else if (mode === 'PATTERN' || type === 'pattern') kind = 'pattern';
     else if (mode === 'MEDALLION' || type === 'medallion') kind = 'medallion';
     else if (type === 'slab' || /slab/i.test(sizeRaw)) kind = 'slab';
     else if (type === 'paver' || /paver/i.test(description)) kind = 'paver';
     else kind = 'field';                                 // Tile, Subway tile
+    // TRIM-section prices are per PIECE (field/tile sections are per sqft) — matters for coping
+    const perPiecePrice = kind === 'coping' && mode === 'TRIM';
 
     const finishBase = nameFinishBase(description) || normFinish(finishRaw);
     const fill = fillFrom(description);
@@ -287,7 +291,7 @@ function parseStone() {
       size: /slab|pattern|approx|aprxmtly/i.test(clean(sizeRaw)) ? null : (extractSize(sizeRaw) || extractSize(description)),
       sizeLabel: clean(sizeRaw),
       finish: finishDisplay(cut, fill, finishBase),
-      finishBase, fill, cut,
+      finishBase, fill, cut, perPiecePrice,
       thickness: normThickness(thickRaw),
       cost: money(priceRaw), cost_box: null,
       sqft_box: null, pcs_box: null,
@@ -388,6 +392,7 @@ function trimStoneKey(row) {
 // ================= CATEGORY =================
 function categoryFor(row) {
   const { material, kind } = row;
+  if (kind === 'coping') return 'pool-coping';
   if (kind === 'trim') return 'trim-accessories';
   if (kind === 'medallion') return 'mosaic-tile';
   if (kind === 'mosaic') return 'mosaic-tile';
@@ -425,9 +430,12 @@ function sellSpec(row) {
   // Natural stone tile & pavers sell BY THE PIECE ([[natural-stone-per-piece]] / Stone Pride
   // model): sell_by=unit, per_sqft rate, packaging.sqft_per_box = one piece's area so runtime
   // prices the piece (rate x area). Patterns (continuous sets, no piece size) stay per-sqft.
-  if (row.source === 'stone' && (row.kind === 'field' || row.kind === 'paver')) {
+  if (row.source === 'stone' && (row.kind === 'field' || row.kind === 'paver' || row.kind === 'coping')) {
     const area = pieceArea(row.size);
-    if (area) return { sell_by: 'unit', price_basis: 'per_sqft', piece_area: area };
+    // TRIM-section coping rows are priced per PIECE already → per_unit (cost = piece price)
+    if (area) return row.perPiecePrice
+      ? { sell_by: 'unit', price_basis: 'per_unit', piece_area: area }
+      : { sell_by: 'unit', price_basis: 'per_sqft', piece_area: area };
   }
   if (row.kind === 'paver')
     return { sell_by: row.sqft_box ? 'box' : 'sqft', price_basis: 'per_sqft' };
@@ -493,6 +501,7 @@ function buildProducts(rows) {
     else if (kind === 'mosaic') name = /mosaic/i.test(base) ? base : `${base} Mosaic`;
     else if (kind === 'medallion') name = /medallion/i.test(base) ? base : `${base} Medallion`;
     else if (kind === 'trim') name = `${base} Trim`;
+    else if (kind === 'coping') name = /coping/i.test(base) ? base : `${base} Pool Coping`;
     else if (kind === 'paver') name = /paver/i.test(base) ? base : `${base} Paver`;
 
     // SKUs (dedup exact code+size+finish)
@@ -690,8 +699,20 @@ const shapeClassOf = (label) => {
   return null;
 };
 
+// Hand-verified corrections (photo CONTENT contradicts its filename — only visible by eye):
+// null = drop (no honest photo), array = force these URLs.
+const IMAGE_OVERRIDES = {
+  // "Tuscany-Gold-Honed-Dome-Liner2" actually shows the ROPE twist liner
+  'MX232T': null,
+  'MX272T': ['https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner2-test.png'],
+};
+
 function buildImages(products) {
   const raw = JSON.parse(fs.readFileSync(path.join(DIR, 'wc-images-raw.json'), 'utf8'));
+  // dead-urls.json (optional): URLs that 404 on marblexcorp.com — refreshed by a manual sweep
+  let deadUrls = new Set();
+  try { deadUrls = new Set(JSON.parse(fs.readFileSync(path.join(DIR, 'dead-urls.json'), 'utf8'))); }
+  catch { /* no sweep yet */ }
   // lexicon of every distinctive stone word across the catalog
   const stoneLex = new Set();
   for (const p of products) for (const w of stoneWordsOf(p.name)) stoneLex.add(w);
@@ -719,7 +740,7 @@ function buildImages(products) {
   const wooIndex = [];   // for name-based fallback matching
   for (const p of raw) {
     const code = clean(p.sku);
-    const imgs = (p.imgs || []).filter((u) => u && !LOGO_RE.test(u));
+    const imgs = (p.imgs || []).filter((u) => u && !LOGO_RE.test(u) && !deadUrls.has(u));
     if (!imgs.length) continue;
     if (code) {
       if (!byCode.has(code)) byCode.set(code, []);
@@ -776,9 +797,18 @@ function buildImages(products) {
       if (ok.length) accepted.set(s.code, ok);
       else dropped++;
     }
+    // hand-verified overrides beat everything (before borrow so siblings copy corrected data);
+    // nulled codes stay photoless — pass 2 must not refill them from the same bad source
+    const nulled = new Set();
+    for (const s of p.skus) {
+      if (!(s.code in IMAGE_OVERRIDES)) continue;
+      const ov = IMAGE_OVERRIDES[s.code];
+      if (ov === null) { accepted.delete(s.code); nulled.add(s.code); }
+      else accepted.set(s.code, ov.filter((u) => !deadUrls.has(u)));
+    }
     // pass 2: fill gaps — Woo name match, then same finish+fill+cut sibling borrow
     for (const s of p.skus) {
-      if (accepted.has(s.code)) continue;
+      if (accepted.has(s.code) || nulled.has(s.code)) continue;
       const nm = wooNameMatch(p, s);
       if (nm && nm.length) { accepted.set(s.code, rank(nm)); swapped++; continue; }
       // trim borrows only from the SAME accessory kind — a pencil liner must never wear

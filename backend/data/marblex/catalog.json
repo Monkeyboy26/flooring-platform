@@ -17897,20 +17897,20 @@
     },
     {
       "pkey": "MX-classico-pool-coping",
-      "key": "stone|field|Travertine||classico pool coping",
-      "kind": "field",
+      "key": "stone|coping|Travertine||classico pool coping",
+      "kind": "coping",
       "name": "Classico Pool Coping",
       "collection": "Classico Pool Coping",
       "series": null,
       "manufacturer": null,
       "material": "Travertine",
-      "category": "natural-stone",
+      "category": "pool-coping",
       "look": null,
       "shape": null,
       "status": "active",
       "color": "Classico Pool Coping",
       "trimStoneKey": null,
-      "fieldStoneKey": "classico pool coping",
+      "fieldStoneKey": null,
       "fieldMaterial": "Travertine",
       "skus": [
         {
@@ -17930,6 +17930,26 @@
           "pcs_box": 1,
           "sell_by": "unit",
           "price_basis": "per_sqft",
+          "variant_type": null,
+          "accessory_label": null
+        },
+        {
+          "code": "MX2T",
+          "variant_name": "4\"x12\" · Honed",
+          "size": "4x12",
+          "size_nominal": "4\"x12\"",
+          "size_label": "4x12",
+          "finish": "Honed",
+          "finish_base": "Honed",
+          "fill": null,
+          "cut": null,
+          "thickness": "3/4\"",
+          "material": "Travertine",
+          "cost": 9.5,
+          "sqft_box": 0.3333,
+          "pcs_box": 1,
+          "sell_by": "unit",
+          "price_basis": "per_unit",
           "variant_type": null,
           "accessory_label": null
         }
@@ -26131,26 +26151,6 @@
           "price_basis": "per_unit",
           "variant_type": "accessory",
           "accessory_label": "L-Cap Liner (1x12)"
-        },
-        {
-          "code": "MX2T",
-          "variant_name": "Pool Coping (4x12) · Honed",
-          "size": "4x12",
-          "size_nominal": "4\"x12\"",
-          "size_label": "4x12",
-          "finish": "Honed",
-          "finish_base": "Honed",
-          "fill": null,
-          "cut": null,
-          "thickness": "3/4\"",
-          "material": "Travertine",
-          "cost": 9.5,
-          "sqft_box": null,
-          "pcs_box": null,
-          "sell_by": "unit",
-          "price_basis": "per_unit",
-          "variant_type": "accessory",
-          "accessory_label": "Pool Coping (4x12)"
         }
       ],
       "attach_to": [

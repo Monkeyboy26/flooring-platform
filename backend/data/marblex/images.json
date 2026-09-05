@@ -136,16 +136,12 @@
   "MX-ardennes-blanco": {
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2024/08/ardennes_39166-BLANCO.jpg",
-      "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2024/08/AMARDENNES100X248BLANCOSD.1506062669.4986.webp"
-      ]
+      "alternates": []
     },
     "skus": {
       "MXCER23": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2024/08/ardennes_39166-BLANCO.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2024/08/AMARDENNES100X248BLANCOSD.1506062669.4986.webp"
-        ]
+        "alternates": []
       }
     }
   },
@@ -173,7 +169,6 @@
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2024/08/ardennes_39171-CENTURY.jpg",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2024/08/AMARDENNES100X248CENTURYSD.1507064465.6758.webp",
         "https://marblexcorp.com/wp-content/uploads/2024/08/CenturyLoft.jpg"
       ]
     },
@@ -181,7 +176,6 @@
       "MXCER-5-1": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2024/08/ardennes_39171-CENTURY.jpg",
         "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2024/08/AMARDENNES100X248CENTURYSD.1507064465.6758.webp",
           "https://marblexcorp.com/wp-content/uploads/2024/08/CenturyLoft.jpg"
         ]
       }
@@ -190,18 +184,12 @@
   "MX-ardennes-castano": {
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2024/08/ardennes_39170-CASTANO-1-scaled.jpg",
-      "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2024/08/AMARDENNES100X248CASTAO2SD.1507064461.5135.webp",
-        "https://marblexcorp.com/wp-content/uploads/2024/08/AMARDENNES100X248CASTAO1SD.1507064459.8637.webp"
-      ]
+      "alternates": []
     },
     "skus": {
       "MXCER-51": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2024/08/ardennes_39170-CASTANO-1-scaled.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2024/08/AMARDENNES100X248CASTAO2SD.1507064461.5135.webp",
-          "https://marblexcorp.com/wp-content/uploads/2024/08/AMARDENNES100X248CASTAO1SD.1507064459.8637.webp"
-        ]
+        "alternates": []
       }
     }
   },
@@ -498,22 +486,6 @@
           "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-168_BALTIC_WHITE_24X48_J89762_HD.APP3A.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-168_BALTIC_WHITE_24X48_J89762_HD.APP2_.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-168_BALTIC_WHITE_24X48_J89762_HD.APP_.jpg"
-        ]
-      }
-    }
-  },
-  "MX-buildtech-mud": {
-    "product": {
-      "primary": "https://marblexcorp.com/wp-content/uploads/2025/12/766119_BUILDTECH-MUD-24X24.webp",
-      "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2025/12/766119_BUILDTECH-MUD-24X24-A-scaled.webp"
-      ]
-    },
-    "skus": {
-      "MXCER-250": {
-        "primary": "https://marblexcorp.com/wp-content/uploads/2025/12/766119_BUILDTECH-MUD-24X24.webp",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2025/12/766119_BUILDTECH-MUD-24X24-A-scaled.webp"
         ]
       }
     }
@@ -906,10 +878,8 @@
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-BEIGE-2X8-J92613_HD-9.5MM.jpg",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2024/02/b_rondine-cruda-brick-j92613_crudabrickbeige4_820_s000585643.webp",
         "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-BEIGE-2X8-J92613_HD-9.5MM-WALL.jpg",
         "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-BEIGE-CRUDA-SABBIA-1.jpg",
-        "https://marblexcorp.com/wp-content/uploads/2024/02/hd_rondine-cruda-brick-1.webp",
         "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-BEIGE-NARROW.jpg"
       ]
     },
@@ -917,10 +887,8 @@
       "MXCER-221": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-BEIGE-2X8-J92613_HD-9.5MM.jpg",
         "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2024/02/b_rondine-cruda-brick-j92613_crudabrickbeige4_820_s000585643.webp",
           "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-BEIGE-2X8-J92613_HD-9.5MM-WALL.jpg",
           "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-BEIGE-CRUDA-SABBIA-1.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2024/02/hd_rondine-cruda-brick-1.webp",
           "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-BEIGE-NARROW.jpg"
         ]
       }
@@ -931,7 +899,6 @@
       "primary": "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-SABIA-2X8-J92615_HD-9.5MM.jpg",
       "alternates": [
         "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-SABBIA-2X8-J92613_HD-9.5MM-WALL.png",
-        "https://marblexcorp.com/wp-content/uploads/2024/02/b_rondine-cruda-brick-j92615_crudabricksabbia4_820_s000585645-1.webp",
         "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-COLLECTION-ALL-TOGETHER.png"
       ]
     },
@@ -940,7 +907,6 @@
         "primary": "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-SABIA-2X8-J92615_HD-9.5MM.jpg",
         "alternates": [
           "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-BRICK-SABBIA-2X8-J92613_HD-9.5MM-WALL.png",
-          "https://marblexcorp.com/wp-content/uploads/2024/02/b_rondine-cruda-brick-j92615_crudabricksabbia4_820_s000585645-1.webp",
           "https://marblexcorp.com/wp-content/uploads/2024/02/CRUDA-COLLECTION-ALL-TOGETHER.png"
         ]
       }
@@ -1349,16 +1315,12 @@
   "MX-firenze-paglierino": {
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2023/12/fap-firenze-heritage-paglierino-20x20-MXCER-44.jpg",
-      "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/12/Firenze-Paglierino-Porcelain-Tile-8x8-MXCER-44.webp"
-      ]
+      "alternates": []
     },
     "skus": {
       "MXCER-44": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/12/fap-firenze-heritage-paglierino-20x20-MXCER-44.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/12/Firenze-Paglierino-Porcelain-Tile-8x8-MXCER-44.webp"
-        ]
+        "alternates": []
       }
     }
   },
@@ -3636,7 +3598,6 @@
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-206_stonetech_GREY_STONE_06AA.jpg",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-206_stonetech_GREY_STONE_06.webp",
         "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-206_stonetech_GREY_STONE_06APP.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-206_stonetech_GREY_STONE_06APP2.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-206_stonetech_GREY_STONE_06APP3.jpg",
@@ -3647,7 +3608,6 @@
       "MXCER-206": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-206_stonetech_GREY_STONE_06AA.jpg",
         "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-206_stonetech_GREY_STONE_06.webp",
           "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-206_stonetech_GREY_STONE_06APP.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-206_stonetech_GREY_STONE_06APP2.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-206_stonetech_GREY_STONE_06APP3.jpg",
@@ -3660,7 +3620,6 @@
     "product": {
       "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-205_stonetech_GREY_STONE_05-1.jpg",
       "alternates": [
-        "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-205_stonetech_GREY_STONE_05.webp",
         "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-205_stonetech_GREY_STONE_05APP.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-205_stonetech_GREY_STONE_05APP2.jpg"
       ]
@@ -3669,7 +3628,6 @@
       "MXCER-205": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-205_stonetech_GREY_STONE_05-1.jpg",
         "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-205_stonetech_GREY_STONE_05.webp",
           "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-205_stonetech_GREY_STONE_05APP.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-205_stonetech_GREY_STONE_05APP2.jpg"
         ]
@@ -4226,10 +4184,10 @@
       "alternates": [
         "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY_APP2.jpg",
         "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY_APP.jpg",
-        "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION4.webp",
-        "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION3.webp",
-        "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION2.webp",
-        "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION.webp"
+        "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY.jpg",
+        "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-34_TIMELESS_AMANI_GREY_12X24.jpg",
+        "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION-1.webp",
+        "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-36_TIMELESS_AMANI_GREY_12X24.jpg"
       ]
     },
     "skus": {
@@ -4238,9 +4196,7 @@
         "alternates": [
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY_APP2.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY_APP.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION4.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION3.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION2.webp"
+          "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY.jpg"
         ]
       },
       "MXCER-34": {
@@ -4248,9 +4204,8 @@
         "alternates": [
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY_APP2.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY_APP.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION4-1.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION3-1.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION2-1.webp"
+          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION-1.webp",
+          "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY.jpg"
         ]
       },
       "MXCER-36": {
@@ -4258,9 +4213,7 @@
         "alternates": [
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY_APP2.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY_APP.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION4.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION3.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION2.webp"
+          "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY.jpg"
         ]
       },
       "MXCER-71": {
@@ -4268,19 +4221,13 @@
         "alternates": [
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY_APP2.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY_APP.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION4-1.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION3-1.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION2-1.webp"
+          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION-1.webp",
+          "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_AMANI_GREY.jpg"
         ]
       },
       "MXCER-70": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS_AMANI_GREY_24X48.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION4.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION3.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION2.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-70_TIMELESS-AMANI-GREY-APPLICATION.webp"
-        ]
+        "alternates": []
       }
     }
   },
@@ -4309,13 +4256,7 @@
       },
       "MXCER-106": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-106_TIMELESS_CALACATTA_24X48.jpg",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-106_TIMELESS-CALACATA-APPLICATION5.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-106_TIMELESS-CALACATA-APPLICATION4.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-106_TIMELESS-CALACATA-APPLICATION3.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-106_TIMELESS-CALACATA-APPLICATION2.webp",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-106_TIMELESS-CALACATA-APPLICATION.webp"
-        ]
+        "alternates": []
       },
       "MXCER-164": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-164_TIMELESS_CALACATTA_24X48.jpg",
@@ -4324,7 +4265,7 @@
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_CALACATTA_APP3.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_CALACATTA_APP2.jpg",
           "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_CALACATTA_APP.jpg",
-          "https://marblexcorp.com/wp-content/uploads/2023/04/MXCER-106_TIMELESS-CALACATA-APPLICATION.webp"
+          "https://marblexcorp.com/wp-content/uploads/2023/04/TIMELESS_CALACATTA.jpg"
         ]
       }
     }
@@ -8703,12 +8644,9 @@
       "alternates": []
     },
     "skus": {
-      "MX232T": {
+      "MX272T": {
         "primary": "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner2-test.png",
-        "alternates": [
-          "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner3.png",
-          "https://marblexcorp.com/wp-content/uploads/2023/05/Tuscany-Gold-Honed-Dome-Liner.png"
-        ]
+        "alternates": []
       }
     }
   },
