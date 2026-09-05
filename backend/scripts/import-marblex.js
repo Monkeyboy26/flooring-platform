@@ -26,7 +26,10 @@ import { fileURLToPath } from 'url';
 
 const pool = new pg.Pool({
   host: process.env.DB_HOST || 'localhost',
-  port: 5432, database: 'flooring_pim', user: 'postgres', password: 'postgres',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  database: process.env.DB_NAME || 'flooring_pim',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || process.env.DB_PASS || 'postgres',
 });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -46,14 +49,25 @@ let HIDE_VENDOR = false;
 
 // ==================== DB helpers ====================
 async function upsertVendor(v) {
+  // The canonical vendor code may have been renamed in admin after the first import (live DBs
+  // carry '792', not 'MX'). Resolve the existing vendor by code OR name and keep ITS code —
+  // blindly upserting on code would create a duplicate vendor (cf. Tile World '380'/'TWD').
+  const existing = await pool.query(
+    'SELECT id, code FROM vendors WHERE code=$1 OR lower(name)=lower($2) LIMIT 1', [v.code, v.name]);
+  if (existing.rows.length) {
+    const { id, code } = existing.rows[0];
+    if (code !== v.code) console.log(`Vendor exists under code '${code}' (catalog says '${v.code}') — keeping '${code}'`);
+    await pool.query(`
+      UPDATE vendors SET name=$2, website=$3, email=COALESCE($4, email), phone=COALESCE($5, phone),
+        address=COALESCE($6, address), notes=$7, updated_at=CURRENT_TIMESTAMP WHERE id=$1`,
+      [id, v.name, v.website, v.email, v.phone, v.address, v.notes]);
+    return { id, code };
+  }
   const r = await pool.query(`
     INSERT INTO vendors (name, code, website, email, phone, address, notes)
     VALUES ($1,$2,$3,$4,$5,$6,$7)
-    ON CONFLICT (code) DO UPDATE SET name=EXCLUDED.name, website=EXCLUDED.website,
-      email=COALESCE(EXCLUDED.email, vendors.email), phone=COALESCE(EXCLUDED.phone, vendors.phone),
-      address=COALESCE(EXCLUDED.address, vendors.address), notes=EXCLUDED.notes, updated_at=CURRENT_TIMESTAMP
-    RETURNING id`, [v.name, v.code, v.website, v.email, v.phone, v.address, v.notes]);
-  return r.rows[0].id;
+    RETURNING id, code`, [v.name, v.code, v.website, v.email, v.phone, v.address, v.notes]);
+  return r.rows[0];
 }
 async function upsertBrand(b) {
   const r = await pool.query(`
@@ -248,9 +262,9 @@ async function importProduct(p, vendorId, brandId, catId) {
 
 async function main() {
   console.log('=== Marblex Corp Import ===\n');
-  const vendorId = await upsertVendor(catalog.vendor);
+  const { id: vendorId, code: vendorCode } = await upsertVendor(catalog.vendor);
   HIDE_VENDOR = (await pool.query('SELECT hide_public_name FROM vendors WHERE id=$1', [vendorId])).rows[0]?.hide_public_name === true;
-  console.log(`Vendor: ${catalog.vendor.name} (${vendorId})${HIDE_VENDOR ? ' [hidden — vendor name omitted from descriptions]' : ''}`);
+  console.log(`Vendor: ${catalog.vendor.name} (${vendorId}, code ${vendorCode})${HIDE_VENDOR ? ' [hidden — vendor name omitted from descriptions]' : ''}`);
   const brandId = await upsertBrand(catalog.brand);
   await linkVendorBrand(vendorId, brandId, true);
   console.log(`Brand:  ${catalog.brand.name} (${brandId})`);
@@ -263,7 +277,7 @@ async function main() {
 
   // Full rebuild: purge existing Marblex products + dependents
   const prodRows = await pool.query(
-    `SELECT p.id FROM products p JOIN vendors v ON v.id=p.vendor_id WHERE v.code=$1`, [catalog.vendor.code]);
+    `SELECT p.id FROM products p WHERE p.vendor_id=$1`, [vendorId]);
   const prodIds = prodRows.rows.map((r) => r.id);
   if (prodIds.length) {
     const skuRows = await pool.query(`SELECT id FROM skus WHERE product_id = ANY($1)`, [prodIds]);

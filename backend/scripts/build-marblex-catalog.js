@@ -110,6 +110,44 @@ function normFinish(f) {
   return titleCase(f);
 }
 
+// ---------- surface treatment: fill state + cut, parsed from the row NAME ----------
+// Travertine rows carry FILLED / UNFILLED and CROSS CUT / VEIN CUT in the description, not the
+// FINISH column. These are real variant axes (they look different) so they join the finish label.
+function fillFrom(name) {
+  const s = name.toLowerCase();
+  if (/\bunfilled\b/.test(s)) return 'Unfilled';
+  if (/\bfilled\b/.test(s)) return 'Filled';
+  return null;
+}
+function cutFrom(name) {
+  const s = name.toLowerCase();
+  if (/\bcross\s*cut\b/.test(s)) return 'Cross Cut';
+  if (/\bvein\s*cut\b/.test(s)) return 'Vein Cut';
+  return null;
+}
+// The stone sheet's FINISH column is sometimes wrong (e.g. MX873T "VEIN CUT FILLED POLISHED"
+// with col=Honed). When the description names exactly one finish, the description wins.
+function nameFinishBase(desc) {
+  const s = desc.toLowerCase();
+  const hits = new Set();
+  if (/semi[\s-]?polish/.test(s)) hits.add('Semi-Polished');
+  else if (/polish/.test(s)) hits.add('Polished');
+  if (/honed/.test(s)) hits.add('Honed');
+  if (/tumbled|antique/.test(s)) hits.add('Tumbled');
+  if (/brushed/.test(s)) hits.add('Brushed');
+  if (/leather/.test(s)) hits.add('Leathered');
+  return hits.size === 1 ? [...hits][0] : null;
+}
+// Display finish = cut + fill + base ("Vein Cut · Unfilled & Honed"). Keeping cut/fill inside the
+// finish value gives each treatment its own PDP pill (the selector is attribute-driven and has no
+// cut/fill attributes) and makes each pill land on the SKU whose photo shows that treatment.
+function finishDisplay(cut, fill, base) {
+  let f = base;
+  if (fill && base) f = `${fill} & ${base}`;
+  else if (fill) f = fill;
+  return cut && f ? `${cut} · ${f}` : (cut || f);
+}
+
 // ---------- thickness normalization ----------
 function normThickness(t) {
   const s = clean(t);
@@ -183,6 +221,7 @@ function parsePorcelain() {
       series, manufacturer,
       size: extractSize(name),
       finish: normFinish(finishRaw),
+      finishBase: normFinish(finishRaw), fill: null, cut: null,
       thickness: normThickness(thicknessRaw),
       cost: money(isSlab ? ppsf : ppsf),   // both columns: per-sqft price is authoritative
       cost_box: money(ppbox),
@@ -239,12 +278,16 @@ function parseStone() {
     else if (type === 'paver' || /paver/i.test(description)) kind = 'paver';
     else kind = 'field';                                 // Tile, Subway tile
 
+    const finishBase = nameFinishBase(description) || normFinish(finishRaw);
+    const fill = fillFrom(description);
+    const cut = cutFrom(description);
     out.push({
       source: 'stone', code: clean(sku), name: titleCase(description), rawName: description,
       material, kind, series: null, manufacturer: null,
       size: /slab|pattern|approx|aprxmtly/i.test(clean(sizeRaw)) ? null : (extractSize(sizeRaw) || extractSize(description)),
       sizeLabel: clean(sizeRaw),
-      finish: normFinish(finishRaw),
+      finish: finishDisplay(cut, fill, finishBase),
+      finishBase, fill, cut,
       thickness: normThickness(thickRaw),
       cost: money(priceRaw), cost_box: null,
       sqft_box: null, pcs_box: null,
@@ -300,6 +343,9 @@ function displayBase(row) {
   // strip finish words for field/slab display base (finish becomes a pill); keep for mosaics? keep pattern
   const finRe = /\b(Honed|Polished|Polish|Matte|Matt|Velvet|Soft|Brushed|Tumbled|Antique|Leathered|Leather|Strong|Grip|Semi[\s-]?Polished|Unfilled|Filled|Deep[\s-]?Tek|Brillo|Glossy|Gloss|Lappato)\b/gi;
   n = n.replace(finRe, ' ');
+  // cut is a variant axis (inside the finish pill) — a product named "X Vein Cut Slab" would
+  // otherwise end up holding the cross-cut SKU too (baseKey strips cut words when grouping)
+  n = n.replace(/\b(Cross|Vein)\s+Cut\b/gi, ' ');
   n = clean(n).replace(/\s{2,}/g, ' ').replace(/[\s\-|]+$/,'').replace(/^[\s\-|]+/,'');
   return titleCase(n) || row.name;
 }
@@ -386,8 +432,9 @@ function variantName(row) {
   const bits = [];
   const ns = nominalSize(row.size);
   if (ns) bits.push(ns);
-  // surface/cut treatment descriptor (kept on the SKU so it stays distinct)
-  const treat = (row.name.match(/\b(Cross Cut|Vein Cut|Deep Beveled|Micro Beveled|Beveled|Chiseled|Split ?Face|Straight Edge|Unfilled|Filled|Basketweave|Herringbone|Hexagon|Lantern|Chevron|Pinwheel|Octagon|Penny ?Round|Picket)\b/i) || [])[0];
+  // surface treatment descriptor (kept on the SKU so it stays distinct); cut + fill state now
+  // live inside the finish value (finishDisplay) so they are NOT repeated here
+  const treat = (row.name.match(/\b(Deep Beveled|Micro Beveled|Beveled|Chiseled|Split ?Face|Straight Edge|Basketweave|Herringbone|Hexagon|Lantern|Chevron|Pinwheel|Octagon|Penny ?Round|Picket)\b/i) || [])[0];
   if (treat && row.kind !== 'field') bits.push(titleCase(treat));
   if (row.finish) bits.push(row.finish);
   if (!bits.length) bits.push(row.finish || 'Standard');
@@ -439,7 +486,9 @@ function buildProducts(rows) {
         code: r.code,
         variant_name: variantName(r),
         size: r.size, size_nominal: nominalSize(r.size), size_label: r.sizeLabel || null,
-        finish: r.finish, thickness: r.thickness,
+        finish: r.finish, finish_base: r.finishBase || r.finish || null,
+        fill: r.fill || null, cut: r.cut || null,
+        thickness: r.thickness,
         material: r.material,
         cost: r.cost,
         sqft_box: r.sqft_box, pcs_box: r.pcs_box,
@@ -501,6 +550,10 @@ function assignCollections(products) {
     if (coll && p.name.length > coll.length && p.name.toLowerCase().startsWith(coll.toLowerCase()))
       p.color = clean(p.name.slice(coll.length).replace(/^[\s.,\-–]+/, '')) || null;
     else if (p.material === 'Porcelain' && p.series) p.color = p.name;   // porcelain: full name is the color/variant
+    // Singleton stones (collection == name) still need a color attr: the storefront pill
+    // logic groups siblings by color (falling back to variant_name when absent), so a
+    // color-less multi-finish product renders NO finish pills — its finishes are unreachable.
+    if (!p.color) p.color = p.name;
   }
 }
 
@@ -535,33 +588,143 @@ function ensureUnique(products) {
   }
 }
 
-// ================= IMAGES (match by Marblex code) =================
+// ================= IMAGES (match by Marblex code, VERIFIED against the SKU's finish) =================
+// The WooCommerce dump is mostly finish-accurate but not always: some products carry a photo of
+// the other finish (e.g. MX42T Classico honed 12x24 wearing "..._POL_..jpg"). Since finish is the
+// thing the shopper is choosing, every image is verified against the SKU's finish + fill state
+// via filename tokens; contradicting images are replaced (same-product / Woo-name match / sibling
+// borrow of the SAME finish+fill+cut) or dropped rather than shown on the wrong finish.
 const LOGO_RE = /Marblex-Logo/i;
 const DIAGRAM_RE = /TABLE|TECHS?|TECHNICAL|SPECIFICATION|PACKAGING|SIZE[_-]?TABLE|GENERIC_.*COLLECTION|-COLLECTION|colors?\.png/i;
+
+// finish groups considered visually interchangeable for verification purposes
+const FINISH_COMPAT = {
+  'Honed': ['Honed'],
+  'Polished': ['Polished', 'Semi-Polished'],
+  'Semi-Polished': ['Polished', 'Semi-Polished'],
+  'Tumbled': ['Tumbled', 'Brushed', 'Leathered'],
+  'Brushed': ['Tumbled', 'Brushed', 'Leathered'],
+  'Leathered': ['Tumbled', 'Brushed', 'Leathered'],
+};
+const fileSegs = (u) => {
+  let f = decodeURIComponent(String(u).split('/').pop() || '');
+  f = f.replace(/\.(jpe?g|png|webp|gif|avif)$/i, '');
+  return f.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+};
+// What the image FILENAME claims. Long finish words are trusted anywhere; short codes only as
+// exact segments (HF = honed-filled, HUF/HUFLD = honed-unfilled) so hex-hash names stay neutral.
+function imgClaims(u, source) {
+  const segs = fileSegs(u);
+  const has = (w) => segs.some((s) => s.includes(w));
+  const seg = (w) => segs.includes(w);
+  const finishes = new Set();
+  // POL + one junk letter (POLe, POLD…) — these filenames often carry appended junk chars
+  if (has('POLISH') || seg('PLSH') || segs.some((sg) => /^POL[A-Z]?$/.test(sg))) finishes.add('Polished');
+  if (has('HONED') || seg('HON') || seg('HF') || seg('HUF') || seg('HUFLD')) finishes.add('Honed');
+  // TUMBLED/ANTIQUE/BRUSHED are only meaningful finish claims on stone — porcelain files carry
+  // series names like "Antique Marble" that are not finishes
+  if (source === 'stone') {
+    if (has('TUMBLED') || has('ANTIQUE')) finishes.add('Tumbled');
+    if (has('BRUSHED')) finishes.add('Brushed');
+    if (has('LEATHER')) finishes.add('Leathered');
+  }
+  let fill = null;
+  if (has('UNFILLED') || seg('HUF') || seg('HUFLD') || seg('UFLD')) fill = 'Unfilled';
+  else if (has('FILLED') || seg('HF')) fill = 'Filled';
+  return { finishes, fill };
+}
+// true when the filename does NOT contradict the SKU's finish/fill (unknown = compatible)
+function imgCompatible(sku, u, source) {
+  const base = sku.finish_base;
+  const { finishes, fill } = imgClaims(u, source);
+  if (base && FINISH_COMPAT[base] && finishes.size && !FINISH_COMPAT[base].some((f) => finishes.has(f))) return false;
+  if (sku.fill && fill && fill !== sku.fill) return false;
+  return true;
+}
+
 function buildImages(products) {
   const raw = JSON.parse(fs.readFileSync(path.join(DIR, 'wc-images-raw.json'), 'utf8'));
   const byCode = new Map();
+  const wooIndex = [];   // for name-based fallback matching
   for (const p of raw) {
     const code = clean(p.sku);
-    if (!code) continue;
     const imgs = (p.imgs || []).filter((u) => u && !LOGO_RE.test(u));
     if (!imgs.length) continue;
-    if (!byCode.has(code)) byCode.set(code, []);
-    for (const u of imgs) if (!byCode.get(code).includes(u)) byCode.get(code).push(u);
+    if (code) {
+      if (!byCode.has(code)) byCode.set(code, []);
+      for (const u of imgs) if (!byCode.get(code).includes(u)) byCode.get(code).push(u);
+    }
+    const name = clean(String(p.name || '').replace(/&#\d+;/g, 'x')).toLowerCase();
+    wooIndex.push({ name, words: new Set(name.split(/[^a-z0-9]+/).filter(Boolean)), imgs });
   }
   const rank = (arr) => [...arr].sort((a, b) => (DIAGRAM_RE.test(a) ? 1 : 0) - (DIAGRAM_RE.test(b) ? 1 : 0));
 
+  // Woo-name fallback: every stone word of the product + the finish word (+fill, +cut when the
+  // Woo name states one) must appear in the Woo product name. Any FORMAT word in the Woo name
+  // (hexagon, mosaic, straight edge, …) must also appear on the SKU's own product/variant —
+  // otherwise a hexagon-mosaic photo lands on a 12x12 field tile.
+  const FORMAT_WORDS = ['hexagon', 'herringbone', 'basketweave', 'basket', 'chevron', 'penny',
+    'octagon', 'picket', 'lantern', 'mosaic', 'medallion', 'pattern', 'paver', 'liner', 'coping',
+    'rail', 'baseboard', 'pencil', 'slab', 'straight', 'chiseled', 'split', 'beveled', 'subway'];
+  function wooNameMatch(p, s) {
+    const stoneWords = baseKey(p.name).split(' ').filter((w) => w.length > 1);
+    if (!stoneWords.length) return null;
+    const finWord = (s.finish_base || '').split(/[\s(]/)[0].toLowerCase();
+    const sizeNorm = s.size ? s.size.toLowerCase().replace(/\s+/g, '') : null;
+    const own = `${p.name} ${s.variant_name || ''}`.toLowerCase();
+    const cands = [];
+    for (const w of wooIndex) {
+      if (!stoneWords.every((sw) => w.words.has(sw))) continue;
+      if (finWord === 'tumbled' ? !(w.words.has('tumbled') || w.words.has('antique')) : !w.words.has(finWord)) continue;
+      if (s.fill === 'Unfilled' && !w.words.has('unfilled')) continue;
+      if (s.fill === 'Filled' && (w.words.has('unfilled') || !w.words.has('filled'))) continue;
+      if ((w.words.has('cross') || w.words.has('vein')) && s.cut && !w.words.has(s.cut.split(' ')[0].toLowerCase())) continue;
+      if (FORMAT_WORDS.some((fw) => w.words.has(fw) && !own.includes(fw))) continue;
+      const wooSize = (w.name.match(/(\d+)\s*x\s*(\d+)/) || [])[0];
+      if (wooSize && sizeNorm && wooSize.replace(/\s+/g, '') !== sizeNorm) continue;
+      const ok = w.imgs.filter((u) => imgCompatible(s, u, p.kindSource));
+      if (ok.length) cands.push({ exactSize: !!(wooSize && sizeNorm), imgs: ok });
+    }
+    if (!cands.length) return null;
+    cands.sort((a, b) => (b.exactSize ? 1 : 0) - (a.exactSize ? 1 : 0));
+    return cands[0].imgs;
+  }
+
   const images = {};
-  let prodWith = 0, skuWith = 0;
+  let prodWith = 0, skuWith = 0, swapped = 0, borrowed = 0, dropped = 0;
   for (const p of products) {
-    const skusOut = {};
-    let prodPrimary = null; const prodAlts = [];
+    const source = p.skus.some((s) => s.fill || s.cut) ? 'stone' : (p.material !== 'Porcelain' ? 'stone' : 'porcelain');
+    p.kindSource = source;
+
+    // pass 1: code-matched images that survive finish verification
+    const accepted = new Map();   // code -> ranked compatible urls
     for (const s of p.skus) {
       const imgs = byCode.get(s.code);
       if (!imgs || !imgs.length) continue;
-      const ranked = rank(imgs);
-      skusOut[s.code] = { primary: ranked[0], alternates: ranked.slice(1, 6) };
-      skuWith++;
+      const ok = rank(imgs).filter((u) => imgCompatible(s, u, source));
+      if (ok.length) accepted.set(s.code, ok);
+      else dropped++;
+    }
+    // pass 2: fill gaps — Woo name match, then same finish+fill+cut sibling borrow
+    for (const s of p.skus) {
+      if (accepted.has(s.code)) continue;
+      const nm = wooNameMatch(p, s);
+      if (nm && nm.length) { accepted.set(s.code, rank(nm)); swapped++; continue; }
+      const sibs = p.skus.filter((o) => o !== s && accepted.has(o.code)
+        && o.finish_base === s.finish_base && (o.fill || null) === (s.fill || null) && (o.cut || null) === (s.cut || null))
+        .sort((a, b) => ((b.size === s.size) ? 1 : 0) - ((a.size === s.size) ? 1 : 0));
+      if (sibs.length) { accepted.set(s.code, accepted.get(sibs[0].code)); borrowed++; }
+    }
+
+    const skusOut = {};
+    let prodPrimary = null; const prodAlts = [];
+    for (const s of p.skus) {
+      const ranked = accepted.get(s.code);
+      if (!ranked || !ranked.length) continue;
+      if (!skusOut[s.code]) {
+        skusOut[s.code] = { primary: ranked[0], alternates: ranked.slice(1, 6) };
+        skuWith++;
+      }
       if (!prodPrimary) prodPrimary = ranked[0];
       for (const u of ranked) if (u !== prodPrimary && !prodAlts.includes(u)) prodAlts.push(u);
     }
@@ -569,8 +732,9 @@ function buildImages(products) {
       images[p.pkey] = { product: { primary: prodPrimary, alternates: prodAlts.slice(0, 6) }, skus: skusOut };
       prodWith++;
     }
+    delete p.kindSource;
   }
-  return { images, prodWith, skuWith };
+  return { images, prodWith, skuWith, swapped, borrowed, dropped };
 }
 
 // ================= MAIN =================
