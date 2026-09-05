@@ -404,11 +404,31 @@ function categoryFor(row) {
 }
 
 // ================= SELL BY / PRICE BASIS =================
+// area of ONE piece in sqft from a size like "12x24" / "2 1/4x12"
+function pieceArea(size) {
+  const m = String(size || '').match(SIZE_RE);
+  if (!m) return null;
+  const dim = (s) => {
+    const f = s.trim().match(/^(\d+)\s+(\d+)\/(\d+)$/);
+    if (f) return +f[1] + (+f[2] / +f[3]);
+    return parseFloat(s);
+  };
+  const a = dim(m[1]), b = dim(m[2]);
+  if (!a || !b) return null;
+  return +((a * b) / 144).toFixed(4);
+}
 function sellSpec(row) {
   if (row.kind === 'trim' || row.kind === 'medallion' || row.kind === 'mosaic')
     return { sell_by: 'unit', price_basis: 'per_unit' };
   if (row.kind === 'slab')
     return { sell_by: 'unit', price_basis: 'per_sqft' };   // area-less slab edge case → /sqft + rep size entry
+  // Natural stone tile & pavers sell BY THE PIECE ([[natural-stone-per-piece]] / Stone Pride
+  // model): sell_by=unit, per_sqft rate, packaging.sqft_per_box = one piece's area so runtime
+  // prices the piece (rate x area). Patterns (continuous sets, no piece size) stay per-sqft.
+  if (row.source === 'stone' && (row.kind === 'field' || row.kind === 'paver')) {
+    const area = pieceArea(row.size);
+    if (area) return { sell_by: 'unit', price_basis: 'per_sqft', piece_area: area };
+  }
   if (row.kind === 'paver')
     return { sell_by: row.sqft_box ? 'box' : 'sqft', price_basis: 'per_sqft' };
   // field tile / pattern
@@ -491,7 +511,7 @@ function buildProducts(rows) {
         thickness: r.thickness,
         material: r.material,
         cost: r.cost,
-        sqft_box: r.sqft_box, pcs_box: r.pcs_box,
+        sqft_box: spec.piece_area ?? r.sqft_box, pcs_box: spec.piece_area ? 1 : r.pcs_box,
         sell_by: spec.sell_by, price_basis: spec.price_basis,
         variant_type: kind === 'trim' ? 'accessory' : null,
         accessory_label: kind === 'trim' ? trimLabel(r) : null,
