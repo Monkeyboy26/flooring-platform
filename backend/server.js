@@ -328,8 +328,12 @@ async function isBlockedUrl(urlStr) {
 
 app.get('/api/img', imgLimiter, async (req, res) => {
   try {
-    const { url } = req.query;
+    let { url } = req.query;
     if (!url) return res.status(400).json({ error: 'url required' });
+    // Some feeds store URLs with literal spaces / non-ASCII (Elysium);
+    // Node's fetch rejects those. A literal space means the URL was never
+    // %-encoded, so encodeURI is safe here (no double-encoding).
+    if (/[ \u0080-\uffff]/.test(url)) url = encodeURI(url);
 
     const w = Math.min(parseInt(req.query.w) || 800, 2400);
     const h = req.query.h ? Math.min(parseInt(req.query.h), 2400) : undefined;

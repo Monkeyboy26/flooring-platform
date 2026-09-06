@@ -975,6 +975,11 @@ export const RULES = [
 ];
 
 async function checkUrl(url) {
+  // Some feeds store URLs with literal spaces / non-ASCII (5.9K Elysium rows);
+  // Node's fetch rejects those outright, which read as "timeout/unreachable"
+  // false positives. Encode only clearly-unencoded URLs (a literal space means
+  // it isn't %-encoded already, so encodeURI can't double-encode).
+  if (/[ \u0080-\uffff]/.test(url)) url = encodeURI(url);
   for (const method of ['HEAD', 'GET']) {
     try {
       const controller = new AbortController();
