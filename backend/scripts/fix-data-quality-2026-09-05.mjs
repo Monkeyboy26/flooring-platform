@@ -430,6 +430,27 @@ async function main() {
     }
     console.log(`18. BIGD Keracolor deactivated (not on current Big D sheet): ${kera.rowCount} SKU(s)`);
 
+    // 19. Discontinued-at-vendor lines (owner-approved 2026-09-06): AZT
+    //     Everest/Gobi/Glisten (Widen assets removed, no arizonatile.com
+    //     product pages) and WPT Moon/Copacabana/Cottage Bianco (Ecwid store
+    //     folders deleted; Moon was already absent from the 2026 WPT price
+    //     list). All are photoless after the dead-image purge. Reversible.
+    const disc = await client.query(`
+      UPDATE skus s SET status = 'inactive', updated_at = NOW()
+      FROM products p, vendors v
+      WHERE p.id = s.product_id AND v.id = p.vendor_id AND s.status = 'active'
+        AND ((v.code = 'AZT' AND p.name ~* '^(everest|gobi|glisten)$')
+          OR (v.code = '807' AND p.name ~* '^(moon (white|grey)|copacabana (blue|wave)|cottage bianco)$'))
+      RETURNING p.id`);
+    if (disc.rowCount) {
+      await client.query(`
+        UPDATE products SET status = 'inactive', updated_at = NOW()
+        WHERE id = ANY($1)
+          AND NOT EXISTS (SELECT 1 FROM skus s2 WHERE s2.product_id = products.id AND s2.status = 'active')`,
+        [[...new Set(disc.rows.map(r => r.id))]]);
+    }
+    console.log(`19. discontinued AZT/WPT lines deactivated: ${disc.rowCount} SKU(s)`);
+
     await client.query('COMMIT');
     console.log('Done.');
   } catch (err) {
