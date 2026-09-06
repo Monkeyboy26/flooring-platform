@@ -12446,7 +12446,9 @@
     const lineCalc = (it) => {
       const st = lineState[it.id] || {};
       const qty = st.selected ? parseInt(st.return_qty, 10) || 0 : 0;
-      const gross = qty * (parseFloat(it.unit_price) || 0);
+      const ordered = parseInt(it.num_boxes, 10) || 0;
+      const perQty = ordered > 0 ? (parseFloat(it.subtotal) || 0) / ordered : parseFloat(it.unit_price) || 0;
+      const gross = qty * perQty;
       const isSaleable = st.condition === "saleable";
       const pct = isSaleable ? parseFloat(st.restock_pct) || 0 : 0;
       const restockFee = isSaleable ? gross * pct / 100 : 0;
@@ -12568,7 +12570,7 @@
           },
           style: { width: "100%", border: "none", outline: "none", background: "transparent", textAlign: "right", font: "400 14px/1 'Cormorant Garamond', serif", color: "var(--rod-ink)" }
         }
-      ), /* @__PURE__ */ React.createElement("span", { style: { font: "500 9px/1 ui-monospace, monospace", color: "var(--rod-muted)" } }, "/", max)) : /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right", font: "500 10px/1 ui-monospace, monospace", color: "var(--rod-muted)" } }, "0 / ", max), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right", font: "400 14px/1 'Cormorant Garamond', serif", color: st.selected ? "var(--rod-red)" : "var(--rod-muted)" } }, st.selected ? "\u2212$" + c.refundLine.toFixed(2) : "$" + parseFloat(it.unit_price).toFixed(2))), st.selected && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, padding: "12px 14px", background: "rgba(216,205,182,0.35)", display: "grid", gap: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--rod-muted)", marginBottom: 6 } }, "Reason"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, RET_REASONS.map((r) => {
+      ), /* @__PURE__ */ React.createElement("span", { style: { font: "500 9px/1 ui-monospace, monospace", color: "var(--rod-muted)" } }, "/", max)) : /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right", font: "500 10px/1 ui-monospace, monospace", color: "var(--rod-muted)" } }, "0 / ", max), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "right", font: "400 14px/1 'Cormorant Garamond', serif", color: st.selected ? "var(--rod-red)" : "var(--rod-muted)" } }, st.selected ? "\u2212$" + c.refundLine.toFixed(2) : "$" + ((parseInt(it.num_boxes, 10) || 0) > 0 ? (parseFloat(it.subtotal) || 0) / (parseInt(it.num_boxes, 10) || 1) : parseFloat(it.unit_price) || 0).toFixed(2))), st.selected && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, padding: "12px 14px", background: "rgba(216,205,182,0.35)", display: "grid", gap: 12 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { font: "500 9px/1 ui-monospace, monospace", letterSpacing: "0.16em", textTransform: "uppercase", color: "var(--rod-muted)", marginBottom: 6 } }, "Reason"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, flexWrap: "wrap" } }, RET_REASONS.map((r) => {
         const on = st.reason_id === r.id;
         return /* @__PURE__ */ React.createElement(
           "span",

@@ -21724,7 +21724,12 @@ async function processReturn(client, { id, order, lines, refund_splits = [], sto
     if (prior + returnQty > orderedQty + 0.001) {
       throw new Error(`Cannot return ${returnQty} of "${oi.product_name}" — only ${(orderedQty - prior)} remain returnable`);
     }
-    const unitPrice = parseFloat(oi.unit_price || 0);
+    // Refund at the line's OWN per-qty value (subtotal ÷ ordered qty). unit_price is a
+    // per-sqft/per-sqyd RATE on box/carpet lines — qty × rate would refund cents on the
+    // dollar; unit/per-piece lines divide back to the same piece price.
+    const unitPrice = orderedQty > 0
+      ? parseFloat((parseFloat(oi.subtotal || 0) / orderedQty).toFixed(4))
+      : parseFloat(oi.unit_price || 0);
     const gross = parseFloat((returnQty * unitPrice).toFixed(2));
     const condition = ['saleable', 'damaged', 'defective'].includes(l.condition) ? l.condition : 'saleable';
     const restockPct = condition === 'saleable' ? Math.max(0, Math.min(100, parseFloat(l.restock_pct) || 0)) : 0;

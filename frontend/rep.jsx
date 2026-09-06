@@ -18815,7 +18815,11 @@
       const lineCalc = (it) => {
         const st = lineState[it.id] || {};
         const qty = st.selected ? (parseInt(st.return_qty, 10) || 0) : 0;
-        const gross = qty * (parseFloat(it.unit_price) || 0);
+        // Per-qty refund value = line subtotal ÷ ordered qty (unit_price is a per-sqft
+        // RATE on box/carpet lines — qty × rate would show cents on the dollar)
+        const ordered = parseInt(it.num_boxes, 10) || 0;
+        const perQty = ordered > 0 ? (parseFloat(it.subtotal) || 0) / ordered : (parseFloat(it.unit_price) || 0);
+        const gross = qty * perQty;
         const isSaleable = st.condition === 'saleable';
         const pct = isSaleable ? (parseFloat(st.restock_pct) || 0) : 0;
         const restockFee = isSaleable ? gross * pct / 100 : 0;
@@ -19007,7 +19011,7 @@
                                   <span style={{ textAlign: 'right', font: '500 10px/1 ui-monospace, monospace', color: 'var(--rod-muted)' }}>0 / {max}</span>
                                 )}
                                 <span style={{ textAlign: 'right', font: "400 14px/1 'Cormorant Garamond', serif", color: st.selected ? 'var(--rod-red)' : 'var(--rod-muted)' }}>
-                                  {st.selected ? '−$' + c.refundLine.toFixed(2) : '$' + parseFloat(it.unit_price).toFixed(2)}
+                                  {st.selected ? '−$' + c.refundLine.toFixed(2) : '$' + (((parseInt(it.num_boxes, 10) || 0) > 0 ? (parseFloat(it.subtotal) || 0) / (parseInt(it.num_boxes, 10) || 1) : parseFloat(it.unit_price) || 0)).toFixed(2)}
                                 </span>
                               </div>
 
