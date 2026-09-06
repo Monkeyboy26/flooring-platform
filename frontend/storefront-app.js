@@ -5598,7 +5598,9 @@
     const rugWFt = (parseFloat(rugWidthFt) || 0) + (parseFloat(rugWidthIn) || 0) / 12;
     const rugLFt = (parseFloat(rugLengthFt) || 0) + (parseFloat(rugLengthIn) || 0) / 12;
     const rugQuote = isCarpetSku ? computeRugQuote(rugWFt, rugLFt, rollWidthFt, cutPrice) : { valid: false };
-    const rugTotal = rugQuote.valid ? rugQuote.perRug * Math.max(1, rugQty) : 0;
+    const unitQtyNum = parseInt(unitQty) || 0;
+    const rugQtyNum = parseInt(rugQty) || 0;
+    const rugTotal = rugQuote.valid ? rugQuote.perRug * Math.max(1, rugQtyNum) : 0;
     const handleSqftChange = (val) => {
       setSqftInput(val);
       if (sqftPerBox > 0 && val) {
@@ -5649,7 +5651,7 @@
     const isSheetUnit = !isSlabUnit && hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
     const boxLabel = isSlabUnit ? "slab" : isSheetUnit ? "sheet" : "box";
     const boxLabelPlural = isSlabUnit ? "slabs" : isSheetUnit ? "sheets" : "boxes";
-    const unitSubtotal = unitQty * effectivePrice;
+    const unitSubtotal = unitQtyNum * effectivePrice;
     const sqftOnlySubtotal = (parseFloat(sqftInput) || 0) * effectivePrice;
     const sqftCalcRaw = parseFloat(sqftInput) || 0;
     const sqftCalcAmount = isSoldPerSqft && includeOverage ? Math.ceil(sqftCalcRaw * 11 / 10) : sqftCalcRaw;
@@ -5704,7 +5706,7 @@
       addToCart({
         product_id: sku.product_id,
         sku_id: sku.sku_id,
-        num_boxes: Math.max(1, rugQty),
+        num_boxes: Math.max(1, rugQtyNum),
         is_custom_rug: true,
         custom_width_ft: rugWFt.toFixed(2),
         custom_length_ft: rugLFt.toFixed(2)
@@ -5741,11 +5743,11 @@
           });
           return;
         }
-        if (unitQty <= 0 || perPiece) return;
+        if (unitQtyNum <= 0 || perPiece) return;
         addToCart({
           product_id: sku.product_id,
           sku_id: sku.sku_id,
-          num_boxes: unitQty,
+          num_boxes: unitQtyNum,
           unit_price: effectivePrice,
           subtotal: unitSubtotal.toFixed(2),
           sell_by: "unit"
@@ -7168,15 +7170,21 @@
         value: rugLengthIn,
         onChange: (e) => setRugLengthIn(e.target.value)
       }
-    )))), rugQuote.oversized && /* @__PURE__ */ React.createElement("div", { className: "carpet-seam-note" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "8", x2: "12", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "16", x2: "12.01", y2: "16" })), "Both sides exceed the ", rugQuote.rollWidthFt, "' roll width \u2014 call (714) 999-0009 for oversized rugs."), rugQuote.valid && /* @__PURE__ */ React.createElement("div", { className: "calc-summary" }, /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Cut Size"), /* @__PURE__ */ React.createElement("span", null, rugQuote.rollWidthFt, "' \xD7 ", rugQuote.linearFeet.toFixed(1), "' (", (rugQuote.cutAreaSqft / 9).toFixed(1), " sqyd)")), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Material"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.material.toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Binding (", rugQuote.perimeterFt.toFixed(1), "' \xD7 $", RUG_BINDING_PER_FT.toFixed(2), ")"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.binding.toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Fabrication"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.setup.toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Per Rug"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.perRug.toFixed(2))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem", marginBottom: "1.5rem" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "0.875rem", color: "var(--stone-600)" } }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setRugQty((q) => Math.max(1, q - 1)), "aria-label": "Decrease quantity" }, "\u2212"), /* @__PURE__ */ React.createElement(
+    )))), rugQuote.oversized && /* @__PURE__ */ React.createElement("div", { className: "carpet-seam-note" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "8", x2: "12", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "16", x2: "12.01", y2: "16" })), "Both sides exceed the ", rugQuote.rollWidthFt, "' roll width \u2014 call (714) 999-0009 for oversized rugs."), rugQuote.valid && /* @__PURE__ */ React.createElement("div", { className: "calc-summary" }, /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Cut Size"), /* @__PURE__ */ React.createElement("span", null, rugQuote.rollWidthFt, "' \xD7 ", rugQuote.linearFeet.toFixed(1), "' (", (rugQuote.cutAreaSqft / 9).toFixed(1), " sqyd)")), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Material"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.material.toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Binding (", rugQuote.perimeterFt.toFixed(1), "' \xD7 $", RUG_BINDING_PER_FT.toFixed(2), ")"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.binding.toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Fabrication"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.setup.toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Per Rug"), /* @__PURE__ */ React.createElement("span", null, "$", rugQuote.perRug.toFixed(2))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.75rem", marginBottom: "1.5rem" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: "0.875rem", color: "var(--stone-600)" } }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setRugQty(Math.max(1, rugQtyNum - 1)), "aria-label": "Decrease quantity" }, "\u2212"), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "number",
         min: "1",
         value: rugQty,
-        onChange: (e) => setRugQty(Math.max(1, parseInt(e.target.value) || 1))
+        onChange: (e) => {
+          const v = e.target.value;
+          if (v === "" || /^\d+$/.test(v)) setRugQty(v);
+        },
+        onBlur: () => {
+          if (rugQtyNum < 1) setRugQty(1);
+        }
       }
-    ), /* @__PURE__ */ React.createElement("button", { onClick: () => setRugQty((q) => q + 1), "aria-label": "Increase quantity" }, "+"))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-total" }, /* @__PURE__ */ React.createElement("span", null, "Subtotal"), /* @__PURE__ */ React.createElement("span", null, "$", rugTotal.toFixed(2)))), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { onClick: () => setRugQty(rugQtyNum + 1), "aria-label": "Increase quantity" }, "+"))), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-total" }, /* @__PURE__ */ React.createElement("span", null, "Subtotal"), /* @__PURE__ */ React.createElement("span", null, "$", rugTotal.toFixed(2)))), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "pdp-btn pdp-btn-primary",
@@ -7323,21 +7331,27 @@
         disabled: numBoxes <= 0 || isOutOfStock
       },
       isOutOfStock ? "Out of Stock" : "Add to Cart " + (numBoxes > 0 ? "\u2014 $" + (numBoxes * effectivePrice).toFixed(2) : "")
-    )), isPerUnit && !perPiece && !slabMissingSize && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
+    )), isPerUnit && !perPiece && !slabMissingSize && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty(Math.max(1, unitQtyNum - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "number",
         min: "1",
         step: "1",
         value: unitQty,
-        onChange: (e) => setUnitQty(Math.max(1, parseInt(e.target.value) || 1))
+        onChange: (e) => {
+          const v = e.target.value;
+          if (v === "" || /^\d+$/.test(v)) setUnitQty(v);
+        },
+        onBlur: () => {
+          if (unitQtyNum < 1) setUnitQty(1);
+        }
       }
-    ), /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => q + 1) }, "+"))), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty(unitQtyNum + 1) }, "+"))), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "pdp-btn pdp-btn-primary",
         onClick: handleAddToCart,
-        disabled: unitQty <= 0 || isOutOfStock
+        disabled: unitQtyNum <= 0 || isOutOfStock
       },
       isOutOfStock ? "Out of Stock" : effectivePrice > 0 ? "Add to Cart \u2014 $" + unitSubtotal.toFixed(2) : "Add to Cart"
     )), !isCarpetSku && !isPerUnit && !isSoldPerSqft && (effectivePrice <= 0 || sqftPerBox <= 0 && !isSheetVinyl) && /* @__PURE__ */ React.createElement("div", { className: "pdp-inquiry-banner" }, /* @__PURE__ */ React.createElement("p", { className: "pdp-inquiry-title" }, "Call for Price & Stock"), /* @__PURE__ */ React.createElement("p", { className: "pdp-inquiry-sub" }, "Contact us for current pricing, stock availability, and lead times."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "pdp-btn pdp-btn-gold", style: { marginTop: "1rem", textDecoration: "none" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009")), adexCollectionCatalog, accessorySiblings.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "accessories-section-sf" }, /* @__PURE__ */ React.createElement("h3", null, "Matching Accessories"), /* @__PURE__ */ React.createElement("div", { className: "accessories-subtitle-sf" }, /^bath/i.test(sku.category_slug || "") || /vanitie|mirror|cabinet/i.test(sku.category_name || "") ? "Complete your bathroom with matching pieces" : "Complete your installation with coordinating trim and transitions"), accessorySiblings.map((acc) => {

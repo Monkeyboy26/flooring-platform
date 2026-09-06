@@ -7377,7 +7377,11 @@
       const rugWFt = (parseFloat(rugWidthFt) || 0) + (parseFloat(rugWidthIn) || 0) / 12;
       const rugLFt = (parseFloat(rugLengthFt) || 0) + (parseFloat(rugLengthIn) || 0) / 12;
       const rugQuote = isCarpetSku ? computeRugQuote(rugWFt, rugLFt, rollWidthFt, cutPrice) : { valid: false };
-      const rugTotal = rugQuote.valid ? rugQuote.perRug * Math.max(1, rugQty) : 0;
+      // Qty inputs hold the raw string while typing (so "1" can be cleared and
+      // retyped); consumers use the parsed number, blur restores a valid value.
+      const unitQtyNum = parseInt(unitQty) || 0;
+      const rugQtyNum = parseInt(rugQty) || 0;
+      const rugTotal = rugQuote.valid ? rugQuote.perRug * Math.max(1, rugQtyNum) : 0;
 
       const handleSqftChange = (val) => {
         setSqftInput(val);
@@ -7454,7 +7458,7 @@
       const isSheetUnit = !isSlabUnit && hasBoxCalc && sqftPerBox < 4 && !sku.pieces_per_box;
       const boxLabel = isSlabUnit ? 'slab' : isSheetUnit ? 'sheet' : 'box';
       const boxLabelPlural = isSlabUnit ? 'slabs' : isSheetUnit ? 'sheets' : 'boxes';
-      const unitSubtotal = unitQty * effectivePrice;
+      const unitSubtotal = unitQtyNum * effectivePrice;
       const sqftOnlySubtotal = (parseFloat(sqftInput) || 0) * effectivePrice;
       const sqftCalcRaw = parseFloat(sqftInput) || 0;
       const sqftCalcAmount = isSoldPerSqft && includeOverage ? Math.ceil(sqftCalcRaw * 11 / 10) : sqftCalcRaw;
@@ -7506,7 +7510,7 @@
         addToCart({
           product_id: sku.product_id,
           sku_id: sku.sku_id,
-          num_boxes: Math.max(1, rugQty),
+          num_boxes: Math.max(1, rugQtyNum),
           is_custom_rug: true,
           custom_width_ft: rugWFt.toFixed(2),
           custom_length_ft: rugLFt.toFixed(2),
@@ -7545,11 +7549,11 @@
             });
             return;
           }
-          if (unitQty <= 0 || perPiece) return;
+          if (unitQtyNum <= 0 || perPiece) return;
           addToCart({
             product_id: sku.product_id,
             sku_id: sku.sku_id,
-            num_boxes: unitQty,
+            num_boxes: unitQtyNum,
             unit_price: effectivePrice,
             subtotal: unitSubtotal.toFixed(2),
             sell_by: 'unit'
@@ -9775,10 +9779,11 @@
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.75rem', marginBottom: '1.5rem' }}>
                             <span style={{ fontSize: '0.875rem', color: 'var(--stone-600)' }}>Quantity</span>
                             <div className="unit-qty-stepper">
-                              <button onClick={() => setRugQty(q => Math.max(1, q - 1))} aria-label="Decrease quantity">&minus;</button>
+                              <button onClick={() => setRugQty(Math.max(1, rugQtyNum - 1))} aria-label="Decrease quantity">&minus;</button>
                               <input type="number" min="1" value={rugQty}
-                                onChange={(e) => setRugQty(Math.max(1, parseInt(e.target.value) || 1))} />
-                              <button onClick={() => setRugQty(q => q + 1)} aria-label="Increase quantity">+</button>
+                                onChange={(e) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) setRugQty(v); }}
+                                onBlur={() => { if (rugQtyNum < 1) setRugQty(1); }} />
+                              <button onClick={() => setRugQty(rugQtyNum + 1)} aria-label="Increase quantity">+</button>
                             </div>
                           </div>
                           <div className="calc-summary-total"><span>Subtotal</span><span>${rugTotal.toFixed(2)}</span></div>
@@ -10026,14 +10031,16 @@
                   <div className="unit-qty-row">
                     <span className="unit-qty-label">Quantity</span>
                     <div className="unit-qty-stepper">
-                      <button onClick={() => setUnitQty(q => Math.max(1, q - 1))}>&minus;</button>
+                      <button onClick={() => setUnitQty(Math.max(1, unitQtyNum - 1))}>&minus;</button>
                       <input type="number" min="1" step="1"
-                        value={unitQty} onChange={(e) => setUnitQty(Math.max(1, parseInt(e.target.value) || 1))} />
-                      <button onClick={() => setUnitQty(q => q + 1)}>+</button>
+                        value={unitQty}
+                        onChange={(e) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) setUnitQty(v); }}
+                        onBlur={() => { if (unitQtyNum < 1) setUnitQty(1); }} />
+                      <button onClick={() => setUnitQty(unitQtyNum + 1)}>+</button>
                     </div>
                   </div>
                   <button className="pdp-btn pdp-btn-primary"
-                    onClick={handleAddToCart} disabled={unitQty <= 0 || isOutOfStock}>
+                    onClick={handleAddToCart} disabled={unitQtyNum <= 0 || isOutOfStock}>
                     {isOutOfStock ? 'Out of Stock' : (effectivePrice > 0 ? 'Add to Cart \u2014 $' + unitSubtotal.toFixed(2) : 'Add to Cart')}
                   </button>
                 </div>
