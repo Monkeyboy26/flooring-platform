@@ -408,6 +408,28 @@ async function main() {
       RETURNING sku_id`);
     console.log(`17. EMS roll coverage from name: ${emsRolls.rowCount + emsRolls2.rowCount} SKU(s)`);
 
+    // 18. BIGD Mapei Keracolor S/U grout (82 colors, zero cost with retail):
+    //     Big D's current Roma price sheet (SCA12 9/1/2026, uploads/pricelists/
+    //     bigd-2026-09/) does NOT list Keracolor — its Mapei grout program is
+    //     Ultracolor Plus FA / Flexcolor CQ / Kerapoxy — and the sheet states
+    //     "any products not listed do not have a valid price". Not orderable
+    //     -> deactivate (reversible if Big D re-adds the line).
+    const kera = await client.query(`
+      UPDATE skus s SET status = 'inactive', updated_at = NOW()
+      FROM products p
+      WHERE p.id = s.product_id AND s.status = 'active'
+        AND p.vendor_id = (SELECT id FROM vendors WHERE code = 'BIGD')
+        AND p.name ILIKE 'Mapei Keracolor%'
+      RETURNING p.id`);
+    if (kera.rowCount) {
+      await client.query(`
+        UPDATE products SET status = 'inactive', updated_at = NOW()
+        WHERE id = ANY($1)
+          AND NOT EXISTS (SELECT 1 FROM skus s2 WHERE s2.product_id = products.id AND s2.status = 'active')`,
+        [[...new Set(kera.rows.map(r => r.id))]]);
+    }
+    console.log(`18. BIGD Keracolor deactivated (not on current Big D sheet): ${kera.rowCount} SKU(s)`);
+
     await client.query('COMMIT');
     console.log('Done.');
   } catch (err) {
