@@ -113,6 +113,10 @@
         });
         if (reg.waiting && navigator.serviceWorker.controller) promote();
         reg.update();
+      }).catch(function() {
+        // Registration fails for bots (Google Read-Aloud, headless scrapers our
+        // nginx 403s) and flaky Safari sessions — the site works fine without a
+        // SW, so never let this surface as an unhandled rejection.
       });
 
       // Reload once when a new version takes control. The reload is keyed to the
