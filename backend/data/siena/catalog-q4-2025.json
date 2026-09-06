@@ -1381,7 +1381,7 @@
       {
         "colors": [
           "Hexagon Black",
-          "White"
+          "Hexagon White"
         ],
         "finish": "Matte",
         "size": "5x4",
@@ -1390,7 +1390,7 @@
         "lbs": 22.1,
         "bxPl": 84,
         "price": 5.29,
-        "unit": "pc"
+        "unit": "sf"
       },
       {
         "type": "Bullnose",
@@ -3034,15 +3034,15 @@
       {
         "colors": [
           "Rodia Black",
-          "Emerald",
-          "Ivory",
-          "Marine",
-          "Moka",
-          "Sky",
-          "Snow",
-          "Turquoise",
-          "Vision",
-          "White"
+          "Rodia Emerald",
+          "Rodia Ivory",
+          "Rodia Marine",
+          "Rodia Moka",
+          "Rodia Sky",
+          "Rodia Snow",
+          "Rodia Turquoise",
+          "Rodia Vision",
+          "Rodia White"
         ],
         "size": "3x12",
         "pcs": 16,

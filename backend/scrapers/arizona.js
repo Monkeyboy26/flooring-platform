@@ -352,12 +352,23 @@ function planFromPriceList(plEntry, catSlug) {
     return { sellBy: 'unit', cost: plEntry.netPrice, priceBasis: 'per_unit' };
   }
   if (catSlug && UNIT_CATEGORIES.has(catSlug)) {
-    if (plEntry.sfPerPc > 0) {
+    // Loose small-format tile guard (owner, 2026-09-05 — same rule as MSI
+    // _looseSmallPiece): AZ's own list marks mesh sheets SHT and loose tiles
+    // SF with box packs. An SF row whose piece is under half a sqft inside a
+    // real multi-piece box (Paloma 4x8 hex @ 36/box, Paros 8.5x10 hex @
+    // 9/box…) is loose field tile that only LANDED in a per-piece category —
+    // sell it per box at the SF rate, don't per-piece it.
+    const looseSmallPiece = plEntry.sfPerPc > 0 && plEntry.sfPerPc < 0.5
+      && plEntry.pcsPerBox > 1 && plEntry.sfPerBox > plEntry.sfPerPc;
+    if (plEntry.sfPerPc > 0 && !looseSmallPiece) {
       return {
         sellBy: 'unit',
         cost: Math.round(plEntry.netPrice * plEntry.sfPerPc * 100) / 100,
         priceBasis: 'per_unit',
       };
+    }
+    if (looseSmallPiece) {
+      return { sellBy: 'box', cost: plEntry.netPrice, priceBasis: 'per_sqft' };
     }
     return { sellBy: 'unit', cost: plEntry.netPrice, priceBasis: 'per_sqft' };
   }
