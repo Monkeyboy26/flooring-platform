@@ -4470,8 +4470,12 @@
       const fmtMoney = (n) => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const marginCol = (pct) => pct == null ? TH.muted : pct >= 30 ? '#3a7a4e' : pct >= 15 ? '#a87935' : '#c54731';
 
-      const retail = activeSku.retail_price ? parseFloat(activeSku.retail_price) : 0;
-      const cost = activeSku.cost ? parseFloat(activeSku.cost) : 0;
+      // Per-piece stone: stored figures are per-sqft RATES — the whole calculator
+      // (headline, tiers, slider, coverage) works in per-piece dollars, matching /pc.
+      const _isPerPiece = isPerPieceRow(activeSku);
+      const _ppMult = _isPerPiece ? (parseFloat(activeSku.sqft_per_box) || 1) : 1;
+      const retail = activeSku.retail_price ? parseFloat(activeSku.retail_price) * _ppMult : 0;
+      const cost = activeSku.cost ? parseFloat(activeSku.cost) * _ppMult : 0;
       // margin_pct is null when there's no usable cost; display sites guard with
       // `mPct > 0` (null > 0 is false), so no bogus 0%/100% is shown.
       const mPct = activeSku.margin_pct;
@@ -4483,7 +4487,10 @@
       const boxes = sqftPerBox ? Math.ceil((coverSqft * 1.1) / sqftPerBox) : 0;
       // Carpet is priced per sqyd but reps take the area in sqft (9 sf = 1 sqyd)
       const carpetSqyd = isCarpet ? (coverSqft * 1.1) / 9 : 0;
-      const coverTotal = isCarpet ? carpetSqyd * price : sqftPerBox ? boxes * sqftPerBox * price : 0;
+      // Per-piece: price is already the piece total, so coverage = pieces × price
+      const coverTotal = isCarpet ? carpetSqyd * price
+        : _isPerPiece ? boxes * price
+        : sqftPerBox ? boxes * sqftPerBox * price : 0;
 
       const step = retail >= 100 ? 25 : 0.25;
       const calcMin = +(cost * 1.05).toFixed(2) || 0.01;
@@ -8184,10 +8191,11 @@
       if (/carpet/.test(cat)) return 'carpet';
       return 'tile';
     }
-    // Extended (retail) price for a catalog row at qty — mirrors addSkuItem math
+    // Extended (retail) price for a catalog row at qty — mirrors addSkuItem math.
+    // Per-piece stone carries a per-sqft RATE — extend by the piece price, not the rate.
     function rofCatExt(p, qty, price) {
       const sellBy = p.sell_by || 'box';
-      if (sellBy === 'unit' || sellBy === 'piece') return price * qty;
+      if (sellBy === 'unit' || sellBy === 'piece') return pieceRetail(p, price) * qty;
       const spb = parseFloat(p.sqft_per_box || 0);
       if (!spb) return price * qty;
       if (p.price_basis === 'per_sqyd') return price * (spb * qty / 9);
@@ -9089,7 +9097,7 @@
                 <div style={{ minWidth: 0 }}>
                   <div style={{ font: '400 13px/1.2 var(--roma-sans)', color: TH.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.display_name || item.name}</div>
                   <div style={{ font: '500 9px/1.3 ui-monospace, monospace', letterSpacing: '0.1em', color: TH.muted }}>
-                    {qty} {(item.price_basis === 'per_sqyd' || item.sell_by === 'roll') ? 'sq yd' : (item.sell_by === 'unit' || item.sell_by === 'piece') ? 'units' : 'bx'} {'×'} {fmtMoney(tUnit)}
+                    {qty} {(item.price_basis === 'per_sqyd' || item.sell_by === 'roll') ? 'sq yd' : isPerPieceRow(item) ? 'pcs' : (item.sell_by === 'unit' || item.sell_by === 'piece') ? 'units' : 'bx'} {'×'} {fmtMoney(pieceRetail(item, tUnit))}
                   </div>
                 </div>
                 <span style={{ font: '400 13px/1 var(--roma-serif)', color: TH.ink, whiteSpace: 'nowrap' }}>{fmtMoney(rofCatExtOv(item, qty, tUnit, overage))}</span>
@@ -14219,6 +14227,8 @@
           primary_image: r.primary_image || null,
           retail_price: r.retail_price ? parseFloat(r.retail_price) : null,
           price_basis: r.price_basis,
+          sell_by: r.sell_by || null,
+          sqft_per_box: r.sqft_per_box || null,
           rep_note: ''
         }]);
         setSkuSearch('');
@@ -14255,6 +14265,8 @@
               primary_image: p.primary_image || null,
               retail_price: p.price ? parseFloat(p.price) : null,
               price_basis: p.price_basis || null,
+              sell_by: p.sell_by || null,
+              sqft_per_box: p.sqft_per_box || null,
             });
           }
           for (const { acc, parent } of accessories) {
@@ -14489,8 +14501,8 @@
                           onChange={e => updateNote(item._key, e.target.value)}
                           style={{ width: '100%', padding: '0.35rem 0.5rem', border: '0.5px solid rgba(28,25,23,0.18)', background: 'transparent', font: '400 0.75rem/1.3 Inter, sans-serif', color: '#1c1917', boxSizing: 'border-box' }} />
                         <div className="rof-item-price">
-                          {item.retail_price ? '$' + item.retail_price.toFixed(2) : '—'}
-                          {item.retail_price && item.price_basis === 'per_sqft' ? <span style={{ font: '400 0.625rem/1 Inter, sans-serif', color: '#8a7e68' }}>/sqft</span> : null}
+                          {item.retail_price ? '$' + pieceRetail(item, item.retail_price).toFixed(2) : '—'}
+                          {item.retail_price && item.price_basis === 'per_sqft' ? <span style={{ font: '400 0.625rem/1 Inter, sans-serif', color: '#8a7e68' }}>{isPerPieceRow(item) ? '/pc' : '/sqft'}</span> : null}
                         </div>
                         <button className="rof-remove-btn" onClick={() => removeItem(item._key)} title="Remove">{'✕'}</button>
                       </div>
@@ -14597,8 +14609,8 @@
 
       const priceLabel = (item) => {
         if (!item.retail_price) return '—';
-        const p = '$' + parseFloat(item.retail_price).toFixed(2);
-        return item.price_basis === 'per_sqft' ? p + '/sqft' : p;
+        const p = '$' + pieceRetail(item, item.retail_price).toFixed(2);
+        return item.price_basis === 'per_sqft' ? p + (isPerPieceRow(item) ? '/pc' : '/sqft') : p;
       };
 
       const fmtDT = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null;
@@ -19795,10 +19807,14 @@
           const perSqft = p.price_basis === 'per_sqft' || p.price_basis === 'sqft';
           const spb = parseFloat(p.sqft_per_box || 0);
           const mult = isUnit ? 1 : isCarpet ? (spb > 0 ? spb / 9 : 1) : (perSqft && spb > 0 ? spb : 1);
-          const skuCost = (p.cost != null && p.cost !== '' && parseFloat(p.cost) > 0) ? parseFloat(p.cost) : null;
+          // Per-piece stone: catalog rows carry a per-sqft rate — the staged line (and the
+          // add-item payload) is priced PER PIECE (rate × piece area), matching the server.
+          const perPiece = isPerPieceRow(p);
+          const rawSkuCost = (p.cost != null && p.cost !== '' && parseFloat(p.cost) > 0) ? parseFloat(p.cost) : null;
+          const skuCost = perPiece && rawSkuCost != null ? rawSkuCost * spb : rawSkuCost;
           staged.push({ key: genKey(), type: 'add', name: formatLineItem({ ...p, product_name: p.display_name || p.name || p.product_name || p.collection }).name || 'Item',
             vendorName: p.vendor_name || 'Roma', image: p.primary_image || null, isCustom: false, skuId: p.sku_id, sellBy, isCarpet, spb, mult,
-            qty, unitPrice: tradePrice(parseFloat(p.unit_price || p.price || 0), p.retail_locked), cost: skuCost });
+            qty, unitPrice: tradePrice(pieceRetail(p, parseFloat(p.unit_price || p.price || 0)), p.retail_locked), cost: skuCost });
         }
         for (const { acc, qty } of accessories) {
           const accCost = (acc.cost != null && parseFloat(acc.cost) > 0) ? parseFloat(acc.cost) : ((acc.vendor_cost != null && parseFloat(acc.vendor_cost) > 0) ? parseFloat(acc.vendor_cost) : null);

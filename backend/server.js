@@ -490,6 +490,18 @@ function effTradeDiscount(discountPercent, retailLocked) {
   return retailLocked ? Math.min(d, HD_LOCKED_DISCOUNT_CAP) : d;
 }
 
+// Per-piece stone ([[natural-stone-per-piece]]): sold as whole pieces (sell_by unit/piece)
+// but PRICED from a per-sqft rate with a known piece area (packaging.sqft_per_box).
+// Convention: the pricing row stays per-sqft; ORDER/QUOTE LINES carry PER-PIECE
+// unit_price and cost (rate × piece area), subtotal = unit_price × num_boxes, and
+// sqft_needed = piece area × pieces (coverage display / EDI SF). Client-sent
+// unit_price/cost overrides on these lines are per piece, NOT per sqft.
+function isPerPieceSku(priceBasis, sellBy, sqftPerBox) {
+  return (priceBasis === 'per_sqft' || priceBasis === 'sqft')
+    && (sellBy === 'unit' || sellBy === 'piece')
+    && parseFloat(sqftPerBox || 0) > 0;
+}
+
 app.get('/api/products', optionalTradeAuth, async (req, res) => {
   try {
     const { category } = req.query;
@@ -5628,18 +5640,26 @@ async function generatePurchaseOrders(orderId, client) {
       } else if (item.price_tier === 'cut' && item.cut_cost != null) {
         vendorCost = parseFloat(item.cut_cost);
       }
+      // Per-piece stone: the ORDER LINE cost is per piece (rate × piece area) while
+      // sku cost stays a per-sqft rate — compare/convert accordingly. [[natural-stone-per-piece]]
+      const costPerPiece = isPerPieceSku(item.price_basis, item.sell_by, item.sqft_per_box);
       // Rep-edited vendor cost wins. order_items.cost starts equal to the SKU cost,
       // so a value differing from the SKU base cost (item.vendor_cost) means the rep
       // overrode it on the order line — honor that on the PO. It is in the same
       // per-basis unit as the SKU cost, so the conversion below still applies.
-      if (item.line_cost != null && Math.abs(parseFloat(item.line_cost) - parseFloat(item.vendor_cost || 0)) > 0.005) {
+      const baseLineCost = costPerPiece ? parseFloat(item.vendor_cost || 0) * sqftPerBox : parseFloat(item.vendor_cost || 0);
+      if (item.line_cost != null && Math.abs(parseFloat(item.line_cost) - baseLineCost) > 0.005) {
         vendorCost = parseFloat(item.line_cost);
+      } else if (costPerPiece) {
+        vendorCost = baseLineCost;   // rate → per-piece
       }
       let itemCost;
       if (item.price_basis === 'per_sqyd') {
         // Carpet: cost/sqyd * sqyd (sqft_needed is in sqft, convert to sqyd)
         const sqyd = parseFloat(item.sqft_needed || 0) / 9;
         itemCost = vendorCost * sqyd;
+      } else if (costPerPiece) {
+        itemCost = vendorCost * item.qty;          // per-piece cost × pieces
       } else if (item.price_basis === 'per_sqft' || item.price_basis === 'sqft') {
         itemCost = vendorCost * sqftPerBox * item.qty;
       } else {
@@ -5678,15 +5698,25 @@ async function generatePurchaseOrders(orderId, client) {
       } else if (item.price_tier === 'cut' && item.cut_cost != null) {
         vendorCost = parseFloat(item.cut_cost);
       }
+      // Per-piece stone: order-line cost/price are per piece; sku cost is a per-sqft
+      // rate — convert the baseline before the override comparison. [[natural-stone-per-piece]]
+      const poPerPiece = isPerPieceSku(item.price_basis, item.sell_by, item.sqft_per_box);
+      const poBaseLineCost = poPerPiece ? parseFloat(item.vendor_cost || 0) * sqftPerBox : parseFloat(item.vendor_cost || 0);
       // Rep-edited vendor cost wins. order_items.cost starts equal to the SKU cost,
       // so a value differing from the SKU base cost (item.vendor_cost) means the rep
       // overrode it on the order line — honor that on the PO. It is in the same
       // per-basis unit as the SKU cost, so the conversion below still applies.
-      if (item.line_cost != null && Math.abs(parseFloat(item.line_cost) - parseFloat(item.vendor_cost || 0)) > 0.005) {
+      if (item.line_cost != null && Math.abs(parseFloat(item.line_cost) - poBaseLineCost) > 0.005) {
         vendorCost = parseFloat(item.line_cost);
+      } else if (poPerPiece) {
+        vendorCost = poBaseLineCost;   // rate → per-piece
       }
       let costPerBox, retailPerBox, itemSubtotal, poQty = item.qty;
-      if (item.price_basis === 'per_sqyd') {
+      if (poPerPiece) {
+        costPerBox = vendorCost;                              // per piece
+        retailPerBox = item.unit_price ? parseFloat(item.unit_price) : null;   // already per piece
+        itemSubtotal = costPerBox * item.qty;
+      } else if (item.price_basis === 'per_sqyd') {
         // Carpet is ordered by the SQUARE YARD — store the real sqyd as the PO qty
         // (not the num_boxes placeholder) so qty×cost = subtotal and the EDI 850 /
         // vendor PO transmit the true yardage in SY. See [[doc-material-units]].
@@ -10434,7 +10464,12 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
       const isCarpet = sku.price_basis === 'per_sqyd';
       // Default to retail, or the customer's trade price when this is a trade
       // order (matches order creation). An explicit override still wins.
-      const retailUnit = parseFloat(sku.retail_price || 0);
+      // Per-piece stone: the stored rate is per sqft but the line is priced PER PIECE
+      // (rate × piece area); a client unit_price override is per piece too.
+      const addPerPiece = isPerPieceSku(sku.price_basis, sku.sell_by, sku.sqft_per_box);
+      const retailUnit = addPerPiece
+        ? parseFloat(sku.retail_price || 0) * parseFloat(sku.sqft_per_box)
+        : parseFloat(sku.retail_price || 0);
       let tradeDiscount = 0;
       if (order.trade_customer_id) {
         const tier = await client.query(`
@@ -10459,6 +10494,10 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
         computedSqft = parseFloat(sqft_needed || 0);
         const sqyd = computedSqft / 9;
         itemSubtotal = parseFloat((unitPrice * sqyd).toFixed(2));
+      } else if (addPerPiece) {
+        // Per-piece: unitPrice is per piece; sqft is coverage metadata only
+        computedSqft = num_boxes * sqftPerBox;
+        itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       } else if (isPerSqft) {
         computedSqft = sqft_needed ? parseFloat(sqft_needed) : num_boxes * sqftPerBox;
         itemSubtotal = parseFloat((unitPrice * computedSqft).toFixed(2));
@@ -10595,7 +10634,9 @@ app.post('/api/admin/orders/:id/add-item', staffAuth, requireRole('admin', 'mana
           poSubtotal = vendorCost * sqyd;
         } else if (poIsPerSqft) {
           poCost = vendorCost * skuSqftPerBox;
-          poRetail = unitPrice * skuSqftPerBox;
+          // Per-piece stone lines already carry a per-piece unit price — no conversion
+          poRetail = isPerPieceSku(sku.price_basis, sku.sell_by, sku.sqft_per_box)
+            ? unitPrice : unitPrice * skuSqftPerBox;
           poQty = num_boxes;
           poSubtotal = poCost * num_boxes;
         } else {
@@ -17064,7 +17105,13 @@ app.get('/api/rep/visits/:id', repAuth, async (req, res) => {
     const visitRes = await pool.query('SELECT * FROM showroom_visits WHERE id = $1', [req.params.id]);
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
 
-    const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [req.params.id]);
+    // Join live sell_by + piece area so per-piece stone prices label as /pc (rate × area)
+    const itemsRes = await pool.query(`
+      SELECT svi.*, s.sell_by, pk.sqft_per_box
+      FROM showroom_visit_items svi
+      LEFT JOIN skus s ON s.id = svi.sku_id
+      LEFT JOIN packaging pk ON pk.sku_id = svi.sku_id
+      WHERE svi.visit_id = $1 ORDER BY svi.sort_order`, [req.params.id]);
     await enrichItemsForNaming(itemsRes.rows);
     res.json({ visit: visitRes.rows[0], items: itemsRes.rows });
   } catch (err) {
@@ -17269,7 +17316,13 @@ app.get('/api/admin/visits/:id', staffAuth, requireRole('admin', 'manager', 'sal
       WHERE v.id = $1
     `, [req.params.id]);
     if (!visitRes.rows.length) return res.status(404).json({ error: 'Visit not found' });
-    const itemsRes = await pool.query('SELECT * FROM showroom_visit_items WHERE visit_id = $1 ORDER BY sort_order', [req.params.id]);
+    // Join live sell_by + piece area so per-piece stone prices label as /pc (rate × area)
+    const itemsRes = await pool.query(`
+      SELECT svi.*, s.sell_by, pk.sqft_per_box
+      FROM showroom_visit_items svi
+      LEFT JOIN skus s ON s.id = svi.sku_id
+      LEFT JOIN packaging pk ON pk.sku_id = svi.sku_id
+      WHERE svi.visit_id = $1 ORDER BY svi.sort_order`, [req.params.id]);
     await enrichItemsForNaming(itemsRes.rows);
     res.json({ visit: visitRes.rows[0], items: itemsRes.rows });
   } catch (err) {
@@ -18941,9 +18994,13 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         const slabSqft = parseFloat(item.slab_sqft) || 0;
         const isPerSqftSlab = (sku.price_basis === 'per_sqft' || sku.price_basis === 'sqft')
           && (sku.sell_by === 'unit' || sku.sell_by === 'piece') && !(sqftPerBox > 0) && slabSqft > 0;
+        // Per-piece stone: line prices are PER PIECE (rate × piece area) — see isPerPieceSku.
+        const isPerPiece = isPerPieceSku(sku.price_basis, sku.sell_by, sqftPerBox);
         const retailUnit = isPerSqftSlab
           ? parseFloat(sku.retail_price || 0) * slabSqft
-          : parseFloat(sku.retail_price || 0);
+          : isPerPiece
+            ? parseFloat(sku.retail_price || 0) * sqftPerBox
+            : parseFloat(sku.retail_price || 0);
         // Honor a rep-entered customer price override. The order-flow lets a rep set
         // any per-line customer price (deals, price-matching); the client price already
         // reflects any trade discount, and it is sent in the same per-unit basis as
@@ -18964,12 +19021,14 @@ app.post('/api/rep/orders', repAuth, async (req, res) => {
         // the PO. Cost never affects the customer price/subtotal below.
         const skuLineCost = isPerSqftSlab
           ? parseFloat(sku.cost || 0) * slabSqft
-          : parseFloat(sku.cost || 0);
+          : isPerPiece
+            ? parseFloat(sku.cost || 0) * sqftPerBox
+            : parseFloat(sku.cost || 0);
         const lineCost = (item.cost != null && item.cost !== '' && !isNaN(parseFloat(item.cost)) && parseFloat(item.cost) >= 0)
           ? parseFloat(item.cost)
           : skuLineCost;
         let subtotal;
-        if (isPerSqftSlab) {
+        if (isPerSqftSlab || isPerPiece) {
           subtotal = unitPrice * numBoxes;
         } else if (sku.price_basis === 'per_sqyd' && sqftNeeded) {
           subtotal = unitPrice * (sqftNeeded / 9);
@@ -20803,7 +20862,12 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
       const isCarpet = sku.price_basis === 'per_sqyd';
       // Default to retail, or the customer's trade price when this is a trade
       // order (matches order creation). An explicit override still wins.
-      const retailUnit = parseFloat(sku.retail_price || 0);
+      // Per-piece stone: the stored rate is per sqft but the line is priced PER PIECE
+      // (rate × piece area); a client unit_price override is per piece too.
+      const addPerPiece = isPerPieceSku(sku.price_basis, sku.sell_by, sku.sqft_per_box);
+      const retailUnit = addPerPiece
+        ? parseFloat(sku.retail_price || 0) * parseFloat(sku.sqft_per_box)
+        : parseFloat(sku.retail_price || 0);
       let tradeDiscount = 0;
       if (order.trade_customer_id) {
         const tier = await client.query(`
@@ -20828,6 +20892,10 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
         computedSqft = parseFloat(sqft_needed || 0);
         const sqyd = computedSqft / 9;
         itemSubtotal = parseFloat((unitPrice * sqyd).toFixed(2));
+      } else if (addPerPiece) {
+        // Per-piece: unitPrice is per piece; sqft is coverage metadata only
+        computedSqft = num_boxes * sqftPerBox;
+        itemSubtotal = parseFloat((unitPrice * num_boxes).toFixed(2));
       } else if (isPerSqft) {
         // Use sqft_needed from frontend if provided, otherwise derive from boxes
         computedSqft = sqft_needed ? parseFloat(sqft_needed) : num_boxes * sqftPerBox;
@@ -20959,7 +21027,9 @@ app.post('/api/rep/orders/:id/add-item', repAuth, async (req, res) => {
           poSubtotal = vendorCost * sqyd;
         } else if (poIsPerSqft) {
           poCost = vendorCost * skuSqftPerBox;
-          poRetail = unitPrice * skuSqftPerBox;
+          // Per-piece stone lines already carry a per-piece unit price — no conversion
+          poRetail = isPerPieceSku(sku.price_basis, sku.sell_by, sku.sqft_per_box)
+            ? unitPrice : unitPrice * skuSqftPerBox;
           poQty = num_boxes;
           poSubtotal = poCost * num_boxes;
         } else {

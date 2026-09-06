@@ -2783,8 +2783,10 @@
     const sectionTitle = { font: "500 10px/1 var(--roma-sans)", letterSpacing: "0.16em", textTransform: "uppercase", color: TH.ink, margin: "0 0 12px" };
     const fmtMoney = (n) => "$" + parseFloat(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const marginCol = (pct) => pct == null ? TH.muted : pct >= 30 ? "#3a7a4e" : pct >= 15 ? "#a87935" : "#c54731";
-    const retail = activeSku.retail_price ? parseFloat(activeSku.retail_price) : 0;
-    const cost = activeSku.cost ? parseFloat(activeSku.cost) : 0;
+    const _isPerPiece = isPerPieceRow(activeSku);
+    const _ppMult = _isPerPiece ? parseFloat(activeSku.sqft_per_box) || 1 : 1;
+    const retail = activeSku.retail_price ? parseFloat(activeSku.retail_price) * _ppMult : 0;
+    const cost = activeSku.cost ? parseFloat(activeSku.cost) * _ppMult : 0;
     const mPct = activeSku.margin_pct;
     const isCarpet = activeSku.sell_by === "roll" || activeSku.price_basis === "per_sqyd";
     const unitLabel = skuPriceSuffix(activeSku);
@@ -2793,7 +2795,7 @@
     const sqftPerBox = activeSku.sqft_per_box ? parseFloat(activeSku.sqft_per_box) : null;
     const boxes = sqftPerBox ? Math.ceil(coverSqft * 1.1 / sqftPerBox) : 0;
     const carpetSqyd = isCarpet ? coverSqft * 1.1 / 9 : 0;
-    const coverTotal = isCarpet ? carpetSqyd * price : sqftPerBox ? boxes * sqftPerBox * price : 0;
+    const coverTotal = isCarpet ? carpetSqyd * price : _isPerPiece ? boxes * price : sqftPerBox ? boxes * sqftPerBox * price : 0;
     const step = retail >= 100 ? 25 : 0.25;
     const calcMin = +(cost * 1.05).toFixed(2) || 0.01;
     const calcMax = +(retail * 1.4).toFixed(2) || 100;
@@ -5332,7 +5334,7 @@
   }
   function rofCatExt(p, qty, price) {
     const sellBy = p.sell_by || "box";
-    if (sellBy === "unit" || sellBy === "piece") return price * qty;
+    if (sellBy === "unit" || sellBy === "piece") return pieceRetail(p, price) * qty;
     const spb = parseFloat(p.sqft_per_box || 0);
     if (!spb) return price * qty;
     if (p.price_basis === "per_sqyd") return price * (spb * qty / 9);
@@ -6037,7 +6039,7 @@
     const xBtn = { width: 18, height: 18, border: "none", background: "transparent", color: TH.muted, cursor: "pointer", font: "400 16px/1 var(--roma-sans)", padding: 0 };
     return /* @__PURE__ */ React.createElement("div", { className: "rof-cat-tray" }, /* @__PURE__ */ React.createElement("div", { style: { padding: "16px 20px 12px", borderBottom: "0.5px solid rgba(28,25,23,0.1)", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "baseline" } }, /* @__PURE__ */ React.createElement("span", { style: { ...mono(TH.ink), letterSpacing: "0.16em" } }, "Adding to order"), /* @__PURE__ */ React.createElement("span", { style: mono(TH.muted) }, itemCount, " ", itemCount === 1 ? "line" : "lines")), /* @__PURE__ */ React.createElement("div", { style: { flex: 1, overflowY: "auto", padding: empty ? 0 : "8px 0" } }, empty && /* @__PURE__ */ React.createElement("div", { style: { padding: "48px 24px", textAlign: "center", color: TH.muted, font: "400 13px/1.6 var(--roma-sans)" } }, "Nothing selected yet.", /* @__PURE__ */ React.createElement("br", null), "Set a quantity on any product ", "\u2014", " accessories tuck in underneath it."), lineList.map(({ item, qty }) => {
       const tUnit = rofTradeUnit(parseFloat(item.price || 0), item.retail_locked, discount);
-      return /* @__PURE__ */ React.createElement("div", { key: item.sku_id, style: { padding: "10px 20px", display: "grid", gridTemplateColumns: "30px 1fr auto 18px", gap: 10, alignItems: "center" } }, item.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(item.primary_image, 80), alt: "", loading: "lazy", style: { width: 30, height: 30, objectFit: "cover", border: "0.5px solid rgba(28,25,23,0.1)" } }) : /* @__PURE__ */ React.createElement("div", { style: { width: 30, height: 30, ...materialFace(rofCatKind(item)), border: "0.5px solid rgba(28,25,23,0.1)" } }), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { font: "400 13px/1.2 var(--roma-sans)", color: TH.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, item.display_name || item.name), /* @__PURE__ */ React.createElement("div", { style: { font: "500 9px/1.3 ui-monospace, monospace", letterSpacing: "0.1em", color: TH.muted } }, qty, " ", item.price_basis === "per_sqyd" || item.sell_by === "roll" ? "sq yd" : item.sell_by === "unit" || item.sell_by === "piece" ? "units" : "bx", " ", "\xD7", " ", fmtMoney(tUnit))), /* @__PURE__ */ React.createElement("span", { style: { font: "400 13px/1 var(--roma-serif)", color: TH.ink, whiteSpace: "nowrap" } }, fmtMoney(rofCatExtOv(item, qty, tUnit, overage))), /* @__PURE__ */ React.createElement("button", { onClick: () => onRemoveItem(item.sku_id), style: xBtn }, "\xD7"));
+      return /* @__PURE__ */ React.createElement("div", { key: item.sku_id, style: { padding: "10px 20px", display: "grid", gridTemplateColumns: "30px 1fr auto 18px", gap: 10, alignItems: "center" } }, item.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(item.primary_image, 80), alt: "", loading: "lazy", style: { width: 30, height: 30, objectFit: "cover", border: "0.5px solid rgba(28,25,23,0.1)" } }) : /* @__PURE__ */ React.createElement("div", { style: { width: 30, height: 30, ...materialFace(rofCatKind(item)), border: "0.5px solid rgba(28,25,23,0.1)" } }), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { font: "400 13px/1.2 var(--roma-sans)", color: TH.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, item.display_name || item.name), /* @__PURE__ */ React.createElement("div", { style: { font: "500 9px/1.3 ui-monospace, monospace", letterSpacing: "0.1em", color: TH.muted } }, qty, " ", item.price_basis === "per_sqyd" || item.sell_by === "roll" ? "sq yd" : isPerPieceRow(item) ? "pcs" : item.sell_by === "unit" || item.sell_by === "piece" ? "units" : "bx", " ", "\xD7", " ", fmtMoney(pieceRetail(item, tUnit)))), /* @__PURE__ */ React.createElement("span", { style: { font: "400 13px/1 var(--roma-serif)", color: TH.ink, whiteSpace: "nowrap" } }, fmtMoney(rofCatExtOv(item, qty, tUnit, overage))), /* @__PURE__ */ React.createElement("button", { onClick: () => onRemoveItem(item.sku_id), style: xBtn }, "\xD7"));
     }), accList.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { padding: "6px 20px 4px", ...mono(TH.muted), fontSize: 9, marginTop: 4 } }, "Accessories"), accList.map(({ acc, qty }) => {
       const aTUnit = rofTradeUnit(parseFloat(acc.retail_price || 0), acc.retail_locked, discount);
       return /* @__PURE__ */ React.createElement("div", { key: acc.sku_id, style: { padding: "8px 20px", display: "grid", gridTemplateColumns: "30px 1fr auto 18px", gap: 10, alignItems: "center" } }, acc.primary_image ? /* @__PURE__ */ React.createElement("img", { src: optimizeImg(acc.primary_image, 80), alt: "", loading: "lazy", style: { width: 30, height: 30, objectFit: "cover", border: "0.5px solid rgba(28,25,23,0.1)" } }) : /* @__PURE__ */ React.createElement("div", { style: { width: 30, height: 30, background: TH.paper, border: "0.5px solid rgba(28,25,23,0.1)" } }), /* @__PURE__ */ React.createElement("div", { style: { minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { font: "400 12px/1.2 var(--roma-sans)", color: "rgba(28,25,23,0.87)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, acc.accessory_label || acc.variant_name), /* @__PURE__ */ React.createElement("div", { style: { font: "500 9px/1.3 ui-monospace, monospace", letterSpacing: "0.1em", color: TH.muted } }, qty, " ", "\xD7", " ", fmtMoney(aTUnit))), /* @__PURE__ */ React.createElement("span", { style: { font: "400 12px/1 var(--roma-serif)", color: TH.ink, whiteSpace: "nowrap" } }, fmtMoney(aTUnit * qty)), /* @__PURE__ */ React.createElement("button", { onClick: () => onRemoveAcc(acc.sku_id), style: xBtn }, "\xD7"));
@@ -9316,6 +9318,8 @@
         primary_image: r.primary_image || null,
         retail_price: r.retail_price ? parseFloat(r.retail_price) : null,
         price_basis: r.price_basis,
+        sell_by: r.sell_by || null,
+        sqft_per_box: r.sqft_per_box || null,
         rep_note: ""
       }]);
       setSkuSearch("");
@@ -9346,7 +9350,9 @@
             internal_sku: p.vendor_sku || p.internal_sku || "",
             primary_image: p.primary_image || null,
             retail_price: p.price ? parseFloat(p.price) : null,
-            price_basis: p.price_basis || null
+            price_basis: p.price_basis || null,
+            sell_by: p.sell_by || null,
+            sqft_per_box: p.sqft_per_box || null
           });
         }
         for (const { acc, parent } of accessories) {
@@ -9478,7 +9484,7 @@
         onChange: (e) => updateNote(item._key, e.target.value),
         style: { width: "100%", padding: "0.35rem 0.5rem", border: "0.5px solid rgba(28,25,23,0.18)", background: "transparent", font: "400 0.75rem/1.3 Inter, sans-serif", color: "#1c1917", boxSizing: "border-box" }
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "rof-item-price" }, item.retail_price ? "$" + item.retail_price.toFixed(2) : "\u2014", item.retail_price && item.price_basis === "per_sqft" ? /* @__PURE__ */ React.createElement("span", { style: { font: "400 0.625rem/1 Inter, sans-serif", color: "#8a7e68" } }, "/sqft") : null), /* @__PURE__ */ React.createElement("button", { className: "rof-remove-btn", onClick: () => removeItem(item._key), title: "Remove" }, "\u2715")))))), /* @__PURE__ */ React.createElement("aside", { className: "qw-rail" }, /* @__PURE__ */ React.createElement("div", { className: "qw-rail-card" }, /* @__PURE__ */ React.createElement("h3", null, "Draft checklist"), checklist.map((c, i) => {
+    ), /* @__PURE__ */ React.createElement("div", { className: "rof-item-price" }, item.retail_price ? "$" + pieceRetail(item, item.retail_price).toFixed(2) : "\u2014", item.retail_price && item.price_basis === "per_sqft" ? /* @__PURE__ */ React.createElement("span", { style: { font: "400 0.625rem/1 Inter, sans-serif", color: "#8a7e68" } }, isPerPieceRow(item) ? "/pc" : "/sqft") : null), /* @__PURE__ */ React.createElement("button", { className: "rof-remove-btn", onClick: () => removeItem(item._key), title: "Remove" }, "\u2715")))))), /* @__PURE__ */ React.createElement("aside", { className: "qw-rail" }, /* @__PURE__ */ React.createElement("div", { className: "qw-rail-card" }, /* @__PURE__ */ React.createElement("h3", null, "Draft checklist"), checklist.map((c, i) => {
       const state = c.done ? "done" : i === firstTodo ? "now" : "next";
       return /* @__PURE__ */ React.createElement("div", { key: c.label, className: "qw-check-row " + state }, /* @__PURE__ */ React.createElement("span", { className: "qw-check-mark" }, c.done ? "\u2713" : state === "now" ? "\u25CF" : "\u25CB"), /* @__PURE__ */ React.createElement("span", { className: "qw-check-label" }, c.label), /* @__PURE__ */ React.createElement("span", { className: "qw-check-meta" }, c.meta));
     })), /* @__PURE__ */ React.createElement("div", { className: "qw-convert-card" }, /* @__PURE__ */ React.createElement("div", { className: "qw-convert-label" }, "Ready to send"), /* @__PURE__ */ React.createElement("div", { className: "qw-convert-copy" }, "Sending emails the customer a personal recap with every product you added \u2014 notes included."), /* @__PURE__ */ React.createElement("button", { className: "qw-convert-btn", onClick: () => saveVisit(true), disabled: saving || !canSend }, "Save & send ", "\u2192"), /* @__PURE__ */ React.createElement("div", { className: "qw-convert-note" }, canSend ? "Goes to " + customerEmail.trim() : "Needs a name, an email, and at least one product")))), catalogOpen && /* @__PURE__ */ React.createElement(
@@ -9537,8 +9543,8 @@
     if (!visit) return /* @__PURE__ */ React.createElement("div", { className: "loading" }, "Visit not found");
     const priceLabel = (item) => {
       if (!item.retail_price) return "\u2014";
-      const p = "$" + parseFloat(item.retail_price).toFixed(2);
-      return item.price_basis === "per_sqft" ? p + "/sqft" : p;
+      const p = "$" + pieceRetail(item, item.retail_price).toFixed(2);
+      return item.price_basis === "per_sqft" ? p + (isPerPieceRow(item) ? "/pc" : "/sqft") : p;
     };
     const fmtDT = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + new Date(d).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : null;
     const repInfo = JSON.parse(sessionStorage.getItem("rep_info") || "{}");
@@ -13025,7 +13031,9 @@
         const perSqft = p.price_basis === "per_sqft" || p.price_basis === "sqft";
         const spb = parseFloat(p.sqft_per_box || 0);
         const mult = isUnit ? 1 : isCarpet ? spb > 0 ? spb / 9 : 1 : perSqft && spb > 0 ? spb : 1;
-        const skuCost = p.cost != null && p.cost !== "" && parseFloat(p.cost) > 0 ? parseFloat(p.cost) : null;
+        const perPiece = isPerPieceRow(p);
+        const rawSkuCost = p.cost != null && p.cost !== "" && parseFloat(p.cost) > 0 ? parseFloat(p.cost) : null;
+        const skuCost = perPiece && rawSkuCost != null ? rawSkuCost * spb : rawSkuCost;
         staged.push({
           key: genKey(),
           type: "add",
@@ -13039,7 +13047,7 @@
           spb,
           mult,
           qty,
-          unitPrice: tradePrice(parseFloat(p.unit_price || p.price || 0), p.retail_locked),
+          unitPrice: tradePrice(pieceRetail(p, parseFloat(p.unit_price || p.price || 0)), p.retail_locked),
           cost: skuCost
         });
       }
