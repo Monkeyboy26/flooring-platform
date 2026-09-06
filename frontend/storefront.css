@@ -1458,6 +1458,9 @@ mark.search-highlight { background: rgba(196, 170, 108, 0.2); color: inherit; pa
 .acc-stepper { display: flex; align-items: center; gap: 4px; }
 .acc-stepper button { width: 26px; height: 26px; border: 0.5px solid rgba(21,18,15,0.2); background: transparent; border-radius: 999px; cursor: pointer; color: var(--stone-900); font-size: 14px; display: flex; align-items: center; justify-content: center; padding: 0; }
 .acc-stepper span { width: 24px; text-align: center; font-family: var(--font-heading); font-size: 0.875rem; font-weight: 400; }
+.acc-stepper input { width: 34px; text-align: center; font-family: var(--font-heading); font-size: 0.875rem; font-weight: 400; border: none; background: transparent; color: var(--stone-900); padding: 0; -moz-appearance: textfield; appearance: textfield; }
+.acc-stepper input::-webkit-outer-spin-button, .acc-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.acc-stepper input:focus { outline: none; border-bottom: 1px solid var(--stone-400); }
 .acc-add-btn { padding: 8px 14px; border: none; border-radius: 999px; background: var(--stone-900); color: var(--warm-bg, #ece5d8); cursor: pointer; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.625rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; }
 @media (max-width: 480px) {
   .accessory-card-sf { grid-template-columns: auto 1fr; }

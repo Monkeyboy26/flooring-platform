@@ -10070,7 +10070,10 @@
                   <div className="accessories-subtitle-sf">{/^bath/i.test(sku.category_slug || '') || /vanitie|mirror|cabinet/i.test(sku.category_name || '') ? 'Complete your bathroom with matching pieces' : 'Complete your installation with coordinating trim and transitions'}</div>
                   {accessorySiblings.map(acc => {
                     const accPrice = parseFloat(acc.sale_price || acc.retail_price) || 0;
-                    const accQty = accessoryQtys[acc.sku_id] || 1;
+                    // Raw string while typing (so the qty can be cleared and retyped);
+                    // accQty is the parsed number all math/buttons use.
+                    const accQtyRaw = accessoryQtys[acc.sku_id] != null ? accessoryQtys[acc.sku_id] : 1;
+                    const accQty = parseInt(accQtyRaw) || 0;
                     const accLabel = acc.accessory_label || formatVariantName(acc.variant_name) || 'Accessory';
                     return (
                       <div key={acc.sku_id} className="accessory-card-sf">
@@ -10085,11 +10088,13 @@
                         </div>
                         <div className="accessory-card-sf-actions">
                           <div className="acc-stepper">
-                            <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: Math.max(1, (prev[acc.sku_id] || 1) - 1) }))}>&minus;</button>
-                            <span>{accQty}</span>
-                            <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: (prev[acc.sku_id] || 1) + 1 }))}>+</button>
+                            <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: Math.max(1, accQty - 1) }))}>&minus;</button>
+                            <input type="number" min="1" step="1" value={accQtyRaw}
+                              onChange={(e) => { const v = e.target.value; if (v === '' || /^\d+$/.test(v)) setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: v })); }}
+                              onBlur={() => { if (accQty < 1) setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: 1 })); }} />
+                            <button onClick={() => setAccessoryQtys(prev => ({ ...prev, [acc.sku_id]: accQty + 1 }))}>+</button>
                           </div>
-                          <button className="acc-add-btn" onClick={() => {
+                          <button className="acc-add-btn" disabled={accQty < 1} onClick={() => {
                             // Snapshot the floor this accessory is being bought for so
                             // the line reads "Collection · Color · Accessory". Derive
                             // collection/color the same way itemLineName does (AFD stores
