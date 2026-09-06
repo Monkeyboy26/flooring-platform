@@ -176,10 +176,10 @@ def classify(desc, sold_by, type_str, finish, vendor_sku=''):
     elif 'MOSAIC' in d:
         fam, cat = 'mosaic', 'mosaic-tile'
     elif 'WALLING' in d or 'FLAGSTONE' in d or 'PEBBLE' in d:
-        fam, cat = 'walling', 'hardscaping'
+        fam, cat = 'walling', 'walling-caps'
     elif 'WALL CAP' in (finish or '').upper() or 'COLUMN CAP' in (finish or '').upper() \
             or 'WAINSCOT' in (finish or '').upper() or 'CAP' in d:
-        fam, cat = 'cap', 'hardscaping'
+        fam, cat = 'cap', 'walling-caps'
     elif 'PAVER' in d:
         fam, cat = 'paver', 'pavers'
     elif any(k in d for k in ('PENCIL', 'LINER', 'ROPE', 'NEEDLE', 'CROWN', 'COLOSSEO')):
@@ -429,6 +429,19 @@ def main():
             piece_area = piece_sqft(wxh)
             if piece_area:
                 sell_by = 'unit'
+
+        # Mosaics quoted per SF still sell per SHEET (selling convention — see
+        # migrate-mosaic-per-sheet.mjs). Icon's mesh mosaics are 12x12 sheets
+        # (1 sqft), so the SF rate IS the sheet price: flip the basis only.
+        if fam == 'mosaic' and sell_by == 'box':
+            sell_by, price_basis = 'unit', 'per_unit'
+
+        # Laid patterns (Versailles/Roman/French) and freeform walling ship by
+        # the crate and sell by continuous square footage — there is no per-box
+        # coverage to round to, so sell_by='sqft' (schema-sanctioned continuous
+        # model), not 'box' (which needs sqft_per_box for the coverage calc).
+        if sell_by == 'box' and (fam == 'walling' or not re.match(r'^\d', disp or '')):
+            sell_by = 'sqft'
 
         sku = {
             'vendor_sku': pn,

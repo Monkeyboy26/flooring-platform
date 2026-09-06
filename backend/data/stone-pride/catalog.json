@@ -15,7 +15,10 @@
     "retail": 7.09,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -361,7 +364,10 @@
     "retail": 15.29,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -404,7 +410,10 @@
     "retail": 11.49,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -420,7 +429,10 @@
     "retail": 11.49,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -436,7 +448,10 @@
     "retail": 13.99,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -452,7 +467,10 @@
     "retail": 13.99,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -732,7 +750,10 @@
     "retail": 11.19,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -1452,7 +1473,10 @@
     "retail": 8.79,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -1468,7 +1492,10 @@
     "retail": 7.49,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -2886,7 +2913,10 @@
     "retail": 4.29,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -2902,7 +2932,10 @@
     "retail": 6.09,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -2918,7 +2951,10 @@
     "retail": 4.29,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -2934,7 +2970,10 @@
     "retail": 6.09,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -2950,7 +2989,10 @@
     "retail": 4.29,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -2966,7 +3008,10 @@
     "retail": 4.29,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.3333,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -2982,7 +3027,10 @@
     "retail": 4.29,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.3333,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -3653,7 +3701,10 @@
     "retail": 7.99,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -3669,7 +3720,10 @@
     "retail": 6.29,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Tumbled"
     },
@@ -3799,7 +3853,10 @@
     "retail": 5.19,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.25,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Tumbled"
     },
@@ -5241,7 +5298,10 @@
     "retail": 8.39,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -5257,7 +5317,10 @@
     "retail": 6.39,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -5425,7 +5488,10 @@
     "retail": 10.09,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.3333,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -5441,7 +5507,10 @@
     "retail": 10.09,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.3333,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -5511,7 +5580,10 @@
     "retail": 9.19,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.5,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -5611,7 +5683,10 @@
     "retail": 11.09,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -6638,7 +6713,10 @@
     "retail": 5.19,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -6654,7 +6732,10 @@
     "retail": 5.19,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -6670,7 +6751,10 @@
     "retail": 5.19,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -6686,7 +6770,10 @@
     "retail": 5.19,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7282,7 +7369,10 @@
     "retail": 13.99,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.3333,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7317,7 +7407,10 @@
     "retail": 13.99,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.5,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7333,7 +7426,10 @@
     "retail": 13.99,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7349,7 +7445,10 @@
     "retail": 13.99,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 4.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7365,7 +7464,10 @@
     "retail": 9.79,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.3333,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7400,7 +7502,10 @@
     "retail": 13.99,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.5,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7416,7 +7521,10 @@
     "retail": 11.39,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7432,7 +7540,10 @@
     "retail": 10.39,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7448,7 +7559,10 @@
     "retail": 11.39,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7464,7 +7578,10 @@
     "retail": 11.39,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 2.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7537,7 +7654,10 @@
     "retail": 10.39,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.5,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -7553,7 +7673,10 @@
     "retail": 7.99,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 1.0,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -8205,7 +8328,10 @@
     "retail": 19.89,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.125,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -8221,7 +8347,10 @@
     "retail": 17.69,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.125,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Polished"
     },
@@ -8237,7 +8366,10 @@
     "retail": 21.59,
     "price_basis": "per_sqft",
     "status": "active",
-    "packaging": null,
+    "packaging": {
+     "sqft_per_box": 0.5,
+     "pieces_per_box": 1
+    },
     "attrs": {
      "finish": "Honed"
     },
@@ -9948,7 +10080,7 @@
    {
     "vendor_sku": "MM-Mini-022-12-P",
     "internal_sku": "SP-MM-Mini-022-12-P",
-    "variant_name": "Mini 022 12 P",
+    "variant_name": "Design 022, 12\" Square",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 83.0,
@@ -9962,7 +10094,7 @@
    {
     "vendor_sku": "MM-Mini-101-4-P",
     "internal_sku": "SP-MM-Mini-101-4-P",
-    "variant_name": "Mini 101 4 P",
+    "variant_name": "Design 101, 4\" Square",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 18.0,
@@ -9976,7 +10108,7 @@
    {
     "vendor_sku": "MM-Mini-250-12-P",
     "internal_sku": "SP-MM-Mini-250-12-P",
-    "variant_name": "Mini 250 12 P",
+    "variant_name": "Design 250, 12\" Square",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 83.0,
@@ -9990,7 +10122,7 @@
    {
     "vendor_sku": "MM-Mini-251-12-P",
     "internal_sku": "SP-MM-Mini-251-12-P",
-    "variant_name": "Mini 251 12 P",
+    "variant_name": "Design 251, 12\" Square",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 83.0,
@@ -10004,7 +10136,7 @@
    {
     "vendor_sku": "MM-Mini-251-4-P",
     "internal_sku": "SP-MM-Mini-251-4-P",
-    "variant_name": "Mini 251 4 P",
+    "variant_name": "Design 251, 4\" Square",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 18.0,
@@ -10018,7 +10150,7 @@
    {
     "vendor_sku": "MM-Mini-252-12-P",
     "internal_sku": "SP-MM-Mini-252-12-P",
-    "variant_name": "Mini 252 12 P",
+    "variant_name": "Design 252, 12\" Square",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 83.0,
@@ -10032,7 +10164,7 @@
    {
     "vendor_sku": "MM-Mini-252-18-P",
     "internal_sku": "SP-MM-Mini-252-18-P",
-    "variant_name": "Mini 252 18 P",
+    "variant_name": "Design 252, 18\" Square",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 145.0,
@@ -10046,7 +10178,7 @@
    {
     "vendor_sku": "MM-Mini-252-4-P",
     "internal_sku": "SP-MM-Mini-252-4-P",
-    "variant_name": "Mini 252 4 P",
+    "variant_name": "Design 252, 4\" Square",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 18.0,

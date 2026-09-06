@@ -133,6 +133,15 @@ def parse_sf_per_piece(desc):
     if m:
         n = int(m.group(1))
         if n > 0: return round(1.0/n, 4)
+    # Fallback: derive the piece area from an inch size in the desc ('12" x 24"',
+    # '24" x 24" x 3/8"'). Without this, per-piece tiles (unit + per_sqft) land
+    # with NO packaging area, so the storefront can't compute a piece price and
+    # the unit-basis-mismatch quality rule flags them. Inch dims only — a metric
+    # '(300*600*10mm)' echo in the same desc is sometimes wrong (vendor typo).
+    m = re.search(r'(\d+(?:\.\d+)?)\s*(?:"|\'\')?\s*[xX]\s*(\d+(?:\.\d+)?)\s*(?:"|\'\')', desc)
+    if m:
+        area = float(m.group(1)) * float(m.group(2)) / 144.0
+        if 0 < area < 20: return round(area, 4)
     return None
 
 def parse_sf_per_sheet(desc):
@@ -341,6 +350,13 @@ def main():
             # variant name = size/shape phrase from the description (design is the product)
             ms = re.search(r'(\d[\d.\'"\s]*(?:ft)?\s*(?:x\s*\d[\d.\'"\s]*(?:ft)?)?\s*(?:Round|Square|Squared|Oval|Rectangular|Rect\.?|Corner))', desc, re.I)
             vname = re.sub(r'\s+', ' ', ms.group(1)).strip() if ms else re.sub(r'[-\s]+', ' ', code[3:]).strip()
+            # Mini-collection descs are bare 'NxN' with no shape word, so the regex above
+            # misses and the code fallback echoes the product name ("Mini 022 12 P" under
+            # product "Mini" — displays doubled). Rebuild as design + square size instead.
+            if not ms and design and vname.lower().startswith(design.lower() + ' '):
+                rest = vname[len(design):].strip()
+                m2 = re.match(r'^(\d+)\s+(\d+)\s*P$', rest)
+                vname = f'Design {m2.group(1)}, {m2.group(2)}" Square' if m2 else rest
             prod = get_product(key, pname, "Marble Medallions", "medallions",
                                "Aluminum-backed waterjet marble medallion (made to order).")
             prod["skus"].append({

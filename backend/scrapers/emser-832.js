@@ -26,7 +26,7 @@ import {
   appendLog, addJobError,
   upsertProduct, upsertSku,
   upsertSkuAttribute, upsertPackaging, upsertPricing,
-  normalizeAttributeValue, applySheetSelling,
+  normalizeAttributeValue, applySheetSelling, applySlabSelling,
 } from './base.js';
 import { classifyName } from '../lib/categoryClassifier.js';
 
@@ -845,6 +845,10 @@ function groupIntoProducts(items) {
     if (!item.vendor_sku && !item.product_name) continue;
     // Feed placeholder rows with no usable description ("ZITEMS" bucket)
     if (/^z-?items$/i.test((item.product_name || '').trim())) continue;
+    // Unsellable EDI oddballs — descriptions a customer can't shop (a bare
+    // cardboard shipping tube and two unparseable internal codes). Deactivated
+    // 2026-09-05; skipping here keeps the 832 re-import from reactivating them.
+    if (/^(ZMBXCPK3508TB08|ZTETA820955NS|ZLC8-13-303-1028)$/i.test((item.vendor_sku || '').trim())) continue;
     // Mapei is sourced through Big D Supply, not Emser (2026-08-17) — same policy as
     // Daltile's Mapei skip. Emser's feed carries a few Mapei caulks/colorants (its
     // COLORFAST / Aqua Mix lines) with "Mapei" in the name; skip them so they don't
@@ -1147,11 +1151,23 @@ export async function run(pool, job, source) {
       // Mosaics / stacked stone sell per sheet, not by the box — convert the
       // per-sqft price to a per-sheet price using the box packaging (see
       // selling-conventions). Ambiguous boxes (no piece count) stay as-is.
-      const sheet = applySheetSelling({
+      const sheetPlan = applySheetSelling({
         categorySlug, sellBy, name: `${group.baseName} ${variantName || ''}`,
         sqft_per_box: item.sqft_per_box, pieces_per_box: item.pieces_per_box,
         cost, retail_price: retail,
       });
+      // Single-piece >= 25 sqft panels (Expanse, Agio/Perenne/Levata Slim,
+      // Hangar large formats) sell per SLAB, not by coverage — convert the
+      // feed's per-sqft rate to a per-panel price. See [[suspected-slab]].
+      const slab = applySlabSelling({
+        sellBy: sheetPlan.sellBy, priceBasis: sheetPlan.priceBasis,
+        sqft_per_box: item.sqft_per_box, pieces_per_box: item.pieces_per_box,
+        cost: sheetPlan.cost, retail_price: sheetPlan.retail_price,
+        name: `${group.baseName} ${variantName || ''}`,
+      });
+      const sheet = slab.converted
+        ? { ...sheetPlan, sellBy: slab.sellBy, priceBasis: slab.priceBasis, cost: slab.cost, retail_price: slab.retail_price }
+        : sheetPlan;
 
       const skuRow = await upsertSku(pool, {
         product_id: productId,

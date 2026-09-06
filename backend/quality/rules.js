@@ -525,10 +525,20 @@ export const RULES = [
       // Catches per-each stored as per-SF and vice versa (the MSI 2026-08 bug):
       // cost wildly outside the category's median band. Medians computed over
       // ALL vendors, violations filtered to scope afterward.
+      //
+      // HIGH-side exemption: a genuinely premium line (Emser Issima marble,
+      // Lucente glass) prices consistently across its sizes/colors, while a
+      // basis error makes the bad SKU an outlier within its own collection
+      // too. So a high cost is only flagged when the vendor+collection has no
+      // consistency evidence (<4 priced SKUs) or the SKU strays >2x from the
+      // collection median. LOW-side flags are never exempted — a whole line
+      // consistently too cheap is exactly how the EF /9 bug looked.
+      // Trade-off: a whole collection uniformly too EXPENSIVE escapes; the
+      // below-cost and mosaic-underpriced rules cover the common inverses.
       const { rows } = await pool.query(`
         WITH persqft AS (
           SELECT s.id AS sku_id, p.id AS product_id, v.id AS vendor_id, v.code AS vendor_code,
-                 p.name, s.variant_name, c.slug AS category, pr.cost
+                 p.name, p.collection, s.variant_name, c.slug AS category, pr.cost
           FROM skus s
           JOIN products p ON p.id = s.product_id
           JOIN vendors v ON v.id = p.vendor_id
@@ -543,11 +553,23 @@ export const RULES = [
                  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY cost) AS median,
                  COUNT(*)::int AS n
           FROM persqft GROUP BY category HAVING COUNT(*) >= 30
+        ),
+        coll_stats AS (
+          SELECT vendor_id, collection,
+                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY cost) AS median,
+                 COUNT(*)::int AS n
+          FROM persqft WHERE collection IS NOT NULL AND collection <> ''
+          GROUP BY vendor_id, collection HAVING COUNT(*) >= 4
         )
         SELECT ps.*, st.median, st.n
         FROM persqft ps
         JOIN stats st ON st.category = ps.category
-        WHERE (ps.cost > st.median * 6 OR ps.cost < st.median * 0.15)
+        LEFT JOIN coll_stats cs ON cs.vendor_id = ps.vendor_id AND cs.collection = ps.collection
+        WHERE (
+            (ps.cost > st.median * 6
+             AND (cs.median IS NULL OR ps.cost > cs.median * 2 OR ps.cost < cs.median * 0.5))
+            OR ps.cost < st.median * 0.15
+          )
           AND ($1::uuid IS NULL OR ps.vendor_id = $1)
       `, [vendorId]);
       return rows.map(r => ({
@@ -574,7 +596,17 @@ export const RULES = [
           AND pk.sqft_per_box >= 25 AND COALESCE(pk.pieces_per_box, 1) = 1
           AND s.sell_by = 'box' AND pr.price_basis = 'per_sqft'
       `, [vendorId]);
-      return rows.map(r => ({
+      // Missing-piece-count trap: a 26-sqft carton of 17x17 field tiles with
+      // pieces_per_box NULL is not a slab. When the variant states a size whose
+      // piece area falls well short of the box area, the "single piece" is
+      // really a carton (Cavanite II) — skip it. Mirrors applySlabSelling.
+      const isRealSlab = (r) => {
+        const m = /(\d+(?:\.\d+)?)\s*[xX]\s*(\d+(?:\.\d+)?)/.exec(r.variant_name || '');
+        if (!m) return true;
+        const pieceArea = (parseFloat(m[1]) * parseFloat(m[2])) / 144;
+        return !(pieceArea > 0 && pieceArea < parseFloat(r.sqft_per_box) * 0.8);
+      };
+      return rows.filter(isRealSlab).map(r => ({
         sku_id: r.sku_id, product_id: r.product_id, vendor_id: r.vendor_id,
         summary: `${r.vendor_code}: "${r.name}${r.variant_name ? ' — ' + r.variant_name : ''}" is a ${parseFloat(r.sqft_per_box).toFixed(1)} sqft single piece in ${r.category} — probably a slab (should be per-slab under countertops)`,
         detail: { category: r.category, sqft_per_box: parseFloat(r.sqft_per_box) },

@@ -33322,6 +33322,16 @@ cron.schedule('45 5 * * *', async () => {
         console.log(`[Quality]   moved ${m.vendor_code} "${m.name}": ${m.from} → ${m.to} (${m.reasons.join('; ')})`);
       }
     } catch (tlvErr) { console.error('[Quality] Nightly tile-leaf validation failed:', tlvErr.message); }
+    // Variant-name deduper next: any importer/scraper that lands colliding
+    // display names (indistinguishable-variants) gets auto-disambiguated from
+    // sku_attributes / vendor_sku before the audit flags it.
+    try {
+      const { runVariantDedupe } = await import('./quality/variantDedupe.js');
+      const vd = await runVariantDedupe(pool, { apply: true });
+      if (vd.renamed.length) {
+        console.log(`[Quality] Nightly variant dedupe: ${vd.groups} colliding group(s), ${vd.renamed.length} renamed (${vd.skuFallback.length} via vendor_sku)`);
+      }
+    } catch (vdErr) { console.error('[Quality] Nightly variant dedupe failed:', vdErr.message); }
     const audit = await runQualityAuditExclusive({ triggeredBy: 'cron' });
     console.log(`[Quality] Nightly audit: ${audit.newCount} new, ${audit.fixedCount} fixed, ${audit.openTotal} open`);
     if (audit.newCount + audit.reopenedCount > 0) {

@@ -59,7 +59,7 @@ export async function run(pool, job, source) {
     // Load all Tri-West SKUs from DB upfront, including packaging data for unit conversion
     const skuResult = await pool.query(`
       SELECT s.id, s.vendor_sku, s.internal_sku, s.sell_by,
-             p2.sqft_per_box
+             p2.sqft_per_box, p2.roll_width_ft
       FROM skus s
       JOIN products p ON p.id = s.product_id
       LEFT JOIN packaging p2 ON p2.sku_id = s.id
@@ -233,6 +233,24 @@ export async function run(pool, job, source) {
         }
 
         totalMatched++;
+
+        // Self-heal roll widths: the portal's size column carries the roll
+        // width ("12'") that the 832 feed lacks for Armstrong sheet vinyl —
+        // fill it on roll-sold SKUs missing one so the roll calculator works.
+        if (dbSku.sell_by === 'roll' && !(parseFloat(dbSku.roll_width_ft) > 0)) {
+          const wm = /^(\d+(?:\.\d+)?)\s*'/.exec(String(row.size || '').trim());
+          if (wm) {
+            try {
+              await pool.query(`
+                INSERT INTO packaging (sku_id, roll_width_ft) VALUES ($1, $2)
+                ON CONFLICT (sku_id) DO UPDATE SET roll_width_ft = EXCLUDED.roll_width_ft`,
+                [dbSku.id, parseFloat(wm[1])]);
+              dbSku.roll_width_ft = wm[1];
+            } catch (err) {
+              await logError(`Roll width upsert failed for ${row.itemNumber}: ${err.message}`);
+            }
+          }
+        }
 
         try {
           // Convert quantity to sqft based on unit type

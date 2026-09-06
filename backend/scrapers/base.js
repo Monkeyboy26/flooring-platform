@@ -218,6 +218,43 @@ export function applySheetSelling({
 }
 
 /**
+ * Slab selling conversion — the per-slab twin of applySheetSelling.
+ *
+ * Slabs/gauged panels are priced per-slab (unit/per_unit), but several feeds
+ * (Emser 832 Expanse/Slim panels, Roca 63x126) quote a per-sqft rate on a
+ * single-piece "box". A single piece >= 25 sqft coming through as box+per_sqft
+ * is a slab hiding as tile (mirrors the suspected-slab quality rule): convert
+ * the rate to a per-slab price (rate x piece area) so the storefront rings up
+ * the panel price, not the rate as if it were the panel price. Multi-piece
+ * cartons and normal tile pass through untouched. Call AFTER applySheetSelling
+ * with its resulting plan.
+ */
+export function applySlabSelling({ sellBy, priceBasis, sqft_per_box, pieces_per_box, cost, retail_price, sale_price, name }) {
+  const passthrough = { sellBy, priceBasis, cost, retail_price, sale_price, converted: false };
+  const area = parseFloat(sqft_per_box);
+  const pieces = parseFloat(pieces_per_box) || 1;
+  if (sellBy !== 'box' || priceBasis !== 'per_sqft') return passthrough;
+  if (!(area >= 25) || pieces > 1) return passthrough;
+  // Missing-piece-count trap: a 26-sqft carton of 17x17 field tiles (pieces
+  // unknown -> 1) is NOT a slab. If the name states a size whose piece area
+  // falls well short of the box area, the "single piece" is really a carton.
+  const m = /(\d+(?:\.\d+)?)\s*[xX]\s*(\d+(?:\.\d+)?)/.exec(name || '');
+  if (m) {
+    const pieceArea = (parseFloat(m[1]) * parseFloat(m[2])) / 144;
+    if (pieceArea > 0 && pieceArea < area * 0.8) return passthrough;
+  }
+  return {
+    sellBy: 'unit',
+    priceBasis: 'per_unit',
+    cost: cost != null ? round2(cost * area) : cost,
+    retail_price: retail_price != null ? round2(retail_price * area) : retail_price,
+    sale_price: sale_price != null ? round2(sale_price * area) : sale_price,
+    converted: true,
+    slabSqft: area,
+  };
+}
+
+/**
  * Validate product data before upsert. Returns { valid, warnings, cleaned }.
  * `cleaned` contains sanitized values; `warnings` lists issues that were auto-fixed.
  * Throws on critical errors (missing required fields).
