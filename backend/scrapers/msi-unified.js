@@ -1049,9 +1049,19 @@ async function phase2_edi832(pool, vendorId, source, log) {
       const _sfPriced = _priceUom === 'SF' || _priceUom === 'FT2';
       const _eaPriced = _priceUom === 'EA' || _priceUom === 'PC' || _priceUom === 'EACH';
       const _fullName = `${group.baseName} ${variantName || ''}`;
-      const _sheetItem = PER_SHEET_CATEGORY_SLUGS.has(categorySlug) || /mosaic/i.test(_fullName);
       const _trim = isTrimPiece(_fullName) || isItemAccessory;
       const _refCarton = !!(_ref && _ref.pieces_per_box > 0 && _ref.sqft_per_box > 0);
+      // MSI's web taxonomy files loose small-format tile under "ceramic-mosaics"
+      // (Urbano 3D Mix 4x12 @ 30 pcs/box, PT 3x6 subway @ 8 pcs/box, Tetris deco
+      // 6x6 @ 20 pcs/box), landing them in mosaic categories — but they're loose
+      // pieces in a real carton, not mesh-mounted sheets. A genuine sheet runs
+      // ~1-2 sqft; anything under half a sqft with a known multi-piece carton is
+      // loose tile and sells per box at the SF price like field tile (owner,
+      // 2026-09-05: Urbano Navy Mix "should be per box").
+      const _looseSmallPiece = !!(_ref && _ref.pieces_per_box > 1 && _ref.sqft_per_box > 0
+        && _perPieceSqft && _perPieceSqft < 0.5);
+      const _sheetItem = !_looseSmallPiece
+        && (PER_SHEET_CATEGORY_SLUGS.has(categorySlug) || /mosaic/i.test(_fullName));
       let stonePerPiece = false;
       if (item.cost || item.retail_price) {
         if (sellBy === 'unit' && _sfPriced && !_trim) {
@@ -1090,12 +1100,17 @@ async function phase2_edi832(pool, vendorId, source, log) {
 
       // Mosaics / stacked stone sell per sheet — convert the per-sqft price to a
       // per-sheet price from box packaging (see selling-conventions). Ambiguous
-      // boxes (no piece count) stay as boxes.
-      const sheet = applySheetSelling({
-        categorySlug, sellBy, name: _fullName,
-        sqft_per_box: item.sqft_per_box, pieces_per_box: item.pieces_per_box,
-        cost: _cost, retail_price: _retail,
-      });
+      // boxes (no piece count) stay as boxes. Loose small-piece cartons skip the
+      // sheet rule entirely — applySheetSelling keys on the mosaic category and
+      // would misprice the carton back down to a single loose piece.
+      const sheet = _looseSmallPiece
+        ? { sellBy, priceBasis: sellBy === 'box' ? 'per_sqft' : 'per_unit',
+            cost: _cost, retail_price: _retail, converted: false, coveringFloor: false }
+        : applySheetSelling({
+            categorySlug, sellBy, name: _fullName,
+            sqft_per_box: item.sqft_per_box, pieces_per_box: item.pieces_per_box,
+            cost: _cost, retail_price: _retail,
+          });
       if (stonePerPiece) sheet.priceBasis = 'per_sqft';
 
       const skuRow = await upsertSku(pool, {
