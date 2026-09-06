@@ -5727,7 +5727,21 @@
           price_tier: carpetPriceTier
         });
       } else if (isPerUnit) {
-        if (unitQty <= 0 || slabMissingSize) return;
+        if (slabMissingSize) return;
+        if (perPiece && numBoxes > 0) {
+          addToCart({
+            product_id: sku.product_id,
+            sku_id: sku.sku_id,
+            sqft_needed: actualSqft,
+            num_boxes: numBoxes,
+            include_overage: includeOverage,
+            unit_price: effectivePrice,
+            subtotal: (numBoxes * effectivePrice).toFixed(2),
+            sell_by: "unit"
+          });
+          return;
+        }
+        if (unitQty <= 0 || perPiece) return;
         addToCart({
           product_id: sku.product_id,
           sku_id: sku.sku_id,
@@ -7278,7 +7292,38 @@
     )), isPerUnit && (slabMissingSize || effectivePrice <= 0) && (() => {
       const inquiryIsSlab = /slab|countertop/i.test(sku.category_name || "") || /slab/i.test(sku.product_name || "") || /slab/i.test(sku.variant_name || "");
       return /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "pdp-inquiry-banner" }, /* @__PURE__ */ React.createElement("p", { className: "pdp-inquiry-title" }, inquiryIsSlab ? "Slab \u2014 Please Inquire" : "Please Inquire"), /* @__PURE__ */ React.createElement("p", { className: "pdp-inquiry-sub" }, inquiryIsSlab ? "Contact us to confirm slab dimensions and availability." : "Contact us for current pricing and availability."), /* @__PURE__ */ React.createElement("a", { href: "tel:7149990009", className: "pdp-btn pdp-btn-gold", style: { marginTop: "1rem", textDecoration: "none" } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 16, height: 16 } }, /* @__PURE__ */ React.createElement("path", { d: "M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" })), "Call (714) 999-0009")));
-    })(), isPerUnit && !slabMissingSize && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
+    })(), isPerUnit && perPiece && !slabMissingSize && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "calculator-widget" }, /* @__PURE__ */ React.createElement("h3", null, "Coverage Calculator"), /* @__PURE__ */ React.createElement("div", { className: "calc-input-row" }, /* @__PURE__ */ React.createElement("div", { className: "calc-input-group" }, /* @__PURE__ */ React.createElement("label", null, "Square Feet Needed"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "calc-input",
+        type: "number",
+        min: "0",
+        step: "1",
+        placeholder: "0",
+        value: sqftInput,
+        onChange: (e) => handleSqftChange(e.target.value)
+      }
+    )), /* @__PURE__ */ React.createElement("div", { className: "calc-input-group" }, /* @__PURE__ */ React.createElement("label", null, "Pieces"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "calc-input",
+        type: "number",
+        min: "0",
+        step: "1",
+        placeholder: "0",
+        value: boxesInput,
+        onChange: (e) => handleBoxesChange(e.target.value)
+      }
+    ))), /* @__PURE__ */ React.createElement("label", { className: "carpet-overage-label" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: includeOverage, onChange: (e) => setIncludeOverage(e.target.checked) }), "Add 10% overage for cuts & breakage"), numBoxes > 0 && /* @__PURE__ */ React.createElement("div", { className: "calc-summary" }, /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Pieces"), /* @__PURE__ */ React.createElement("span", null, numBoxes)), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Coverage"), /* @__PURE__ */ React.createElement("span", null, actualSqft.toFixed(1), " sqft")), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Price"), /* @__PURE__ */ React.createElement("span", null, "$", effectivePrice.toFixed(2), "/pc \xB7 ", Math.round(sqftPerBox * 100) / 100, " sqft each")), sku.weight_per_box_lbs && /* @__PURE__ */ React.createElement("div", { className: "calc-summary-row" }, /* @__PURE__ */ React.createElement("span", null, "Est. Weight"), /* @__PURE__ */ React.createElement("span", null, (numBoxes * parseFloat(sku.weight_per_box_lbs)).toFixed(0), " lbs")), /* @__PURE__ */ React.createElement("div", { className: "calc-summary-total" }, /* @__PURE__ */ React.createElement("span", null, "Subtotal"), /* @__PURE__ */ React.createElement("span", null, "$", (numBoxes * effectivePrice).toFixed(2)))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "pdp-btn pdp-btn-primary",
+        style: { marginTop: "1.25rem" },
+        onClick: handleAddToCart,
+        disabled: numBoxes <= 0 || isOutOfStock
+      },
+      isOutOfStock ? "Out of Stock" : "Add to Cart " + (numBoxes > 0 ? "\u2014 $" + (numBoxes * effectivePrice).toFixed(2) : "")
+    )), isPerUnit && !perPiece && !slabMissingSize && effectivePrice > 0 && !isOutOfStock && /* @__PURE__ */ React.createElement("div", { className: "unit-add-to-cart" }, /* @__PURE__ */ React.createElement("div", { className: "unit-qty-row" }, /* @__PURE__ */ React.createElement("span", { className: "unit-qty-label" }, "Quantity"), /* @__PURE__ */ React.createElement("div", { className: "unit-qty-stepper" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setUnitQty((q) => Math.max(1, q - 1)) }, "\u2212"), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "number",

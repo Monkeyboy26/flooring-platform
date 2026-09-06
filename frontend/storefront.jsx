@@ -7530,7 +7530,22 @@
             price_tier: carpetPriceTier
           });
         } else if (isPerUnit) {
-          if (unitQty <= 0 || slabMissingSize) return;
+          if (slabMissingSize) return;
+          // Per-piece stone: the coverage calculator drives the piece count
+          if (perPiece && numBoxes > 0) {
+            addToCart({
+              product_id: sku.product_id,
+              sku_id: sku.sku_id,
+              sqft_needed: actualSqft,
+              num_boxes: numBoxes,
+              include_overage: includeOverage,
+              unit_price: effectivePrice,
+              subtotal: (numBoxes * effectivePrice).toFixed(2),
+              sell_by: 'unit'
+            });
+            return;
+          }
+          if (unitQty <= 0 || perPiece) return;
           addToCart({
             product_id: sku.product_id,
             sku_id: sku.sku_id,
@@ -9967,7 +9982,46 @@
                 </div>
                 );
               })()}
-              {isPerUnit && !slabMissingSize && effectivePrice > 0 && !isOutOfStock && (
+              {/* Per-piece stone \u2014 coverage calculator in PIECES (sqft \u2194 pieces, synced).
+                  The same sqft/boxes state + handlers as the box calculator: sqftPerBox
+                  holds ONE piece's area, so "boxes" are pieces here. */}
+              {isPerUnit && perPiece && !slabMissingSize && effectivePrice > 0 && !isOutOfStock && (
+                <div className="calculator-widget">
+                  <h3>Coverage Calculator</h3>
+                  <div className="calc-input-row">
+                    <div className="calc-input-group">
+                      <label>Square Feet Needed</label>
+                      <input className="calc-input" type="number" min="0" step="1" placeholder="0"
+                        value={sqftInput} onChange={(e) => handleSqftChange(e.target.value)} />
+                    </div>
+                    <div className="calc-input-group">
+                      <label>Pieces</label>
+                      <input className="calc-input" type="number" min="0" step="1" placeholder="0"
+                        value={boxesInput} onChange={(e) => handleBoxesChange(e.target.value)} />
+                    </div>
+                  </div>
+                  <label className="carpet-overage-label">
+                    <input type="checkbox" checked={includeOverage} onChange={(e) => setIncludeOverage(e.target.checked)} />
+                    Add 10% overage for cuts &amp; breakage
+                  </label>
+                  {numBoxes > 0 && (
+                    <div className="calc-summary">
+                      <div className="calc-summary-row"><span>Pieces</span><span>{numBoxes}</span></div>
+                      <div className="calc-summary-row"><span>Coverage</span><span>{actualSqft.toFixed(1)} sqft</span></div>
+                      <div className="calc-summary-row"><span>Price</span><span>${effectivePrice.toFixed(2)}/pc &middot; {Math.round(sqftPerBox * 100) / 100} sqft each</span></div>
+                      {sku.weight_per_box_lbs && (
+                        <div className="calc-summary-row"><span>Est. Weight</span><span>{(numBoxes * parseFloat(sku.weight_per_box_lbs)).toFixed(0)} lbs</span></div>
+                      )}
+                      <div className="calc-summary-total"><span>Subtotal</span><span>${(numBoxes * effectivePrice).toFixed(2)}</span></div>
+                    </div>
+                  )}
+                  <button className="pdp-btn pdp-btn-primary" style={{ marginTop: '1.25rem' }}
+                    onClick={handleAddToCart} disabled={numBoxes <= 0 || isOutOfStock}>
+                    {isOutOfStock ? 'Out of Stock' : ('Add to Cart ' + (numBoxes > 0 ? '\u2014 $' + (numBoxes * effectivePrice).toFixed(2) : ''))}
+                  </button>
+                </div>
+              )}
+              {isPerUnit && !perPiece && !slabMissingSize && effectivePrice > 0 && !isOutOfStock && (
                 <div className="unit-add-to-cart">
                   <div className="unit-qty-row">
                     <span className="unit-qty-label">Quantity</span>
