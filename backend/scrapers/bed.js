@@ -6,41 +6,44 @@ import {
   normalizeSize, buildVariantName
 } from './base.js';
 
+// Category paths verified live 2026-09-06 (each returns HTTP 200 with products; counts in
+// comments are foundCount at verification time). The site reorganized its PLP slugs:
+// travertine/slate/granite/limestone-tiles → natural-stone; glass-tiles → glass;
+// mosaic → by-look/mosaic; subway-tiles → by-look/subway; large-format → by-look/large-format;
+// zellige-tiles → by-look/zellige; wood-look-tile → by-look/wood-look; pavers → outdoor;
+// trim-tiles → by-use/trims-&-finishing-pieces.
 const DEFAULT_CONFIG = {
   categories: [
     // Tile
-    '/en/product/list/porcelain/',
-    '/en/product/list/ceramic-tiles/',
-    '/en/product/list/marble-tiles/',
-    '/en/product/list/travertine-tiles/',
-    '/en/product/list/slate-tiles/',
-    '/en/product/list/granite-tiles/',
-    '/en/product/list/limestone-tiles/',
-    '/en/product/list/glass-tiles/',
+    '/en/product/list/porcelain/',                       // 867
+    '/en/product/list/ceramic-tiles/',                   // 205
+    '/en/product/list/marble-tiles/',                    // 149
+    '/en/product/list/natural-stone/',                   // 104 (travertine/slate/granite/limestone/quartzite)
+    '/en/product/list/glass/',                           // 21
     // Specialty
-    '/en/product/list/mosaic/',
-    '/en/product/list/subway-tiles/',
-    '/en/product/list/decorative-tiles/',
-    '/en/product/list/large-format/',
-    '/en/product/list/zellige-tiles/',
+    '/en/product/list/by-look/mosaic/',                  // 364
+    '/en/product/list/by-look/subway/',                  // 87
+    '/en/product/list/decorative-tiles/',                // 556
+    '/en/product/list/by-look/large-format/',            // 262
+    '/en/product/list/by-look/zellige/',                 // 40
     // Wood & Vinyl
-    '/en/product/list/vinyl-flooring/',
-    '/en/product/list/wood-look-tile/',
-    // Outdoor
-    '/en/product/list/outdoor/',
-    '/en/product/list/pavers/',
+    '/en/product/list/vinyl-flooring/',                  // 17
+    '/en/product/list/by-look/wood-look/',               // 66
+    // Outdoor (includes pavers)
+    '/en/product/list/outdoor/',                         // 891
     // Slabs
-    '/en/product/list/slabs/',
+    '/en/product/list/slabs/',                           // 248
     // Trim & Installation
-    '/en/product/list/trim-tiles/',
+    '/en/product/list/by-use/trims-&-finishing-pieces/', // 237
     // Engineered Wood
-    '/en/product/list/engineered-wood/',
-    '/en/product/list/engineered-hdf-wood/',
+    '/en/product/list/engineered-wood/',                 // 36
+    '/en/product/list/engineered-hdf-wood/',             // 20
   ],
-  perPage: 180,
+  perPage: 180, // NOTE: new PLP ignores perPage (fixed 60/page); param kept as harmless
   delayMs: 1500,
   scrapeDetails: true,
   detailOffset: 0,
+  maxPages: 0, // testing cap: >0 limits listing pages per category (0 = unlimited)
 };
 
 // Max gallery images per SKU (primary + lifestyle + 6 alternate)
@@ -89,15 +92,19 @@ const CATEGORY_MAP = {
 /**
  * Bedrosians scraper.
  *
- * Bedrosians is an AngularJS app that embeds structured product data in
- * <script> tags as JS objects. We extract this JSON from page source
- * instead of parsing the rendered DOM — much faster and more reliable.
+ * Bedrosians embeds structured product data in <script> tags as JS objects.
+ * We extract this JSON via page.evaluate / page source instead of parsing the
+ * rendered DOM — much faster and more reliable.
  *
- * Listing pages embed: window.bdApp.value('$model', { products: [...] })
- *   → pricing (PriceToDisplay), inventory (OnHand/Availability), images (ImageName/AlternativeImageUrl)
+ * Listing pages embed (2026 Vue rewrite): window.__VUE_PLP_DATA__ = { model: {"products":[...], pager, foundCount} }
+ *   Each products[] entry still carries the flat per-SKU fields the old AngularJS
+ *   $model had (ProductCode, Name, MaterialType, Size, PriceToDisplay, SellingUom,
+ *   OnHand, ImageName, AlternativeImageUrl...) plus new style-level fields
+ *   (StyleNo, StyleName, colorList). Legacy window.bdApp.value('$model', ...) kept as fallback.
  *
- * Detail pages embed: window.bdApp.value('productDetailModel', {...})
- *   → packaging (Packaging[]), technical specs (Properties[]), description, tearsheets (Resources[])
+ * Detail pages embed: window.__VUE_PDP_DATA__ = { model: {...} } with the same
+ * shape as the legacy productDetailModel (kept as fallback):
+ *   → packaging (Packaging[]), technical specs (Properties[]), description (Product.Description), tearsheets (Resources[])
  *
  * Flow:
  *   1. Collect products from listing pages (embedded JSON)
@@ -518,7 +525,8 @@ async function scrapeListingPages(browser, baseUrl, categoryPath, config) {
       allProducts.push(...firstPageData.products);
     }
 
-    const totalPages = firstPageData.totalPages || 1;
+    let totalPages = firstPageData.totalPages || 1;
+    if (config.maxPages > 0 && totalPages > config.maxPages) totalPages = config.maxPages;
 
     // Scrape remaining pages
     for (let pageNum = 2; pageNum <= totalPages; pageNum++) {
@@ -542,13 +550,71 @@ async function scrapeListingPages(browser, baseUrl, categoryPath, config) {
 
 /**
  * Extract the embedded product data from a Bedrosians listing page.
- * Looks for window.bdApp.value('$model', {...}) in the page source.
+ * Primary: window.__VUE_PLP_DATA__ = { model: {"products":[...], pager, foundCount} } (2026 Vue site).
+ * Fallbacks: legacy window.bdApp.value('$model', {...}) strategies.
  */
 async function extractListingData(page, config) {
   const html = await page.content();
   const result = { products: [], totalPages: 1 };
 
-  // Strategy 1: Extract from window.bdApp.value('$model', {...})
+  // Strategy 0: window.__VUE_PLP_DATA__ (current Vue PLP) via page JS context
+  try {
+    const vueData = await page.evaluate(() => {
+      /* eslint-disable no-undef */
+      const d = typeof window !== 'undefined' && window.__VUE_PLP_DATA__;
+      if (!d || !d.model || !Array.isArray(d.model.products)) return null;
+      return {
+        products: d.model.products,
+        pager: d.model.pager || null,
+        foundCount: d.model.foundCount || 0,
+      };
+      /* eslint-enable no-undef */
+    });
+    if (vueData && vueData.products.length > 0) {
+      result.products = vueData.products;
+      const pager = vueData.pager || {};
+      const totalPages = parseInt(pager.CountOfPages, 10) || 0;
+      const pageSize = parseInt(pager.PageSize, 10) || 0;
+      const foundCount = parseInt(vueData.foundCount, 10) || 0;
+      if (totalPages > 0) {
+        result.totalPages = totalPages;
+      } else if (foundCount > 0 && pageSize > 0) {
+        result.totalPages = Math.ceil(foundCount / pageSize);
+      }
+      return result;
+    }
+  } catch (e) {
+    // Fall through to HTML/legacy strategies
+  }
+
+  // Strategy 0b: parse the __VUE_PLP_DATA__ blob straight from the HTML
+  // (covers pages where the JS context is unavailable — the inner model is strict JSON)
+  {
+    const assignMatch = html.match(/__VUE_PLP_DATA__\s*=\s*\{\s*model\s*:\s*/);
+    if (assignMatch) {
+      const modelStr = extractBalancedObject(html, assignMatch.index + assignMatch[0].length);
+      if (modelStr) {
+        try {
+          const model = JSON.parse(modelStr);
+          if (model && Array.isArray(model.products) && model.products.length > 0) {
+            result.products = model.products;
+            const pager = model.pager || {};
+            const totalPages = parseInt(pager.CountOfPages, 10) || 0;
+            const pageSize = parseInt(pager.PageSize, 10) || 0;
+            const foundCount = parseInt(model.foundCount, 10) || 0;
+            if (totalPages > 0) {
+              result.totalPages = totalPages;
+            } else if (foundCount > 0 && pageSize > 0) {
+              result.totalPages = Math.ceil(foundCount / pageSize);
+            }
+            return result;
+          }
+        } catch (e) { /* fall through */ }
+      }
+    }
+  }
+
+  // Strategy 1 (legacy AngularJS site): Extract from window.bdApp.value('$model', {...})
   const modelMatch = html.match(/window\.bdApp\.value\s*\(\s*'\$model'\s*,\s*(\{[\s\S]*?\})\s*\)\s*;/);
   if (modelMatch) {
     try {
@@ -697,8 +763,42 @@ async function scrapeDetailPage(browser, baseUrl, detailPath) {
       tearsheetUrl: null,
     };
 
-    // ── Strategy 1: Extract productDetailModel from embedded script ──
-    const detailMatch = html.match(/window\.bdApp\.value\s*\(\s*'productDetailModel'\s*,\s*(\{[\s\S]*?\})\s*\)\s*;/);
+    // ── Strategy 0: window.__VUE_PDP_DATA__.model (current Vue PDP) — same shape as
+    // the legacy productDetailModel: Packaging[], Properties[], Resources[], Product.Description ──
+    try {
+      const vueModel = await page.evaluate(() => {
+        /* eslint-disable no-undef */
+        const d = typeof window !== 'undefined' && window.__VUE_PDP_DATA__;
+        if (!d || !d.model) return null;
+        const m = d.model;
+        return {
+          Packaging: Array.isArray(m.Packaging) ? m.Packaging : null,
+          Properties: Array.isArray(m.Properties) ? m.Properties : null,
+          Resources: Array.isArray(m.Resources) ? m.Resources : null,
+          Description: (m.Product && m.Product.Description) || null,
+        };
+        /* eslint-enable no-undef */
+      });
+      if (vueModel) {
+        if (vueModel.Packaging && vueModel.Packaging.length > 0) {
+          result.packaging = extractPackagingFromKeyValues(vueModel.Packaging);
+        }
+        if (vueModel.Properties) {
+          result.properties = extractPropertiesFromKeyValues(vueModel.Properties);
+        }
+        if (vueModel.Description) {
+          result.description = vueModel.Description;
+        }
+        if (vueModel.Resources) {
+          const tearsheet = vueModel.Resources.find(r => r.Key === 'Tearsheet' && r.Value);
+          if (tearsheet) result.tearsheetUrl = tearsheet.Value;
+        }
+      }
+    } catch (e) { /* fall through to legacy strategies */ }
+
+    // ── Strategy 1 (legacy AngularJS site): Extract productDetailModel from embedded script ──
+    const detailMatch = result.packaging ? null
+      : html.match(/window\.bdApp\.value\s*\(\s*'productDetailModel'\s*,\s*(\{[\s\S]*?\})\s*\)\s*;/);
     if (detailMatch) {
       try {
         const model = safeParseJsObject(detailMatch[1]);
@@ -1812,6 +1912,34 @@ function parseNum(val) {
   const cleaned = String(val).replace(/[$,\s]/g, '');
   const num = parseFloat(cleaned);
   return isNaN(num) ? null : num;
+}
+
+/**
+ * Extract a balanced {...} object literal from `str` starting at `startIdx`
+ * (which must point at or just before the opening brace). String-aware so
+ * braces inside quoted values don't break the balance. Returns the object
+ * substring including braces, or null.
+ */
+function extractBalancedObject(str, startIdx) {
+  const open = str.indexOf('{', startIdx);
+  if (open === -1) return null;
+  let depth = 0, inString = false, escaped = false;
+  for (let i = open; i < str.length; i++) {
+    const ch = str[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') {
+      inString = true;
+    } else if (ch === '{') {
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0) return str.slice(open, i + 1);
+    }
+  }
+  return null;
 }
 
 /**
