@@ -211,10 +211,12 @@ const round2 = (v) => Math.round(Number(v) * 100) / 100;
 async function main() {
   const { rows: skus } = await pool.query(`
     SELECT s.id, s.vendor_sku, s.variant_name, s.sell_by, s.status, s.product_id,
-           pr.cost, pr.retail_price, pr.price_basis, pr.retail_locked
+           pr.cost, pr.retail_price, pr.price_basis, pr.retail_locked,
+           pk.sqft_per_box
     FROM skus s
     JOIN products p ON p.id = s.product_id
     LEFT JOIN pricing pr ON pr.sku_id = s.id
+    LEFT JOIN packaging pk ON pk.sku_id = s.id
     WHERE p.vendor_id = $1
     ORDER BY s.vendor_sku
   `, [VENDOR_ID]);
@@ -245,9 +247,16 @@ async function main() {
 
     if (s.retail_locked) continue;
     const basis = s.price_basis || (s.sell_by === 'unit' ? 'per_unit' : 'per_sqft');
-    const newRetail = priceRetail(pdfCost, basis);
-    if (round2(s.cost) !== round2(pdfCost) || round2(s.retail_price) !== round2(newRetail)) {
-      priceUpdates.push({ id: s.id, vendor_sku: s.vendor_sku, oldCost: s.cost, newCost: pdfCost, oldRetail: s.retail_price, newRetail });
+    // The price list's "YOUR COST" is a per-SQFT rate. Mesh mosaics are sold
+    // by the SHEET (sell_by=unit / per_unit with a sheet coverage): store the
+    // per-sheet total (rate × sheet sqft) so a reprice doesn't revert them to
+    // the raw per-sqft rate. Watermark art mosaics (per_unit, no coverage)
+    // keep the list price as-is. See fix-fujiwa-tile-mosaic-selling.mjs.
+    const isPerSheet = basis === 'per_unit' && Number(s.sqft_per_box) > 0;
+    const newCost = isPerSheet ? round2(pdfCost * Number(s.sqft_per_box)) : pdfCost;
+    const newRetail = priceRetail(newCost, basis);
+    if (round2(s.cost) !== round2(newCost) || round2(s.retail_price) !== round2(newRetail)) {
+      priceUpdates.push({ id: s.id, vendor_sku: s.vendor_sku, oldCost: s.cost, newCost, oldRetail: s.retail_price, newRetail });
     }
   }
 
