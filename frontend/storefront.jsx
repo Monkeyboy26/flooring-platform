@@ -3379,6 +3379,10 @@
         // confirmation page can't double-count revenue.
         const gaOrder = orderData && orderData.order;
         if (gaOrder) gaEvent('purchase', { transaction_id: gaOrder.order_number, currency: 'USD', value: parseFloat(gaOrder.total || 0) || 0, items: (gaOrder.items || []).map(gaItem) });
+        // Sample requests are leads, not revenue — mirrored so GA4 can key on
+        // generate_lead (purchase alone misses sample-only checkouts, which
+        // create no order).
+        if (orderData && orderData.sample_request) gaEvent('generate_lead', { lead_source: 'sample_request' });
         fetch(API + '/api/cart/clear', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -16496,6 +16500,7 @@
           const data = await res.json();
           if (data.error) { setError(data.error); return; }
           setSubmitted(true);
+          try { if (window.gtag) window.gtag('event', 'generate_lead', { lead_source: 'installation_inquiry' }); } catch (e) {}
         } catch(e) { setError('Unable to submit. Please try again.'); }
       };
 
@@ -16565,6 +16570,7 @@
           const data = await res.json();
           if (data.error) { setError(data.error); setSaving(false); return; }
           setSubmitted(true);
+          try { if (window.gtag) window.gtag('event', 'generate_lead', { lead_source: 'installation_inquiry' }); } catch (e) {}
         } catch(e) { setError('Unable to submit. Please try again.'); setSaving(false); }
       };
 
