@@ -333,6 +333,17 @@ const LOOK_MAP = [
 const SIZE_MAP = [
   ['aeterna', '24x48'],
   ['albany', '24x24'],
+  // Marmorea / Calacatta marble-look porcelain tiles (2026-09-07). These pages
+  // went quote-only on Orion's site so no size parses from the title; sizes are
+  // from the July 2026 dealer list. 'calacatta gold' before 'calacatta' — findSize
+  // matches longest pattern first, so this ordering is belt-and-suspenders.
+  ['marmorea carrara', '24x24'],
+  ['marmorea verde alpi', '24x24'],
+  ['nero marquinia', '24x24'],
+  ['rosso verona', '24x24'],
+  ['calacatta gold', '24x48'],
+  ['calacatta', '24x48'],
+  ['carrara', '24x48'],
   ['amazona jade', '24x48'],
   ['arno azzurro', '24x48'],
   ['aspen', '8x48'],
