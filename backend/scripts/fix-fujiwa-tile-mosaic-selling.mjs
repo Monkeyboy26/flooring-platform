@@ -2,13 +2,14 @@
  * Fujiwa Tile — "field tile sold by the box, mosaic sold by the sheet"
  *
  * Owner rule (2026-09-06): within Fujiwa's Pool Tile line, the 6" field tiles
- * are sold by the BOX (per-sqft, buy whole boxes) and every mesh-mounted /
- * small-format item is a MOSAIC sold by the SHEET.
+ * are sold by the SQUARE FOOT (the price list prices them per sqft and there
+ * is no real carton size) and every mesh-mounted / small-format item is a
+ * MOSAIC sold by the SHEET.
  *
  * Source of truth for the split is the price list's pcsPerUnit column
  * (see scripts/import-fujiwa.js): pcsPerUnit=4 = individual 6" field tiles;
  * pcsPerUnit=1 = mesh/sheet formats. That maps 1:1 onto the stored Size:
- *   FIELD (box) : "6", "6x6", "6x6 Glossy Solid"
+ *   FIELD (sqft): "6", "6x6", "6x6 Glossy Solid"
  *   SHEET (mosaic): everything else — 1x1, 2x2, 3x3, 4x4, penny round,
  *                   hexagon, arabesque, random/pebble blends, glass,
  *                   6" Akron, 6 1/4x16, 6x13-3/4 Listello, 1&2 blends, …
@@ -17,9 +18,9 @@
  * mosaic-per-sheet conversion did (and the 44 Fujiwa Watermark art mosaics
  * already are): sell_by='unit', price_basis='per_unit', the stored price is
  * the PER-SHEET total (per-sqft rate × sheet coverage), sqft_per_box retained
- * as the sheet coverage. Field tiles stay sell_by='box' / per_sqft and get
- * pieces_per_box filled (4 pcs/sqft) so the storefront labels them "box"
- * rather than falling through to the small-coverage "sheet" heuristic.
+ * as the sheet coverage. Field tiles become sell_by='sqft' / per_sqft with
+ * the placeholder box coverage cleared, so the PDP shows a clean "$X/sqft"
+ * with a direct square-footage input (no bogus 1-sqft "box").
  *
  * Idempotent — reads current state, only writes rows that differ. Dry-run by
  * default; pass --apply to commit (writes a JSON backup first).
@@ -92,8 +93,8 @@ async function main() {
   `, [VENDOR_ID, ACCESSORY_PRODUCTS]);
 
   const backup = [];
-  const toSheet = [];   // box/per_sqft -> unit/per_unit per-sheet
-  const toBox = [];     // field tiles: ensure pieces_per_box so they read "box"
+  const toSheet = [];   // box/per_sqft -> unit/per_unit per-sheet (mosaics)
+  const toSqft = [];    // field tiles -> sell_by=sqft, drop placeholder box coverage
   const skippedLocked = [];
   const unclassified = []; // no size + no coverage — reported, untouched
 
@@ -103,18 +104,20 @@ async function main() {
     const isField = FIELD_SIZES.has(size);
 
     if (isField) {
-      // Keep by-the-box; fill pieces_per_box (4 pcs per sqft) if missing so the
-      // storefront labels it "box" instead of the small-coverage "sheet".
-      const wantPcs = sfbx > 0 ? Math.max(1, Math.round(4 * sfbx)) : 4;
-      const needSellBy = s.sell_by !== 'box';
+      // 6" field tile: sold by the SQUARE FOOT. The price list prices it per
+      // sqft and there is no real carton size (Fujiwa's site lists none), so
+      // clear the placeholder 1-sqft "box"/piece coverage the import stored —
+      // otherwise the PDP shows a bogus "$X per box · 1 sqft". sell_by=sqft
+      // gives a clean "$X/sqft" with a direct square-footage input.
+      const needSellBy = s.sell_by !== 'sqft';
       const needBasis = s.price_basis && s.price_basis !== 'per_sqft';
-      const needPcs = !(parseInt(s.pieces_per_box) > 0);
-      if (needSellBy || needBasis || needPcs) {
+      const needClearPkg = s.sqft_per_box != null || s.pieces_per_box != null;
+      if (needSellBy || needBasis || needClearPkg) {
         backup.push({ ...s });
-        toBox.push({ id: s.id, vendor_sku: s.vendor_sku, size,
-          sell_by: needSellBy ? 'box' : null,
+        toSqft.push({ id: s.id, vendor_sku: s.vendor_sku, size,
+          sell_by: needSellBy ? 'sqft' : null,
           price_basis: needBasis ? 'per_sqft' : null,
-          pieces_per_box: needPcs ? wantPcs : null });
+          clearPkg: needClearPkg });
       }
       continue;
     }
@@ -147,11 +150,11 @@ async function main() {
       + `${u.sfbx}sf  cost ${String(u.oldCost).padStart(7)}->${String(u.newCost).padStart(7)}  `
       + `retail ${String(u.oldRetail).padStart(8)}->${String(u.newRetail).padStart(8)}`);
   }
-  console.log(`\n--- FIELD TILE -> box label (ensure pieces_per_box): ${toBox.length} ---`);
-  for (const u of toBox) {
+  console.log(`\n--- FIELD TILE -> sold by the SQUARE FOOT (drop placeholder box coverage): ${toSqft.length} ---`);
+  for (const u of toSqft) {
     console.log(`  ${u.vendor_sku.padEnd(16)} ${String(u.size).padEnd(20)} `
-      + `${[u.sell_by && 'sell_by=box', u.price_basis && 'basis=per_sqft',
-           u.pieces_per_box && `pieces_per_box=${u.pieces_per_box}`].filter(Boolean).join(', ')}`);
+      + `${[u.sell_by && 'sell_by=sqft', u.price_basis && 'basis=per_sqft',
+           u.clearPkg && 'clear sqft_per_box+pieces_per_box'].filter(Boolean).join(', ')}`);
   }
   if (skippedLocked.length) console.log(`\nSkipped (retail_locked): ${skippedLocked.join(', ')}`);
   if (unclassified.length) console.log(`\nUnclassified mosaics (left untouched): ${unclassified.join(', ')}`);
@@ -161,7 +164,7 @@ async function main() {
     await pool.end();
     return;
   }
-  if (!toSheet.length && !toBox.length) {
+  if (!toSheet.length && !toSqft.length) {
     console.log('\nNothing to change.');
     await pool.end();
     return;
@@ -182,18 +185,13 @@ async function main() {
       await client.query(`UPDATE pricing SET cost = $2, retail_price = $3, price_basis = 'per_unit' WHERE sku_id = $1`,
         [u.id, u.newCost, u.newRetail]);
     }
-    for (const u of toBox) {
-      if (u.sell_by) await client.query(`UPDATE skus SET sell_by = 'box', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [u.id]);
+    for (const u of toSqft) {
+      if (u.sell_by) await client.query(`UPDATE skus SET sell_by = 'sqft', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [u.id]);
       if (u.price_basis) await client.query(`UPDATE pricing SET price_basis = 'per_sqft' WHERE sku_id = $1`, [u.id]);
-      if (u.pieces_per_box) {
-        await client.query(`
-          INSERT INTO packaging (sku_id, pieces_per_box) VALUES ($1, $2)
-          ON CONFLICT (sku_id) DO UPDATE SET pieces_per_box = EXCLUDED.pieces_per_box
-        `, [u.id, u.pieces_per_box]);
-      }
+      if (u.clearPkg) await client.query(`UPDATE packaging SET sqft_per_box = NULL, pieces_per_box = NULL WHERE sku_id = $1`, [u.id]);
     }
     await client.query('COMMIT');
-    console.log(`\nApplied: ${toSheet.length} mosaics -> sheet, ${toBox.length} field tiles -> box.`);
+    console.log(`\nApplied: ${toSheet.length} mosaics -> sheet, ${toSqft.length} field tiles -> sqft.`);
   } catch (e) {
     await client.query('ROLLBACK');
     console.error('ROLLED BACK:', e.message);

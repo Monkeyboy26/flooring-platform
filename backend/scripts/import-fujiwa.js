@@ -6,8 +6,9 @@
  * Website: https://www.fujiwatiles.com
  *
  * Sections:
- *   1. Pool Tiles (~75 series): 6" field tiles sold by the box (per_sqft);
- *      mesh/small-format mosaics sold by the sheet (unit / per_unit)
+ *   1. Pool Tiles (~75 series): 6" field tiles sold by the square foot
+ *      (per_sqft, no carton); mesh/small-format mosaics sold by the sheet
+ *      (unit / per_unit)
  *   2. Depth Markers (6 items, sold each)
  *   3. Skimmer Lid Kits (6 items, sold each)
  *   4. Trims (various, sold each/per LF)
@@ -333,10 +334,11 @@ async function main() {
 
       // pcsPerUnit=1 → mesh/small-format: MOSAIC sold by the SHEET
       // (sell_by=unit / per_unit; the stored price is the per-SHEET total,
-      // rate × sheet coverage). pcsPerUnit=4 → 6" field tile sold by the BOX
-      // (per_sqft, pieces_per_box filled). See fix-fujiwa-tile-mosaic-selling.mjs.
+      // rate × sheet coverage). pcsPerUnit=4 → 6" field tile sold by the
+      // SQUARE FOOT (sell_by=sqft / per_sqft, no carton coverage — the price
+      // list has none). See fix-fujiwa-tile-mosaic-selling.mjs.
       const isSheet = family.sellByUnit || pcsPerUnit === 1;
-      const sellBy = isSheet ? 'unit' : 'box';
+      const sellBy = isSheet ? 'unit' : 'sqft';
       const priceBasis = isSheet ? 'per_unit' : 'per_sqft';
       // Per-sheet cost = per-sqft rate × sheet coverage; field stays per-sqft.
       const cost = isSheet && !family.sellByUnit
@@ -354,17 +356,11 @@ async function main() {
       const retailPrice = +(Math.round(cost * 1.6 / 0.05) * 0.05).toFixed(2);
       await upsertPricing(sku.id, { cost, retail_price: retailPrice, price_basis: priceBasis });
 
-      // Packaging: sheet coverage for mosaics; box coverage + piece count for
-      // field tiles (pcsPerUnit pieces per sqft → per-box count).
-      if (family.sellByUnit) {
-        // accessory-style whole-unit item (e.g. Pebblestone) — no coverage
-      } else if (isSheet) {
+      // Packaging: sheet coverage for mosaics only. Field tiles sell by the
+      // square foot (no real carton) and accessory whole-unit items (e.g.
+      // Pebblestone) carry no coverage.
+      if (isSheet && !family.sellByUnit) {
         await upsertPackaging(sku.id, { sqft_per_box: sqftPerUnit });
-      } else {
-        await upsertPackaging(sku.id, {
-          sqft_per_box: sqftPerUnit,
-          pieces_per_box: Math.max(1, Math.round(pcsPerUnit * sqftPerUnit)),
-        });
       }
 
       // Attributes
