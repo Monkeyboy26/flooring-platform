@@ -2488,28 +2488,51 @@
       if (priceMax != null) params.set("price_max", String(priceMax));
       const tf = tags || [];
       if (tf.length > 0) params.set("tags", tf.join("|"));
-      if (fetchSkusAbort.current) fetchSkusAbort.current.abort();
-      const controller = new AbortController();
-      fetchSkusAbort.current = controller;
+      if (fetchSkusAbort.current) fetchSkusAbort.current.cancel();
+      const job = {
+        cancelled: false,
+        controller: null,
+        cancel() {
+          this.cancelled = true;
+          if (this.controller) this.controller.abort();
+        }
+      };
+      fetchSkusAbort.current = job;
       setLoadingSkus(true);
-      fetch(API + "/api/storefront/skus?" + params.toString(), { headers: tradeHeaders(), signal: controller.signal }).then((r) => {
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        return r.json();
-      }).then((data) => {
-        setSkus(data.skus || []);
-        setTotalSkus(data.total || 0);
-        setSearchDidYouMean(data.didYouMean || null);
-        setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
-        setLoadingSkus(false);
-        if (restoreScroll != null && viewRef.current === "browse") {
-          requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, restoreScroll)));
+      const url = API + "/api/storefront/skus?" + params.toString();
+      (async () => {
+        for (let attempt = 0; ; attempt++) {
+          const controller = new AbortController();
+          job.controller = controller;
+          const timer = setTimeout(() => controller.abort(), 12e3);
+          try {
+            const r = await fetch(url, { headers: tradeHeaders(), signal: controller.signal });
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            const data = await r.json();
+            clearTimeout(timer);
+            if (job.cancelled) return;
+            setSkus(data.skus || []);
+            setTotalSkus(data.total || 0);
+            setSearchDidYouMean(data.didYouMean || null);
+            setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
+            setLoadingSkus(false);
+            if (restoreScroll != null && viewRef.current === "browse") {
+              requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo(0, restoreScroll)));
+            }
+            return;
+          } catch (err) {
+            clearTimeout(timer);
+            if (job.cancelled) return;
+            const delays = [400, 900];
+            if (attempt >= delays.length) {
+              console.error(err);
+              setLoadingSkus(false);
+              return;
+            }
+            await new Promise((res) => setTimeout(res, delays[attempt]));
+          }
         }
-      }).catch((err) => {
-        if (err.name !== "AbortError") {
-          console.error(err);
-          setLoadingSkus(false);
-        }
-      });
+      })();
     }, [selectedCategory, selectedCollection, selectedCollectionVendor, searchQuery, filters, sortBy, currentPage, vendorFilters, userPriceRange, tagFilters]);
     const fetchFacets = useCallback((opts = {}) => {
       const { cat, coll, collVendor, search, activeFilters, vendors, priceMin, priceMax, tags } = {
