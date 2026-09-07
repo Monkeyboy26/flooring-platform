@@ -5430,8 +5430,10 @@
       const loadSku = async () => {
         for (let attempt = 0; ; attempt++) {
           let status = 0;
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 12e3);
           try {
-            const r = await fetch(API + "/api/storefront/skus/" + skuId, { headers });
+            const r = await fetch(API + "/api/storefront/skus/" + skuId, { headers, signal: controller.signal });
             status = r.status;
             if (r.status === 404) throw new Error("not_found");
             if (!r.ok) throw new Error("server_error");
@@ -5441,12 +5443,14 @@
             const delays = status === 429 ? [1500] : [400, 900];
             if (attempt >= delays.length) throw err;
             await new Promise((res) => setTimeout(res, delays[attempt]));
+          } finally {
+            clearTimeout(timer);
           }
         }
       };
       loadSku().then((data) => {
         if (cancelled) return;
-        if (data.redirect_to_sku) {
+        if (data.redirect_to_sku && String(data.redirect_to_sku) !== String(skuId)) {
           onSkuClick(data.redirect_to_sku);
           return;
         }

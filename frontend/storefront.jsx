@@ -7206,8 +7206,17 @@
         const loadSku = async () => {
           for (let attempt = 0; ; attempt++) {
             let status = 0;
+            // Mobile connections often STALL rather than fail (weak signal,
+            // cellular/wifi handoff): the socket opens but never returns data
+            // and never errors, so fetch() hangs forever and the retry/backoff
+            // below never fires — leaving the PDP stuck in the skeleton. Abort
+            // each attempt after a timeout so a stall becomes a retryable
+            // rejection instead of an infinite hang. Manual AbortController
+            // (not AbortSignal.timeout) for older-Safari compatibility.
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 12000);
             try {
-              const r = await fetch(API + '/api/storefront/skus/' + skuId, { headers });
+              const r = await fetch(API + '/api/storefront/skus/' + skuId, { headers, signal: controller.signal });
               status = r.status;
               if (r.status === 404) throw new Error('not_found');
               if (!r.ok) throw new Error('server_error');
@@ -7217,13 +7226,19 @@
               const delays = status === 429 ? [1500] : [400, 900];
               if (attempt >= delays.length) throw err;
               await new Promise(res => setTimeout(res, delays[attempt]));
+            } finally {
+              clearTimeout(timer);
             }
           }
         };
         loadSku()
           .then(data => {
             if (cancelled) return;
-            if (data.redirect_to_sku) {
+            // A redirect to a DIFFERENT sku re-runs this effect (dep [skuId]) and
+            // clears loading there. A self-redirect (same id) would NOT re-run the
+            // effect, so returning early here would strand loading=true forever —
+            // fall through and render the sku we already have instead.
+            if (data.redirect_to_sku && String(data.redirect_to_sku) !== String(skuId)) {
               onSkuClick(data.redirect_to_sku);
               return;
             }
