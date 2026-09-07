@@ -733,7 +733,7 @@ async function extractListingData(page, config) {
  *
  * Returns { packaging, properties, description, galleryImages, tearsheetUrl } or null.
  */
-async function scrapeDetailPage(browser, baseUrl, detailPath) {
+export async function scrapeDetailPage(browser, baseUrl, detailPath) {
   const page = await browser.newPage();
   await page.setUserAgent(USER_AGENT);
 
