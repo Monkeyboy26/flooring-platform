@@ -2823,20 +2823,35 @@
     const navigate = (path) => {
       if (path.startsWith("/shop?")) {
         const sp = new URLSearchParams(path.split("?")[1]);
-        setSelectedCategory(null);
-        setSelectedCollection(null);
-        setSearchQuery("");
-        setFilters({});
-        setVendorFilters([]);
-        setTagFilters([]);
-        setUserPriceRange({ min: null, max: null });
-        setCurrentPage(1);
-        const sortVal = sp.get("sort");
-        if (sortVal) setSortBy(sortVal);
+        const cat = sp.get("category");
+        const coll = sp.get("collection");
+        const collVendor = sp.get("collection_vendor");
+        const q = sp.get("q");
+        const reserved = ["category", "collection", "collection_vendor", "q", "vendor", "price_min", "price_max", "sort", "tags", "page"];
+        const af = {};
+        sp.forEach((val, key) => {
+          if (!reserved.includes(key)) af[key] = val.split("|");
+        });
+        const vf = sp.get("vendor") ? sp.get("vendor").split("|") : [];
+        const prMin = sp.get("price_min") ? parseFloat(sp.get("price_min")) : null;
+        const prMax = sp.get("price_max") ? parseFloat(sp.get("price_max")) : null;
+        const tf = sp.get("tags") ? sp.get("tags").split("|") : [];
+        const pg = Math.max(1, parseInt(sp.get("page"), 10) || 1);
+        const sortVal = sp.get("sort") || (q ? "relevance" : "name_asc");
+        setSelectedCategory(cat || null);
+        setSelectedCollection(coll || null);
+        setCollVendor(coll ? collVendor || null : null);
+        setSearchQuery(q || "");
+        setFilters(af);
+        setVendorFilters(vf);
+        setTagFilters(tf);
+        setUserPriceRange({ min: prMin, max: prMax });
+        setCurrentPage(pg);
+        setSortBy(sortVal);
         setView("browse");
-        fetchSkus({ cat: null, coll: null, search: "", activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1, sort: sortVal || sortBy });
-        fetchFacets({ cat: null, coll: null, search: "", activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
-        history.pushState({ view: "browse" }, "", path);
+        fetchSkus({ cat: cat || null, coll: coll || null, collVendor: coll ? collVendor : null, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg, sort: sortVal });
+        fetchFacets({ cat: cat || null, coll: coll || null, collVendor: coll ? collVendor : null, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+        history.pushState({ view: "browse", cat: cat || null, coll: coll || null, collVendor: coll ? collVendor : null, search: q || "", filters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg }, "", path);
         window.scrollTo(0, 0);
         return;
       }
@@ -3237,7 +3252,7 @@
       const pageUrl = new URL(window.location.href);
       if (page > 1) pageUrl.searchParams.set("page", String(page));
       else pageUrl.searchParams.delete("page");
-      history.replaceState({ ...history.state || {}, page }, "", pageUrl.pathname + pageUrl.search);
+      history.pushState({ ...history.state || {}, page, scrollPos: 0 }, "", pageUrl.pathname + pageUrl.search);
       window.scrollTo(0, 0);
     };
     useEffect(() => {
@@ -3288,136 +3303,139 @@
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.json();
       }).then((data) => setGlobalFacets(data.facets || [])).catch(console.error);
-      const rawPath = window.location.pathname;
-      const path = rawPath.length > 1 && rawPath.endsWith("/") ? rawPath.slice(0, -1) : rawPath;
-      const sp = new URLSearchParams(window.location.search);
-      if (sp.get("payment_intent") && sp.get("redirect_status") && sessionStorage.getItem("klarna_pending")) {
-        finalizeKlarnaOrder(sp.get("payment_intent"), sp.get("redirect_status"));
-      } else if (sp.get("reset_token")) {
-        setView("reset-password");
-      } else if (path === "/" || path === "") {
-        setView("home");
-      } else if (path.startsWith("/shop/sku/")) {
-        const parts = path.replace("/shop/sku/", "").split("/");
-        setSelectedSkuId(parts[0]);
-        setView("detail");
-      } else if (path === "/cart" || path === "/shop/cart") {
-        setView("cart");
-      } else if (path === "/checkout" || path === "/shop/checkout") {
-        setView("checkout");
-      } else if (path === "/account" && sp.get("action") === "set-password" && sp.get("token")) {
-        setView("set-password");
-      } else if (path === "/account" && sp.get("action") === "confirm-email" && sp.get("token")) {
-        setView("confirm-email");
-      } else if (path === "/account" || path === "/shop/account" || path.startsWith("/account/")) {
-        const sec = path.startsWith("/account/") ? path.replace("/account/", "").split("/")[0] : "overview";
-        setAccountSection(["overview", "orders", "quotes", "samples", "visits", "wishlist", "payment", "settings"].includes(sec) ? sec : "overview");
-        setView("account");
-      } else if (path === "/wishlist" || path === "/shop/wishlist") {
-        setView("wishlist");
-      } else if (path === "/collections" || path === "/shop/collections") {
-        setView("collections");
-      } else if (path.startsWith("/collections/")) {
-        const slug = path.replace("/collections/", "").split("?")[0];
-        const cv = new URLSearchParams(path.split("?")[1] || "").get("collection_vendor");
-        setSelectedCollection(slug);
-        setCollVendor(cv);
-        setView("browse");
-        const collPg = Math.max(1, parseInt(sp.get("page"), 10) || 1);
-        if (collPg > 1) setCurrentPage(collPg);
-        fetchSkus({ coll: slug, collVendor: cv, activeFilters: {}, tags: [], page: collPg });
-        fetchFacets({ coll: slug, collVendor: cv, activeFilters: {}, tags: [] });
-      } else if (path === "/trade/apply") {
-        setView("trade-apply");
-      } else if (path === "/trade" && !path.startsWith("/trade/")) {
-        setView("trade");
-      } else if (path === "/trade/dashboard" || path === "/shop/trade") {
-        setView("trade-dashboard");
-      } else if (path === "/trade/bulk-order") {
-        setView("bulk-order");
-      } else if (path.startsWith("/visit/")) {
-        setVisitRecapToken(path.replace("/visit/", ""));
-        setView("visit-recap");
-      } else if (path.startsWith("/estimate/")) {
-        setEstimateToken(path.replace("/estimate/", ""));
-        setView("estimate-view");
-      } else if (path.startsWith("/quote/")) {
-        setQuoteToken(path.replace("/quote/", ""));
-        setView("quote-view");
-      } else if (path === "/reset-password") {
-        setView("reset-password");
-      } else if (path === "/signin") {
-        setView("signin");
-      } else if (path === "/signup") {
-        setView("signup");
-      } else if (path === "/forgot-password") {
-        setView("forgot-password");
-      } else if (path === "/installation") {
-        setView("installation");
-      } else if (path === "/inspiration") {
-        setView("inspiration");
-      } else if (path === "/sale") {
-        setView("sale");
-      } else if (path === "/cabinets") {
-        setView("cabinets");
-      } else if (path === "/terms") {
-        setView("terms");
-      } else if (path === "/privacy") {
-        setView("privacy");
-      } else if (path === "/accessibility") {
-        setView("accessibility");
-      } else if (path === "/returns") {
-        setView("returns");
-      } else if (path === "/about") {
-        setView("about");
-      } else if (path === "/design-services") {
-        setComingSoonTitle("Design Services");
-        setView("coming-soon");
-      } else if (path === "/custom-accessories") {
-        setView("custom-accessories");
-      } else if (path === "/custom-area-rugs") {
-        setView("custom-area-rugs");
-      } else if (path === "/shop" || path.startsWith("/shop")) {
-        setView("browse");
-        const cat = sp.get("category");
-        const coll = sp.get("collection");
-        const collVendor = sp.get("collection_vendor");
-        const q = sp.get("q");
-        const reserved = ["category", "collection", "collection_vendor", "q", "vendor", "price_min", "price_max", "sort", "tags", "page"];
-        const af = {};
-        sp.forEach((val, key) => {
-          if (!reserved.includes(key)) af[key] = val.split("|");
-        });
-        const vf = sp.get("vendor") ? sp.get("vendor").split("|") : [];
-        const prMin = sp.get("price_min") ? parseFloat(sp.get("price_min")) : null;
-        const prMax = sp.get("price_max") ? parseFloat(sp.get("price_max")) : null;
-        const tf = sp.get("tags") ? sp.get("tags").split("|") : [];
-        const pg = Math.max(1, parseInt(sp.get("page"), 10) || 1);
-        if (cat) setSelectedCategory(cat);
-        if (coll) setSelectedCollection(coll);
-        setCollVendor(coll ? collVendor : null);
-        if (q) {
-          setSearchQuery(q);
-          setSortBy("relevance");
-        }
-        if (Object.keys(af).length) setFilters(af);
-        if (vf.length) setVendorFilters(vf);
-        if (tf.length) setTagFilters(tf);
-        if (prMin != null || prMax != null) setUserPriceRange({ min: prMin, max: prMax });
-        if (pg > 1) setCurrentPage(pg);
-        if (cat || coll || q || Object.keys(af).length > 0 || vf.length > 0 || tf.length > 0 || pg > 1) {
-          fetchSkus({ cat, coll, collVendor, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg, sort: q ? "relevance" : void 0 });
-          fetchFacets({ cat, coll, collVendor, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+      const applyLocation = () => {
+        const rawPath = window.location.pathname;
+        const path = rawPath.length > 1 && rawPath.endsWith("/") ? rawPath.slice(0, -1) : rawPath;
+        const sp = new URLSearchParams(window.location.search);
+        if (sp.get("payment_intent") && sp.get("redirect_status") && sessionStorage.getItem("klarna_pending")) {
+          finalizeKlarnaOrder(sp.get("payment_intent"), sp.get("redirect_status"));
+        } else if (sp.get("reset_token")) {
+          setView("reset-password");
+        } else if (path === "/" || path === "") {
+          setView("home");
+        } else if (path.startsWith("/shop/sku/")) {
+          const parts = path.replace("/shop/sku/", "").split("/");
+          setSelectedSkuId(parts[0]);
+          setView("detail");
+        } else if (path === "/cart" || path === "/shop/cart") {
+          setView("cart");
+        } else if (path === "/checkout" || path === "/shop/checkout") {
+          setView("checkout");
+        } else if (path === "/account" && sp.get("action") === "set-password" && sp.get("token")) {
+          setView("set-password");
+        } else if (path === "/account" && sp.get("action") === "confirm-email" && sp.get("token")) {
+          setView("confirm-email");
+        } else if (path === "/account" || path === "/shop/account" || path.startsWith("/account/")) {
+          const sec = path.startsWith("/account/") ? path.replace("/account/", "").split("/")[0] : "overview";
+          setAccountSection(["overview", "orders", "quotes", "samples", "visits", "wishlist", "payment", "settings"].includes(sec) ? sec : "overview");
+          setView("account");
+        } else if (path === "/wishlist" || path === "/shop/wishlist") {
+          setView("wishlist");
+        } else if (path === "/collections" || path === "/shop/collections") {
+          setView("collections");
+        } else if (path.startsWith("/collections/")) {
+          const slug = path.replace("/collections/", "").split("?")[0];
+          const cv = new URLSearchParams(path.split("?")[1] || "").get("collection_vendor");
+          setSelectedCollection(slug);
+          setCollVendor(cv);
+          setView("browse");
+          const collPg = Math.max(1, parseInt(sp.get("page"), 10) || 1);
+          setCurrentPage(collPg);
+          fetchSkus({ coll: slug, collVendor: cv, activeFilters: {}, tags: [], page: collPg });
+          fetchFacets({ coll: slug, collVendor: cv, activeFilters: {}, tags: [] });
+        } else if (path === "/trade/apply") {
+          setView("trade-apply");
+        } else if (path === "/trade" && !path.startsWith("/trade/")) {
+          setView("trade");
+        } else if (path === "/trade/dashboard" || path === "/shop/trade") {
+          setView("trade-dashboard");
+        } else if (path === "/trade/bulk-order") {
+          setView("bulk-order");
+        } else if (path.startsWith("/visit/")) {
+          setVisitRecapToken(path.replace("/visit/", ""));
+          setView("visit-recap");
+        } else if (path.startsWith("/estimate/")) {
+          setEstimateToken(path.replace("/estimate/", ""));
+          setView("estimate-view");
+        } else if (path.startsWith("/quote/")) {
+          setQuoteToken(path.replace("/quote/", ""));
+          setView("quote-view");
+        } else if (path === "/reset-password") {
+          setView("reset-password");
+        } else if (path === "/signin") {
+          setView("signin");
+        } else if (path === "/signup") {
+          setView("signup");
+        } else if (path === "/forgot-password") {
+          setView("forgot-password");
+        } else if (path === "/installation") {
+          setView("installation");
+        } else if (path === "/inspiration") {
+          setView("inspiration");
+        } else if (path === "/sale") {
+          setView("sale");
+        } else if (path === "/cabinets") {
+          setView("cabinets");
+        } else if (path === "/terms") {
+          setView("terms");
+        } else if (path === "/privacy") {
+          setView("privacy");
+        } else if (path === "/accessibility") {
+          setView("accessibility");
+        } else if (path === "/returns") {
+          setView("returns");
+        } else if (path === "/about") {
+          setView("about");
+        } else if (path === "/design-services") {
+          setComingSoonTitle("Design Services");
+          setView("coming-soon");
+        } else if (path === "/custom-accessories") {
+          setView("custom-accessories");
+        } else if (path === "/custom-area-rugs") {
+          setView("custom-area-rugs");
+        } else if (path === "/shop" || path.startsWith("/shop")) {
+          setView("browse");
+          const cat = sp.get("category");
+          const coll = sp.get("collection");
+          const collVendor = sp.get("collection_vendor");
+          const q = sp.get("q");
+          const reserved = ["category", "collection", "collection_vendor", "q", "vendor", "price_min", "price_max", "sort", "tags", "page"];
+          const af = {};
+          sp.forEach((val, key) => {
+            if (!reserved.includes(key)) af[key] = val.split("|");
+          });
+          const vf = sp.get("vendor") ? sp.get("vendor").split("|") : [];
+          const prMin = sp.get("price_min") ? parseFloat(sp.get("price_min")) : null;
+          const prMax = sp.get("price_max") ? parseFloat(sp.get("price_max")) : null;
+          const tf = sp.get("tags") ? sp.get("tags").split("|") : [];
+          const pg = Math.max(1, parseInt(sp.get("page"), 10) || 1);
+          if (cat) setSelectedCategory(cat);
+          if (coll) setSelectedCollection(coll);
+          setCollVendor(coll ? collVendor : null);
           if (q) {
-            fetch(API + "/api/storefront/search/related?q=" + encodeURIComponent(q)).then((r) => r.ok ? r.json() : { terms: [] }).then((d) => setRelatedSearches(d.terms || [])).catch(() => {
-            });
-            fetch(API + "/api/storefront/search/suggest?q=" + encodeURIComponent(q)).then((r) => r.ok ? r.json() : { categories: [] }).then((d) => setMatchingCategories(d.categories || [])).catch(() => {
-            });
+            setSearchQuery(q);
+            setSortBy("relevance");
           }
+          if (Object.keys(af).length) setFilters(af);
+          if (vf.length) setVendorFilters(vf);
+          if (tf.length) setTagFilters(tf);
+          if (prMin != null || prMax != null) setUserPriceRange({ min: prMin, max: prMax });
+          setCurrentPage(pg);
+          if (cat || coll || q || Object.keys(af).length > 0 || vf.length > 0 || tf.length > 0 || pg > 1) {
+            fetchSkus({ cat, coll, collVendor, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg, sort: q ? "relevance" : void 0 });
+            fetchFacets({ cat, coll, collVendor, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+            if (q) {
+              fetch(API + "/api/storefront/search/related?q=" + encodeURIComponent(q)).then((r) => r.ok ? r.json() : { terms: [] }).then((d) => setRelatedSearches(d.terms || [])).catch(() => {
+              });
+              fetch(API + "/api/storefront/search/suggest?q=" + encodeURIComponent(q)).then((r) => r.ok ? r.json() : { categories: [] }).then((d) => setMatchingCategories(d.categories || [])).catch(() => {
+              });
+            }
+          }
+        } else {
+          setView("home");
         }
-      } else {
-        setView("home");
-      }
+      };
+      applyLocation();
       const handlePop = (e) => {
         const state = e.state;
         if (state && state.view) {
@@ -3446,64 +3464,7 @@
           if (state.view === "coming-soon" && state.title) setComingSoonTitle(state.title);
         } else {
           window.scrollTo(0, 0);
-          const rawP = window.location.pathname;
-          const p = rawP.length > 1 && rawP.endsWith("/") ? rawP.slice(0, -1) : rawP;
-          if (p === "/" || p === "") {
-            setView("home");
-          } else if (p.startsWith("/shop/sku/")) {
-            const parts = p.replace("/shop/sku/", "").split("/");
-            setSelectedSkuId(parts[0]);
-            setView("detail");
-          } else if (p === "/trade/apply") {
-            setView("trade-apply");
-          } else if (p === "/trade") {
-            setView("trade");
-          } else if (p === "/trade/dashboard") {
-            setView("trade-dashboard");
-          } else if (p === "/sale") {
-            setView("sale");
-          } else if (p === "/cabinets") {
-            setView("cabinets");
-          } else if (p === "/about") {
-            setView("about");
-          } else if (p.startsWith("/visit/")) {
-            setVisitRecapToken(p.replace("/visit/", ""));
-            setView("visit-recap");
-          } else if (p.startsWith("/estimate/")) {
-            setEstimateToken(p.replace("/estimate/", ""));
-            setView("estimate-view");
-          } else if (p.startsWith("/quote/")) {
-            setQuoteToken(p.replace("/quote/", ""));
-            setView("quote-view");
-          } else {
-            setView("browse");
-            const sp2 = new URLSearchParams(window.location.search);
-            const cat = sp2.get("category");
-            const coll = sp2.get("collection");
-            const collVendor = sp2.get("collection_vendor");
-            const q = sp2.get("q");
-            const reserved2 = ["category", "collection", "collection_vendor", "q", "vendor", "price_min", "price_max", "sort", "tags", "page"];
-            const af = {};
-            sp2.forEach((val, key) => {
-              if (!reserved2.includes(key)) af[key] = val.split("|");
-            });
-            const vf = sp2.get("vendor") ? sp2.get("vendor").split("|") : [];
-            const prMin = sp2.get("price_min") ? parseFloat(sp2.get("price_min")) : null;
-            const prMax = sp2.get("price_max") ? parseFloat(sp2.get("price_max")) : null;
-            const tf = sp2.get("tags") ? sp2.get("tags").split("|") : [];
-            const pg2 = Math.max(1, parseInt(sp2.get("page"), 10) || 1);
-            setSelectedCategory(cat);
-            setSelectedCollection(coll);
-            setCollVendor(coll ? collVendor : null);
-            setSearchQuery(q || "");
-            if (Object.keys(af).length) setFilters(af);
-            setVendorFilters(vf);
-            setTagFilters(tf);
-            setUserPriceRange({ min: prMin, max: prMax });
-            setCurrentPage(pg2);
-            fetchSkusRef.current({ cat, coll, collVendor, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg2 });
-            fetchFacetsRef.current({ cat, coll, collVendor, search: q || "", activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
-          }
+          applyLocation();
         }
       };
       window.addEventListener("popstate", handlePop);

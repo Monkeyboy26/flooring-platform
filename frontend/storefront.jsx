@@ -3140,23 +3140,39 @@
       };
 
       const navigate = (path) => {
-        // Handle query-based shop routes
+        // Handle query-based shop routes. Parse the whole query so navigate()
+        // applies the same filters a fresh page-load would — otherwise links
+        // like /shop?category=tile land on an unfiltered grid while the URL bar
+        // shows the filter (navigate and refresh must not disagree).
         if (path.startsWith('/shop?')) {
           const sp = new URLSearchParams(path.split('?')[1]);
-          setSelectedCategory(null);
-          setSelectedCollection(null);
-          setSearchQuery('');
-          setFilters({});
-          setVendorFilters([]);
-          setTagFilters([]);
-          setUserPriceRange({ min: null, max: null });
-          setCurrentPage(1);
-          const sortVal = sp.get('sort');
-          if (sortVal) setSortBy(sortVal);
+          const cat = sp.get('category');
+          const coll = sp.get('collection');
+          const collVendor = sp.get('collection_vendor');
+          const q = sp.get('q');
+          const reserved = ['category', 'collection', 'collection_vendor', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags', 'page'];
+          const af = {};
+          sp.forEach((val, key) => { if (!reserved.includes(key)) af[key] = val.split('|'); });
+          const vf = sp.get('vendor') ? sp.get('vendor').split('|') : [];
+          const prMin = sp.get('price_min') ? parseFloat(sp.get('price_min')) : null;
+          const prMax = sp.get('price_max') ? parseFloat(sp.get('price_max')) : null;
+          const tf = sp.get('tags') ? sp.get('tags').split('|') : [];
+          const pg = Math.max(1, parseInt(sp.get('page'), 10) || 1);
+          const sortVal = sp.get('sort') || (q ? 'relevance' : 'name_asc');
+          setSelectedCategory(cat || null);
+          setSelectedCollection(coll || null);
+          setCollVendor(coll ? (collVendor || null) : null);
+          setSearchQuery(q || '');
+          setFilters(af);
+          setVendorFilters(vf);
+          setTagFilters(tf);
+          setUserPriceRange({ min: prMin, max: prMax });
+          setCurrentPage(pg);
+          setSortBy(sortVal);
           setView('browse');
-          fetchSkus({ cat: null, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [], page: 1, sort: sortVal || sortBy });
-          fetchFacets({ cat: null, coll: null, search: '', activeFilters: {}, vendors: [], priceMin: null, priceMax: null, tags: [] });
-          history.pushState({ view: 'browse' }, '', path);
+          fetchSkus({ cat: cat || null, coll: coll || null, collVendor: coll ? collVendor : null, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg, sort: sortVal });
+          fetchFacets({ cat: cat || null, coll: coll || null, collVendor: coll ? collVendor : null, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
+          history.pushState({ view: 'browse', cat: cat || null, coll: coll || null, collVendor: coll ? collVendor : null, search: q || '', filters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg }, '', path);
           window.scrollTo(0, 0);
           return;
         }
@@ -3599,7 +3615,12 @@
         const pageUrl = new URL(window.location.href);
         if (page > 1) pageUrl.searchParams.set('page', String(page));
         else pageUrl.searchParams.delete('page');
-        history.replaceState({ ...(history.state || {}), page }, '', pageUrl.pathname + pageUrl.search);
+        // pushState (not replace) so each page is its own history entry — Back
+        // steps 3→2→1 through the results, matching how users expect pagination
+        // to behave. The entry carries the full browse state (spread from the
+        // current entry) so popstate can re-fetch the right page; scrollPos is
+        // pinned to 0 since a page change scrolls to the top.
+        history.pushState({ ...(history.state || {}), page, scrollPos: 0 }, '', pageUrl.pathname + pageUrl.search);
         window.scrollTo(0, 0);
       };
 
@@ -3643,7 +3664,12 @@
           .then(data => setGlobalFacets(data.facets || []))
           .catch(console.error);
 
-        // Parse URL
+        // Parse the current URL → view. Defined as a function (not inline) so
+        // popstate can reuse the EXACT same route table when a history entry
+        // has no saved state (e.g. the initial landing entry). Previously a
+        // second, incomplete copy lived in the popstate handler and silently
+        // dropped /cart, /checkout, /account, /wishlist, /collections, etc.
+        const applyLocation = () => {
         const rawPath = window.location.pathname;
         const path = rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
         const sp = new URLSearchParams(window.location.search);
@@ -3682,7 +3708,7 @@
           setCollVendor(cv);
           setView('browse');
           const collPg = Math.max(1, parseInt(sp.get('page'), 10) || 1);
-          if (collPg > 1) setCurrentPage(collPg);
+          setCurrentPage(collPg);
           fetchSkus({ coll: slug, collVendor: cv, activeFilters: {}, tags: [], page: collPg });
           fetchFacets({ coll: slug, collVendor: cv, activeFilters: {}, tags: [] });
         } else if (path === '/trade/apply') {
@@ -3760,7 +3786,10 @@
           if (vf.length) setVendorFilters(vf);
           if (tf.length) setTagFilters(tf);
           if (prMin != null || prMax != null) setUserPriceRange({ min: prMin, max: prMax });
-          if (pg > 1) setCurrentPage(pg);
+          // Always sync currentPage (even to 1). When popstate steps Back onto a
+          // page-1 entry, currentPage may still hold the old page — guarding on
+          // pg>1 would leave the pagination highlight stuck on the prior page.
+          setCurrentPage(pg);
           if (cat || coll || q || Object.keys(af).length > 0 || vf.length > 0 || tf.length > 0 || pg > 1) {
             fetchSkus({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg, sort: q ? 'relevance' : undefined });
             fetchFacets({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
@@ -3779,6 +3808,8 @@
         } else {
           setView('home');
         }
+        };
+        applyLocation();
 
         // Popstate
         const handlePop = (e) => {
@@ -3811,53 +3842,11 @@
             if (state.view === 'quote-view' && state.token) setQuoteToken(state.token);
             if (state.view === 'coming-soon' && state.title) setComingSoonTitle(state.title);
           } else {
-            // Re-parse URL for unknown states — no saved position exists, so top
+            // No saved state (e.g. the initial landing entry) — re-derive the
+            // view from the URL with the SAME parser init uses, so every route
+            // is covered. No saved scroll position exists here, so start at top.
             window.scrollTo(0, 0);
-            const rawP = window.location.pathname;
-            const p = rawP.length > 1 && rawP.endsWith('/') ? rawP.slice(0, -1) : rawP;
-            if (p === '/' || p === '') { setView('home'); }
-            else if (p.startsWith('/shop/sku/')) {
-              const parts = p.replace('/shop/sku/', '').split('/');
-              setSelectedSkuId(parts[0]);
-              setView('detail');
-            } else if (p === '/trade/apply') { setView('trade-apply'); }
-            else if (p === '/trade') { setView('trade'); }
-            else if (p === '/trade/dashboard') { setView('trade-dashboard'); }
-            else if (p === '/sale') { setView('sale'); }
-            else if (p === '/cabinets') { setView('cabinets'); }
-            else if (p === '/about') { setView('about'); }
-            else if (p.startsWith('/visit/')) { setVisitRecapToken(p.replace('/visit/', '')); setView('visit-recap'); }
-            else if (p.startsWith('/estimate/')) { setEstimateToken(p.replace('/estimate/', '')); setView('estimate-view'); }
-            else if (p.startsWith('/quote/')) { setQuoteToken(p.replace('/quote/', '')); setView('quote-view'); }
-            else {
-              setView('browse');
-              const sp2 = new URLSearchParams(window.location.search);
-              const cat = sp2.get('category');
-              const coll = sp2.get('collection');
-              const collVendor = sp2.get('collection_vendor');
-              const q = sp2.get('q');
-              const reserved2 = ['category', 'collection', 'collection_vendor', 'q', 'vendor', 'price_min', 'price_max', 'sort', 'tags', 'page'];
-              const af = {};
-              sp2.forEach((val, key) => {
-                if (!reserved2.includes(key)) af[key] = val.split('|');
-              });
-              const vf = sp2.get('vendor') ? sp2.get('vendor').split('|') : [];
-              const prMin = sp2.get('price_min') ? parseFloat(sp2.get('price_min')) : null;
-              const prMax = sp2.get('price_max') ? parseFloat(sp2.get('price_max')) : null;
-              const tf = sp2.get('tags') ? sp2.get('tags').split('|') : [];
-              const pg2 = Math.max(1, parseInt(sp2.get('page'), 10) || 1);
-              setSelectedCategory(cat);
-              setSelectedCollection(coll);
-              setCollVendor(coll ? collVendor : null);
-              setSearchQuery(q || '');
-              if (Object.keys(af).length) setFilters(af);
-              setVendorFilters(vf);
-              setTagFilters(tf);
-              setUserPriceRange({ min: prMin, max: prMax });
-              setCurrentPage(pg2);
-              fetchSkusRef.current({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf, page: pg2 });
-              fetchFacetsRef.current({ cat, coll, collVendor, search: q || '', activeFilters: af, vendors: vf, priceMin: prMin, priceMax: prMax, tags: tf });
-            }
+            applyLocation();
           }
         };
         window.addEventListener('popstate', handlePop);
