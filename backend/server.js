@@ -28457,20 +28457,38 @@ app.get('/api/analytics', (req, res) => {
   const clarity = /^[\w-]+$/.test(process.env.CLARITY_PROJECT_ID || '') ? process.env.CLARITY_PROJECT_ID : '';
   const sentryDsn = /^https:\/\/[\w@.\/-]+$/.test(process.env.SENTRY_DSN || '') ? process.env.SENTRY_DSN : '';
   const parts = [];
+  // gtag.js + clarity.js together cost ~1.5s of mobile main-thread when they
+  // load during page boot (a top INP/TBT offender in Lighthouse). The queue
+  // stubs are defined immediately — nothing that calls gtag()/clarity() loses
+  // events — but the real scripts are injected only after window load + a
+  // short idle delay, or on the first user interaction, whichever comes first.
   if (ga4) {
     parts.push(
-      `(function(){var s=document.createElement('script');s.async=true;` +
-      `s.src='https://www.googletagmanager.com/gtag/js?id=${ga4}';document.head.appendChild(s);` +
       `window.dataLayer=window.dataLayer||[];window.gtag=function(){dataLayer.push(arguments);};` +
-      `gtag('js',new Date());gtag('config',${JSON.stringify(ga4)});})();`
+      `gtag('js',new Date());gtag('config',${JSON.stringify(ga4)});`
     );
   }
   if (clarity) {
     parts.push(
-      `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};` +
-      `t=l.createElement(r);t.async=1;t.src='https://www.clarity.ms/tag/'+i;` +
-      `y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})` +
-      `(window,document,'clarity','script',${JSON.stringify(clarity)});`
+      `window.clarity=window.clarity||function(){(window.clarity.q=window.clarity.q||[]).push(arguments)};`
+    );
+  }
+  if (ga4 || clarity) {
+    parts.push(
+      `(function(){var fired=false;function fire(){if(fired)return;fired=true;` +
+      (ga4
+        ? `var g=document.createElement('script');g.async=true;` +
+          `g.src='https://www.googletagmanager.com/gtag/js?id=${ga4}';document.head.appendChild(g);`
+        : '') +
+      (clarity
+        ? `var c=document.createElement('script');c.async=true;` +
+          `c.src='https://www.clarity.ms/tag/${clarity}';document.head.appendChild(c);`
+        : '') +
+      `}` +
+      `function armIdle(){setTimeout(fire,1500);}` +
+      `if(document.readyState==='complete'){armIdle();}else{window.addEventListener('load',armIdle);}` +
+      `['pointerdown','keydown','touchstart','scroll'].forEach(function(ev){` +
+      `window.addEventListener(ev,fire,{once:true,passive:true,capture:true});});})();`
     );
   }
   if (sentryDsn) {

@@ -1883,12 +1883,19 @@
 
     let stripeInstance = null;
     let _stripeInitPromise = null;
-    // Stripe.js loads async and can finish after this bundle executes, so
-    // initialization waits for it instead of bailing on a lost race.
+    // Stripe.js is injected on demand (checkout/payment surfaces only) — its
+    // eager <script> in the shell cost ~900ms of mobile main-thread on every
+    // page. The poll below waits out the async load before initializing.
     function ensureStripe() {
       if (stripeInstance) return Promise.resolve(stripeInstance);
       if (_stripeInitPromise) return _stripeInitPromise;
       _stripeInitPromise = (async () => {
+        if (typeof Stripe === 'undefined' && !document.querySelector('script[src^="https://js.stripe.com/v3"]')) {
+          const s = document.createElement('script');
+          s.src = 'https://js.stripe.com/v3/';
+          s.async = true;
+          document.head.appendChild(s);
+        }
         for (let i = 0; i < 100 && typeof Stripe === 'undefined'; i++) {
           await new Promise(r => setTimeout(r, 100));
         }
@@ -1906,7 +1913,6 @@
       })();
       return _stripeInitPromise;
     }
-    ensureStripe();
 
     // ==================== Error Boundary ====================
 
@@ -5947,9 +5953,12 @@
                 </div>
                 <div className="shop-cat-mosaic">
                   <div className="shop-cat-heroes">
-                    {heroCats.map(cat => (
+                    {heroCats.map((cat, i) => (
                       <div key={cat.slug} className="shop-cat-card shop-cat-card-hero" onClick={() => onCategorySelect(cat.slug)}>
-                        {cat.image_url && <img src={optimizeImg(cat.image_url, 600)} alt={cat.name} loading="lazy" decoding="async" />}
+                        {/* First hero card is the mobile LCP element — lazy-loading it
+                            pushed field LCP to ~5s (Clarity CWV), so the top cards load
+                            eagerly and the first at high priority. */}
+                        {cat.image_url && <img src={optimizeImg(cat.image_url, 600)} alt={cat.name} loading="eager" fetchPriority={i === 0 ? 'high' : 'auto'} decoding="async" />}
                         <div className="shop-cat-card-overlay">
                           <div className="shop-cat-card-count">{cat.product_count} products</div>
                           <div className="shop-cat-card-name">{cat.name}</div>
@@ -5959,9 +5968,9 @@
                     ))}
                   </div>
                   <div className="shop-cat-grid-right">
-                    {gridCats.map(cat => (
+                    {gridCats.map((cat, i) => (
                       <div key={cat.slug} className="shop-cat-card shop-cat-card-std" onClick={() => onCategorySelect(cat.slug)}>
-                        {cat.image_url && <img src={optimizeImg(cat.image_url, 400)} alt={cat.name} loading="lazy" decoding="async" />}
+                        {cat.image_url && <img src={optimizeImg(cat.image_url, 400)} alt={cat.name} loading={i < 2 ? 'eager' : 'lazy'} decoding="async" />}
                         <div className="shop-cat-card-overlay">
                           <div className="shop-cat-card-count">{cat.product_count} products</div>
                           <div className="shop-cat-card-name">{cat.name}</div>
@@ -15885,6 +15894,16 @@
       }, []);
       useEffect(() => {
         if (!clientId || !containerRef.current) return;
+        // GSI script is injected here on demand (auth surfaces only) instead of
+        // eagerly in the shell — 100KB the shop/browse pages never used. The
+        // poll below already waits for the global, so injection just starts it.
+        if (typeof google === 'undefined' && !document.querySelector('script[src="https://accounts.google.com/gsi/client"]')) {
+          const s = document.createElement('script');
+          s.src = 'https://accounts.google.com/gsi/client';
+          s.async = true;
+          s.defer = true;
+          document.head.appendChild(s);
+        }
         const tryInit = () => {
           if (typeof google === "undefined" || !google.accounts || !google.accounts.id) return false;
           try {
