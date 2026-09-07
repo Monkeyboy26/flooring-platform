@@ -6256,12 +6256,7 @@
                 tagFilters={tagFilters} tagFacets={tagFacets} onTagToggle={onTagToggle} />
             )}
             <div className="browse-toolbar-row">
-              <BrowseToolbar totalSkus={totalSkus} sortBy={sortBy} onSortChange={onSortChange} currentPage={currentPage} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} searchTimeMs={searchTimeMs} relatedSearches={relatedSearches} onSearch={onSearch} matchingCategories={matchingCategories} onCategorySelect={onCategorySelect} />
-              <button className="mobile-filter-btn" onClick={() => setFilterDrawerOpen(true)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
-                Filters
-                {totalActiveFilterCount > 0 && <span className="filter-badge">{totalActiveFilterCount}</span>}
-              </button>
+              <BrowseToolbar totalSkus={totalSkus} sortBy={sortBy} onSortChange={onSortChange} currentPage={currentPage} viewMode={viewMode} onViewModeChange={setViewMode} searchQuery={searchQuery} searchTimeMs={searchTimeMs} relatedSearches={relatedSearches} onSearch={onSearch} matchingCategories={matchingCategories} onCategorySelect={onCategorySelect} onOpenFilters={() => setFilterDrawerOpen(true)} activeFilterCount={totalActiveFilterCount} />
             </div>
             {didYouMean && searchQuery && !loading && skus.length > 0 && (
               <div className="browse-did-you-mean">
@@ -6798,7 +6793,7 @@
       );
     }
 
-    function BrowseToolbar({ totalSkus, sortBy, onSortChange, currentPage, viewMode, onViewModeChange, searchQuery, searchTimeMs, relatedSearches, onSearch, matchingCategories, onCategorySelect }) {
+    function BrowseToolbar({ totalSkus, sortBy, onSortChange, currentPage, viewMode, onViewModeChange, searchQuery, searchTimeMs, relatedSearches, onSearch, matchingCategories, onCategorySelect, onOpenFilters, activeFilterCount }) {
       const page = currentPage || 1;
       const per = 24;
       const startIdx = (page - 1) * per + 1;
@@ -6835,6 +6830,13 @@
                   <option value="newest">Newest</option>
                 </select>
               </div>
+              {onOpenFilters && (
+                <button className="mobile-filter-btn" onClick={onOpenFilters}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="12" y1="18" x2="20" y2="18"/></svg>
+                  Filters
+                  {activeFilterCount > 0 && <span className="filter-badge">{activeFilterCount}</span>}
+                </button>
+              )}
             </div>
           </div>
           {isSearching && matchingCategories && matchingCategories.length > 0 && (
