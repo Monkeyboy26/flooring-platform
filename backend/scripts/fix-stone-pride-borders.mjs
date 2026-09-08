@@ -42,6 +42,9 @@ const pool = new pg.Pool({
 });
 const DRY = process.argv.includes('--dry-run');
 const PRODUCTS = ['Waterjet Marble Borders', 'Marble Mosaic Liners'];
+// Corners with no linear parent in their OWN product, cross-linked to a parent in the
+// other product by explicit owner decision (vendor_sku -> parent vendor_sku).
+const CROSS_LINKS = { 'ML-21-Corner(D)': 'MSL-21-P(D)' }; // Waterjet Design 21 corner -> Mosaic Liner Design 21
 const CATALOG = fileURLToPath(new URL('../data/stone-pride/catalog.json', import.meta.url));
 
 const SIZE_RE = /(\d+(?:\.\d+)?)\s*["″]?\s*[×xX]\s*(\d+(?:\.\d+)?)\s*["″]?/;
@@ -108,7 +111,26 @@ async function main() {
     for (const [cid, ci] of info) {
       if (!ci.isCorner) continue;
       const parents = linears.filter(([, li]) => li.coreKey === ci.coreKey && li.width === ci.width);
-      if (!parents.length) { orphans.push(`${pname}: ${ci.vendor_sku} (${ci.newName})`); continue; }
+      if (!parents.length) {
+        // no same-product parent — use an explicit cross-product link if defined
+        const targetVsku = CROSS_LINKS[ci.vendor_sku];
+        if (targetVsku) {
+          const { rows: tr } = await pool.query(`
+            SELECT s.id, s.variant_name FROM skus s JOIN products p ON p.id = s.product_id
+            JOIN vendors v ON v.id = p.vendor_id
+            WHERE v.code = 'STPR' AND s.vendor_sku = $1 AND s.status = 'active' LIMIT 1`, [targetVsku]);
+          if (tr.length) {
+            if (!DRY) {
+              await pool.query(`UPDATE skus SET variant_type = 'accessory', accessory_label = 'Matching Corner' WHERE id = $1`, [cid]);
+              await pool.query(`INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order) VALUES ($1,$2,0) ON CONFLICT DO NOTHING`, [tr[0].id, cid]);
+            }
+            console.log(`  corner->accessory [${pname}] ${ci.newName}  ->  ${tr[0].variant_name} (cross-product)`);
+            converted++; linked++;
+            continue;
+          }
+        }
+        orphans.push(`${pname}: ${ci.vendor_sku} (${ci.newName})`); continue;
+      }
       if (!DRY) {
         await pool.query(`UPDATE skus SET variant_type = 'accessory', accessory_label = 'Matching Corner' WHERE id = $1`, [cid]);
         for (const [pid] of parents)
