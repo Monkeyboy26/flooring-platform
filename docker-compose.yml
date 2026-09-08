@@ -121,6 +121,8 @@ services:
       EF_CLOUDINARY_API_SECRET: ${EF_CLOUDINARY_API_SECRET:-}
       PENTZ_API_KEY: ${PENTZ_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GSC_SA_KEYFILE: ${GSC_SA_KEYFILE:-}
+      GSC_SITE_URL: ${GSC_SITE_URL:-}
       UPLOADS_PATH: /app/uploads
       S3_ENDPOINT: http://minio:9000
       S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}

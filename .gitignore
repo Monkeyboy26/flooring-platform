@@ -68,3 +68,7 @@ backend/data/daltile-broken-image-dryrun.json
 backend/data/daltile/edi-593-check.json
 backend/data/msi/quartz-slabs-manifest.json
 backend/data/siena/reonboard-plan.json
+
+# SEO GSC service-account key (never commit)
+backend/secrets/
+*.iam.gserviceaccount.com.json
