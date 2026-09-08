@@ -1,6 +1,15 @@
 import { Router } from 'express';
+import { fullProductName } from '../lib/productName.js';
 
 const SITE_URL = (process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
+
+// Crawler-facing product name — identical to the storefront PDP <h1>. fullProductName
+// strips collection/size/token echoes and re-appends the category keyword, so the
+// indexed <title> + JSON-LD name match what customers see (no keyword loss). Falls
+// back to the raw stored name only if the composer returns empty.
+function seoProductName(sku) {
+  return (fullProductName(sku) || '').trim() || (sku.product_name || '');
+}
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
 const CACHE_MAX_SIZE = 5000;
@@ -123,10 +132,10 @@ async function fetchSkuData(pool, skuId) {
   const result = await pool.query(`
     SELECT
       s.id as sku_id, s.variant_name, s.internal_sku, s.sell_by, s.variant_type,
-      p.name as product_name, p.collection, p.description_long, p.description_short,
+      p.name as product_name, p.collection, p.format_label, p.description_long, p.description_short,
       COALESCE(br.name, v.name) as brand_name,
       (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden,
-      v.code as vendor_code, v.public_code as vendor_public_code,
+      v.code as vendor_code, v.name as vendor_name, v.public_code as vendor_public_code,
       c.name as category_name, c.slug as category_slug,
       pr.retail_price,
       (SELECT ma.url FROM media_assets ma
@@ -157,7 +166,7 @@ async function fetchSkuData(pool, skuId) {
 
   // Fetch key attributes
   const attrResult = await pool.query(`
-    SELECT a.name, sa.value
+    SELECT a.name, a.slug, sa.value
     FROM sku_attributes sa
     JOIN attributes a ON a.id = sa.attribute_id
     WHERE sa.sku_id = $1
@@ -173,10 +182,10 @@ async function fetchProductBySlug(pool, categorySlug, productSlug) {
   const result = await pool.query(`
     SELECT
       s.id as sku_id, s.variant_name, s.internal_sku, s.sell_by, s.variant_type,
-      p.name as product_name, p.collection, p.slug as product_slug, p.description_long, p.description_short,
+      p.name as product_name, p.collection, p.format_label, p.slug as product_slug, p.description_long, p.description_short,
       COALESCE(br.name, v.name) as brand_name,
       (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden,
-      v.code as vendor_code, v.public_code as vendor_public_code,
+      v.code as vendor_code, v.name as vendor_name, v.public_code as vendor_public_code,
       c.name as category_name, c.slug as category_slug,
       pr.retail_price,
       (SELECT ma.url FROM media_assets ma
@@ -208,7 +217,7 @@ async function fetchProductBySlug(pool, categorySlug, productSlug) {
   const row = result.rows[0];
 
   const attrResult = await pool.query(`
-    SELECT a.name, sa.value
+    SELECT a.name, a.slug, sa.value
     FROM sku_attributes sa
     JOIN attributes a ON a.id = sa.attribute_id
     WHERE sa.sku_id = $1
@@ -424,8 +433,11 @@ function renderSkuPage(sku) {
   const priceNum = sku.retail_price ? Number(parseFloat(sku.retail_price).toFixed(2)) : null;
   const priceDisplay = priceNum !== null ? priceNum.toFixed(2) : null;
   const unit = sku.sell_by === 'unit' ? '/ea' : '/sqft';
-  const title = `${sku.product_name}${sku.variant_name ? ' - ' + sku.variant_name : ''} | Roma Flooring Designs`;
-  const metaDesc = desc ? desc.substring(0, 160) : `${sku.product_name}${seoBrandName ? ' from ' + seoBrandName : ''}. Premium flooring available at Roma Flooring Designs.`;
+  // Cleaned name matches the storefront PDP <h1> (de-echoed, category keyword retained).
+  const cleanName = seoProductName(sku);
+  const title = `${cleanName} | Roma Flooring Designs`;
+  const metaDesc = desc ? desc.substring(0, 160) : `${cleanName}${seoBrandName ? ' from ' + seoBrandName : ''}. Premium flooring available at Roma Flooring Designs.`;
+  // Canonical slug stays on the raw name — never change a live URL for a title tweak.
   const skuSlug = slugify(sku.product_name + (sku.variant_name ? '-' + sku.variant_name : ''));
   const canonicalUrl = `${SITE_URL}/shop/sku/${sku.sku_id}/${skuSlug}`;
 
@@ -439,7 +451,7 @@ function renderSkuPage(sku) {
   if (sku.category_name) {
     breadcrumbItems.push({ name: sku.category_name, url: SITE_URL + '/shop?category=' + (sku.category_slug || '') });
   }
-  breadcrumbItems.push({ name: sku.product_name + (sku.variant_name ? ' - ' + sku.variant_name : ''), url: canonicalUrl });
+  breadcrumbItems.push({ name: cleanName, url: canonicalUrl });
 
   const PLACEHOLDER_IMAGE = SITE_URL + '/assets/product-placeholder.svg';
   const productImage = sku.primary_image || PLACEHOLDER_IMAGE;
@@ -447,7 +459,7 @@ function renderSkuPage(sku) {
   const productJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: sku.product_name + (sku.variant_name ? ' - ' + sku.variant_name : ''),
+    name: cleanName,
     image: productImage,
     sku: sku.internal_sku,
     offers: {
@@ -493,9 +505,9 @@ function renderSkuPage(sku) {
   const bodyContent = `
     <nav class="breadcrumb" aria-label="Breadcrumb"><ol>${breadcrumbHtml}</ol></nav>
     <article class="sku-detail">
-      <div>${sku.primary_image ? `<img src="${escapeHtml(sku.primary_image)}" alt="${escapeHtml(sku.product_name + (sku.variant_name ? ' - ' + sku.variant_name : ''))}" width="600" height="600">` : ''}</div>
+      <div>${sku.primary_image ? `<img src="${escapeHtml(sku.primary_image)}" alt="${escapeHtml(cleanName)}" width="600" height="600">` : ''}</div>
       <div class="sku-info">
-        <h1>${escapeHtml(sku.product_name)}${sku.variant_name ? ' <span style="color:#78716c">- ' + escapeHtml(sku.variant_name) + '</span>' : ''}</h1>
+        <h1>${escapeHtml(cleanName)}</h1>
         ${priceDisplay ? `<div class="price">$${priceDisplay}${unit}</div>` : ''}
         ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
         ${sku.brand_hidden ? (sku.vendor_public_code ? `<p><strong>Brand:</strong> ${escapeHtml(String(sku.vendor_public_code))}</p>` : '') : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
@@ -519,8 +531,12 @@ function renderProductPage(sku) {
   const priceNum = sku.retail_price ? Number(parseFloat(sku.retail_price).toFixed(2)) : null;
   const priceDisplay = priceNum !== null ? priceNum.toFixed(2) : null;
   const unit = sku.sell_by === 'unit' ? '/ea' : '/sqft';
-  const title = `${sku.product_name}${sku.collection ? ' ' + sku.collection : ''} ${sku.category_name || ''} | Roma Flooring Designs`.replace(/\s+/g, ' ');
-  const metaDesc = desc ? desc.substring(0, 160) : `${sku.product_name}${seoBrandName ? ' from ' + seoBrandName : ''}. Premium ${(sku.category_name || 'flooring').toLowerCase()} available at Roma Flooring Designs.`;
+  // Cleaned name identical to the storefront PDP <h1> — already includes the category
+  // keyword (appended by fullProductName) and de-echoed collection/size, so no keyword
+  // is lost vs. the old raw title.
+  const cleanName = seoProductName(sku);
+  const title = `${cleanName} | Roma Flooring Designs`.replace(/\s+/g, ' ');
+  const metaDesc = desc ? desc.substring(0, 160) : `${cleanName}${seoBrandName ? ' from ' + seoBrandName : ''}. Premium ${(sku.category_name || 'flooring').toLowerCase()} available at Roma Flooring Designs.`;
   const canonicalUrl = `${SITE_URL}/shop/${sku.category_slug}/${sku.product_slug}`;
 
   const availability = sku.stock_status === 'out_of_stock' ? 'https://schema.org/OutOfStock'
@@ -533,7 +549,7 @@ function renderProductPage(sku) {
   if (sku.category_name) {
     breadcrumbItems.push({ name: sku.category_name, url: SITE_URL + '/shop?category=' + (sku.category_slug || '') });
   }
-  breadcrumbItems.push({ name: sku.product_name, url: canonicalUrl });
+  breadcrumbItems.push({ name: cleanName, url: canonicalUrl });
 
   const PLACEHOLDER_IMAGE = SITE_URL + '/assets/product-placeholder.svg';
   const productImage = sku.primary_image || PLACEHOLDER_IMAGE;
@@ -541,7 +557,7 @@ function renderProductPage(sku) {
   const productJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: sku.product_name + (sku.variant_name ? ' - ' + sku.variant_name : ''),
+    name: cleanName,
     image: productImage,
     sku: sku.internal_sku,
     offers: {
@@ -585,9 +601,9 @@ function renderProductPage(sku) {
   const bodyContent = `
     <nav class="breadcrumb" aria-label="Breadcrumb"><ol>${breadcrumbHtml}</ol></nav>
     <article class="sku-detail">
-      <div>${sku.primary_image ? `<img src="${escapeHtml(sku.primary_image)}" alt="${escapeHtml(sku.product_name + (sku.variant_name ? ' - ' + sku.variant_name : ''))}" width="600" height="600">` : ''}</div>
+      <div>${sku.primary_image ? `<img src="${escapeHtml(sku.primary_image)}" alt="${escapeHtml(cleanName)}" width="600" height="600">` : ''}</div>
       <div class="sku-info">
-        <h1>${escapeHtml(sku.product_name)}${sku.variant_name ? ' <span style="color:#78716c">- ' + escapeHtml(sku.variant_name) + '</span>' : ''}</h1>
+        <h1>${escapeHtml(cleanName)}</h1>
         ${priceDisplay ? `<div class="price">$${priceDisplay}${unit}</div>` : ''}
         ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
         ${sku.brand_hidden ? (sku.vendor_public_code ? `<p><strong>Brand:</strong> ${escapeHtml(String(sku.vendor_public_code))}</p>` : '') : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
