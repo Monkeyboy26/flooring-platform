@@ -26,6 +26,7 @@
 // audits exactly the product set Google can index.
 
 import { pool } from '../../db.js';
+import { facetSlug } from '../../lib/facetSlug.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > -1 ? process.argv[i + 1] : d; };
 const INTRO_MIN = parseInt(arg('--intro-min', '200'), 10);
@@ -40,9 +41,6 @@ const SELLABLE_SKU = `s.status = 'active' AND s.is_sample = false
 
 const q = (sql, params = []) => pool.query(sql, params).then(r => r.rows);
 const one = (sql, params = []) => q(sql, params).then(r => r[0]);
-
-// Must match build-landing-pages.mjs slugify (NOT its size-normalizing facetSlug).
-const slugify = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
 // ── LANDING PAGES (the highest-risk surface — just shipped 1000s) ─────────────
 const lpTotals = await one(`
@@ -131,6 +129,7 @@ const prodDupDescN = (await one(`
 // ZERO inbound internal links → orphaned (won't be discovered/get equity).
 const idxFacets = await q(`
   SELECT slug, filter_json->>'category' AS cat,
+         (SELECT key FROM jsonb_each_text(filter_json->'attributes') LIMIT 1) AS attr_slug,
          (SELECT value FROM jsonb_each_text(filter_json->'attributes') LIMIT 1) AS attr_value,
          product_count
   FROM landing_pages WHERE type='facet' AND is_indexable`);
@@ -141,7 +140,7 @@ for (const [cat, list] of Object.entries(byCat)) {
   list.sort((a, b) => b.product_count - a.product_count);
   const top12 = new Set(list.slice(0, 12).map(f => f.slug));
   for (const f of list) {
-    const productReachable = f.slug === `${slugify(f.attr_value || '')}-${cat}`;
+    const productReachable = f.slug === `${facetSlug(f.attr_slug, f.attr_value || '')}-${cat}`;
     if (!top12.has(f.slug) && !productReachable) orphans.push(f);
   }
 }

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { fullProductName } from '../lib/productName.js';
+import { facetSlug } from '../lib/facetSlug.js';
 
 const SITE_URL = (process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
 
@@ -1303,7 +1304,10 @@ function render404Page(message) {
 // exist and are indexable. Guarded so a missing landing_pages table (pre-migration) is a no-op.
 async function fetchFacetLinksForProduct(pool, sku) {
   if (!sku || !sku.category_slug || !sku.attributes || !sku.attributes.length) return [];
-  const slugs = [...new Set(sku.attributes.map(a => `${slugify(a.value)}-${sku.category_slug}`))].filter(Boolean);
+  // facetSlug (not plain slugify) so SIZE facets match build-landing-pages' slugs
+  // ("24x48-…", not "24-x-48-…") — otherwise size facet pages get zero inbound
+  // product links and are orphaned. a.slug identifies the size attribute.
+  const slugs = [...new Set(sku.attributes.map(a => `${facetSlug(a.slug, a.value)}-${sku.category_slug}`))].filter(Boolean);
   if (!slugs.length) return [];
   try {
     const r = await pool.query(

@@ -27,6 +27,7 @@
 // (same table, different `type`); see docs/SEO-PLAN.md Phase 2.
 
 import { pool } from '../../db.js';
+import { slugify, facetSlug } from '../../lib/facetSlug.js';
 
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > -1 ? process.argv[i + 1] : d; };
 const CREATE_MIN = parseInt(arg('--create-min', '3'), 10);
@@ -34,23 +35,8 @@ const INDEX_MIN = parseInt(arg('--index-min', '8'), 10);
 const ATTRS = arg('--attrs', 'color,size,look,finish,material').split(',').map(s => s.trim()).filter(Boolean);
 const DRY_RUN = process.argv.includes('--dry-run');
 
-function slugify(str) {
-  return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-}
-
-// Size values are dimensional and slugify badly by default ("12 x 24" → "12-x-24",
-// '4" x 4"' → "4-x-4"). Normalize sizes to a compact form first so the slug reads like
-// the real dimension: strip inch/quote marks, collapse the x-separator, keep fractions
-// as a single dash. Non-size facets use plain slugify.
-function facetSlug(attrSlug, value) {
-  let v = String(value);
-  if (attrSlug === 'size') {
-    v = v.replace(/["'”″′’]/g, '')        // drop inch/quote marks
-         .replace(/\s*(?:[x×X]|by)\s*/g, 'x')  // "12 x 24" / "12 by 24" → "12x24"
-         .replace(/\s*\/\s*/g, '-');       // fraction slash → single dash: "1/2" → "1-2"
-  }
-  return slugify(v);
-}
+// slugify + facetSlug now live in ../../lib/facetSlug.js (shared with seoRenderer's
+// product→facet linker so the two can never drift and orphan a facet page).
 
 // Distinct (category × attribute value) combos with a live product count. Counts
 // DISTINCT active, non-sample products that have an active in-stock-or-unknown SKU
