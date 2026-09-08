@@ -6145,7 +6145,7 @@
 
     // ==================== Category Hero ====================
 
-    function CategoryHero({ category, crumbs, searchQuery, totalSkus, vendorCount }) {
+    function CategoryHero({ category, collectionName, brandName, crumbs, searchQuery, totalSkus, vendorCount }) {
       if (searchQuery) {
         return (
           <div className="category-header-editorial category-header-search">
@@ -6176,12 +6176,15 @@
         );
       }
 
-      const catName = category ? category.name : 'Shop All';
+      // When browsing a specific brand or collection (e.g. via a PDP's brand/collection
+      // link) there's no category, so fall back to that scope's name instead of the
+      // generic "Shop All" — otherwise the page reads as unfiltered even though it is.
+      const catName = category ? category.name : (collectionName || brandName || 'Shop All');
       const children = category && category.children ? category.children : [];
       const isParent = children.length > 0 && category && !category.parent_id;
 
       // Build kicker text: for parent categories, show child names + product count
-      let kickerText = category ? `Material · ${catName}` : null;
+      let kickerText = category ? `Material · ${catName}` : (collectionName ? 'Collection' : (brandName ? 'Brand' : null));
       if (isParent && children.length > 0) {
         const childNames = children.map(ch => ch.name).join(' & ').toUpperCase();
         kickerText = `Material · ${childNames} · ${totalSkus} Products`;
@@ -6261,9 +6264,13 @@
         if (currentCategory) categoryName = currentCategory.name;
       }
 
-      const crumbs = [{ label: 'Home', onClick: goHome }, { label: 'Shop', onClick: !selectedCategory && !selectedCollection && !searchQuery ? undefined : () => onCategorySelect(null) }];
+      // Brand-scoped browse (single brand filter, no category/collection/search) — used
+      // for the page heading + breadcrumb so a brand link from a PDP reads as that brand.
+      const brandName = (vendorFilters && vendorFilters.length === 1 && !selectedCategory && !selectedCollection && !searchQuery) ? vendorFilters[0] : null;
+      const crumbs = [{ label: 'Home', onClick: goHome }, { label: 'Shop', onClick: (!selectedCategory && !selectedCollection && !searchQuery && !brandName) ? undefined : () => onCategorySelect(null) }];
       if (categoryName) crumbs.push({ label: categoryName });
       else if (selectedCollection) crumbs.push({ label: selectedCollection });
+      else if (brandName) crumbs.push({ label: brandName });
       else if (searchQuery) crumbs.push({ label: 'Search Results' });
 
       // Shared FacetPanel props
@@ -6282,7 +6289,7 @@
 
       return (
         <>
-          <CategoryHero category={currentCategory} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} vendorCount={vendorFacets ? vendorFacets.length : 0} />
+          <CategoryHero category={currentCategory} collectionName={selectedCollection} brandName={brandName} crumbs={crumbs} searchQuery={searchQuery} totalSkus={totalSkus} vendorCount={vendorFacets ? vendorFacets.length : 0} />
           {isParentLanding && landingChildren.length > 0 && (
             <div className="subcategory-strip">
               <div className="subcategory-strip-grid" style={{ gridTemplateColumns: 'repeat(' + Math.min(landingChildren.length, 6) + ', 1fr)' }}>

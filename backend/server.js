@@ -2317,8 +2317,19 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
 
     let params = [];
     let paramIndex = 1;
-    let whereClauses = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'", "COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')",
+    // Accessories/trims are hidden from the default + category browse grids (sold as
+    // add-ons, surfaced via a PDP's "Matching Accessories"). But when the shopper has
+    // explicitly drilled into a brand, vendor, or collection — e.g. via the brand/
+    // collection links on a PDP — they expect to see EVERYTHING from it, including its
+    // accessory lines (grout, membranes, trim). Some brands/collections are accessory-
+    // only (Custom Building Products, Noble Company), so the exclusion left those pages
+    // showing "0 products". Keep the exclusion only for unscoped/category browse.
+    const brandCollectionScoped = !!(collection || req.query.collection_vendor || req.query.brand || req.query.vendor);
+    let whereClauses = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'",
       "(pr.retail_price IS NULL OR pr.retail_price > 0)"];
+    if (!brandCollectionScoped) {
+      whereClauses.push("COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')");
+    }
 
     // Category filter (includes children)
     if (category) {
@@ -2630,6 +2641,19 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       }
     }
 
+    // On explicit brand/vendor/collection drill-downs the grid now includes the
+    // brand's accessory lines (grout, membranes, trim) — float them to the very end
+    // as the top sort key so the "real" products (tile, flooring) always lead and the
+    // accessories don't bury them. Only when scoped: default/category browse excludes
+    // accessories entirely, so the key would be a constant 0 (and we keep that query
+    // plan untouched). Inner/collection order references s.variant_type directly; the
+    // dedup path's outer order uses the selected is_accessory alias.
+    if (brandCollectionScoped) {
+      const accInner = `CASE WHEN COALESCE(s.variant_type, '') IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim') THEN 1 ELSE 0 END`;
+      orderBy = `${accInner}, ${orderBy}`;
+      if (outerOrderBy) outerOrderBy = `is_accessory, ${outerOrderBy}`;
+    }
+
     // Count query
     const countSQL = `
       SELECT COUNT(DISTINCT ${deduplicateByProduct ? `(${browseGroupKey})` : 's.id'}) as total
@@ -2729,7 +2753,8 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
         COALESCE(pp.popularity_score, 0) as popularity_score,
         ${matchTierInner} AS match_tier,
         (${coverageInner}) AS coverage,
-        (${facetScoreInner}) AS facet_score`;
+        (${facetScoreInner}) AS facet_score,
+        CASE WHEN COALESCE(s.variant_type, '') IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim') THEN 1 ELSE 0 END AS is_accessory`;
 
     const browseFrom = `
       FROM skus s
@@ -4033,8 +4058,15 @@ app.get('/api/storefront/facets', async (req, res) => {
     // Build base WHERE for non-attribute filters
     let params = [];
     let paramIndex = 1;
-    let baseWhere = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'",
-      "COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')", "p.collection NOT LIKE 'AHF%'"];
+    // Mirror the browse grid: include accessories when the shopper has drilled into a
+    // brand/vendor/collection, otherwise the facet counts (and the presence of the
+    // brand/collection at all) disagree with the grid. See the same gate in
+    // /api/storefront/skus for the full rationale.
+    const brandCollectionScoped = !!(collection || req.query.collection_vendor || req.query.brand || req.query.vendor);
+    let baseWhere = ["p.status = 'active'", "s.is_sample = false", "s.status = 'active'", "p.collection NOT LIKE 'AHF%'"];
+    if (!brandCollectionScoped) {
+      baseWhere.push("COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')");
+    }
 
     if (category) {
       params.push(category);
