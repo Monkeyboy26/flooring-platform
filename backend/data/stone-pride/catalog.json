@@ -10530,7 +10530,7 @@
     "cost": 24.0,
     "retail": 38.39,
     "price_basis": "per_unit",
-    "status": "active",
+    "status": "inactive",
     "packaging": null,
     "attrs": {},
     "desc": "4\"X12\" Marble border, design ML-78 (Daphne)"
@@ -10642,7 +10642,7 @@
     "cost": 18.0,
     "retail": 28.79,
     "price_basis": "per_unit",
-    "status": "active",
+    "status": "inactive",
     "packaging": null,
     "attrs": {},
     "desc": "4\"x12\" Marble border,Design name:Carolina, greek key pattern is continuous"
