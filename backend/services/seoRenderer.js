@@ -64,6 +64,13 @@ function parsePath(reqPath, query) {
   const skuMatch = path.match(/^\/shop\/sku\/([a-fA-F0-9-]+)/);
   if (skuMatch) return { type: 'sku-redirect', skuId: skuMatch[1] };
 
+  // /shop/{slug} — single-segment programmatic facet landing page (Phase 2).
+  // Distinct from the two-segment product URL above and /shop/sku/ legacy URLs.
+  const landingMatch = path.match(/^\/shop\/([a-z0-9-]+)$/);
+  if (landingMatch && landingMatch[1] !== 'sku') {
+    return { type: 'landing', slug: landingMatch[1] };
+  }
+
   // /collections/:slug
   const collectionMatch = path.match(/^\/collections\/([a-z0-9-]+)$/);
   if (collectionMatch) return { type: 'collection', slug: collectionMatch[1] };
@@ -144,6 +151,12 @@ async function fetchSkuData(pool, skuId) {
        ORDER BY CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END,
          CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
          ma.sort_order LIMIT 1) as primary_image,
+      (SELECT ma.alt_text FROM media_assets ma
+       WHERE (ma.sku_id = s.id OR (ma.sku_id IS NULL AND ma.product_id = p.id))
+         AND ma.asset_type != 'spec_pdf'
+       ORDER BY CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END,
+         CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+         ma.sort_order LIMIT 1) as primary_image_alt,
       CASE
         WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
         WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -183,6 +196,7 @@ async function fetchProductBySlug(pool, categorySlug, productSlug) {
     SELECT
       s.id as sku_id, s.variant_name, s.internal_sku, s.sell_by, s.variant_type,
       p.name as product_name, p.collection, p.format_label, p.slug as product_slug, p.description_long, p.description_short,
+      p.meta_title as seo_meta_title, p.meta_description as seo_meta_description, p.seo_h1, p.content_html,
       COALESCE(br.name, v.name) as brand_name,
       (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) as brand_hidden,
       v.code as vendor_code, v.name as vendor_name, v.public_code as vendor_public_code,
@@ -194,6 +208,12 @@ async function fetchProductBySlug(pool, categorySlug, productSlug) {
        ORDER BY CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END,
          CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
          ma.sort_order LIMIT 1) as primary_image,
+      (SELECT ma.alt_text FROM media_assets ma
+       WHERE (ma.sku_id = s.id OR (ma.sku_id IS NULL AND ma.product_id = p.id))
+         AND ma.asset_type != 'spec_pdf'
+       ORDER BY CASE WHEN ma.sku_id IS NOT NULL THEN 0 ELSE 1 END,
+         CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+         ma.sort_order LIMIT 1) as primary_image_alt,
       CASE
         WHEN inv.fresh_until IS NULL OR inv.fresh_until <= NOW() THEN 'unknown'
         WHEN inv.qty_on_hand > 10 THEN 'in_stock'
@@ -300,6 +320,8 @@ async function fetchCollectionData(pool, slug) {
 async function fetchCategoryData(pool, slug) {
   const result = await pool.query(`
     SELECT c.id, c.name, c.slug, c.description, c.image_url,
+      c.meta_title as seo_meta_title, c.meta_description as seo_meta_description,
+      c.intro_html, c.footer_html,
       (SELECT COUNT(*)::int FROM products p WHERE p.category_id = c.id AND p.status = 'active') as product_count
     FROM categories c
     WHERE c.slug = $1 AND c.is_active = true
@@ -318,6 +340,17 @@ async function fetchCategoryData(pool, slug) {
   `, [cat.id]);
 
   cat.children = children.rows;
+
+  // Internal-linking mesh: top indexable facet landing pages in this category.
+  try {
+    const facets = await pool.query(
+      `SELECT slug, title FROM landing_pages
+       WHERE type = 'facet' AND is_indexable = true AND filter_json->>'category' = $1
+       ORDER BY product_count DESC LIMIT 12`,
+      [cat.slug]
+    );
+    cat.facet_links = facets.rows;
+  } catch { cat.facet_links = []; }
   return cat;
 }
 
@@ -502,12 +535,28 @@ function renderSkuPage(sku) {
     ? `<ul class="attr-list">${sku.attributes.map(a => `<li><strong>${escapeHtml(a.name)}:</strong> ${escapeHtml(a.value)}</li>`).join('')}</ul>`
     : '';
 
+  // Prefer stored alt text / H1 / long-form content (Phase 1 engine); else derive.
+  const imgAlt = (sku.primary_image_alt && sku.primary_image_alt.trim())
+    ? sku.primary_image_alt.trim()
+    : cleanName;
+  const h1Html = (sku.seo_h1 && sku.seo_h1.trim())
+    ? escapeHtml(sku.seo_h1.trim())
+    : escapeHtml(cleanName);
+  const contentHtml = (sku.content_html && sku.content_html.trim())
+    ? `<section class="sku-content">${sku.content_html}</section>`
+    : '';
+  // Internal-linking mesh: link this product into the indexable facet landing pages
+  // it belongs to (populated for the slug path in renderPage; empty on the legacy path).
+  const facetLinksHtml = (sku.facet_links && sku.facet_links.length)
+    ? `<nav class="facet-links" aria-label="Related categories"><span>More like this:</span> ${sku.facet_links.map(f => `<a href="/shop/${escapeHtml(f.slug)}">${escapeHtml(f.title)}</a>`).join(' · ')}</nav>`
+    : '';
+
   const bodyContent = `
     <nav class="breadcrumb" aria-label="Breadcrumb"><ol>${breadcrumbHtml}</ol></nav>
     <article class="sku-detail">
-      <div>${sku.primary_image ? `<img src="${escapeHtml(sku.primary_image)}" alt="${escapeHtml(cleanName)}" width="600" height="600">` : ''}</div>
+      <div>${sku.primary_image ? `<img src="${escapeHtml(sku.primary_image)}" alt="${escapeHtml(imgAlt)}" width="600" height="600">` : ''}</div>
       <div class="sku-info">
-        <h1>${escapeHtml(cleanName)}</h1>
+        <h1>${h1Html}</h1>
         ${priceDisplay ? `<div class="price">$${priceDisplay}${unit}</div>` : ''}
         ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
         ${sku.brand_hidden ? (sku.vendor_public_code ? `<p><strong>Brand:</strong> ${escapeHtml(String(sku.vendor_public_code))}</p>` : '') : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
@@ -516,7 +565,9 @@ function renderSkuPage(sku) {
         ${sku.collection ? `<p><strong>Collection:</strong> <a href="/collections/${escapeHtml(slugify(sku.collection))}">${escapeHtml(sku.collection)}</a></p>` : ''}
         ${attrsHtml}
       </div>
-    </article>`;
+    </article>
+    ${facetLinksHtml}
+    ${contentHtml}`;
 
   return { title, description: metaDesc, canonicalUrl, ogImage: sku.primary_image, ogType: 'product', jsonLd, bodyContent };
 }
@@ -535,8 +586,13 @@ function renderProductPage(sku) {
   // keyword (appended by fullProductName) and de-echoed collection/size, so no keyword
   // is lost vs. the old raw title.
   const cleanName = seoProductName(sku);
-  const title = `${cleanName} | Roma Flooring Designs`.replace(/\s+/g, ' ');
-  const metaDesc = desc ? desc.substring(0, 160) : `${cleanName}${seoBrandName ? ' from ' + seoBrandName : ''}. Premium ${(sku.category_name || 'flooring').toLowerCase()} available at Roma Flooring Designs.`;
+  // Prefer stored SEO fields (Phase 1 content engine) when present; else derive from cleanName.
+  const title = (sku.seo_meta_title && sku.seo_meta_title.trim())
+    ? sku.seo_meta_title.trim()
+    : `${cleanName} | Roma Flooring Designs`.replace(/\s+/g, ' ');
+  const metaDesc = (sku.seo_meta_description && sku.seo_meta_description.trim())
+    ? sku.seo_meta_description.trim().substring(0, 320)
+    : (desc ? desc.substring(0, 160) : `${cleanName}${seoBrandName ? ' from ' + seoBrandName : ''}. Premium ${(sku.category_name || 'flooring').toLowerCase()} available at Roma Flooring Designs.`);
   const canonicalUrl = `${SITE_URL}/shop/${sku.category_slug}/${sku.product_slug}`;
 
   const availability = sku.stock_status === 'out_of_stock' ? 'https://schema.org/OutOfStock'
@@ -598,12 +654,28 @@ function renderProductPage(sku) {
     ? `<ul class="attr-list">${sku.attributes.map(a => `<li><strong>${escapeHtml(a.name)}:</strong> ${escapeHtml(a.value)}</li>`).join('')}</ul>`
     : '';
 
+  // Prefer stored alt text / H1 / long-form content (Phase 1 engine); else derive.
+  const imgAlt = (sku.primary_image_alt && sku.primary_image_alt.trim())
+    ? sku.primary_image_alt.trim()
+    : cleanName;
+  const h1Html = (sku.seo_h1 && sku.seo_h1.trim())
+    ? escapeHtml(sku.seo_h1.trim())
+    : escapeHtml(cleanName);
+  const contentHtml = (sku.content_html && sku.content_html.trim())
+    ? `<section class="sku-content">${sku.content_html}</section>`
+    : '';
+  // Internal-linking mesh: link this product into the indexable facet landing pages
+  // it belongs to (populated for the slug path in renderPage; empty on the legacy path).
+  const facetLinksHtml = (sku.facet_links && sku.facet_links.length)
+    ? `<nav class="facet-links" aria-label="Related categories"><span>More like this:</span> ${sku.facet_links.map(f => `<a href="/shop/${escapeHtml(f.slug)}">${escapeHtml(f.title)}</a>`).join(' · ')}</nav>`
+    : '';
+
   const bodyContent = `
     <nav class="breadcrumb" aria-label="Breadcrumb"><ol>${breadcrumbHtml}</ol></nav>
     <article class="sku-detail">
-      <div>${sku.primary_image ? `<img src="${escapeHtml(sku.primary_image)}" alt="${escapeHtml(cleanName)}" width="600" height="600">` : ''}</div>
+      <div>${sku.primary_image ? `<img src="${escapeHtml(sku.primary_image)}" alt="${escapeHtml(imgAlt)}" width="600" height="600">` : ''}</div>
       <div class="sku-info">
-        <h1>${escapeHtml(cleanName)}</h1>
+        <h1>${h1Html}</h1>
         ${priceDisplay ? `<div class="price">$${priceDisplay}${unit}</div>` : ''}
         ${desc ? `<p>${escapeHtml(desc)}</p>` : ''}
         ${sku.brand_hidden ? (sku.vendor_public_code ? `<p><strong>Brand:</strong> ${escapeHtml(String(sku.vendor_public_code))}</p>` : '') : `<p><strong>Brand:</strong> ${escapeHtml(sku.brand_name)}</p>`}
@@ -612,7 +684,9 @@ function renderProductPage(sku) {
         ${sku.collection ? `<p><strong>Collection:</strong> <a href="/collections/${escapeHtml(slugify(sku.collection))}">${escapeHtml(sku.collection)}</a></p>` : ''}
         ${attrsHtml}
       </div>
-    </article>`;
+    </article>
+    ${facetLinksHtml}
+    ${contentHtml}`;
 
   return { title, description: metaDesc, canonicalUrl, ogImage: sku.primary_image, ogType: 'product', jsonLd, bodyContent };
 }
@@ -666,8 +740,13 @@ function renderCollectionPage(data) {
 }
 
 function renderCategoryPage(cat) {
-  const title = `${cat.name} | Shop | Roma Flooring Designs`;
-  const description = cat.description || `Browse ${cat.product_count} ${cat.name.toLowerCase()} products at Roma Flooring Designs.`;
+  // Prefer stored SEO fields (Phase 1 engine) when present; else derive as before.
+  const title = (cat.seo_meta_title && cat.seo_meta_title.trim())
+    ? cat.seo_meta_title.trim()
+    : `${cat.name} | Shop | Roma Flooring Designs`;
+  const description = (cat.seo_meta_description && cat.seo_meta_description.trim())
+    ? cat.seo_meta_description.trim()
+    : (cat.description || `Browse ${cat.product_count} ${cat.name.toLowerCase()} products at Roma Flooring Designs.`);
   const canonicalUrl = `${SITE_URL}/shop?category=${cat.slug}`;
 
   const jsonLd = [
@@ -695,14 +774,30 @@ function renderCategoryPage(cat) {
       ).join('')}</div>`
     : '';
 
+  // intro_html / footer_html are authored by our own content engine (not user input) → raw.
+  const introHtml = (cat.intro_html && cat.intro_html.trim())
+    ? `<section class="category-intro">${cat.intro_html}</section>`
+    : (cat.description ? `<p>${escapeHtml(cat.description)}</p>` : '');
+  const footerHtml = (cat.footer_html && cat.footer_html.trim())
+    ? `<section class="category-footer">${cat.footer_html}</section>`
+    : '';
+
+  // Internal-linking mesh: top facet landing pages in this category.
+  const facetLinksHtml = (cat.facet_links && cat.facet_links.length)
+    ? `<nav class="facet-links" aria-label="Shop by"><span>Popular filters:</span> ${cat.facet_links.map(f => `<a href="/shop/${escapeHtml(f.slug)}">${escapeHtml(f.title)}</a>`).join(' · ')}</nav>`
+    : '';
+
   const bodyContent = `
     <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/shop">Shop</a></li><li>${escapeHtml(cat.name)}</li></ol></nav>
     <h1>${escapeHtml(cat.name)}</h1>
-    ${cat.description ? `<p>${escapeHtml(cat.description)}</p>` : ''}
+    ${introHtml}
     <p>${cat.product_count} products</p>
-    ${childrenHtml}`;
+    ${facetLinksHtml}
+    ${childrenHtml}
+    ${footerHtml}`;
 
-  return { title, description: description.substring(0, 160), canonicalUrl, ogImage: cat.image_url, jsonLd, bodyContent };
+  // description may now be a full stored meta (up to 320) — cap OG/meta at a safe length.
+  return { title, description: description.substring(0, 320), canonicalUrl, ogImage: cat.image_url, jsonLd, bodyContent };
 }
 
 function renderCollectionsIndex(collections) {
@@ -1200,6 +1295,161 @@ function render404Page(message) {
   };
 }
 
+// ==================== Landing pages (Phase 2 facet system) ====================
+
+// Internal-linking mesh: given a rendered product, find the indexable facet landing
+// pages it belongs to. Facet slugs are deterministic (slugify(value)-categorySlug),
+// so we compute candidates from the product's attribute values and keep the ones that
+// exist and are indexable. Guarded so a missing landing_pages table (pre-migration) is a no-op.
+async function fetchFacetLinksForProduct(pool, sku) {
+  if (!sku || !sku.category_slug || !sku.attributes || !sku.attributes.length) return [];
+  const slugs = [...new Set(sku.attributes.map(a => `${slugify(a.value)}-${sku.category_slug}`))].filter(Boolean);
+  if (!slugs.length) return [];
+  try {
+    const r = await pool.query(
+      `SELECT slug, title FROM landing_pages
+       WHERE slug = ANY($1) AND is_indexable = true
+       ORDER BY product_count DESC LIMIT 6`,
+      [slugs]
+    );
+    return r.rows;
+  } catch { return []; }
+}
+
+// Fetch a landing_pages row + its product grid. filter_json is the browse query
+// this page represents ({category, attributes:{slug:value}}); we replay it against
+// the catalog with the same category + attribute semantics as /api/storefront/skus.
+async function fetchLandingBySlug(pool, slug) {
+  const res = await pool.query(`
+    SELECT id, type, slug, title, h1, meta_title, meta_description,
+           intro_html, footer_html, filter_json, is_indexable, product_count
+    FROM landing_pages WHERE slug = $1
+  `, [slug]);
+  if (!res.rows.length) return null;
+  const lp = res.rows[0];
+  const filter = lp.filter_json || {};
+  const attrs = filter.attributes || {};
+
+  const where = [`p.status = 'active'`];
+  const params = [];
+  let i = 1;
+  if (filter.category) {
+    params.push(filter.category);
+    where.push(`(c.slug = $${i} OR c.parent_id IN (SELECT id FROM categories WHERE slug = $${i}))`);
+    i++;
+  }
+  for (const [aslug, val] of Object.entries(attrs)) {
+    params.push(aslug); const sp = i++;
+    params.push(val); const vp = i++;
+    where.push(`EXISTS (SELECT 1 FROM skus s2 JOIN sku_attributes sa ON sa.sku_id = s2.id
+      JOIN attributes a ON a.id = sa.attribute_id
+      WHERE s2.product_id = p.id AND s2.status = 'active' AND a.slug = $${sp} AND sa.value = $${vp})`);
+  }
+
+  const prod = await pool.query(`
+    SELECT p.id, COALESCE(p.display_name, p.name) AS name, p.slug AS product_slug,
+           c.slug AS category_slug, c.name AS category_name,
+           (SELECT ma.url FROM media_assets ma
+            WHERE ma.product_id = p.id AND ma.asset_type <> 'spec_pdf'
+            ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'alternate' THEN 1 WHEN 'lifestyle' THEN 2 ELSE 3 END,
+              ma.sort_order LIMIT 1) AS primary_image
+    FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
+    WHERE ${where.join(' AND ')}
+    ORDER BY p.sort_priority DESC, p.name
+    LIMIT 60
+  `, params);
+  lp.products = prod.rows;
+
+  // Internal-linking mesh: sibling facet pages in the same category (other colors/sizes).
+  if (filter.category) {
+    try {
+      const sib = await pool.query(
+        `SELECT slug, title FROM landing_pages
+         WHERE type = 'facet' AND is_indexable = true
+           AND filter_json->>'category' = $1 AND slug <> $2
+         ORDER BY product_count DESC LIMIT 12`,
+        [filter.category, slug]
+      );
+      lp.sibling_links = sib.rows;
+    } catch { lp.sibling_links = []; }
+  }
+  return lp;
+}
+
+function renderLandingPage(lp) {
+  const products = lp.products || [];
+  const count = lp.product_count || products.length;
+  const title = (lp.meta_title && lp.meta_title.trim())
+    ? lp.meta_title.trim()
+    : `${lp.title} | Roma Flooring Designs`;
+  const description = (lp.meta_description && lp.meta_description.trim())
+    ? lp.meta_description.trim()
+    : `Shop ${count} ${lp.title.toLowerCase()} options at Roma Flooring Designs — compare colors, sizes, finishes, and prices.`;
+  const canonicalUrl = `${SITE_URL}/shop/${lp.slug}`;
+  // The indexation guardrail: thin pages render but stay out of the index.
+  const robotsTag = lp.is_indexable ? 'index, follow' : 'noindex, follow';
+  const h1 = lp.h1 || lp.title;
+  const ogImage = products.length ? products[0].primary_image : null;
+
+  const breadcrumbItems = [
+    { name: 'Home', url: SITE_URL + '/' },
+    { name: 'Shop', url: SITE_URL + '/shop' },
+    { name: lp.title, url: canonicalUrl }
+  ];
+
+  const productUrl = (p) => (p.category_slug && p.product_slug)
+    ? `${SITE_URL}/shop/${p.category_slug}/${p.product_slug}` : `${SITE_URL}/shop`;
+
+  const jsonLd = [
+    { '@context': 'https://schema.org', '@type': 'CollectionPage', name: lp.title, description, url: canonicalUrl },
+    { '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+      itemListElement: breadcrumbItems.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name, item: it.url })) }
+  ];
+  if (products.length) {
+    jsonLd.push({ '@context': 'https://schema.org', '@type': 'ItemList',
+      itemListElement: products.slice(0, 30).map((p, i) => ({ '@type': 'ListItem', position: i + 1, url: productUrl(p), name: p.name })) });
+  }
+
+  const introHtml = (lp.intro_html && lp.intro_html.trim()) ? `<section class="landing-intro">${lp.intro_html}</section>` : '';
+  const footerHtml = (lp.footer_html && lp.footer_html.trim()) ? `<section class="landing-footer">${lp.footer_html}</section>` : '';
+
+  const gridHtml = products.length
+    ? `<ul class="landing-grid">${products.map(p => {
+        const href = (p.category_slug && p.product_slug) ? `/shop/${escapeHtml(p.category_slug)}/${escapeHtml(p.product_slug)}` : '/shop';
+        const img = p.primary_image ? `<img src="${escapeHtml(p.primary_image)}" alt="${escapeHtml(p.name)}" width="300" height="300" loading="lazy">` : '';
+        return `<li><a href="${href}">${img}<span>${escapeHtml(p.name)}</span></a></li>`;
+      }).join('')}</ul>`
+    : '<p>No products currently available.</p>';
+
+  const breadcrumbHtml = breadcrumbItems.map((it, i) =>
+    i < breadcrumbItems.length - 1
+      ? `<li><a href="${escapeHtml(it.url)}">${escapeHtml(it.name)}</a></li>`
+      : `<li>${escapeHtml(it.name)}</li>`
+  ).join('');
+
+  // Internal-linking mesh: parent category + sibling facet pages.
+  const catSlug = (lp.filter_json && lp.filter_json.category) || null;
+  const relatedParts = [
+    ...(catSlug ? [`<a href="/shop?category=${escapeHtml(catSlug)}">Shop all</a>`] : []),
+    ...((lp.sibling_links || []).map(s => `<a href="/shop/${escapeHtml(s.slug)}">${escapeHtml(s.title)}</a>`)),
+  ];
+  const relatedHtml = relatedParts.length
+    ? `<nav class="facet-links" aria-label="Related"><span>Related:</span> ${relatedParts.join(' · ')}</nav>`
+    : '';
+
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol>${breadcrumbHtml}</ol></nav>
+    <h1>${escapeHtml(h1)}</h1>
+    ${introHtml}
+    <p>${count} products</p>
+    ${gridHtml}
+    ${relatedHtml}
+    ${footerHtml}`;
+
+  return { title, description: description.substring(0, 320), canonicalUrl, ogImage, ogType: 'website', robotsTag, jsonLd, bodyContent };
+}
+
 // ==================== Router ====================
 
 export default function createSeoRouter(pool) {
@@ -1217,6 +1467,7 @@ export default function createSeoRouter(pool) {
           pageData = render404Page('Product not found.');
           statusCode = 404;
         } else {
+          sku.facet_links = await fetchFacetLinksForProduct(pool, sku);
           pageData = renderProductPage(sku);
         }
         break;
@@ -1267,6 +1518,16 @@ export default function createSeoRouter(pool) {
         pageData = renderCollectionsIndex(collections);
         break;
       }
+      case 'landing': {
+        const landing = await fetchLandingBySlug(pool, parsed.slug);
+        if (!landing) {
+          pageData = render404Page('Page not found.');
+          statusCode = 404;
+        } else {
+          pageData = renderLandingPage(landing);
+        }
+        break;
+      }
       case 'browse': {
         pageData = renderBrowsePage();
         break;
@@ -1293,6 +1554,7 @@ export default function createSeoRouter(pool) {
       : parsed.type === 'collection' ? `collection:${parsed.slug}`
       : parsed.type === 'category' ? `category:${parsed.slug}`
       : parsed.type === 'collections-index' ? 'collections-index'
+      : parsed.type === 'landing' ? `landing:${parsed.slug}`
       : parsed.type === 'browse' ? 'browse'
       : parsed.type === 'static' ? `static:${parsed.page}`
       : null;

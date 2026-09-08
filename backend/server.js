@@ -3091,6 +3091,27 @@ app.get('/api/storefront/sku-redirect/:skuId', async (req, res) => {
   }
 });
 
+// ==================== Landing page resolver (Phase 2 facet system) ====================
+// The SPA calls this for /shop/{slug}: returns the page meta + the browse filter to
+// replay + indexability, so the client can render the grid, set the canonical, and emit
+// robots=noindex,follow for non-indexable pages (matching the crawler-facing seoRenderer).
+app.get('/api/storefront/landing/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const result = await pool.query(
+      `SELECT slug, type, title, h1, meta_title, meta_description, intro_html, footer_html,
+              filter_json, is_indexable, product_count
+       FROM landing_pages WHERE slug = $1`,
+      [slug]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Landing page not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Landing page resolve error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
   try {
     const { skuId } = req.params;
@@ -3100,6 +3121,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       SELECT
         s.id as sku_id, s.product_id, s.variant_name, s.internal_sku, s.vendor_sku, s.sell_by, s.variant_type,
         COALESCE(p.display_name, p.name) as product_name, p.collection, p.category_id, p.vendor_id, p.brand_id, p.description_long, p.description_short,
+        p.meta_title as seo_meta_title, p.meta_description as seo_meta_description, p.seo_h1,
         p.slug as product_slug, p.format_group, p.format_label,
         p.prop65_warning, p.prop65_chemicals,
         v.name as vendor_name,
@@ -34094,10 +34116,13 @@ app.get('/api/sitemap.xml', async (req, res) => {
     const baseUrl = (process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
     const today = new Date().toISOString().split('T')[0];
 
-    const [productsResult, categoriesResult, collectionsResult] = await Promise.all([
+    const [productsResult, categoriesResult, collectionsResult, landingResult] = await Promise.all([
       pool.query(`SELECT DISTINCT ON (p.id) p.id, p.slug as product_slug, c.slug as category_slug, COALESCE(p.display_name, p.name) as product_name, p.updated_at FROM products p JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim') LEFT JOIN categories c ON c.id = p.category_id WHERE p.status = 'active' ORDER BY p.id`),
       pool.query(`SELECT slug FROM categories WHERE is_active = true ORDER BY slug`),
-      pool.query(`SELECT DISTINCT collection as name FROM products WHERE status = 'active' AND collection IS NOT NULL AND collection != '' ORDER BY collection`)
+      pool.query(`SELECT DISTINCT collection as name FROM products WHERE status = 'active' AND collection IS NOT NULL AND collection != '' ORDER BY collection`),
+      // Only indexable landing pages (Phase 2 facet system). The generator keeps
+      // is_indexable current, so thin/emptied pages self-drop from the sitemap.
+      pool.query(`SELECT slug, updated_at FROM landing_pages WHERE is_indexable = true ORDER BY slug`).catch(() => ({ rows: [] }))
     ]);
 
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -34130,6 +34155,12 @@ app.get('/api/sitemap.xml', async (req, res) => {
         const slug = generateSlugBackend(row.product_name);
         xml += `  <url><loc>${baseUrl}/shop/sku/${row.id}/${encodeURIComponent(slug)}</loc><lastmod>${lastmod}</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>\n`;
       }
+    }
+
+    // Programmatic facet landing pages (indexable only)
+    for (const row of landingResult.rows) {
+      const lastmod = row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : today;
+      xml += `  <url><loc>${baseUrl}/shop/${encodeURIComponent(row.slug)}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>\n`;
     }
 
     xml += '</urlset>';

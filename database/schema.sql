@@ -107,6 +107,11 @@ CREATE TABLE categories (
     banner_image TEXT,
     sort_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT true,
+    -- SEO (Phase 1 content engine writes these; seoRenderer prefers them over derived).
+    meta_title TEXT,
+    meta_description TEXT,
+    intro_html TEXT,   -- unique above-the-fold copy on the category landing page
+    footer_html TEXT,  -- unique below-the-grid copy (FAQs/buying notes)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -121,6 +126,19 @@ CREATE TABLE products (
     status VARCHAR(20) DEFAULT 'draft',
     description_long TEXT,
     description_short TEXT,
+    -- SEO content (Phase 1 AI content engine). seoRenderer + SPA updateSEO() prefer
+    -- meta_title/meta_description/seo_h1 when present, else fall back to derived values.
+    -- content_html = unique long-form body copy shown on the PDP (dup-content defense).
+    -- content_status: 'none' (untouched) | 'generated' (AI, unreviewed) | 'reviewed' (human-approved).
+    -- content_hash: hash of the source inputs used to generate; lets the generator skip
+    -- unchanged products on re-runs (idempotent, cost-bounded).
+    meta_title TEXT,
+    meta_description TEXT,
+    seo_h1 TEXT,
+    content_html TEXT,
+    content_status VARCHAR(20) NOT NULL DEFAULT 'none'
+        CHECK (content_status IN ('none', 'generated', 'reviewed')),
+    content_hash TEXT,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     brand_id UUID REFERENCES brands(id),
@@ -422,6 +440,9 @@ CREATE TABLE media_assets (
     asset_type VARCHAR(30) NOT NULL DEFAULT 'primary',
     url TEXT NOT NULL,
     original_url TEXT,
+    -- SEO/accessibility: descriptive alt text (Phase 1 content engine backfills this
+    -- from product + variant attributes). NULL = fall back to a derived alt in render.
+    alt_text TEXT,
     sort_order INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     -- Self-hosting: when set, url points at a mirrored copy under /uploads/mirror
@@ -439,6 +460,42 @@ CREATE UNIQUE INDEX IF NOT EXISTS media_assets_unique_product
     ON media_assets (product_id, asset_type, sort_order)
     WHERE sku_id IS NULL;
 CREATE INDEX idx_media_assets_product ON media_assets(product_id);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- SEO: programmatic landing pages (Phase 2 pillar/facet system)
+-- Curated rows (NOT infinite URL combinatorics). Each row is one indexable-or-not
+-- landing page: category×color, category×size, material/look, brand, room, or a
+-- pillar guide. filter_json holds the query the storefront/seoRenderer replays to
+-- build the product grid. is_indexable is gated on product_count (nightly recompute)
+-- so thin combos render but stay noindex,follow — the guardrail against mass thin pages.
+CREATE TABLE landing_pages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type VARCHAR(30) NOT NULL
+        CHECK (type IN ('facet', 'material', 'brand', 'room', 'guide')),
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    h1 TEXT,
+    meta_title TEXT,
+    meta_description TEXT,
+    intro_html TEXT,
+    footer_html TEXT,
+    -- The catalog filter this page represents, e.g.
+    -- {"category":"porcelain-tile","attributes":{"color":"white"}}
+    filter_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+    is_indexable BOOLEAN NOT NULL DEFAULT false,
+    product_count INTEGER NOT NULL DEFAULT 0,
+    content_status VARCHAR(20) NOT NULL DEFAULT 'none'
+        CHECK (content_status IN ('none', 'generated', 'reviewed')),
+    content_hash TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_landing_pages_type ON landing_pages(type);
+CREATE INDEX idx_landing_pages_indexable ON landing_pages(is_indexable) WHERE is_indexable = true;
+
+-- NOTE: product reviews already exist (see "Product Reviews" section below) with a
+-- customer-authored model. Phase 3 will EXTEND that table (add moderation status +
+-- imported/verified-purchase source) to feed aggregateRating JSON-LD — not replace it.
 
 -- Cached AI-vision color-correctness verdicts (Phase 2b image quality). Populated
 -- by backend/verify-image-vision.mjs (bounded/on-demand, cost-tracked); read by
