@@ -10244,7 +10244,7 @@
    {
     "vendor_sku": "ML-03(D)",
     "internal_sku": "SP-ML-03-D",
-    "variant_name": "Design 03",
+    "variant_name": "Design 03 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.29,
@@ -10258,7 +10258,7 @@
    {
     "vendor_sku": "ML-03-BWG",
     "internal_sku": "SP-ML-03-BWG",
-    "variant_name": "Design 03",
+    "variant_name": "Design 03 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 20.0,
@@ -10272,7 +10272,7 @@
    {
     "vendor_sku": "ML-16BW(D)",
     "internal_sku": "SP-ML-16BW-D",
-    "variant_name": "Design 16",
+    "variant_name": "Design 16 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10286,7 +10286,7 @@
    {
     "vendor_sku": "ML-17ED(D)",
     "internal_sku": "SP-ML-17ED-D",
-    "variant_name": "Design 17",
+    "variant_name": "Design 17 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10300,7 +10300,7 @@
    {
     "vendor_sku": "ML-18B",
     "internal_sku": "SP-ML-18B",
-    "variant_name": "Design 18",
+    "variant_name": "Design 18 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10314,7 +10314,7 @@
    {
     "vendor_sku": "ML-19(D)",
     "internal_sku": "SP-ML-19-D",
-    "variant_name": "Design 19",
+    "variant_name": "Design 19 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10328,7 +10328,7 @@
    {
     "vendor_sku": "ML-20(D)",
     "internal_sku": "SP-ML-20-D",
-    "variant_name": "Design 20",
+    "variant_name": "Design 20 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10356,7 +10356,7 @@
    {
     "vendor_sku": "ML-50CM(D)",
     "internal_sku": "SP-ML-50CM-D",
-    "variant_name": "Design 50",
+    "variant_name": "Design 50 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10370,7 +10370,7 @@
    {
     "vendor_sku": "ML-51(D)",
     "internal_sku": "SP-ML-51-D",
-    "variant_name": "Design 51",
+    "variant_name": "Design 51 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10384,7 +10384,7 @@
    {
     "vendor_sku": "ML-53ED(D)",
     "internal_sku": "SP-ML-53ED-D",
-    "variant_name": "Design 53",
+    "variant_name": "Design 53 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 16.94,
@@ -10398,7 +10398,7 @@
    {
     "vendor_sku": "ML-53RA(D)",
     "internal_sku": "SP-ML-53RA-D",
-    "variant_name": "Design 53",
+    "variant_name": "Design 53 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 16.94,
@@ -10412,7 +10412,7 @@
    {
     "vendor_sku": "ML-57(D)",
     "internal_sku": "SP-ML-57-D",
-    "variant_name": "Design 57",
+    "variant_name": "Design 57 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10426,7 +10426,7 @@
    {
     "vendor_sku": "ML-62(D)",
     "internal_sku": "SP-ML-62-D",
-    "variant_name": "Design 62",
+    "variant_name": "Design 62 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10440,7 +10440,7 @@
    {
     "vendor_sku": "ML-63-Aquielia(D)",
     "internal_sku": "SP-ML-63-Aquielia-D",
-    "variant_name": "Aquielia",
+    "variant_name": "Aquielia 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10454,7 +10454,7 @@
    {
     "vendor_sku": "ML-6x18-CZ556(D)",
     "internal_sku": "SP-ML-6x18-CZ556-D",
-    "variant_name": "6x18-CZ556",
+    "variant_name": "CZ556 6×18",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 32.34,
@@ -10468,7 +10468,7 @@
    {
     "vendor_sku": "ML-76ED(D)",
     "internal_sku": "SP-ML-76ED-D",
-    "variant_name": "Design 76",
+    "variant_name": "Design 76 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10482,7 +10482,7 @@
    {
     "vendor_sku": "ML-77-Harmony(D)",
     "internal_sku": "SP-ML-77-Harmony-D",
-    "variant_name": "Harmony",
+    "variant_name": "Harmony 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 16.94,
@@ -10510,7 +10510,7 @@
    {
     "vendor_sku": "ML-78-Daphne(D)",
     "internal_sku": "SP-ML-78-Daphne-D",
-    "variant_name": "Daphne",
+    "variant_name": "Daphne 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 16.94,
@@ -10524,7 +10524,7 @@
    {
     "vendor_sku": "ML-78-Daphne2",
     "internal_sku": "SP-ML-78-Daphne2",
-    "variant_name": "Daphne",
+    "variant_name": "Daphne 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10538,7 +10538,7 @@
    {
     "vendor_sku": "ML-79-Aroma",
     "internal_sku": "SP-ML-79-Aroma",
-    "variant_name": "Aroma",
+    "variant_name": "Aroma 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10552,7 +10552,7 @@
    {
     "vendor_sku": "ML-80-Olympus",
     "internal_sku": "SP-ML-80-Olympus",
-    "variant_name": "Olympus",
+    "variant_name": "Olympus 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10566,7 +10566,7 @@
    {
     "vendor_sku": "ML-81-Grace4x12",
     "internal_sku": "SP-ML-81-Grace4x12",
-    "variant_name": "Grace",
+    "variant_name": "Grace 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10636,7 +10636,7 @@
    {
     "vendor_sku": "ML-82-Carolina4x12 (v2)",
     "internal_sku": "SP-ML-82-Carolina4x12-v2",
-    "variant_name": "Carolina",
+    "variant_name": "Carolina 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 18.0,
@@ -10650,7 +10650,7 @@
    {
     "vendor_sku": "ML-82-Carolina4x12(D)",
     "internal_sku": "SP-ML-82-Carolina4x12-D",
-    "variant_name": "Carolina",
+    "variant_name": "Carolina 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10734,7 +10734,7 @@
    {
     "vendor_sku": "ML-84",
     "internal_sku": "SP-ML-84",
-    "variant_name": "Design 84",
+    "variant_name": "Design 84 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10748,7 +10748,7 @@
    {
     "vendor_sku": "ML-86",
     "internal_sku": "SP-ML-86",
-    "variant_name": "Design 86",
+    "variant_name": "Design 86 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10762,7 +10762,7 @@
    {
     "vendor_sku": "ML-87",
     "internal_sku": "SP-ML-87",
-    "variant_name": "Design 87",
+    "variant_name": "Design 87 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10776,7 +10776,7 @@
    {
     "vendor_sku": "ML-88",
     "internal_sku": "SP-ML-88",
-    "variant_name": "Design 88",
+    "variant_name": "Design 88 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10790,7 +10790,7 @@
    {
     "vendor_sku": "ML-90-Crescent(D)",
     "internal_sku": "SP-ML-90-Crescent-D",
-    "variant_name": "Crescent",
+    "variant_name": "Crescent 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 16.94,
@@ -10804,7 +10804,7 @@
    {
     "vendor_sku": "ML-91",
     "internal_sku": "SP-ML-91",
-    "variant_name": "Design 91",
+    "variant_name": "Design 91 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10818,7 +10818,7 @@
    {
     "vendor_sku": "ML-92",
     "internal_sku": "SP-ML-92",
-    "variant_name": "Design 92",
+    "variant_name": "Design 92 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 24.0,
@@ -10840,7 +10840,7 @@
    {
     "vendor_sku": "MSL-102(Simplicity)(D)",
     "internal_sku": "SP-MSL-102-Simplicity-D",
-    "variant_name": "Simplicity",
+    "variant_name": "Simplicity 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -10854,7 +10854,7 @@
    {
     "vendor_sku": "MSL-103(Celebration)(D)",
     "internal_sku": "SP-MSL-103-Celebration-D",
-    "variant_name": "Celebration",
+    "variant_name": "Celebration 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -10868,7 +10868,7 @@
    {
     "vendor_sku": "MSL-104(Gardena)(D)",
     "internal_sku": "SP-MSL-104-Gardena-D",
-    "variant_name": "Gardena",
+    "variant_name": "Gardena 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -10896,7 +10896,7 @@
    {
     "vendor_sku": "MSL-21-P(D)",
     "internal_sku": "SP-MSL-21-P-D",
-    "variant_name": "Design 21",
+    "variant_name": "Design 21 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -10924,7 +10924,7 @@
    {
     "vendor_sku": "MSL-50CM-P(D)",
     "internal_sku": "SP-MSL-50CM-P-D",
-    "variant_name": "Design 50",
+    "variant_name": "Design 50 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -10938,7 +10938,7 @@
    {
     "vendor_sku": "MSL-51-P(D)",
     "internal_sku": "SP-MSL-51-P-D",
-    "variant_name": "Design 51",
+    "variant_name": "Design 51 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -10952,7 +10952,7 @@
    {
     "vendor_sku": "MSL-57-P(D)",
     "internal_sku": "SP-MSL-57-P-D",
-    "variant_name": "Design 57",
+    "variant_name": "Design 57 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -10966,7 +10966,7 @@
    {
     "vendor_sku": "MSL-76EL-P(D)",
     "internal_sku": "SP-MSL-76EL-P-D",
-    "variant_name": "Design 76",
+    "variant_name": "Design 76 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -10980,7 +10980,7 @@
    {
     "vendor_sku": "MSL-76-P(D)",
     "internal_sku": "SP-MSL-76-P-D",
-    "variant_name": "Design 76",
+    "variant_name": "Design 76 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -11008,7 +11008,7 @@
    {
     "vendor_sku": "MSL-79-Aroma-P(D)",
     "internal_sku": "SP-MSL-79-Aroma-P-D",
-    "variant_name": "Aroma",
+    "variant_name": "Aroma 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -11022,7 +11022,7 @@
    {
     "vendor_sku": "MSL-84-P(D)",
     "internal_sku": "SP-MSL-84-P-D",
-    "variant_name": "Design 84",
+    "variant_name": "Design 84 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -11036,7 +11036,7 @@
    {
     "vendor_sku": "MSL-99(Cascade)(D)",
     "internal_sku": "SP-MSL-99-Cascade-D",
-    "variant_name": "Cascade",
+    "variant_name": "Cascade 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
@@ -11064,7 +11064,7 @@
    {
     "vendor_sku": "MSL-Olympus-P(D)",
     "internal_sku": "SP-MSL-Olympus-P-D",
-    "variant_name": "Olympus",
+    "variant_name": "Olympus 4×12",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 6.55,
