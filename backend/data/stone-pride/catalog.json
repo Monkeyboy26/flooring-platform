@@ -8465,7 +8465,7 @@
    {
     "vendor_sku": "MS-Wave-W(D)",
     "internal_sku": "SP-MS-Wave-W-D",
-    "variant_name": "W",
+    "variant_name": "White & Grey",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 12.75,
@@ -8479,7 +8479,7 @@
    {
     "vendor_sku": "MS-Wave-WD(D)",
     "internal_sku": "SP-MS-Wave-WD-D",
-    "variant_name": "WD, Polished",
+    "variant_name": "Carrara & Cinderella Grey, Polished",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 10.17,
@@ -10342,7 +10342,7 @@
    {
     "vendor_sku": "ML-21-Corner(D)",
     "internal_sku": "SP-ML-21-Corner-D",
-    "variant_name": "Design 21 4\u00d74 Corner",
+    "variant_name": "Design 21 4×4 Corner",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 8.47,
@@ -10496,7 +10496,7 @@
    {
     "vendor_sku": "ML-77-Harmony-Corner(D)",
     "internal_sku": "SP-ML-77-Harmony-Corner-D",
-    "variant_name": "Harmony 4\u00d74 Corner",
+    "variant_name": "Harmony 4×4 Corner",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 9.24,
@@ -10580,7 +10580,7 @@
    {
     "vendor_sku": "ML-81-Grace5X18(D)",
     "internal_sku": "SP-ML-81-Grace5X18-D",
-    "variant_name": "Grace 5\u00d718",
+    "variant_name": "Grace 5×18",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 38.0,
@@ -10594,7 +10594,7 @@
    {
     "vendor_sku": "ML-81-Grace5x5Corner(D)",
     "internal_sku": "SP-ML-81-Grace5x5Corner-D",
-    "variant_name": "Grace 5\u00d75 Corner",
+    "variant_name": "Grace 5×5 Corner",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.09,
@@ -10608,7 +10608,7 @@
    {
     "vendor_sku": "ML-81-Grace6x18",
     "internal_sku": "SP-ML-81-Grace6x18",
-    "variant_name": "Grace 6\u00d718",
+    "variant_name": "Grace 6×18",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 45.0,
@@ -10622,7 +10622,7 @@
    {
     "vendor_sku": "ML-81-Grace6x6Corner(D)",
     "internal_sku": "SP-ML-81-Grace6x6Corner-D",
-    "variant_name": "Grace 6\u00d76 Corner",
+    "variant_name": "Grace 6×6 Corner",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 16.17,
@@ -10664,7 +10664,7 @@
    {
     "vendor_sku": "ML-82-Carolina5x18(D)",
     "internal_sku": "SP-ML-82-Carolina5x18-D",
-    "variant_name": "Carolina 5\u00d718",
+    "variant_name": "Carolina 5×18",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 20.02,
@@ -10678,7 +10678,7 @@
    {
     "vendor_sku": "ML-82-Carolina6x18",
     "internal_sku": "SP-ML-82-Carolina6x18",
-    "variant_name": "Carolina 6\u00d718",
+    "variant_name": "Carolina 6×18",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 41.0,
@@ -10692,7 +10692,7 @@
    {
     "vendor_sku": "ML-82-Carolina6x6Corner(D)",
     "internal_sku": "SP-ML-82-Carolina6x6Corner-D",
-    "variant_name": "Carolina 6\u00d76 Corner",
+    "variant_name": "Carolina 6×6 Corner",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10706,7 +10706,7 @@
    {
     "vendor_sku": "ML-83-Casablanca6x18(D)",
     "internal_sku": "SP-ML-83-Casablanca6x18-D",
-    "variant_name": "Casablanca 6\u00d718",
+    "variant_name": "Casablanca 6×18",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 31.96,
@@ -10720,7 +10720,7 @@
    {
     "vendor_sku": "ML-83-Casablanca6x6Corner(D)",
     "internal_sku": "SP-ML-83-Casablanca6x6Corner-D",
-    "variant_name": "Casablanca 6\u00d76 Corner",
+    "variant_name": "Casablanca 6×6 Corner",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 13.86,
@@ -10882,7 +10882,7 @@
    {
     "vendor_sku": "MSL-21-Corner-P(D)",
     "internal_sku": "SP-MSL-21-Corner-P-D",
-    "variant_name": "Design 21 4\u00d74 Corner",
+    "variant_name": "Design 21 4×4 Corner",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 3.47,
@@ -10910,7 +10910,7 @@
    {
     "vendor_sku": "MSL-50CM-Corner-P(D)",
     "internal_sku": "SP-MSL-50CM-Corner-P-D",
-    "variant_name": "Design 50 4\u00d74 Corner",
+    "variant_name": "Design 50 4×4 Corner",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 3.47,
@@ -10994,7 +10994,7 @@
    {
     "vendor_sku": "MSL-79-Aroma-Corner-P(D)",
     "internal_sku": "SP-MSL-79-Aroma-Corner-P-D",
-    "variant_name": "Aroma 4\u00d74 Corner",
+    "variant_name": "Aroma 4×4 Corner",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 3.47,
@@ -11050,7 +11050,7 @@
    {
     "vendor_sku": "MSL-Olympus-Corner-P(D)",
     "internal_sku": "SP-MSL-Olympus-Corner-P-D",
-    "variant_name": "Olympus 4\u00d74 Corner",
+    "variant_name": "Olympus 4×4 Corner",
     "sell_by": "unit",
     "variant_type": null,
     "cost": 3.47,
