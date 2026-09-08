@@ -1109,7 +1109,18 @@ function renderStaticPage(page) {
   const p = pages[page] || pages.home;
   const canonicalUrl = SITE_URL + p.path;
 
-  const jsonLd = page === 'home' ? {
+  const jsonLd = page === 'home' ? [{
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Roma Flooring Designs',
+    alternateName: 'Roma Flooring',
+    url: SITE_URL,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: { '@type': 'EntryPoint', urlTemplate: SITE_URL + '/shop?search={search_term_string}' },
+      'query-input': 'required name=search_term_string'
+    }
+  }, {
     '@context': 'https://schema.org',
     '@type': 'HomeGoodsStore',
     name: 'Roma Flooring Designs',
@@ -1135,7 +1146,7 @@ function renderStaticPage(page) {
       { '@type': 'OpeningHoursSpecification', dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday'], opens: '09:00', closes: '17:00' },
       { '@type': 'OpeningHoursSpecification', dayOfWeek: 'Saturday', opens: '10:00', closes: '15:00' }
     ]
-  } : {
+  }] : {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
     name: p.title,
