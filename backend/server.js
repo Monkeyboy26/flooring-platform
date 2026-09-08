@@ -333,6 +333,9 @@ app.get('/api/img', imgLimiter, async (req, res) => {
     // Some feeds store URLs with literal spaces / non-ASCII (Elysium);
     // Node's fetch rejects those. A literal space means the URL was never
     // %-encoded, so encodeURI is safe here (no double-encoding).
+    // Decode entity-encoded ampersands first (Roca "dolce&amp;vita") \u2014 encodeURI
+    // leaves the literal "amp;" in place and corrupts the path.
+    if (url.includes('&amp;')) url = url.replace(/&amp;/gi, '&');
     if (/[ \u0080-\uffff]/.test(url)) url = encodeURI(url);
 
     const w = Math.min(parseInt(req.query.w) || 800, 2400);
