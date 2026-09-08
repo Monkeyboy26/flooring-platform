@@ -866,9 +866,27 @@ export async function downloadImage(imageUrl, destPath) {
  * Uses separate partial unique indexes for SKU-level vs product-level images.
  * Returns { id, is_new }.
  */
+/**
+ * Normalize an image URL so it actually resolves.
+ * Decodes the HTML-entity ampersand ("&amp;" → "&") that leaks in from scraped
+ * href/src attributes (e.g. Roca "dolce&amp;vita" paths) — the literal "amp;"
+ * corrupts the path and neither the /api/img proxy nor the broken-image checker
+ * fix it (both only encodeURI). Spaces / non-ASCII are deliberately left alone:
+ * the proxy and checker already encodeURI those at fetch time, and pre-encoding
+ * a space to %20 here would let that downstream encodeURI double-encode it
+ * (%20 → %2520) and break the URL.
+ */
+export function normalizeImageUrl(url) {
+  if (!url || typeof url !== 'string') return url;
+  return url.replace(/&amp;/gi, '&');
+}
+
 export async function upsertMediaAsset(pool, { product_id, sku_id, asset_type, url, original_url, sort_order }) {
   // Always use HTTPS for image URLs
   if (url && url.startsWith('http://')) url = url.replace('http://', 'https://');
+  // Decode entity ampersands so the stored URL resolves.
+  url = normalizeImageUrl(url);
+  if (original_url) original_url = normalizeImageUrl(original_url);
   const at = asset_type || 'primary';
   const so = sort_order || 0;
   const ou = original_url || null;

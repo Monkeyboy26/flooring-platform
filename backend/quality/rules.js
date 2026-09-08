@@ -979,6 +979,9 @@ async function checkUrl(url) {
   // Node's fetch rejects those outright, which read as "timeout/unreachable"
   // false positives. Encode only clearly-unencoded URLs (a literal space means
   // it isn't %-encoded already, so encodeURI can't double-encode).
+  // Decode entity ampersands first (Roca "dolce&amp;vita") \u2014 encodeURI leaves
+  // the literal "amp;" and the corrupted path 404s as a false positive.
+  if (url.includes('&amp;')) url = url.replace(/&amp;/gi, '&');
   if (/[ \u0080-\uffff]/.test(url)) url = encodeURI(url);
   for (const method of ['HEAD', 'GET']) {
     try {

@@ -718,10 +718,17 @@ function finalizeItem(item) {
     item.sell_by = 'unit';
   }
 
-  // Detect accessories by name/category keywords
+  // Detect accessories/sundries by name/category keywords. These ship on SF/SY
+  // EDI lines (→ sell_by 'box' at UOM time above) but are sold PER PIECE/EACH:
+  // engineered-stone corners (mixed sizes, no coverage), cove base / SBN strips,
+  // membranes & lath rolls, backerboard, trowels/fur-nail, adhesive pints. A
+  // box/per_sqft accessory with no sqft_per_box breaks the coverage calculator,
+  // so FORCE unit here (not gated on !sell_by — the whole point is to correct a
+  // wrongly-inferred 'box').
   const nameAndCat = `${item.product_name || ''} ${item.category || ''}`.toLowerCase();
-  if (/trim|bullnose|quarter\s*round|grout|caulk|setting\s*material|mortar|adhesive|sealant|membrane|pencil\s*liner|chair\s*rail|v-cap|mud\s*cap|jolly|schluter/i.test(nameAndCat)) {
-    if (!item.sell_by) item.sell_by = 'unit';
+  if (/trim|bullnose|\bsbn\b|cove\s*base|\bcorner\b|quarter\s*round|grout|caulk|setting\s*material|mortar|adhesive|sealant|remover|membrane|\blath\b|pan\s*liner|backer\s*board|\bxboard\b|floor\s*shell|fur\s*nail|pencil\s*liner|chair\s*rail|v-cap|mud\s*cap|jolly|schluter/i.test(nameAndCat)) {
+    item.sell_by = 'unit';
+    if (item.sqft_per_box) item.sqft_per_box = null;
   }
 }
 

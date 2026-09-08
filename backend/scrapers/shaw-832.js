@@ -789,6 +789,12 @@ function finalizeItem(item) {
       const uom = (widthMea.unit_of_measure || '').toUpperCase();
       item.roll_width_ft = (uom === 'IN' || w > 24) ? w / 12 : w;
     }
+    // Broadloom carpet almost always ships 12ft wide; when the EDI feed omits
+    // the WD measurement, default to the US standard so the roll/cut calculator
+    // has a width to work with (a NULL width silently breaks the cut math).
+    if (!item.roll_width_ft && item.sell_by === 'roll') {
+      item.roll_width_ft = 12;
+    }
 
     // Roll length from MEA**LN (125ft, 150ft, etc.)
     const lengthMea = item.measurements.find(m => m.qualifier === 'LN');
