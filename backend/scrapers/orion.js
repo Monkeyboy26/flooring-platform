@@ -713,8 +713,17 @@ export async function fixOrionBorrowedImages(pool, vendorId) {
     const bt = new Set(imgTokens(a.url));
     if (bt.size === 0) continue;
     const selfT = pTokens.get(a.product_id) || new Set();
-    const selfMatch = selfT.size > 0 && [...selfT].every(t => bt.has(t));
-    if (selfMatch) continue;
+    // Keep if the image plausibly belongs to THIS product, either direction:
+    //   • superset — filename carries all of the product's name tokens; or
+    //   • subset   — every filename token appears in the product's name.
+    // The subset case matters for multi-word products whose files are named by
+    // the distinctive part only (e.g. "CARRARA-7.jpg" on "Marmorea Carrara"):
+    // without it, a shorter-named sibling ("Carrara") wrongly steals+deletes them.
+    // A genuine wrong-color file (e.g. "MONTCLAIR-BLANCO" on "Montclair Ivory")
+    // is neither subset nor superset, so it is still caught below.
+    const selfSuperset = selfT.size > 0 && [...selfT].every(t => bt.has(t));
+    const selfSubset = [...bt].every(t => selfT.has(t));
+    if (selfSuperset || selfSubset) continue;
     for (const p of prods) {
       if (p.id === a.product_id) continue;
       const ot = pTokens.get(p.id);
