@@ -390,11 +390,11 @@ function buildSeoHtml({ title, description, canonicalUrl, ogImage, ogType, robot
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="${robots}">
-  <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="icon" href="/favicon.ico?v=2" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=2">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png?v=2">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png?v=2">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png?v=2">
   <title>${safeTitle}</title>
   <meta name="description" content="${safeDesc}">
   ${canonicalTag}
