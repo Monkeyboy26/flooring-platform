@@ -32451,6 +32451,51 @@ cron.schedule('0 8 * * *', async () => {
   } catch (err) { console.error('[Accounting] Overdue cron error:', err.message); }
 });
 
+// --- Nightly SEO maintenance cron (3:30am) ---
+// Runs the idempotent scripts/seo/* jobs in their own processes (each manages its
+// own pg pool + pool.end(), so they can't be imported into this long-lived process).
+// Sequenced: recompute facet pages → fill unique content for anything NEW →
+// audit. Bounded --limit keeps a big catalog swing from exhausting the OpenAI
+// daily request cap in one night; the backlog drains over subsequent nights.
+function runSeoScript(script, args = []) {
+  return new Promise((resolve) => {
+    const child = spawn('node', [`scripts/seo/${script}`, ...args], { cwd: process.cwd() });
+    let out = '';
+    const cap = d => { out += d.toString(); };
+    child.stdout.on('data', cap);
+    child.stderr.on('data', cap);
+    child.on('close', code => {
+      const tail = out.trim().split('\n').filter(Boolean).slice(-2).join(' | ');
+      console.log(`[SEO cron] ${script} exit=${code} :: ${tail}`);
+      resolve(code);
+    });
+    child.on('error', err => { console.error(`[SEO cron] ${script} spawn error: ${err.message}`); resolve(-1); });
+  });
+}
+
+let seoCronRunning = false;
+cron.schedule('30 3 * * *', async () => {
+  // Prod-only (like the scraper scheduler): these call OpenAI + write content, so
+  // they must not fire on a dev machine. Override locally with ENABLE_SCHEDULER=1.
+  if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_SCHEDULER !== '1') return;
+  if (seoCronRunning) { console.log('[SEO cron] previous run still active — skipping'); return; }
+  seoCronRunning = true;
+  console.log('[SEO cron] nightly SEO maintenance starting');
+  try {
+    await runSeoScript('build-landing-pages.mjs');                                       // recompute counts/indexability
+    await runSeoScript('generate-landing-content.mjs', ['--limit', '800', '--concurrency', '4']); // new facet pages
+    await runSeoScript('generate-category-content.mjs', ['--concurrency', '4']);         // new categories (skips populated)
+    await runSeoScript('generate-product-content.mjs', ['--limit', '800', '--concurrency', '4']); // incremental new products
+    const auditCode = await runSeoScript('seo-content-monitor.mjs');                     // thin/dup/orphan audit
+    if (auditCode > 0) console.error(`[SEO cron] ⚠ content monitor HARD breach (exit ${auditCode}) — investigate indexable thin/duplicate pages`);
+    console.log('[SEO cron] nightly SEO maintenance done');
+  } catch (err) {
+    console.error('[SEO cron] error:', err.message);
+  } finally {
+    seoCronRunning = false;
+  }
+});
+
 // --- Bills (AP) ---
 async function getNextBillNumber() {
   const result = await pool.query("SELECT internal_bill_number FROM bills ORDER BY created_at DESC LIMIT 1");
