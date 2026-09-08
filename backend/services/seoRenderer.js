@@ -348,6 +348,11 @@ function buildSeoHtml({ title, description, canonicalUrl, ogImage, ogType, robot
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="${robots}">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <title>${safeTitle}</title>
   <meta name="description" content="${safeDesc}">
   ${canonicalTag}
@@ -761,6 +766,7 @@ function installationBusinessNode() {
     '@id': BUSINESS_ID,
     name: 'Roma Flooring Designs',
     url: SITE_URL + '/installation',
+    logo: SITE_URL + '/icons/logo-512.png',
     telephone: '(714) 999-0009',
     priceRange: '$$',
     image: SITE_URL + '/uploads/og-default.jpg',
@@ -863,6 +869,7 @@ function customAccessoriesJsonLd() {
     '@id': BUSINESS_ID,
     name: 'Roma Flooring Designs',
     url: SITE_URL + '/custom-accessories',
+    logo: SITE_URL + '/icons/logo-512.png',
     telephone: '(714) 999-0009',
     priceRange: '$$',
     image: SITE_URL + '/uploads/og-default.jpg',
@@ -938,7 +945,7 @@ const RUG_FAQ = [
 function rugsJsonLd() {
   const business = {
     '@type': 'HomeAndConstructionBusiness', '@id': BUSINESS_ID, name: 'Roma Flooring Designs',
-    url: SITE_URL + '/custom-area-rugs', telephone: '(714) 999-0009', priceRange: '$$', image: SITE_URL + '/uploads/og-default.jpg',
+    url: SITE_URL + '/custom-area-rugs', logo: SITE_URL + '/icons/logo-512.png', telephone: '(714) 999-0009', priceRange: '$$', image: SITE_URL + '/uploads/og-default.jpg',
     address: { '@type': 'PostalAddress', streetAddress: '1440 S. State College Blvd #6M', addressLocality: 'Anaheim', addressRegion: 'CA', postalCode: '92806', addressCountry: 'US' },
     geo: { '@type': 'GeoCoordinates', latitude: 33.8271, longitude: -117.8827 },
     areaServed: { '@type': 'AdministrativeArea', name: 'Orange County' },
@@ -1003,7 +1010,7 @@ const CAB_FAQ = [
 function cabinetsJsonLd() {
   const business = {
     '@type': 'HomeAndConstructionBusiness', '@id': BUSINESS_ID, name: 'Roma Flooring Designs',
-    url: SITE_URL + '/cabinets', telephone: '(714) 999-0009', priceRange: '$$', image: SITE_URL + '/uploads/og-default.jpg',
+    url: SITE_URL + '/cabinets', logo: SITE_URL + '/icons/logo-512.png', telephone: '(714) 999-0009', priceRange: '$$', image: SITE_URL + '/uploads/og-default.jpg',
     address: { '@type': 'PostalAddress', streetAddress: '1440 S. State College Blvd #6M', addressLocality: 'Anaheim', addressRegion: 'CA', postalCode: '92806', addressCountry: 'US' },
     geo: { '@type': 'GeoCoordinates', latitude: 33.8271, longitude: -117.8827 },
     areaServed: { '@type': 'AdministrativeArea', name: 'Orange County' },
@@ -1091,6 +1098,8 @@ function renderStaticPage(page) {
     '@type': 'HomeGoodsStore',
     name: 'Roma Flooring Designs',
     url: SITE_URL,
+    logo: SITE_URL + '/icons/logo-512.png',
+    image: SITE_URL + '/icons/logo-512.png',
     telephone: '(714) 999-0009',
     priceRange: '$$',
     address: {

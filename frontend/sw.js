@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roma-v440';
+const CACHE_NAME = 'roma-v441';
 const IMAGE_CACHE = 'roma-images-v9';
 const IMAGE_CACHE_LIMIT = 2000;
 const SHELL_ASSETS = [
@@ -9,7 +9,10 @@ const SHELL_ASSETS = [
   // depends on a third-party CDN being reachable (see storefront.html).
   '/vendor/react-18.3.1.production.min.js',
   '/vendor/react-dom-18.3.1.production.min.js',
+  '/favicon.ico',
   '/favicon.svg',
+  '/icons/favicon-32.png',
+  '/icons/favicon-16.png',
   '/manifest.json'
 ];
 
