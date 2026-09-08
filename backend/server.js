@@ -32489,7 +32489,7 @@ cron.schedule('0 8 * * *', async () => {
 // Sequenced: recompute facet pages → fill unique content for anything NEW →
 // audit. Bounded --limit keeps a big catalog swing from exhausting the OpenAI
 // daily request cap in one night; the backlog drains over subsequent nights.
-function runSeoScript(script, args = []) {
+function runSeoScript(script, args = [], { logFull = false } = {}) {
   return new Promise((resolve) => {
     const child = spawn('node', [`scripts/seo/${script}`, ...args], { cwd: process.cwd() });
     let out = '';
@@ -32497,8 +32497,13 @@ function runSeoScript(script, args = []) {
     child.stdout.on('data', cap);
     child.stderr.on('data', cap);
     child.on('close', code => {
-      const tail = out.trim().split('\n').filter(Boolean).slice(-2).join(' | ');
-      console.log(`[SEO cron] ${script} exit=${code} :: ${tail}`);
+      if (logFull) {
+        // Report-style scripts (the GSC snapshot) — keep the whole output in the log.
+        console.log(`[SEO cron] ${script} exit=${code}\n${out.trim().split('\n').map(l => `[SEO cron]   ${l}`).join('\n')}`);
+      } else {
+        const tail = out.trim().split('\n').filter(Boolean).slice(-2).join(' | ');
+        console.log(`[SEO cron] ${script} exit=${code} :: ${tail}`);
+      }
       resolve(code);
     });
     child.on('error', err => { console.error(`[SEO cron] ${script} spawn error: ${err.message}`); resolve(-1); });
@@ -32520,6 +32525,10 @@ cron.schedule('30 3 * * *', async () => {
     await runSeoScript('generate-product-content.mjs', ['--limit', '800', '--concurrency', '4']); // incremental new products
     const auditCode = await runSeoScript('seo-content-monitor.mjs');                     // thin/dup/orphan audit
     if (auditCode > 0) console.error(`[SEO cron] ⚠ content monitor HARD breach (exit ${auditCode}) — investigate indexable thin/duplicate pages`);
+    // Daily GSC indexation snapshot (read-only). Exits 2 with a setup message if no
+    // credentials are configured — harmless, just logged. Full output kept in the log
+    // so the facet/product/category clusters are visible day-over-day.
+    await runSeoScript('gsc-dashboard.mjs', [], { logFull: true });
     console.log('[SEO cron] nightly SEO maintenance done');
   } catch (err) {
     console.error('[SEO cron] error:', err.message);
