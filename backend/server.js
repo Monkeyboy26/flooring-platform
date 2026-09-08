@@ -34566,6 +34566,51 @@ async function runMigrations() {
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
+
+  // SEO Phase 0 — content-engine + landing-page columns/table. Idempotent and
+  // additive; runs on boot so the SEO renderer's new-column reads are always safe
+  // (deploy order vs. a manual migration no longer matters). Mirrors
+  // database/migrations/2026-09-07-seo-phase0.sql.
+  try {
+    await pool.query(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS meta_title TEXT`);
+    await pool.query(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS meta_description TEXT`);
+    await pool.query(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS intro_html TEXT`);
+    await pool.query(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS footer_html TEXT`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_title TEXT`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_description TEXT`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS seo_h1 TEXT`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS content_html TEXT`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS content_status VARCHAR(20) NOT NULL DEFAULT 'none'`);
+    await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS content_hash TEXT`);
+    await pool.query(`DO $$ BEGIN
+      ALTER TABLE products ADD CONSTRAINT products_content_status_check
+        CHECK (content_status IN ('none','generated','reviewed'));
+    EXCEPTION WHEN duplicate_object THEN NULL; END $$`);
+    await pool.query(`ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS alt_text TEXT`);
+    await pool.query(`CREATE TABLE IF NOT EXISTS landing_pages (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      type VARCHAR(30) NOT NULL CHECK (type IN ('facet','material','brand','room','guide')),
+      slug TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      h1 TEXT,
+      meta_title TEXT,
+      meta_description TEXT,
+      intro_html TEXT,
+      footer_html TEXT,
+      filter_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+      is_indexable BOOLEAN NOT NULL DEFAULT false,
+      product_count INTEGER NOT NULL DEFAULT 0,
+      content_status VARCHAR(20) NOT NULL DEFAULT 'none' CHECK (content_status IN ('none','generated','reviewed')),
+      content_hash TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_landing_pages_type ON landing_pages(type)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_landing_pages_indexable ON landing_pages(is_indexable) WHERE is_indexable = true`);
+    console.log('Migrations: SEO Phase 0 columns + landing_pages applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
 }
 
 // ==================== Email Template Preview (Dev Only) ====================
