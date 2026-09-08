@@ -3704,6 +3704,12 @@
         const path = rawPath.length > 1 && rawPath.endsWith('/') ? rawPath.slice(0, -1) : rawPath;
         const sp = new URLSearchParams(window.location.search);
 
+        // Reset page-level indexability on every navigation; the landing-page branch
+        // below re-applies noindex for non-indexable facet pages. Without this, a
+        // noindex set on one SPA route would leak onto the next.
+        const _robotsBase = document.querySelector('meta[name="robots"]:not([data-paginated])');
+        if (_robotsBase) _robotsBase.setAttribute('content', 'index, follow');
+
         if (sp.get('payment_intent') && sp.get('redirect_status') && sessionStorage.getItem('klarna_pending')) {
           // Returned from Klarna's hosted authorization page
           finalizeKlarnaOrder(sp.get('payment_intent'), sp.get('redirect_status'));
@@ -3791,6 +3797,52 @@
           setView('custom-accessories');
         } else if (path === '/custom-area-rugs') {
           setView('custom-area-rugs');
+        } else if (/^\/shop\/[^/]+\/[^/]+/.test(path) && !path.startsWith('/shop/sku/')) {
+          // Canonical slug product URL: /shop/{categorySlug}/{productSlug}
+          // The server prerenders these for crawlers + lists them in the sitemap; when a
+          // real user lands here (organic click, shared link) the SPA must resolve the
+          // slug pair to a SKU. Without this branch these URLs fell through to the /shop
+          // catch-all below and rendered the browse grid — a broken PDP for every organic visit.
+          const segs = path.replace(/^\/shop\//, '').split('/');
+          const catSlug = segs[0];
+          const prodSlug = (segs[1] || '').split('?')[0];
+          setView('detail');
+          setSelectedSkuId(null); // show the resolving loader, not a stale product
+          fetch(API + '/api/storefront/products/' + encodeURIComponent(catSlug) + '/' + encodeURIComponent(prodSlug))
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(d => {
+              if (d && d.resolve_sku_id) setSelectedSkuId(d.resolve_sku_id);
+              else { setView('browse'); fetchSkus({ activeFilters: {}, tags: [], page: 1 }); }
+            })
+            .catch(() => { setView('browse'); fetchSkus({ activeFilters: {}, tags: [], page: 1 }); });
+        } else if (/^\/shop\/[^/]+(\?.*)?$/.test(path) && !path.startsWith('/shop/sku/')) {
+          // Single-segment /shop/{slug}: programmatic facet landing page (Phase 2).
+          // Two-segment product URLs are handled above; here we resolve the landing
+          // page, render browse with its stored filter applied, and mirror the
+          // crawler-facing seoRenderer's canonical + indexation (noindex when gated).
+          const landingSlug = path.replace(/^\/shop\//, '').split(/[/?]/)[0];
+          setView('browse');
+          fetch(API + '/api/storefront/landing/' + encodeURIComponent(landingSlug))
+            .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(lp => {
+              const filter = lp.filter_json || {};
+              const cat = filter.category || null;
+              const af = {};
+              for (const [k, v] of Object.entries(filter.attributes || {})) af[k] = [v];
+              if (cat) setSelectedCategory(cat);
+              if (Object.keys(af).length) setFilters(af);
+              setCurrentPage(1);
+              fetchSkus({ cat, activeFilters: af, tags: [], page: 1 });
+              fetchFacets({ cat, activeFilters: af, tags: [] });
+              const title = (lp.meta_title && lp.meta_title.trim()) ? lp.meta_title.trim() : ((lp.title || 'Shop') + ' | Roma Flooring Designs');
+              const desc = (lp.meta_description && lp.meta_description.trim())
+                ? lp.meta_description.trim()
+                : ('Shop ' + (lp.product_count || '') + ' ' + (lp.title || '').toLowerCase() + ' options at Roma Flooring Designs.').replace(/\s+/g, ' ').trim();
+              updateSEO({ title, description: desc, url: SITE_URL + '/shop/' + lp.slug, image: '' });
+              const robots = document.querySelector('meta[name="robots"]:not([data-paginated])');
+              if (robots) robots.setAttribute('content', lp.is_indexable ? 'index, follow' : 'noindex, follow');
+            })
+            .catch(() => { fetchSkus({ activeFilters: {}, tags: [], page: 1 }); });
         } else if (path === '/shop' || path.startsWith('/shop')) {
           // Browse view
           setView('browse');
@@ -4086,6 +4138,14 @@
               onBrandClick={handleBrandClick}
               onCategoryClick={(slug) => { if (slug) { handleCategorySelect(slug); setView('browse'); window.scrollTo(0, 0); } }}
             />
+          )}
+
+          {/* Slug product URL is resolving to a SKU (see applyLocation): SkuDetailView needs
+              a skuId to mount, so show a neutral loader instead of a blank screen. */}
+          {view === 'detail' && !selectedSkuId && (
+            <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--stone-500)' }}>
+              <div className="spinner" aria-label="Loading product" />
+            </div>
           )}
 
           {view === 'cart' && (
@@ -7280,10 +7340,29 @@
               addRecentlyViewed({ sku_id: data.sku.sku_id, product_name: data.sku.product_name, variant_name: data.sku.variant_name, primary_image: (data.media && data.media[0]) ? data.media[0].url : null, retail_price: data.sku.retail_price, cut_price: data.sku.cut_price, price_basis: data.sku.price_basis, sell_by: data.sku.sell_by, sqft_per_box: data.sku.sqft_per_box });
             }
             if (data.sku) {
-              const skuTitle = fullProductName(data.sku) + ' | Roma Flooring Designs';
-              const skuDesc = cleanDescription(data.sku.description_short, data.sku.brand_name || data.sku.vendor_name) || ('Premium ' + data.sku.product_name + ' from Roma Flooring Designs');
+              // Prefer stored SEO fields (Phase 1 content engine) when present; else derive.
+              const skuTitle = (data.sku.seo_meta_title && data.sku.seo_meta_title.trim())
+                ? data.sku.seo_meta_title.trim()
+                : fullProductName(data.sku) + ' | Roma Flooring Designs';
+              const skuDesc = (data.sku.seo_meta_description && data.sku.seo_meta_description.trim())
+                ? data.sku.seo_meta_description.trim()
+                : (cleanDescription(data.sku.description_short, data.sku.brand_name || data.sku.vendor_name) || ('Premium ' + data.sku.product_name + ' from Roma Flooring Designs'));
               const skuImage = (data.media && data.media[0]) ? data.media[0].url : null;
-              updateSEO({ title: skuTitle, description: skuDesc, url: SITE_URL + '/shop/sku/' + skuId, image: skuImage });
+              // Canonicalize to the slug URL the server prerenders + sitemaps. Cards and
+              // variant pills navigate via /shop/sku/{id} (they only carry a sku id); once
+              // the SKU loads (it carries category_slug + product_slug) rewrite the address
+              // bar and all SEO tags to /shop/{categorySlug}/{productSlug} so the client
+              // canonical matches the server canonical. No-op when already on the slug URL.
+              const canonUrl = (data.sku.category_slug && data.sku.product_slug)
+                ? SITE_URL + '/shop/' + data.sku.category_slug + '/' + data.sku.product_slug
+                : SITE_URL + '/shop/sku/' + skuId;
+              if (data.sku.category_slug && data.sku.product_slug) {
+                const canonPath = '/shop/' + data.sku.category_slug + '/' + data.sku.product_slug;
+                if (window.location.pathname !== canonPath) {
+                  history.replaceState({ view: 'detail', skuId }, '', canonPath);
+                }
+              }
+              updateSEO({ title: skuTitle, description: skuDesc, url: canonUrl, image: skuImage });
               // Fetch reviews for this product
               fetch(API + '/api/storefront/products/' + data.sku.product_id + '/reviews')
                 .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -7329,13 +7408,16 @@
         if (!sku) return;
         const skuDesc = cleanDescription(sku.description_short, sku.brand_name || sku.vendor_name) || ('Premium ' + sku.product_name + ' from Roma Flooring Designs');
         const skuImage = (media && media[0]) ? media[0].url : null;
+        const canonUrl = (sku.category_slug && sku.product_slug)
+          ? SITE_URL + '/shop/' + sku.category_slug + '/' + sku.product_slug
+          : SITE_URL + '/shop/sku/' + skuId;
         const product = {
           '@type': 'Product', name: sku.product_name, description: skuDesc, image: skuImage,
           sku: sku.sku_code || String(sku.sku_id),
           mpn: sku.sku_code || '',
           brand: { '@type': 'Brand', name: sku.brand_name || sku.vendor_name || 'Roma Flooring Designs' },
           category: sku.category_name || '',
-          offers: { '@type': 'Offer', url: SITE_URL + '/shop/sku/' + skuId, priceCurrency: 'USD',
+          offers: { '@type': 'Offer', url: canonUrl, priceCurrency: 'USD',
             price: displayPrice(sku, sku.sale_price || skuListPrice(sku)).toFixed(2),
             availability: sku.stock_status === 'in_stock' ? 'https://schema.org/InStock' : 'https://schema.org/PreOrder',
             seller: { '@type': 'Organization', name: 'Roma Flooring Designs' } }
@@ -7349,7 +7431,7 @@
             { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
             { '@type': 'ListItem', position: 2, name: 'Shop', item: SITE_URL + '/shop' },
             sku.category_name ? { '@type': 'ListItem', position: 3, name: sku.category_name, item: SITE_URL + '/shop?category=' + (sku.category_slug || '') } : null,
-            { '@type': 'ListItem', position: sku.category_name ? 4 : 3, name: sku.product_name, item: SITE_URL + '/shop/sku/' + skuId }
+            { '@type': 'ListItem', position: sku.category_name ? 4 : 3, name: sku.product_name, item: canonUrl }
           ].filter(Boolean) }
         ]});
       }, [sku, media, avgRating, reviewCount]);
