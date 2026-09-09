@@ -16922,7 +16922,7 @@
           <article className="guide">
             <h1>{g.h1 || g.title}</h1>
             {g.intro_html ? <div className="guide-intro" dangerouslySetInnerHTML={{ __html: g.intro_html }} /> : null}
-            {isCalc ? <p><em>Interactive estimator coming soon — <a href="/installation" onClick={e => { e.preventDefault(); navigate('/installation'); }}>request a free estimate</a> for exact pricing.</em></p> : null}
+            {isCalc ? <CostCalculator /> : null}
             {g.content_html ? <div className="guide-body" dangerouslySetInnerHTML={{ __html: g.content_html }} /> : null}
             {faq.length ? <div className="guide-faq"><h2>Frequently Asked Questions</h2>{faq.map((f, i) => <div key={i}><h3>{f.question || f.q}</h3><p>{f.answer || f.a}</p></div>)}</div> : null}
             {(g.related_cats || []).length ? <div className="guide-related"><h2>Shop Related</h2><p>{g.related_cats.map((c, i) => <React.Fragment key={c.slug}>{i > 0 ? ' · ' : ''}<a href={'/shop?category=' + c.slug} onClick={e => { e.preventDefault(); navigate('/shop?category=' + c.slug); }}>{c.name}</a></React.Fragment>)}</p></div> : null}
