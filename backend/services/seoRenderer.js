@@ -100,6 +100,11 @@ function parsePath(reqPath, query) {
   const localMatch = path.match(/^\/flooring-installation\/([a-z0-9-]+)$/);
   if (localMatch) return { type: 'local', slug: localMatch[1] };
 
+  // /guides + /guides/{slug} — pillar buying guides (Phase 4 authority content)
+  if (path === '/guides') return { type: 'guides-index' };
+  const guideMatch = path.match(/^\/guides\/([a-z0-9-]+)$/);
+  if (guideMatch) return { type: 'guide', slug: guideMatch[1] };
+
   return { type: 'unknown' };
 }
 
@@ -1524,6 +1529,103 @@ function renderLocalPage(city, row) {
   return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd, bodyContent };
 }
 
+// ==================== Pillar guides (Phase 4 authority content) ====================
+// Curated /guides/{slug} rows (type='guide', minted by build-guides.mjs). renderGuidePage
+// emits Article + FAQPage + BreadcrumbList JSON-LD and links into money pages (categories).
+async function fetchGuideBySlug(pool, slug) {
+  const res = await pool.query(
+    `SELECT slug, title, h1, meta_title, meta_description, intro_html, content_html, footer_html, filter_json
+     FROM landing_pages WHERE type = 'guide' AND slug = $1`, [slug]);
+  if (!res.rows.length) return null;
+  const g = res.rows[0];
+  const related = (g.filter_json && g.filter_json.related) || [];
+  if (related.length) {
+    try {
+      const cats = await pool.query(`SELECT slug, name FROM categories WHERE slug = ANY($1) AND is_active = true`, [related]);
+      const byslug = Object.fromEntries(cats.rows.map(r => [r.slug, r.name]));
+      g.related_cats = related.map(s => ({ slug: s, name: byslug[s] || s.replace(/-/g, ' ') })).filter(c => byslug[c.slug]);
+    } catch { g.related_cats = []; }
+  } else g.related_cats = [];
+  return g;
+}
+
+function renderGuidePage(g) {
+  const fj = g.filter_json || {};
+  const canonicalUrl = `${SITE_URL}/guides/${g.slug}`;
+  const title = (g.meta_title && g.meta_title.trim()) ? g.meta_title.trim() : `${g.title} | Roma Flooring Designs`;
+  const description = (g.meta_description && g.meta_description.trim())
+    ? g.meta_description.trim()
+    : `${g.title} — expert flooring & tile buying advice from Roma Flooring Designs.`;
+  const h1 = g.h1 || g.title;
+  const faq = Array.isArray(fj.faq) ? fj.faq.map(x => Array.isArray(x) ? { q: x[0], a: x[1] } : x).filter(x => x && x.q && x.a) : [];
+
+  const jsonLd = { '@context': 'https://schema.org', '@graph': [
+    { '@type': 'Article', headline: g.title, description, mainEntityOfPage: canonicalUrl,
+      author: { '@type': 'Organization', name: 'Roma Flooring Designs', url: SITE_URL + '/' },
+      publisher: { '@type': 'Organization', name: 'Roma Flooring Designs', logo: { '@type': 'ImageObject', url: SITE_URL + '/icons/logo-512.png' } } },
+    ...(faq.length ? [{ '@type': 'FAQPage', mainEntity: faq.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }] : []),
+    { '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Guides', item: SITE_URL + '/guides' },
+      { '@type': 'ListItem', position: 3, name: g.title, item: canonicalUrl } ] }
+  ]};
+
+  const introHtml = (g.intro_html && g.intro_html.trim()) ? g.intro_html : `<p>${escapeHtml(g.title)} — a practical buying guide from Roma Flooring Designs.</p>`;
+  const contentHtml = (g.content_html && g.content_html.trim()) ? g.content_html : '';
+  const faqHtml = faq.length ? `<h2>Frequently Asked Questions</h2>${faq.map(f => `<h3>${escapeHtml(f.q)}</h3><p>${escapeHtml(f.a)}</p>`).join('')}` : '';
+  const relatedHtml = (g.related_cats && g.related_cats.length)
+    ? `<h2>Shop Related</h2><p>${g.related_cats.map(c => `<a href="/shop?category=${escapeHtml(c.slug)}">${escapeHtml(c.name)}</a>`).join(' &middot; ')}</p>`
+    : '';
+  const footerHtml = (g.footer_html && g.footer_html.trim()) ? `<section class="guide-footer">${g.footer_html}</section>` : '';
+  const calcNote = fj.kind === 'calculator' ? `<p><em>Use the interactive estimator on this page, or <a href="/installation">request a free estimate</a> for exact pricing.</em></p>` : '';
+
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/guides">Guides</a></li><li>${escapeHtml(g.title)}</li></ol></nav>
+    <article class="guide">
+      <h1>${escapeHtml(h1)}</h1>
+      <section class="guide-intro">${introHtml}</section>
+      ${contentHtml}
+      ${calcNote}
+      ${faqHtml}
+      ${relatedHtml}
+      ${footerHtml}
+      <p><a href="/guides">All guides</a> &middot; <a href="/shop">Shop flooring</a> &middot; <a href="/installation">Flooring installation</a></p>
+    </article>`;
+  return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd, bodyContent };
+}
+
+async function fetchGuidesIndex(pool) {
+  try {
+    const res = await pool.query(
+      `SELECT slug, title, meta_description FROM landing_pages
+       WHERE type = 'guide' AND is_indexable = true ORDER BY title`);
+    return res.rows;
+  } catch { return []; }
+}
+
+function renderGuidesIndex(guides) {
+  const canonicalUrl = SITE_URL + '/guides';
+  const title = 'Flooring & Tile Buying Guides | Roma Flooring Designs';
+  const description = 'Expert flooring and tile buying guides — how to choose porcelain tile, LVP vs laminate, hardwood finishes, waterproof flooring, cost estimates, and more.';
+  const jsonLd = { '@context': 'https://schema.org', '@graph': [
+    { '@type': 'CollectionPage', name: 'Flooring & Tile Buying Guides', description, url: canonicalUrl },
+    { '@type': 'ItemList', itemListElement: guides.map((g, i) => ({ '@type': 'ListItem', position: i + 1, url: `${SITE_URL}/guides/${g.slug}`, name: g.title })) },
+    { '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Guides', item: canonicalUrl } ] }
+  ]};
+  const listHtml = guides.length
+    ? `<ul class="guides-index">${guides.map(g => `<li><a href="/guides/${escapeHtml(g.slug)}"><strong>${escapeHtml(g.title)}</strong></a>${g.meta_description ? `<span> — ${escapeHtml(g.meta_description)}</span>` : ''}</li>`).join('')}</ul>`
+    : '<p>Guides coming soon.</p>';
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li>Guides</li></ol></nav>
+    <h1>Flooring &amp; Tile Buying Guides</h1>
+    <p>Practical, expert advice to help you choose the right flooring and tile for your project — from an Anaheim showroom with decades of experience.</p>
+    ${listHtml}
+    <p><a href="/shop">Shop flooring</a> &middot; <a href="/installation">Flooring installation</a></p>`;
+  return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd, bodyContent };
+}
+
 // ==================== Router ====================
 
 export default function createSeoRouter(pool) {
@@ -1613,6 +1715,20 @@ export default function createSeoRouter(pool) {
         }
         break;
       }
+      case 'guide': {
+        const guide = await fetchGuideBySlug(pool, parsed.slug);
+        if (!guide) {
+          pageData = render404Page('Guide not found.');
+          statusCode = 404;
+        } else {
+          pageData = renderGuidePage(guide);
+        }
+        break;
+      }
+      case 'guides-index': {
+        pageData = renderGuidesIndex(await fetchGuidesIndex(pool));
+        break;
+      }
       case 'browse': {
         pageData = renderBrowsePage();
         break;
@@ -1641,6 +1757,8 @@ export default function createSeoRouter(pool) {
       : parsed.type === 'collections-index' ? 'collections-index'
       : parsed.type === 'landing' ? `landing:${parsed.slug}`
       : parsed.type === 'local' ? `local:${parsed.slug}`
+      : parsed.type === 'guide' ? `guide:${parsed.slug}`
+      : parsed.type === 'guides-index' ? 'guides-index'
       : parsed.type === 'browse' ? 'browse'
       : parsed.type === 'static' ? `static:${parsed.page}`
       : null;

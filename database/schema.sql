@@ -478,6 +478,7 @@ CREATE TABLE landing_pages (
     meta_title TEXT,
     meta_description TEXT,
     intro_html TEXT,
+    content_html TEXT,   -- long-form body (pillar guides, Phase 4)
     footer_html TEXT,
     -- The catalog filter this page represents, e.g.
     -- {"category":"porcelain-tile","attributes":{"color":"white"}}

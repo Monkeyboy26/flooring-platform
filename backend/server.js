@@ -3140,6 +3140,32 @@ app.get('/api/storefront/landing/:slug', async (req, res) => {
   }
 });
 
+// Pillar guides (Phase 4) — SPA renders these client-side from these resolvers.
+app.get('/api/storefront/guides', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT slug, title, meta_description, filter_json->>'kind' AS kind
+       FROM landing_pages WHERE type = 'guide' AND is_indexable = true ORDER BY title`);
+    res.json({ guides: result.rows });
+  } catch (err) { console.error('Guides index error:', err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+app.get('/api/storefront/guide/:slug', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT slug, title, h1, meta_title, meta_description, intro_html, content_html, footer_html, filter_json
+       FROM landing_pages WHERE type = 'guide' AND slug = $1`, [req.params.slug]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Guide not found' });
+    const g = result.rows[0];
+    const related = (g.filter_json && g.filter_json.related) || [];
+    if (related.length) {
+      const cats = await pool.query(`SELECT slug, name FROM categories WHERE slug = ANY($1) AND is_active = true`, [related]);
+      g.related_cats = cats.rows;
+    } else g.related_cats = [];
+    res.json(g);
+  } catch (err) { console.error('Guide resolve error:', err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
 app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
   try {
     const { skuId } = req.params;
@@ -34220,7 +34246,7 @@ app.get('/api/sitemap.xml', async (req, res) => {
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
     // Static pages
-    const staticPages = ['/', '/shop', '/collections', '/trade', '/installation', '/custom-accessories', '/custom-area-rugs', '/cabinets', '/privacy', '/terms'];
+    const staticPages = ['/', '/shop', '/collections', '/trade', '/installation', '/custom-accessories', '/custom-area-rugs', '/cabinets', '/guides', '/privacy', '/terms'];
     for (const page of staticPages) {
       xml += `  <url><loc>${baseUrl}${page}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq><priority>${page === '/' ? '1.0' : '0.8'}</priority></url>\n`;
     }
@@ -34709,6 +34735,7 @@ async function runMigrations() {
     await pool.query(`ALTER TABLE landing_pages DROP CONSTRAINT IF EXISTS landing_pages_type_check`);
     await pool.query(`ALTER TABLE landing_pages ADD CONSTRAINT landing_pages_type_check
       CHECK (type IN ('facet','material','brand','room','guide','local'))`);
+    await pool.query(`ALTER TABLE landing_pages ADD COLUMN IF NOT EXISTS content_html TEXT`);
     console.log('Migrations: SEO Phase 0 columns + landing_pages applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
