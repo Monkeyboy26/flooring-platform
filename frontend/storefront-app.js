@@ -11659,26 +11659,6 @@
       navigate("/guides/" + g.slug);
     } }, /* @__PURE__ */ React.createElement("strong", null, g.title)), g.meta_description ? /* @__PURE__ */ React.createElement("div", { style: { opacity: 0.75, fontSize: 14 } }, g.meta_description) : null))));
   }
-  function CostCalculator() {
-    const MATERIALS = [
-      { key: "porcelain", label: "Porcelain / Ceramic Tile", low: 2, high: 8 },
-      { key: "lvp", label: "Luxury Vinyl Plank (LVP)", low: 2, high: 6 },
-      { key: "laminate", label: "Laminate", low: 1, high: 4 },
-      { key: "engineered", label: "Engineered Hardwood", low: 4, high: 10 },
-      { key: "solid", label: "Solid Hardwood", low: 5, high: 12 },
-      { key: "carpet", label: "Carpet", low: 1.5, high: 5 },
-      { key: "stone", label: "Natural Stone", low: 5, high: 15 }
-    ];
-    const [sqft, setSqft] = useState("");
-    const [material, setMaterial] = useState("lvp");
-    const [install, setInstall] = useState(true);
-    const m = MATERIALS.find((x) => x.key === material) || MATERIALS[1];
-    const sf = Math.max(0, parseFloat(sqft) || 0);
-    const low = sf * (m.low + (install ? 2 : 0));
-    const high = sf * (m.high + (install ? 6 : 0));
-    const fmt = (n) => "$" + Math.round(n).toLocaleString();
-    return /* @__PURE__ */ React.createElement("div", { className: "cost-calculator", style: { border: "1px solid var(--stone-200, #e5e0d8)", borderRadius: 12, padding: 24, margin: "24px 0", background: "var(--stone-50, #faf8f5)" } }, /* @__PURE__ */ React.createElement("h2", { style: { marginTop: 0 } }, "Flooring Cost Estimator"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 20, alignItems: "flex-end" } }, /* @__PURE__ */ React.createElement("label", null, "Area (sq ft)", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("input", { type: "number", min: "0", value: sqft, onChange: (e) => setSqft(e.target.value), placeholder: "e.g. 500", style: { padding: 8, width: 120, marginTop: 4 } })), /* @__PURE__ */ React.createElement("label", null, "Flooring type", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("select", { value: material, onChange: (e) => setMaterial(e.target.value), style: { padding: 8, marginTop: 4 } }, MATERIALS.map((x) => /* @__PURE__ */ React.createElement("option", { key: x.key, value: x.key }, x.label)))), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: install, onChange: (e) => setInstall(e.target.checked) }), " Include installation")), sf > 0 ? /* @__PURE__ */ React.createElement("p", { style: { fontSize: 22, marginTop: 18 } }, "Estimated total: ", /* @__PURE__ */ React.createElement("strong", null, fmt(low), " \u2013 ", fmt(high))) : /* @__PURE__ */ React.createElement("p", { style: { opacity: 0.7, marginTop: 18 } }, "Enter your area to see an estimate."), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 13, opacity: 0.75 } }, "Rough estimate using typical Southern California material + installation ranges. Actual pricing varies by product, subfloor, and layout \u2014 ", /* @__PURE__ */ React.createElement("a", { href: "/installation" }, "request a free estimate"), " for an exact quote."));
-  }
   function GuidePage({ slug, navigate, onRequestQuote }) {
     const [g, setG] = useState(null);
     const [notFound, setNotFound] = useState(false);
@@ -11709,7 +11689,10 @@
     } }, "Home"), " / ", /* @__PURE__ */ React.createElement("a", { href: "/guides", onClick: (e) => {
       e.preventDefault();
       navigate("/guides");
-    } }, "Guides"), " / ", g.title), /* @__PURE__ */ React.createElement("article", { className: "guide" }, /* @__PURE__ */ React.createElement("h1", null, g.h1 || g.title), g.intro_html ? /* @__PURE__ */ React.createElement("div", { className: "guide-intro", dangerouslySetInnerHTML: { __html: g.intro_html } }) : null, isCalc ? /* @__PURE__ */ React.createElement(CostCalculator, null) : null, g.content_html ? /* @__PURE__ */ React.createElement("div", { className: "guide-body", dangerouslySetInnerHTML: { __html: g.content_html } }) : null, faq.length ? /* @__PURE__ */ React.createElement("div", { className: "guide-faq" }, /* @__PURE__ */ React.createElement("h2", null, "Frequently Asked Questions"), faq.map((f, i) => /* @__PURE__ */ React.createElement("div", { key: i }, /* @__PURE__ */ React.createElement("h3", null, f.question || f.q), /* @__PURE__ */ React.createElement("p", null, f.answer || f.a)))) : null, (g.related_cats || []).length ? /* @__PURE__ */ React.createElement("div", { className: "guide-related" }, /* @__PURE__ */ React.createElement("h2", null, "Shop Related"), /* @__PURE__ */ React.createElement("p", null, g.related_cats.map((c, i) => /* @__PURE__ */ React.createElement(React.Fragment, { key: c.slug }, i > 0 ? " \xB7 " : "", /* @__PURE__ */ React.createElement("a", { href: "/shop?category=" + c.slug, onClick: (e) => {
+    } }, "Guides"), " / ", g.title), /* @__PURE__ */ React.createElement("article", { className: "guide" }, /* @__PURE__ */ React.createElement("h1", null, g.h1 || g.title), g.intro_html ? /* @__PURE__ */ React.createElement("div", { className: "guide-intro", dangerouslySetInnerHTML: { __html: g.intro_html } }) : null, isCalc ? /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("em", null, "Interactive estimator coming soon \u2014 ", /* @__PURE__ */ React.createElement("a", { href: "/installation", onClick: (e) => {
+      e.preventDefault();
+      navigate("/installation");
+    } }, "request a free estimate"), " for exact pricing.")) : null, g.content_html ? /* @__PURE__ */ React.createElement("div", { className: "guide-body", dangerouslySetInnerHTML: { __html: g.content_html } }) : null, faq.length ? /* @__PURE__ */ React.createElement("div", { className: "guide-faq" }, /* @__PURE__ */ React.createElement("h2", null, "Frequently Asked Questions"), faq.map((f, i) => /* @__PURE__ */ React.createElement("div", { key: i }, /* @__PURE__ */ React.createElement("h3", null, f.question || f.q), /* @__PURE__ */ React.createElement("p", null, f.answer || f.a)))) : null, (g.related_cats || []).length ? /* @__PURE__ */ React.createElement("div", { className: "guide-related" }, /* @__PURE__ */ React.createElement("h2", null, "Shop Related"), /* @__PURE__ */ React.createElement("p", null, g.related_cats.map((c, i) => /* @__PURE__ */ React.createElement(React.Fragment, { key: c.slug }, i > 0 ? " \xB7 " : "", /* @__PURE__ */ React.createElement("a", { href: "/shop?category=" + c.slug, onClick: (e) => {
       e.preventDefault();
       navigate("/shop?category=" + c.slug);
     } }, c.name))))) : null, /* @__PURE__ */ React.createElement("p", { style: { marginTop: 28 } }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Free Quote"))));
