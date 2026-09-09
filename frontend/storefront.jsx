@@ -16843,11 +16843,11 @@
       return (
         <div className="guide-page">
           <nav className="guide-breadcrumb"><a href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>Home</a><span>/</span>Guides</nav>
-          <header className="guide-header">
+          <div className="guide-header">
             <div className="guide-eyebrow">Buying Guides</div>
             <h1>Flooring &amp; Tile Buying Guides</h1>
             <p className="guide-lede">Practical, expert advice to help you choose the right flooring and tile for your project.</p>
-          </header>
+          </div>
           <ul className="guides-index">
             {guides.map(g => (
               <li key={g.slug}>
@@ -16931,10 +16931,10 @@
         <div className="guide-page">
           <nav className="guide-breadcrumb"><a href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>Home</a><span>/</span><a href="/guides" onClick={e => { e.preventDefault(); navigate('/guides'); }}>Guides</a><span>/</span>{g.title}</nav>
           <article className="guide">
-            <header className="guide-header">
+            <div className="guide-header">
               <div className="guide-eyebrow">Buying Guide</div>
               <h1>{g.h1 || g.title}</h1>
-            </header>
+            </div>
             {g.intro_html ? <div className="guide-intro" dangerouslySetInnerHTML={{ __html: g.intro_html }} /> : null}
             {isCalc ? <CostCalculator /> : null}
             {g.content_html ? <div className="guide-body" dangerouslySetInnerHTML={{ __html: g.content_html }} /> : null}
