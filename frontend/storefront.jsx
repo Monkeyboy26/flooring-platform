@@ -149,6 +149,34 @@
       };
     }
 
+    // Per-city local page JSON-LD (Phase 3) — mirrors backend seoRenderer.renderLocalPage.
+    function localCityJsonLd(c) {
+      if (!c) return installationJsonLd();
+      const base = installationJsonLd();
+      const businessNode = base['@graph'][0];
+      const cityFaq = [
+        [`Do you install flooring in ${c.city}?`, `Yes. Roma Flooring Designs installs flooring throughout ${c.city} and the surrounding ${c.county} area — hardwood, tile, luxury vinyl, natural stone, carpet, and laminate. We are based in nearby Anaheim.`],
+        ...INSTALL_FAQ.slice(1)
+      ];
+      const canonical = SITE_URL + '/flooring-installation/' + c.city.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      return {
+        '@context': 'https://schema.org',
+        '@graph': [
+          businessNode,
+          { '@type': 'Service', name: `Flooring Installation in ${c.city}`, serviceType: 'Flooring installation',
+            provider: { '@id': BUSINESS_ID }, areaServed: { '@type': 'City', name: c.city },
+            hasOfferCatalog: { '@type': 'OfferCatalog', name: 'Flooring Installation Services',
+              itemListElement: INSTALL_TYPES.map(t => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: t.name + ' Installation', description: t.desc } })) } },
+          { '@type': 'FAQPage', mainEntity: cityFaq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
+          { '@type': 'BreadcrumbList', itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+            { '@type': 'ListItem', position: 2, name: 'Flooring Installation', item: SITE_URL + '/installation' },
+            { '@type': 'ListItem', position: 3, name: c.city, item: canonical }
+          ]}
+        ]
+      };
+    }
+
     // ==================== Custom Accessories — local SEO source of truth ====================
     // Keep ACC_* identical to backend/services/seoRenderer.js so prerender + SPA match.
     const ACC_TILE = [
@@ -2570,6 +2598,7 @@
 
     function StorefrontApp() {
       const [view, setView] = useState('home');
+      const [localCity, setLocalCity] = useState(null); // {city, county} for /flooring-installation/{slug}
       const [accountSection, setAccountSection] = useState('overview');
       const [selectedSkuId, setSelectedSkuId] = useState(null);
 
@@ -3774,6 +3803,24 @@
           setView('forgot-password');
         } else if (path === '/installation') {
           setView('installation');
+        } else if (path.startsWith('/flooring-installation/')) {
+          // Per-city local page (Phase 3). Server prerenders these for crawlers; for a
+          // human landing here we resolve the city and render the installation page
+          // scoped to it. Unknown city → fall back to the generic installation page.
+          const slug = decodeURIComponent(path.replace('/flooring-installation/', '').split(/[/?]/)[0] || '');
+          const found = SERVICE_AREAS.flatMap(a => a.cities.map(c => ({ city: c, county: a.county, slug: c.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') }))).find(x => x.slug === slug);
+          if (found) {
+            setLocalCity(found);
+            setView('local-city');
+            updateSEO({
+              title: `Flooring Installation in ${found.city}, CA | Roma Flooring Designs`,
+              description: `Licensed, insured flooring installation in ${found.city}, CA — hardwood, tile, luxury vinyl, stone, carpet & laminate. Free estimates. CA Lic #830966. Call (714) 999-0009.`,
+              url: SITE_URL + '/flooring-installation/' + found.slug, image: ''
+            });
+          } else {
+            setLocalCity(null);
+            setView('installation');
+          }
         } else if (path === '/inspiration') {
           setView('inspiration');
         } else if (path === '/sale') {
@@ -4011,6 +4058,8 @@
           ]});
         } else if (view === 'installation') {
           setDynamicJsonLd(installationJsonLd());
+        } else if (view === 'local-city') {
+          setDynamicJsonLd(localCity ? localCityJsonLd(localCity) : installationJsonLd());
         } else if (view === 'custom-accessories') {
           setDynamicJsonLd(customAccessoriesJsonLd());
         } else if (view === 'custom-area-rugs') {
@@ -4322,6 +4371,10 @@
 
           {view === 'installation' && (
             <InstallationPage onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
+          )}
+
+          {view === 'local-city' && (
+            <InstallationPage city={localCity} onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
           )}
 
           {view === 'custom-accessories' && (
@@ -16767,17 +16820,30 @@
       );
     }
 
-    function InstallationPage({ onRequestQuote }) {
+    function InstallationPage({ onRequestQuote, city }) {
+      // city (optional {city, county}) = per-city local page (/flooring-installation/{slug}).
+      // Overrides the hero copy; the rest of the page (types, steps, FAQ, quote form) is shared.
+      const nearby = city ? SERVICE_AREAS.flatMap(a => a.county === city.county ? a.cities : []).filter(c => c !== city.city).slice(0, 10) : [];
       return (
         <div className="installation-page">
           <div className="install-hero">
-            <div className="install-hero-eyebrow">Anaheim &amp; Orange County</div>
-            <h1>Flooring Installation in Anaheim &amp; Orange County</h1>
-            <p>Licensed and insured installers with decades of combined experience. From hardwood to tile, Roma Flooring Designs delivers a clean, meticulous finish — backed by a workmanship warranty — for homeowners and businesses across Orange County and neighboring Los Angeles and Riverside counties. California Contractor License #830966.</p>
+            <div className="install-hero-eyebrow">{city ? `${city.city}, CA` : 'Anaheim & Orange County'}</div>
+            <h1>{city ? `Flooring Installation in ${city.city}, CA` : 'Flooring Installation in Anaheim & Orange County'}</h1>
+            <p>{city
+              ? `Licensed and insured flooring installation in ${city.city}, ${city.county}. From hardwood to tile, Roma Flooring Designs delivers a clean, meticulous finish — backed by a workmanship warranty — for homeowners and businesses across ${city.city} and the surrounding area. Free estimates. California Contractor License #830966.`
+              : 'Licensed and insured installers with decades of combined experience. From hardwood to tile, Roma Flooring Designs delivers a clean, meticulous finish — backed by a workmanship warranty — for homeowners and businesses across Orange County and neighboring Los Angeles and Riverside counties. California Contractor License #830966.'}</p>
             <div className="install-hero-actions">
               <button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button>
               <a className="install-hero-phone" href="tel:+17149990009">Call (714) 999-0009</a>
             </div>
+            {city && nearby.length > 0 && (
+              <p className="install-hero-nearby" style={{ marginTop: 16, fontSize: 14, opacity: 0.85 }}>
+                Also serving {city.county}: {nearby.map((c, i) => {
+                  const s = c.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                  return <React.Fragment key={s}>{i > 0 ? ' · ' : ''}<a href={`/flooring-installation/${s}`}>{c}</a></React.Fragment>;
+                })}
+              </p>
+            )}
           </div>
 
           <div className="install-types">
