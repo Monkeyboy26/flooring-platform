@@ -2534,6 +2534,7 @@
         { key: 'purchase-orders', label: 'Purchase Orders', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', roles: ['admin', 'manager', 'warehouse'] },
         { key: 'customers', label: 'Customers', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', roles: ['admin', 'manager', 'sales_rep'] },
         { key: 'visits', label: 'Visits', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z', roles: ['admin', 'manager', 'sales_rep'] },
+        { key: 'reviews', label: 'Reviews', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z', roles: ['admin', 'manager'] },
         { key: 'products', label: 'Products', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4', roles: ['admin', 'manager'] },
         { key: 'vendors', label: 'Vendors', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', roles: ['admin', 'manager'] },
         { key: 'quality', label: 'Data Quality', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.031 9-11.622 0-1.042-.133-2.052-.382-3.016z', roles: ['admin', 'manager'] },
@@ -2621,6 +2622,7 @@
             {view === 'audit' && <AuditLogView navigate={navigate} />}
             {view === 'quality' && <DataQualityView navigate={navigate} />}
             {view === 'traffic' && <SiteTrafficView navigate={navigate} />}
+            {view === 'reviews' && <ReviewsListView navigate={navigate} />}
             {view === 'purchase-orders' && <PurchaseOrdersListView navigate={navigate} staffRole={staffRole} />}
             {view === 'purchase-order-detail' && <PurchaseOrderDetailView navigate={navigate} editId={editId} staffRole={staffRole} />}
           </div>
@@ -13591,6 +13593,147 @@
           {/* PDF Download */}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button className="btn btn-secondary" onClick={() => staffOpenDoc('/api/staff/purchase-orders/' + editId + '/pdf', true).catch(() => alert('Failed to load PDF'))}>Download PDF</button>
+          </div>
+        </div>
+      );
+    }
+
+
+    // Review-request dashboard: rollup tiles + a filterable list of every
+    // "how did we do?" request, plus a one-off test sender. Data from
+    // GET /api/admin/review-requests ({ requests, stats }); test send hits
+    // POST /api/admin/review-requests/test.
+    function ReviewsListView({ navigate }) {
+      const [rows, setRows] = useState([]);
+      const [stats, setStats] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [filter, setFilter] = useState('all');
+      const [test, setTest] = useState({ email: '', phone: '' });
+      const [testMsg, setTestMsg] = useState(null);
+      const [sending, setSending] = useState(false);
+
+      const load = () => {
+        setLoading(true);
+        adminFetch('/api/admin/review-requests')
+          .then(d => { setRows(d.requests || []); setStats(d.stats || null); setLoading(false); })
+          .catch(() => setLoading(false));
+      };
+      useEffect(load, []);
+
+      const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+      const stars = (n) => n ? '★'.repeat(n) + '☆'.repeat(5 - n) : '—';
+
+      const FILTERS = [
+        { id: 'all', label: 'All' },
+        { id: 'rated', label: 'Rated' },
+        { id: 'positive', label: 'Positive' },
+        { id: 'private', label: 'Needs follow-up' },
+        { id: 'clicked', label: 'Posted public' },
+      ];
+      const match = (r) => {
+        if (filter === 'rated') return r.rating != null;
+        if (filter === 'positive') return r.routed_to === 'public';
+        if (filter === 'private') return r.routed_to === 'private';
+        if (filter === 'clicked') return !!r.public_clicked_at;
+        return true;
+      };
+      const visible = rows.filter(match);
+
+      const sendTest = () => {
+        setTestMsg(null);
+        if (!test.email && !test.phone) { setTestMsg({ err: true, t: 'Enter an email or phone.' }); return; }
+        setSending(true);
+        adminFetch('/api/admin/review-requests/test', { method: 'POST', body: JSON.stringify(test) })
+          .then(d => {
+            const chans = (d.channels || []).join(' + ') || 'nothing';
+            setTestMsg({ err: false, t: 'Sent via ' + chans + (d.channels && d.channels.length ? '.' : ' — check SMTP/Twilio config.') });
+            setSending(false); load();
+          })
+          .catch(e => { setTestMsg({ err: true, t: (e && e.message) || 'Failed to send test.' }); setSending(false); });
+      };
+
+      const COLS = '1.4fr 90px 90px 110px 90px 70px';
+      const routedBadge = (r) => {
+        if (!r.routed_to) return <span style={{ color: 'var(--faint)' }}>—</span>;
+        const public_ = r.routed_to === 'public';
+        return <span style={{ color: public_ ? 'var(--gold)' : 'var(--hot)', fontSize: 11, fontFamily: 'var(--mono)' }}>{public_ ? 'PUBLIC' : 'PRIVATE'}</span>;
+      };
+
+      const tile = (label, value, accent) => (
+        <div className="stat-card">
+          <div className="stat-card-label">{label}</div>
+          <div className="stat-card-value" style={accent ? { color: accent } : null}>{value}</div>
+        </div>
+      );
+
+      return (
+        <div style={{ padding: '0 4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12, margin: '4px 0 18px' }}>
+            <div>
+              <h1 style={{ margin: 0, font: '400 22px/1.2 var(--serif, var(--sans))' }}>Reviews</h1>
+              <p style={{ margin: '4px 0 0', color: 'var(--dim)', fontSize: 13 }}>“How did we do?” requests — high ratings go public, low ratings route to private feedback.</p>
+            </div>
+            <button className="btn btn-secondary" onClick={load}>Refresh</button>
+          </div>
+
+          {stats && (
+            <div className="stat-grid" style={{ marginBottom: 18 }}>
+              {tile('Sent', stats.sent)}
+              {tile('Rated', stats.rated)}
+              {tile('Positive (public)', stats.positive, 'var(--gold)')}
+              {tile('Posted to Google/Yelp', stats.clicked_public, 'var(--gold)')}
+              {tile('Private feedback', stats.private_feedback, stats.private_feedback ? 'var(--hot)' : null)}
+            </div>
+          )}
+
+          <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, padding: '14px 16px', marginBottom: 18 }}>
+            <div style={{ font: '400 9px/1 var(--mono)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--faint)', marginBottom: 10 }}>Send a test request</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <input className="ordl-search" style={{ minWidth: 200 }} placeholder="email@example.com" value={test.email} onChange={e => setTest({ ...test, email: e.target.value })} />
+              <input className="ordl-search" style={{ minWidth: 150 }} placeholder="phone (SMS)" value={test.phone} onChange={e => setTest({ ...test, phone: e.target.value })} />
+              <button className="btn btn-primary" onClick={sendTest} disabled={sending}>{sending ? 'Sending…' : 'Send test'}</button>
+              {testMsg && <span style={{ fontSize: 12, color: testMsg.err ? 'var(--hot)' : 'var(--gold)' }}>{testMsg.t}</span>}
+            </div>
+            <p style={{ margin: '8px 0 0', color: 'var(--faint)', fontSize: 11 }}>SMS only sends once Twilio is configured; email uses the existing SMTP.</p>
+          </div>
+
+          <div className="ordl-filters" style={{ marginBottom: 10 }}>
+            {FILTERS.map(f => (
+              <button key={f.id} className={'ordl-chip' + (filter === f.id ? ' active' : '')} onClick={() => setFilter(f.id)}>
+                {f.label}{f.id === 'all' ? ' (' + rows.length + ')' : ''}
+              </button>
+            ))}
+          </div>
+
+          <div className="ordl-scroll">
+            <div style={{ minWidth: 620 }}>
+              <div className="ordl-head" style={{ gridTemplateColumns: COLS }}>
+                <span>CUSTOMER</span><span>CHANNELS</span><span>RATING</span><span>ROUTED</span><span>STATUS</span><span style={{ textAlign: 'right' }}>SENT</span>
+              </div>
+              {loading && <div className="opsq-empty">loading reviews…</div>}
+              {!loading && visible.length === 0 && <div className="opsq-empty">no review requests in this view</div>}
+              {!loading && visible.map(r => (
+                <div key={r.id} className={'ordl-row' + (r.order_id ? '' : '')} style={{ cursor: r.order_id ? 'pointer' : 'default' }}
+                     onClick={() => r.order_id && navigate('order-detail', r.order_id)}>
+                  <div className="ordl-grid" style={{ gridTemplateColumns: COLS, alignItems: 'center' }}>
+                    <span>
+                      <span className="ordl-cust" style={{ display: 'block' }}>{r.customer_name || 'Customer'}</span>
+                      <span style={{ color: 'var(--faint)', fontSize: 11 }}>{r.order_number || (r.created_by === 'test' ? 'test' : '—')}</span>
+                    </span>
+                    <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--dim)' }}>{(r.channels && r.channels.length) ? r.channels.join('+') : '—'}</span>
+                    <span style={{ color: r.rating >= 4 ? 'var(--gold)' : (r.rating ? 'var(--hot)' : 'var(--faint)'), fontSize: 13 }}>{stars(r.rating)}</span>
+                    <span>{routedBadge(r)}</span>
+                    <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: r.public_clicked_at ? 'var(--gold)' : 'var(--dim)' }}>
+                      {r.public_clicked_at ? 'POSTED ' + (r.public_provider || '').toUpperCase() : (r.status || '').toUpperCase()}
+                    </span>
+                    <span style={{ textAlign: 'right', fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--faint)' }}>{fmtDate(r.sent_at || r.created_at)}</span>
+                  </div>
+                  {r.feedback_text && (
+                    <div className="ordl-sub" style={{ color: 'var(--hot)', fontStyle: 'italic' }}>“{r.feedback_text}”</div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       );
