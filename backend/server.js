@@ -34238,8 +34238,10 @@ app.get('/api/sitemap.xml', async (req, res) => {
       // Indexable FACET landing pages (Phase 2) → /shop/{slug}. The generator keeps
       // is_indexable current, so thin/emptied pages self-drop from the sitemap.
       pool.query(`SELECT slug, updated_at FROM landing_pages WHERE is_indexable = true AND type = 'facet' ORDER BY slug`).catch(() => ({ rows: [] })),
-      // Local city pages (Phase 3) → /flooring-installation/{slug} and guides (Phase 4) → /guides/{slug}.
-      pool.query(`SELECT slug, updated_at, type FROM landing_pages WHERE is_indexable = true AND type IN ('local','guide') ORDER BY type, slug`).catch(() => ({ rows: [] }))
+      // Local city pages (Phase 3) → /flooring-installation/{slug}, per-city material pages
+      // → /flooring-installation/{city}/{material}, remodel pages → /remodeling/{city}[/{room}],
+      // and guides (Phase 4) → /guides/{slug}. filter_json builds the nested URLs.
+      pool.query(`SELECT slug, updated_at, type, filter_json FROM landing_pages WHERE is_indexable = true AND type IN ('local','local_material','remodel','guide') ORDER BY type, slug`).catch(() => ({ rows: [] }))
     ]);
 
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -34280,10 +34282,23 @@ app.get('/api/sitemap.xml', async (req, res) => {
       xml += `  <url><loc>${baseUrl}/shop/${encodeURIComponent(row.slug)}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>\n`;
     }
 
-    // Local city pages (/flooring-installation/{city}) + pillar guides (/guides/{slug})
+    // Local city hubs, per-city material install pages, remodel pages, pillar guides.
     for (const row of localGuideResult.rows) {
       const lastmod = row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : today;
-      const loc = row.type === 'local' ? `${baseUrl}/flooring-installation/${encodeURIComponent(row.slug)}` : `${baseUrl}/guides/${encodeURIComponent(row.slug)}`;
+      const fj = row.filter_json || {};
+      let loc;
+      if (row.type === 'local') {
+        loc = `${baseUrl}/flooring-installation/${encodeURIComponent(row.slug)}`;
+      } else if (row.type === 'local_material') {
+        loc = `${baseUrl}/flooring-installation/${encodeURIComponent(fj.citySlug)}/${encodeURIComponent(fj.materialSlug)}`;
+      } else if (row.type === 'remodel') {
+        loc = fj.room && fj.room.slug
+          ? `${baseUrl}/remodeling/${encodeURIComponent(fj.citySlug)}/${encodeURIComponent(fj.room.slug)}`
+          : `${baseUrl}/remodeling/${encodeURIComponent(fj.citySlug)}`;
+      } else {
+        loc = `${baseUrl}/guides/${encodeURIComponent(row.slug)}`;
+      }
+      if (!loc || /undefined/.test(loc)) continue; // skip malformed (missing filter_json)
       xml += `  <url><loc>${loc}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>\n`;
     }
 
@@ -34731,12 +34746,29 @@ async function runMigrations() {
     )`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_landing_pages_type ON landing_pages(type)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_landing_pages_indexable ON landing_pages(is_indexable) WHERE is_indexable = true`);
-    // Widen the type CHECK to include 'local' (Phase 3 city pages) on existing DBs.
+    // Widen the type CHECK to include 'local' (Phase 3 city pages), plus the per-city
+    // service pages: 'local_material' (/flooring-installation/{city}/{material}) and
+    // 'remodel' (/remodeling/{city}[/{room}]). Deploy-order-safe on existing DBs.
     await pool.query(`ALTER TABLE landing_pages DROP CONSTRAINT IF EXISTS landing_pages_type_check`);
     await pool.query(`ALTER TABLE landing_pages ADD CONSTRAINT landing_pages_type_check
-      CHECK (type IN ('facet','material','brand','room','guide','local'))`);
+      CHECK (type IN ('facet','material','brand','room','guide','local','local_material','remodel'))`);
     await pool.query(`ALTER TABLE landing_pages ADD COLUMN IF NOT EXISTS content_html TEXT`);
-    console.log('Migrations: SEO Phase 0 columns + landing_pages applied');
+    // Genuine service reviews backing the aggregateRating schema on installation/service
+    // pages. Populated only from real data (Google Business Profile export / manual entry)
+    // via scripts/seo/ingest-service-reviews.mjs — never fabricated.
+    await pool.query(`CREATE TABLE IF NOT EXISTS service_reviews (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      source VARCHAR(40) NOT NULL DEFAULT 'google',
+      author TEXT NOT NULL,
+      rating NUMERIC(2,1) NOT NULL CHECK (rating >= 1 AND rating <= 5),
+      body TEXT,
+      review_date DATE,
+      external_id TEXT UNIQUE,
+      is_published BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_service_reviews_pub ON service_reviews(is_published) WHERE is_published = true`);
+    console.log('Migrations: SEO Phase 0 columns + landing_pages + service_reviews applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }

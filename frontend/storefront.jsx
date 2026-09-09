@@ -177,6 +177,81 @@
       };
     }
 
+    // ==================== Per-city service pages (material install + remodel) ====================
+    // Mirror backend/lib/localServices.js. Crawler prerender is the SEO source of truth; these
+    // power the human-facing SPA views + matching JSON-LD for /flooring-installation/{city}/{material}
+    // and /remodeling/{city}[/{room}]. Keep PRIORITY_CITY_SLUGS / MATERIALS_SVC / REMODEL_ROOMS_SVC
+    // identical to the backend catalog.
+    const PRIORITY_CITY_SLUGS = ['anaheim','fullerton','orange','yorba-linda','placentia','brea','irvine','tustin','santa-ana','buena-park','huntington-beach','costa-mesa','newport-beach','mission-viejo','lake-forest','laguna-hills','long-beach','corona','riverside'];
+    const MATERIALS_SVC = [
+      { slug:'hardwood', name:'Hardwood Flooring', short:'Hardwood', shopCategory:'hardwood', blurb:'Solid and engineered hardwood — nail-down, glue-down, and floating installs with expert acclimation and moisture control.' },
+      { slug:'luxury-vinyl', name:'Luxury Vinyl (LVP/LVT)', short:'Luxury Vinyl', shopCategory:'luxury-vinyl', blurb:'Waterproof click-lock LVP and glue-down LVT — durable, pet- and kid-friendly floors with meticulous subfloor prep.' },
+      { slug:'tile', name:'Tile & Porcelain', short:'Tile', shopCategory:'porcelain-tile', blurb:'Porcelain and ceramic tile for floors, walls, showers, and backsplashes — set flat and true with proper waterproofing.' },
+      { slug:'natural-stone', name:'Natural Stone', short:'Natural Stone', shopCategory:'natural-stone', blurb:'Marble, travertine, slate, and quartzite installed and sealed with the care natural stone demands.' },
+      { slug:'carpet', name:'Carpet', short:'Carpet', shopCategory:'carpet', blurb:'Stretch-in and glue-down carpet for bedrooms, stairs, and living areas — clean seams and tight, lasting installs.' },
+      { slug:'laminate', name:'Laminate Flooring', short:'Laminate', shopCategory:'laminate-flooring', blurb:'Fast, affordable floating laminate with seamless transitions and durable wear layers.' },
+    ];
+    const REMODEL_ROOMS_SVC = [
+      { slug:'kitchen', name:'Kitchen Remodeling', short:'Kitchen', blurb:'Full kitchen surfaces: flooring, backsplash and wall tile, countertops, and cabinetry — coordinated by one licensed crew.',
+        related:[{label:'Countertops',href:'/shop?category=countertops'},{label:'Cabinets',href:'/cabinets'},{label:'Tile & Porcelain',href:'/shop?category=porcelain-tile'}] },
+      { slug:'bathroom', name:'Bathroom Remodeling', short:'Bathroom', blurb:'Bathroom surfaces done right: waterproofed shower and floor tile, vanities, countertops, and stone — start to finish.',
+        related:[{label:'Tile & Porcelain',href:'/shop?category=porcelain-tile'},{label:'Natural stone',href:'/shop?category=natural-stone'},{label:'Countertops',href:'/shop?category=countertops'}] },
+    ];
+    const citySlugify = s => String(s).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+    const cityFromSlug = slug => SERVICE_AREAS.flatMap(a => a.cities.map(c => ({ city:c, county:a.county, slug:citySlugify(c) }))).find(x => x.slug === slug) || null;
+    const materialBySlugSvc = s => MATERIALS_SVC.find(m => m.slug === s) || null;
+    const roomBySlugSvc = s => REMODEL_ROOMS_SVC.find(r => r.slug === s) || null;
+    const isPriorityCitySvc = slug => PRIORITY_CITY_SLUGS.includes(slug);
+
+    function materialJsonLd(city, material) {
+      const business = installationJsonLd()['@graph'][0];
+      const canonical = SITE_URL + '/flooring-installation/' + city.slug + '/' + material.slug;
+      const faq = [
+        [`Do you install ${material.short.toLowerCase()} flooring in ${city.city}?`, `Yes. Roma Flooring Designs installs ${material.name.toLowerCase()} throughout ${city.city} and ${city.county}, from our Anaheim showroom. We are licensed (CA #830966), bonded, and insured.`],
+        ['Do you offer free estimates?', 'Yes — free, no-obligation estimates with clear, upfront pricing. Request a quote and we follow up within one business day.'],
+        ['Do you remove and dispose of the old floor?', 'Yes. Demolition, subfloor prep, haul-away, and cleanup are part of our full-service installation.'],
+      ];
+      return { '@context':'https://schema.org', '@graph': [
+        business,
+        { '@type':'Service', name:`${material.name} Installation in ${city.city}`, serviceType:`${material.name} installation`,
+          provider:{ '@id':BUSINESS_ID }, areaServed:{ '@type':'City', name:city.city }, description: material.blurb },
+        { '@type':'FAQPage', mainEntity: faq.map(([q,a]) => ({ '@type':'Question', name:q, acceptedAnswer:{ '@type':'Answer', text:a } })) },
+        { '@type':'BreadcrumbList', itemListElement: [
+          { '@type':'ListItem', position:1, name:'Home', item:SITE_URL+'/' },
+          { '@type':'ListItem', position:2, name:'Flooring Installation', item:SITE_URL+'/installation' },
+          { '@type':'ListItem', position:3, name:city.city, item:SITE_URL+'/flooring-installation/'+city.slug },
+          { '@type':'ListItem', position:4, name:`${material.short} Installation`, item:canonical }
+        ]}
+      ]};
+    }
+
+    function remodelJsonLd(city, room) {
+      const business = installationJsonLd()['@graph'][0];
+      const isHub = !room;
+      const label = isHub ? 'Kitchen & Bath Remodeling' : room.name;
+      const canonical = isHub ? SITE_URL+'/remodeling/'+city.slug : SITE_URL+'/remodeling/'+city.slug+'/'+room.slug;
+      const faq = [
+        [`Do you do ${isHub ? 'kitchen and bathroom remodels' : room.short.toLowerCase()+' remodels'} in ${city.city}?`, `Yes. Roma Flooring Designs handles ${isHub ? 'kitchen and bathroom' : room.short.toLowerCase()} remodeling throughout ${city.city} and ${city.county} — flooring, tile, countertops, and cabinetry — from our Anaheim showroom. Licensed (CA #830966), bonded, and insured.`],
+        ['Do you offer free estimates and design help?', 'Yes. We provide free, no-obligation estimates and help you select materials in our showroom, then coordinate the full install with one licensed crew.'],
+        ['Do you supply the materials too?', 'Yes — as a flooring, tile, stone, and countertop retailer we can supply and install everything, keeping timelines and accountability under one roof.'],
+      ];
+      const svc = { '@type':'Service', name:`${label} in ${city.city}`, serviceType: isHub ? 'Remodeling' : room.name,
+        provider:{ '@id':BUSINESS_ID }, areaServed:{ '@type':'City', name:city.city },
+        description: isHub ? 'Kitchen and bathroom remodeling: flooring, tile, countertops, and cabinetry.' : room.blurb };
+      if (isHub) svc.hasOfferCatalog = { '@type':'OfferCatalog', name:`Remodeling Services in ${city.city}`,
+        itemListElement: REMODEL_ROOMS_SVC.map(r => ({ '@type':'Offer', itemOffered:{ '@type':'Service', name:r.name, description:r.blurb } })) };
+      const crumbs = [
+        { '@type':'ListItem', position:1, name:'Home', item:SITE_URL+'/' },
+        { '@type':'ListItem', position:2, name:'Remodeling', item:SITE_URL+'/remodeling/'+city.slug },
+      ];
+      if (!isHub) crumbs.push({ '@type':'ListItem', position:3, name:room.name, item:canonical });
+      return { '@context':'https://schema.org', '@graph': [
+        business, svc,
+        { '@type':'FAQPage', mainEntity: faq.map(([q,a]) => ({ '@type':'Question', name:q, acceptedAnswer:{ '@type':'Answer', text:a } })) },
+        { '@type':'BreadcrumbList', itemListElement: crumbs }
+      ]};
+    }
+
     // ==================== Custom Accessories — local SEO source of truth ====================
     // Keep ACC_* identical to backend/services/seoRenderer.js so prerender + SPA match.
     const ACC_TILE = [
@@ -2599,6 +2674,8 @@
     function StorefrontApp() {
       const [view, setView] = useState('home');
       const [localCity, setLocalCity] = useState(null); // {city, county} for /flooring-installation/{slug}
+      const [localMaterial, setLocalMaterial] = useState(null); // material for /flooring-installation/{city}/{material}
+      const [remodelCtx, setRemodelCtx] = useState(null); // {city, room} for /remodeling/{city}[/{room}]
       const [guideSlug, setGuideSlug] = useState(null); // /guides/{slug} pillar guide
       const [accountSection, setAccountSection] = useState('overview');
       const [selectedSkuId, setSelectedSkuId] = useState(null);
@@ -3805,14 +3882,22 @@
         } else if (path === '/installation') {
           setView('installation');
         } else if (path.startsWith('/flooring-installation/')) {
-          // Per-city local page (Phase 3). Server prerenders these for crawlers; for a
-          // human landing here we resolve the city and render the installation page
-          // scoped to it. Unknown city → fall back to the generic installation page.
-          const slug = decodeURIComponent(path.replace('/flooring-installation/', '').split(/[/?]/)[0] || '');
-          const found = SERVICE_AREAS.flatMap(a => a.cities.map(c => ({ city: c, county: a.county, slug: c.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') }))).find(x => x.slug === slug);
-          if (found) {
-            setLocalCity(found);
-            setView('local-city');
+          // Per-city local page (Phase 3) + nested per-material install page. Server
+          // prerenders these for crawlers; for a human landing here we resolve the city
+          // (and optional material) and render the scoped page. Unknown → fall back.
+          const rest = path.replace('/flooring-installation/', '').split('?')[0];
+          const parts = rest.split('/').map(decodeURIComponent).filter(Boolean);
+          const found = cityFromSlug(parts[0] || '');
+          const material = parts[1] ? materialBySlugSvc(parts[1]) : null;
+          if (found && material && isPriorityCitySvc(found.slug)) {
+            setLocalCity(found); setLocalMaterial(material); setView('local-material');
+            updateSEO({
+              title: `${material.name} Installation in ${found.city}, CA | Roma Flooring Designs`,
+              description: `Licensed ${material.short.toLowerCase()} flooring installation in ${found.city}, CA. Expert subfloor prep, clean finish, free estimates. CA Lic #830966. Call (714) 999-0009.`,
+              url: SITE_URL + '/flooring-installation/' + found.slug + '/' + material.slug, image: ''
+            });
+          } else if (found) {
+            setLocalCity(found); setLocalMaterial(null); setView('local-city');
             updateSEO({
               title: `Flooring Installation in ${found.city}, CA | Roma Flooring Designs`,
               description: `Licensed, insured flooring installation in ${found.city}, CA — hardwood, tile, luxury vinyl, stone, carpet & laminate. Free estimates. CA Lic #830966. Call (714) 999-0009.`,
@@ -3820,6 +3905,26 @@
             });
           } else {
             setLocalCity(null);
+            setView('installation');
+          }
+        } else if (path.startsWith('/remodeling/')) {
+          // Per-city remodel hub + room pages (/remodeling/{city}[/{room}]).
+          const rest = path.replace('/remodeling/', '').split('?')[0];
+          const parts = rest.split('/').map(decodeURIComponent).filter(Boolean);
+          const found = cityFromSlug(parts[0] || '');
+          const room = parts[1] ? roomBySlugSvc(parts[1]) : null;
+          if (found && isPriorityCitySvc(found.slug) && (!parts[1] || room)) {
+            setRemodelCtx({ city: found, room });
+            setView('remodel');
+            const label = room ? room.name : 'Kitchen & Bath Remodeling';
+            updateSEO({
+              title: `${label} in ${found.city}, CA | Roma Flooring Designs`,
+              description: room
+                ? `${room.name} in ${found.city}, CA. Licensed, insured — flooring, tile, countertops & cabinetry. Free estimates. CA Lic #830966.`
+                : `Kitchen & bathroom remodeling in ${found.city}, CA — flooring, tile, countertops & cabinetry by one licensed crew. Free estimates. CA Lic #830966.`,
+              url: SITE_URL + (room ? '/remodeling/' + found.slug + '/' + room.slug : '/remodeling/' + found.slug), image: ''
+            });
+          } else {
             setView('installation');
           }
         } else if (path === '/guides') {
@@ -4067,6 +4172,10 @@
           setDynamicJsonLd(installationJsonLd());
         } else if (view === 'local-city') {
           setDynamicJsonLd(localCity ? localCityJsonLd(localCity) : installationJsonLd());
+        } else if (view === 'local-material') {
+          setDynamicJsonLd(localCity && localMaterial ? materialJsonLd(localCity, localMaterial) : installationJsonLd());
+        } else if (view === 'remodel') {
+          setDynamicJsonLd(remodelCtx ? remodelJsonLd(remodelCtx.city, remodelCtx.room) : installationJsonLd());
         } else if (view === 'custom-accessories') {
           setDynamicJsonLd(customAccessoriesJsonLd());
         } else if (view === 'custom-area-rugs') {
@@ -4382,6 +4491,14 @@
 
           {view === 'local-city' && (
             <InstallationPage city={localCity} onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
+          )}
+
+          {view === 'local-material' && (
+            <MaterialInstallPage city={localCity} material={localMaterial} navigate={navigate} onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
+          )}
+
+          {view === 'remodel' && remodelCtx && (
+            <RemodelPage city={remodelCtx.city} room={remodelCtx.room} navigate={navigate} onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
           )}
 
           {view === 'guides-index' && (
@@ -17094,6 +17211,178 @@
           <div className="install-cta-band">
             <h2>Ready to Get Started?</h2>
             <p>Request a free, no-obligation quote and let our Orange County experts transform your space.</p>
+            <button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== Per-city material install page ====================
+    function MaterialInstallPage({ city, material, onRequestQuote, navigate }) {
+      if (!city || !material) return null;
+      const go = (href) => (e) => { e.preventDefault(); navigate(href); };
+      const siblings = MATERIALS_SVC.filter(m => m.slug !== material.slug);
+      const faq = [
+        { q: `Do you install ${material.short.toLowerCase()} flooring in ${city.city}?`, a: `Yes. Roma Flooring Designs installs ${material.name.toLowerCase()} throughout ${city.city} and ${city.county}, from our Anaheim showroom. We are licensed (CA #830966), bonded, and insured.` },
+        { q: 'Do you offer free estimates?', a: 'Yes — free, no-obligation estimates with clear, upfront pricing. Request a quote and we follow up within one business day.' },
+        { q: 'Do you remove and dispose of the old floor?', a: 'Yes. Demolition, subfloor prep, haul-away, and cleanup are part of our full-service installation.' },
+        { q: `Can I shop ${material.short.toLowerCase()} at your showroom?`, a: `Yes. Browse ${material.name.toLowerCase()} online or visit our Anaheim showroom, and we handle supply and installation for your ${city.city} project under one roof.` },
+      ];
+      return (
+        <div className="installation-page">
+          <div className="install-hero">
+            <div className="install-hero-eyebrow">{city.city}, CA</div>
+            <h1>{material.name} Installation in {city.city}, CA</h1>
+            <p>Licensed, insured {material.short.toLowerCase()} flooring installation in {city.city}, {city.county}. {material.blurb} Every {city.city} project starts with an on-site measure and a firm, upfront estimate — backed by our workmanship warranty. California Contractor License #830966.</p>
+            <div className="install-hero-actions">
+              <button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button>
+              <a className="install-hero-phone" href="tel:+17149990009">Call (714) 999-0009</a>
+            </div>
+            <a className="svc-back" href={`/flooring-installation/${city.slug}`} onClick={go(`/flooring-installation/${city.slug}`)}>← All flooring installation in {city.city}</a>
+          </div>
+
+          <div className="install-steps-section">
+            <h2>How It Works</h2>
+            <div className="install-steps">
+              <div className="install-step"><div className="step-number">1</div><h3>Request a Quote</h3><p>Tell us about your {material.short.toLowerCase()} project — square footage and timeline.</p></div>
+              <div className="install-step"><div className="step-number">2</div><h3>Site Visit &amp; Measure</h3><p>We visit your {city.city} space for precise measurements and subfloor assessment.</p></div>
+              <div className="install-step"><div className="step-number">3</div><h3>Schedule Installation</h3><p>Pick a date that works for you. We handle materials, prep, and cleanup.</p></div>
+              <div className="install-step"><div className="step-number">4</div><h3>Enjoy Your New Floors</h3><p>Walk-through inspection, care instructions, and warranty documentation.</p></div>
+            </div>
+          </div>
+
+          <div className="install-benefits">
+            <h2>Why Choose Roma for {material.short} in {city.city}</h2>
+            <div className="install-benefits-grid">
+              <div className="benefit-card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><h3>Licensed &amp; Insured</h3><p>CA Contractor License #830966. Fully bonded and insured.</p></div>
+              <div className="benefit-card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg><h3>Material Experts</h3><p>Factory-trained installers who know {material.name.toLowerCase()} inside out.</p></div>
+              <div className="benefit-card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="20 6 9 17 4 12"/></svg><h3>Warranty Included</h3><p>Every installation backed by our workmanship warranty.</p></div>
+              <div className="benefit-card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg><h3>Supply + Install</h3><p>Shop {material.short.toLowerCase()} in our showroom and we install it — one point of accountability.</p></div>
+            </div>
+          </div>
+
+          <div className="svc-explore">
+            <h2>Shop &amp; Explore</h2>
+            <a className="svc-explore-primary" href={`/shop?category=${material.shopCategory}`} onClick={go(`/shop?category=${material.shopCategory}`)}>Browse {material.name.toLowerCase()} <span aria-hidden="true">→</span></a>
+            <div className="svc-chip-label">Other flooring we install in {city.city}</div>
+            <div className="svc-chips">{siblings.map(m => (
+              <a className="svc-chip" key={m.slug} href={`/flooring-installation/${city.slug}/${m.slug}`} onClick={go(`/flooring-installation/${city.slug}/${m.slug}`)}>{m.short}</a>
+            ))}</div>
+            <p className="svc-nap">Showroom: 1440 S. State College Blvd #6M, Anaheim, CA 92806 · <a href="tel:+17149990009">(714) 999-0009</a></p>
+          </div>
+
+          <div className="install-quote-section" id="quote">
+            <div className="install-quote-inner">
+              <div className="install-quote-copy">
+                <h2>Request a Free {material.short} Quote in {city.city}</h2>
+                <p>Tell us about your project and our Anaheim team will follow up within one business day with a free, no-obligation estimate.</p>
+              </div>
+              <div className="install-quote-card"><InstallQuoteForm /></div>
+            </div>
+          </div>
+
+          <div className="install-faq-section">
+            <h2>{material.short} Installation FAQ</h2>
+            <InstallFAQ items={faq.map(f => [f.q, f.a])} />
+          </div>
+
+          <div className="install-cta-band">
+            <h2>Ready for New {material.short} Floors in {city.city}?</h2>
+            <p>Request a free, no-obligation quote and let our team transform your space.</p>
+            <button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ==================== Per-city remodel page (hub + rooms) ====================
+    function RemodelPage({ city, room, onRequestQuote, navigate }) {
+      if (!city) return null;
+      const go = (href) => (e) => { e.preventDefault(); navigate(href); };
+      const isHub = !room;
+      const label = isHub ? 'Kitchen & Bath Remodeling' : room.name;
+      const faq = [
+        { q: `Do you do ${isHub ? 'kitchen and bathroom remodels' : room.short.toLowerCase() + ' remodels'} in ${city.city}?`, a: `Yes. Roma Flooring Designs handles ${isHub ? 'kitchen and bathroom' : room.short.toLowerCase()} remodeling throughout ${city.city} and ${city.county} — flooring, tile, countertops, and cabinetry — from our Anaheim showroom. Licensed (CA #830966), bonded, and insured.` },
+        { q: 'Do you offer free estimates and design help?', a: 'Yes. We provide free, no-obligation estimates and help you select materials in our showroom, then coordinate the full install with one licensed crew.' },
+        { q: 'Do you supply the materials too?', a: 'Yes — as a flooring, tile, stone, and countertop retailer we can supply and install everything, keeping timelines and accountability under one roof.' },
+      ];
+      return (
+        <div className="installation-page">
+          <div className="install-hero">
+            <div className="install-hero-eyebrow">{city.city}, CA</div>
+            <h1>{label} in {city.city}, CA</h1>
+            <p>{isHub
+              ? `Roma Flooring Designs remodels kitchens and bathrooms across ${city.city}, ${city.county}. As a flooring, tile, stone, and countertop retailer with a licensed install crew, we supply and set every surface — floors, wall and shower tile, countertops, and cabinetry — from our Anaheim showroom. Free estimates and one point of accountability. CA Contractor License #830966.`
+              : `${room.blurb} We supply and install every surface for your ${city.city} ${room.short.toLowerCase()} from our Anaheim showroom, with free estimates and a workmanship warranty. CA Contractor License #830966.`}</p>
+            <div className="install-hero-actions">
+              <button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button>
+              <a className="install-hero-phone" href="tel:+17149990009">Call (714) 999-0009</a>
+            </div>
+            {!isHub && (
+              <a className="svc-back" href={`/remodeling/${city.slug}`} onClick={go(`/remodeling/${city.slug}`)}>← All remodeling in {city.city}</a>
+            )}
+          </div>
+
+          {isHub ? (
+            <div className="svc-rooms">
+              <h2>Remodeling Services in {city.city}</h2>
+              <div className="svc-room-grid">
+                {REMODEL_ROOMS_SVC.map(r => (
+                  <a className="svc-room-card" key={r.slug} href={`/remodeling/${city.slug}/${r.slug}`} onClick={go(`/remodeling/${city.slug}/${r.slug}`)}>
+                    <h3>{r.name} in {city.city}</h3>
+                    <p>{r.blurb}</p>
+                    <span className="svc-room-arrow">Explore →</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="svc-explore">
+              <h2>Shop the Materials</h2>
+              <div className="svc-chips">{(room.related || []).map(r => (
+                <a className="svc-chip" key={r.href} href={r.href} onClick={go(r.href)}>{r.label}</a>
+              ))}</div>
+            </div>
+          )}
+
+          <div className="install-steps-section">
+            <h2>How It Works</h2>
+            <div className="install-steps">
+              <div className="install-step"><div className="step-number">1</div><h3>Consult &amp; Select</h3><p>Meet in our showroom to plan surfaces and pick materials.</p></div>
+              <div className="install-step"><div className="step-number">2</div><h3>Site Visit &amp; Measure</h3><p>We measure your {city.city} space and assess the scope.</p></div>
+              <div className="install-step"><div className="step-number">3</div><h3>Schedule &amp; Build</h3><p>One licensed crew handles demo, prep, and installation.</p></div>
+              <div className="install-step"><div className="step-number">4</div><h3>Final Walk-Through</h3><p>Inspection, care guidance, and workmanship warranty.</p></div>
+            </div>
+          </div>
+
+          <div className="install-benefits">
+            <h2>Why Choose Roma</h2>
+            <div className="install-benefits-grid">
+              <div className="benefit-card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><h3>Licensed &amp; Insured</h3><p>CA Contractor License #830966. Fully bonded and insured.</p></div>
+              <div className="benefit-card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M20 7h-9M20 12h-9M20 17h-9M4 7h.01M4 12h.01M4 17h.01"/></svg><h3>One Crew, Every Surface</h3><p>Flooring, tile, countertops, and cabinetry under one roof.</p></div>
+              <div className="benefit-card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="20 6 9 17 4 12"/></svg><h3>Supplier + Installer</h3><p>We sell the materials and install them — no finger-pointing.</p></div>
+              <div className="benefit-card"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg><h3>Free Estimates</h3><p>No-obligation quotes with clear, upfront pricing.</p></div>
+            </div>
+          </div>
+
+          <div className="install-quote-section" id="quote">
+            <div className="install-quote-inner">
+              <div className="install-quote-copy">
+                <h2>Request a Free {isHub ? 'Remodel' : room.short} Quote in {city.city}</h2>
+                <p>Tell us about your project and our Anaheim team will follow up within one business day with a free, no-obligation estimate.</p>
+              </div>
+              <div className="install-quote-card"><InstallQuoteForm /></div>
+            </div>
+          </div>
+
+          <div className="install-faq-section">
+            <h2>{isHub ? 'Remodeling' : room.short + ' Remodeling'} FAQ</h2>
+            <InstallFAQ items={faq.map(f => [f.q, f.a])} />
+          </div>
+
+          <div className="install-cta-band">
+            <h2>Planning a {isHub ? 'Remodel' : room.short + ' Remodel'} in {city.city}?</h2>
+            <p><a href={`/flooring-installation/${city.slug}`} onClick={go(`/flooring-installation/${city.slug}`)} style={{ color: 'inherit' }}>See our flooring installation in {city.city}</a>, or request a free quote to get started.</p>
             <button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button>
           </div>
         </div>

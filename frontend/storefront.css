@@ -4046,3 +4046,43 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   .calc-field input { width: 100%; }
   .calc-result strong { font-size: 2rem; }
 }
+
+/* ==================== Per-city service pages (material install + remodel) ==================== */
+/* Purpose-built styling for the link-heavy sections so they match the design system instead of
+   rendering as raw browser-blue anchors. Hero/steps/benefits/quote/FAQ reuse the .install-* look. */
+
+/* Hero back-link, sits on the dark install hero */
+.svc-back { display: inline-block; margin-top: 1.25rem; font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-light); text-decoration: none; opacity: 0.9; transition: color var(--transition-base), opacity var(--transition-base); }
+.svc-back:hover { opacity: 1; color: #fff; }
+
+/* Explore section — "Browse {material}" primary link + shop-material chips */
+.svc-explore { max-width: var(--max-width); margin: 0 auto; padding: 4rem 3rem; text-align: center; }
+.svc-explore > h2 { font-family: var(--font-heading); font-size: 2.25rem; font-weight: 300; margin-bottom: 1.75rem; }
+.svc-explore-primary { display: inline-flex; align-items: center; gap: 0.4rem; font-family: var(--font-body); font-size: 1rem; font-weight: 500; color: var(--gold-dark); text-decoration: none; border-bottom: 1px solid var(--gold-light); padding-bottom: 2px; transition: color var(--transition-base), border-color var(--transition-base); }
+.svc-explore-primary:hover { color: var(--gold); border-color: var(--gold); }
+.svc-explore-primary span { transition: transform var(--transition-base); }
+.svc-explore-primary:hover span { transform: translateX(3px); }
+
+.svc-chip-label { font-family: var(--font-body); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--stone-700); margin: 2.25rem 0 1rem; }
+.svc-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.625rem; max-width: 760px; margin: 0 auto; }
+.svc-chip { display: inline-block; padding: 0.5rem 1.125rem; border: 1px solid var(--stone-300); border-radius: 999px; font-family: var(--font-body); font-size: 0.875rem; color: var(--stone-700); text-decoration: none; background: #fff; transition: color var(--transition-base), border-color var(--transition-base), box-shadow var(--transition-base), transform var(--transition-base); }
+.svc-chip:hover { border-color: var(--gold); color: var(--gold-dark); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+
+.svc-nap { font-size: 0.875rem; color: var(--stone-500); margin-top: 2.5rem; text-align: center; }
+.svc-nap a { color: var(--gold); }
+
+/* Remodel hub — room cards */
+.svc-rooms { max-width: var(--max-width); margin: 0 auto; padding: 4rem 3rem; }
+.svc-rooms > h2 { font-family: var(--font-heading); font-size: 2.25rem; font-weight: 300; text-align: center; margin-bottom: 2.5rem; }
+.svc-room-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; max-width: 900px; margin: 0 auto; }
+.svc-room-card { display: block; padding: 2.25rem 2rem; background: var(--cream); border: 1px solid var(--stone-200); border-radius: var(--radius-md); text-decoration: none; transition: box-shadow var(--transition-base), transform var(--transition-base), border-color var(--transition-base); }
+.svc-room-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); border-color: var(--gold-light); }
+.svc-room-card h3 { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 400; color: var(--stone-900); margin-bottom: 0.75rem; }
+.svc-room-card p { font-size: 0.9375rem; color: var(--stone-600); line-height: 1.7; margin: 0; }
+.svc-room-arrow { display: inline-block; margin-top: 1rem; font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold-dark); }
+
+@media (max-width: 768px) {
+  .svc-explore, .svc-rooms { padding: 2.5rem 1.25rem; }
+  .svc-room-grid { grid-template-columns: 1fr; }
+  .svc-explore > h2, .svc-rooms > h2 { font-size: 1.875rem; }
+}

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { fullProductName } from '../lib/productName.js';
 import { facetSlug } from '../lib/facetSlug.js';
 import { SERVICE_AREAS, SERVICE_CITIES, cityBySlug, citySlug } from '../lib/serviceAreas.js';
+import { MATERIALS, REMODEL_ROOMS, PRIORITY_CITIES, materialBySlug, roomBySlug, isPriorityCity } from '../lib/localServices.js';
 
 const SITE_URL = (process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
 
@@ -96,9 +97,19 @@ function parsePath(reqPath, query) {
   if (path === '/privacy') return { type: 'static', page: 'privacy' };
   if (path === '/terms') return { type: 'static', page: 'terms' };
 
+  // /flooring-installation/{city}/{material} — per-city material install page (nested)
+  const matMatch = path.match(/^\/flooring-installation\/([a-z0-9-]+)\/([a-z0-9-]+)$/);
+  if (matMatch) return { type: 'local_material', citySlug: matMatch[1], materialSlug: matMatch[2] };
+
   // /flooring-installation/{city} — per-city local landing page (Phase 3 local moat)
   const localMatch = path.match(/^\/flooring-installation\/([a-z0-9-]+)$/);
   if (localMatch) return { type: 'local', slug: localMatch[1] };
+
+  // /remodeling/{city} hub + /remodeling/{city}/{room} — kitchen & bath remodel pages
+  const remodelRoomMatch = path.match(/^\/remodeling\/([a-z0-9-]+)\/([a-z0-9-]+)$/);
+  if (remodelRoomMatch) return { type: 'remodel', citySlug: remodelRoomMatch[1], roomSlug: remodelRoomMatch[2] };
+  const remodelHubMatch = path.match(/^\/remodeling\/([a-z0-9-]+)$/);
+  if (remodelHubMatch) return { type: 'remodel', citySlug: remodelHubMatch[1], roomSlug: null };
 
   // /guides + /guides/{slug} — pillar buying guides (Phase 4 authority content)
   if (path === '/guides') return { type: 'guides-index' };
@@ -872,9 +883,34 @@ const INSTALL_FAQ = [
   ['Do I have to buy flooring from Roma to use your install crew?', 'We install materials purchased from our Anaheim showroom, and in many cases we can install flooring you already have. Contact us and we will walk you through the options.'],
 ];
 
-// Real Google review data. Leave null until genuine data is supplied — never fabricate
-// ratings. Shape: { ratingValue: '4.9', reviewCount: 87, items: [{ author, rating, text }] }
-const INSTALL_REVIEWS = null;
+// Real Google review data — loaded from the service_reviews table (populated only from
+// genuine data via scripts/seo/ingest-service-reviews.mjs). Null until real reviews exist;
+// we never fabricate ratings. Shape: { ratingValue: '4.9', reviewCount: 87, items: [...] }.
+let INSTALL_REVIEWS = null;
+let _reviewsLoadedAt = 0;
+const REVIEWS_TTL = 60 * 60 * 1000; // 1 hour
+
+// Refresh INSTALL_REVIEWS from the DB, at most once per hour. Called (awaited) at the top
+// of the render handler so the synchronous installationBusinessNode() sees fresh data.
+async function loadServiceReviews(pool) {
+  if (Date.now() - _reviewsLoadedAt < REVIEWS_TTL) return;
+  _reviewsLoadedAt = Date.now();
+  try {
+    const agg = await pool.query(
+      `SELECT ROUND(AVG(rating)::numeric, 1) AS avg, COUNT(*)::int AS cnt
+         FROM service_reviews WHERE is_published = true`);
+    const { avg, cnt } = agg.rows[0] || {};
+    if (!cnt || Number(cnt) < 1) { INSTALL_REVIEWS = null; return; }
+    const items = await pool.query(
+      `SELECT author, rating, body FROM service_reviews
+        WHERE is_published = true AND body IS NOT NULL AND body <> ''
+        ORDER BY review_date DESC NULLS LAST, created_at DESC LIMIT 5`);
+    INSTALL_REVIEWS = {
+      ratingValue: String(avg), reviewCount: Number(cnt),
+      items: items.rows.map(r => ({ author: r.author, rating: Number(r.rating), text: r.body })),
+    };
+  } catch { INSTALL_REVIEWS = null; }
+}
 
 const BUSINESS_ID = SITE_URL + '/#business';
 
@@ -1503,7 +1539,15 @@ function renderLocalPage(city, row) {
       { '@type': 'ListItem', position: 3, name: city.city, item: canonicalUrl } ] }
   ]};
 
-  const typesHtml = INSTALL_TYPES.map(([n, d]) => `<li><strong>${escapeHtml(n)}:</strong> ${escapeHtml(d)}</li>`).join('');
+  // Internal-link mesh: for priority cities, link DOWN to the per-material install pages
+  // and OVER to the remodeling hub (authority flows hub → children).
+  const hasChildren = isPriorityCity(city.slug);
+  const typesHtml = hasChildren
+    ? MATERIALS.map(m => `<li><strong><a href="/flooring-installation/${city.slug}/${m.slug}">${escapeHtml(m.name)} Installation in ${escapeHtml(city.city)}</a>:</strong> ${escapeHtml(m.blurb)}</li>`).join('')
+    : INSTALL_TYPES.map(([n, d]) => `<li><strong>${escapeHtml(n)}:</strong> ${escapeHtml(d)}</li>`).join('');
+  const remodelHtml = hasChildren
+    ? `<h2>Kitchen &amp; Bathroom Remodeling in ${escapeHtml(city.city)}</h2><p>Beyond flooring, we handle full <a href="/remodeling/${city.slug}">kitchen and bathroom remodels in ${escapeHtml(city.city)}</a> — ${REMODEL_ROOMS.map(r => `<a href="/remodeling/${city.slug}/${r.slug}">${escapeHtml(r.short.toLowerCase())} remodeling</a>`).join(', ')}, with tile, countertops, and cabinetry by one licensed crew.</p>`
+    : '';
   const faqHtml = cityFaq.map(([q, a]) => `<h3>${escapeHtml(q)}</h3><p>${escapeHtml(a)}</p>`).join('');
   // Internal-link mesh: other cities in the same county.
   const nearby = SERVICE_CITIES.filter(c => c.county === city.county && c.slug !== city.slug).slice(0, 10);
@@ -1519,12 +1563,158 @@ function renderLocalPage(city, row) {
     <section class="local-intro">${introHtml}</section>
     <h2>What We Install in ${escapeHtml(city.city)}</h2>
     <ul>${typesHtml}</ul>
+    ${remodelHtml}
     <h2>Frequently Asked Questions</h2>
     ${faqHtml}
     ${footerHtml}
     <h2>Serving ${escapeHtml(city.city)} &amp; Nearby</h2>
     ${nearbyHtml}
     <p><a href="/installation">All flooring installation services</a> &middot; <a href="/shop">Shop flooring</a> &middot; <a href="/custom-accessories">Custom accessories</a></p>`;
+
+  return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd, bodyContent };
+}
+
+// ==================== Per-city material install pages ====================
+// /flooring-installation/{city}/{material} — nested under the city hub. Geo + material are
+// authoritative from SERVICE_CITIES/MATERIALS; the optional landing_pages row
+// (type='local_material') supplies stored AI meta/intro/content/footer, else templated copy.
+async function fetchServiceRow(pool, type, slug) {
+  try {
+    const res = await pool.query(
+      `SELECT meta_title, meta_description, intro_html, content_html, footer_html, filter_json
+         FROM landing_pages WHERE type = $1 AND slug = $2`, [type, slug]);
+    return res.rows[0] || null;
+  } catch { return null; }
+}
+
+function renderMaterialPage(city, material, row) {
+  row = row || {};
+  const fj = row.filter_json || {};
+  const canonicalUrl = `${SITE_URL}/flooring-installation/${city.slug}/${material.slug}`;
+  const title = (row.meta_title && row.meta_title.trim())
+    ? row.meta_title.trim()
+    : `${material.name} Installation in ${city.city}, CA | Roma Flooring Designs`;
+  const description = (row.meta_description && row.meta_description.trim())
+    ? row.meta_description.trim()
+    : `Licensed ${material.short.toLowerCase()} flooring installation in ${city.city}, CA. Expert subfloor prep, clean finish, free estimates. CA Lic #830966. Call (714) 999-0009.`;
+  const h1 = `${material.name} Installation in ${city.city}, CA`;
+
+  const faq = Array.isArray(fj.faq) ? fj.faq.map(x => Array.isArray(x) ? { q: x[0], a: x[1] } : x).filter(x => x && x.q && x.a) : [];
+  const faqList = faq.length ? faq : [
+    { q: `Do you install ${material.short.toLowerCase()} flooring in ${city.city}?`, a: `Yes. Roma Flooring Designs installs ${material.name.toLowerCase()} throughout ${city.city} and ${city.county}, from our Anaheim showroom. We are licensed (CA #830966), bonded, and insured.` },
+    { q: 'Do you offer free estimates?', a: 'Yes — free, no-obligation estimates with clear, upfront pricing. Request a quote and we follow up within one business day.' },
+    { q: 'Do you remove and dispose of the old floor?', a: 'Yes. Demolition, subfloor prep, haul-away, and cleanup are part of our full-service installation.' },
+  ];
+
+  const jsonLd = { '@context': 'https://schema.org', '@graph': [
+    installationBusinessNode(),
+    { '@type': 'Service', name: `${material.name} Installation in ${city.city}`, serviceType: `${material.name} installation`,
+      provider: { '@id': BUSINESS_ID }, areaServed: { '@type': 'City', name: city.city },
+      description: material.blurb },
+    { '@type': 'FAQPage', mainEntity: faqList.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) },
+    { '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Flooring Installation', item: SITE_URL + '/installation' },
+      { '@type': 'ListItem', position: 3, name: city.city, item: `${SITE_URL}/flooring-installation/${city.slug}` },
+      { '@type': 'ListItem', position: 4, name: `${material.short} Installation`, item: canonicalUrl } ] }
+  ]};
+
+  const introHtml = (row.intro_html && row.intro_html.trim())
+    ? row.intro_html
+    : `<p>Roma Flooring Designs installs ${escapeHtml(material.name.toLowerCase())} for homeowners across ${escapeHtml(city.city)}, ${escapeHtml(city.county)}. ${escapeHtml(material.blurb)} Every ${escapeHtml(city.city)} project starts with an on-site measure and a firm, upfront estimate — and carries our workmanship warranty. California Contractor License #830966.</p>`;
+  const contentHtml = (row.content_html && row.content_html.trim()) ? row.content_html : '';
+  const faqHtml = faqList.map(f => `<h3>${escapeHtml(f.q)}</h3><p>${escapeHtml(f.a)}</p>`).join('');
+  const footerHtml = (row.footer_html && row.footer_html.trim()) ? `<section class="local-footer">${row.footer_html}</section>` : '';
+
+  // Mesh: sibling materials in this city, shop the material, back up to the city hub.
+  const siblings = MATERIALS.filter(m => m.slug !== material.slug);
+  const siblingHtml = `<p>Other flooring we install in ${escapeHtml(city.city)}: ${siblings.map(m => `<a href="/flooring-installation/${city.slug}/${m.slug}">${escapeHtml(m.short)}</a>`).join(' &middot; ')}</p>`;
+
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/installation">Flooring Installation</a></li><li><a href="/flooring-installation/${city.slug}">${escapeHtml(city.city)}</a></li><li>${escapeHtml(material.short)}</li></ol></nav>
+    <h1>${escapeHtml(h1)}</h1>
+    <section class="local-intro">${introHtml}</section>
+    ${contentHtml}
+    <h2>Frequently Asked Questions</h2>
+    ${faqHtml}
+    ${footerHtml}
+    <p><a href="/shop?category=${escapeHtml(material.shopCategory)}">Shop ${escapeHtml(material.name.toLowerCase())}</a> &middot; <a href="/flooring-installation/${city.slug}">All flooring installation in ${escapeHtml(city.city)}</a> &middot; <a href="/installation">Request a free estimate</a></p>
+    <h2>More in ${escapeHtml(city.city)}</h2>
+    ${siblingHtml}`;
+
+  return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd, bodyContent };
+}
+
+// ==================== Per-city remodeling pages ====================
+// /remodeling/{city} hub + /remodeling/{city}/{room}. type='remodel'; hub row has
+// filter_json.room = null, room rows have filter_json.room = {slug}.
+function renderRemodelPage(city, room, row) {
+  row = row || {};
+  const fj = row.filter_json || {};
+  const isHub = !room;
+  const canonicalUrl = isHub ? `${SITE_URL}/remodeling/${city.slug}` : `${SITE_URL}/remodeling/${city.slug}/${room.slug}`;
+  const label = isHub ? 'Kitchen & Bath Remodeling' : room.name;
+  const title = (row.meta_title && row.meta_title.trim())
+    ? row.meta_title.trim()
+    : `${label} in ${city.city}, CA | Roma Flooring Designs`;
+  const description = (row.meta_description && row.meta_description.trim())
+    ? row.meta_description.trim()
+    : (isHub
+        ? `Kitchen & bathroom remodeling in ${city.city}, CA — flooring, tile, countertops & cabinetry by one licensed crew. Free estimates. CA Lic #830966.`
+        : `${room.name} in ${city.city}, CA. ${room.blurb} Licensed, insured, free estimates. CA Lic #830966. Call (714) 999-0009.`);
+  const h1 = `${label} in ${city.city}, CA`;
+
+  const faq = Array.isArray(fj.faq) ? fj.faq.map(x => Array.isArray(x) ? { q: x[0], a: x[1] } : x).filter(x => x && x.q && x.a) : [];
+  const faqList = faq.length ? faq : [
+    { q: `Do you do ${isHub ? 'kitchen and bathroom remodels' : room.short.toLowerCase() + ' remodels'} in ${city.city}?`, a: `Yes. Roma Flooring Designs handles ${isHub ? 'kitchen and bathroom' : room.short.toLowerCase()} remodeling throughout ${city.city} and ${city.county} — flooring, tile, countertops, and cabinetry — from our Anaheim showroom. Licensed (CA #830966), bonded, and insured.` },
+    { q: 'Do you offer free estimates and design help?', a: 'Yes. We provide free, no-obligation estimates and help you select materials in our showroom, then coordinate the full install with one licensed crew.' },
+    { q: 'Do you supply the materials too?', a: 'Yes — as a flooring, tile, stone, and countertop retailer we can supply and install everything, which keeps timelines and accountability under one roof.' },
+  ];
+
+  const services = REMODEL_ROOMS;
+  const jsonLd = { '@context': 'https://schema.org', '@graph': [
+    installationBusinessNode(),
+    { '@type': 'Service', name: `${label} in ${city.city}`, serviceType: isHub ? 'Remodeling' : `${room.name}`,
+      provider: { '@id': BUSINESS_ID }, areaServed: { '@type': 'City', name: city.city },
+      description: isHub ? 'Kitchen and bathroom remodeling: flooring, tile, countertops, and cabinetry.' : room.blurb,
+      ...(isHub ? { hasOfferCatalog: { '@type': 'OfferCatalog', name: `Remodeling Services in ${city.city}`,
+        itemListElement: services.map(r => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: r.name, description: r.blurb } })) } } : {}) },
+    { '@type': 'FAQPage', mainEntity: faqList.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) },
+    { '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Remodeling', item: `${SITE_URL}/remodeling/${city.slug}` },
+      ...(isHub ? [] : [{ '@type': 'ListItem', position: 3, name: room.name, item: canonicalUrl }]) ] }
+  ]};
+
+  const introHtml = (row.intro_html && row.intro_html.trim())
+    ? row.intro_html
+    : (isHub
+        ? `<p>Roma Flooring Designs remodels kitchens and bathrooms across ${escapeHtml(city.city)}, ${escapeHtml(city.county)}. As a flooring, tile, stone, and countertop retailer with a licensed install crew, we supply and set every surface — floors, wall and shower tile, countertops, and cabinetry — from our Anaheim showroom. Free estimates and one point of accountability. CA Contractor License #830966.</p>`
+        : `<p>Roma Flooring Designs handles ${escapeHtml(room.name.toLowerCase())} for homeowners in ${escapeHtml(city.city)}, ${escapeHtml(city.county)}. ${escapeHtml(room.blurb)} We supply and install every surface from our Anaheim showroom, with free estimates and a workmanship warranty. CA Contractor License #830966.</p>`);
+  const contentHtml = (row.content_html && row.content_html.trim()) ? row.content_html : '';
+  const faqHtml = faqList.map(f => `<h3>${escapeHtml(f.q)}</h3><p>${escapeHtml(f.a)}</p>`).join('');
+  const footerHtml = (row.footer_html && row.footer_html.trim()) ? `<section class="local-footer">${row.footer_html}</section>` : '';
+
+  const relatedLinks = (isHub ? [] : (room.related || []))
+    .map(r => `<a href="${r.href}">${escapeHtml(r.label)}</a>`).join(' &middot; ');
+  const roomsHtml = isHub
+    ? `<h2>Remodeling Services in ${escapeHtml(city.city)}</h2><ul>${REMODEL_ROOMS.map(r => `<li><strong><a href="/remodeling/${city.slug}/${r.slug}">${escapeHtml(r.name)} in ${escapeHtml(city.city)}</a>:</strong> ${escapeHtml(r.blurb)}</li>`).join('')}</ul>`
+    : `<p>${relatedLinks ? 'Shop the materials: ' + relatedLinks + ' &middot; ' : ''}<a href="/remodeling/${city.slug}">All remodeling in ${escapeHtml(city.city)}</a></p>`;
+
+  const breadcrumbHtml = isHub
+    ? `<nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li>Remodeling in ${escapeHtml(city.city)}</li></ol></nav>`
+    : `<nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/remodeling/${city.slug}">Remodeling in ${escapeHtml(city.city)}</a></li><li>${escapeHtml(room.short)}</li></ol></nav>`;
+
+  const bodyContent = `
+    ${breadcrumbHtml}
+    <h1>${escapeHtml(h1)}</h1>
+    <section class="local-intro">${introHtml}</section>
+    ${contentHtml}
+    ${roomsHtml}
+    <h2>Frequently Asked Questions</h2>
+    ${faqHtml}
+    ${footerHtml}
+    <p><a href="/flooring-installation/${city.slug}">Flooring installation in ${escapeHtml(city.city)}</a> &middot; <a href="/cabinets">Cabinets</a> &middot; <a href="/installation">Request a free estimate</a></p>`;
 
   return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd, bodyContent };
 }
@@ -1636,6 +1826,10 @@ export default function createSeoRouter(pool) {
     let pageData;
     let statusCode = 200;
 
+    // Refresh genuine review data (cached 1h) so service/local pages emit aggregateRating
+    // JSON-LD once real reviews are ingested.
+    await loadServiceReviews(pool);
+
     switch (parsed.type) {
       case 'product': {
         const sku = await fetchProductBySlug(pool, parsed.categorySlug, parsed.productSlug);
@@ -1715,6 +1909,33 @@ export default function createSeoRouter(pool) {
         }
         break;
       }
+      case 'local_material': {
+        const city = cityBySlug(parsed.citySlug);
+        const material = materialBySlug(parsed.materialSlug);
+        // Only priority cities carry material children; others 404 (no thin pages).
+        if (!city || !material || !isPriorityCity(city.slug)) {
+          pageData = render404Page('Page not found.');
+          statusCode = 404;
+        } else {
+          const row = await fetchServiceRow(pool, 'local_material', `${city.slug}-${material.slug}`);
+          pageData = renderMaterialPage(city, material, row);
+        }
+        break;
+      }
+      case 'remodel': {
+        const city = cityBySlug(parsed.citySlug);
+        const room = parsed.roomSlug ? roomBySlug(parsed.roomSlug) : null;
+        const roomOk = !parsed.roomSlug || room; // hub, or a valid room
+        if (!city || !roomOk || !isPriorityCity(city.slug)) {
+          pageData = render404Page('Page not found.');
+          statusCode = 404;
+        } else {
+          const slug = room ? `remodeling-${city.slug}-${room.slug}` : `remodeling-${city.slug}`;
+          const row = await fetchServiceRow(pool, 'remodel', slug);
+          pageData = renderRemodelPage(city, room, row);
+        }
+        break;
+      }
       case 'guide': {
         const guide = await fetchGuideBySlug(pool, parsed.slug);
         if (!guide) {
@@ -1757,6 +1978,8 @@ export default function createSeoRouter(pool) {
       : parsed.type === 'collections-index' ? 'collections-index'
       : parsed.type === 'landing' ? `landing:${parsed.slug}`
       : parsed.type === 'local' ? `local:${parsed.slug}`
+      : parsed.type === 'local_material' ? `localmat:${parsed.citySlug}/${parsed.materialSlug}`
+      : parsed.type === 'remodel' ? `remodel:${parsed.citySlug}/${parsed.roomSlug || ''}`
       : parsed.type === 'guide' ? `guide:${parsed.slug}`
       : parsed.type === 'guides-index' ? 'guides-index'
       : parsed.type === 'browse' ? 'browse'

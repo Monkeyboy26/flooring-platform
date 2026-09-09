@@ -471,7 +471,10 @@ CREATE INDEX idx_media_assets_product ON media_assets(product_id);
 CREATE TABLE landing_pages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     type VARCHAR(30) NOT NULL
-        CHECK (type IN ('facet', 'material', 'brand', 'room', 'guide', 'local')),
+        -- local            → /flooring-installation/{city} hub
+        -- local_material   → /flooring-installation/{city}/{material}
+        -- remodel          → /remodeling/{city}[/{room}]
+        CHECK (type IN ('facet', 'material', 'brand', 'room', 'guide', 'local', 'local_material', 'remodel')),
     slug TEXT UNIQUE NOT NULL,
     title TEXT NOT NULL,
     h1 TEXT,
@@ -493,6 +496,22 @@ CREATE TABLE landing_pages (
 );
 CREATE INDEX idx_landing_pages_type ON landing_pages(type);
 CREATE INDEX idx_landing_pages_indexable ON landing_pages(is_indexable) WHERE is_indexable = true;
+
+-- Genuine service reviews backing aggregateRating on installation/service pages.
+-- Populated ONLY from real data (Google Business Profile export / manual entry) via
+-- scripts/seo/ingest-service-reviews.mjs. Never fabricated — empty = no rating schema.
+CREATE TABLE service_reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    source VARCHAR(40) NOT NULL DEFAULT 'google',
+    author TEXT NOT NULL,
+    rating NUMERIC(2,1) NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    body TEXT,
+    review_date DATE,
+    external_id TEXT UNIQUE,   -- dedupe key (e.g. GBP review id)
+    is_published BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_service_reviews_pub ON service_reviews(is_published) WHERE is_published = true;
 
 -- NOTE: product reviews already exist (see "Product Reviews" section below) with a
 -- customer-authored model. Phase 3 will EXTEND that table (add moderation status +

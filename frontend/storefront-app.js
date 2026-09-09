@@ -173,6 +173,98 @@
       ]
     };
   }
+  const PRIORITY_CITY_SLUGS = ["anaheim", "fullerton", "orange", "yorba-linda", "placentia", "brea", "irvine", "tustin", "santa-ana", "buena-park", "huntington-beach", "costa-mesa", "newport-beach", "mission-viejo", "lake-forest", "laguna-hills", "long-beach", "corona", "riverside"];
+  const MATERIALS_SVC = [
+    { slug: "hardwood", name: "Hardwood Flooring", short: "Hardwood", shopCategory: "hardwood", blurb: "Solid and engineered hardwood \u2014 nail-down, glue-down, and floating installs with expert acclimation and moisture control." },
+    { slug: "luxury-vinyl", name: "Luxury Vinyl (LVP/LVT)", short: "Luxury Vinyl", shopCategory: "luxury-vinyl", blurb: "Waterproof click-lock LVP and glue-down LVT \u2014 durable, pet- and kid-friendly floors with meticulous subfloor prep." },
+    { slug: "tile", name: "Tile & Porcelain", short: "Tile", shopCategory: "porcelain-tile", blurb: "Porcelain and ceramic tile for floors, walls, showers, and backsplashes \u2014 set flat and true with proper waterproofing." },
+    { slug: "natural-stone", name: "Natural Stone", short: "Natural Stone", shopCategory: "natural-stone", blurb: "Marble, travertine, slate, and quartzite installed and sealed with the care natural stone demands." },
+    { slug: "carpet", name: "Carpet", short: "Carpet", shopCategory: "carpet", blurb: "Stretch-in and glue-down carpet for bedrooms, stairs, and living areas \u2014 clean seams and tight, lasting installs." },
+    { slug: "laminate", name: "Laminate Flooring", short: "Laminate", shopCategory: "laminate-flooring", blurb: "Fast, affordable floating laminate with seamless transitions and durable wear layers." }
+  ];
+  const REMODEL_ROOMS_SVC = [
+    {
+      slug: "kitchen",
+      name: "Kitchen Remodeling",
+      short: "Kitchen",
+      blurb: "Full kitchen surfaces: flooring, backsplash and wall tile, countertops, and cabinetry \u2014 coordinated by one licensed crew.",
+      related: [{ label: "Countertops", href: "/shop?category=countertops" }, { label: "Cabinets", href: "/cabinets" }, { label: "Tile & Porcelain", href: "/shop?category=porcelain-tile" }]
+    },
+    {
+      slug: "bathroom",
+      name: "Bathroom Remodeling",
+      short: "Bathroom",
+      blurb: "Bathroom surfaces done right: waterproofed shower and floor tile, vanities, countertops, and stone \u2014 start to finish.",
+      related: [{ label: "Tile & Porcelain", href: "/shop?category=porcelain-tile" }, { label: "Natural stone", href: "/shop?category=natural-stone" }, { label: "Countertops", href: "/shop?category=countertops" }]
+    }
+  ];
+  const citySlugify = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const cityFromSlug = (slug) => SERVICE_AREAS.flatMap((a) => a.cities.map((c) => ({ city: c, county: a.county, slug: citySlugify(c) }))).find((x) => x.slug === slug) || null;
+  const materialBySlugSvc = (s) => MATERIALS_SVC.find((m) => m.slug === s) || null;
+  const roomBySlugSvc = (s) => REMODEL_ROOMS_SVC.find((r) => r.slug === s) || null;
+  const isPriorityCitySvc = (slug) => PRIORITY_CITY_SLUGS.includes(slug);
+  function materialJsonLd(city, material) {
+    const business = installationJsonLd()["@graph"][0];
+    const canonical = SITE_URL + "/flooring-installation/" + city.slug + "/" + material.slug;
+    const faq = [
+      [`Do you install ${material.short.toLowerCase()} flooring in ${city.city}?`, `Yes. Roma Flooring Designs installs ${material.name.toLowerCase()} throughout ${city.city} and ${city.county}, from our Anaheim showroom. We are licensed (CA #830966), bonded, and insured.`],
+      ["Do you offer free estimates?", "Yes \u2014 free, no-obligation estimates with clear, upfront pricing. Request a quote and we follow up within one business day."],
+      ["Do you remove and dispose of the old floor?", "Yes. Demolition, subfloor prep, haul-away, and cleanup are part of our full-service installation."]
+    ];
+    return { "@context": "https://schema.org", "@graph": [
+      business,
+      {
+        "@type": "Service",
+        name: `${material.name} Installation in ${city.city}`,
+        serviceType: `${material.name} installation`,
+        provider: { "@id": BUSINESS_ID },
+        areaServed: { "@type": "City", name: city.city },
+        description: material.blurb
+      },
+      { "@type": "FAQPage", mainEntity: faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
+      { "@type": "BreadcrumbList", itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL + "/" },
+        { "@type": "ListItem", position: 2, name: "Flooring Installation", item: SITE_URL + "/installation" },
+        { "@type": "ListItem", position: 3, name: city.city, item: SITE_URL + "/flooring-installation/" + city.slug },
+        { "@type": "ListItem", position: 4, name: `${material.short} Installation`, item: canonical }
+      ] }
+    ] };
+  }
+  function remodelJsonLd(city, room) {
+    const business = installationJsonLd()["@graph"][0];
+    const isHub = !room;
+    const label = isHub ? "Kitchen & Bath Remodeling" : room.name;
+    const canonical = isHub ? SITE_URL + "/remodeling/" + city.slug : SITE_URL + "/remodeling/" + city.slug + "/" + room.slug;
+    const faq = [
+      [`Do you do ${isHub ? "kitchen and bathroom remodels" : room.short.toLowerCase() + " remodels"} in ${city.city}?`, `Yes. Roma Flooring Designs handles ${isHub ? "kitchen and bathroom" : room.short.toLowerCase()} remodeling throughout ${city.city} and ${city.county} \u2014 flooring, tile, countertops, and cabinetry \u2014 from our Anaheim showroom. Licensed (CA #830966), bonded, and insured.`],
+      ["Do you offer free estimates and design help?", "Yes. We provide free, no-obligation estimates and help you select materials in our showroom, then coordinate the full install with one licensed crew."],
+      ["Do you supply the materials too?", "Yes \u2014 as a flooring, tile, stone, and countertop retailer we can supply and install everything, keeping timelines and accountability under one roof."]
+    ];
+    const svc = {
+      "@type": "Service",
+      name: `${label} in ${city.city}`,
+      serviceType: isHub ? "Remodeling" : room.name,
+      provider: { "@id": BUSINESS_ID },
+      areaServed: { "@type": "City", name: city.city },
+      description: isHub ? "Kitchen and bathroom remodeling: flooring, tile, countertops, and cabinetry." : room.blurb
+    };
+    if (isHub) svc.hasOfferCatalog = {
+      "@type": "OfferCatalog",
+      name: `Remodeling Services in ${city.city}`,
+      itemListElement: REMODEL_ROOMS_SVC.map((r) => ({ "@type": "Offer", itemOffered: { "@type": "Service", name: r.name, description: r.blurb } }))
+    };
+    const crumbs = [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL + "/" },
+      { "@type": "ListItem", position: 2, name: "Remodeling", item: SITE_URL + "/remodeling/" + city.slug }
+    ];
+    if (!isHub) crumbs.push({ "@type": "ListItem", position: 3, name: room.name, item: canonical });
+    return { "@context": "https://schema.org", "@graph": [
+      business,
+      svc,
+      { "@type": "FAQPage", mainEntity: faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
+      { "@type": "BreadcrumbList", itemListElement: crumbs }
+    ] };
+  }
   const ACC_TILE = [
     { name: "Custom Bullnose", desc: "Finished, glazed edges fabricated from your own field tile and kiln-fired for a factory-grade finish \u2014 made from the same tile to minimize dye-lot variation.", icon: "tile" },
     { name: "Cut-Downs", desc: "Your tile cut to custom sizes for liners, pencil trim, chair rails, and borders.", icon: "cut" },
@@ -2291,6 +2383,8 @@
   function StorefrontApp() {
     const [view, setView] = useState("home");
     const [localCity, setLocalCity] = useState(null);
+    const [localMaterial, setLocalMaterial] = useState(null);
+    const [remodelCtx, setRemodelCtx] = useState(null);
     const [guideSlug, setGuideSlug] = useState(null);
     const [accountSection, setAccountSection] = useState("overview");
     const [selectedSkuId, setSelectedSkuId] = useState(null);
@@ -3432,10 +3526,23 @@
         } else if (path === "/installation") {
           setView("installation");
         } else if (path.startsWith("/flooring-installation/")) {
-          const slug = decodeURIComponent(path.replace("/flooring-installation/", "").split(/[/?]/)[0] || "");
-          const found = SERVICE_AREAS.flatMap((a) => a.cities.map((c) => ({ city: c, county: a.county, slug: c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") }))).find((x) => x.slug === slug);
-          if (found) {
+          const rest = path.replace("/flooring-installation/", "").split("?")[0];
+          const parts = rest.split("/").map(decodeURIComponent).filter(Boolean);
+          const found = cityFromSlug(parts[0] || "");
+          const material = parts[1] ? materialBySlugSvc(parts[1]) : null;
+          if (found && material && isPriorityCitySvc(found.slug)) {
             setLocalCity(found);
+            setLocalMaterial(material);
+            setView("local-material");
+            updateSEO({
+              title: `${material.name} Installation in ${found.city}, CA | Roma Flooring Designs`,
+              description: `Licensed ${material.short.toLowerCase()} flooring installation in ${found.city}, CA. Expert subfloor prep, clean finish, free estimates. CA Lic #830966. Call (714) 999-0009.`,
+              url: SITE_URL + "/flooring-installation/" + found.slug + "/" + material.slug,
+              image: ""
+            });
+          } else if (found) {
+            setLocalCity(found);
+            setLocalMaterial(null);
             setView("local-city");
             updateSEO({
               title: `Flooring Installation in ${found.city}, CA | Roma Flooring Designs`,
@@ -3445,6 +3552,24 @@
             });
           } else {
             setLocalCity(null);
+            setView("installation");
+          }
+        } else if (path.startsWith("/remodeling/")) {
+          const rest = path.replace("/remodeling/", "").split("?")[0];
+          const parts = rest.split("/").map(decodeURIComponent).filter(Boolean);
+          const found = cityFromSlug(parts[0] || "");
+          const room = parts[1] ? roomBySlugSvc(parts[1]) : null;
+          if (found && isPriorityCitySvc(found.slug) && (!parts[1] || room)) {
+            setRemodelCtx({ city: found, room });
+            setView("remodel");
+            const label = room ? room.name : "Kitchen & Bath Remodeling";
+            updateSEO({
+              title: `${label} in ${found.city}, CA | Roma Flooring Designs`,
+              description: room ? `${room.name} in ${found.city}, CA. Licensed, insured \u2014 flooring, tile, countertops & cabinetry. Free estimates. CA Lic #830966.` : `Kitchen & bathroom remodeling in ${found.city}, CA \u2014 flooring, tile, countertops & cabinetry by one licensed crew. Free estimates. CA Lic #830966.`,
+              url: SITE_URL + (room ? "/remodeling/" + found.slug + "/" + room.slug : "/remodeling/" + found.slug),
+              image: ""
+            });
+          } else {
             setView("installation");
           }
         } else if (path === "/guides") {
@@ -3664,6 +3789,10 @@
         setDynamicJsonLd(installationJsonLd());
       } else if (view === "local-city") {
         setDynamicJsonLd(localCity ? localCityJsonLd(localCity) : installationJsonLd());
+      } else if (view === "local-material") {
+        setDynamicJsonLd(localCity && localMaterial ? materialJsonLd(localCity, localMaterial) : installationJsonLd());
+      } else if (view === "remodel") {
+        setDynamicJsonLd(remodelCtx ? remodelJsonLd(remodelCtx.city, remodelCtx.room) : installationJsonLd());
       } else if (view === "custom-accessories") {
         setDynamicJsonLd(customAccessoriesJsonLd());
       } else if (view === "custom-area-rugs") {
@@ -3918,6 +4047,12 @@
       setInstallModalProduct(null);
       setShowInstallModal(true);
     } }), view === "local-city" && /* @__PURE__ */ React.createElement(InstallationPage, { city: localCity, onRequestQuote: () => {
+      setInstallModalProduct(null);
+      setShowInstallModal(true);
+    } }), view === "local-material" && /* @__PURE__ */ React.createElement(MaterialInstallPage, { city: localCity, material: localMaterial, navigate, onRequestQuote: () => {
+      setInstallModalProduct(null);
+      setShowInstallModal(true);
+    } }), view === "remodel" && remodelCtx && /* @__PURE__ */ React.createElement(RemodelPage, { city: remodelCtx.city, room: remodelCtx.room, navigate, onRequestQuote: () => {
       setInstallModalProduct(null);
       setShowInstallModal(true);
     } }), view === "guides-index" && /* @__PURE__ */ React.createElement(GuidesIndexPage, { navigate }), view === "guide" && /* @__PURE__ */ React.createElement(GuidePage, { slug: guideSlug, navigate, onRequestQuote: () => {
@@ -11720,6 +11855,36 @@
       const s = c.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
       return /* @__PURE__ */ React.createElement(React.Fragment, { key: s }, i > 0 ? " \xB7 " : "", /* @__PURE__ */ React.createElement("a", { href: `/flooring-installation/${s}` }, c));
     }))), /* @__PURE__ */ React.createElement("div", { className: "install-types" }, /* @__PURE__ */ React.createElement("h2", null, "What We Install"), /* @__PURE__ */ React.createElement("div", { className: "install-types-grid" }, /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "7", height: "7" }), /* @__PURE__ */ React.createElement("rect", { x: "14", y: "3", width: "7", height: "7" }), /* @__PURE__ */ React.createElement("rect", { x: "3", y: "14", width: "7", height: "7" }), /* @__PURE__ */ React.createElement("rect", { x: "14", y: "14", width: "7", height: "7" })), /* @__PURE__ */ React.createElement("h3", null, "Hardwood"), /* @__PURE__ */ React.createElement("p", null, "Solid and engineered hardwood installation with precision nailing, glue-down, or floating methods.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("line", { x1: "3", y1: "12", x2: "21", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "3", x2: "12", y2: "21" })), /* @__PURE__ */ React.createElement("h3", null, "Tile & Porcelain"), /* @__PURE__ */ React.createElement("p", null, "Floor and wall tile installation including mortar-set, large-format, and mosaic applications.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M2 20h20" }), /* @__PURE__ */ React.createElement("path", { d: "M4 20V8l4-4h8l4 4v12" }), /* @__PURE__ */ React.createElement("path", { d: "M2 20l4-4" }), /* @__PURE__ */ React.createElement("path", { d: "M22 20l-4-4" })), /* @__PURE__ */ React.createElement("h3", null, "Luxury Vinyl"), /* @__PURE__ */ React.createElement("p", null, "Click-lock LVP and glue-down LVT for waterproof, durable performance in any room.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 2L2 7l10 5 10-5-10-5z" }), /* @__PURE__ */ React.createElement("path", { d: "M2 17l10 5 10-5" }), /* @__PURE__ */ React.createElement("path", { d: "M2 12l10 5 10-5" })), /* @__PURE__ */ React.createElement("h3", null, "Natural Stone"), /* @__PURE__ */ React.createElement("p", null, "Marble, travertine, slate, and quartzite installed with expert care for lasting beauty.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M4 20c0-4 4-4 4-8s-4-4-4-8" }), /* @__PURE__ */ React.createElement("path", { d: "M12 20c0-4 4-4 4-8s-4-4-4-8" }), /* @__PURE__ */ React.createElement("path", { d: "M20 20c0-4 4-4 4-8s-4-4-4-8" })), /* @__PURE__ */ React.createElement("h3", null, "Carpet"), /* @__PURE__ */ React.createElement("p", null, "Stretch-in and direct-glue carpet installation for bedrooms, living spaces, and commercial areas.")), /* @__PURE__ */ React.createElement("div", { className: "install-type-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("rect", { x: "2", y: "6", width: "20", height: "12", rx: "1" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "10", y1: "6", x2: "10", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "14", y1: "6", x2: "14", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "18", y2: "18" })), /* @__PURE__ */ React.createElement("h3", null, "Laminate"), /* @__PURE__ */ React.createElement("p", null, "Quick and affordable floating-floor laminate installation with seamless transitions.")))), /* @__PURE__ */ React.createElement("div", { className: "install-steps-section" }, /* @__PURE__ */ React.createElement("h2", null, "How It Works"), /* @__PURE__ */ React.createElement("div", { className: "install-steps" }, /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "1"), /* @__PURE__ */ React.createElement("h3", null, "Request a Quote"), /* @__PURE__ */ React.createElement("p", null, "Tell us about your project \u2014 flooring type, square footage, and timeline.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "2"), /* @__PURE__ */ React.createElement("h3", null, "Site Visit & Measure"), /* @__PURE__ */ React.createElement("p", null, "Our team visits your space for precise measurements and subfloor assessment.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "3"), /* @__PURE__ */ React.createElement("h3", null, "Schedule Installation"), /* @__PURE__ */ React.createElement("p", null, "Pick a date that works for you. We handle materials, prep, and cleanup.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "4"), /* @__PURE__ */ React.createElement("h3", null, "Enjoy Your New Floors"), /* @__PURE__ */ React.createElement("p", null, "Walk-through inspection, care instructions, and warranty documentation provided.")))), /* @__PURE__ */ React.createElement("div", { className: "install-benefits" }, /* @__PURE__ */ React.createElement("h2", null, "Why Choose Us"), /* @__PURE__ */ React.createElement("div", { className: "install-benefits-grid" }, /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" })), /* @__PURE__ */ React.createElement("h3", null, "Licensed & Insured"), /* @__PURE__ */ React.createElement("p", null, "California Contractor License #830966. Fully bonded and insured for your protection.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "8", r: "7" }), /* @__PURE__ */ React.createElement("polyline", { points: "8.21 13.89 7 23 12 20 17 23 15.79 13.88" })), /* @__PURE__ */ React.createElement("h3", null, "Manufacturer Certified"), /* @__PURE__ */ React.createElement("p", null, "Factory-trained installers certified by leading flooring manufacturers.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" })), /* @__PURE__ */ React.createElement("h3", null, "Warranty Included"), /* @__PURE__ */ React.createElement("p", null, "Every installation backed by our workmanship warranty for your peace of mind.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" })), /* @__PURE__ */ React.createElement("h3", null, "Free Estimates"), /* @__PURE__ */ React.createElement("p", null, "No-obligation quotes with clear, upfront pricing.")))), /* @__PURE__ */ React.createElement(InstallReviews, null), /* @__PURE__ */ React.createElement("div", { className: "install-area" }, /* @__PURE__ */ React.createElement("h2", null, "Our Southern California Service Area"), /* @__PURE__ */ React.createElement("p", null, "Roma Flooring Designs installs flooring across Orange County and neighboring Los Angeles and Riverside counties, including:"), SERVICE_AREAS.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.county, className: "install-area-group" }, /* @__PURE__ */ React.createElement("h3", null, a.county), /* @__PURE__ */ React.createElement("p", { className: "install-area-cities" }, a.cities.join(" \xB7 ")))), /* @__PURE__ */ React.createElement("p", { className: "install-area-nap" }, "Showroom: 1440 S. State College Blvd #6M, Anaheim, CA 92806 \xB7 ", /* @__PURE__ */ React.createElement("a", { href: "tel:+17149990009" }, "(714) 999-0009"))), /* @__PURE__ */ React.createElement("div", { className: "install-quote-section", id: "quote" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-inner" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-copy" }, /* @__PURE__ */ React.createElement("h2", null, "Request a Free Installation Quote"), /* @__PURE__ */ React.createElement("p", null, "Tell us about your project and our Anaheim team will follow up within one business day with a free, no-obligation estimate and clear, upfront pricing.")), /* @__PURE__ */ React.createElement("div", { className: "install-quote-card" }, /* @__PURE__ */ React.createElement(InstallQuoteForm, null)))), /* @__PURE__ */ React.createElement("div", { className: "install-faq-section" }, /* @__PURE__ */ React.createElement("h2", null, "Flooring Installation FAQ"), /* @__PURE__ */ React.createElement(InstallFAQ, null)), /* @__PURE__ */ React.createElement("div", { className: "install-cta-band" }, /* @__PURE__ */ React.createElement("h2", null, "Ready to Get Started?"), /* @__PURE__ */ React.createElement("p", null, "Request a free, no-obligation quote and let our Orange County experts transform your space."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Free Quote")));
+  }
+  function MaterialInstallPage({ city, material, onRequestQuote, navigate }) {
+    if (!city || !material) return null;
+    const go = (href) => (e) => {
+      e.preventDefault();
+      navigate(href);
+    };
+    const siblings = MATERIALS_SVC.filter((m) => m.slug !== material.slug);
+    const faq = [
+      { q: `Do you install ${material.short.toLowerCase()} flooring in ${city.city}?`, a: `Yes. Roma Flooring Designs installs ${material.name.toLowerCase()} throughout ${city.city} and ${city.county}, from our Anaheim showroom. We are licensed (CA #830966), bonded, and insured.` },
+      { q: "Do you offer free estimates?", a: "Yes \u2014 free, no-obligation estimates with clear, upfront pricing. Request a quote and we follow up within one business day." },
+      { q: "Do you remove and dispose of the old floor?", a: "Yes. Demolition, subfloor prep, haul-away, and cleanup are part of our full-service installation." },
+      { q: `Can I shop ${material.short.toLowerCase()} at your showroom?`, a: `Yes. Browse ${material.name.toLowerCase()} online or visit our Anaheim showroom, and we handle supply and installation for your ${city.city} project under one roof.` }
+    ];
+    return /* @__PURE__ */ React.createElement("div", { className: "installation-page" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero-eyebrow" }, city.city, ", CA"), /* @__PURE__ */ React.createElement("h1", null, material.name, " Installation in ", city.city, ", CA"), /* @__PURE__ */ React.createElement("p", null, "Licensed, insured ", material.short.toLowerCase(), " flooring installation in ", city.city, ", ", city.county, ". ", material.blurb, " Every ", city.city, " project starts with an on-site measure and a firm, upfront estimate \u2014 backed by our workmanship warranty. California Contractor License #830966."), /* @__PURE__ */ React.createElement("div", { className: "install-hero-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Free Quote"), /* @__PURE__ */ React.createElement("a", { className: "install-hero-phone", href: "tel:+17149990009" }, "Call (714) 999-0009")), /* @__PURE__ */ React.createElement("a", { className: "svc-back", href: `/flooring-installation/${city.slug}`, onClick: go(`/flooring-installation/${city.slug}`) }, "\u2190 All flooring installation in ", city.city)), /* @__PURE__ */ React.createElement("div", { className: "install-steps-section" }, /* @__PURE__ */ React.createElement("h2", null, "How It Works"), /* @__PURE__ */ React.createElement("div", { className: "install-steps" }, /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "1"), /* @__PURE__ */ React.createElement("h3", null, "Request a Quote"), /* @__PURE__ */ React.createElement("p", null, "Tell us about your ", material.short.toLowerCase(), " project \u2014 square footage and timeline.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "2"), /* @__PURE__ */ React.createElement("h3", null, "Site Visit & Measure"), /* @__PURE__ */ React.createElement("p", null, "We visit your ", city.city, " space for precise measurements and subfloor assessment.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "3"), /* @__PURE__ */ React.createElement("h3", null, "Schedule Installation"), /* @__PURE__ */ React.createElement("p", null, "Pick a date that works for you. We handle materials, prep, and cleanup.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "4"), /* @__PURE__ */ React.createElement("h3", null, "Enjoy Your New Floors"), /* @__PURE__ */ React.createElement("p", null, "Walk-through inspection, care instructions, and warranty documentation.")))), /* @__PURE__ */ React.createElement("div", { className: "install-benefits" }, /* @__PURE__ */ React.createElement("h2", null, "Why Choose Roma for ", material.short, " in ", city.city), /* @__PURE__ */ React.createElement("div", { className: "install-benefits-grid" }, /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" })), /* @__PURE__ */ React.createElement("h3", null, "Licensed & Insured"), /* @__PURE__ */ React.createElement("p", null, "CA Contractor License #830966. Fully bonded and insured.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "8", r: "7" }), /* @__PURE__ */ React.createElement("polyline", { points: "8.21 13.89 7 23 12 20 17 23 15.79 13.88" })), /* @__PURE__ */ React.createElement("h3", null, "Material Experts"), /* @__PURE__ */ React.createElement("p", null, "Factory-trained installers who know ", material.name.toLowerCase(), " inside out.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" })), /* @__PURE__ */ React.createElement("h3", null, "Warranty Included"), /* @__PURE__ */ React.createElement("p", null, "Every installation backed by our workmanship warranty.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" })), /* @__PURE__ */ React.createElement("h3", null, "Supply + Install"), /* @__PURE__ */ React.createElement("p", null, "Shop ", material.short.toLowerCase(), " in our showroom and we install it \u2014 one point of accountability.")))), /* @__PURE__ */ React.createElement("div", { className: "svc-explore" }, /* @__PURE__ */ React.createElement("h2", null, "Shop & Explore"), /* @__PURE__ */ React.createElement("a", { className: "svc-explore-primary", href: `/shop?category=${material.shopCategory}`, onClick: go(`/shop?category=${material.shopCategory}`) }, "Browse ", material.name.toLowerCase(), " ", /* @__PURE__ */ React.createElement("span", { "aria-hidden": "true" }, "\u2192")), /* @__PURE__ */ React.createElement("div", { className: "svc-chip-label" }, "Other flooring we install in ", city.city), /* @__PURE__ */ React.createElement("div", { className: "svc-chips" }, siblings.map((m) => /* @__PURE__ */ React.createElement("a", { className: "svc-chip", key: m.slug, href: `/flooring-installation/${city.slug}/${m.slug}`, onClick: go(`/flooring-installation/${city.slug}/${m.slug}`) }, m.short))), /* @__PURE__ */ React.createElement("p", { className: "svc-nap" }, "Showroom: 1440 S. State College Blvd #6M, Anaheim, CA 92806 \xB7 ", /* @__PURE__ */ React.createElement("a", { href: "tel:+17149990009" }, "(714) 999-0009"))), /* @__PURE__ */ React.createElement("div", { className: "install-quote-section", id: "quote" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-inner" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-copy" }, /* @__PURE__ */ React.createElement("h2", null, "Request a Free ", material.short, " Quote in ", city.city), /* @__PURE__ */ React.createElement("p", null, "Tell us about your project and our Anaheim team will follow up within one business day with a free, no-obligation estimate.")), /* @__PURE__ */ React.createElement("div", { className: "install-quote-card" }, /* @__PURE__ */ React.createElement(InstallQuoteForm, null)))), /* @__PURE__ */ React.createElement("div", { className: "install-faq-section" }, /* @__PURE__ */ React.createElement("h2", null, material.short, " Installation FAQ"), /* @__PURE__ */ React.createElement(InstallFAQ, { items: faq.map((f) => [f.q, f.a]) })), /* @__PURE__ */ React.createElement("div", { className: "install-cta-band" }, /* @__PURE__ */ React.createElement("h2", null, "Ready for New ", material.short, " Floors in ", city.city, "?"), /* @__PURE__ */ React.createElement("p", null, "Request a free, no-obligation quote and let our team transform your space."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Free Quote")));
+  }
+  function RemodelPage({ city, room, onRequestQuote, navigate }) {
+    if (!city) return null;
+    const go = (href) => (e) => {
+      e.preventDefault();
+      navigate(href);
+    };
+    const isHub = !room;
+    const label = isHub ? "Kitchen & Bath Remodeling" : room.name;
+    const faq = [
+      { q: `Do you do ${isHub ? "kitchen and bathroom remodels" : room.short.toLowerCase() + " remodels"} in ${city.city}?`, a: `Yes. Roma Flooring Designs handles ${isHub ? "kitchen and bathroom" : room.short.toLowerCase()} remodeling throughout ${city.city} and ${city.county} \u2014 flooring, tile, countertops, and cabinetry \u2014 from our Anaheim showroom. Licensed (CA #830966), bonded, and insured.` },
+      { q: "Do you offer free estimates and design help?", a: "Yes. We provide free, no-obligation estimates and help you select materials in our showroom, then coordinate the full install with one licensed crew." },
+      { q: "Do you supply the materials too?", a: "Yes \u2014 as a flooring, tile, stone, and countertop retailer we can supply and install everything, keeping timelines and accountability under one roof." }
+    ];
+    return /* @__PURE__ */ React.createElement("div", { className: "installation-page" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero" }, /* @__PURE__ */ React.createElement("div", { className: "install-hero-eyebrow" }, city.city, ", CA"), /* @__PURE__ */ React.createElement("h1", null, label, " in ", city.city, ", CA"), /* @__PURE__ */ React.createElement("p", null, isHub ? `Roma Flooring Designs remodels kitchens and bathrooms across ${city.city}, ${city.county}. As a flooring, tile, stone, and countertop retailer with a licensed install crew, we supply and set every surface \u2014 floors, wall and shower tile, countertops, and cabinetry \u2014 from our Anaheim showroom. Free estimates and one point of accountability. CA Contractor License #830966.` : `${room.blurb} We supply and install every surface for your ${city.city} ${room.short.toLowerCase()} from our Anaheim showroom, with free estimates and a workmanship warranty. CA Contractor License #830966.`), /* @__PURE__ */ React.createElement("div", { className: "install-hero-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Free Quote"), /* @__PURE__ */ React.createElement("a", { className: "install-hero-phone", href: "tel:+17149990009" }, "Call (714) 999-0009")), !isHub && /* @__PURE__ */ React.createElement("a", { className: "svc-back", href: `/remodeling/${city.slug}`, onClick: go(`/remodeling/${city.slug}`) }, "\u2190 All remodeling in ", city.city)), isHub ? /* @__PURE__ */ React.createElement("div", { className: "svc-rooms" }, /* @__PURE__ */ React.createElement("h2", null, "Remodeling Services in ", city.city), /* @__PURE__ */ React.createElement("div", { className: "svc-room-grid" }, REMODEL_ROOMS_SVC.map((r) => /* @__PURE__ */ React.createElement("a", { className: "svc-room-card", key: r.slug, href: `/remodeling/${city.slug}/${r.slug}`, onClick: go(`/remodeling/${city.slug}/${r.slug}`) }, /* @__PURE__ */ React.createElement("h3", null, r.name, " in ", city.city), /* @__PURE__ */ React.createElement("p", null, r.blurb), /* @__PURE__ */ React.createElement("span", { className: "svc-room-arrow" }, "Explore \u2192"))))) : /* @__PURE__ */ React.createElement("div", { className: "svc-explore" }, /* @__PURE__ */ React.createElement("h2", null, "Shop the Materials"), /* @__PURE__ */ React.createElement("div", { className: "svc-chips" }, (room.related || []).map((r) => /* @__PURE__ */ React.createElement("a", { className: "svc-chip", key: r.href, href: r.href, onClick: go(r.href) }, r.label)))), /* @__PURE__ */ React.createElement("div", { className: "install-steps-section" }, /* @__PURE__ */ React.createElement("h2", null, "How It Works"), /* @__PURE__ */ React.createElement("div", { className: "install-steps" }, /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "1"), /* @__PURE__ */ React.createElement("h3", null, "Consult & Select"), /* @__PURE__ */ React.createElement("p", null, "Meet in our showroom to plan surfaces and pick materials.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "2"), /* @__PURE__ */ React.createElement("h3", null, "Site Visit & Measure"), /* @__PURE__ */ React.createElement("p", null, "We measure your ", city.city, " space and assess the scope.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "3"), /* @__PURE__ */ React.createElement("h3", null, "Schedule & Build"), /* @__PURE__ */ React.createElement("p", null, "One licensed crew handles demo, prep, and installation.")), /* @__PURE__ */ React.createElement("div", { className: "install-step" }, /* @__PURE__ */ React.createElement("div", { className: "step-number" }, "4"), /* @__PURE__ */ React.createElement("h3", null, "Final Walk-Through"), /* @__PURE__ */ React.createElement("p", null, "Inspection, care guidance, and workmanship warranty.")))), /* @__PURE__ */ React.createElement("div", { className: "install-benefits" }, /* @__PURE__ */ React.createElement("h2", null, "Why Choose Roma"), /* @__PURE__ */ React.createElement("div", { className: "install-benefits-grid" }, /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" })), /* @__PURE__ */ React.createElement("h3", null, "Licensed & Insured"), /* @__PURE__ */ React.createElement("p", null, "CA Contractor License #830966. Fully bonded and insured.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M20 7h-9M20 12h-9M20 17h-9M4 7h.01M4 12h.01M4 17h.01" })), /* @__PURE__ */ React.createElement("h3", null, "One Crew, Every Surface"), /* @__PURE__ */ React.createElement("p", null, "Flooring, tile, countertops, and cabinetry under one roof.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("polyline", { points: "20 6 9 17 4 12" })), /* @__PURE__ */ React.createElement("h3", null, "Supplier + Installer"), /* @__PURE__ */ React.createElement("p", null, "We sell the materials and install them \u2014 no finger-pointing.")), /* @__PURE__ */ React.createElement("div", { className: "benefit-card" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("path", { d: "M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" })), /* @__PURE__ */ React.createElement("h3", null, "Free Estimates"), /* @__PURE__ */ React.createElement("p", null, "No-obligation quotes with clear, upfront pricing.")))), /* @__PURE__ */ React.createElement("div", { className: "install-quote-section", id: "quote" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-inner" }, /* @__PURE__ */ React.createElement("div", { className: "install-quote-copy" }, /* @__PURE__ */ React.createElement("h2", null, "Request a Free ", isHub ? "Remodel" : room.short, " Quote in ", city.city), /* @__PURE__ */ React.createElement("p", null, "Tell us about your project and our Anaheim team will follow up within one business day with a free, no-obligation estimate.")), /* @__PURE__ */ React.createElement("div", { className: "install-quote-card" }, /* @__PURE__ */ React.createElement(InstallQuoteForm, null)))), /* @__PURE__ */ React.createElement("div", { className: "install-faq-section" }, /* @__PURE__ */ React.createElement("h2", null, isHub ? "Remodeling" : room.short + " Remodeling", " FAQ"), /* @__PURE__ */ React.createElement(InstallFAQ, { items: faq.map((f) => [f.q, f.a]) })), /* @__PURE__ */ React.createElement("div", { className: "install-cta-band" }, /* @__PURE__ */ React.createElement("h2", null, "Planning a ", isHub ? "Remodel" : room.short + " Remodel", " in ", city.city, "?"), /* @__PURE__ */ React.createElement("p", null, /* @__PURE__ */ React.createElement("a", { href: `/flooring-installation/${city.slug}`, onClick: go(`/flooring-installation/${city.slug}`), style: { color: "inherit" } }, "See our flooring installation in ", city.city), ", or request a free quote to get started."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-gold", onClick: onRequestQuote }, "Request a Free Quote")));
   }
   function AccIcon({ name }) {
     const p = { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5 };
