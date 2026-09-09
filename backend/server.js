@@ -34834,6 +34834,13 @@ async function runMigrations() {
 // Public, no-auth landing pages the customer reaches from the email/SMS, plus
 // rep/admin endpoints to send manually and an admin list for visibility.
 
+// Public review destinations. Default to Roma's own Google Business Profile
+// (opens the profile → "Write a review") and Yelp write-a-review page; override
+// per-environment with the BUSINESS_*_REVIEW_URL env vars (e.g. to swap the
+// Google link for the owner's one-tap g.page/r/.../review link).
+const BUSINESS_GOOGLE_REVIEW_URL = process.env.BUSINESS_GOOGLE_REVIEW_URL || 'https://www.google.com/maps?cid=2785608408570257354';
+const BUSINESS_YELP_URL = process.env.BUSINESS_YELP_URL || 'https://www.yelp.com/writeareview/biz/8om-PJEuqhMpLdN-Rcd7VQ';
+
 // One-tap rating capture + routing. ?r=N records the rating; no r shows a star
 // picker (used by the bare SMS link).
 app.get('/api/reviews/r/:token', async (req, res) => {
@@ -34849,8 +34856,8 @@ app.get('/api/reviews/r/:token', async (req, res) => {
 
     const updated = await recordRating(token, rating);
     if (updated.routed_to === 'public') {
-      const hasGoogle = !!process.env.BUSINESS_GOOGLE_REVIEW_URL;
-      const hasYelp = !!process.env.BUSINESS_YELP_URL;
+      const hasGoogle = !!BUSINESS_GOOGLE_REVIEW_URL;
+      const hasYelp = !!BUSINESS_YELP_URL;
       return res.send(reviewPublicThankYouPage({ token, hasGoogle, hasYelp }));
     }
     return res.send(reviewPrivateFeedbackPage({ token, rating }));
@@ -34895,13 +34902,13 @@ app.post('/api/reviews/r/:token/feedback', async (req, res) => {
 app.get('/api/reviews/go/:token/:provider', async (req, res) => {
   try {
     const { token, provider } = req.params;
-    const url = provider === 'yelp' ? process.env.BUSINESS_YELP_URL : process.env.BUSINESS_GOOGLE_REVIEW_URL;
+    const url = provider === 'yelp' ? BUSINESS_YELP_URL : BUSINESS_GOOGLE_REVIEW_URL;
     if (!url) return res.status(404).send('Review link not configured.');
     await recordPublicClick(token, provider === 'yelp' ? 'yelp' : 'google');
     res.redirect(302, url);
   } catch (err) {
     console.error('[Reviews] redirect error:', err.message);
-    res.redirect(302, process.env.BUSINESS_GOOGLE_REVIEW_URL || process.env.BUSINESS_YELP_URL || '/');
+    res.redirect(302, BUSINESS_GOOGLE_REVIEW_URL || BUSINESS_YELP_URL || '/');
   }
 });
 
