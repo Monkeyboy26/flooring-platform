@@ -16841,15 +16841,20 @@
         fetch(API + '/api/storefront/guides').then(r => r.json()).then(d => setGuides(d.guides || [])).catch(() => {});
       }, []);
       return (
-        <div className="guides-page" style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px' }}>
-          <nav className="breadcrumb"><a href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>Home</a> / Guides</nav>
-          <h1>Flooring &amp; Tile Buying Guides</h1>
-          <p>Practical, expert advice to help you choose the right flooring and tile for your project.</p>
-          <ul className="guides-list" style={{ listStyle: 'none', padding: 0 }}>
+        <div className="guide-page">
+          <nav className="guide-breadcrumb"><a href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>Home</a><span>/</span>Guides</nav>
+          <header className="guide-header">
+            <div className="guide-eyebrow">Buying Guides</div>
+            <h1>Flooring &amp; Tile Buying Guides</h1>
+            <p className="guide-lede">Practical, expert advice to help you choose the right flooring and tile for your project.</p>
+          </header>
+          <ul className="guides-index">
             {guides.map(g => (
-              <li key={g.slug} style={{ padding: '14px 0', borderBottom: '1px solid var(--stone-200, #e5e0d8)' }}>
-                <a href={'/guides/' + g.slug} onClick={e => { e.preventDefault(); navigate('/guides/' + g.slug); }}><strong>{g.title}</strong></a>
-                {g.meta_description ? <div style={{ opacity: 0.75, fontSize: 14 }}>{g.meta_description}</div> : null}
+              <li key={g.slug}>
+                <a href={'/guides/' + g.slug} onClick={e => { e.preventDefault(); navigate('/guides/' + g.slug); }}>
+                  <span className="guide-card-title">{g.title}</span>
+                  {g.meta_description ? <span className="guide-card-desc">{g.meta_description}</span> : null}
+                </a>
               </li>
             ))}
           </ul>
@@ -16876,17 +16881,23 @@
       const high = sf * (m.high + (install ? 6 : 0));
       const fmt = n => '$' + Math.round(n).toLocaleString();
       return (
-        <div className="cost-calculator" style={{ border: '1px solid var(--stone-200, #e5e0d8)', borderRadius: 12, padding: 24, margin: '24px 0', background: 'var(--stone-50, #faf8f5)' }}>
-          <h2 style={{ marginTop: 0 }}>Flooring Cost Estimator</h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end' }}>
-            <label>Area (sq ft)<br /><input type="number" min="0" value={sqft} onChange={e => setSqft(e.target.value)} placeholder="e.g. 500" style={{ padding: 8, width: 120, marginTop: 4 }} /></label>
-            <label>Flooring type<br /><select value={material} onChange={e => setMaterial(e.target.value)} style={{ padding: 8, marginTop: 4 }}>{MATERIALS.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}</select></label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={install} onChange={e => setInstall(e.target.checked)} /> Include installation</label>
+        <div className="cost-calculator">
+          <h2>Flooring Cost Estimator</h2>
+          <div className="calc-fields">
+            <div className="calc-field">
+              <label htmlFor="calc-sqft">Area (sq ft)</label>
+              <input id="calc-sqft" type="number" min="0" value={sqft} onChange={e => setSqft(e.target.value)} placeholder="e.g. 500" />
+            </div>
+            <div className="calc-field">
+              <label htmlFor="calc-mat">Flooring type</label>
+              <select id="calc-mat" value={material} onChange={e => setMaterial(e.target.value)}>{MATERIALS.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}</select>
+            </div>
+            <label className="calc-check"><input type="checkbox" checked={install} onChange={e => setInstall(e.target.checked)} /> Include installation</label>
           </div>
           {sf > 0
-            ? <p style={{ fontSize: 22, marginTop: 18 }}>Estimated total: <strong>{fmt(low)} – {fmt(high)}</strong></p>
-            : <p style={{ opacity: 0.7, marginTop: 18 }}>Enter your area to see an estimate.</p>}
-          <p style={{ fontSize: 13, opacity: 0.75 }}>Rough estimate using typical Southern California material + installation ranges. Actual pricing varies by product, subfloor, and layout — <a href="/installation">request a free estimate</a> for an exact quote.</p>
+            ? <div className="calc-result">Estimated total<strong>{fmt(low)} – {fmt(high)}</strong></div>
+            : <p className="calc-hint">Enter your area to see an estimate.</p>}
+          <p className="calc-note">Rough estimate using typical Southern California material + installation ranges. Actual pricing varies by product, subfloor, and layout — <a href="/installation">request a free estimate</a> for an exact quote.</p>
         </div>
       );
     }
@@ -16907,26 +16918,29 @@
           .catch(() => setNotFound(true));
       }, [slug]);
       if (notFound) return (
-        <div style={{ maxWidth: 820, margin: '0 auto', padding: '48px 20px', textAlign: 'center' }}>
+        <div className="guide-page guide-empty">
           <h1>Guide not found</h1>
           <p><a href="/guides" onClick={e => { e.preventDefault(); navigate('/guides'); }}>Browse all guides</a></p>
         </div>
       );
-      if (!g) return <div style={{ padding: 60, textAlign: 'center', opacity: 0.7 }}>Loading…</div>;
+      if (!g) return <div className="guide-page guide-loading">Loading…</div>;
       const fj = g.filter_json || {};
       const faq = Array.isArray(fj.faq) ? fj.faq : [];
       const isCalc = fj.kind === 'calculator';
       return (
-        <div className="guide-page" style={{ maxWidth: 820, margin: '0 auto', padding: '32px 20px' }}>
-          <nav className="breadcrumb"><a href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>Home</a> / <a href="/guides" onClick={e => { e.preventDefault(); navigate('/guides'); }}>Guides</a> / {g.title}</nav>
+        <div className="guide-page">
+          <nav className="guide-breadcrumb"><a href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>Home</a><span>/</span><a href="/guides" onClick={e => { e.preventDefault(); navigate('/guides'); }}>Guides</a><span>/</span>{g.title}</nav>
           <article className="guide">
-            <h1>{g.h1 || g.title}</h1>
+            <header className="guide-header">
+              <div className="guide-eyebrow">Buying Guide</div>
+              <h1>{g.h1 || g.title}</h1>
+            </header>
             {g.intro_html ? <div className="guide-intro" dangerouslySetInnerHTML={{ __html: g.intro_html }} /> : null}
             {isCalc ? <CostCalculator /> : null}
             {g.content_html ? <div className="guide-body" dangerouslySetInnerHTML={{ __html: g.content_html }} /> : null}
-            {faq.length ? <div className="guide-faq"><h2>Frequently Asked Questions</h2>{faq.map((f, i) => <div key={i}><h3>{f.question || f.q}</h3><p>{f.answer || f.a}</p></div>)}</div> : null}
-            {(g.related_cats || []).length ? <div className="guide-related"><h2>Shop Related</h2><p>{g.related_cats.map((c, i) => <React.Fragment key={c.slug}>{i > 0 ? ' · ' : ''}<a href={'/shop?category=' + c.slug} onClick={e => { e.preventDefault(); navigate('/shop?category=' + c.slug); }}>{c.name}</a></React.Fragment>)}</p></div> : null}
-            <p style={{ marginTop: 28 }}><button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button></p>
+            {faq.length ? <div className="guide-faq"><h2>Frequently Asked Questions</h2>{faq.map((f, i) => <div className="guide-faq-item" key={i}><h3>{f.question || f.q}</h3><p>{f.answer || f.a}</p></div>)}</div> : null}
+            {(g.related_cats || []).length ? <div className="guide-related"><h2>Shop Related</h2><div className="guide-related-links">{g.related_cats.map(c => <a key={c.slug} href={'/shop?category=' + c.slug} onClick={e => { e.preventDefault(); navigate('/shop?category=' + c.slug); }}>{c.name}</a>)}</div></div> : null}
+            <div className="guide-cta"><button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button></div>
           </article>
         </div>
       );

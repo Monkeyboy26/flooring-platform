@@ -3982,3 +3982,67 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
   .tv2-page .tv2-dropzone { flex-direction: column; align-items: stretch !important; gap: 12px !important; }
   .tv2-page .tv2-dropzone > div:last-child { justify-content: flex-end; }
 }
+
+/* ===== Buying guides + cost calculator (SEO Phase 4) ===== */
+.guide-page { max-width: 780px; margin: 0 auto; padding: 3.5rem 1.5rem 5rem; }
+.guide-breadcrumb { font-family: var(--font-body); font-size: 0.8125rem; letter-spacing: 0.02em; color: var(--stone-500); margin-bottom: 2rem; }
+.guide-breadcrumb a { color: var(--stone-600); text-decoration: none; }
+.guide-breadcrumb a:hover { color: var(--gold-dark); }
+.guide-breadcrumb span { margin: 0 0.45rem; color: var(--stone-400); }
+.guide-header { margin-bottom: 1.75rem; }
+.guide-eyebrow { font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.16em; color: var(--gold-dark); margin-bottom: 0.85rem; }
+.guide-page h1 { font-family: var(--font-heading); font-size: 2.75rem; font-weight: 300; line-height: 1.12; color: var(--stone-900); margin: 0; }
+.guide-lede { font-size: 1.125rem; color: var(--stone-600); line-height: 1.6; margin: 1rem 0 0; }
+.guide-intro { font-size: 1.1875rem; color: var(--stone-700); line-height: 1.7; margin-bottom: 2rem; }
+.guide-intro p { margin: 0 0 1rem; }
+.guide-body { font-family: var(--font-body); color: var(--stone-700); }
+.guide h2, .guide-faq h2, .guide-related h2 { font-family: var(--font-heading); font-size: 1.875rem; font-weight: 300; color: var(--stone-900); margin: 2.75rem 0 1rem; }
+.guide h3 { font-family: var(--font-heading); font-size: 1.375rem; font-weight: 400; color: var(--stone-900); margin: 1.75rem 0 0.5rem; }
+.guide p { font-size: 1.0625rem; line-height: 1.75; margin: 0 0 1.15rem; }
+.guide ul, .guide ol { margin: 0 0 1.35rem; padding-left: 1.35rem; }
+.guide li { font-size: 1.0625rem; line-height: 1.7; margin-bottom: 0.55rem; }
+.guide strong { color: var(--stone-900); font-weight: 600; }
+.guide a { color: var(--gold-dark); text-decoration: underline; text-underline-offset: 2px; }
+.guide-faq-item { margin-bottom: 1.25rem; }
+.guide-faq-item h3 { font-size: 1.25rem; font-weight: 500; margin: 0 0 0.35rem; }
+.guide-faq-item p { margin: 0; color: var(--stone-600); }
+.guide-related-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; }
+.guide-related-links a { font-weight: 500; }
+.guide-cta { margin-top: 2.75rem; }
+.guide-loading, .guide-empty { text-align: center; padding: 5rem 1.5rem; color: var(--stone-500); }
+.guide-empty h1 { font-family: var(--font-heading); font-weight: 300; }
+
+/* Guides index */
+.guides-index { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+.guides-index li { border-top: 1px solid var(--stone-200); }
+.guides-index li:last-child { border-bottom: 1px solid var(--stone-200); }
+.guides-index a { display: block; padding: 1.35rem 0.5rem; text-decoration: none; transition: background var(--transition-base); }
+.guides-index a:hover { background: var(--cream); }
+.guide-card-title { display: block; font-family: var(--font-heading); font-size: 1.375rem; font-weight: 400; color: var(--stone-900); }
+.guides-index a:hover .guide-card-title { color: var(--gold-dark); }
+.guide-card-desc { display: block; font-size: 0.9375rem; color: var(--stone-500); line-height: 1.5; margin-top: 0.3rem; }
+
+/* Cost calculator */
+.cost-calculator { background: var(--cream); border: 1px solid var(--stone-200); border-radius: var(--radius-lg); padding: 2rem 2rem 1.75rem; margin: 2rem 0 2.5rem; }
+.cost-calculator h2 { font-family: var(--font-heading); font-size: 1.75rem; font-weight: 300; color: var(--stone-900); margin: 0 0 1.5rem; }
+.calc-fields { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-end; }
+.calc-field { display: flex; flex-direction: column; gap: 0.45rem; }
+.calc-field label { font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--stone-600); }
+.calc-field input, .calc-field select { font-family: var(--font-body); font-size: 1rem; padding: 0.65rem 0.75rem; border: 1px solid var(--stone-300); border-radius: var(--radius-md); background: #fff; color: var(--stone-800); }
+.calc-field input { width: 130px; }
+.calc-field input:focus, .calc-field select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(168,121,53,0.15); }
+.calc-check { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-body); font-size: 0.9375rem; font-weight: 500; color: var(--stone-700); }
+.calc-check input { width: 16px; height: 16px; accent-color: var(--gold); }
+.calc-result { margin-top: 1.75rem; font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--stone-500); }
+.calc-result strong { display: block; font-family: var(--font-heading); font-size: 2.5rem; font-weight: 300; color: var(--gold-dark); text-transform: none; letter-spacing: normal; margin-top: 0.35rem; }
+.calc-hint { margin-top: 1.5rem; color: var(--stone-500); font-size: 0.9375rem; }
+.calc-note { margin-top: 1.25rem; font-size: 0.8125rem; color: var(--stone-500); line-height: 1.55; }
+
+@media (max-width: 640px) {
+  .guide-page { padding: 2.25rem 1.25rem 3.5rem; }
+  .guide-page h1 { font-size: 2rem; }
+  .guide h2, .guide-faq h2, .guide-related h2 { font-size: 1.5rem; }
+  .cost-calculator { padding: 1.5rem; }
+  .calc-field input { width: 100%; }
+  .calc-result strong { font-size: 2rem; }
+}
