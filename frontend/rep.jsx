@@ -16461,6 +16461,19 @@
         setPoUpdating(false);
       };
 
+      // Manually send the discreet "how did we do?" review request. Use when the
+      // rep knows the customer is happy; sends immediately (email + SMS if on file).
+      // Delivered orders also queue this automatically after a delay.
+      const [reviewSending, setReviewSending] = useState(false);
+      const requestReview = async () => {
+        setReviewSending(true);
+        try {
+          const data = await repFetch('/api/rep/orders/' + editId + '/review-request', { method: 'POST', body: JSON.stringify({}) });
+          flagSaved(data && data.resent ? 'Review request re-sent' : 'Review request sent');
+        } catch (err) { alert(err.message || 'Failed to send review request'); }
+        setReviewSending(false);
+      };
+
       const updateStatus = async (newStatus, extras) => {
         if (newStatus === 'shipped' && order.delivery_method === 'shipping' && !showTrackingForm) {
           setShowTrackingForm(true);
@@ -16826,6 +16839,9 @@
               )}
               {repInfo.is_manager && ['shipped', 'delivered', 'ready_for_pickup'].includes(order.status) && (
                 <button className="rov-hbtn" onClick={() => navigate('return-flow', order.id)}><span className="rov-hico">↩</span>Start return</button>
+              )}
+              {order.status === 'delivered' && (order.customer_email || order.customer_phone) && (
+                <button className="rov-hbtn" onClick={requestReview} disabled={reviewSending}><span className="rov-hico">★</span>{reviewSending ? 'Sending…' : 'Request review'}</button>
               )}
               {!showCancelForm && canCancel && (
                 <React.Fragment>

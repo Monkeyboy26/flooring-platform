@@ -34,6 +34,7 @@ import { generateMaterialReleaseHTML } from '../templates/materialRelease.js';
 import { generateInstallScheduledHTML } from '../templates/installScheduled.js';
 import { generateInstallCompleteHTML } from '../templates/installComplete.js';
 import { generateVendorPoEmailHTML } from '../templates/vendorPo.js';
+import { generateReviewRequestHTML } from '../templates/reviewRequest.js';
 
 const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
@@ -318,6 +319,38 @@ export async function sendInstallComplete(orderData, balance) {
     return { sent: true };
   } catch (err) {
     console.error(`[Email] Failed to send install-complete for ${orderData.order_number}:`, err.message);
+    return { sent: false };
+  }
+}
+
+/**
+ * Send the "how did we do?" review-request email. `row` is a review_requests
+ * record (carries customer + rep fields). Sends as the responsible rep so the
+ * reply lands in their inbox, matching every other customer-facing email.
+ */
+export async function sendReviewRequestEmail(row) {
+  if (!transporter) {
+    console.log(`[Email] Skipping review request for ${row.order_number || row.id} — SMTP not configured`);
+    return { sent: false };
+  }
+  if (!row.customer_email) return { sent: false };
+  try {
+    const html = generateReviewRequestHTML({
+      customer_name: row.customer_name,
+      order_number: row.order_number,
+      token: row.token
+    });
+    await deliver({
+      from: repFrom(row),
+      to: row.customer_email,
+      replyTo: row.rep_email || undefined,
+      subject: 'How did we do? — Roma Flooring Designs',
+      html
+    });
+    console.log(`[Email] Review request sent to ${row.customer_email}${row.order_number ? ' for ' + row.order_number : ''}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send review request${row.order_number ? ' for ' + row.order_number : ''}:`, err.message);
     return { sent: false };
   }
 }

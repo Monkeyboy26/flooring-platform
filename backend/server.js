@@ -10,6 +10,8 @@ import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
 import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
+import { queueReviewRequest, processDueReviewRequests, recordRating, saveFeedback, recordPublicClick, getByToken as getReviewByToken, reviewsEnabled, autoReviewEnabled, sendTestReviewRequest, MIN_PUBLIC_RATING } from './services/reviewService.js';
+import { reviewStarPickerPage, reviewPublicThankYouPage, reviewPrivateFeedbackPage, reviewGenericThanksPage } from './templates/reviewRequest.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -10140,7 +10142,12 @@ app.put('/api/admin/orders/:id/status', staffAuth, requireRole('admin', 'manager
     setImmediate(() => recalculateCommission(pool, id));
 
     // Fire-and-forget: send status update email for shipped/delivered/cancelled
-    setImmediate(async () => { await attachRep(updatedOrder); sendOrderStatusUpdate(updatedOrder, status); });
+    setImmediate(async () => {
+      await attachRep(updatedOrder);
+      sendOrderStatusUpdate(updatedOrder, status);
+      // Delivered → queue the discreet review-request (auto path).
+      if (status === 'delivered' && autoReviewEnabled()) queueReviewRequest(updatedOrder, { createdBy: 'auto' });
+    });
 
     // Auto-generate and send invoice when order ships
     if (status === 'shipped') {
@@ -20301,8 +20308,13 @@ app.put('/api/rep/orders/:id/status', repAuth, async (req, res) => {
         if (laborCheck.rows.length) {
           const bal = await recalculateBalance(pool, id);
           sendInstallComplete(updatedOrder, bal ? bal.balance : null);
-          return;
+        } else {
+          sendOrderStatusUpdate(updatedOrder, status);
         }
+        // Queue the discreet "how did we do?" satisfaction check (auto path).
+        // Sends after REVIEW_REQUEST_DELAY_HOURS; rating self-routes to public vs. private.
+        if (autoReviewEnabled()) queueReviewRequest(updatedOrder, { createdBy: 'auto' });
+        return;
       }
       sendOrderStatusUpdate(updatedOrder, status);
     });
@@ -34772,7 +34784,209 @@ async function runMigrations() {
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
+
+  // Review-request program — a discreet "how did we do?" satisfaction check sent
+  // after an order is marked delivered (auto or manually by a rep). Customers who
+  // rate high are invited to post publicly (Google / Yelp); low ratings are
+  // routed to a private feedback form and never shown the public links. This is
+  // the FTC-defensible pattern (no deceptive review-gating) — everyone delivered
+  // gets asked; only the rating self-selects the destination.
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS review_requests (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+      customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+      order_number TEXT,
+      customer_name TEXT,
+      customer_email TEXT,
+      customer_phone TEXT,
+      rep_email TEXT,
+      rep_first_name TEXT,
+      rep_last_name TEXT,
+      token TEXT UNIQUE NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'scheduled',
+      channels TEXT[] NOT NULL DEFAULT '{}',
+      created_by VARCHAR(20) NOT NULL DEFAULT 'auto',
+      send_after TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      sent_at TIMESTAMP,
+      email_sent BOOLEAN NOT NULL DEFAULT false,
+      sms_sent BOOLEAN NOT NULL DEFAULT false,
+      rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+      rated_at TIMESTAMP,
+      routed_to VARCHAR(20),
+      feedback_text TEXT,
+      public_provider VARCHAR(20),
+      public_clicked_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
+    // One request per order — the ON CONFLICT (order_id) upsert guard depends on this.
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_review_requests_order ON review_requests(order_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_review_requests_status ON review_requests(status)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_review_requests_due ON review_requests(send_after) WHERE status = 'scheduled'`);
+    console.log('Migrations: review_requests table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
 }
+
+// ==================== Review Requests ====================
+// Public, no-auth landing pages the customer reaches from the email/SMS, plus
+// rep/admin endpoints to send manually and an admin list for visibility.
+
+// One-tap rating capture + routing. ?r=N records the rating; no r shows a star
+// picker (used by the bare SMS link).
+app.get('/api/reviews/r/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const row = await getReviewByToken(token);
+    if (!row) return res.status(404).send(reviewGenericThanksPage({ notFound: true }));
+
+    const rating = parseInt(req.query.r, 10);
+    if (!rating || rating < 1 || rating > 5) {
+      return res.send(reviewStarPickerPage(token));
+    }
+
+    const updated = await recordRating(token, rating);
+    if (updated.routed_to === 'public') {
+      const hasGoogle = !!process.env.BUSINESS_GOOGLE_REVIEW_URL;
+      const hasYelp = !!process.env.BUSINESS_YELP_URL;
+      return res.send(reviewPublicThankYouPage({ token, hasGoogle, hasYelp }));
+    }
+    return res.send(reviewPrivateFeedbackPage({ token, rating }));
+  } catch (err) {
+    console.error('[Reviews] rating capture error:', err.message);
+    res.status(500).send(reviewGenericThanksPage({}));
+  }
+});
+
+// Private feedback (low ratings). Notifies the assigned rep so they can follow up.
+app.post('/api/reviews/r/:token/feedback', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { feedback } = req.body || {};
+    const row = await getReviewByToken(token);
+    if (!row) return res.status(404).json({ error: 'not_found' });
+    await saveFeedback(token, feedback || '');
+
+    // Route negative feedback to the rep who owns the order for service recovery.
+    if (row.order_id) {
+      setImmediate(async () => {
+        try {
+          const o = await pool.query('SELECT sales_rep_id FROM orders WHERE id = $1', [row.order_id]);
+          const repId = o.rows[0] && o.rows[0].sales_rep_id;
+          if (repId) {
+            createRepNotification(pool, repId, 'review_feedback',
+              `Feedback on ${row.order_number || 'an order'} — ${row.rating ? row.rating + '★' : 'low rating'}`,
+              (row.customer_name || 'A customer') + ': ' + String(feedback || '').slice(0, 200),
+              'order', row.order_id);
+          }
+        } catch (e) { console.error('[Reviews] feedback notify failed:', e.message); }
+      });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Reviews] feedback error:', err.message);
+    res.status(500).json({ error: 'failed' });
+  }
+});
+
+// Tracked hand-off to the public review site (Google / Yelp).
+app.get('/api/reviews/go/:token/:provider', async (req, res) => {
+  try {
+    const { token, provider } = req.params;
+    const url = provider === 'yelp' ? process.env.BUSINESS_YELP_URL : process.env.BUSINESS_GOOGLE_REVIEW_URL;
+    if (!url) return res.status(404).send('Review link not configured.');
+    await recordPublicClick(token, provider === 'yelp' ? 'yelp' : 'google');
+    res.redirect(302, url);
+  } catch (err) {
+    console.error('[Reviews] redirect error:', err.message);
+    res.redirect(302, process.env.BUSINESS_GOOGLE_REVIEW_URL || process.env.BUSINESS_YELP_URL || '/');
+  }
+});
+
+// Rep: send a review request for an order now (manual path — rep knows the
+// customer is happy). Resends if one already exists.
+app.post('/api/rep/orders/:id/review-request', repAuth, async (req, res) => {
+  try {
+    if (!reviewsEnabled()) return res.status(400).json({ error: 'Review requests are disabled.' });
+    const { id } = req.params;
+    const r = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = r.rows[0];
+    await attachRep(order);
+    const result = await queueReviewRequest(order, { createdBy: 'rep', immediate: true });
+    if (!result.queued) return res.status(400).json({ error: result.reason || 'Could not send review request' });
+    res.json({ ok: true, sent: result.sent, resent: !!result.resent });
+  } catch (err) {
+    console.error('[Reviews] rep manual send error:', err.message);
+    res.status(500).json({ error: 'Failed to send review request' });
+  }
+});
+
+// Admin: same manual send.
+app.post('/api/admin/orders/:id/review-request', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    if (!reviewsEnabled()) return res.status(400).json({ error: 'Review requests are disabled.' });
+    const { id } = req.params;
+    const r = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Order not found' });
+    const order = r.rows[0];
+    await attachRep(order);
+    const result = await queueReviewRequest(order, { createdBy: 'admin', immediate: true });
+    if (!result.queued) return res.status(400).json({ error: result.reason || 'Could not send review request' });
+    res.json({ ok: true, sent: result.sent, resent: !!result.resent });
+  } catch (err) {
+    console.error('[Reviews] admin manual send error:', err.message);
+    res.status(500).json({ error: 'Failed to send review request' });
+  }
+});
+
+// Admin: fire a one-off test review request to any email/phone (previews the
+// flow; independent of auto-send). SMS only actually goes out once Twilio is set.
+app.post('/api/admin/review-requests/test', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    if (!reviewsEnabled()) return res.status(400).json({ error: 'Review requests are disabled (REVIEW_REQUESTS_ENABLED).' });
+    const { email, phone, name } = req.body || {};
+    if (!email && !phone) return res.status(400).json({ error: 'Provide an email or phone.' });
+    const result = await sendTestReviewRequest({ name, email, phone });
+    if (!result.sent) {
+      return res.status(400).json({ error: result.reason || 'Nothing sent — check SMTP (email) / Twilio (SMS) config.', ...result });
+    }
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error('[Reviews] test send error:', err.message);
+    res.status(500).json({ error: 'Failed to send test' });
+  }
+});
+
+// Admin: dashboard list of review requests.
+app.get('/api/admin/review-requests', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, order_id, order_number, customer_name, customer_email, customer_phone,
+              status, channels, created_by, rating, routed_to, feedback_text,
+              public_provider, public_clicked_at, sent_at, rated_at, created_at
+       FROM review_requests ORDER BY created_at DESC LIMIT 500`
+    );
+    // Small rollup for the dashboard header.
+    const stats = await pool.query(
+      `SELECT
+         COUNT(*)::int AS total,
+         COUNT(*) FILTER (WHERE sent_at IS NOT NULL)::int AS sent,
+         COUNT(*) FILTER (WHERE rating IS NOT NULL)::int AS rated,
+         COUNT(*) FILTER (WHERE rating >= $1)::int AS positive,
+         COUNT(*) FILTER (WHERE public_clicked_at IS NOT NULL)::int AS clicked_public,
+         COUNT(*) FILTER (WHERE routed_to = 'private')::int AS private_feedback
+       FROM review_requests`,
+      [MIN_PUBLIC_RATING]
+    );
+    res.json({ requests: r.rows, stats: stats.rows[0] });
+  } catch (err) {
+    console.error('[Reviews] list error:', err.message);
+    res.status(500).json({ error: 'Failed to load review requests' });
+  }
+});
 
 // ==================== Email Template Preview (Dev Only) ====================
 
@@ -35043,5 +35257,13 @@ runMigrations().then(() => {
   app.listen(PORT, () => {
     console.log(`API running on port ${PORT}`);
     initScheduler();
+    // Review-request dispatcher: send scheduled satisfaction checks once they're
+    // due. Runs every 15 min (in-process, single API container) with a short
+    // initial delay so boot isn't competing for the pool.
+    if (reviewsEnabled()) {
+      setTimeout(() => { processDueReviewRequests(); }, 60 * 1000);
+      setInterval(() => { processDueReviewRequests(); }, 15 * 60 * 1000);
+      console.log('[Reviews] dispatcher scheduled (every 15 min)');
+    }
   });
 });
