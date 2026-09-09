@@ -2599,6 +2599,7 @@
     function StorefrontApp() {
       const [view, setView] = useState('home');
       const [localCity, setLocalCity] = useState(null); // {city, county} for /flooring-installation/{slug}
+      const [guideSlug, setGuideSlug] = useState(null); // /guides/{slug} pillar guide
       const [accountSection, setAccountSection] = useState('overview');
       const [selectedSkuId, setSelectedSkuId] = useState(null);
 
@@ -3821,6 +3822,12 @@
             setLocalCity(null);
             setView('installation');
           }
+        } else if (path === '/guides') {
+          setView('guides-index');
+        } else if (path.startsWith('/guides/')) {
+          const gslug = decodeURIComponent(path.replace('/guides/', '').split(/[/?]/)[0] || '');
+          setGuideSlug(gslug);
+          setView('guide');
         } else if (path === '/inspiration') {
           setView('inspiration');
         } else if (path === '/sale') {
@@ -4375,6 +4382,13 @@
 
           {view === 'local-city' && (
             <InstallationPage city={localCity} onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
+          )}
+
+          {view === 'guides-index' && (
+            <GuidesIndexPage navigate={navigate} />
+          )}
+          {view === 'guide' && (
+            <GuidePage slug={guideSlug} navigate={navigate} onRequestQuote={() => { setInstallModalProduct(null); setShowInstallModal(true); }} />
           )}
 
           {view === 'custom-accessories' && (
@@ -16816,6 +16830,104 @@
               </blockquote>
             ))}
           </div>
+        </div>
+      );
+    }
+
+    function GuidesIndexPage({ navigate }) {
+      const [guides, setGuides] = useState([]);
+      useEffect(() => {
+        updateSEO({ title: 'Flooring & Tile Buying Guides | Roma Flooring Designs', description: 'Expert flooring and tile buying guides — how to choose porcelain tile, LVP vs laminate, hardwood finishes, waterproof flooring, cost estimates, and more.', url: SITE_URL + '/guides', image: '' });
+        fetch(API + '/api/storefront/guides').then(r => r.json()).then(d => setGuides(d.guides || [])).catch(() => {});
+      }, []);
+      return (
+        <div className="guides-page" style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px' }}>
+          <nav className="breadcrumb"><a href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>Home</a> / Guides</nav>
+          <h1>Flooring &amp; Tile Buying Guides</h1>
+          <p>Practical, expert advice to help you choose the right flooring and tile for your project.</p>
+          <ul className="guides-list" style={{ listStyle: 'none', padding: 0 }}>
+            {guides.map(g => (
+              <li key={g.slug} style={{ padding: '14px 0', borderBottom: '1px solid var(--stone-200, #e5e0d8)' }}>
+                <a href={'/guides/' + g.slug} onClick={e => { e.preventDefault(); navigate('/guides/' + g.slug); }}><strong>{g.title}</strong></a>
+                {g.meta_description ? <div style={{ opacity: 0.75, fontSize: 14 }}>{g.meta_description}</div> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+
+    function CostCalculator() {
+      const MATERIALS = [
+        { key: 'porcelain', label: 'Porcelain / Ceramic Tile', low: 2, high: 8 },
+        { key: 'lvp', label: 'Luxury Vinyl Plank (LVP)', low: 2, high: 6 },
+        { key: 'laminate', label: 'Laminate', low: 1, high: 4 },
+        { key: 'engineered', label: 'Engineered Hardwood', low: 4, high: 10 },
+        { key: 'solid', label: 'Solid Hardwood', low: 5, high: 12 },
+        { key: 'carpet', label: 'Carpet', low: 1.5, high: 5 },
+        { key: 'stone', label: 'Natural Stone', low: 5, high: 15 },
+      ];
+      const [sqft, setSqft] = useState('');
+      const [material, setMaterial] = useState('lvp');
+      const [install, setInstall] = useState(true);
+      const m = MATERIALS.find(x => x.key === material) || MATERIALS[1];
+      const sf = Math.max(0, parseFloat(sqft) || 0);
+      const low = sf * (m.low + (install ? 2 : 0));
+      const high = sf * (m.high + (install ? 6 : 0));
+      const fmt = n => '$' + Math.round(n).toLocaleString();
+      return (
+        <div className="cost-calculator" style={{ border: '1px solid var(--stone-200, #e5e0d8)', borderRadius: 12, padding: 24, margin: '24px 0', background: 'var(--stone-50, #faf8f5)' }}>
+          <h2 style={{ marginTop: 0 }}>Flooring Cost Estimator</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-end' }}>
+            <label>Area (sq ft)<br /><input type="number" min="0" value={sqft} onChange={e => setSqft(e.target.value)} placeholder="e.g. 500" style={{ padding: 8, width: 120, marginTop: 4 }} /></label>
+            <label>Flooring type<br /><select value={material} onChange={e => setMaterial(e.target.value)} style={{ padding: 8, marginTop: 4 }}>{MATERIALS.map(x => <option key={x.key} value={x.key}>{x.label}</option>)}</select></label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><input type="checkbox" checked={install} onChange={e => setInstall(e.target.checked)} /> Include installation</label>
+          </div>
+          {sf > 0
+            ? <p style={{ fontSize: 22, marginTop: 18 }}>Estimated total: <strong>{fmt(low)} – {fmt(high)}</strong></p>
+            : <p style={{ opacity: 0.7, marginTop: 18 }}>Enter your area to see an estimate.</p>}
+          <p style={{ fontSize: 13, opacity: 0.75 }}>Rough estimate using typical Southern California material + installation ranges. Actual pricing varies by product, subfloor, and layout — <a href="/installation">request a free estimate</a> for an exact quote.</p>
+        </div>
+      );
+    }
+
+    function GuidePage({ slug, navigate, onRequestQuote }) {
+      const [g, setG] = useState(null);
+      const [notFound, setNotFound] = useState(false);
+      useEffect(() => {
+        if (!slug) return;
+        setG(null); setNotFound(false);
+        fetch(API + '/api/storefront/guide/' + encodeURIComponent(slug))
+          .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(d => {
+            setG(d);
+            const title = (d.meta_title && d.meta_title.trim()) ? d.meta_title.trim() : (d.title + ' | Roma Flooring Designs');
+            updateSEO({ title, description: d.meta_description || '', url: SITE_URL + '/guides/' + d.slug, image: '' });
+          })
+          .catch(() => setNotFound(true));
+      }, [slug]);
+      if (notFound) return (
+        <div style={{ maxWidth: 820, margin: '0 auto', padding: '48px 20px', textAlign: 'center' }}>
+          <h1>Guide not found</h1>
+          <p><a href="/guides" onClick={e => { e.preventDefault(); navigate('/guides'); }}>Browse all guides</a></p>
+        </div>
+      );
+      if (!g) return <div style={{ padding: 60, textAlign: 'center', opacity: 0.7 }}>Loading…</div>;
+      const fj = g.filter_json || {};
+      const faq = Array.isArray(fj.faq) ? fj.faq : [];
+      const isCalc = fj.kind === 'calculator';
+      return (
+        <div className="guide-page" style={{ maxWidth: 820, margin: '0 auto', padding: '32px 20px' }}>
+          <nav className="breadcrumb"><a href="/" onClick={e => { e.preventDefault(); navigate('/'); }}>Home</a> / <a href="/guides" onClick={e => { e.preventDefault(); navigate('/guides'); }}>Guides</a> / {g.title}</nav>
+          <article className="guide">
+            <h1>{g.h1 || g.title}</h1>
+            {g.intro_html ? <div className="guide-intro" dangerouslySetInnerHTML={{ __html: g.intro_html }} /> : null}
+            {isCalc ? <CostCalculator /> : null}
+            {g.content_html ? <div className="guide-body" dangerouslySetInnerHTML={{ __html: g.content_html }} /> : null}
+            {faq.length ? <div className="guide-faq"><h2>Frequently Asked Questions</h2>{faq.map((f, i) => <div key={i}><h3>{f.question || f.q}</h3><p>{f.answer || f.a}</p></div>)}</div> : null}
+            {(g.related_cats || []).length ? <div className="guide-related"><h2>Shop Related</h2><p>{g.related_cats.map((c, i) => <React.Fragment key={c.slug}>{i > 0 ? ' · ' : ''}<a href={'/shop?category=' + c.slug} onClick={e => { e.preventDefault(); navigate('/shop?category=' + c.slug); }}>{c.name}</a></React.Fragment>)}</p></div> : null}
+            <p style={{ marginTop: 28 }}><button className="btn btn-gold" onClick={onRequestQuote}>Request a Free Quote</button></p>
+          </article>
         </div>
       );
     }
