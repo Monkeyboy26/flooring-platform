@@ -471,7 +471,7 @@ CREATE INDEX idx_media_assets_product ON media_assets(product_id);
 CREATE TABLE landing_pages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     type VARCHAR(30) NOT NULL
-        CHECK (type IN ('facet', 'material', 'brand', 'room', 'guide')),
+        CHECK (type IN ('facet', 'material', 'brand', 'room', 'guide', 'local')),
     slug TEXT UNIQUE NOT NULL,
     title TEXT NOT NULL,
     h1 TEXT,

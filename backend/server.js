@@ -34205,13 +34205,15 @@ app.get('/api/sitemap.xml', async (req, res) => {
     const baseUrl = (process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
     const today = new Date().toISOString().split('T')[0];
 
-    const [productsResult, categoriesResult, collectionsResult, landingResult] = await Promise.all([
+    const [productsResult, categoriesResult, collectionsResult, landingResult, localGuideResult] = await Promise.all([
       pool.query(`SELECT DISTINCT ON (p.id) p.id, p.slug as product_slug, c.slug as category_slug, COALESCE(p.display_name, p.name) as product_name, p.updated_at FROM products p JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false AND COALESCE(s.variant_type, '') NOT IN ('accessory','trim','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim') LEFT JOIN categories c ON c.id = p.category_id WHERE p.status = 'active' ORDER BY p.id`),
       pool.query(`SELECT slug FROM categories WHERE is_active = true ORDER BY slug`),
       pool.query(`SELECT DISTINCT collection as name FROM products WHERE status = 'active' AND collection IS NOT NULL AND collection != '' ORDER BY collection`),
-      // Only indexable landing pages (Phase 2 facet system). The generator keeps
+      // Indexable FACET landing pages (Phase 2) → /shop/{slug}. The generator keeps
       // is_indexable current, so thin/emptied pages self-drop from the sitemap.
-      pool.query(`SELECT slug, updated_at FROM landing_pages WHERE is_indexable = true ORDER BY slug`).catch(() => ({ rows: [] }))
+      pool.query(`SELECT slug, updated_at FROM landing_pages WHERE is_indexable = true AND type = 'facet' ORDER BY slug`).catch(() => ({ rows: [] })),
+      // Local city pages (Phase 3) → /flooring-installation/{slug} and guides (Phase 4) → /guides/{slug}.
+      pool.query(`SELECT slug, updated_at, type FROM landing_pages WHERE is_indexable = true AND type IN ('local','guide') ORDER BY type, slug`).catch(() => ({ rows: [] }))
     ]);
 
     let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -34250,6 +34252,13 @@ app.get('/api/sitemap.xml', async (req, res) => {
     for (const row of landingResult.rows) {
       const lastmod = row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : today;
       xml += `  <url><loc>${baseUrl}/shop/${encodeURIComponent(row.slug)}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>\n`;
+    }
+
+    // Local city pages (/flooring-installation/{city}) + pillar guides (/guides/{slug})
+    for (const row of localGuideResult.rows) {
+      const lastmod = row.updated_at ? new Date(row.updated_at).toISOString().split('T')[0] : today;
+      const loc = row.type === 'local' ? `${baseUrl}/flooring-installation/${encodeURIComponent(row.slug)}` : `${baseUrl}/guides/${encodeURIComponent(row.slug)}`;
+      xml += `  <url><loc>${loc}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>\n`;
     }
 
     xml += '</urlset>';
@@ -34696,6 +34705,10 @@ async function runMigrations() {
     )`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_landing_pages_type ON landing_pages(type)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_landing_pages_indexable ON landing_pages(is_indexable) WHERE is_indexable = true`);
+    // Widen the type CHECK to include 'local' (Phase 3 city pages) on existing DBs.
+    await pool.query(`ALTER TABLE landing_pages DROP CONSTRAINT IF EXISTS landing_pages_type_check`);
+    await pool.query(`ALTER TABLE landing_pages ADD CONSTRAINT landing_pages_type_check
+      CHECK (type IN ('facet','material','brand','room','guide','local'))`);
     console.log('Migrations: SEO Phase 0 columns + landing_pages applied');
   } catch (err) {
     console.error('Migration warning:', err.message);

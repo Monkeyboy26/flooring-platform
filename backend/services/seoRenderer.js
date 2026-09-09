@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { fullProductName } from '../lib/productName.js';
 import { facetSlug } from '../lib/facetSlug.js';
+import { SERVICE_AREAS, SERVICE_CITIES, cityBySlug, citySlug } from '../lib/serviceAreas.js';
 
 const SITE_URL = (process.env.SITE_URL || 'https://romaflooringdesigns.com').replace(/\/+$/, '');
 
@@ -94,6 +95,10 @@ function parsePath(reqPath, query) {
   if (path === '/cabinets') return { type: 'static', page: 'cabinets' };
   if (path === '/privacy') return { type: 'static', page: 'privacy' };
   if (path === '/terms') return { type: 'static', page: 'terms' };
+
+  // /flooring-installation/{city} — per-city local landing page (Phase 3 local moat)
+  const localMatch = path.match(/^\/flooring-installation\/([a-z0-9-]+)$/);
+  if (localMatch) return { type: 'local', slug: localMatch[1] };
 
   return { type: 'unknown' };
 }
@@ -841,12 +846,8 @@ function renderCollectionsIndex(collections) {
 
 // ==================== Installation (local SEO) ====================
 // Shared source of truth so the prerendered body and the JSON-LD stay in sync.
-// Tri-county service area — keep identical to frontend/storefront.jsx SERVICE_AREAS.
-const SERVICE_AREAS = [
-  { county: 'Orange County', cities: ['Anaheim','Fullerton','Irvine','Orange','Tustin','Santa Ana','Yorba Linda','Placentia','Brea','Buena Park','Huntington Beach','Costa Mesa','Newport Beach','Mission Viejo','Lake Forest','Laguna Hills'] },
-  { county: 'Los Angeles County', cities: ['Long Beach','Cerritos','Lakewood','La Mirada','Whittier','Norwalk','Downey','Diamond Bar','West Covina','Pomona'] },
-  { county: 'Riverside County', cities: ['Corona','Riverside','Eastvale','Norco','Jurupa Valley','Moreno Valley'] },
-];
+// SERVICE_AREAS now lives in ../lib/serviceAreas.js (shared with build-local-pages.mjs);
+// keep frontend/storefront.jsx SERVICE_AREAS identical.
 
 const INSTALL_TYPES = [
   ['Hardwood', 'Solid and engineered hardwood installation — nail-down, glue-down, or floating.'],
@@ -1454,6 +1455,75 @@ function renderLandingPage(lp) {
   return { title, description: description.substring(0, 320), canonicalUrl, ogImage, ogType: 'website', robotsTag, jsonLd, bodyContent };
 }
 
+// ==================== Local city pages (Phase 3 local moat) ====================
+// One indexable page per service-area city at /flooring-installation/{city}. Geo is
+// authoritative from SERVICE_CITIES; the optional landing_pages row (type='local',
+// minted by build-local-pages.mjs) supplies stored AI meta/intro/footer, else we fall
+// back to templated per-city copy so the page renders before content generation.
+async function fetchLocalRow(pool, slug) {
+  try {
+    const res = await pool.query(
+      `SELECT meta_title, meta_description, intro_html, footer_html
+       FROM landing_pages WHERE type = 'local' AND slug = $1`, [slug]);
+    return res.rows[0] || null;
+  } catch { return null; }
+}
+
+function renderLocalPage(city, row) {
+  row = row || {};
+  const canonicalUrl = `${SITE_URL}/flooring-installation/${city.slug}`;
+  const title = (row.meta_title && row.meta_title.trim())
+    ? row.meta_title.trim()
+    : `Flooring Installation in ${city.city}, CA | Roma Flooring Designs`;
+  const description = (row.meta_description && row.meta_description.trim())
+    ? row.meta_description.trim()
+    : `Licensed, insured flooring installation in ${city.city}, CA — hardwood, tile, luxury vinyl, stone, carpet & laminate. Free estimates. CA Lic #830966. Call (714) 999-0009.`;
+  const h1 = `Flooring Installation in ${city.city}, CA`;
+
+  const cityFaq = [
+    [`Do you install flooring in ${city.city}?`, `Yes. Roma Flooring Designs installs flooring throughout ${city.city} and the surrounding ${city.county} area — hardwood, tile, luxury vinyl, natural stone, carpet, and laminate. We are based in nearby Anaheim.`],
+    ...INSTALL_FAQ.slice(1)
+  ];
+
+  const jsonLd = { '@context': 'https://schema.org', '@graph': [
+    installationBusinessNode(),
+    { '@type': 'Service', name: `Flooring Installation in ${city.city}`, serviceType: 'Flooring installation',
+      provider: { '@id': BUSINESS_ID }, areaServed: { '@type': 'City', name: city.city },
+      hasOfferCatalog: { '@type': 'OfferCatalog', name: 'Flooring Installation Services',
+        itemListElement: INSTALL_TYPES.map(([n, d]) => ({ '@type': 'Offer', itemOffered: { '@type': 'Service', name: n + ' Installation', description: d } })) } },
+    { '@type': 'FAQPage', mainEntity: cityFaq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
+    { '@type': 'BreadcrumbList', itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Flooring Installation', item: SITE_URL + '/installation' },
+      { '@type': 'ListItem', position: 3, name: city.city, item: canonicalUrl } ] }
+  ]};
+
+  const typesHtml = INSTALL_TYPES.map(([n, d]) => `<li><strong>${escapeHtml(n)}:</strong> ${escapeHtml(d)}</li>`).join('');
+  const faqHtml = cityFaq.map(([q, a]) => `<h3>${escapeHtml(q)}</h3><p>${escapeHtml(a)}</p>`).join('');
+  // Internal-link mesh: other cities in the same county.
+  const nearby = SERVICE_CITIES.filter(c => c.county === city.county && c.slug !== city.slug).slice(0, 10);
+  const nearbyHtml = nearby.length ? `<p>We also install flooring across ${escapeHtml(city.county)}: ${nearby.map(c => `<a href="/flooring-installation/${c.slug}">${escapeHtml(c.city)}</a>`).join(' &middot; ')}</p>` : '';
+  const introHtml = (row.intro_html && row.intro_html.trim())
+    ? row.intro_html
+    : `<p>Roma Flooring Designs provides professional, licensed flooring installation in ${escapeHtml(city.city)}, California and throughout ${escapeHtml(city.county)}. From our Anaheim showroom we bring decades of combined experience to hardwood, tile, luxury vinyl, natural stone, carpet, and laminate — with a clean, meticulous finish and a workmanship warranty on every ${escapeHtml(city.city)} project. Call (714) 999-0009 for a free, no-obligation estimate. California Contractor License #830966.</p>`;
+  const footerHtml = (row.footer_html && row.footer_html.trim()) ? `<section class="local-footer">${row.footer_html}</section>` : '';
+
+  const bodyContent = `
+    <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li><a href="/">Home</a></li><li><a href="/installation">Flooring Installation</a></li><li>${escapeHtml(city.city)}</li></ol></nav>
+    <h1>${escapeHtml(h1)}</h1>
+    <section class="local-intro">${introHtml}</section>
+    <h2>What We Install in ${escapeHtml(city.city)}</h2>
+    <ul>${typesHtml}</ul>
+    <h2>Frequently Asked Questions</h2>
+    ${faqHtml}
+    ${footerHtml}
+    <h2>Serving ${escapeHtml(city.city)} &amp; Nearby</h2>
+    ${nearbyHtml}
+    <p><a href="/installation">All flooring installation services</a> &middot; <a href="/shop">Shop flooring</a> &middot; <a href="/custom-accessories">Custom accessories</a></p>`;
+
+  return { title, description, canonicalUrl, ogImage: SITE_URL + '/uploads/og-default.jpg', jsonLd, bodyContent };
+}
+
 // ==================== Router ====================
 
 export default function createSeoRouter(pool) {
@@ -1532,6 +1602,17 @@ export default function createSeoRouter(pool) {
         }
         break;
       }
+      case 'local': {
+        const city = cityBySlug(parsed.slug);
+        if (!city) {
+          pageData = render404Page('Page not found.');
+          statusCode = 404;
+        } else {
+          const row = await fetchLocalRow(pool, parsed.slug);
+          pageData = renderLocalPage(city, row);
+        }
+        break;
+      }
       case 'browse': {
         pageData = renderBrowsePage();
         break;
@@ -1559,6 +1640,7 @@ export default function createSeoRouter(pool) {
       : parsed.type === 'category' ? `category:${parsed.slug}`
       : parsed.type === 'collections-index' ? 'collections-index'
       : parsed.type === 'landing' ? `landing:${parsed.slug}`
+      : parsed.type === 'local' ? `local:${parsed.slug}`
       : parsed.type === 'browse' ? 'browse'
       : parsed.type === 'static' ? `static:${parsed.page}`
       : null;
