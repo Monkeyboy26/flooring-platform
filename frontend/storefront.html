@@ -98,10 +98,23 @@
   <script>window.onerror=function(m,s,l,c,e){document.title='ERR:'+m;var d=document.createElement('pre');d.style='position:fixed;top:0;left:0;right:0;background:red;color:white;padding:1rem;z-index:99999;font-size:12px;white-space:pre-wrap';d.textContent=m+'\n'+s+':'+l+':'+c+'\n'+(e&&e.stack||'');document.body.prepend(d)}</script>
   <!-- Images now visible immediately — SVG placeholder background provides loading state -->
   <!-- defer: executes after the deferred react/react-dom above, same document order. -->
-  <script defer src="/storefront-app.js?v=613"></script>
+  <script defer src="/storefront-app.js?v=614"></script>
   <!-- Env-driven analytics (GA4 / Clarity / Sentry) — server emits an empty stub
        until the IDs are configured, so this is a no-op in untracked environments -->
   <script src="/api/analytics" defer></script>
+  <!-- Roomvo room visualizer. Loads the integration API (window.roomvo) that powers the
+       "Visualize in Your Room" button on product pages. We deliberately suppress Roomvo's
+       floating assistant bubble: it's armored with inline !important on every CSS property
+       so a stylesheet can't hide it — instead we remove the #assistantPopup iframe on sight
+       with a MutationObserver. The visualizer/button API is unaffected. -->
+  <script async type="text/javascript" src="https://www.roomvo.com/static/scripts/b2b/common/assistant.js"></script>
+  <script>
+  (function(){
+    function killBubble(){ var e = document.getElementById('assistantPopup'); if (e) e.remove(); }
+    function start(){ killBubble(); try { new MutationObserver(killBubble).observe(document.body, { childList: true }); } catch(e){} }
+    if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+  })();
+  </script>
   <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {

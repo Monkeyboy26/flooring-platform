@@ -7646,14 +7646,13 @@
       "button",
       {
         className: "pdp-btn pdp-btn-ghost roomvo-visualize-btn",
-        ref: (el) => {
+        "data-sku": sku.vendor_sku || sku.internal_sku,
+        onClick: () => {
           try {
-            if (el && window.roomvo) window.roomvo.enableButtonForVisualization(el);
+            if (window.roomvo && window.roomvo.startProductCatalog) window.roomvo.startProductCatalog();
           } catch (e) {
           }
-        },
-        "data-sku": sku.vendor_sku || sku.internal_sku,
-        style: { visibility: "hidden" }
+        }
       },
       /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5", style: { width: 18, height: 18 } }, /* @__PURE__ */ React.createElement("path", { d: "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" }), /* @__PURE__ */ React.createElement("polyline", { points: "9 22 9 12 15 12 15 22" })),
       "Visualize in Your Room"

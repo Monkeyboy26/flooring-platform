@@ -10448,11 +10448,12 @@
                 </div>
               )}
 
-              {/* Visualize in Your Room — Roomvo enables this button automatically when the SKU is recognized */}
+              {/* Visualize in Your Room — opens the Roomvo catalog visualizer. The Roomvo
+                  script is loaded in storefront.html (which also suppresses Roomvo's floating
+                  assistant bubble). Guard on window.roomvo in case the async script is slow. */}
               <button className="pdp-btn pdp-btn-ghost roomvo-visualize-btn"
-                ref={el => { try { if (el && window.roomvo) window.roomvo.enableButtonForVisualization(el); } catch(e) {} }}
                 data-sku={sku.vendor_sku || sku.internal_sku}
-                style={{ visibility: 'hidden' }}>
+                onClick={() => { try { if (window.roomvo && window.roomvo.startProductCatalog) window.roomvo.startProductCatalog(); } catch(e) {} }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ width: 18, height: 18 }}>
                   <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
                   <polyline points="9 22 9 12 15 12 15 22"/>
