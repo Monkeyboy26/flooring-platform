@@ -263,6 +263,11 @@ CREATE TABLE orders (
 -- Customer-facing invoice note (printed on the invoice PDF as its own boxed block).
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS invoice_notes TEXT;
 
+-- SMS consent (TCPA) — whether the customer agreed to receive text messages.
+-- Captured where the phone number is collected; honored by the review-request SMS sender.
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS sms_consent BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS sms_consent BOOLEAN NOT NULL DEFAULT false;
+
 CREATE TABLE order_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID REFERENCES orders(id) NOT NULL,

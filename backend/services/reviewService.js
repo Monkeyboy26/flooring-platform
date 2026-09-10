@@ -45,20 +45,31 @@ export async function queueReviewRequest(order, { createdBy = 'auto', immediate 
   const phone = order.customer_phone || order.phone || null;
   if (!email && !phone) return { queued: false, reason: 'no_contact' };
 
+  // SMS consent (TCPA): text only if the order carries consent, or — for orders
+  // created without the flag (e.g. rep orders) — if the linked customer has a
+  // standing consent on file. Email is unaffected.
+  let smsConsent = order.sms_consent === true;
+  if (!smsConsent && order.customer_id) {
+    try {
+      const c = await pool.query('SELECT sms_consent FROM customers WHERE id = $1', [order.customer_id]);
+      smsConsent = !!(c.rows[0] && c.rows[0].sms_consent);
+    } catch (err) { /* non-fatal — default to no SMS */ }
+  }
+
   const sendAfter = immediate ? new Date() : new Date(Date.now() + DELAY_HOURS * 3600 * 1000);
   const token = genToken();
   try {
     const r = await pool.query(
       `INSERT INTO review_requests
         (order_id, customer_id, order_number, customer_name, customer_email, customer_phone,
-         rep_email, rep_first_name, rep_last_name, token, status, send_after, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'scheduled',$11,$12)
+         rep_email, rep_first_name, rep_last_name, token, status, send_after, created_by, sms_consent)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'scheduled',$11,$12,$13)
        ON CONFLICT (order_id) DO NOTHING
        RETURNING *`,
       [order.id, order.customer_id || null, order.order_number || null,
        order.customer_name || null, email, phone,
        order.rep_email || null, order.rep_first_name || null, order.rep_last_name || null,
-       token, sendAfter, createdBy]
+       token, sendAfter, createdBy, smsConsent]
     );
 
     if (!r.rows.length) {
@@ -94,10 +105,11 @@ export async function sendTestReviewRequest({ name, email, phone } = {}) {
   if (!ENABLED) return { sent: false, reason: 'disabled' };
   if (!email && !phone) return { sent: false, reason: 'no_contact' };
   const token = genToken();
+  // Test sends are initiated by an admin who typed the number, so SMS is allowed.
   const r = await pool.query(
     `INSERT INTO review_requests
-       (order_number, customer_name, customer_email, customer_phone, token, status, send_after, created_by)
-     VALUES ($1,$2,$3,$4,$5,'scheduled',CURRENT_TIMESTAMP,'test') RETURNING *`,
+       (order_number, customer_name, customer_email, customer_phone, token, status, send_after, created_by, sms_consent)
+     VALUES ($1,$2,$3,$4,$5,'scheduled',CURRENT_TIMESTAMP,'test',true) RETURNING *`,
     ['TEST', name || 'there', email || null, phone || null, token]
   );
   const res = await sendReviewRequest(r.rows[0]);
@@ -121,7 +133,8 @@ export async function sendReviewRequest(row) {
     }
   }
 
-  if (row.customer_phone && smsConfigured()) {
+  // Only text customers who consented (TCPA). Email always allowed.
+  if (row.customer_phone && row.sms_consent && smsConfigured()) {
     const r = await sendSms(row.customer_phone, reviewSmsBody({ customer_name: row.customer_name, token: row.token }));
     if (r && r.sent) { smsSent = true; channels.push('sms'); }
   }

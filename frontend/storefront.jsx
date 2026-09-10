@@ -11162,6 +11162,7 @@
       const [nameTouched, setNameTouched] = useState(false);
       const [customerEmail, setCustomerEmail] = useState(tradeCustomer ? tradeCustomer.email : (customer ? customer.email : ''));
       const [phone, setPhone] = useState(customer ? (customer.phone || '') : '');
+      const [smsConsent, setSmsConsent] = useState(false);
       const [companyName, setCompanyName] = useState(tradeCustomer ? (tradeCustomer.company_name || '') : (customer ? (customer.company_name || '') : ''));
       const [line1, setLine1] = useState(customer ? (customer.address_line1 || '') : '');
       const [line2, setLine2] = useState(customer ? (customer.address_line2 || '') : '');
@@ -11430,7 +11431,7 @@
 
           const orderBody = {
             session_id: sessionId, payment_intent_id: confirmedPiId,
-            customer_name: customerName, customer_email: customerEmail, phone, company_name: companyName,
+            customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
@@ -11610,7 +11611,7 @@
             const orderBody = {
               session_id: sessionId, fully_covered: true,
               store_credit_applied: piData.store_credit_applied,
-              customer_name: customerName, customer_email: customerEmail, phone, company_name: companyName,
+              customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
               delivery_method: deliveryMethod,
               shipping: isPickup ? null : { line1, line2, city, state, zip },
               residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
@@ -11659,7 +11660,7 @@
 
           const orderBody = {
             session_id: sessionId, payment_intent_id: confirmedPiId,
-            customer_name: customerName, customer_email: customerEmail, phone, company_name: companyName,
+            customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
@@ -11722,7 +11723,7 @@
           }
           // Stash the order details — React state is lost across the redirect
           const orderBody = {
-            session_id: sessionId, customer_name: customerName, customer_email: customerEmail, phone, company_name: companyName,
+            session_id: sessionId, customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
@@ -11802,7 +11803,7 @@
           // ACH now sits in 'processing' — place the order as payment-processing.
           const orderBody = {
             session_id: sessionId, payment_intent_id: achPi.id, payment_method: 'ach',
-            customer_name: customerName, customer_email: customerEmail, phone, company_name: companyName,
+            customer_name: customerName, customer_email: customerEmail, phone, sms_consent: smsConsent, company_name: companyName,
             delivery_method: deliveryMethod,
             shipping: isPickup ? null : { line1, line2, city, state, zip },
             residential: true, liftgate: liftgateEnabled, promo_code: appliedPromoCode || undefined,
@@ -11931,6 +11932,10 @@
                       <div className="co-field">
                         <div className="co-field-label">Phone</div>
                         <input type="tel" autoComplete="tel" value={phone} onChange={e => setPhone(formatPhone(e.target.value))} placeholder="(555) 123-4567" />
+                        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8, fontSize: 12, lineHeight: 1.5, color: 'var(--stone-500)', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={smsConsent} onChange={e => setSmsConsent(e.target.checked)} style={{ marginTop: 2, flexShrink: 0 }} />
+                          <span>Text me order updates &amp; a review request. By checking this box you agree to receive automated text messages from Roma Flooring Designs at the number above. Consent is not a condition of purchase. Msg &amp; data rates may apply. Reply STOP to opt out.</span>
+                        </label>
                       </div>
                       <div className="co-field">
                         <div className="co-field-label">Company <span style={{ color: 'var(--stone-400)', fontWeight: 400 }}>(optional)</span></div>

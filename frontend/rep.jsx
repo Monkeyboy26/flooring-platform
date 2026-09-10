@@ -2508,7 +2508,7 @@
 
     // ========== RepCustomerCreateView ==========
     function RepCustomerCreateView({ navigate }) {
-      const [form, setForm] = useState({ first_name: '', middle_initial: '', last_name: '', email: '', phone: '', company_name: '', address_line1: '', address_line2: '', city: '', state: '', zip: '' });
+      const [form, setForm] = useState({ first_name: '', middle_initial: '', last_name: '', email: '', phone: '', company_name: '', address_line1: '', address_line2: '', city: '', state: '', zip: '', sms_consent: false });
       const [saving, setSaving] = useState(false);
       const [error, setError] = useState('');
       const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -2576,6 +2576,10 @@
               {fieldWrap('Email', <input type="email" style={inputStyle} value={form.email} onChange={set('email')} onKeyDown={onKey} />, true, true)}
               {fieldWrap('Phone', <input style={inputStyle} value={form.phone} onChange={e => setForm(f => ({ ...f, phone: formatPhone(e.target.value) }))} onKeyDown={onKey} />, true)}
               {fieldWrap('Company (optional)', <input style={inputStyle} value={form.company_name} onChange={set('company_name')} onKeyDown={onKey} />)}
+              <label style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, alignItems: 'flex-start', font: '400 12px/1.5 Inter, sans-serif', color: 'var(--stone-500)', cursor: 'pointer' }}>
+                <input type="checkbox" checked={form.sms_consent} onChange={e => setForm(f => ({ ...f, sms_consent: e.target.checked }))} style={{ marginTop: 2, flexShrink: 0 }} />
+                <span>Customer verbally agreed to receive text messages (order updates &amp; review request). Only check if they consented — enables review-request texts to this number.</span>
+              </label>
             </div>
           </div>
 

@@ -5900,13 +5900,15 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
             po_number, project_id, is_tax_exempt, shipping_option_id, residential, liftgate,
             create_account, account_password, promo_code, payment_method: reqPaymentMethod,
             notes: orderNotes, measure_requested, preferred_measure_date, preferred_measure_time,
-            terms_accepted } = req.body;
+            terms_accepted, sms_consent: bodySmsConsent } = req.body;
 
     // Pre-fill from customer profile if logged in
     const customer_name = bodyName || (req.customer ? (req.customer.first_name + ' ' + req.customer.last_name) : '');
     const customer_email = bodyEmail || (req.customer ? req.customer.email : '');
     const phone = bodyPhone || (req.customer ? req.customer.phone : '');
     const company_name = (bodyCompany || (req.customer && req.customer.company_name) || '').trim() || null;
+    // SMS consent (TCPA) — only true when the customer explicitly checked the box.
+    const sms_consent = bodySmsConsent === true;
 
     // Fully-covered mode: store credit paid the entire total, so there is no
     // PaymentIntent. Only authenticated customers can reach this path.
@@ -6300,8 +6302,8 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         customer_id, promo_code_id, promo_code, discount_amount, amount_paid,
         tax_rate, tax_amount, payment_method, bank_transfer_instructions, bank_transfer_expires_at,
         notes, measure_requested, preferred_measure_date, preferred_measure_time, card_brand, card_last4,
-        terms_accepted_at, company_name, transfer_fee)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46)
+        terms_accepted_at, company_name, transfer_fee, sms_consent)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47)
       RETURNING *
     `, [orderNumber, session_id, customer_email, customer_name, phone || null,
         isPickup ? null : shipping.line1, isPickup ? null : (shipping.line2 || null),
@@ -6313,7 +6315,7 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
         existingCustomerId, promoCodeId, promoCodeStr, discountAmount.toFixed(2), amountPaid,
         taxRate, taxAmount.toFixed(2), reqPaymentMethod || 'stripe', bankInstructions ? JSON.stringify(bankInstructions) : null, bankExpiresAt,
         orderNotes || null, measure_requested || false, preferred_measure_date || null, preferred_measure_time || null,
-        cardBrand, cardLast4, terms_accepted ? new Date() : null, company_name, transferFee.toFixed(2)]);
+        cardBrand, cardLast4, terms_accepted ? new Date() : null, company_name, transferFee.toFixed(2), sms_consent]);
 
     const order = orderResult.rows[0];
 
@@ -6408,15 +6410,15 @@ app.post('/api/checkout/place-order', optionalTradeAuth, optionalCustomerAuth, a
       // (possibly rep-created/unclaimed) account's password from a checkout.
       const custResult = await client.query(
         `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, phone,
-          address_line1, address_line2, city, state, zip, company_name)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          address_line1, address_line2, city, state, zip, company_name, sms_consent)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          ON CONFLICT (email) DO NOTHING RETURNING *`,
         [customer_email, hash, salt, titleCaseName(firstName), titleCaseName(lastName), formatPhone(phone) || null,
          isPickup ? null : (shipping ? shipping.line1 : null),
          isPickup ? null : (shipping ? shipping.line2 || null : null),
          isPickup ? null : collapse(shipping ? shipping.city : null),
          isPickup ? null : normState(shipping ? shipping.state : null),
-         isPickup ? null : (shipping ? shipping.zip : null), collapse(company_name)]
+         isPickup ? null : (shipping ? shipping.zip : null), collapse(company_name), sms_consent]
       );
       const newCust = custResult.rows[0];
       if (newCust) {
@@ -28825,12 +28827,12 @@ app.post('/api/rep/customers', repAuth, async (req, res) => {
     const { hash, salt } = await hashPassword(crypto.randomBytes(24).toString('hex'));
     const result = await pool.query(
       `INSERT INTO customers (email, password_hash, password_salt, first_name, last_name, middle_initial, phone,
-        address_line1, address_line2, city, state, zip, company_name, created_via, assigned_rep_id, assigned_at, password_set)
-       VALUES ($1,$2,$3,$4,$5,$14,$6,$7,$8,$9,$10,$11,$13,'rep',$12, CURRENT_TIMESTAMP, false) RETURNING id`,
+        address_line1, address_line2, city, state, zip, company_name, created_via, assigned_rep_id, assigned_at, password_set, sms_consent)
+       VALUES ($1,$2,$3,$4,$5,$14,$6,$7,$8,$9,$10,$11,$13,'rep',$12, CURRENT_TIMESTAMP, false, $15) RETURNING id`,
       [emailNorm, hash, salt, titleCaseName(first_name), titleCaseName(last_name), formatPhone(phone) || null,
        collapse(address_line1), collapse(address_line2),
        collapse(city), normState(state), (zip || '').trim() || null, req.rep.id,
-       collapse(company_name), normMiddleInitial(middle_initial)]);
+       collapse(company_name), normMiddleInitial(middle_initial), req.body.sms_consent === true]);
 
     res.status(201).json({ id: result.rows[0].id });
   } catch (err) {
@@ -34825,6 +34827,19 @@ async function runMigrations() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_review_requests_status ON review_requests(status)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_review_requests_due ON review_requests(send_after) WHERE status = 'scheduled'`);
     console.log('Migrations: review_requests table applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // SMS consent (TCPA): whether the customer agreed to receive text messages.
+  // Captured at the point their number is collected (checkout / rep customer form)
+  // and honored by the review-request SMS sender. Default false = no texting until
+  // consent is explicitly given.
+  try {
+    await pool.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS sms_consent BOOLEAN NOT NULL DEFAULT false`);
+    await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS sms_consent BOOLEAN NOT NULL DEFAULT false`);
+    await pool.query(`ALTER TABLE review_requests ADD COLUMN IF NOT EXISTS sms_consent BOOLEAN NOT NULL DEFAULT false`);
+    console.log('Migrations: sms_consent columns applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }
