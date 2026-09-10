@@ -1252,9 +1252,18 @@ function renderStaticPage(page) {
     },
     terms: {
       title: 'Terms of Service | Roma Flooring Designs',
-      description: 'Review the Roma Flooring Designs terms of service covering purchasing, returns, shipping, and website usage policies for our flooring and tile products.',
+      description: 'Review the Roma Flooring Designs terms of service covering purchasing, returns, shipping, text messaging, and website usage policies for our flooring and tile products.',
       path: '/terms',
-      body: `<h1>Terms of Service</h1><p>Please review our terms of service for details on purchasing, returns, and use of our website.</p>`
+      body: `<h1>Terms of Service</h1>
+<h2>1. Acceptance of Terms</h2><p>By accessing this site, requesting a quote, or placing an order with Roma Flooring Designs ("Roma," "we," or "us"), you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.</p>
+<h2>2. Pricing &amp; Orders</h2><p>Prices, promotions, availability, and specifications are subject to change and may be corrected at any time, including after an order is submitted, in the event of error. Your submission of an order is an offer to purchase, subject to acceptance by Roma. Applicable California sales tax is calculated at checkout.</p>
+<h2>3. Payment</h2><p>Payment is processed through our third-party payment providers; by paying you also agree to that provider's terms. Roma may require a deposit or full payment in advance for special, custom, or freight orders.</p>
+<h2>4. Shipping, Freight &amp; Pickup</h2><p>Freight is quoted based on destination and scheduled after the order is placed; delivery dates are estimates. Showroom pickup is available at our Anaheim location. Title and risk of loss pass to you upon delivery or pickup.</p>
+<h2>5. Inspection, Returns &amp; Claims</h2><p>You are responsible for inspecting all materials before installation; installation constitutes final acceptance. Natural materials vary in color, veining, and finish, which is normal and not a defect. Returns, exchanges, and cancellations are limited as described at the point of sale and may be subject to restocking and freight charges.</p>
+<h2>6. Text Messaging (SMS) Terms &amp; Conditions</h2><p>By providing your mobile phone number and opting in (by checking the SMS consent box at checkout or on a quote request, or by telling a Roma team member), you agree to receive recurring automated service and review-request text messages from Roma Flooring Designs, such as order and delivery updates and a post-purchase invitation to rate your experience. Consent is not a condition of any purchase. Message frequency varies. Message and data rates may apply. Reply STOP to unsubscribe at any time, or HELP for help, or call (714) 999-0009. Carriers are not liable for delayed or undelivered messages. We do not sell or share your mobile phone number or SMS opt-in and consent information with third parties or affiliates for their own marketing or promotional purposes; see our <a href="/privacy">Privacy Policy</a> for details.</p>
+<h2>7. Warranties &amp; Limitation of Liability</h2><p>Manufactured products may carry the applicable manufacturer's warranty. Except for any express written warranty provided by Roma, products and services are furnished "AS IS" to the fullest extent permitted by law. Roma's total liability shall not exceed the amount paid for the specific product giving rise to the claim.</p>
+<h2>8. Governing Law</h2><p>These Terms are governed by the laws of the State of California, with exclusive venue in Orange County, California.</p>
+<h2>9. Contact</h2><p>Questions about these Terms? Contact Roma Flooring Designs at (714) 999-0009 or Sales@romaflooringdesigns.com, 1440 S. State College Blvd #6M, Anaheim, CA 92806.</p>`
     }
   };
 
