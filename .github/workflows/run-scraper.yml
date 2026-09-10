@@ -40,4 +40,4 @@ jobs:
             "cd /opt/flooring-platform \
              && test -f backend/scrapers/${SCRAPER}.js \
              && echo '=== running scraper: ${SCRAPER} ===' \
-             && docker compose exec -T api node scrapers/${SCRAPER}.js"
+             && docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T api node scrapers/${SCRAPER}.js"
