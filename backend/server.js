@@ -10,8 +10,8 @@ import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
 import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
-import { queueReviewRequest, processDueReviewRequests, recordRating, saveFeedback, recordPublicClick, getByToken as getReviewByToken, reviewsEnabled, autoReviewEnabled, sendTestReviewRequest, MIN_PUBLIC_RATING } from './services/reviewService.js';
-import { reviewStarPickerPage, reviewPublicThankYouPage, reviewPrivateFeedbackPage, reviewGenericThanksPage } from './templates/reviewRequest.js';
+import { queueReviewRequest, processDueReviewRequests, recordRating, saveFeedback, recordPublicClick, getByToken as getReviewByToken, reviewsEnabled, autoReviewEnabled, sendTestReviewRequest, saveFirstPartyReview, listFirstPartyReviews, setReviewPublished, MIN_PUBLIC_RATING } from './services/reviewService.js';
+import { reviewStarPickerPage, reviewWriteReviewPage, reviewPrivateFeedbackPage, reviewGenericThanksPage } from './templates/reviewRequest.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
 import { generateQuoteSentHTML } from './templates/quoteSent.js';
 import { generateEstimateSentHTML } from './templates/estimateSent.js';
@@ -34856,14 +34856,34 @@ app.get('/api/reviews/r/:token', async (req, res) => {
 
     const updated = await recordRating(token, rating);
     if (updated.routed_to === 'public') {
-      const hasGoogle = !!BUSINESS_GOOGLE_REVIEW_URL;
-      const hasYelp = !!BUSINESS_YELP_URL;
-      return res.send(reviewPublicThankYouPage({ token, hasGoogle, hasYelp }));
+      // High rating → write a first-party review on our page, then one-tap share to Google/Yelp.
+      return res.send(reviewWriteReviewPage({
+        token, rating,
+        name: updated.customer_name,
+        hasGoogle: !!BUSINESS_GOOGLE_REVIEW_URL,
+        hasYelp: !!BUSINESS_YELP_URL
+      }));
     }
     return res.send(reviewPrivateFeedbackPage({ token, rating }));
   } catch (err) {
     console.error('[Reviews] rating capture error:', err.message);
     res.status(500).send(reviewGenericThanksPage({}));
+  }
+});
+
+// First-party review (high ratings) — the customer's own words, saved to our
+// site for moderation. They then paste it to Google/Yelp via the share buttons.
+app.post('/api/reviews/r/:token/review', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { rating, body, author } = req.body || {};
+    const row = await getReviewByToken(token);
+    if (!row) return res.status(404).json({ error: 'not_found' });
+    await saveFirstPartyReview(token, { rating, body, author });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Reviews] first-party save error:', err.message);
+    res.status(500).json({ error: 'failed' });
   }
 });
 
@@ -34964,6 +34984,28 @@ app.post('/api/admin/review-requests/test', staffAuth, requireRole('admin', 'man
   } catch (err) {
     console.error('[Reviews] test send error:', err.message);
     res.status(500).json({ error: 'Failed to send test' });
+  }
+});
+
+// Admin: first-party reviews awaiting moderation / published (feed on-site aggregateRating).
+app.get('/api/admin/service-reviews', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const rows = await listFirstPartyReviews();
+    res.json({ reviews: rows });
+  } catch (err) {
+    console.error('[Reviews] service-reviews list error:', err.message);
+    res.status(500).json({ error: 'Failed to load reviews' });
+  }
+});
+
+app.post('/api/admin/service-reviews/:id/publish', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const { published } = req.body || {};
+    await setReviewPublished(req.params.id, published !== false);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Reviews] publish toggle error:', err.message);
+    res.status(500).json({ error: 'Failed to update review' });
   }
 });
 

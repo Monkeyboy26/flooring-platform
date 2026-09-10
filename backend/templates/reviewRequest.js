@@ -143,6 +143,56 @@ export function reviewPublicThankYouPage({ token, hasGoogle, hasYelp }) {
   });
 }
 
+// High rating → write a first-party review on our own page, then one-tap share
+// to Google/Yelp. The review is copied to the clipboard on submit (within the
+// click gesture, so the browser allows it) and saved first-party for moderation;
+// the customer pastes it on Google/Yelp — we can't pre-fill their form.
+export function reviewWriteReviewPage({ token, rating, name, hasGoogle, hasYelp }) {
+  const t = esc(token);
+  const r = Math.min(5, Math.max(1, parseInt(rating, 10) || 5));
+  const starStr = '★'.repeat(r) + '☆'.repeat(5 - r);
+  const first = esc((name || '').trim().split(/\s+/)[0] || '');
+  const gBtn = hasGoogle ? `<a class="btn btn-google" href="${SITE_URL}/api/reviews/go/${t}/google" target="_blank" rel="noopener">Post on Google</a>` : '';
+  const yBtn = hasYelp ? `<a class="btn btn-yelp" href="${SITE_URL}/api/reviews/go/${t}/yelp" target="_blank" rel="noopener">Post on Yelp</a>` : '';
+  return publicPage({
+    title: 'Share your experience',
+    inner: `
+      <p class="eyebrow">Thank you${first ? ', ' + first : ''}</p>
+      <h1>You made our <em>day</em>.</h1>
+      <p>You rated us <span style="color:${T.accent};white-space:nowrap;">${starStr}</span> &mdash; thank you! Share a sentence about your experience. We&rsquo;ll add it to our site, and you can post it to Google or Yelp in one tap.</p>
+      <div id="formWrap">
+        <input id="rvName" placeholder="Your name (optional)" value="${first}"
+          style="width:100%;padding:12px 14px;border:1px solid ${T.border};font-family:inherit;font-size:14px;background:#fff;color:${T.ink};margin:0 0 10px;">
+        <textarea id="rvBody" placeholder="What did you love about working with us?"></textarea>
+        <button class="btn btn-dark" id="rvSubmit" type="button">Post my review</button>
+      </div>
+      <div id="shareWrap" style="display:none;">
+        <p style="margin:6px 0 4px;font-weight:600;">Your review is copied to your clipboard &#10003;</p>
+        <p class="muted" style="margin:0 0 10px;">Tap a button, sign in if asked, then <b>paste</b> (&#8984;V / Ctrl&#8209;V) and Post.</p>
+        ${gBtn}${yBtn}
+      </div>
+      <script>
+        (function(){
+          var btn=document.getElementById('rvSubmit');
+          btn.addEventListener('click',function(){
+            var body=document.getElementById('rvBody').value.trim();
+            var name=document.getElementById('rvName').value.trim();
+            if(body.length<3){ document.getElementById('rvBody').focus(); return; }
+            btn.disabled=true; btn.textContent='Posting…';
+            try{ if(navigator.clipboard) navigator.clipboard.writeText(body); }catch(e){}
+            fetch('/api/reviews/r/${t}/review',{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({rating:${r},body:body,author:name})})
+             .then(function(){
+               document.getElementById('formWrap').style.display='none';
+               document.getElementById('shareWrap').style.display='block';
+             }).catch(function(){ btn.disabled=false; btn.textContent='Post my review'; });
+          });
+        })();
+      </script>
+    `
+  });
+}
+
 // Low rating → private feedback form (never shows public links). Submits via
 // fetch JSON so no extra body-parser wiring is needed.
 export function reviewPrivateFeedbackPage({ token, rating }) {

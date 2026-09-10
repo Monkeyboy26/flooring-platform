@@ -13611,14 +13611,24 @@
       const [test, setTest] = useState({ email: '', phone: '' });
       const [testMsg, setTestMsg] = useState(null);
       const [sending, setSending] = useState(false);
+      const [svcReviews, setSvcReviews] = useState([]);
 
       const load = () => {
         setLoading(true);
         adminFetch('/api/admin/review-requests')
           .then(d => { setRows(d.requests || []); setStats(d.stats || null); setLoading(false); })
           .catch(() => setLoading(false));
+        adminFetch('/api/admin/service-reviews')
+          .then(d => setSvcReviews(d.reviews || []))
+          .catch(() => {});
       };
       useEffect(load, []);
+
+      const togglePublish = (rev) => {
+        adminFetch('/api/admin/service-reviews/' + rev.id + '/publish', {
+          method: 'POST', body: JSON.stringify({ published: !rev.is_published })
+        }).then(() => load()).catch(() => {});
+      };
 
       const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
       const stars = (n) => n ? '★'.repeat(n) + '☆'.repeat(5 - n) : '—';
@@ -13696,6 +13706,31 @@
             </div>
             <p style={{ margin: '8px 0 0', color: 'var(--faint)', fontSize: 11 }}>SMS only sends once Twilio is configured; email uses the existing SMTP.</p>
           </div>
+
+          {svcReviews.length > 0 && (
+            <div style={{ background: 'var(--panel)', border: '1px solid var(--line)', borderRadius: 8, padding: '14px 16px', marginBottom: 18 }}>
+              <div style={{ font: '400 9px/1 var(--mono)', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--faint)', marginBottom: 12 }}>
+                On-site reviews — moderate ({svcReviews.filter(r => !r.is_published).length} pending)
+              </div>
+              {svcReviews.map(rev => (
+                <div key={rev.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '10px 0', borderTop: '1px solid var(--line)' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13 }}>
+                      <span style={{ color: 'var(--gold)' }}>{stars(Math.round(rev.rating))}</span>
+                      <span style={{ marginLeft: 8, color: 'var(--ink)' }}>{rev.author || 'Anonymous'}</span>
+                      <span style={{ marginLeft: 8, fontSize: 11, fontFamily: 'var(--mono)', color: rev.is_published ? 'var(--gold)' : 'var(--faint)' }}>
+                        {rev.is_published ? 'PUBLISHED' : 'PENDING'}
+                      </span>
+                    </div>
+                    {rev.body && <div style={{ fontSize: 13, color: 'var(--dim)', marginTop: 4, fontStyle: 'italic' }}>“{rev.body}”</div>}
+                  </div>
+                  <button className={'btn ' + (rev.is_published ? 'btn-secondary' : 'btn-primary')} style={{ whiteSpace: 'nowrap' }} onClick={() => togglePublish(rev)}>
+                    {rev.is_published ? 'Unpublish' : 'Publish'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="ordl-filters" style={{ marginBottom: 10 }}>
             {FILTERS.map(f => (

@@ -203,6 +203,46 @@ export async function saveFeedback(token, feedback) {
   return row;
 }
 
+/**
+ * Save a first-party review the customer wrote on our own page (high-rating path).
+ * Stored in service_reviews (unpublished, pending moderation), deduped per
+ * review request via external_id so a re-submit edits rather than duplicates.
+ */
+export async function saveFirstPartyReview(token, { rating, body, author } = {}) {
+  const row = await getByToken(token);
+  if (!row) return null;
+  const r = Math.min(5, Math.max(1, parseInt(rating || row.rating || 5, 10)));
+  const name = (author || row.customer_name || 'Roma customer').toString().trim().slice(0, 120) || 'Roma customer';
+  const text = (body || '').toString().slice(0, 4000);
+  await pool.query(
+    `INSERT INTO service_reviews (source, author, rating, body, review_date, external_id, is_published)
+     VALUES ('first_party', $1, $2, $3, CURRENT_DATE, $4, false)
+     ON CONFLICT (external_id) DO UPDATE
+       SET author = EXCLUDED.author, rating = EXCLUDED.rating, body = EXCLUDED.body, review_date = EXCLUDED.review_date`,
+    [name, r, text, 'rr_' + row.token]
+  );
+  await pool.query(
+    `UPDATE review_requests SET feedback_text = $1, status = 'reviewed', updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+    [text, row.id]
+  );
+  return { ok: true };
+}
+
+// Admin: list first-party reviews for moderation.
+export async function listFirstPartyReviews() {
+  const r = await pool.query(
+    `SELECT id, source, author, rating, body, review_date, is_published, created_at
+     FROM service_reviews WHERE source = 'first_party' ORDER BY created_at DESC LIMIT 500`
+  );
+  return r.rows;
+}
+
+// Admin: publish / unpublish a review (published ones feed the on-site aggregateRating).
+export async function setReviewPublished(id, published) {
+  await pool.query('UPDATE service_reviews SET is_published = $1 WHERE id = $2', [published !== false, id]);
+  return { ok: true };
+}
+
 export async function recordPublicClick(token, provider) {
   await pool.query(
     `UPDATE review_requests
