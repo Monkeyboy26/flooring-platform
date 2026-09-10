@@ -1,0 +1,43 @@
+name: Run scraper on prod
+
+# Manually run a vendor scraper/import inside the prod API container.
+# Trigger: repo → Actions → "Run scraper on prod" → Run workflow → enter a scraper
+# key (default: topknobs). Reuses the same EC2 deploy secrets as deploy.yml.
+on:
+  workflow_dispatch:
+    inputs:
+      scraper:
+        description: 'Scraper key — a module in backend/scrapers/ (e.g. topknobs)'
+        required: true
+        default: 'topknobs'
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate scraper key
+        env:
+          SCRAPER: ${{ inputs.scraper }}
+        run: |
+          # Guard against command injection — only allow simple keys.
+          if ! printf '%s' "$SCRAPER" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
+            echo "Invalid scraper key: '$SCRAPER' (allowed: lowercase letters, digits, hyphens)"
+            exit 1
+          fi
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Run scraper on EC2
+        env:
+          SCRAPER: ${{ inputs.scraper }}
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "cd /opt/flooring-platform \
+             && test -f backend/scrapers/${SCRAPER}.js \
+             && echo '=== running scraper: ${SCRAPER} ===' \
+             && docker compose exec -T api node scrapers/${SCRAPER}.js"
