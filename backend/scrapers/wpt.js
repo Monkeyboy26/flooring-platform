@@ -14,6 +14,7 @@
  * Pricing comes separately from the wholesale PDF price list (see import-wpt-pricing.cjs).
  */
 
+import sharp from 'sharp';
 import {
   delay,
   normalizeSize,
@@ -26,6 +27,7 @@ import {
   appendLog,
   addJobError,
 } from './base.js';
+import { classifyImages, toMediaRows } from '../lib/wptImages.js';
 
 // ── Ecwid API config ────────────────────────────────────────────────
 const ECWID_STORE_ID = 15639056;
@@ -260,55 +262,65 @@ function collectImageUrls(fullProduct) {
   return urls;
 }
 
-// Collections where the FIRST image in the Ecwid slider is the product photo
-// and the last image is documentation (laying sketch, spec sheet, etc.).
-// For all other collections the LAST image is the product photo.
-const FIRST_IS_PRIMARY_COLLECTIONS = new Set([
-  'Materia Prima',
-  'Craft',
-]);
+const MAX_WPT_IMAGES = 6;
 
-/**
- * Check if a collection uses first-is-primary image ordering.
- * Matches against collection name or Ecwid sub-category name.
- */
-function useFirstAsPrimary(collectionName) {
-  if (!collectionName) return false;
-  const normalized = collectionName.trim();
-  for (const name of FIRST_IS_PRIMARY_COLLECTIONS) {
-    if (normalized === name || normalized.startsWith(name + ' ')) return true;
+/** Measure an image's dimensions (download + sharp). Returns {width,height} or null. */
+async function measureImage(url) {
+  try {
+    const resp = await fetch(url, { signal: AbortSignal.timeout(25000) });
+    if (!resp.ok) return null;
+    const buf = Buffer.from(await resp.arrayBuffer());
+    const md = await sharp(buf).metadata();
+    return md.width && md.height ? { width: md.width, height: md.height } : null;
+  } catch {
+    return null;
   }
-  return false;
 }
 
 /**
- * Save WPT images with collection-aware primary selection.
+ * Save WPT images, choosing the primary by ASPECT RATIO, not slide order.
  *
- * Most collections: last image in Ecwid slider = product photo (primary).
- * Materia Prima & Craft: first image = product photo, last = documentation.
+ * WPT's numeric CloudFront filenames defeat keyword-based lifestyle detection,
+ * so we measure each image and rank by how close its aspect ratio is to the
+ * tile's own ratio (see lib/wptImages). The best swatch becomes the single
+ * primary, other swatches are 'alternate', and room scenes are 'lifestyle'.
+ *
+ * Clean-slate: existing media for the product is deleted first, so re-scrapes
+ * can never accumulate stale / duplicate primaries (the bug that left products
+ * with 2-5 primary rows). `size` is the parsed tile size ("24x48").
  */
-async function saveWptImages(pool, productId, skuId, imageUrls, collectionName) {
+async function saveWptImages(pool, productId, skuId, imageUrls, size) {
   if (!imageUrls.length) return 0;
 
-  const maxImages = 6;
-  const toSave = imageUrls.slice(0, maxImages);
-  const firstIsPrimary = useFirstAsPrimary(collectionName);
-  const primaryIdx = firstIsPrimary ? 0 : toSave.length - 1;
-  let saved = 0;
+  // Dedup, then measure each candidate.
+  const seen = new Set();
+  const candidates = [];
+  for (const url of imageUrls) {
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    const dim = await measureImage(url);
+    candidates.push({ url, original_url: url, ...(dim || {}) });
+  }
+  if (!candidates.length) return 0;
 
-  for (let i = 0; i < toSave.length; i++) {
-    const isPrimary = i === primaryIdx;
+  const ranked = classifyImages(candidates, size);
+  const rows = toMediaRows(ranked, { maxImages: MAX_WPT_IMAGES });
+
+  // Clean slate — remove any prior media for this product before re-inserting.
+  await pool.query('DELETE FROM media_assets WHERE product_id = $1', [productId]);
+
+  let saved = 0;
+  for (const r of rows) {
     await upsertMediaAsset(pool, {
       product_id: productId,
       sku_id: skuId,
-      asset_type: isPrimary ? 'primary' : 'alternate',
-      url: toSave[i],
-      original_url: toSave[i],
-      sort_order: isPrimary ? 0 : (i < primaryIdx ? i + 1 : i),
+      asset_type: r.asset_type,
+      url: r.url,
+      original_url: r.original_url,
+      sort_order: r.sort_order,
     });
     saved++;
   }
-
   return saved;
 }
 
@@ -523,10 +535,10 @@ export async function run(pool, opts = {}) {
           if (productAttrs.edge) await upsertSkuAttribute(pool, skuId, 'edge', productAttrs.edge);
           if (productAttrs.look) await upsertSkuAttribute(pool, skuId, 'style', productAttrs.look);
 
-          // ── Save images (primary selection depends on collection) ──
+          // ── Save images (primary chosen by aspect ratio vs tile size) ──
           const imageUrls = collectImageUrls(fullProduct);
           if (imageUrls.length) {
-            stats.imagesSaved += await saveWptImages(pool, productId, skuId, imageUrls, collectionName);
+            stats.imagesSaved += await saveWptImages(pool, productId, skuId, imageUrls, productAttrs.size);
           }
 
           await log(`  ✓ ${productName} → SKU ${internalSku} (${imageUrls.length} images)`);
@@ -620,10 +632,10 @@ export async function run(pool, opts = {}) {
           if (productAttrs.finish) await upsertSkuAttribute(pool, skuResult.id, 'finish', productAttrs.finish);
           if (productAttrs.material) await upsertSkuAttribute(pool, skuResult.id, 'material', productAttrs.material);
 
-          // Images (primary selection depends on collection)
+          // Images (primary chosen by aspect ratio vs tile size)
           const imageUrls = collectImageUrls(fullProduct);
           if (imageUrls.length) {
-            stats.imagesSaved += await saveWptImages(pool, productResult.id, skuResult.id, imageUrls, topCatName);
+            stats.imagesSaved += await saveWptImages(pool, productResult.id, skuResult.id, imageUrls, productAttrs.size);
           }
 
           await log(`  ✓ ${productName} → ${internalSku}`);
