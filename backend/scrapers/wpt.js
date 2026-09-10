@@ -160,6 +160,39 @@ function parseDescription(desc) {
 }
 
 /**
+ * Canonical finish label for a raw finish token (matches parseDescription).
+ */
+function canonFinish(tok) {
+  const t = (tok || '').toLowerCase().replace(/\s+/g, '-');
+  if (t.startsWith('semi')) return 'Semi-Polished';
+  if (t.startsWith('unpolish')) return 'Unpolished';
+  if (t === 'polished') return 'Polished';
+  if (t === 'glossy' || t === 'gloss') return 'Glossy';
+  if (t === 'matte' || t === 'matt') return 'Matte';
+  if (t === 'honed') return 'Honed';
+  if (t === 'satin') return 'Satin';
+  if (t === 'lappato') return 'Lappato';
+  return null;
+}
+
+/**
+ * WPT bakes the finish word into the product title ("Taj Mahal Beige Polished",
+ * "Mystical Charm Crema Matte"). Finish is stored separately as its own
+ * attribute + the variant suffix ("24x48, Polished"), so a finish word left in
+ * the name surfaces twice ("…Polished … 24x48, Polished") or — when it disagrees
+ * with the spec-derived finish — as a contradictory SECOND finish (Mystical
+ * Charm: title "Matte", spec "Polished"). Pull the trailing finish token out of
+ * the name so the name never carries a finish; the spec-derived finish wins on
+ * conflict, otherwise the name's finish is promoted to the attribute.
+ * Returns { base, finish }.
+ */
+function extractTrailingFinish(name) {
+  const m = (name || '').match(/^(.*?)[\s,]+(semi[-\s]?polished|unpolished|polished|glossy|gloss|matte|matt|honed|satin|lappato)\s*$/i);
+  if (!m || !m[1].trim()) return { base: (name || '').trim(), finish: null };
+  return { base: m[1].trim(), finish: canonFinish(m[2]) };
+}
+
+/**
  * Derive the color name from a product name and its collection.
  * "Sabik Miel" with collection "Sabik" → "Miel"
  * "Dorne Beige 24 x 47" with collection "Dorne" → "Beige"
@@ -421,17 +454,25 @@ export async function run(pool, opts = {}) {
           const fullProduct = await fetchProduct(ecwidProduct.id);
           await delay(200); // rate limit
 
-          const productName = (fullProduct.name || '').trim();
+          let productName = (fullProduct.name || '').trim();
           if (!productName) continue;
-
-          const color = deriveColor(productName, collectionName);
-          const sellBy = determineSellBy(productName, topCatName);
 
           // Parse product-specific description
           const productAttrs = {
             ...collectionAttrs,
             ...parseDescription(fullProduct.description || ''),
           };
+
+          // Strip a trailing finish token from the title — finish lives in its
+          // own attribute + the variant suffix, not the name (see extractTrailingFinish).
+          const { base: cleanName, finish: nameFinish } = extractTrailingFinish(productName);
+          if (nameFinish) {
+            if (!productAttrs.finish) productAttrs.finish = nameFinish;
+            productName = cleanName;
+          }
+
+          const color = deriveColor(productName, collectionName);
+          const sellBy = determineSellBy(productName, topCatName);
 
           // Build description from parsed text
           const descText = (fullProduct.description || '')
@@ -534,10 +575,18 @@ export async function run(pool, opts = {}) {
           const fullProduct = await fetchProduct(ecwidProduct.id);
           await delay(200);
 
-          const productName = (fullProduct.name || '').trim();
+          let productName = (fullProduct.name || '').trim();
           if (!productName) continue;
 
           const productAttrs = parseDescription(fullProduct.description || '');
+
+          // Strip a trailing finish token from the title (see extractTrailingFinish).
+          const { base: cleanName, finish: nameFinish } = extractTrailingFinish(productName);
+          if (nameFinish) {
+            if (!productAttrs.finish) productAttrs.finish = nameFinish;
+            productName = cleanName;
+          }
+
           const sellBy = determineSellBy(productName, topCatName);
           const descText = (fullProduct.description || '')
             .replace(/<[^>]+>/g, ' ').replace(/&quot;/g, '"').replace(/&amp;/g, '&')
