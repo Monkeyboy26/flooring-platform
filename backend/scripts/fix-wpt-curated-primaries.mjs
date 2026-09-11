@@ -46,6 +46,11 @@ const CURATED = {
   'Teramoda Powder': { folder: '416136868', keep: [['2722141187', 'field'], ['2722141227', 'scene']] },
   'Teramoda Sky':    { folder: null, keep: [['2722139548', 'field']] },
   'Teramoda Stone':  { folder: null, keep: [['2722153759', 'field']] },
+  // Caementum — concrete-look 12x24 field tiles (primary field already right; drop mosaic + trim)
+  'Caementum Albus':   { folder: '234505364', keep: [['1645232135', 'field']] },
+  'Caementum Claurus': { folder: '234510405', keep: [['1645232176', 'field']] },
+  'Caementum Furvus':  { folder: '723828041', keep: [['4753774854', 'field']] },
+  'Caementum Griseo':  { folder: '234541615', keep: [['1645201601', 'field']] },
 };
 
 const CF = (folder, id) => folder
