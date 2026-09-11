@@ -7061,7 +7061,7 @@
         }
       }
       const showRomanStylePills = romanStyleItems.length >= 2;
-      const colorLabel = _designFallback ? "Design" : attrMap["countertop_finish"] ? "Cabinet Color" : isRomanVariants ? "Style" : _isDecorativeHW ? "Collection" : "Color";
+      const colorLabel = _designFallback ? "Design" : attrMap["countertop_finish"] ? "Cabinet Color" : isRomanVariants ? "Style" : _isDecorativeHW && !currentAttrs["color"] ? "Collection" : "Color";
       const showAttrs = attrSlugs.length > 0;
       const isColorCompatible = (c) => {
         if (c.is_current) return true;
@@ -7096,7 +7096,7 @@
         });
       };
       const showFormatSiblings = formatSiblings.length > 0 && formatLabel;
-      const showSibFinish = sibFinishItems.length > 0 && !showFinishPills && !_finishIsColor && !attrSlugs.includes("finish");
+      const showSibFinish = sibFinishItems.length > 0 && !showFinishPills && !_finishIsColor && !attrSlugs.includes("finish") && !currentAttrs["color"];
       if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish) return null;
       return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel, /* @__PURE__ */ React.createElement("span", null, (() => {
         const cur = colorItems.find((c) => c.is_current);

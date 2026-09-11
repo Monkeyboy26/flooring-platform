@@ -9464,7 +9464,12 @@
                 }
                 const showRomanStylePills = romanStyleItems.length >= 2;
 
-                const colorLabel = _designFallback ? 'Design' : attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : _isDecorativeHW ? 'Collection' : 'Color';
+                // "Collection" only when the HW swatch grid is cross-shape collection
+                // siblings (Top Knobs: no color axis, grid = other pieces in the line).
+                // When the product has its own color axis (Jeffrey Alexander: color↔finish
+                // 1:1), the grid IS the finish selector — keep it "Color" and don't ALSO
+                // render the same-product finish row below (that was the duplication).
+                const colorLabel = _designFallback ? 'Design' : attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : (_isDecorativeHW && !currentAttrs['color']) ? 'Collection' : 'Color';
                 const showAttrs = attrSlugs.length > 0;
                 // Check if the currently selected size/finish is available for a color swatch
                 const isColorCompatible = (c) => {
@@ -9519,7 +9524,10 @@
                 // Only show the same-product finish swatches when finish isn't already
                 // surfaced elsewhere (collection finish pills, generic attr pills, or the
                 // cabinet-color path), so it never double-renders.
-                const showSibFinish = sibFinishItems.length > 0 && !showFinishPills && !_finishIsColor && !attrSlugs.includes('finish');
+                // Not when a same-product color axis already exists (Jeffrey Alexander:
+                // color↔finish 1:1) — the color swatch grid is already the finish selector,
+                // so a finish row here would duplicate it.
+                const showSibFinish = sibFinishItems.length > 0 && !showFinishPills && !_finishIsColor && !attrSlugs.includes('finish') && !currentAttrs['color'];
                 if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish) return null;
                 return (
                   <div className="variant-selectors">
