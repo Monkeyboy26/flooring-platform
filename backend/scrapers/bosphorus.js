@@ -300,8 +300,11 @@ export async function run(pool, job, source) {
           const relevantNeutral = pickSkuImages(neutralImages, sizeNorm, finish, null);
           const firstSwatchEntry = firstVariant.colorId
             ? productData.swatchImagesByColorId.get(firstVariant.colorId) : null;
-          const { productShots: sliderProductShots, lifestyle: sliderLifestyle } =
+          let { productShots: sliderProductShots, lifestyle: sliderLifestyle } =
             classifySliderImages(relevantNeutral, null);
+          // Strip ?v= cache-busters so re-scrapes dedup (see normalizeImgUrl).
+          sliderProductShots = (sliderProductShots || []).map(normalizeImgUrl);
+          sliderLifestyle = (sliderLifestyle || []).map(normalizeImgUrl);
 
           // Clear stale product-level images before re-inserting current set.
           await pool.query(
@@ -480,10 +483,13 @@ export async function run(pool, job, source) {
             const swatchEntry = v.colorId
               ? productData.swatchImagesByColorId.get(v.colorId) : null;
             const swatchUrl = swatchEntry
-              ? (swatchEntry.full || swatchEntry.thumb) : null;
+              ? normalizeImgUrl(swatchEntry.full || swatchEntry.thumb) : null;
 
-            const { productShots: colorShots, lifestyle: colorLifestyle } =
+            let { productShots: colorShots, lifestyle: colorLifestyle } =
               classifySliderImages(filteredColorImages, swatchEntry);
+            // Strip ?v= cache-busters so re-scrapes dedup (see normalizeImgUrl).
+            colorShots = (colorShots || []).map(normalizeImgUrl);
+            colorLifestyle = (colorLifestyle || []).map(normalizeImgUrl);
 
             // Clear stale SKU-level images before re-inserting current set.
             // Without this, images from previous scrapes persist at higher sort_orders
@@ -2028,7 +2034,11 @@ function slugify(str) {
 /** Normalize image URL: collapse double slashes in path (but not in https://) */
 function normalizeImgUrl(url) {
   if (!url) return url;
-  return url.replace(/([^:])\/\//g, '$1/');
+  // Collapse accidental double slashes AND strip the `?v=<timestamp>` cache-buster
+  // (plus any query/hash). Bosphorus' CDN appends a fresh ?v= each scrape; keeping
+  // it makes every run's URL unique, so media_assets never dedups and the same
+  // image accumulates dozens of copies (one product had 228). Strip → stable URL.
+  return url.replace(/([^:])\/\//g, '$1/').split('?')[0].split('#')[0];
 }
 
 function stripTags(str) {
