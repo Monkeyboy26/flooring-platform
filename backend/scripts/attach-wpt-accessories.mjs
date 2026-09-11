@@ -75,15 +75,30 @@ async function main() {
 
   if (!APPLY) { console.log('\nDry run — pass --apply to commit.'); await pool.end(); return; }
 
-  let n = 0;
+  const colorAttrId = (await pool.query(`SELECT id FROM attributes WHERE slug='color' LIMIT 1`)).rows[0]?.id;
+  let n = 0, recolored = 0;
   for (const { parent, accessory } of pairs) {
     const r = await pool.query(
       `INSERT INTO sku_accessories (parent_sku_id, accessory_sku_id, sort_order)
        VALUES ($1,$2,0) ON CONFLICT (parent_sku_id, accessory_sku_id) DO NOTHING`,
       [parent.sku_id, accessory.sku_id]);
     n += r.rowCount;
+    // The storefront only surfaces an accessory whose color attr matches the
+    // parent's. WPT accessory colors carry the type suffix ("White Pencil"),
+    // so align the accessory color to the parent's ("White") to make it show.
+    if (colorAttrId) {
+      const parentColor = (await pool.query(
+        `SELECT value FROM sku_attributes WHERE sku_id=$1 AND attribute_id=$2`, [parent.sku_id, colorAttrId])).rows[0]?.value;
+      if (parentColor) {
+        const up = await pool.query(
+          `INSERT INTO sku_attributes (sku_id, attribute_id, value) VALUES ($1,$2,$3)
+           ON CONFLICT (sku_id, attribute_id) DO UPDATE SET value=EXCLUDED.value WHERE sku_attributes.value <> EXCLUDED.value`,
+          [accessory.sku_id, colorAttrId, parentColor]);
+        recolored += up.rowCount;
+      }
+    }
   }
-  console.log(`\n✓ Inserted ${n} new accessory links (${pairs.length - n} already existed).`);
+  console.log(`\n✓ Inserted ${n} new accessory links (${pairs.length - n} already existed); aligned ${recolored} accessory colors.`);
   await pool.end();
 }
 main().catch(e => { console.error(e); process.exit(1); });
