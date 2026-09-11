@@ -1547,6 +1547,14 @@
             }
           }
         }
+        // Drop a size-only variant the product name already carries (some vendors
+        // bake the size into the title, e.g. WPT "Nur Statuario 12\" X 24\"") —
+        // else the size renders twice ("... 12\" X 24\" 12″ × 24″ Porcelain Tile").
+        if (variant) {
+          const normD = (s) => String(s).toLowerCase().replace(/["″”'’\s]/g, '').replace(/×/g, 'x');
+          const sizeOnly = /^\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*["″]?$/.test(variant);
+          if (sizeOnly && normD(name).includes(normD(variant))) variant = null;
+        }
         // Format dimension variants with inch marks (e.g. "24X48" → "24″ × 48″", "24X48 (A)" → "24″ × 48″ (A)")
         // Also handles dimension + modifier text (e.g. "7X75 Glossy" → "7″ × 75″ Glossy", "9X86 Brushed" → "9″ × 86″ Brushed")
         if (variant) {

@@ -1583,6 +1583,11 @@
         }
       }
       if (variant) {
+        const normD = (s) => String(s).toLowerCase().replace(/["″”'’\s]/g, "").replace(/×/g, "x");
+        const sizeOnly = /^\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*["″]?$/.test(variant);
+        if (sizeOnly && normD(name).includes(normD(variant))) variant = null;
+      }
+      if (variant) {
         const dimMatch = variant.match(/^(\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?\s*[xX×]\s*\d+(?:[-\s]\d+\/\d+|\.\d+|\/\d+)?(?:\s*(?:PAVER|EZ|FT))?)(\s*\(.*\))?$/i);
         if (dimMatch) {
           variant = formatSizeDim(dimMatch[1].trim()) + (dimMatch[2] || "");
