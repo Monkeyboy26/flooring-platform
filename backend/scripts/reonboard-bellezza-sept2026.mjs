@@ -135,6 +135,16 @@ const GIO_MATRIX = {
 
 async function q(text, params) { return pool.query(text, params); }
 
+// Prod/local schemas drift (e.g. image_vision_checks exists locally but not on
+// prod). Only touch child tables that actually exist in this database.
+let _existingTables = null;
+async function existingTables() {
+  if (_existingTables) return _existingTables;
+  const r = await q(`SELECT table_name FROM information_schema.tables WHERE table_schema='public'`);
+  _existingTables = new Set(r.rows.map(x => x.table_name));
+  return _existingTables;
+}
+
 async function getVendorId() {
   const r = await q("SELECT id FROM vendors WHERE code='BLZ'");
   if (!r.rows.length) throw new Error('BLZ vendor not found');
@@ -143,12 +153,14 @@ async function getVendorId() {
 
 /** Hard-delete a product and every row that references it or its SKUs. */
 async function deleteProduct(productId) {
+  const tables = await existingTables();
   const skuIds = (await q('SELECT id FROM skus WHERE product_id=$1', [productId])).rows.map(r => r.id);
   if (skuIds.length) {
     for (const tbl of ['quality_violations', 'image_vision_checks', 'inventory_adjustments',
                        'inventory_snapshots', 'media_assets', 'pricing', 'packaging',
                        'sku_attributes', 'cart_items', 'estimate_items', 'order_items',
                        'purchase_order_items', 'credit_memo_items']) {
+      if (!tables.has(tbl)) continue;
       await q(`DELETE FROM ${tbl} WHERE sku_id = ANY($1)`, [skuIds]);
     }
     await q('DELETE FROM skus WHERE id = ANY($1)', [skuIds]);
@@ -313,8 +325,10 @@ async function main() {
     console.log(`  ${toDelete.length} fabricated Gio SKUs to delete:`);
     for (const s of toDelete) console.log(`    [del] ${s.variant_name} (${s.vendor_sku})`);
     if (!DRY_RUN) {
+      const tables = await existingTables();
       for (const s of toDelete) {
         for (const tbl of ['media_assets', 'pricing', 'packaging', 'sku_attributes', 'quality_violations', 'image_vision_checks', 'inventory_snapshots', 'inventory_adjustments']) {
+          if (!tables.has(tbl)) continue;
           await q(`DELETE FROM ${tbl} WHERE sku_id=$1`, [s.id]);
         }
         await q('DELETE FROM skus WHERE id=$1', [s.id]);
