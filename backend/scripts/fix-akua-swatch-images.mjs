@@ -54,7 +54,13 @@ async function main() {
       const resp = await fetch(swatchUrl(slug), { signal: AbortSignal.timeout(25000) });
       if (!resp.ok) throw new Error(`swatch ${resp.status}`);
       const buf = Buffer.from(await resp.arrayBuffer());
-      const out = await sharp(buf).trim({ threshold: 15 }).resize(600, 600, { fit: 'contain', background: '#ffffff' }).jpeg({ quality: 88 }).toBuffer();
+      // Source swatches are only ~195px, so the upscale is soft/grainy. A light
+      // median denoise + unsharp reduces the amplified JPEG grain and crisps the
+      // grout lines. (Ceiling is the low-res source — a true fix needs high-res
+      // swatch art from the vendor; none exists on akuamosaics.com.)
+      const out = await sharp(buf).trim({ threshold: 15 })
+        .resize(600, 600, { fit: 'contain', background: '#ffffff', kernel: 'lanczos3' })
+        .median(2).sharpen({ sigma: 1.2 }).jpeg({ quality: 90 }).toBuffer();
       fs.writeFileSync(localPath, out);
       // Repoint primary to the centered local image (keep the source in original_url).
       await pool.query(`UPDATE media_assets SET url=$1, original_url=$2 WHERE id=$3`, [localUrl, swatchUrl(slug), r.media_id]);
