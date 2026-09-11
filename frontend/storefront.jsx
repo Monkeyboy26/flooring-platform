@@ -8943,6 +8943,35 @@
                 }
                 const showSibSizes = sibSizeItems.length > 0;
 
+                // Finish selector from same-product siblings. Top Knobs (and similar HR
+                // hardware) carry finish as the `finish` attribute across a product's OWN
+                // SKUs — not as separate collection products — so the name-parsed finish
+                // pills above never see them and _isDecorativeHW suppresses the generic
+                // attribute pills. Build a dedicated finish swatch group straight from
+                // mainSiblings (a no-op unless the product's own SKUs vary by finish).
+                let sibFinishItems = [];
+                {
+                  const _curFinish = currentAttrs['finish'];
+                  const _curSize = currentAttrs['size'];
+                  if (_curFinish && mainSiblings.length > 0) {
+                    const finMap = new Map();
+                    finMap.set(_curFinish, { label: _curFinish, sku_id: sku.sku_id, is_current: true, primary_image: (media && media[0]) ? media[0].url : null, _sizeMatched: true });
+                    mainSiblings.forEach(s => {
+                      const fa = (s.attributes || []).find(a => a.slug === 'finish');
+                      if (!fa || fa.value === _curFinish) return;
+                      const sa = (s.attributes || []).find(a => a.slug === 'size');
+                      const matchesSize = !!(sa && sa.value === _curSize);
+                      const ex = finMap.get(fa.value);
+                      // Prefer a sibling whose Size matches the current selection so switching
+                      // finish keeps the chosen size when that combo exists.
+                      if (!ex || (matchesSize && !ex._sizeMatched)) {
+                        finMap.set(fa.value, { label: fa.value, sku_id: s.sku_id, is_current: false, primary_image: getVariantImage(s), _sizeMatched: matchesSize });
+                      }
+                    });
+                    if (finMap.size > 1) sibFinishItems = [...finMap.values()].sort((a, b) => (a.label || '').localeCompare(b.label || ''));
+                  }
+                }
+
                 // Size pills from size attribute (tile vendors like Roca: Arena 12X24, Arena 24X48)
                 let attrSizeItems = [];
                 if (!showSizePills && sibSizeItems.length === 0 && !slabSizeIsPrefab && mainSiblings.length > 0) {
@@ -9435,7 +9464,7 @@
                 }
                 const showRomanStylePills = romanStyleItems.length >= 2;
 
-                const colorLabel = _designFallback ? 'Design' : attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : 'Color';
+                const colorLabel = _designFallback ? 'Design' : attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : _isDecorativeHW ? 'Collection' : 'Color';
                 const showAttrs = attrSlugs.length > 0;
                 // Check if the currently selected size/finish is available for a color swatch
                 const isColorCompatible = (c) => {
@@ -9487,7 +9516,11 @@
                   });
                 };
                 const showFormatSiblings = formatSiblings.length > 0 && formatLabel;
-                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings) return null;
+                // Only show the same-product finish swatches when finish isn't already
+                // surfaced elsewhere (collection finish pills, generic attr pills, or the
+                // cabinet-color path), so it never double-renders.
+                const showSibFinish = sibFinishItems.length > 0 && !showFinishPills && !_finishIsColor && !attrSlugs.includes('finish');
+                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish) return null;
                 return (
                   <div className="variant-selectors">
                     {showColors && (
@@ -9559,6 +9592,21 @@
                             <button key={s.label} className={'attr-pill' + (s.is_current ? ' active' : '') + (s.is_cross_product ? ' limited' : '')} title={s.is_cross_product ? 'Available in other colors' : ''} onClick={() => { if (!s.is_current && s.sku_id) onSkuClick(s.sku_id); }}>
                               {s.label}
                             </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {showSibFinish && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Finish<span>{sibFinishItems.find(f => f.is_current)?.label || ''}</span></div>
+                        <div className="color-swatches">
+                          {sibFinishItems.map(f => (
+                            <div key={f.sku_id} className={'color-swatch-wrap' + (f.is_current ? '' : '')} onClick={() => { if (!f.is_current) onSkuClick(f.sku_id); }}>
+                              <div className={'color-swatch' + (f.is_current ? ' active' : '')}>
+                                {f.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(f.primary_image, 120)} alt={f.label} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '4px' }}>{f.label}</div>}
+                              </div>
+                              <div className="color-swatch-tooltip">{f.label}</div>
+                            </div>
                           ))}
                         </div>
                       </div>
