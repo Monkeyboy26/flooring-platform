@@ -117,19 +117,24 @@ const URL_MAP = {
   'Stainless Gold Hexagon Mosaic': ['stainless-gold-hexagon-mosaic'],
 
   // ── GIO Collection ──────────────────────────────────────────────
-  'Gio':                      [// Hexagons
-                               'gio-white-glossy-hexagon-2x2', 'gio-white-matte-hexagon-2x2', 'gio-white-matte-hexagon-4x4',
-                               'gio-black-matte-hexagon-2x2', 'gio-black-matte-hexagon-4x4', 'gio-black-glossy-hexagon-2x2',
-                               'gio-grey-matte-hexagon-4x4', 'gio-taupe-matte-hexagon-2x2',
-                               // Stacked Linear .82x2.8
-                               'gio-black-matte-stacked-linear-0-82x2-8', 'gio-white-matte-stacked-linear-0-82x2-8',
-                               'gio-taupe-matte-stacked-linear-0-82x2-8',
-                               // Stacked Linear .86x5.7
-                               'gio-black-matte-stacked-linear-0-86x5-7', 'gio-black-glossy-stacked-linear-0-86x5-7',
-                               'gio-white-matte-stacked-linear-0-86x5-7', 'gio-white-glossy-stacked-linear-0-86x5-7',
+  // Only the real color x format combos from the Sept 2026 dealer sheet.
+  // (The old importer fabricated every color x every format; those SKUs were
+  // removed in reonboard-bellezza-sept2026.mjs — don't reintroduce them here.)
+  'Gio':                      [// Matte Hexagon 4x4 — White only
+                               'gio-white-matte-hexagon-4x4',
+                               // Hexagon 2x2 (matte + glossy) — Black, White
+                               'gio-black-matte-hexagon-2x2', 'gio-white-matte-hexagon-2x2',
+                               'gio-black-glossy-hexagon-2x2', 'gio-white-glossy-hexagon-2x2',
+                               // Matte Stacked Linear .82x2.8 — Black, Taupe
+                               'gio-black-matte-stacked-linear-0-82x2-8', 'gio-taupe-matte-stacked-linear-0-82x2-8',
+                               // Matte Stacked Linear .86x5.7 — White
+                               'gio-white-matte-stacked-linear-0-86x5-7',
+                               // Glossy Stacked Linear .86x5.7 — Black, White, Cobalt, Grey
+                               'gio-black-glossy-stacked-linear-0-86x5-7', 'gio-white-glossy-stacked-linear-0-86x5-7',
                                'gio-colbat-glossy-stacked-linear-0-86x5-7', 'gio-grey-glossy-stacked-linear-0-86x5-7',
-                               // Stacked Linear 1.26x5.7
-                               'gio-white-matte-stacked-linear-1-26x5-7', 'gio-white-glossy-stacked-linear-1-26x5-7',
+                               // Matte Stacked Linear 1.26x5.7 — Black
+                               'gio-black-matte-stacked-linear-1-26x5-7',
+                               // Glossy Stacked Linear 1.26x5.7 — Cobalt, Grey
                                'gio-colbat-glossy-stacked-linear-1-26x5-7', 'gio-grey-glossy-stacked-linear-1-26x5-7'],
 
   // ── Subway & Artisan ────────────────────────────────────────────
@@ -199,8 +204,8 @@ const MANUAL_SKU_IMAGES = {
   'Angelo Silk Shimmer::Gold':   'https://bellezzaceramica.com/wp-content/uploads/2022/02/51800-angelo-silk-60-gold.jpg',
   'Concretus::Dark':          'https://bellezzaceramica.com/wp-content/uploads/2020/07/concretus-dark-36x36-1.jpg',
   'Fry::Grigio':              'https://bellezzaceramica.com/wp-content/uploads/2020/01/FryGrigioMatte12X2424X48-scaled.jpg',
-  'Gio::Cobalt Matte Hexagon': 'https://bellezzaceramica.com/wp-content/uploads/2022/03/GIO-Colbat-Glossy-Stacked-Linear-0.86x5.7-3.jpg',
-  'Gio::Cobalt Glossy Hexagon': 'https://bellezzaceramica.com/wp-content/uploads/2022/03/GIO-Colbat-Glossy-Stacked-Linear-0.86x5.7-3.jpg',
+  // Cobalt only exists as a Glossy Stacked Linear (no cobalt hexagon) — see GIO_MATRIX in reonboard script.
+  'Gio::Cobalt Glossy Stacked Linear': 'https://bellezzaceramica.com/wp-content/uploads/2022/03/GIO-Colbat-Glossy-Stacked-Linear-0.86x5.7-3.jpg',
   'Mixit Concept::Gris':      'https://bellezzaceramica.com/wp-content/uploads/2022/05/restaurant-02-16-Mixit-Concept-Gris-Matte.jpg',
   'Metallic Dark Grey Mosaic::': 'https://bellezzaceramica.com/wp-content/uploads/2020/01/darkgreymattemosaic.jpg',
   'Elegance Marble Pearl::':  'https://bellezzaceramica.com/wp-content/uploads/2022/02/elegance-white-gloss-marble-effect-porcelain-floor-tile-sample_3663602471349_10i.jpeg',
