@@ -60,6 +60,34 @@ export function isFillerStats(s) {
   return s.whiteFrac >= 0.6 && s.saturation < 8 && s.meanBright >= 238 && (s.edgeFrac ?? 0) >= 0.14;
 }
 
+/** Hamming distance between two 16-char hex dHash strings (0 = identical). */
+export function hammingHex(a, b) {
+  if (!a || !b) return 64;
+  let d = 0n;
+  try { d = BigInt('0x' + a) ^ BigInt('0x' + b); } catch { return 64; }
+  let c = 0;
+  while (d) { c += Number(d & 1n); d >>= 1n; }
+  return c;
+}
+
+/**
+ * Drop near-duplicate images (WPT uploads most swatches twice). Greedy: keep the
+ * highest-resolution image of each perceptual cluster, drop others within
+ * `maxDist` dHash distance. Images without a dhash are always kept.
+ * @param {Array<{dhash?:string,width?:number,height?:number}>} images
+ * @param {number} [maxDist=6]
+ */
+export function dedupeNearDuplicates(images, maxDist = 6) {
+  const ordered = [...(images || [])].sort(
+    (a, b) => ((b.width || 0) * (b.height || 0)) - ((a.width || 0) * (a.height || 0)));
+  const kept = [];
+  for (const im of ordered) {
+    if (im.dhash && kept.some(k => k.dhash && hammingHex(k.dhash, im.dhash) <= maxDist)) continue;
+    kept.push(im);
+  }
+  return kept;
+}
+
 /**
  * Classify + rank measured images for a tile of the given size.
  *

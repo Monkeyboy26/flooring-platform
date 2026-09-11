@@ -39,6 +39,17 @@ export async function analyzeImageBuffer(buf) {
         if (gx + gy > 40) edges++;
       }
     }
+    // dHash (64-bit, hex) — for near-duplicate detection. WPT uploads most
+    // swatches twice (two IDs, visually identical); this lets us drop the copy.
+    const g = await img.clone().resize(9, 8, { fit: 'fill' }).greyscale().raw().toBuffer();
+    let dhash = 0n;
+    let bit = 0n;
+    for (let y = 0; y < 8; y++) {
+      for (let x = 0; x < 8; x++) {
+        if (g[y * 9 + x] > g[y * 9 + x + 1]) dhash |= (1n << bit);
+        bit++;
+      }
+    }
     return {
       width: md.width,
       height: md.height,
@@ -46,6 +57,7 @@ export async function analyzeImageBuffer(buf) {
       saturation: satSum / n,
       meanBright: brightSum / n,
       edgeFrac: edges / ((S - 1) * (S - 1)),
+      dhash: dhash.toString(16).padStart(16, '0'),
     };
   } catch {
     return null;

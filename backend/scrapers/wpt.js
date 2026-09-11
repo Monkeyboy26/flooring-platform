@@ -26,7 +26,7 @@ import {
   appendLog,
   addJobError,
 } from './base.js';
-import { classifyImages, toMediaRows, isFillerStats } from '../lib/wptImages.js';
+import { classifyImages, toMediaRows, isFillerStats, dedupeNearDuplicates } from '../lib/wptImages.js';
 import { analyzeImageBuffer } from '../lib/wptImageMeasure.js';
 
 // ── Ecwid API config ────────────────────────────────────────────────
@@ -302,7 +302,8 @@ async function saveWptImages(pool, productId, skuId, imageUrls, size) {
   }
   if (!candidates.length) return 0;
 
-  const ranked = classifyImages(candidates, size);
+  // Drop near-duplicate images (WPT uploads most swatches twice).
+  const ranked = classifyImages(dedupeNearDuplicates(candidates), size);
   const rows = toMediaRows(ranked, { maxImages: MAX_WPT_IMAGES });
 
   // Clean slate — remove any prior media for this product before re-inserting.

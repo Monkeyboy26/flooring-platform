@@ -27,7 +27,7 @@ import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { classifyImages, toMediaRows, isFillerStats } from '../lib/wptImages.js';
+import { classifyImages, toMediaRows, isFillerStats, dedupeNearDuplicates } from '../lib/wptImages.js';
 import { analyzeImageBuffer } from '../lib/wptImageMeasure.js';
 
 const APPLY = process.argv.includes('--apply');
@@ -104,10 +104,13 @@ async function main() {
     // Measure each source image; drop documentation/marketing filler slides.
     for (const im of uniq) {
       const st = await measure(im.original_url);
-      if (st) { im.width = st.width; im.height = st.height; im.filler = isFillerStats(st); }
+      if (st) { im.width = st.width; im.height = st.height; im.edgeFrac = st.edgeFrac; im.dhash = st.dhash; im.filler = isFillerStats(st); }
     }
-    const kept = uniq.filter(im => !im.filler);
-    const droppedFiller = uniq.length - kept.length;
+    const nonFiller = uniq.filter(im => !im.filler);
+    const droppedFiller = uniq.length - nonFiller.length;
+    // Drop near-duplicate images (WPT uploads most swatches twice).
+    const kept = dedupeNearDuplicates(nonFiller);
+    const droppedDupes = nonFiller.length - kept.length;
     if (!kept.length) { skipped++; continue; } // never wipe a product to zero images
 
     const ranked = classifyImages(kept, p.size);
@@ -127,16 +130,17 @@ async function main() {
 
     changed++;
     plan.push({ product_id: p.id, name: p.name, size: p.size, sku_id: dominantSkuId,
-                oldPrimaryCount: primaryCount, newRows, hasSwatch, droppedFiller });
+                oldPrimaryCount: primaryCount, newRows, hasSwatch, droppedFiller, droppedDupes });
   }
 
   // Report
   const totalFiller = plan.reduce((s, c) => s + (c.droppedFiller || 0), 0);
+  const totalDupes = plan.reduce((s, c) => s + (c.droppedDupes || 0), 0);
   console.log(`\nWPT image primaries — ${products.length} products with media`);
-  console.log(`  ${changed} to fix · ${skipped} already correct · ${noSwatch} have no swatch (scene-only) · ${totalFiller} filler slides dropped\n`);
+  console.log(`  ${changed} to fix · ${skipped} already correct · ${noSwatch} have no swatch (scene-only) · ${totalFiller} filler dropped · ${totalDupes} near-duplicates dropped\n`);
   for (const c of plan.slice(0, LIMIT || 40)) {
     const pr = c.newRows[0];
-    const f = c.droppedFiller ? `  −${c.droppedFiller} filler` : '';
+    const f = (c.droppedFiller ? `  −${c.droppedFiller} filler` : '') + (c.droppedDupes ? `  −${c.droppedDupes} dupe` : '');
     console.log(`  ${c.name} [${c.size || 'no size'}]  primaries ${c.oldPrimaryCount}→1${c.hasSwatch ? '' : '  ⚠ scene-only (no swatch)'}${f}`);
     console.log(`      primary(${pr.kind}) ← ${(pr.original_url || pr.url).split('/').pop()}  ${c.newRows.length} img total`);
   }
