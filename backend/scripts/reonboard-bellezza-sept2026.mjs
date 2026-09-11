@@ -371,8 +371,12 @@ async function main() {
     await q(`
       INSERT INTO vendor_sources (vendor_id, source_type, name, base_url, scraper_key, config, schedule, is_active)
       SELECT $1, 'portal', 'Bellezza Stock Check', 'https://bellezzaceramica.com/stock-check/', 'bellezza-inventory',
-             '{"password":"bellezza1234","freshnessHours":48}'::jsonb, 'daily', true
+             '{"password":"bellezza1234","freshnessHours":48}'::jsonb, '0 7 * * *', true
       WHERE NOT EXISTS (SELECT 1 FROM vendor_sources WHERE scraper_key='bellezza-inventory')`, [vendorId]);
+    // Fix a pre-existing row that was registered with the invalid schedule 'daily'
+    // (node-cron's cron.validate rejects it, so the scheduler silently skips it).
+    await q(`UPDATE vendor_sources SET schedule='0 7 * * *'
+             WHERE scraper_key='bellezza-inventory' AND (schedule IS NULL OR schedule='daily')`);
   }
   console.log('');
 
