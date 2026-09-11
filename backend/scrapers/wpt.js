@@ -14,7 +14,6 @@
  * Pricing comes separately from the wholesale PDF price list (see import-wpt-pricing.cjs).
  */
 
-import sharp from 'sharp';
 import {
   delay,
   normalizeSize,
@@ -27,7 +26,8 @@ import {
   appendLog,
   addJobError,
 } from './base.js';
-import { classifyImages, toMediaRows } from '../lib/wptImages.js';
+import { classifyImages, toMediaRows, isFillerStats } from '../lib/wptImages.js';
+import { analyzeImageBuffer } from '../lib/wptImageMeasure.js';
 
 // ── Ecwid API config ────────────────────────────────────────────────
 const ECWID_STORE_ID = 15639056;
@@ -264,14 +264,12 @@ function collectImageUrls(fullProduct) {
 
 const MAX_WPT_IMAGES = 6;
 
-/** Measure an image's dimensions (download + sharp). Returns {width,height} or null. */
+/** Download + analyze an image (dimensions + filler stats). Returns stats or null. */
 async function measureImage(url) {
   try {
     const resp = await fetch(url, { signal: AbortSignal.timeout(25000) });
     if (!resp.ok) return null;
-    const buf = Buffer.from(await resp.arrayBuffer());
-    const md = await sharp(buf).metadata();
-    return md.width && md.height ? { width: md.width, height: md.height } : null;
+    return await analyzeImageBuffer(Buffer.from(await resp.arrayBuffer()));
   } catch {
     return null;
   }
@@ -292,14 +290,15 @@ async function measureImage(url) {
 async function saveWptImages(pool, productId, skuId, imageUrls, size) {
   if (!imageUrls.length) return 0;
 
-  // Dedup, then measure each candidate.
+  // Dedup, measure each candidate, and drop documentation/marketing filler.
   const seen = new Set();
   const candidates = [];
   for (const url of imageUrls) {
     if (!url || seen.has(url)) continue;
     seen.add(url);
-    const dim = await measureImage(url);
-    candidates.push({ url, original_url: url, ...(dim || {}) });
+    const st = await measureImage(url);
+    if (st && isFillerStats(st)) continue; // skip brand cards / spec-sheet slides
+    candidates.push({ url, original_url: url, ...(st || {}) });
   }
   if (!candidates.length) return 0;
 

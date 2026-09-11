@@ -38,6 +38,29 @@ export function imgAspect(w, h) {
 }
 
 /**
+ * True if pixel stats look like a DOCUMENTATION/marketing slide rather than a
+ * product photo. WPT's Ecwid galleries embed brand cards ("PROTECT Antimicrobial
+ * protection") and technical spec-sheet tables — white-dominated with text/tables
+ * and almost no color.
+ *
+ * White/saturation/brightness ALONE can't tell these from a white-marble swatch
+ * (Statuario measures 97% white / 0.4 sat / 253 bright — even MORE extreme than a
+ * spec sheet). The separator is EDGE DENSITY: text and table rules are ~0.29-0.38
+ * edge, a marble swatch's soft veining only ~0.08. So filler additionally requires
+ * high edge density on top of being near-pure-white.
+ *   filler          → white ~0.76+, sat ~0-6, bright ~240+, edge ~0.17-0.22 (text/tables)
+ *   marble layout   → white ~0.9+,  sat ~0-1, bright ~245+, edge ~0.10 (grout grid)  (kept)
+ *   marble swatch   → white ~0.97,  sat ~0.4, bright ~253,  edge ~0.003              (kept)
+ * A 0.14 edge floor sits in the gap between a white-marble tile layout (~0.10) and
+ * a text-dense documentation slide (~0.17+), so real marble imagery is never dropped.
+ * @param {{whiteFrac:number, saturation:number, meanBright:number, edgeFrac:number}} s
+ */
+export function isFillerStats(s) {
+  if (!s) return false;
+  return s.whiteFrac >= 0.6 && s.saturation < 8 && s.meanBright >= 238 && (s.edgeFrac ?? 0) >= 0.14;
+}
+
+/**
  * Classify + rank measured images for a tile of the given size.
  *
  * @param {Array<{url:string,width?:number,height?:number,[k:string]:any}>} images
@@ -55,31 +78,40 @@ export function classifyImages(images, size, opts = {}) {
     const ar = imgAspect(im.width, im.height);
     let kind = 'scene';
     let dist = Infinity;
+    let isSwatch = false;
     if (ar != null && R != null) {
       dist = Math.abs(ar - R);
       // Wider tiles need a looser absolute tolerance (a 5.33 plank swatch renders
-      // at ~3.75); scale tolerance with the tile ratio. A swatch either matches
-      // the tile ratio, is extremely wide (no room photo exceeds ~2.2:1), or is a
-      // near-square shot of a square tile. Only a clearly WIDE photographic image
-      // (ar >= 1.6) that does NOT match the tile is treated as a room scene —
-      // small-format mosaics are photographed at ~1.0-1.5 and are swatches.
+      // at ~3.75); scale tolerance with the tile ratio.
       const relTol = Math.max(tol, R * 0.08);
       const matchesTile = dist <= relTol || ar >= 2.2 || (R <= 1.15 && ar <= 1.10);
+      // For RANKING: a swatch matches the tile ratio, is extremely wide (no room
+      // photo exceeds ~2.2:1), or is near-square (product shots of small-format /
+      // fabric-look tiles are square even when the tile is 12x24). A mid-range
+      // photographic ratio (1.35-2.2, not matching) is a room scene → rank last.
+      isSwatch = matchesTile || ar < 1.35;
+      // For LABELING (asset_type): only a clearly WIDE non-matching image is a
+      // 'lifestyle' room scene; borderline shots stay 'alternate' gallery images.
       kind = matchesTile ? 'swatch' : ar >= 1.6 ? 'scene' : 'swatch';
     } else if (ar != null) {
-      // No tile size: rank wider (more swatch-like) first; only mid-wide
-      // photographic ratios read as scenes.
-      dist = 1 / ar;
-      kind = ar >= 2.2 || ar < 1.6 ? 'swatch' : 'scene';
+      // No tile size: prefer near-square / very-wide (swatch-like) over mid-wide.
+      dist = Math.abs(ar - 1);
+      isSwatch = ar < 1.35 || ar >= 2.2;
+      kind = ar >= 1.6 && ar < 2.2 ? 'scene' : 'swatch';
     }
-    return { ...im, ar, dist, kind };
+    return { ...im, ar, dist, kind, isSwatch };
   });
 
-  // Primary = image whose aspect ratio is CLOSEST to the tile's (the swatch),
-  // breaking ties by resolution. Ranking by closeness — not by the swatch/scene
-  // label — ensures a wide plank swatch outranks a higher-res room scene.
+  // Primary = best swatch: swatches (tile-matching / near-square / extreme-wide)
+  // rank ahead of room scenes; within a group, closest-to-tile, then PLAINEST
+  // (lowest edge density — a mosaic sheet's grout grid reads far higher than a
+  // plain field swatch, so this demotes coordinating-mosaic images out of
+  // primary), then higher resolution.
+  const edge = (x) => (typeof x.edgeFrac === 'number' ? x.edgeFrac : 0);
   scored.sort((a, b) => {
+    if (a.isSwatch !== b.isSwatch) return a.isSwatch ? -1 : 1;
     if (a.dist !== b.dist) return a.dist - b.dist;
+    if (Math.abs(edge(a) - edge(b)) > 0.02) return edge(a) - edge(b);
     return ((b.width || 0) * (b.height || 0)) - ((a.width || 0) * (a.height || 0));
   });
 

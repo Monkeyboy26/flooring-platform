@@ -26,9 +26,9 @@
 import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
-import sharp from 'sharp';
 import { fileURLToPath } from 'url';
-import { classifyImages, toMediaRows } from '../lib/wptImages.js';
+import { classifyImages, toMediaRows, isFillerStats } from '../lib/wptImages.js';
+import { analyzeImageBuffer } from '../lib/wptImageMeasure.js';
 
 const APPLY = process.argv.includes('--apply');
 const LIMIT = (() => { const i = process.argv.indexOf('--limit'); return i > -1 ? parseInt(process.argv[i + 1], 10) : null; })();
@@ -49,11 +49,7 @@ async function measure(srcUrl) {
   let out = null;
   try {
     const resp = await fetch(srcUrl, { signal: AbortSignal.timeout(25000) });
-    if (resp.ok) {
-      const buf = Buffer.from(await resp.arrayBuffer());
-      const md = await sharp(buf).metadata();
-      if (md.width && md.height) out = { width: md.width, height: md.height };
-    }
+    if (resp.ok) out = await analyzeImageBuffer(Buffer.from(await resp.arrayBuffer()));
   } catch { /* unreachable / not an image → leave null */ }
   dimCache.set(srcUrl, out);
   return out;
@@ -105,13 +101,16 @@ async function main() {
     const uniq = [...bySrc.values()];
     if (!uniq.length) { skipped++; continue; }
 
-    // Measure each source image.
+    // Measure each source image; drop documentation/marketing filler slides.
     for (const im of uniq) {
-      const dim = await measure(im.original_url);
-      if (dim) { im.width = dim.width; im.height = dim.height; }
+      const st = await measure(im.original_url);
+      if (st) { im.width = st.width; im.height = st.height; im.filler = isFillerStats(st); }
     }
+    const kept = uniq.filter(im => !im.filler);
+    const droppedFiller = uniq.length - kept.length;
+    if (!kept.length) { skipped++; continue; } // never wipe a product to zero images
 
-    const ranked = classifyImages(uniq, p.size);
+    const ranked = classifyImages(kept, p.size);
     const newRows = toMediaRows(ranked, { maxImages: MAX_IMAGES });
     const primary = newRows[0];
     const hasSwatch = newRows.some(r => r.kind === 'swatch');
@@ -128,15 +127,17 @@ async function main() {
 
     changed++;
     plan.push({ product_id: p.id, name: p.name, size: p.size, sku_id: dominantSkuId,
-                oldPrimaryCount: primaryCount, newRows, hasSwatch });
+                oldPrimaryCount: primaryCount, newRows, hasSwatch, droppedFiller });
   }
 
   // Report
+  const totalFiller = plan.reduce((s, c) => s + (c.droppedFiller || 0), 0);
   console.log(`\nWPT image primaries — ${products.length} products with media`);
-  console.log(`  ${changed} to fix · ${skipped} already correct · ${noSwatch} have no swatch (scene-only)\n`);
+  console.log(`  ${changed} to fix · ${skipped} already correct · ${noSwatch} have no swatch (scene-only) · ${totalFiller} filler slides dropped\n`);
   for (const c of plan.slice(0, LIMIT || 40)) {
     const pr = c.newRows[0];
-    console.log(`  ${c.name} [${c.size || 'no size'}]  primaries ${c.oldPrimaryCount}→1${c.hasSwatch ? '' : '  ⚠ scene-only (no swatch)'}`);
+    const f = c.droppedFiller ? `  −${c.droppedFiller} filler` : '';
+    console.log(`  ${c.name} [${c.size || 'no size'}]  primaries ${c.oldPrimaryCount}→1${c.hasSwatch ? '' : '  ⚠ scene-only (no swatch)'}${f}`);
     console.log(`      primary(${pr.kind}) ← ${(pr.original_url || pr.url).split('/').pop()}  ${c.newRows.length} img total`);
   }
   if (plan.length > (LIMIT || 40)) console.log(`  … and ${plan.length - (LIMIT || 40)} more`);
