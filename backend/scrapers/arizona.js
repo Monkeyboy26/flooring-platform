@@ -8,6 +8,31 @@ import {
 } from './base.js';
 import { BASE_URL } from './arizona-auth.js';
 import { loadAllPriceLists } from './arizona-prices.js';
+import {
+  htmlDecode, stripTags, cleanAttrValue,
+} from './arizona/html.js';
+import {
+  MAX_GALLERY_IMAGES, WIDEN_PLACEHOLDER_BYTES,
+  FIELD_TILE_IMAGE_RE, DETAIL_SHOT_RE, MOSAIC_IMAGE_INDICATOR_RE,
+  reParamWidenUrl, normalizeWidenUrls, filterWidenPlaceholders, isFieldTileUrl,
+  parseGallery, parseSwatchImages,
+} from './arizona/images.js';
+import {
+  parseDetailPage, parseSpecs, parseTechnicalSpecs, parseTechnicalSpecsTable,
+  parsePackaging, parsePricing, parseSoldBy, parseStockStatus, parseVariations,
+} from './arizona/detail-parse.js';
+import {
+  CATEGORY_MAP, CATEGORY_SKIP, ACCESSORY_KEYWORDS,
+  MOSAIC_NAME_PATTERN, STACKED_NAME_PATTERN, FORMAT_PAGE_TITLES,
+  MOSAIC_SHAPE_RE, FIELD_SIZE, MOSAIC_KW,
+  UNIT_CATEGORIES, SLAB_CATEGORIES, FORMAT_CATS, SLAB_TO_TILE_FALLBACK, NO_BOX_CATEGORIES,
+  extractMosaicShape, parseSizeDims, isFieldTileSize, isAccessory,
+  normalizeSeriesTitle, joinDedupe, resolveBestCategory, classifyVariation,
+} from './arizona/categorize.js';
+import {
+  resolveSellBy, BOX_ONLY_SERIES, planFromPriceList,
+} from './arizona/pricing.js';
+import { upsertAllSpecAttributes } from './arizona/specs.js';
 
 const DEFAULT_CONFIG = {
   delayMs: 1000,
@@ -15,468 +40,7 @@ const DEFAULT_CONFIG = {
   perPage: 100,
 };
 
-// Max gallery images per SKU (primary + lifestyle + 6 alternate)
-const MAX_GALLERY_IMAGES = 8;
-
-/**
- * Re-parameterize a Widen CDN URL to fit within 765px wide without cropping.
- * Strips height, crop, and keep params so the CDN returns the natural aspect ratio.
- * Non-Widen URLs are returned unchanged.
- */
-function reParamWidenUrl(url) {
-  if (!url.includes('.widen.net')) return url;
-  let u = url;
-  // Set width to 765, remove height/crop/keep so image keeps natural aspect ratio
-  if (/[?&]w=\d+/.test(u)) {
-    u = u.replace(/([?&])w=\d+/, '$1w=765');
-  } else {
-    u += (u.includes('?') ? '&' : '?') + 'w=765';
-  }
-  u = u.replace(/[?&]h=\d+/g, '');
-  u = u.replace(/[?&]crop=yes/g, '');
-  u = u.replace(/[?&]keep=[a-z]+/gi, '');
-  u = u.replace(/[?&]position=[a-z]+/gi, '');
-  // Ensure quality param
-  if (!/[?&]quality=/.test(u)) u += '&quality=80';
-  // Strip x.app portal tracking param — causes intermittent 404/placeholder from CDN
-  u = u.replace(/[?&]x\.app=[^&]*/gi, '');
-  // Clean up dangling ampersands
-  u = u.replace(/[&]+/g, '&').replace(/\?&/, '?').replace(/&$/, '');
-  return u;
-}
-
-/**
- * Normalize Widen CDN URLs: re-parameterize to 765px wide without cropping.
- * Still rejects known placeholder filenames.
- */
-function normalizeWidenUrls(urls) {
-  return urls
-    .filter(url => !/coming-soon/i.test(url))
-    .map(url => reParamWidenUrl(url));
-}
-
-/**
- * Filter out Widen CDN placeholder images ("Preview Not Available").
- * The CDN returns HTTP 404 with `x-widen-error: resource unavailable` and an
- * 8,016-byte PNG placeholder for missing/removed assets.  Also rejects images
- * ≤ 4,000 bytes (corrupted or blank thumbnails).
- */
-const WIDEN_PLACEHOLDER_BYTES = 8016; // "Preview Not Available" PNG placeholder size
-
-async function filterWidenPlaceholders(urls) {
-  if (!urls || urls.length === 0) return [];
-  const checks = await Promise.allSettled(urls.map(async (url) => {
-    if (!url.includes('.widen.net')) return { url, ok: true };
-    try {
-      const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
-      if (!res.ok) return { url, ok: false };
-      const len = parseInt(res.headers.get('content-length') || '0', 10);
-      // Reject small/corrupt images AND the known 8,016-byte placeholder
-      if (len > 0 && len <= WIDEN_PLACEHOLDER_BYTES) return { url, ok: false };
-      return { url, ok: true };
-    } catch { return { url, ok: false }; }
-  }));
-  return checks
-    .filter(r => r.status === 'fulfilled' && r.value.ok)
-    .map(r => r.value.url);
-}
-
-/**
- * Detect field-tile dimension patterns in Widen CDN image URLs.
- * Returns true if the filename contains standard tile/slab dimensions
- * (12x12, 18x18, etc.) or detail-shot markers (-DT-) that indicate
- * a non-mosaic product shot — these should NOT be used for mosaic SKUs.
- */
-const FIELD_TILE_IMAGE_RE = /[-_](12x12|18x18|24x24|12x24|16x16|6x24|6x12|4x12|3x6)[-_.]/i;
-const DETAIL_SHOT_RE = /[-_]DT[-_.]/i;
-const MOSAIC_IMAGE_INDICATOR_RE = /mosaic|mesh|hex|herringbone|chevron|basket|penny|fan|flower|brick|bubble|scallop|picket|rhomboid|stanza|pinwheel|octagon|arabesque|lantern/i;
-function isFieldTileUrl(url) {
-  const filename = url.split('/').pop().split('?')[0];
-  if (DETAIL_SHOT_RE.test(filename)) return true;
-  if (FIELD_TILE_IMAGE_RE.test(filename)) {
-    // Not a field tile if the filename also contains mosaic indicators
-    if (MOSAIC_IMAGE_INDICATOR_RE.test(filename)) return false;
-    return true;
-  }
-  return false;
-}
-
-// AZ Tile category slug → PIM category slug
-/**
- * Arizona Tile → PIM category mapping.
- *
- * AZ products have MANY category tags (material, format, finish, look, collection).
- * Each entry maps an AZ slug to [pimSlug, priority].
- * When a product belongs to multiple AZ categories, the highest-priority match wins.
- *
- * Priority guide:
- *   90 — specific slab material (granite-slab, quartzite, della-terra-quartz)
- *   85 — format-specific (mosaic, stacked-stone, pavers) — beats material
- *   80 — specific tile material (porcelain-and-ceramic, marble-tile)
- *   70 — material from Outer Limits / Special Order subcategories
- *   55 — large-format, patterned, 3D
- *   50 — generic material parents (natural-stone-tile, natural-stone-slab)
- *   30 — generic cross-references (liners, special-order-series, outer-limits top-level)
- *    0 — skip (looks-like, recycled, made-in-usa, locations)
- */
-const CATEGORY_MAP = {
-  // ── Tile: specific material (priority 80) ──
-  'porcelain-and-ceramic':          ['porcelain-tile', 80],
-  'marble-tile':                    ['natural-stone', 80],
-  'marble-dolomite-tile':           ['natural-stone', 80],
-  'granite-tile':                   ['natural-stone', 80],
-  'limestone-tile':                 ['natural-stone', 80],
-  'travertine':                     ['natural-stone', 80],
-  'basalt-tile':                    ['natural-stone', 80],
-  'dolomite':                       ['natural-stone', 80],
-  'tumbled-stone':                  ['natural-stone', 80],
-  'glass':                          ['porcelain-tile', 80],
-  'quarry-tile':                    ['ceramic-tile', 80],
-  'agglomerate-marble':             ['natural-stone', 80],
-  'metal':                          ['porcelain-tile', 60],
-
-  // ── Slab: specific material (priority 90) ──
-  'granite-slab':                   ['granite-countertops', 90],
-  'marble-slab':                    ['marble-countertops', 90],
-  'della-terra-quartz':             ['quartz-countertops', 90],
-  'quartzite':                      ['quartzite-countertops', 90],
-  'limestone-slab':                 ['marble-countertops', 90],
-  'travertine-slab':                ['marble-countertops', 90],
-  'agglomerate-marble-slab':        ['marble-countertops', 90],
-  'della-terra-porcelain-slabs':    ['porcelain-slabs', 90],
-  'della-terra-porcelain-slabs-outer-limits': ['porcelain-slabs', 90],
-
-  // ── Outer Limits subcategories (priority 70) ──
-  'granite':                        ['granite-countertops', 70],   // OL granite slab (2368)
-  'limestone':                      ['marble-countertops', 70],    // OL limestone slab (2369)
-  'marble':                         ['marble-countertops', 70],    // OL marble slab (2370)
-  'travertine-natural-stone-slab':  ['marble-countertops', 70],    // OL travertine slab (2371)
-  'quartzite-natural-stone-slab':   ['quartzite-countertops', 70], // OL quartzite slab (2425)
-  'limestone-natural-stone-tile':   ['natural-stone', 70],         // OL limestone tile (2458)
-  'travertine-natural-stone-tile':  ['natural-stone', 70],         // OL travertine tile (2457)
-  'natural-stone-patterns-tile':    ['natural-stone', 70],         // OL patterns tile (2461)
-
-  // ── Special Order subcategories (priority 70) ──
-  'stone':                          ['natural-stone', 70],         // Special order natural stone (1437)
-  'glass-special-order-series':     ['mosaic-tile', 70],           // Special order glass (1436)
-
-  // ── Format-specific (priority 85) — beats material ──
-  'decorative-mosaics-mesh-mounts': ['mosaic-tile', 85],
-  'porcelain-mosaics-mesh-mounts':  ['mosaic-tile', 85],
-  'natural-stone-mosaics-mesh-mounts': ['mosaic-tile', 85],
-  'glass-mosaics-mesh-mounts':      ['mosaic-tile', 85],
-  'stack':                          ['stacked-stone', 86],
-  'porcelain-stack':                ['stacked-stone', 86],
-  'natural-stone-stack':            ['stacked-stone', 86],
-  'stack-tile':                     ['stacked-stone', 86],
-  'pavers':                         ['pavers', 85],
-  'special-order-pavers':           ['pavers', 85],
-  'natural-stone-special-order-pavers': ['pavers', 85],
-  'porcelain-special-order-pavers': ['pavers', 85],
-  'large-format-tile':              ['large-format-tile', 55],
-  'large-format-porcelain-tile':    ['large-format-tile', 55],
-  'large-format-natural-stone-tile': ['natural-stone', 60],
-  'patterned-tile':                 ['porcelain-tile', 55],
-  'natural-stone-patterns':         ['natural-stone', 55],
-
-  // ── Generic parents (priority 50) ──
-  'natural-stone-tile':             ['natural-stone', 50],
-  'natural-stone-slab':             ['natural-stone', 50],
-
-  // ── 3D tile subcategories (priority 55) ──
-  'porcelain-and-ceramic-3d-tile':  ['porcelain-tile', 55],
-  'natural-stone-3d-tile':          ['natural-stone', 55],
-  '3d-tile':                        ['porcelain-tile', 45],
-
-  // ── R11 finish — porcelain tiles with slip resistance (priority 40) ──
-  'r11-finish':                     ['porcelain-tile', 40],
-
-  // ── Low-priority generic parents (priority 30) ──
-  // These only win if no better category matched
-  'liners-moldings-trim':           ['transitions-moldings', 30],
-  'ceramic-porcelain':              ['transitions-moldings', 30],  // "Porcelain & Ceramic Liners"
-  'natural-stone-liners':           ['transitions-moldings', 30],
-  'glass-liners':                   ['transitions-moldings', 30],
-  'outer-limits':                   ['porcelain-tile', 20],        // generic OL fallback only
-  'special-order-series':           ['natural-stone', 20],         // generic SO fallback
-  'porcelain':                      ['porcelain-tile', 20],        // generic porcelain (SO sub)
-  'tile':                           ['porcelain-tile', 10],        // top-level "Tile" parent
-  'slab':                           ['natural-stone', 10],         // top-level "Slab" parent
-
-  // ── Defensive entries ──
-  'slate':                          ['natural-stone', 80],
-  'onyx':                           ['natural-stone', 80],
-  'ceramic':                        ['ceramic-tile', 80],
-  'basalt-natural-stone-slab':      ['marble-countertops', 70],
-  'basalt':                         ['natural-stone', 70],
-  'dolomite-slab':                  ['marble-countertops', 90],
-  'soapstone':                      ['natural-stone', 80],
-};
-
-/**
- * AZ category slugs to skip entirely — these are cross-reference tags, not material types.
- * Products tagged with these also have a real material category.
- */
-const CATEGORY_SKIP = new Set([
-  'looks-like', 'natural-stone', 'concrete', 'geometric-shapes', 'hand-painted',
-  'subway', 'wood',                          // "Looks Like" children (aesthetics)
-  'recycled-material-content',               // eco-label, not material
-  'made-in-usa', 'made-in-usa-slab',         // origin tag
-  'uncategorized', 'test-video', 'slab-outlet', 'quartz',  // misc
-]);
-
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
-const ACCESSORY_KEYWORDS = /\b(trim|molding|moulding|reducer|stair\s*nose|transition|threshold|t-molding|quarter\s*round|underlayment|adhesive|grout|sealer|caulk|bullnose|cove\s*base|pencil\s*liner)\b/i;
-
-// Name-based format patterns — catch products whose AZ tags don't include format categories
-// but whose collection name clearly indicates the format (e.g., "Basalt Hex" → mosaic)
-const MOSAIC_NAME_PATTERN = /\b(hex|chevron|herringbone|basketweave|penny|geometric|labyrinth|fishing\s*net|combhex|arabesque|thin\s*brick|geometro|skywalk|trove|looming\s*stream|artistic\s*expression|fraser\s*river)\b/i;
-const STACKED_NAME_PATTERN = /\b(ledger|splitface|split[-\s]?face)\b/i;
-
-// WooCommerce product pages that list colors by format rather than by series.
-// Colors on these pages usually also have their own WC product page, creating duplicates.
-// Skip creating products from these pages when the color exists elsewhere.
-const FORMAT_PAGE_TITLES = new Set(['Modella', 'Split']);
-
-// Extract named shape/pattern from a mosaic size attribute for use in product naming.
-// "Herringbone 1x2 Mesh" → "Herringbone", "Hex2x2 Mesh" → "Hex", "2x2 Mosaic" → ""
-// Longer patterns listed first so they match before shorter prefixes.
-const MOSAIC_SHAPE_RE = /\b(penny\s*round|mini\s*herringbone|large\s*chevron|small\s*chevron|small\s*hex|long\s*hex|basketweave\s*dogbone|basketweave|herringbone|chevron|hexagon|hex|bubble|fan|flower|scallop|oval|rhomboid|ellipse|bamboo|bevel|trapezoid|feather|ribbon|lotus|brick|picket|pinwheel|stanza|octagon|arch|wavy|linear|straight)\b/i;
-function extractMosaicShape(sizeAttr) {
-  if (!sizeAttr) return '';
-  const m = sizeAttr.match(MOSAIC_SHAPE_RE);
-  if (!m) return '';
-  // Title-case the matched shape
-  return m[1].replace(/\s+/g, ' ').split(' ')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-}
-
-// Size classification patterns — handles both raw (12x24) and WC-slugified (12-x-24) formats
-// Field tile: both dimensions ≥12, or specific large sizes (8x48, 6x36, etc.)
-const FIELD_SIZE = /(\d{2,})-?x-?(\d{2,})|8-?x-?48|8-?x-?36|6-?x-?36|6-?x-?24/;
-// Mosaic keywords in size attribute — these sizes are NOT field tile even if dimensions are large
-const MOSAIC_KW = /mosaic|mesh|hex|penny|basketweave|herringbone|stack|sheet/i;
-
-// Parse a size string into numeric [w, h] inches. Handles raw ("13-3/4x10-9/16")
-// and WC-slugified ("13-3-4-x-10-9-16") forms, including fractional parts.
-function parseSizeDims(s) {
-  if (!s) return null;
-  const t = String(s).toLowerCase().replace(/\//g, '-').replace(/-x-/g, 'x').replace(/\s+/g, '');
-  const m = t.match(/(?:^|[^\d])(\d+)(?:-(\d+)-(\d+))?x(\d+)(?:-(\d+)-(\d+))?(?=[^\d]|$)/);
-  if (!m) return null;
-  const a = parseInt(m[1], 10) + (m[2] ? parseInt(m[2], 10) / parseInt(m[3], 10) : 0);
-  const b = parseInt(m[4], 10) + (m[5] ? parseInt(m[5], 10) / parseInt(m[6], 10) : 0);
-  if (!isFinite(a) || !isFinite(b)) return null;
-  return [a, b];
-}
-
-// True field-tile size: both dims integer and ≥12, or a large plank format.
-// Fractional dims (11-7/16x11-7/8, 13-3/4x10-9/16) are mesh-mounted sheet sizes,
-// NOT field tile — the old FIELD_SIZE regex false-matched inside slugified
-// sixteenths ("...-7-16-x-11-..." → "16-x-11") and demoted whole mosaic pages
-// (Geometro, Geo-Tulle, Geo-Belfort) to their material category.
-function isFieldTileSize(s) {
-  if (!s || MOSAIC_KW.test(s)) return false;
-  const dims = parseSizeDims(s);
-  if (!dims) return false;
-  const [a, b] = [Math.min(dims[0], dims[1]), Math.max(dims[0], dims[1])];
-  if (!Number.isInteger(a) || !Number.isInteger(b)) return false;
-  if (a >= 12 && b >= 12) return true;
-  return (a === 8 && (b === 48 || b === 36)) || (a === 6 && (b === 36 || b === 24));
-}
-
-// Categories sold per piece/sheet (not per sqft in boxes)
-const UNIT_CATEGORIES = new Set([
-  'mosaic-tile', 'stacked-stone',
-  'granite-countertops', 'marble-countertops', 'quartz-countertops',
-  'quartzite-countertops', 'porcelain-slabs',
-]);
-// Slab categories eligible for multi-gauge (thickness) SKU splitting
-const SLAB_CATEGORIES = new Set([
-  'granite-countertops', 'marble-countertops', 'quartz-countertops',
-  'quartzite-countertops', 'porcelain-slabs',
-]);
-// Format categories that need variant-level splitting when mixed with field tiles
-const FORMAT_CATS = new Set(['mosaic-tile', 'stacked-stone', 'pavers']);
-// Fallback tile category when slab products have tile-format variants but no tile
-// WooCommerce category — AZ lumps marble tiles under marble-slab, for example.
-const SLAB_TO_TILE_FALLBACK = {
-  'marble-countertops': 'natural-stone',
-  'granite-countertops': 'natural-stone',
-  'quartzite-countertops': 'natural-stone',
-  'porcelain-slabs': 'porcelain-tile',
-};
-// Categories that don't use box packaging (slabs, sheets)
-const NO_BOX_CATEGORIES = new Set([
-  'mosaic-tile', 'stacked-stone', 'granite-countertops', 'marble-countertops',
-  'quartz-countertops', 'quartzite-countertops', 'porcelain-slabs',
-]);
-
-function resolveSellBy(pimSlug, accessory, parsedSoldBy) {
-  if (accessory) return 'unit';
-  if (pimSlug && UNIT_CATEGORIES.has(pimSlug)) return 'unit';
-  return parsedSoldBy || 'box';
-}
-
-// Collections sold by the FULL BOX only (owner rule), even where the AZ list
-// prices the individual patterns per piece (EA). Their EA rows convert to
-// box/per_sqft via Sf/Pc so they sell like field tile.
-const BOX_ONLY_SERIES = /cementine|flash bars|spark bars/i;
-
-// Derive sell_by + cost + price_basis from a price-list entry.
-// Mosaics, ledger/stack panels, and trim are sold per sheet/piece — always,
-// even when they ship in boxes (business rule: customers can buy single
-// sheets). SF-priced entries in per-piece categories convert to a per-sheet
-// price via Sf/Pc so unit pricing is never left on a per-sqft basis; slabs
-// (no piece coverage) keep per-sqft pricing for the inquire flow.
-function planFromPriceList(plEntry, catSlug) {
-  // BX rows carry the whole-box net price — convert to per-sqft or the box
-  // would be costed ~12x (Cementine B&W Mix: $109.70/box → $9.44/sf).
-  if (plEntry.unit === 'BX' && plEntry.sfPerBox > 0) {
-    return {
-      sellBy: 'box',
-      cost: Math.round(plEntry.netPrice / plEntry.sfPerBox * 100) / 100,
-      priceBasis: 'per_sqft',
-    };
-  }
-  const perPiece = plEntry.unit === 'EA' || plEntry.unit === 'SHT';
-  if (perPiece) {
-    if (BOX_ONLY_SERIES.test(plEntry.series || plEntry.itemId || '') && plEntry.sfPerPc > 0) {
-      return {
-        sellBy: 'box',
-        cost: Math.round(plEntry.netPrice / plEntry.sfPerPc * 100) / 100,
-        priceBasis: 'per_sqft',
-      };
-    }
-    return { sellBy: 'unit', cost: plEntry.netPrice, priceBasis: 'per_unit' };
-  }
-  if (catSlug && UNIT_CATEGORIES.has(catSlug)) {
-    // Loose small-format tile guard (owner, 2026-09-05 — same rule as MSI
-    // _looseSmallPiece): AZ's own list marks mesh sheets SHT and loose tiles
-    // SF with box packs. An SF row whose piece is under half a sqft inside a
-    // real multi-piece box (Paloma 4x8 hex @ 36/box, Paros 8.5x10 hex @
-    // 9/box…) is loose field tile that only LANDED in a per-piece category —
-    // sell it per box at the SF rate, don't per-piece it.
-    const looseSmallPiece = plEntry.sfPerPc > 0 && plEntry.sfPerPc < 0.5
-      && plEntry.pcsPerBox > 1 && plEntry.sfPerBox > plEntry.sfPerPc;
-    if (plEntry.sfPerPc > 0 && !looseSmallPiece) {
-      return {
-        sellBy: 'unit',
-        cost: Math.round(plEntry.netPrice * plEntry.sfPerPc * 100) / 100,
-        priceBasis: 'per_unit',
-      };
-    }
-    if (looseSmallPiece) {
-      return { sellBy: 'box', cost: plEntry.netPrice, priceBasis: 'per_sqft' };
-    }
-    return { sellBy: 'unit', cost: plEntry.netPrice, priceBasis: 'per_sqft' };
-  }
-  return { sellBy: 'box', cost: plEntry.netPrice, priceBasis: 'per_sqft' };
-}
-
-function isAccessory(title, description) {
-  return ACCESSORY_KEYWORDS.test(title) || (description && ACCESSORY_KEYWORDS.test(description));
-}
-
-// AZ page titles sometimes carry internal series codes — expand or strip them
-// for customer-facing names ("DT-Taj Mahal Polished" → "Della Terra Taj Mahal
-// Polished"; "CS-Terra Nova" → "Terra Nova"). Price-list lookups must keep the
-// RAW title — their keys are built from it.
-function normalizeSeriesTitle(title) {
-  return (title || '').replace(/^DT-\s*/i, 'Della Terra ').replace(/^CS-\s*/i, '').trim();
-}
-
-// Join collection + color collapsing a word-boundary overlap so shared words
-// never double: "Cementine Evo" + "Evo 1" → "Cementine Evo 1". Hyphens count
-// as boundaries on the collection side: "Geo-Dijon" + "Dijon Classic" →
-// "Geo-Dijon Classic".
-function joinDedupe(a, b) {
-  const aw = a.split(/\s+/), bw = b.split(/\s+/);
-  const aNorm = a.toLowerCase().replace(/-/g, ' ').trim().split(/\s+/);
-  for (let n = Math.min(aNorm.length, bw.length); n > 0; n--) {
-    const bHead = bw.slice(0, n).join(' ').toLowerCase().replace(/-/g, ' ');
-    if (aNorm.slice(-n).join(' ') === bHead) {
-      return aw.concat(bw.slice(n)).join(' ');
-    }
-  }
-  return `${a} ${b}`;
-}
-
-/**
- * Resolve the best PIM category for a product from its AZ category tags.
- * Highest CATEGORY_MAP priority wins; parent categories get a -5 penalty.
- */
-function resolveBestCategory(apiProduct, azCategoryMap, categoryLookup) {
-  let categoryId = null, pimCatSlug = null, bestPriority = -1;
-  for (const catId of apiProduct.categoryIds) {
-    const azCat = azCategoryMap.get(catId);
-    if (!azCat || CATEGORY_SKIP.has(azCat.slug)) continue;
-
-    const mapping = CATEGORY_MAP[azCat.slug];
-    if (mapping) {
-      const [slug, priority] = mapping;
-      if (priority > bestPriority && categoryLookup.has(slug)) {
-        bestPriority = priority;
-        categoryId = categoryLookup.get(slug);
-        pimCatSlug = slug;
-      }
-    }
-    // Also check parent category (lower priority since less specific)
-    if (azCat.parent) {
-      const parentCat = azCategoryMap.get(azCat.parent);
-      if (parentCat && !CATEGORY_SKIP.has(parentCat.slug)) {
-        const parentMapping = CATEGORY_MAP[parentCat.slug];
-        if (parentMapping) {
-          const [slug, priority] = parentMapping;
-          // Parent match gets a small penalty
-          const adjPriority = priority - 5;
-          if (adjPriority > bestPriority && categoryLookup.has(slug)) {
-            bestPriority = adjPriority;
-            categoryId = categoryLookup.get(slug);
-            pimCatSlug = slug;
-          }
-        }
-      }
-    }
-  }
-  return { categoryId, pimCatSlug, bestPriority };
-}
-
-/**
- * Classify a single variation by format based on its size attribute.
- * Used to sub-group variants within a color group so each format gets its own PIM product.
- * Returns 'mosaic', 'stacked', 'tile', or 'default'.
- */
-function classifyVariation(sizeAttr, originalFormatSlug, originalSlabSlug) {
-  const size = sizeAttr || '';
-  // Explicitly mosaic keywords (subset of MOSAIC_KW without "stack"/"mesh" which
-  // are ambiguous — stacked stone panels can also be mesh-mounted). Modella is
-  // AZ's mesh-mounted multi-shape pattern format (sold per sheet).
-  const MOSAIC_EXPLICIT = /mosaic|hex|penny|basketweave|herringbone|sheet|modella/i;
-  // Mosaic-explicit sizes always win — even inside stacked-stone products,
-  // a "2x2 Hex Mosaic" is a mosaic, not a ledger panel.
-  if (MOSAIC_EXPLICIT.test(size)) return 'mosaic';
-  // Tiny chips (1x1, 1x2, 5/8x1-1/4) are mesh-mounted mosaic sheets even when
-  // the size attr carries no mosaic keyword — nothing ≤2.5" is sold loose.
-  {
-    const dims = parseSizeDims(size);
-    if (dims && Math.max(dims[0], dims[1]) <= 2.5) return 'mosaic';
-  }
-  // Stacked stone: if product originally won stacked-stone, keep variants as
-  // stacked unless BOTH dimensions are >=12 (real field tile).
-  if (originalFormatSlug === 'stacked-stone') {
-    const m = size.match(/(\d+)-?x-?(\d+)/);
-    if (!m || Math.min(parseInt(m[1]), parseInt(m[2])) < 12) return 'stacked';
-  }
-  // Remaining MOSAIC_KW matches (mesh, stack) — only for non-stacked products
-  if (MOSAIC_KW.test(size)) return 'mosaic';
-  // Paver-sized variants (e.g., "24x24 Paver", "Paver 12x24")
-  if (/paver/i.test(size)) return 'paver';
-  // Slab-category product with tile-format variant
-  if (originalSlabSlug && FIELD_SIZE.test(size)) return 'tile';
-  return 'default';
-}
 
 /**
  * Arizona Tile catalog scraper.
@@ -691,6 +255,14 @@ export async function run(pool, job, source) {
     }
   }
 
+  // Optional cap for smoke-testing the pipeline on a handful of products
+  // without a full catalog run. NOTE: a capped run must NOT deactivate orphans
+  // (Phase 4 coverage gate handles this — a tiny sample trivially fails ≥50%).
+  if (config.maxProducts && allProducts.length > config.maxProducts) {
+    allProducts.length = config.maxProducts;
+    await appendLog(pool, job.id, `maxProducts=${config.maxProducts} — capping discovery (smoke/test mode)`);
+  }
+
   stats.found = allProducts.length;
   await appendLog(pool, job.id, `Phase 1 complete: ${stats.found} products from REST API`, {
     products_found: stats.found
@@ -698,8 +270,13 @@ export async function run(pool, job, source) {
 
   // ── Phase 2: Fetch detail pages ──
 
-  const detailDelayMs = Math.max(config.delayMs, 2000); // min 2s between requests to avoid throttling
-  await appendLog(pool, job.id, `Phase 2: Fetching detail pages (sequential, ${detailDelayMs}ms delay)...`);
+  const detailDelayMs = Math.max(config.delayMs, 2000); // min 2s between requests (per worker) to avoid throttling
+  // Fetch detail pages with a bounded worker pool instead of strictly
+  // sequentially. The old one-at-a-time loop took ~40min for ~440 products and
+  // routinely got reaped/marked failed. With N workers the wall-clock drops to
+  // ~minutes while each worker still self-throttles (delay + per-page backoff).
+  const DETAIL_CONCURRENCY = Math.max(1, config.detailConcurrency || 5);
+  await appendLog(pool, job.id, `Phase 2: Fetching detail pages (${DETAIL_CONCURRENCY} workers, ${detailDelayMs}ms/worker delay)...`);
 
   // Cache parsed detail data per product
   const detailCache = new Map(); // wpId → parsedDetail | null
@@ -749,52 +326,86 @@ export async function run(pool, job, source) {
     return null;
   }
 
+  // Shared state across workers. `consecutiveFailures` resets on any success and
+  // approximates a "sustained block" — when it mounts we cool off once, then set
+  // `aborted` so every worker drains out. cursor++ is atomic here (single-
+  // threaded, no await between read and increment), so no two workers take the
+  // same index.
   let consecutiveFailures = 0;
-  for (let i = 0; i < allProducts.length; i++) {
-    if (job.abortController?.signal?.aborted) {
-      await appendLog(pool, job.id, `Phase 2 aborted at ${i}/${allProducts.length}`);
-      break;
-    }
-    const apiProduct = allProducts[i];
-    try {
-      const result = await fetchDetailPage(apiProduct);
-      detailCache.set(apiProduct.wpId, result);
-      if (result) { consecutiveFailures = 0; } else { consecutiveFailures++; }
-    } catch {
-      detailCache.set(apiProduct.wpId, null);
-      consecutiveFailures++;
-    }
+  let completed = 0;
+  let cursor = 0;
+  let cooledOff = false;
+  let aborted = false;
 
-    if ((i + 1) % 10 === 0 || i === allProducts.length - 1) {
-      const ok = [...detailCache.values()].filter(v => v != null).length;
-      await appendLog(pool, job.id, `Fetch progress: ${i + 1}/${allProducts.length} (${ok} OK)`);
-    }
+  async function detailWorker() {
+    while (true) {
+      if (aborted || job.abortController?.signal?.aborted) return;
+      const i = cursor++;
+      if (i >= allProducts.length) return;
+      const apiProduct = allProducts[i];
 
-    // Each page already retried with backoff above, so a run of hard failures
-    // means a sustained block — cool off once, then bail if it persists.
-    if (consecutiveFailures === Math.floor(ABORT_AFTER / 2)) {
-      await appendLog(pool, job.id, `${consecutiveFailures} consecutive failures — cooling off 60s before continuing...`);
-      await delay(60000);
-    }
-    if (consecutiveFailures >= ABORT_AFTER) {
-      await appendLog(pool, job.id, `Aborting Phase 2: ${consecutiveFailures} consecutive failures after backoff — server is blocking us`);
-      break;
-    }
-
-    await delay(detailDelayMs);
-  }
-
-  // Retry failed pages once more (fetchDetailPage already backs off internally)
-  const failedProducts = allProducts.filter(p => detailCache.get(p.wpId) == null);
-  if (failedProducts.length > 0 && failedProducts.length < allProducts.length) {
-    await appendLog(pool, job.id, `Retrying ${failedProducts.length} failed detail pages...`);
-    for (const apiProduct of failedProducts) {
+      let result = null;
       try {
-        const result = await fetchDetailPage(apiProduct);
-        if (result) detailCache.set(apiProduct.wpId, result);
-      } catch { /* still failed */ }
+        result = await fetchDetailPage(apiProduct);
+      } catch {
+        result = null;
+      }
+      detailCache.set(apiProduct.wpId, result);
+
+      if (result) {
+        consecutiveFailures = 0;
+      } else {
+        consecutiveFailures++;
+        // Each page already retried with backoff, so a run of hard failures
+        // means a sustained block — cool off once, then bail if it persists.
+        if (!cooledOff && consecutiveFailures === Math.floor(ABORT_AFTER / 2)) {
+          cooledOff = true;
+          await appendLog(pool, job.id, `${consecutiveFailures} consecutive failures — cooling off 60s before continuing...`);
+          await delay(60000);
+        }
+        if (consecutiveFailures >= ABORT_AFTER) {
+          if (!aborted) {
+            aborted = true;
+            await appendLog(pool, job.id, `Aborting Phase 2: ${consecutiveFailures} consecutive failures after backoff — server is blocking us`);
+          }
+          return;
+        }
+      }
+
+      completed++;
+      if (completed % 10 === 0 || completed === allProducts.length) {
+        const ok = [...detailCache.values()].filter(v => v != null).length;
+        await appendLog(pool, job.id, `Fetch progress: ${completed}/${allProducts.length} (${ok} OK)`);
+      }
+
       await delay(detailDelayMs);
     }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(DETAIL_CONCURRENCY, allProducts.length) }, () => detailWorker())
+  );
+
+  // Retry failed pages once more (fetchDetailPage already backs off internally).
+  const failedProducts = allProducts.filter(p => detailCache.get(p.wpId) == null);
+  if (!aborted && failedProducts.length > 0 && failedProducts.length < allProducts.length) {
+    await appendLog(pool, job.id, `Retrying ${failedProducts.length} failed detail pages...`);
+    let retryCursor = 0;
+    async function retryWorker() {
+      while (true) {
+        const i = retryCursor++;
+        if (i >= failedProducts.length) return;
+        const apiProduct = failedProducts[i];
+        try {
+          const result = await fetchDetailPage(apiProduct);
+          if (result) detailCache.set(apiProduct.wpId, result);
+        } catch { /* still failed */ }
+        await delay(detailDelayMs);
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(DETAIL_CONCURRENCY, failedProducts.length) }, () => retryWorker())
+    );
   }
 
   const fetchedCount = [...detailCache.values()].filter(v => v != null).length;
@@ -1623,7 +1234,7 @@ export async function run(pool, job, source) {
 
     if (touchedProductIds.length > 0) {
       const activateResult = await pool.query(
-        `UPDATE products SET status = 'active', updated_at = CURRENT_TIMESTAMP
+        `UPDATE products SET status = 'active', is_active = true, updated_at = CURRENT_TIMESTAMP
          WHERE id = ANY($1) AND status = 'draft'`,
         [touchedProductIds]
       );
@@ -1644,7 +1255,7 @@ export async function run(pool, job, source) {
 
       if (orphanIds.length > 0 && ratio >= 0.5 && fetchRatio >= 0.8) {
         const deactivateResult = await pool.query(
-          `UPDATE products SET status = 'inactive', updated_at = CURRENT_TIMESTAMP
+          `UPDATE products SET status = 'inactive', is_active = false, updated_at = CURRENT_TIMESTAMP
            WHERE id = ANY($1)
            RETURNING id`,
           [orphanIds]
@@ -1788,519 +1399,4 @@ async function promoteToPrimary(pool, productId, skuId) {
     RETURNING id
   `, [productId, skuId]);
   return result.rowCount > 0;
-}
-
-// ══════════════════════════════════════════════════════════════
-// Parsers
-// ══════════════════════════════════════════════════════════════
-
-/**
- * Parse all data from a product detail page.
- * Returns a unified object matching the Elysium v3 pattern.
- */
-function parseDetailPage(html) {
-  // Merge table-based tech specs with regex-based; regex results take priority
-  const tableTechSpecs = parseTechnicalSpecsTable(html);
-  const regexTechSpecs = parseTechnicalSpecs(html);
-  const technicalSpecs = { ...tableTechSpecs, ...regexTechSpecs };
-
-  // Detect packaging PDF link (for future manual review)
-  const pkgPdfMatch = html.match(/<a[^>]+href="([^"]+)"[^>]*>[\s\S]*?Thickness\s*(?:&amp;|&)\s*Packaging[\s\S]*?<\/a>/i);
-  const packagingPdfUrl = pkgPdfMatch ? htmlDecode(pkgPdfMatch[1]) : null;
-
-  const packaging = parsePackaging(html);
-  if (packagingPdfUrl) {
-    packaging.pdfUrl = packagingPdfUrl;
-    if (Object.keys(packaging).length === 1) {
-      // Only pdfUrl, no inline packaging data — log-worthy
-      packaging._pdfOnly = true;
-    }
-  }
-
-  return {
-    specs: parseSpecs(html),
-    technicalSpecs,
-    packaging,
-    pricing: parsePricing(html),
-    gallery: parseGallery(html),
-    variations: parseVariations(html),
-    soldBy: parseSoldBy(html),
-    stockStatus: parseStockStatus(html),
-    swatchImages: parseSwatchImages(html),
-  };
-}
-
-/**
- * Parse general specs from Product Details tab.
- * Format: <strong>Label:</strong><br />value
- */
-function parseSpecs(html) {
-  const specs = {};
-  const specPatterns = [
-    { regex: /<strong>Product Type:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'type' },
-    { regex: /<strong>Origin:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'countryOfOrigin' },
-    { regex: /<strong>Stocked Finish(?:es)?(?:\(es\))?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'finish' },
-    { regex: /<strong>Stocked Sizes?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'size' },
-    { regex: /<strong>Stocked Thickness:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'thickness' },
-    { regex: /<strong>Recommended Uses?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'application' },
-    { regex: /<strong>Stocked Color(?:s|\/Finishes)?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'colors' },
-    { regex: /<strong>Edge:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'edge' },
-    { regex: /<strong>Look:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'look' },
-    { regex: /<strong>Collection:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'collection' },
-  ];
-
-  for (const { regex, key } of specPatterns) {
-    const match = html.match(regex);
-    if (match) specs[key] = htmlDecode(match[1].trim());
-  }
-
-  // Multi-line value extraction: some specs span multiple <br>-separated lines
-  const multiLineKeys = [
-    { regex: /<strong>Stocked Color(?:s|\/Finishes)?:?<\/strong>\s*([\s\S]*?)(?=<strong>|<\/div>|<\/p>)/i, key: 'colors' },
-    { regex: /<strong>Stocked Finish(?:es)?(?:\(es\))?:?<\/strong>\s*([\s\S]*?)(?=<strong>|<\/div>|<\/p>)/i, key: 'finish' },
-    { regex: /<strong>Stocked Sizes?:?<\/strong>\s*([\s\S]*?)(?=<strong>|<\/div>|<\/p>)/i, key: 'size' },
-    { regex: /<strong>Stocked Thickness:?<\/strong>\s*([\s\S]*?)(?=<strong>|<\/div>|<\/p>)/i, key: 'thickness' },
-    { regex: /<strong>Recommended Uses?:?<\/strong>\s*([\s\S]*?)(?=<strong>|<\/div>|<\/p>)/i, key: 'application' },
-  ];
-  for (const { regex, key } of multiLineKeys) {
-    const match = html.match(regex);
-    if (match) {
-      const lines = match[1]
-        .split(/<br\s*\/?>/)
-        .map(l => htmlDecode(l.replace(/<[^>]+>/g, '').trim()))
-        .filter(Boolean);
-      if (lines.length > 1) {
-        specs[key] = lines.join(', ');
-      }
-    }
-  }
-
-  return specs;
-}
-
-/**
- * Parse technical specs (PEI, DCOF, Water Absorption, etc.)
- * from the detail page. Arizona Tile uses the same <strong>Label:</strong> pattern.
- */
-function parseTechnicalSpecs(html) {
-  const tech = {};
-  const techPatterns = [
-    { regex: /<strong>PEI(?: Rating)?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'peiRating' },
-    { regex: /<strong>Shade Variation:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'shadeVariation' },
-    { regex: /<strong>Water Absorption:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'waterAbsorption' },
-    { regex: /<strong>DCOF(?: Acutest)?:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'dcof' },
-    { regex: /<strong>MOHS:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'mohs' },
-    { regex: /<strong>Breaking Strength:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'breakingStrength' },
-    { regex: /<strong>Frost Resistant:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'frostResistant' },
-    { regex: /<strong>Abrasion Resistance:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'abrasionResistance' },
-    { regex: /<strong>Coefficient of Friction:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i, key: 'dcof' },
-  ];
-
-  for (const { regex, key } of techPatterns) {
-    if (tech[key]) continue; // Don't overwrite (dcof has two patterns)
-    const match = html.match(regex);
-    if (match) tech[key] = htmlDecode(match[1].trim());
-  }
-
-  return tech;
-}
-
-/**
- * Parse technical specs from HTML <table> elements with "TECHNICAL CHARACTERISTICS" header.
- * New Arizona Tile format uses tables instead of <strong> label blocks for some products.
- * Extracts label (col 1) → value (last col, typically "TYPICAL VALUE") pairs.
- */
-function parseTechnicalSpecsTable(html) {
-  const tech = {};
-
-  // Find table sections containing technical characteristics
-  const tableMatch = html.match(/<table[^>]*>[\s\S]*?TECHNICAL\s+CHARACTERISTICS[\s\S]*?<\/table>/i);
-  if (!tableMatch) return tech;
-
-  const tableHtml = tableMatch[0];
-
-  // Map of label patterns → tech spec keys
-  const labelMap = [
-    { pattern: /water\s+absorption/i, key: 'waterAbsorption' },
-    { pattern: /dcof|dynamic\s+coefficient/i, key: 'dcof' },
-    { pattern: /breaking\s+strength/i, key: 'breakingStrength' },
-    { pattern: /frost\s+resist/i, key: 'frostResistant' },
-    { pattern: /abrasion\s+resist/i, key: 'abrasionResistance' },
-    { pattern: /\bpei\b/i, key: 'peiRating' },
-    { pattern: /\bmohs\b/i, key: 'mohs' },
-    { pattern: /shade\s+variation/i, key: 'shadeVariation' },
-    { pattern: /staining\s+resist/i, key: 'stainingResistance' },
-    { pattern: /thermal\s+shock/i, key: 'thermalShock' },
-  ];
-
-  // Extract rows: <tr>...<td>Label</td>...<td>Value</td>...</tr>
-  const rowRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let rowMatch;
-  while ((rowMatch = rowRegex.exec(tableHtml)) !== null) {
-    const cells = [];
-    const cellRegex = /<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi;
-    let cellMatch;
-    while ((cellMatch = cellRegex.exec(rowMatch[1])) !== null) {
-      cells.push(cellMatch[1].replace(/<[^>]+>/g, '').trim());
-    }
-    if (cells.length < 2) continue;
-
-    const label = cells[0];
-    const value = cells[cells.length - 1]; // Last column = typical value
-    if (!label || !value) continue;
-
-    for (const { pattern, key } of labelMap) {
-      if (pattern.test(label) && !tech[key]) {
-        tech[key] = htmlDecode(value);
-        break;
-      }
-    }
-  }
-
-  return tech;
-}
-
-/**
- * Parse packaging info from the detail page.
- * Looks for patterns like "X pcs/box", "XX sf/box", "XX lbs/box", etc.
- */
-function parsePackaging(html) {
-  const pkg = {};
-
-  const pcsMatch = html.match(/<strong>Pieces?\s*(?:Per|\/)\s*Box:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i)
-    || html.match(/(\d+)\s*(?:pcs?|pieces?)\s*(?:per|\/)\s*box/i);
-  if (pcsMatch) pkg.piecesPerBox = parseInt(pcsMatch[1]) || null;
-
-  const sqftMatch = html.match(/<strong>(?:Sq\.?\s*Ft\.?|SF|Square Feet)\s*(?:Per|\/)\s*Box:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i)
-    || html.match(/([\d.]+)\s*(?:sf|sq\.?\s*ft\.?)\s*(?:per|\/)\s*box/i);
-  if (sqftMatch) pkg.sqftPerBox = parseFloat(sqftMatch[1]) || null;
-
-  const weightMatch = html.match(/<strong>Weight\s*(?:Per|\/)\s*Box:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i)
-    || html.match(/([\d.]+)\s*(?:lbs?\.?)\s*(?:per|\/)\s*box/i);
-  if (weightMatch) pkg.weightPerBox = parseFloat(weightMatch[1].replace(/[^0-9.]/g, '')) || null;
-
-  const bppMatch = html.match(/<strong>Boxes?\s*(?:Per|\/)\s*Pallet:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i)
-    || html.match(/(\d+)\s*(?:boxes?)\s*(?:per|\/)\s*pallet/i);
-  if (bppMatch) pkg.boxesPerPallet = parseInt(bppMatch[1]) || null;
-
-  const sqftPalletMatch = html.match(/<strong>(?:Sq\.?\s*Ft\.?|SF)\s*(?:Per|\/)\s*Pallet:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i)
-    || html.match(/([\d.,]+)\s*(?:sf|sq\.?\s*ft\.?)\s*(?:per|\/)\s*pallet/i);
-  if (sqftPalletMatch) pkg.sqftPerPallet = parseFloat(sqftPalletMatch[1].replace(/,/g, '')) || null;
-
-  const weightPalletMatch = html.match(/<strong>Weight\s*(?:Per|\/)\s*Pallet:?<\/strong>(?:<br\s*\/?>)?\s*([^<]+)/i)
-    || html.match(/([\d.,]+)\s*(?:lbs?\.?)\s*(?:per|\/)\s*pallet/i);
-  if (weightPalletMatch) pkg.weightPerPallet = parseFloat(weightPalletMatch[1].replace(/[^0-9.]/g, '')) || null;
-
-  return pkg;
-}
-
-/**
- * Parse pricing from the detail page HTML.
- * WooCommerce puts price in <span class="woocommerce-Price-amount">.
- */
-function parsePricing(html) {
-  const result = { retailPrice: null, priceBasis: 'per_sqft' };
-
-  // Cascading price extraction:
-  // 1. WooCommerce price element (legacy pages)
-  const priceMatch = html.match(/class="woocommerce-Price-amount[^"]*"[^>]*>[^$]*\$([\d,.]+)/);
-  if (priceMatch) {
-    result.retailPrice = parseFloat(priceMatch[1].replace(/,/g, '')) || null;
-  }
-
-  // 2. Extract display_price from data-product_variations JSON
-  //    Some "simple" products are rendered as single-variation
-  if (!result.retailPrice) {
-    const varMatch = html.match(/data-product_variations="([^"]+)"/);
-    if (varMatch) {
-      try {
-        let json = varMatch[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#039;/g, "'");
-        const vars = JSON.parse(json);
-        if (Array.isArray(vars) && vars.length > 0 && vars[0].display_price) {
-          result.retailPrice = parseFloat(vars[0].display_price) || null;
-        }
-      } catch { /* ignore parse errors */ }
-    }
-  }
-
-  // 3. JSON-LD structured data (application/ld+json)
-  if (!result.retailPrice) {
-    const ldMatch = html.match(/<script[^>]+type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/i);
-    if (ldMatch) {
-      try {
-        const ld = JSON.parse(ldMatch[1]);
-        const offers = ld.offers || (Array.isArray(ld['@graph']) && ld['@graph'].find(g => g.offers))?.offers;
-        if (offers) {
-          const price = offers.price || offers.lowPrice || (Array.isArray(offers) && offers[0]?.price);
-          if (price) result.retailPrice = parseFloat(price) || null;
-        }
-      } catch { /* ignore parse errors */ }
-    }
-  }
-
-  // 4. data-price attribute on cart form elements
-  if (!result.retailPrice) {
-    const dataPriceMatch = html.match(/data-price="([\d.]+)"/);
-    if (dataPriceMatch) {
-      result.retailPrice = parseFloat(dataPriceMatch[1]) || null;
-    }
-  }
-
-  if (!result.retailPrice) {
-    // Log-worthy: simple product with no pricing found
-    result._noPricing = true;
-  }
-
-  // Check for "per sqft" / "per piece" / "per box" indicator
-  const basisMatch = html.match(/per\s+(sq\.?\s*ft\.?|piece|box|unit|square\s*foot)/i);
-  if (basisMatch) {
-    const raw = basisMatch[1].toLowerCase();
-    if (raw.includes('box')) result.priceBasis = 'per_unit';
-    else if (raw.includes('piece') || raw.includes('unit')) result.priceBasis = 'per_unit';
-    else result.priceBasis = 'per_sqft';
-  }
-
-  return result;
-}
-
-/**
- * Parse sold-by from page content.
- */
-function parseSoldBy(html) {
-  const soldByMatch = html.match(/sold\s+(?:by\s+)?(?:the\s+)?(box|sq\.?\s*ft\.?|piece|square\s*foot|unit)/i);
-  if (soldByMatch) {
-    const raw = soldByMatch[1].toLowerCase();
-    if (raw.includes('box')) return 'box';
-    if (raw.includes('piece') || raw.includes('unit')) return 'unit';
-    return 'box';
-  }
-  return null;
-}
-
-/**
- * Parse stock status from page HTML.
- */
-function parseStockStatus(html) {
-  if (/class=['"][^'"]*in-stock/i.test(html)) return 'In Stock';
-  if (/class=['"][^'"]*out-of-stock/i.test(html)) return 'Out of Stock';
-  if (/class=['"][^'"]*on-backorder/i.test(html)) return 'Backorder';
-  return null;
-}
-
-/**
- * Parse gallery images from aztiles_product_gallery JS variable.
- * Format can be:
- *   - Array of arrays: [[{thumb, medium, zoom}, ...]]  (simple products)
- *   - Object with numeric keys: {"0": [{...},...], "8683": [{...},...]}  (variable products)
- *     Key "0" = shared/product-level images
- *     Other keys = WooCommerce variation_id → per-variant gallery images
- * Items have thumb/medium/zoom keys — prefer zoom (highest res), fallback to medium.
- * URLs contain &amp; HTML entities that need decoding.
- *
- * Returns { flat: [url, ...], shared: [url, ...], byVariationId: { 8683: [url, ...], ... } }
- * - flat: all images combined (used for simple products)
- * - shared: key "0" images (product-level, used when no per-variant images exist)
- * - byVariationId: keyed by WooCommerce variation_id (NOT sequential index)
- */
-function parseGallery(html) {
-  const match = html.match(/aztiles_product_gallery\s*=\s*(\{[\s\S]*?\}|\[[\s\S]*?\]);/);
-  if (!match) return { flat: [], shared: [], byVariationId: {} };
-
-  function extractUrls(items) {
-    const urls = items
-      .map(item => {
-        if (typeof item === 'string') return item;
-        if (typeof item === 'object' && item) {
-          // Prefer zoom (highest res square crop), then medium, then full
-          // Skip full if it's a .tif (400KB+ uncompressed)
-          const full = item.full && !/\.tif(\?|$)/i.test(item.full) ? item.full : null;
-          return item.zoom || item.medium || full || item.thumb || item.url || item.src || null;
-        }
-        return null;
-      })
-      .filter(Boolean)
-      .map(u => reParamWidenUrl(u.replace(/&amp;/g, '&')));
-
-    // Deduplicate by base filename
-    const seen = new Set();
-    const unique = [];
-    for (const url of urls) {
-      const base = url.split('?')[0];
-      if (seen.has(base)) continue;
-      seen.add(base);
-      unique.push(url);
-    }
-    return unique.slice(0, MAX_GALLERY_IMAGES);
-  }
-
-  try {
-    const raw = match[1].replace(/&amp;/g, '&');
-    const gallery = JSON.parse(raw);
-
-    const byVariationId = {};
-    let shared = [];
-    let allItems = [];
-
-    if (Array.isArray(gallery)) {
-      // [[{thumb,medium,zoom},...]] or [{thumb,medium,zoom},...]
-      for (const entry of gallery) {
-        if (Array.isArray(entry)) allItems.push(...entry);
-        else allItems.push(entry);
-      }
-    } else if (typeof gallery === 'object') {
-      // {"0": [{...},...], "8683": [{...},...]} — key 0 is shared, others are variation_ids
-      for (const key of Object.keys(gallery)) {
-        const arr = gallery[key];
-        if (!Array.isArray(arr)) continue;
-        allItems.push(...arr);
-        if (key === '0') {
-          shared = extractUrls(arr);
-        } else {
-          byVariationId[Number(key)] = extractUrls(arr);
-        }
-      }
-    }
-
-    return { flat: extractUrls(allItems), shared, byVariationId };
-  } catch {
-    return { flat: [], shared: [], byVariationId: {} };
-  }
-}
-
-/**
- * Parse variations from data-product_variations attribute.
- * The JSON is double HTML-encoded on the page.
- */
-function parseVariations(html) {
-  const match = html.match(/data-product_variations="([^"]+)"/);
-  if (!match) return [];
-
-  try {
-    let json = match[1];
-    json = htmlDecode(json);
-    json = htmlDecode(json);
-    return JSON.parse(json);
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Upsert all spec + technical spec attributes for a SKU.
- */
-async function upsertAllSpecAttributes(pool, skuId, specs, technicalSpecs, { skipFinish = false } = {}) {
-  // General specs → attribute slugs
-  // Note: 'colors' (Stocked Colors) is intentionally excluded — it lists all
-  // colors in the collection, not the SKU's actual color.  The accurate color
-  // comes from attribute_pa_color on each variation.
-  const specMap = {
-    type: 'material',
-    countryOfOrigin: 'country',
-    finish: 'finish',
-    thickness: 'thickness',
-    application: 'application',
-    edge: 'edge',
-    look: 'look',
-  };
-  for (const [specKey, attrSlug] of Object.entries(specMap)) {
-    if (!specs[specKey]) continue;
-    // "Stocked Finish(es)" has the same hazard as Stocked Colors: it lists every
-    // finish in the collection (e.g. "Honed (H), Polished (P)"), not this SKU's
-    // finish. Never overwrite a variation-supplied finish with it, and never
-    // write a multi-finish list at all — only a single finish (markers stripped).
-    if (attrSlug === 'finish') {
-      if (skipFinish) continue;
-      const single = specs[specKey].replace(/\s*\([A-Z]\)/g, '').trim();
-      if (single.includes(',')) continue;
-      await upsertSkuAttribute(pool, skuId, 'finish', single);
-      continue;
-    }
-    await upsertSkuAttribute(pool, skuId, attrSlug, specs[specKey]);
-  }
-
-  // Technical specs → attribute slugs
-  const techMap = {
-    peiRating: 'pei_rating',
-    shadeVariation: 'shade_variation',
-    waterAbsorption: 'water_absorption',
-    dcof: 'dcof',
-    breakingStrength: 'breaking_strength',
-    frostResistant: 'frost_resistant',
-    abrasionResistance: 'abrasion_resistance',
-    mohs: 'mohs',
-    stainingResistance: 'staining_resistance',
-    thermalShock: 'thermal_shock',
-  };
-  for (const [techKey, attrSlug] of Object.entries(techMap)) {
-    if (technicalSpecs[techKey]) await upsertSkuAttribute(pool, skuId, attrSlug, technicalSpecs[techKey]);
-  }
-}
-
-/**
- * Parse color swatch images from the detail page.
- * These are per-color product photos (e.g., "Aequa-Castor-12x48-variation.webp")
- * displayed as clickable color option buttons.
- *
- * Structure: <span class="...color-variation..." data-parent-id="pa_color" data-value="castor" ...>
- *              <i><img src="..." alt="Castor"></i>
- *            </span>
- *
- * Returns Map<colorSlug, imageUrl>
- */
-function parseSwatchImages(html) {
-  const swatches = new Map();
-  // Match color-variation spans with data-parent-id="pa_color" and data-value, then find inner img src
-  const regex = /data-parent-id="pa_color"[^>]*data-value="([^"]+)"[^>]*>[\s\S]*?<img[^>]+src="([^"]+)"/gi;
-  let match;
-  while ((match = regex.exec(html)) !== null) {
-    const colorSlug = match[1].trim();
-    const url = htmlDecode(match[2]);
-    if (url && colorSlug && !url.includes('placeholder') && !url.includes('Line-Art')) {
-      swatches.set(colorSlug, url);
-    }
-  }
-  // Also try reverse attribute order: data-value before data-parent-id
-  const regex2 = /data-value="([^"]+)"[^>]*data-parent-id="pa_color"[^>]*>[\s\S]*?<img[^>]+src="([^"]+)"/gi;
-  while ((match = regex2.exec(html)) !== null) {
-    const colorSlug = match[1].trim();
-    const url = htmlDecode(match[2]);
-    if (url && colorSlug && !swatches.has(colorSlug) && !url.includes('placeholder') && !url.includes('Line-Art')) {
-      swatches.set(colorSlug, url);
-    }
-  }
-  return swatches;
-}
-
-/**
- * Decode HTML entities (named and numeric).
- */
-function htmlDecode(str) {
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/')
-    .replace(/&apos;/g, "'")
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
-}
-
-/**
- * Clean attribute value slug (e.g., "matte-finish" → "Matte Finish").
- * Uses deslugify for proper fraction handling.
- */
-function cleanAttrValue(slug) {
-  return deslugify(slug);
-}
-
-/**
- * Strip HTML tags from a string.
- */
-function stripTags(str) {
-  return htmlDecode(str.replace(/<[^>]+>/g, ''));
 }

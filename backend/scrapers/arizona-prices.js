@@ -9,6 +9,38 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(__dirname, '..', 'data', 'arizona');
 
 /**
+ * Resolve column indices by header name so price-list layout shifts between
+ * versions (inserted blank/arrow columns, extra notes) don't silently read the
+ * wrong column. `spec` maps a logical field → array of accepted header labels
+ * (lowercased, exact match preferred over substring). `fallback` gives the
+ * legacy fixed indices + implies the data-start row. Returns { ...indices,
+ * _dataStart } where _dataStart is the row after the detected header (or the
+ * fallback's +1 if no header row is found).
+ */
+function resolveColumns(data, spec, fallback) {
+  const norm = (v) => String(v == null ? '' : v).trim().toLowerCase();
+  // Find the header row: the first row that contains the 'item' label.
+  const itemLabels = spec.item || ['item'];
+  let headerRow = -1;
+  for (let i = 0; i < Math.min(data.length, 12); i++) {
+    const row = data[i] || [];
+    if (row.some((c) => itemLabels.includes(norm(c)))) { headerRow = i; break; }
+  }
+  const out = { _dataStart: headerRow >= 0 ? headerRow + 1 : (fallback._dataStart ?? 3) };
+  const header = headerRow >= 0 ? data[headerRow].map(norm) : null;
+  for (const [field, labels] of Object.entries(spec)) {
+    let idx = -1;
+    if (header) {
+      idx = header.findIndex((h) => labels.includes(h));            // exact
+      if (idx < 0) idx = header.findIndex((h) => h && labels.some((l) => h === l)); // redundant guard
+      if (idx < 0) idx = header.findIndex((h) => h && labels.some((l) => h.startsWith(l))); // prefix
+    }
+    out[field] = idx >= 0 ? idx : fallback[field];
+  }
+  return out;
+}
+
+/**
  * Normalize an item description string into a lookup key.
  * Strips parenthesized notes (R11), (2CM), (SLIP-RESISTANT), commas, and excess whitespace.
  * Returns uppercase with size dimensions like "12X48".
@@ -228,20 +260,30 @@ function loadQuartzPrices() {
   const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
   const map = new Map();
 
-  // Header row 2: Item, Group, Note, Gauge, Size, SF/Slab, Status, Each, SF
-  for (let i = 3; i < data.length; i++) {
+  // Header-driven column resolution: the "Each" and "SF" price columns have
+  // shifted between price-list versions (e.g. the 09-01-26 sheet inserted a
+  // blank change-arrow column, pushing Each 7→8 and SF 8→9). Locate the header
+  // row by its "Item" label and map columns by name so future shifts can't
+  // silently read the wrong column. Falls back to the legacy indices.
+  const cols = resolveColumns(data, {
+    item: ['item'], group: ['group'], gauge: ['gauge'], size: ['size'],
+    sfPerSlab: ['sf/slab', 'sf / slab'], status: ['status'],
+    each: ['each'], sf: ['sf'],
+  }, { item: 0, group: 1, gauge: 3, size: 4, sfPerSlab: 5, status: 6, each: 7, sf: 8 });
+
+  for (let i = cols._dataStart; i < data.length; i++) {
     const row = data[i];
-    if (!row || !row[0] || typeof row[0] !== 'string') continue;
-    const itemId = row[0].trim();
+    if (!row || !row[cols.item] || typeof row[cols.item] !== 'string') continue;
+    const itemId = row[cols.item].trim();
     if (!itemId || /^(STANDARD|PREMIUM|SUPER PREMIUM|ULTRA)/i.test(itemId)) continue;
 
-    const group = row[1] || '';
-    const gauge = row[3] || '';
-    const size = row[4] || '';
-    const sfPerSlab = parseFloat(row[5]) || null;
-    const status = row[6] || '';
-    const eachPrice = parseFloat(String(row[7]).replace(/[↓↑\s$]/g, '')) || null;
-    const sfPrice = parseFloat(String(row[8]).replace(/[↓↑\s$]/g, '')) || null;
+    const group = row[cols.group] || '';
+    const gauge = row[cols.gauge] || '';
+    const size = row[cols.size] || '';
+    const sfPerSlab = parseFloat(row[cols.sfPerSlab]) || null;
+    const status = row[cols.status] || '';
+    const eachPrice = parseFloat(String(row[cols.each]).replace(/[↓↑\s$]/g, '')) || null;
+    const sfPrice = parseFloat(String(row[cols.sf]).replace(/[↓↑\s$]/g, '')) || null;
 
     if (!sfPrice && !eachPrice) continue;
 
