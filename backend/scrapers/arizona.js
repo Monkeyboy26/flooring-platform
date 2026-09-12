@@ -532,6 +532,22 @@ export async function run(pool, job, source) {
         // Resolve PIM category — score all AZ categories and pick highest priority
         let { categoryId, pimCatSlug } = resolveBestCategory(apiProduct, azCategoryMap, categoryLookup);
 
+        // ── 3D wall-tile body split (ceramic vs porcelain) ──
+        // AZ's 3D dimensional wall-tile subcategory (porcelain-and-ceramic-3d-tile)
+        // mixes ceramic and porcelain series, but AZ's generic 'porcelain-and-ceramic'
+        // tag lumps them all to porcelain-tile. Split on the parsed body/material spec:
+        // "...Porcelain" stays porcelain; white/red-body is ceramic. (3D & Contour =
+        // "Rectified White Body" → ceramic; Curve = "...Color Body Porcelain" → porcelain.)
+        if (pimCatSlug === 'porcelain-tile'
+            && categoryLookup.has('ceramic-tile')
+            && apiProduct.categoryIds.some(id => azCategoryMap.get(id)?.slug === 'porcelain-and-ceramic-3d-tile')) {
+          const body = (detail.specs?.type || '').toLowerCase();
+          if (body && !body.includes('porcelain')) {
+            categoryId = categoryLookup.get('ceramic-tile');
+            pimCatSlug = 'ceramic-tile';
+          }
+        }
+
         // Save pre-guard category state for variant-level format splitting
         const originalFormatSlug = FORMAT_CATS.has(pimCatSlug) ? pimCatSlug : null;
         const originalSlabSlug = SLAB_CATEGORIES.has(pimCatSlug) ? pimCatSlug : null;
