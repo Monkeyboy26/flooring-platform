@@ -82,6 +82,19 @@ const ITEMS = [
   // trim / accessories (per piece)
   ['Atlas Trim','trim',[['0.5x12','Grey',5.00]]],
   ['Beluga Trim','trim',[['0.5x12','',5.00]]],
+  // deferred batch (2026-09-11): brick/ledger/deco field tiles + quarry trim + 2 mosaics
+  ['Ladrilo','porc',[['3x11','Avila',3.15],['3x11','Valencia',3.15],['6x12','Multicolor Slate',3.19]]],
+  ['Ledger','wall',[['6x12','Gold',3.19],['6x12','Grey',3.19]]],
+  ['Atlas Deco','porc',[['24x48','Grey',4.70],['24x48','Sky',4.70],['24x48','Snow',4.70]]],
+  ['Muralla','porc',[['3x11','Mezquita',3.35]]],
+  ['Golden Ambra','porc',[['24x48','Golden',2.19]]],
+  ['Avenue','wood',[['8x8','Rock',3.39],['8x48','Brown',3.49]]],
+  ['Sima Quarry','trim',[['6x6','SBN',3.19],['6x6','DBN',3.69]]],
+  ['Quarry Cove Base Corners','trim',[['','',6.20]]],
+  ['Augusta Colosseo Deco','trim',[['24x48','Decoro',80.00]]],
+  ['Inter Penny','mos',[['12x12','Black',7.29]]],
+  ['Inter Chelsea','mos',[['','Herringbone',7.29]]],
+  ['Mocha','wall',[['12x36','Wave',1.99],['12x36','Flat',1.99]]],
 ];
 
 async function main(){
