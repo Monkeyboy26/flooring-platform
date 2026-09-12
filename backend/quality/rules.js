@@ -730,7 +730,7 @@ export const RULES = [
           AND s.sell_by = 'unit' AND pr.price_basis = 'per_unit'
           AND s.variant_type IS DISTINCT FROM 'accessory'
           AND pk.sqft_per_box > 0 AND pk.sqft_per_box < 2.5
-          AND c.slug IN ('porcelain-tile','ceramic-tile','wood-look-tile','large-format-tile','backsplash-wall','mosaic-tile')
+          AND c.slug IN ('porcelain-tile','ceramic-tile','wood-look-tile','large-format-tile','backsplash-wall')
           AND (COALESCE(s.variant_name,'')||' '||p.name) ~ '[0-9]+(\\.[0-9]+)?x[0-9]+'
           AND (COALESCE(s.variant_name,'')||' '||p.name) !~* '${SKIP}'
       `, [vendorId]);

@@ -263,13 +263,17 @@ export function parsePricing(html) {
     result._noPricing = true;
   }
 
-  // Check for "per sqft" / "per piece" / "per box" indicator
+  // Check for "per sqft" / "per piece" / "per box" indicator.
+  // NOTE: this priceBasis is currently ADVISORY ONLY — arizona.js sources
+  // price_basis exclusively from the price list (planFromPriceList), never from
+  // this parse. Kept canonical anyway so it can't reintroduce a non-canonical
+  // pair if ever wired in: a box-sold covering good is per_sqft in this platform
+  // (box+per_sqft), NOT per_unit — only genuinely piece/unit goods are per_unit.
   const basisMatch = html.match(/per\s+(sq\.?\s*ft\.?|piece|box|unit|square\s*foot)/i);
   if (basisMatch) {
     const raw = basisMatch[1].toLowerCase();
-    if (raw.includes('box')) result.priceBasis = 'per_unit';
-    else if (raw.includes('piece') || raw.includes('unit')) result.priceBasis = 'per_unit';
-    else result.priceBasis = 'per_sqft';
+    if (raw.includes('piece') || raw.includes('unit')) result.priceBasis = 'per_unit';
+    else result.priceBasis = 'per_sqft'; // "box" and "sq ft" → per_sqft
   }
 
   return result;

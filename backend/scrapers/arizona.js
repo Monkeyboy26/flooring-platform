@@ -946,7 +946,7 @@ export async function run(pool, job, source) {
                 variant_name: variantName,
                 sell_by: sellBy,
                 ...(accessory && { variant_type: 'accessory' }),
-              });
+              }, { sellByAuthoritative: !!plPlan });
               if (sku.is_new) stats.skusCreated++;
 
               // ── Pricing: price list only (no WC fallback — "Call for Price" if no match) ──
@@ -1163,7 +1163,7 @@ export async function run(pool, job, source) {
               variant_name: null,
               sell_by: sellBy,
               ...(accessory && { variant_type: 'accessory' }),
-            });
+            }, { sellByAuthoritative: !!plPlan });
             if (sku.is_new) stats.skusCreated++;
 
             // ── Pricing: price list only (no WC fallback — "Call for Price" if no match) ──

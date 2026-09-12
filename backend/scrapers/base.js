@@ -533,6 +533,13 @@ export async function upsertSku(pool, rawData, opts = {}) {
   }
 
   const { product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type } = cleaned;
+  // sell_by is AUTHORITATIVE by default (incoming value wins on update). Pass
+  // opts.sellByAuthoritative=false when the incoming sell_by is only a weak
+  // category heuristic (e.g. Arizona's resolveSellBy fallback when a SKU doesn't
+  // match the price list): then a rescrape must NOT clobber an existing curated
+  // sell_by (a mesh sheet hand-set to unit/per_unit would otherwise revert to
+  // the category default 'box' every run). New rows still seed the heuristic.
+  const sellByAuthoritative = opts.sellByAuthoritative !== false;
   const result = await pool.query(`
     INSERT INTO skus (product_id, vendor_sku, internal_sku, variant_name, sell_by, variant_type)
     VALUES ($1, $2, $3, $4, $5, $6)
@@ -549,11 +556,12 @@ export async function upsertSku(pool, rawData, opts = {}) {
         THEN skus.variant_name
         ELSE COALESCE(EXCLUDED.variant_name, skus.variant_name)
       END,
-      sell_by = COALESCE(EXCLUDED.sell_by, skus.sell_by),
+      sell_by = CASE WHEN $7 THEN COALESCE(EXCLUDED.sell_by, skus.sell_by)
+                     ELSE skus.sell_by END,
       variant_type = EXCLUDED.variant_type,
       updated_at = CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
-  `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'box', variant_type || null]);
+  `, [product_id, vendor_sku, internal_sku, variant_name || null, sell_by || 'box', variant_type || null, sellByAuthoritative]);
 
   const row = result.rows[0];
   // When a SKU moves to a new product, clean up orphaned media_assets from the old product
