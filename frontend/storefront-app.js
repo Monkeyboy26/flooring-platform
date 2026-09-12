@@ -4799,7 +4799,7 @@
     } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.75" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })), /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Search", readOnly: true, "aria-label": "Search products", onFocus: () => {
       onClose();
       onOpenSearch && onOpenSearch();
-    } })), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-eyebrow" }, "Shop"), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-links" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    } })), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-links mobile-nav-links--top" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       goHome();
       onClose();
@@ -4807,7 +4807,11 @@
       e.preventDefault();
       goBrowse();
       onClose();
-    } }, "Shop All"), parentCats.map((cat) => {
+    } }, "Shop All"), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+      e.preventDefault();
+      goCollections();
+      onClose();
+    } }, "Collections"), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-cat-item" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-cat-header", onClick: () => setActiveSub(SERVICES), "aria-label": "Services" }, /* @__PURE__ */ React.createElement("span", null, "Services"), chevronRight))), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-eyebrow" }, "Shop"), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-links" }, parentCats.map((cat) => {
       const children = childrenOf(cat);
       if (children.length === 0) {
         return /* @__PURE__ */ React.createElement("a", { key: cat.id, href: "#", onClick: (e) => {
@@ -4817,11 +4821,7 @@
         } }, cat.name);
       }
       return /* @__PURE__ */ React.createElement("div", { key: cat.id, className: "mobile-nav-cat-item" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-cat-header", onClick: () => setActiveSub(cat), "aria-label": cat.name + " subcategories" }, /* @__PURE__ */ React.createElement("span", null, cat.name), chevronRight));
-    }), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
-      e.preventDefault();
-      goCollections();
-      onClose();
-    } }, "Collections"), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-cat-item" }, /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-cat-header", onClick: () => setActiveSub(SERVICES), "aria-label": "Services" }, /* @__PURE__ */ React.createElement("span", null, "Services"), chevronRight))), !tradeCustomer && /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-trade-cta", href: "#", onClick: (e) => {
+    })), !tradeCustomer && /* @__PURE__ */ React.createElement("a", { className: "mobile-nav-trade-cta", href: "#", onClick: (e) => {
       e.preventDefault();
       goTrade();
       onClose();

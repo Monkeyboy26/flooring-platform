@@ -5714,11 +5714,21 @@
                   <input type="text" placeholder="Search" readOnly aria-label="Search products" onFocus={() => { onClose(); onOpenSearch && onOpenSearch(); }} />
                 </div>
 
+                <div className="mobile-nav-links mobile-nav-links--top">
+                  <a href="#" onClick={e => { e.preventDefault(); goHome(); onClose(); }}>Home</a>
+                  <a href="#" onClick={e => { e.preventDefault(); goBrowse(); onClose(); }}>Shop All</a>
+                  <a href="#" onClick={e => { e.preventDefault(); goCollections(); onClose(); }}>Collections</a>
+                  <div className="mobile-nav-cat-item">
+                    <button className="mobile-nav-cat-header" onClick={() => setActiveSub(SERVICES)} aria-label="Services">
+                      <span>Services</span>
+                      {chevronRight}
+                    </button>
+                  </div>
+                </div>
+
                 <div className="mobile-nav-eyebrow">Shop</div>
 
                 <div className="mobile-nav-links">
-                  <a href="#" onClick={e => { e.preventDefault(); goHome(); onClose(); }}>Home</a>
-                  <a href="#" onClick={e => { e.preventDefault(); goBrowse(); onClose(); }}>Shop All</a>
                   {parentCats.map(cat => {
                     const children = childrenOf(cat);
                     if (children.length === 0) {
@@ -5735,13 +5745,6 @@
                       </div>
                     );
                   })}
-                  <a href="#" onClick={e => { e.preventDefault(); goCollections(); onClose(); }}>Collections</a>
-                  <div className="mobile-nav-cat-item">
-                    <button className="mobile-nav-cat-header" onClick={() => setActiveSub(SERVICES)} aria-label="Services">
-                      <span>Services</span>
-                      {chevronRight}
-                    </button>
-                  </div>
                 </div>
 
                 {!tradeCustomer && (

@@ -2719,8 +2719,9 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 /* Eyebrow label above the link list */
 .mobile-nav-eyebrow { padding: 1.375rem 1.5rem 0.625rem; font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.18em; color: var(--stone-500); }
 
-/* Link list */
+/* Link list — non-category links sit in a --top group above the "Shop" eyebrow */
 .mobile-nav-links { flex: 1; }
+.mobile-nav-links--top { flex: 0 0 auto; }
 .mobile-nav-links > a { display: flex; align-items: center; min-height: 48px; padding: 0.75rem 1.5rem; font-family: var(--font-heading); font-size: 1.1875rem; font-weight: 400; letter-spacing: 0.01em; color: var(--stone-900); text-decoration: none; cursor: pointer; border-bottom: 1px solid rgba(120,113,108,0.16); transition: color 0.15s; }
 .mobile-nav-links > a:hover, .mobile-nav-links > a:active { color: var(--gold-dark); }
 
