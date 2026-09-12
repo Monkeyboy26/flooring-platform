@@ -109,7 +109,7 @@ function slugify(text) {
 
 const VALID_PRODUCT_STATUSES = ['draft', 'active', 'inactive', 'discontinued'];
 const VALID_SKU_STATUSES = ['active', 'draft', 'inactive'];
-const VALID_SELL_BY = ['box', 'unit', 'roll'];
+const VALID_SELL_BY = ['box', 'unit', 'roll', 'sqft'];
 const VALID_VARIANT_TYPES = [null, 'accessory', 'floor_tile', 'wall_tile', 'mosaic', 'lvt', 'quarry_tile', 'stone_tile', 'floor_deco'];
 const VALID_PRICE_BASIS = ['per_sqft', 'per_unit', 'per_sqyd'];
 // Legacy labels some feeds/importers still emit — canonicalize instead of

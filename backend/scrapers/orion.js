@@ -111,7 +111,12 @@ export const SLAB_MATERIAL = {
   'feline crystal': 'quartzite', 'nebulato azul': 'quartzite', 'siberia': 'quartzite',
   'waterfall': 'quartzite', 'lunar': 'quartzite', 'alpine': 'quartzite',
   'multifios bidese': 'quartzite', 'multifios breton': 'quartzite', 'multifios hedel': 'quartzite',
+  // website slabs added 2026-09-11 (owner-review pending): Botanic Green is
+  // labeled quartzite on its own page; Ijen Blue & Camelot are quartzites.
+  // Lumen left unmapped → defaults to porcelain-slabs until confirmed.
+  'botanic green': 'quartzite', 'ijen blue': 'quartzite', 'camelot': 'quartzite',
   // granite
+  'azul imperial': 'granite',
   'natural granite': 'granite', 'nilo': 'granite', 'orinoco': 'granite',
   'titanium': 'granite', 'delicattus': 'granite', 'brown persa': 'granite',
   'black raj': 'granite', 'blue eagle': 'granite', 'tempest blue': 'granite',
@@ -130,10 +135,10 @@ export const COUNTERTOP_SLUGS = new Set(['porcelain-slabs', 'marble-countertops'
   'quartzite-countertops', 'granite-countertops', 'quartz-countertops',
   'soapstone-countertops']);
 
-// Orion's real slab pages all live at *-slab-natural-stone-countertop URLs —
-// the authoritative slab signal, checked before any name-based rule so
-// same-named tile twins can't hijack them (and vice versa).
-const SLAB_URL_RE = /slab-natural-stone-countertop/;
+// Orion's real slab pages live at *-slab-natural-stone(-countertop) and
+// *-quartzite-slabs-countertops URLs — the authoritative slab signal, checked
+// before any name-based rule so same-named tile twins can't hijack them.
+const SLAB_URL_RE = /slab-natural-stone|quartzite-slab/;
 
 // Material → PIM Countertops leaf slug.
 export const MATERIAL_CATEGORY = {
@@ -508,7 +513,7 @@ const PRICE_LIST_PATTERNS = [
   'EKALI NOIR', 'ELEGANCE WHITE', 'ESSENTIAL', 'ETE ET SERENA',
   'FELINE', 'FELINE CRYSTAL', 'FROST CZ', 'FUSION',
   'GABANA', 'GARE WHITE', 'GERY', 'GOLD MACAUBAS', 'GVX DESERT SILVER',
-  'HEISINKI', 'HORTON WHITE', 'HOUSTON',
+  'HELSINKI', 'HORTON WHITE', 'HOUSTON',
   'IKON AMBER', 'ILLUSION SNOW', 'IVORY',
   'JET ANTRACITA', 'JTF962861', 'JTF962901', 'JTF98007', 'JUNGLE BLANCO',
   'KM BLANCO', 'KOMI NOCE',
@@ -528,7 +533,10 @@ const PRICE_LIST_PATTERNS = [
   'PALMA', 'PAMESA CREMA MARFIL', 'PEDRE', 'PERLA SANTANA', 'PISA GOLD', 'PLATINO',
   'QUARTZITO AZUL',
   'REVERSE', 'RIGID CORE', 'ROMA', 'ROSSO VERONA', 'RUBY FUSION',
-  'SCARLET BLACK', 'SCARLET BLLE', 'SCARLET WHITE',
+  'SCARLET BLACK', 'SCARLET BLUE', 'SCARLET WHITE',
+  // Website slabs added after the Q4-2025 list (owner 2026-09-11) that the
+  // allowlist was silently dropping — confirmed present on orionflooring.com.
+  'AZUL IMPERIAL', 'BOTANIC GREEN', 'CAMELOT', 'IJEN BLUE', 'LUMEN', 'ONI BLUE',
   'SEGESTA IVORY', 'SEQUOIA MAXI', 'SERENE', 'SIBERIA',
   'SILKE BLANCO', 'SILKE GRIS', 'SPARK BLANCO',
   'STAR EMERALD', 'STAR INDIGO', 'STAR PURPLE',
@@ -1269,7 +1277,12 @@ export async function run(pool, job, source) {
     // ════════════════════════════════════════════
 
     await appendLog(pool, job.id, 'Fetching product sitemap...');
-    const productUrls = await getProductUrls(page, baseUrl);
+    // Targeted run override: config.onlyUrls scrapes just those product URLs
+    // (used to add specific products without a full re-scrape). Falls back to
+    // the full sitemap when unset.
+    const productUrls = (Array.isArray(config.onlyUrls) && config.onlyUrls.length)
+      ? config.onlyUrls
+      : await getProductUrls(page, baseUrl);
     stats.found = productUrls.length;
     await appendLog(pool, job.id, `Found ${productUrls.length} product URLs in sitemap`, {
       products_found: productUrls.length,
