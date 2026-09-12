@@ -8891,11 +8891,18 @@
                   }
                   (collectionAttributes.finish.values || []).forEach(fn => {
                     if (existingFinishes.has(fn)) return;
-                    // Check same-product siblings first (e.g. Tasman has 24x48 Tech Polished)
-                    const sameProductMatch = mainSiblings.find(s => {
+                    // Check same-product siblings first (e.g. Tasman has 24x48 Tech Polished),
+                    // preferring one that keeps the current size — the first sibling in API
+                    // order can be a different format entirely (Reves Jade 12x24 Glossy →
+                    // Matte must land on 12x24 Matte, not the 12x12 mosaic listed first).
+                    const _fnSibs = mainSiblings.filter(s => {
                       const fAttr = (s.attributes || []).find(a => a.slug === 'finish');
                       return fAttr && fAttr.value === fn;
                     });
+                    const sameProductMatch = (curSize && _fnSibs.find(s => {
+                      const sAttr = (s.attributes || []).find(a => a.slug === 'size');
+                      return sAttr && normalizeSize(sAttr.value) === normalizeSize(curSize);
+                    })) || _fnSibs[0];
                     if (sameProductMatch) {
                       collectionFinishItems.push({ label: fn, sku_id: sameProductMatch.sku_id, is_current: false });
                       return;
