@@ -2690,59 +2690,54 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .footer-bottom-links a:hover { color: var(--stone-300); }
 .footer-bottom-links span { font-size: 11px; color: var(--stone-600); }
 
-/* ── MOBILE NAV DRAWER (two-level push) ── */
+/* ── MOBILE NAV DRAWER (accordion) ── */
 .mobile-nav-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: calc(var(--z-overlay) - 100); opacity: 0; pointer-events: none; transition: opacity var(--transition-base); }
 .mobile-nav-overlay.open { opacity: 1; pointer-events: auto; }
 .mobile-nav { position: fixed; top: 0; left: 0; bottom: 0; width: 340px; max-width: 86vw; background: var(--warm-bg); z-index: calc(var(--z-overlay) - 99); transform: translateX(-100%); transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); overflow: hidden; display: flex; flex-direction: column; }
 .mobile-nav.open { transform: translateX(0); }
 
-/* Header — title at root, back-affordance in a sub-panel */
+/* Header */
 .mobile-nav-head { display: flex; justify-content: space-between; align-items: center; height: 60px; padding: 0 0.5rem 0 1.375rem; border-bottom: 0.5px solid rgba(28,25,23,0.12); flex-shrink: 0; }
 .mobile-nav-title { font-family: var(--font-heading); font-size: 1.5rem; font-weight: 500; letter-spacing: 0.01em; color: var(--stone-900); }
-.mobile-nav-back { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0.5rem 0.5rem 0.5rem 0; background: none; border: none; cursor: pointer; font-family: var(--font-heading); font-size: 1.125rem; font-weight: 500; color: var(--stone-900); }
-.mobile-nav-back svg { width: 20px; height: 20px; }
 .mobile-nav-close { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: none; border: none; color: var(--stone-500); cursor: pointer; }
 .mobile-nav-close svg { width: 22px; height: 22px; }
 
-/* Sliding track: two full-width panels; shift left one panel-width to reveal the sub-panel */
-.mobile-nav-track { flex: 1; display: flex; width: 200%; min-height: 0; transform: translateX(0); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-.mobile-nav-track.show-sub { transform: translateX(-50%); }
-.mobile-nav-panel { flex: 0 0 50%; width: 50%; min-height: 0; display: flex; flex-direction: column; }
-.mobile-nav-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0.5rem 0; }
-
-/* Search entry */
-.mobile-nav-search { display: flex; align-items: center; gap: 0.625rem; width: calc(100% - 2.75rem); margin: 0.75rem 1.375rem 0.5rem; padding: 0.8125rem 1rem; background: rgba(28,25,23,0.03); border: 0.5px solid rgba(28,25,23,0.13); border-radius: 999px; color: var(--stone-500); font-family: var(--font-body); font-size: 0.9375rem; text-align: left; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s; }
+/* Search entry — a pill that opens the full-screen search overlay (also renders a <form><input> the same way) */
+.mobile-nav-search { display: flex; align-items: center; gap: 0.625rem; width: calc(100% - 2.75rem); margin: 0.75rem 1.375rem 0.5rem; padding: 0.8125rem 1rem; background: rgba(28,25,23,0.03); border: 0.5px solid rgba(28,25,23,0.13); border-radius: 999px; color: var(--stone-500); font-family: var(--font-body); font-size: 0.9375rem; text-align: left; cursor: pointer; flex-shrink: 0; transition: border-color 0.15s, color 0.15s, background 0.15s; }
 .mobile-nav-search svg { width: 18px; height: 18px; flex-shrink: 0; }
+.mobile-nav-search input { flex: 1; min-width: 0; padding: 0; border: none; background: none; outline: none; font-family: inherit; font-size: inherit; color: var(--stone-700); }
+.mobile-nav-search input::placeholder { color: var(--stone-500); }
 .mobile-nav-search:hover { border-color: var(--stone-300); color: var(--stone-700); }
 
-/* Rows — links and parent (drill-in) buttons share one comfortable tap target */
-.mobile-nav-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; width: 100%; min-height: 46px; padding: 0.625rem 1.375rem; font-family: var(--font-body); font-size: 0.9375rem; color: var(--stone-700); text-decoration: none; background: none; border: none; text-align: left; cursor: pointer; transition: background 0.15s, color 0.15s; }
-.mobile-nav-row > span:not(.mobile-nav-row-count) { flex: 1; min-width: 0; }
-.mobile-nav-row:hover, .mobile-nav-row:active { background: rgba(28,25,23,0.035); }
-.mobile-nav-row svg { width: 18px; height: 18px; color: var(--stone-300); flex-shrink: 0; }
-.mobile-nav-row-label { flex: 1; min-width: 0; }
-.mobile-nav-row-count { font: 500 11px/1 ui-monospace, SFMono-Regular, monospace; color: var(--stone-400); flex-shrink: 0; }
+/* Eyebrow label above the link list */
+.mobile-nav-eyebrow { flex-shrink: 0; font: 500 10px/1 ui-monospace, SFMono-Regular, monospace; letter-spacing: 0.18em; text-transform: uppercase; color: var(--stone-400); padding: 1rem 1.375rem 0.5rem; }
 
-/* Category rows — editorial serif name */
-.mobile-nav-row--cat { min-height: 50px; }
-.mobile-nav-row--cat .mobile-nav-row-label { font-family: var(--font-heading); font-size: 1.125rem; font-weight: 400; letter-spacing: 0.01em; color: var(--stone-900); transition: color 0.15s; }
-.mobile-nav-row--cat:hover .mobile-nav-row-label { color: var(--gold-dark); }
-.mobile-nav-row--cat + .mobile-nav-row--cat { border-top: 0.5px solid rgba(28,25,23,0.05); }
+/* Scrollable link list — the flexible middle region of the drawer */
+.mobile-nav-links { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 0.5rem; }
+.mobile-nav-links > a { display: flex; align-items: center; min-height: 48px; padding: 0.625rem 1.375rem; font-family: var(--font-heading); font-size: 1.125rem; font-weight: 400; letter-spacing: 0.01em; color: var(--stone-900); text-decoration: none; cursor: pointer; transition: color 0.15s, background 0.15s; }
+.mobile-nav-links > a:hover, .mobile-nav-links > a:active { background: rgba(28,25,23,0.035); color: var(--gold-dark); }
 
-/* "All {Category}" — gold action row at the top of a sub-panel */
-.mobile-nav-row--all { min-height: 52px; margin-bottom: 0.25rem; border-bottom: 0.5px solid rgba(28,25,23,0.07); }
-.mobile-nav-row--all .mobile-nav-row-label { font-family: var(--font-heading); font-size: 1rem; font-weight: 500; color: var(--gold-dark); }
-.mobile-nav-row--all svg { color: var(--gold); }
+/* Category accordion — tap the header to reveal children in place */
+.mobile-nav-cat-item { border-top: 0.5px solid rgba(28,25,23,0.05); }
+.mobile-nav-links > a + .mobile-nav-cat-item, .mobile-nav-cat-item:first-child { border-top: none; }
+.mobile-nav-cat-header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; width: 100%; min-height: 50px; padding: 0.625rem 1.375rem; background: none; border: none; text-align: left; cursor: pointer; font-family: var(--font-heading); font-size: 1.125rem; font-weight: 400; letter-spacing: 0.01em; color: var(--stone-900); transition: color 0.15s, background 0.15s; }
+.mobile-nav-cat-header:hover, .mobile-nav-cat-header.open { color: var(--gold-dark); }
+.mobile-nav-cat-header > span { flex: 1; min-width: 0; }
+.mobile-nav-cat-header svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--stone-400); transition: transform 0.2s ease; }
+.mobile-nav-cat-header.open svg { transform: rotate(180deg); }
+.mobile-nav-cat-children { padding: 0.125rem 0 0.625rem; }
+.mobile-nav-cat-children a { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 42px; padding: 0.4rem 1.375rem 0.4rem 1.875rem; font-family: var(--font-body); font-size: 0.9375rem; color: var(--stone-600); text-decoration: none; cursor: pointer; transition: color 0.15s, background 0.15s; }
+.mobile-nav-cat-children a:hover, .mobile-nav-cat-children a:active { background: rgba(28,25,23,0.035); color: var(--gold-dark); }
+.mobile-nav-cat-children a .mobile-nav-row-count { font: 500 11px/1 ui-monospace, SFMono-Regular, monospace; color: var(--stone-400); flex-shrink: 0; }
 
-.mobile-nav-section-label { font: 500 10px/1 ui-monospace, SFMono-Regular, monospace; letter-spacing: 0.18em; text-transform: uppercase; color: var(--stone-400); padding: 1.125rem 1.375rem 0.625rem; }
-
-/* Footer (root panel only) */
-.mobile-nav-footer { flex-shrink: 0; padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--stone-200); }
-.mobile-nav-trade-cta { display: block; margin: 0 0 0.875rem; padding: 0.9375rem; background: var(--gold); color: white; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.6875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.16em; text-align: center; text-decoration: none; cursor: pointer; transition: background var(--transition-base); }
+/* Footer — trade CTA sits above the account block */
+.mobile-nav-trade-cta { flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin: 0.75rem 1.25rem; padding: 0.9375rem; background: var(--gold); color: white; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.6875rem; font-weight: 500; text-transform: uppercase; letter-spacing: 0.16em; text-align: center; text-decoration: none; cursor: pointer; transition: background var(--transition-base); }
+.mobile-nav-trade-cta svg { width: 16px; height: 16px; flex-shrink: 0; }
 .mobile-nav-trade-cta:hover { background: var(--gold-dark); }
-.mobile-nav-account-label { font-size: 0.8125rem; color: var(--stone-500); margin-bottom: 0.5rem; }
-.mobile-nav-account a { display: block; min-height: 40px; padding: 0.5rem 0; font-size: 0.875rem; color: var(--stone-700); text-decoration: none; cursor: pointer; }
-.mobile-nav-account a:hover { color: var(--gold); }
+.mobile-nav-footer { flex-shrink: 0; padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--stone-200); }
+.mobile-nav-user { font-size: 0.8125rem; color: var(--stone-500); margin-bottom: 0.5rem; }
+.mobile-nav-footer a { display: block; min-height: 40px; padding: 0.5rem 0; font-size: 0.875rem; color: var(--stone-700); text-decoration: none; cursor: pointer; }
+.mobile-nav-footer a:hover { color: var(--gold); }
 
 /* ── FILTER DRAWER (mobile) ── */
 .filter-drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: calc(var(--z-overlay) - 100); opacity: 0; pointer-events: none; transition: opacity var(--transition-base); }
@@ -2763,7 +2758,8 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 /* ── MOBILE SEARCH OVERLAY ── */
 .mobile-search-overlay { position: fixed; inset: 0; background: var(--warm-bg); z-index: var(--z-overlay); padding: 1rem; display: flex; flex-direction: column; }
 .mobile-search-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
-.mobile-search-input { flex: 1; padding: 0.75rem 1rem; border: 1px solid var(--stone-200); font-size: 1rem; font-family: var(--font-body); outline: none; }
+.mobile-search-icon { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--stone-400); pointer-events: none; }
+.mobile-search-input { flex: 1; padding: 0.75rem 2.25rem 0.75rem 2.5rem; border: 1px solid var(--stone-200); font-size: 1rem; font-family: var(--font-body); outline: none; }
 .mobile-search-input:focus { border-color: var(--stone-800); }
 .mobile-search-input:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
 .mobile-search-close { background: none; border: none; font-size: 0.875rem; color: var(--stone-600); cursor: pointer; padding: 0.5rem; white-space: nowrap; }
@@ -2772,6 +2768,10 @@ footer { background: var(--stone-900); color: white; padding: 3rem; text-align: 
 .mobile-search-result:hover { background: var(--stone-50); }
 .mobile-search-result-img { width: 56px; height: 56px; background: var(--stone-100); flex-shrink: 0; }
 .mobile-search-result-img img { width: 100%; height: 100%; object-fit: cover; }
+.mobile-search-result-name { font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--stone-800); }
+.mobile-search-result-meta { display: flex; align-items: center; font-size: 0.6875rem; color: var(--stone-400); margin-top: 1px; }
+.mobile-search-result-price { font-size: 0.8125rem; color: var(--gold); font-weight: 500; margin-top: 1px; }
+.mobile-search-result-price .search-panel-sale-tag { margin-right: 0.35rem; }
 
 /* ── RESPONSIVE (968px) ── */
 @media (max-width: 968px) {
