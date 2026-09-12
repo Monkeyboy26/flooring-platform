@@ -269,4 +269,11 @@ export async function run(pool, job, source) {
   }
 }
 
-main().catch(err => { console.error(err); process.exit(1); });
+// Only self-execute as a CLI (node scrapers/ottimo-stockcheck.js). When the
+// server.js scheduler imports this module it must NOT auto-run — an unconditional
+// main() here spawned its own untracked scrape_jobs row on import, which the stall
+// reaper then killed as "Orphaned: untracked job with no progress for 45 minutes".
+// The scheduler calls the exported run(pool, job, source) instead.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(err => { console.error(err); process.exit(1); });
+}

@@ -462,8 +462,13 @@ export async function run(pool, job, source) {
 }
 
 // ─── Run standalone ──────────────────────────────────────────────────────────
-
-main().catch(err => {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+// Only self-execute as a CLI. If the server.js scheduler ever imports this module
+// (via a registered vendor_source), an unconditional main() would spawn its own
+// untracked scrape_jobs row on import and get reaped as an orphan. The scheduler
+// calls the exported run(pool, job, source) instead.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(err => {
+    console.error('Fatal error:', err);
+    process.exit(1);
+  });
+}

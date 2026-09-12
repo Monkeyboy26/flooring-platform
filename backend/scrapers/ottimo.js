@@ -523,7 +523,7 @@ function distributeLifestyleImages(product) {
 // Main processing
 // ──────────────────────────────────────────────
 
-async function processShopifyProduct(product, vendorId, priceMap, fuzzyMap) {
+async function processShopifyProduct(pool, product, vendorId, priceMap, fuzzyMap) {
   const title = cleanTitle(product.title);
   if (!title) return null;
 
@@ -728,7 +728,11 @@ async function processShopifyProduct(product, vendorId, priceMap, fuzzyMap) {
 // Main
 // ──────────────────────────────────────────────
 
-async function run() {
+// Core catalog import. Takes the pool as a parameter (shadowing the module-level
+// CLI pool) so it can run against either the standalone CLI pool or the shared
+// pool the server.js scheduler hands to run(). Never calls pool.end() — that is
+// the caller's responsibility (the scheduler reuses its pool across jobs).
+async function importCatalog(pool) {
   console.log('═══════════════════════════════════════════');
   console.log('  Ottimo Ceramics — Unified Scraper');
   console.log('═══════════════════════════════════════════\n');
@@ -761,7 +765,7 @@ async function run() {
   let totals = { products: 0, skus: 0, images: 0, pricing: 0, packaging: 0, attrs: 0 };
 
   for (const product of shopifyProducts) {
-    const stats = await processShopifyProduct(product, vendorId, priceMap, fuzzyMap);
+    const stats = await processShopifyProduct(pool, product, vendorId, priceMap, fuzzyMap);
     if (!stats) continue;
 
     totals.products++;
@@ -812,7 +816,38 @@ async function run() {
   console.log(`  Price list matches:   ${matchedSkus.size}/${priceMap.size} (${fuzzyMatchCount} fuzzy)`);
   console.log('═══════════════════════════════════════════\n');
 
-  await pool.end();
+  return { totals, matchedSkus, priceMap, fuzzyMatchCount, cleanupCount: cleanupResult.rowCount };
 }
 
-run().catch(err => { console.error(err); process.exit(1); });
+// ──────────────────────────────────────────────
+// Entry points
+// ──────────────────────────────────────────────
+
+// Job-runner entry called by the server.js scheduler: runScraper() does
+// `await import('./scrapers/ottimo.js')` then `scraperModule.run(pool, job, source)`.
+// Uses the shared pool passed in (does NOT open or close its own) and records
+// counters on the tracked scrape_jobs row.
+export async function run(pool, job, source) {
+  const { totals } = await importCatalog(pool);
+  if (job?.id) {
+    await pool.query(
+      `UPDATE scrape_jobs SET products_found = $2, products_updated = $3, skus_created = $4 WHERE id = $1`,
+      [job.id, totals.products, totals.products, totals.skus],
+    ).catch(() => {});
+  }
+}
+
+// CLI entry: `docker compose exec api node scrapers/ottimo.js`. Uses the
+// module-level pool and closes it when done. Guarded so importing this module
+// (e.g. from the scheduler) never auto-runs the scrape.
+async function main() {
+  try {
+    await importCatalog(pool);
+  } finally {
+    await pool.end();
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch(err => { console.error(err); process.exit(1); });
+}
