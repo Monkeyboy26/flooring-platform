@@ -19,20 +19,32 @@
  * Usage:
  *   docker compose exec api node scripts/import-thd.js
  *   docker compose exec api node scripts/import-thd.js data/thd-q3-2026.pdf
+ *   docker compose exec api node scripts/import-thd.js data/thd-q4-2026.json
+ *
+ * The input may be a quarterly PDF (parsed here) or a pre-parsed structured
+ * records JSON ({ records, inactiveItemCodes }) — the Q4-2026 list arrived as an
+ * XLSX and was converted to JSON on the host. The price list is AUTHORITATIVE:
+ * any existing SKU whose code is absent from it is hard-deleted (dropped items).
  */
 
 import pg from 'pg';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { applySheetSelling } from '../scrapers/base.js';
+import { applySheetSelling, upsertPricing } from '../scrapers/base.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const pool = new pg.Pool({
+  // Read creds from env so this runs on prod (whose postgres password differs
+  // from the local default) — hardcoded creds were the auth_failed landmine on
+  // the Tile World / Icon importers.
   host: process.env.DB_HOST || 'localhost',
-  port: 5432, database: 'flooring_pim', user: 'postgres', password: 'postgres',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'flooring_pim',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || process.env.DB_PASS || 'postgres',
 });
 
 // ─── Category IDs ───
@@ -613,22 +625,33 @@ async function upsertAttr(client, skuId, attrId, value) {
 }
 
 async function run() {
-  // Determine PDF path
-  const pdfArg = process.argv[2];
-  const pdfPath = pdfArg
-    ? (pdfArg.startsWith('/') ? pdfArg : join(__dirname, '..', pdfArg))
+  // Determine input path — accepts a quarterly PDF (parsed here) OR a pre-parsed
+  // structured records JSON ({ records, inactiveItemCodes }). The Q4-2026 list
+  // shipped as XLSX, converted to JSON on the host (clean columns beat PDF text
+  // heuristics) — see scripts that build data/thd-q4-2026.json.
+  const inputArg = process.argv[2];
+  const inputPath = inputArg
+    ? (inputArg.startsWith('/') ? inputArg : join(__dirname, '..', inputArg))
     : join(__dirname, '..', 'data', 'thd-q3-2026.pdf');
 
-  // ── Phase 1: Parse PDF ──
+  // ── Phase 1: Parse price list (PDF or structured JSON) ──
   let pdfRecords = [];
   let inactiveItemCodes = [];
-  if (fs.existsSync(pdfPath)) {
-    console.log(`Reading PDF: ${pdfPath}\n`);
-    const pdfResult = await parsePdf(pdfPath);
-    pdfRecords = pdfResult.records;
-    inactiveItemCodes = pdfResult.inactiveItemCodes;
+  if (fs.existsSync(inputPath)) {
+    if (/\.json$/i.test(inputPath)) {
+      console.log(`Reading structured records: ${inputPath}\n`);
+      const parsed = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+      pdfRecords = parsed.records || [];
+      inactiveItemCodes = parsed.inactiveItemCodes || [];
+      console.log(`Loaded ${pdfRecords.length} records (${inactiveItemCodes.length} discontinued) from ${new Set(pdfRecords.map(r => r.collection)).size} collections`);
+    } else {
+      console.log(`Reading PDF: ${inputPath}\n`);
+      const pdfResult = await parsePdf(inputPath);
+      pdfRecords = pdfResult.records;
+      inactiveItemCodes = pdfResult.inactiveItemCodes;
+    }
   } else {
-    console.warn(`PDF not found at ${pdfPath} — running Shopify-only import\n`);
+    console.warn(`Input not found at ${inputPath} — running Shopify-only import\n`);
   }
 
   const pdfMap = new Map();
@@ -644,9 +667,16 @@ async function run() {
     console.warn(`Shopify fetch failed: ${err.message} — running PDF-only import\n`);
   }
 
-  // ── Merge: union of all item codes ──
-  const allItemCodes = new Set([...pdfMap.keys(), ...shopifyMap.keys()]);
-  console.log(`Merged: ${allItemCodes.size} unique item codes (${pdfMap.size} PDF, ${shopifyMap.size} Shopify)`);
+  // ── Merge: the price list is authoritative for the catalog ──
+  // Only item codes present in the price list become products; Shopify is used
+  // purely to enrich matched codes with images/variant options. Web-only codes
+  // (listed on the site but dropped from the price list) are intentionally
+  // excluded so the stale-SKU cleanup below hard-deletes them. When no price
+  // list was supplied (Shopify-only run), fall back to the Shopify universe.
+  const allItemCodes = pdfMap.size > 0
+    ? new Set([...pdfMap.keys()])
+    : new Set([...shopifyMap.keys()]);
+  console.log(`Catalog: ${allItemCodes.size} price-list item codes (${pdfMap.size} price list, ${shopifyMap.size} Shopify for enrichment)`);
 
   if (allItemCodes.size === 0) {
     console.error('No data found from either source. Ensure the PDF exists or the Shopify site is reachable.');
@@ -743,14 +773,29 @@ async function run() {
   try {
     await client.query('BEGIN');
 
-    // Upsert vendor
-    const vendorRes = await client.query(`
-      INSERT INTO vendors (id, name, code, website)
-      VALUES (gen_random_uuid(), 'Total Home Distributors', 'THD', 'https://thdistributors.com')
-      ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, website = EXCLUDED.website
-      RETURNING id
-    `);
-    const vendorId = vendorRes.rows[0].id;
+    // Resolve the existing vendor. Total Home Distributors was onboarded under
+    // vendor code '406' (its distributor code), NOT 'THD' — creating a fresh
+    // 'THD' vendor here would orphan the whole existing catalog into a duplicate.
+    // Match the existing row (by code or name) and reuse it; only create if truly
+    // absent. (SKUs still use the THD#### item-code convention regardless.)
+    let vendorRes = await client.query(
+      `SELECT id FROM vendors WHERE code IN ('406', 'THD') OR name = 'Total Home Distributors' ORDER BY (code = '406') DESC LIMIT 1`
+    );
+    let vendorId;
+    if (vendorRes.rows.length) {
+      vendorId = vendorRes.rows[0].id;
+      await client.query(
+        `UPDATE vendors SET name = 'Total Home Distributors', website = 'https://thdistributors.com' WHERE id = $1`,
+        [vendorId]
+      );
+    } else {
+      vendorRes = await client.query(`
+        INSERT INTO vendors (id, name, code, website)
+        VALUES (gen_random_uuid(), 'Total Home Distributors', '406', 'https://thdistributors.com')
+        RETURNING id
+      `);
+      vendorId = vendorRes.rows[0].id;
+    }
     console.log(`Vendor: Total Home Distributors (${vendorId})\n`);
 
     let totalProducts = 0, totalSkus = 0, totalTrimSkus = 0;
@@ -838,16 +883,19 @@ async function run() {
         if (trimItem) totalTrimSkus++; else totalSkus++;
 
         // ── Pricing (from PDF, per-sheet-adjusted above) ──
+        // Route through upsertPricing so retail gets the platform's charm/
+        // nine-ending + covering-margin-floor treatment (matches the rest of the
+        // THD catalog) instead of a raw cost×1.6. Per-sheet mosaics/stacked stone
+        // sell per_unit but ARE coverings → flag coveringFloor so the $0.99 floor
+        // applies; genuine EA trim/accessories are not floored.
         if (pdf && pdf.price) {
-          const cost = sheet.cost.toFixed(2);
-          const retail = sheet.retail_price.toFixed(2);
           const priceBasis = sheet.priceBasis === 'per_unit' ? 'unit' : 'sqft';
-          await client.query(`
-            INSERT INTO pricing (sku_id, cost, retail_price, price_basis)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (sku_id) DO UPDATE SET cost = EXCLUDED.cost,
-              retail_price = EXCLUDED.retail_price, price_basis = EXCLUDED.price_basis
-          `, [skuId, cost, retail, priceBasis]);
+          const coveringFloor = categorySlug === 'mosaic-tile' || categorySlug === 'stacked-stone';
+          await upsertPricing(client, skuId, {
+            cost: sheet.cost,
+            retail_price: sheet.retail_price,
+            price_basis: priceBasis,
+          }, { coveringFloor });
           totalPricing++;
         }
 
@@ -1006,6 +1054,22 @@ async function run() {
     }
 
     // ── Fix media_assets product_id when SKUs moved between products ──
+    // On a re-run against an existing catalog, a SKU may land in a differently
+    // named product than last time, leaving old media rows pointing at the stale
+    // product_id. Before relocating them, drop any that would collide with a row
+    // this run already inserted under the SKU's current product (same sku/type/
+    // sort) — otherwise the UPDATE violates media_assets_unique_sku.
+    await client.query(`
+      DELETE FROM media_assets ma
+      USING skus s
+      WHERE ma.sku_id = s.id AND ma.product_id <> s.product_id
+        AND s.product_id IN (SELECT id FROM products WHERE vendor_id = $1)
+        AND EXISTS (
+          SELECT 1 FROM media_assets m2
+          WHERE m2.sku_id = ma.sku_id AND m2.product_id = s.product_id
+            AND m2.asset_type = ma.asset_type AND m2.sort_order = ma.sort_order
+        )
+    `, [vendorId]);
     const fixMediaRes = await client.query(`
       UPDATE media_assets ma
       SET product_id = s.product_id
@@ -1018,26 +1082,7 @@ async function run() {
       console.log(`Fixed ${fixMediaRes.rowCount} media_assets with stale product_id`);
     }
 
-    // ── Clean up orphaned products (0 SKUs) from previous runs ──
-    const orphanMediaDel = await client.query(`
-      DELETE FROM media_assets WHERE product_id IN (
-        SELECT p.id FROM products p
-        LEFT JOIN skus s ON s.product_id = p.id
-        WHERE p.vendor_id = $1 AND s.id IS NULL
-      )
-    `, [vendorId]);
-    const orphanProdDel = await client.query(`
-      DELETE FROM products WHERE id IN (
-        SELECT p.id FROM products p
-        LEFT JOIN skus s ON s.product_id = p.id
-        WHERE p.vendor_id = $1 AND s.id IS NULL
-      )
-    `, [vendorId]);
-    if (orphanProdDel.rowCount > 0) {
-      console.log(`Cleaned up ${orphanProdDel.rowCount} orphaned products (${orphanMediaDel.rowCount} media)`);
-    }
-
-    // ── Clean up stale SKUs not processed in this run ──
+    // ── Clean up stale SKUs not processed in this run (dropped from the list) ──
     if (processedSkuIds.size > 0) {
       const staleRes = await client.query(`
         SELECT s.id FROM skus s
@@ -1055,6 +1100,28 @@ async function run() {
         await client.query(`DELETE FROM skus WHERE id = ANY($1::uuid[])`, [staleIds]);
         console.log(`Cleaned up ${staleIds.length} stale SKUs from previous runs`);
       }
+    }
+
+    // ── Clean up orphaned products (0 SKUs) ──
+    // Runs AFTER the stale-SKU delete so products left empty by the drop-purge
+    // (all of their SKUs dropped from the list) are removed too, not just
+    // pre-existing orphans.
+    const orphanMediaDel = await client.query(`
+      DELETE FROM media_assets WHERE product_id IN (
+        SELECT p.id FROM products p
+        LEFT JOIN skus s ON s.product_id = p.id
+        WHERE p.vendor_id = $1 AND s.id IS NULL
+      )
+    `, [vendorId]);
+    const orphanProdDel = await client.query(`
+      DELETE FROM products WHERE id IN (
+        SELECT p.id FROM products p
+        LEFT JOIN skus s ON s.product_id = p.id
+        WHERE p.vendor_id = $1 AND s.id IS NULL
+      )
+    `, [vendorId]);
+    if (orphanProdDel.rowCount > 0) {
+      console.log(`Cleaned up ${orphanProdDel.rowCount} orphaned products (${orphanMediaDel.rowCount} media)`);
     }
 
     // ── Post-processing: fill missing primary images ──
