@@ -4788,10 +4788,13 @@
       return () => clearTimeout(t);
     }, [open]);
     const chevronDown = /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("polyline", { points: "6 9 12 15 18 9" }));
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-overlay" + (open ? " open" : ""), onClick: onClose }), /* @__PURE__ */ React.createElement("nav", { className: "mobile-nav" + (open ? " open" : ""), "aria-label": "Main menu" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-head" }, /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-title" }, "Menu"), /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-close", onClick: onClose, "aria-label": "Close menu" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" })))), /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-search", onClick: () => {
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-overlay" + (open ? " open" : ""), onClick: onClose }), /* @__PURE__ */ React.createElement("nav", { className: "mobile-nav" + (open ? " open" : ""), "aria-label": "Main menu" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-head" }, /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-title" }, "Menu"), /* @__PURE__ */ React.createElement("button", { className: "mobile-nav-close", onClick: onClose, "aria-label": "Close menu" }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.5" }, /* @__PURE__ */ React.createElement("line", { x1: "18", y1: "6", x2: "6", y2: "18" }), /* @__PURE__ */ React.createElement("line", { x1: "6", y1: "6", x2: "18", y2: "18" })))), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-search", onClick: () => {
       onClose();
       onOpenSearch && onOpenSearch();
-    } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.75" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })), /* @__PURE__ */ React.createElement("span", null, "Search products\u2026")), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-eyebrow" }, "Shop"), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-links" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
+    } }, /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "1.75" }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" })), /* @__PURE__ */ React.createElement("input", { type: "text", placeholder: "Search", readOnly: true, "aria-label": "Search products", onFocus: () => {
+      onClose();
+      onOpenSearch && onOpenSearch();
+    } })), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-eyebrow" }, "Shop"), /* @__PURE__ */ React.createElement("div", { className: "mobile-nav-links" }, /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       goHome();
       onClose();
@@ -4822,7 +4825,7 @@
         e.preventDefault();
         onCategorySelect(child.slug);
         onClose();
-      } }, /* @__PURE__ */ React.createElement("span", null, child.name), /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-row-count" }, child.product_count)))));
+      } }, child.name))));
     }), /* @__PURE__ */ React.createElement("a", { href: "#", onClick: (e) => {
       e.preventDefault();
       goCollections();

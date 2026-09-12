@@ -5696,10 +5696,10 @@
               </button>
             </div>
 
-            <button className="mobile-nav-search" onClick={() => { onClose(); onOpenSearch && onOpenSearch(); }}>
+            <div className="mobile-nav-search" onClick={() => { onClose(); onOpenSearch && onOpenSearch(); }}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <span>Search products…</span>
-            </button>
+              <input type="text" placeholder="Search" readOnly aria-label="Search products" onFocus={() => { onClose(); onOpenSearch && onOpenSearch(); }} />
+            </div>
 
             <div className="mobile-nav-eyebrow">Shop</div>
 
@@ -5724,10 +5724,7 @@
                       <div className="mobile-nav-cat-children">
                         <a href="#" onClick={e => { e.preventDefault(); onCategorySelect(cat.slug); onClose(); }}>All {cat.name}</a>
                         {children.map(child => (
-                          <a key={child.id} href="#" onClick={e => { e.preventDefault(); onCategorySelect(child.slug); onClose(); }}>
-                            <span>{child.name}</span>
-                            <span className="mobile-nav-row-count">{child.product_count}</span>
-                          </a>
+                          <a key={child.id} href="#" onClick={e => { e.preventDefault(); onCategorySelect(child.slug); onClose(); }}>{child.name}</a>
                         ))}
                       </div>
                     )}
