@@ -13986,6 +13986,55 @@ app.post('/api/admin/trade-customers/:id/deny', staffAuth, requireRole('admin', 
   }
 });
 
+// Admin: send a trade-program INVITE to a prospect (proactive outreach, not an
+// existing application). Sends AS the acting rep — or, when the email already
+// belongs to a trade_customer with an assigned rep, that rep — via withTradeRep.
+app.post('/api/admin/trade-invites/send', staffAuth, requireRole('admin', 'manager', 'sales_rep'), async (req, res) => {
+  try {
+    const { name, email, order_count, note } = req.body || {};
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return res.status(400).json({ error: 'A valid recipient email is required.' });
+    }
+
+    // If the address already maps to a trade_customer, honor their assigned rep;
+    // otherwise the invite sends as the acting staffer (req.staff) via withTradeRep.
+    let existing = null;
+    try {
+      const r = await pool.query('SELECT * FROM trade_customers WHERE lower(email) = $1 LIMIT 1', [cleanEmail]);
+      if (r.rows.length) existing = r.rows[0];
+    } catch {}
+
+    const withRep = await withTradeRep(existing || {}, req.staff);
+    const orderCount = Number.isFinite(parseInt(order_count, 10)) ? parseInt(order_count, 10) : undefined;
+    const recipient = {
+      name: (name || '').trim() || (existing && existing.contact_name) || '',
+      email: cleanEmail,
+      order_count: orderCount,
+      note: (note || '').trim() || undefined,
+      rep_email: withRep.rep_email,
+      rep_first_name: withRep.rep_first_name,
+      rep_last_name: withRep.rep_last_name
+    };
+
+    const { sendTradeInvite } = await import('./services/emailService.js');
+    const result = await sendTradeInvite(recipient);
+    if (result && result.skipped) {
+      return res.status(503).json({ error: 'Email is not configured on this server.' });
+    }
+    if (!result || !result.sent) {
+      return res.status(502).json({ error: 'The invite could not be delivered. Check email failures and try again.' });
+    }
+
+    const staffId = req.staff ? req.staff.id : null;
+    if (staffId) await logAudit(staffId, 'trade.invite', 'trade_customers', existing ? existing.id : null, { email: cleanEmail, order_count: orderCount }, req.ip);
+
+    res.json({ sent: true, email: cleanEmail });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== Tier Progression (spend-based) ====================
 
 // Recompute a trade customer's tier from their trailing 365-day product spend.

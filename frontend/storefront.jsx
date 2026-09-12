@@ -17948,7 +17948,7 @@
     function Tv2Stats({ theme }) {
       const { ink, muted } = theme;
       const stats = [
-        { v: '13–22%', l: 'Contracted trade margin', s: 'Tiered by annual spend' },
+        { v: '~13–22%', l: 'Contracted trade margin', s: 'Tiered by annual spend' },
         { v: '$0', l: 'Membership fee', s: 'Free to apply and join' },
         { v: '2 days', l: 'Typical approval', s: '4 hours with a CSLB #' },
         { v: 'Since 1999', l: 'Family-owned in Anaheim', s: 'License #830966' },
@@ -17986,7 +17986,7 @@
                   <Tv2Micro theme={theme} color={t.hot ? accent : muted}>{t.name}</Tv2Micro>
                   <Tv2Micro theme={theme}>{t.spend}</Tv2Micro>
                 </div>
-                <div style={{ font: '300 72px/1 var(--roma-serif)', letterSpacing: '-0.02em', color: t.hot ? accent : ink }}>{t.pct}<span style={{ font: '400 20px/1 var(--roma-serif)', color: muted }}> off list</span></div>
+                <div style={{ font: '300 72px/1 var(--roma-serif)', letterSpacing: '-0.02em', color: t.hot ? accent : ink }}>~{t.pct}<span style={{ font: '400 20px/1 var(--roma-serif)', color: muted }}> off list</span></div>
                 <p style={{ font: '400 13px/1.55 var(--roma-sans)', color: `${ink}b3`, margin: 0 }}>{t.note}</p>
                 <div style={{ borderTop: `0.5px solid ${ink}18`, paddingTop: 14, display: 'grid', gap: 8 }}>
                   {t.perks.map(p => (

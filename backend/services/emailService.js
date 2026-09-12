@@ -4,6 +4,7 @@ import { generateOrderConfirmationHTML } from '../templates/orderConfirmation.js
 import { generateQuoteSentHTML } from '../templates/quoteSent.js';
 import { generateOrderStatusUpdateHTML } from '../templates/orderStatusUpdate.js';
 import { generateTradeApprovalHTML } from '../templates/tradeApproval.js';
+import { generateTradeInviteHTML } from '../templates/tradeInvite.js';
 import { generateTradeDenialHTML } from '../templates/tradeDenial.js';
 import { generateTierPromotionHTML } from '../templates/tierPromotion.js';
 import { generateInstallationInquiryStaffHTML } from '../templates/installationInquiryStaff.js';
@@ -416,6 +417,36 @@ export async function sendTradeDenial(customer) {
     console.log(`[Email] Trade denial sent to ${customer.email}`);
   } catch (err) {
     console.error(`[Email] Failed to send trade denial to ${customer.email}:`, err.message);
+  }
+}
+
+/**
+ * Send a trade-program INVITE email (proactive outreach to a prospect whose
+ * order history looks pro). Sends AS the rep — the recipient's assigned rep if
+ * one is known, else the acting staffer — via repFrom(), exactly like the other
+ * trade emails. `recipient` carries { name, email, order_count, note,
+ * rep_email, rep_first_name, rep_last_name }.
+ */
+export async function sendTradeInvite(recipient) {
+  if (!transporter) {
+    console.log(`[Email] Skipping trade invite email for ${recipient.email} — SMTP not configured`);
+    return { sent: false, skipped: true };
+  }
+  try {
+    const tiers = await loadTradeTiers();
+    const html = generateTradeInviteHTML(recipient, tiers);
+    await deliver({
+      from: repFrom(recipient),
+      to: recipient.email,
+      replyTo: recipient.rep_email || undefined,
+      subject: 'You buy like a pro — Roma Trade pricing is waiting',
+      html
+    });
+    console.log(`[Email] Trade invite sent to ${recipient.email}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[Email] Failed to send trade invite to ${recipient.email}:`, err.message);
+    return { sent: false };
   }
 }
 
