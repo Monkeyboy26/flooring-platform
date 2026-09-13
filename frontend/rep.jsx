@@ -2236,6 +2236,76 @@
       );
     }
 
+    // Shared "Invite a customer to the Trade Program" modal. Used from the
+    // Customers list (blank prefill) and a customer's detail page (prefilled
+    // name/email/order count). Sends AS the acting rep via /api/rep/trade-invites.
+    function InviteToTradeModal({ prefill, onClose }) {
+      const [form, setForm] = useState({
+        name: (prefill && prefill.name) || '',
+        email: (prefill && prefill.email) || '',
+        order_count: (prefill && prefill.order_count != null && prefill.order_count !== '') ? String(prefill.order_count) : '',
+        note: ''
+      });
+      const [sending, setSending] = useState(false);
+      const inputStyle = { width: '100%', padding: '0.5rem', border: '0.5px solid rgba(168,121,53,0.4)', font: '400 0.82rem "Inter", sans-serif' };
+      const send = async () => {
+        setSending(true);
+        try {
+          const data = await repFetch('/api/rep/trade-invites/send', {
+            method: 'POST',
+            body: JSON.stringify({
+              name: form.name || undefined,
+              email: form.email,
+              order_count: form.order_count ? parseInt(form.order_count, 10) : undefined,
+              note: form.note || undefined
+            })
+          });
+          onClose();
+          repToast('Trade invite sent to ' + data.email);
+        } catch (err) {
+          alert(err.message || 'Error sending invite');
+        }
+        setSending(false);
+      };
+      return (
+        <div className="modal-overlay" onClick={() => !sending && onClose()}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '92vw' }}>
+            <h3 style={{ margin: '0 0 0.35rem' }}>Invite a customer to the Trade Program</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--brass-muted)', margin: '0 0 1rem' }}>
+              Sends the trade-invite email inviting them to apply. It goes out <strong>from you</strong> (or their assigned rep, if they already have one), so replies come back to you.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: '0.25rem' }}>Name</label>
+                <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Daniel Ortiz" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: '0.25rem' }}>Email *</label>
+                <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="daniel@example.com" style={inputStyle} />
+              </div>
+            </div>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: '0.25rem' }}>Orders in last 12 months (optional)</label>
+              <input type="number" min="0" value={form.order_count} onChange={e => setForm({ ...form, order_count: e.target.value })} placeholder="e.g. 6" style={{ ...inputStyle, width: '140px' }} />
+              <div style={{ fontSize: '0.72rem', color: 'var(--brass-muted)', marginTop: '0.25rem' }}>Enter a count for existing customers ("you've placed N orders"). Leave blank for prospects who haven't ordered — the email switches to first-time wording automatically.</div>
+            </div>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: '0.25rem' }}>Personal note (optional)</label>
+              <textarea value={form.note} onChange={e => setForm({ ...form, note: e.target.value })}
+                placeholder="e.g. Loved working with you on the Maple St. job — thought you'd want in on trade pricing."
+                rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
+            </div>
+            <div className="modal-actions">
+              <button className="cv-btn" onClick={onClose} disabled={sending}>Cancel</button>
+              <button className="cv-btn primary" disabled={sending || !form.email.trim()} onClick={send}>
+                {sending ? 'Sending…' : 'Send invite'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     function RepCustomersListView({ navigate }) {
       const [customers, setCustomers] = useState([]);
       const [summary, setSummary] = useState(null);
@@ -2253,28 +2323,6 @@
       const repName = ((repInfo.first_name || '') + ' ' + (repInfo.last_name || '')).trim();
 
       const [showInvite, setShowInvite] = useState(false);
-      const [inviteForm, setInviteForm] = useState({ name: '', email: '', order_count: '', note: '' });
-      const [sendingInvite, setSendingInvite] = useState(false);
-      const sendInvite = async () => {
-        setSendingInvite(true);
-        try {
-          const data = await repFetch('/api/rep/trade-invites/send', {
-            method: 'POST',
-            body: JSON.stringify({
-              name: inviteForm.name || undefined,
-              email: inviteForm.email,
-              order_count: inviteForm.order_count ? parseInt(inviteForm.order_count, 10) : undefined,
-              note: inviteForm.note || undefined
-            })
-          });
-          setShowInvite(false);
-          setInviteForm({ name: '', email: '', order_count: '', note: '' });
-          repToast('Trade invite sent to ' + data.email);
-        } catch (err) {
-          alert(err.message || 'Error sending invite');
-        }
-        setSendingInvite(false);
-      };
 
       // KPI band + attention are always whole-book (type=all); the tabs filter the
       // loaded page client-side, so the headline stats stay stable across tabs.
@@ -2528,49 +2576,7 @@
             </div>
           )}
 
-          {showInvite && (
-            <div className="modal-overlay" onClick={() => !sendingInvite && setShowInvite(false)}>
-              <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', width: '92vw' }}>
-                <h3 style={{ margin: '0 0 0.35rem' }}>Invite a customer to the Trade Program</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--brass-muted)', margin: '0 0 1rem' }}>
-                  Sends the trade-invite email inviting them to apply. It goes out <strong>from you</strong> (or their assigned rep, if they already have one), so replies come back to you.
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: '0.25rem' }}>Name</label>
-                    <input type="text" value={inviteForm.name} onChange={e => setInviteForm({ ...inviteForm, name: e.target.value })}
-                      placeholder="Daniel Ortiz"
-                      style={{ width: '100%', padding: '0.5rem', border: '0.5px solid rgba(168,121,53,0.4)', font: '400 0.82rem "Inter", sans-serif' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: '0.25rem' }}>Email *</label>
-                    <input type="email" value={inviteForm.email} onChange={e => setInviteForm({ ...inviteForm, email: e.target.value })}
-                      placeholder="daniel@example.com"
-                      style={{ width: '100%', padding: '0.5rem', border: '0.5px solid rgba(168,121,53,0.4)', font: '400 0.82rem "Inter", sans-serif' }} />
-                  </div>
-                </div>
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: '0.25rem' }}>Orders in last 12 months (optional)</label>
-                  <input type="number" min="0" value={inviteForm.order_count} onChange={e => setInviteForm({ ...inviteForm, order_count: e.target.value })}
-                    placeholder="e.g. 6"
-                    style={{ width: '140px', padding: '0.5rem', border: '0.5px solid rgba(168,121,53,0.4)', font: '400 0.82rem "Inter", sans-serif' }} />
-                  <div style={{ fontSize: '0.72rem', color: 'var(--brass-muted)', marginTop: '0.25rem' }}>Enter a count for existing customers ("you've placed N orders"). Leave blank for prospects who haven't ordered — the email switches to first-time wording automatically.</div>
-                </div>
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: '0.25rem' }}>Personal note (optional)</label>
-                  <textarea value={inviteForm.note} onChange={e => setInviteForm({ ...inviteForm, note: e.target.value })}
-                    placeholder="e.g. Loved working with you on the Maple St. job — thought you'd want in on trade pricing."
-                    rows={3} style={{ width: '100%', padding: '0.5rem', border: '0.5px solid rgba(168,121,53,0.4)', font: '400 0.82rem "Inter", sans-serif', resize: 'vertical' }} />
-                </div>
-                <div className="modal-actions">
-                  <button className="cv-btn" onClick={() => setShowInvite(false)} disabled={sendingInvite}>Cancel</button>
-                  <button className="cv-btn primary" disabled={sendingInvite || !inviteForm.email.trim()} onClick={sendInvite}>
-                    {sendingInvite ? 'Sending…' : 'Send invite'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {showInvite && <InviteToTradeModal onClose={() => setShowInvite(false)} />}
         </div>
       );
     }
@@ -2874,6 +2880,7 @@
       const [showReassign, setShowReassign] = useState(false);
       const [reassignSaving, setReassignSaving] = useState(false);
       const [showEdit, setShowEdit] = useState(false);
+      const [showInvite, setShowInvite] = useState(false);
       const [reloadKey, setReloadKey] = useState(0);
 
       // Parse the composite ID: retail_UUID, trade_UUID, guest_email
@@ -3468,6 +3475,9 @@
                 <button className="cdv-btn" onClick={() => setShowEdit(true)}>Edit</button>
               )}
               {customer.email && <a className="cdv-btn" href={'mailto:' + customer.email}>Email</a>}
+              {!isTrade && customer.email && (
+                <button className="cdv-btn" onClick={() => setShowInvite(true)}>Invite to Trade</button>
+              )}
               <button className="cdv-btn" onClick={() => navigate('estimate-create')}>+ Estimate</button>
               {repInfo.is_manager && type === 'retail' && (
                 <button className="cdv-btn" onClick={() => setShowReassign(true)}>Reassign rep</button>
@@ -3495,6 +3505,13 @@
               customer={customer}
               onClose={() => setShowEdit(false)}
               onSaved={() => { setShowEdit(false); setReloadKey(k => k + 1); }}
+            />
+          )}
+
+          {showInvite && (
+            <InviteToTradeModal
+              prefill={{ name: customer.name, email: customer.email, order_count: orders.length }}
+              onClose={() => setShowInvite(false)}
             />
           )}
 
