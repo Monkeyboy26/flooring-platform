@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Match Icon MOSAIC format SKUs to per-format vendor photos (SKU-LEVEL images).
+"""Match Icon MOSAIC / TRIM / COPING SKUs to per-variant vendor photos (SKU-LEVEL images).
 
 Icon mosaics are ONE product per color carrying many format SKUs (1x1, 1x2, 2x2,
 2x2 Wavy, 2x4, Mini Pattern, Herringbone ...). The product-level image pass
@@ -8,14 +8,26 @@ formats look identical. The vendor actually photographs each format as its own
 WooCommerce product ("Autumn Leaves Wavy 2x2", "Autumn Leaves Mini Pattern", ...),
 reachable via the open Store API.
 
-This script pulls every Icon product from the Store API, and for each mosaic SKU in
-the catalog finds the vendor product whose (size, pattern-modifier) matches, writing
+Pool COPING has the same problem along a different axis: one product per stone
+carries Bullnose, Modern (square-edge) and Step SKUs, but the vendor photographs
+each EDGE PROFILE as its own Woo product ("Aqua Dolce Flamed Bullnose Coping" vs
+"Aqua Dolce Flamed Modern Coping"; travertines: "X Modern Travertine Pool Coping"
+vs plain "X Travertine Pool Coping" = the tumbled bullnose bundle). Without this
+pass every Bullnose variant showed whichever profile won the product-level image.
+Step SKUs (L*SCHAIR/L*DCHAIR) map to the "Single-Step / Double-Step Chair Rail"
+Woo products.
+
+This script pulls every Icon product from the Store API, and for each mosaic/trim/
+coping SKU in the catalog finds the vendor product whose (size, pattern-modifier)
+or (edge profile) matches, writing
   backend/data/icon/sku-images.json  ->  { vendor_sku: {primary, gallery, woo} }
 which import-icon.js attaches as SKU-level media_assets (they win over the shared
 product image in the storefront's sku-image-first resolution).
 
 Matching is exact on (size token, pattern-modifier set) so a plain "2x2" never grabs
-the "Wavy 2x2" photo and vice-versa; finish words (Tumbled) are ignored as noise.
+the "Wavy 2x2" photo and vice-versa; finish words (Tumbled) are ignored as noise for
+mosaics but used as a TIEBREAK for copings (two Modern Woo products differing only
+by finish, e.g. Indian Black Sandblasted vs Brushed & Tumbled).
 
 Usage: python3 backend/scripts/build-icon-sku-images.py
 """
@@ -39,10 +51,34 @@ EXCLUDE = ['paver', 'coping', 'ledger', 'chair rail', 'liner', 'moulding', 'crow
 # the vendor photographs each profile separately. Never match a trim SKU to these forms.
 TRIM_EXCLUDE = ['paver', 'coping', 'ledger', 'mosaic', 'wall cap', 'column cap',
                 'wainscot', 'flagstone', 'pool', 'tile']
+# Coping SKUs must only match coping-form Woo products (never the same stone's paver/
+# ledger/mosaic); steps are matched from their own pool, so keep them out of this one.
+COPING_EXCLUDE = ['paver', 'ledger', 'mosaic', 'wall cap', 'column cap', 'wainscot',
+                  'chair rail', 'step', 'tile', 'pencil', 'liner']
+# Finish words — noise for mosaic format matching, but a TIEBREAK for copings where the
+# vendor sells two same-profile products differing only by surface finish.
+FINISH_WORDS = ['tumbled', 'sandblasted', 'brushed', 'leathered', 'leather', 'flamed',
+                'honed', 'natural', 'glazed']
 # Some vendor lines are renamed on the site; map our color -> the vendor's leading name.
 # "Light" IS the vendor's name for Cordoba Cream travertine trim/mosaic (its images are
 # literally filed as Cordoba-Cream-*). 'Haisa Light' is a DIFFERENT stone — guarded below.
 COLOR_ALIAS = {'cordoba cream': 'light'}
+
+
+def coping_profile(text):
+    """Edge profile of a coping variant. 'Modern' beats 'Bullnose' because a
+    '4-Sided Modern' or 'Double Modern' name never contains 'bullnose'."""
+    n = norm(text)
+    if 'step' in n:     return 'step'
+    if 'modern' in n:   return 'modern'
+    if 'bullnose' in n: return 'bullnose'
+    return None
+
+
+def finish_score(a, b):
+    """Shared finish words between two names — tiebreak for same-profile candidates."""
+    na, nb = norm(a), norm(b)
+    return sum(1 for w in FINISH_WORDS if w in na and w in nb)
 
 
 def trim_type(text):
@@ -116,16 +152,39 @@ def main():
     for w in woo:
         w['_trim'] = trim_type(w['_n'])
 
-    def color_candidates(color):
-        """Woo products of the same color (honoring the rename alias)."""
+    # Every catalog color as a word set — used to keep a shorter color from stealing a
+    # longer one's photos ("Noce" must not match "Noce Toros ..."; "Tundra" not "Blue Tundra").
+    all_color_words = {tuple(color_base(p.get('color')).split()) for p in catalog if p.get('color')}
+
+    def drop_superset_colors(cands, base):
+        words = set(base.split())
+        supers = [set(c) for c in all_color_words if set(c) > words]
+        if not supers:
+            return cands
+        # whole-word tokens, not substrings — 'de' (De White) must not hit 'leathereD'
+        return [w for w in cands
+                if not any(sup <= set(re.findall(r'[a-z0-9]+', w['_n'])) for sup in supers)]
+
+    def color_candidates(color, full_name_first=False):
+        """Woo products of the same color (honoring the rename alias).
+
+        full_name_first (copings): the vendor uses the FULL color name for coping pages
+        ("Cordoba Cream Modern Travertine Pool Coping") but the alias for chair-rail steps
+        ("Light Single-Step Chair Rail") — so return the union, full-name matches first,
+        instead of letting the alias shadow the full-name products."""
         base = color_base(color)
         alias = COLOR_ALIAS.get(base)
+        words = base.split()
+        full = drop_superset_colors(
+            [w for w in woo if words and all(word in w['_n'] for word in words)], base)
+        aliased = []
         if alias:
             # alias must be a LEADING standalone token ("Light 2x2", "Light Pencil Liner"),
             # and never the unrelated 'Haisa Light' stone.
-            return [w for w in woo if re.match(re.escape(alias) + r'\b', w['_n']) and 'haisa' not in w['_n']]
-        words = base.split()
-        return [w for w in woo if words and all(word in w['_n'] for word in words)]
+            aliased = [w for w in woo if re.match(re.escape(alias) + r'\b', w['_n']) and 'haisa' not in w['_n']]
+        if full_name_first:
+            return full + [w for w in aliased if w not in full]
+        return aliased if alias else full
 
     def record(vsku, hit):
         imgs = [i['src'] for i in hit['images'] if i.get('src')]
@@ -139,14 +198,38 @@ def main():
     miss_detail = []
     for p in catalog:
         form = p.get('form')
-        if form not in ('mosaic', 'trim'):
+        if form not in ('mosaic', 'trim', 'coping'):
             continue
-        cands = color_candidates(p.get('color'))
+        cands = color_candidates(p.get('color'), full_name_first=(form == 'coping'))
         if not cands:
             for s in p['skus']:
                 missed += 1; miss_detail.append(f"{p['name']} :: {s.get('variant_name','')}")
             continue
-        if form == 'mosaic':
+        if form == 'coping':
+            # One Woo product per edge profile: 'modern' in the name = Modern; any other
+            # coping page for the stone is the bullnose/tumbled product (filenames carry
+            # BN/TPCBN). Steps live on separate "…-Step Chair Rail" / "Stair Step" pages.
+            pool = [w for w in cands if w.get('images') and 'coping' in w['_n']
+                    and not any(x in w['_n'] for x in COPING_EXCLUDE)]
+            steps = [w for w in cands if w.get('images') and 'step' in w['_n'].replace('-', ' ')]
+            for s in p['skus']:
+                vn = s.get('variant_name', '')
+                prof, hit = coping_profile(vn), None
+                if prof == 'step':
+                    which = 'double' if 'double' in norm(vn) else 'single'
+                    named = [w for w in steps if which in w['_n'].replace('-', ' ')]
+                    hit = (named or steps or [None])[0]
+                elif prof:
+                    sub = [w for w in pool
+                           if ('modern' if 'modern' in w['_n'] else 'bullnose') == prof]
+                    # finish tiebreak (e.g. Indian Black Modern: Sandblasted vs Brushed&Tumbled)
+                    hit = max(sub, key=lambda w: (finish_score(vn, w['_n']), -len(w['_n'])),
+                              default=None)
+                if hit and record(s['vendor_sku'], hit):
+                    matched += 1
+                else:
+                    missed += 1; miss_detail.append(f"{p['name']} :: {vn}")
+        elif form == 'mosaic':
             pool = [w for w in cands if w.get('images') and not any(x in w['_n'] for x in EXCLUDE)]
             for s in p['skus']:
                 vn = s.get('variant_name', '')
