@@ -1428,6 +1428,7 @@
       const [note, setNote] = useState('');
       const [taxExempt, setTaxExempt] = useState(false); // resale exemption; off unless the cert is verified
       const [busy, setBusy] = useState(false);
+      const [showInvite, setShowInvite] = useState(false);
 
       // Fill the viewport below the sticky top bar. The rep shell forces
       // min-height:100vh on BOTH .rep-layout (the grid) and .rep-content, which —
@@ -1553,6 +1554,12 @@
             <span style={{ marginLeft: 'auto', font: `500 10px/1 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase', color: tInk(0.5) }}>
               {a ? (a.company_name || a.contact_name) : `${customers.length} awaiting review`}
             </span>
+            {!a && (
+              <button onClick={() => setShowInvite(true)}
+                style={{ background: TA.ink, color: TA.paper, border: 'none', cursor: 'pointer', padding: '8px 15px', font: `500 10px/1 ${TA.mono}`, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                Invite to Trade
+              </button>
+            )}
           </div>
           {error
             ? <div style={{ padding: 30, color: TA.bad, font: `400 14px ${TA.sans}` }}>{error}</div>
@@ -1568,6 +1575,7 @@
                       </div>
                     </div>
                   : <TaListPage list={customers} setSel={setSel} lowestTier={lowestTier} />}
+          {showInvite && <InviteToTradeModal onClose={() => setShowInvite(false)} />}
         </div>
       );
     }
