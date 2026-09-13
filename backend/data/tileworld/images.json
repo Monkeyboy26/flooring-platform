@@ -23,6 +23,18 @@
       }
     }
   },
+  "TWD-007-1-lt": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-007-1-lt-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x24-matte": {
+        "primary": "/uploads/tileworld/TWD-007-1-lt-12x24.jpg",
+        "alternates": []
+      }
+    }
+  },
   "TWD-electro-white": {
     "product": {
       "primary": "/uploads/tileworld/TWD-electro-white-primary.jpg",
@@ -55,6 +67,18 @@
     "skus": {
       "12x24-matte": {
         "primary": "/uploads/tileworld/TWD-graniti-nero-12x24.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "TWD-53": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-53-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x24-matte": {
+        "primary": "/uploads/tileworld/TWD-53-12x24.jpg",
         "alternates": []
       }
     }
@@ -403,6 +427,22 @@
       }
     }
   },
+  "TWD-travo-beige": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-travo-beige-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x24-matte": {
+        "primary": "/uploads/tileworld/TWD-travo-beige-12x24.jpg",
+        "alternates": []
+      },
+      "12x24-polished": {
+        "primary": "/uploads/tileworld/TWD-travo-beige-12x24.jpg",
+        "alternates": []
+      }
+    }
+  },
   "TWD-crema-marfil": {
     "product": {
       "primary": "/uploads/tileworld/TWD-crema-marfil-primary.jpg",
@@ -550,6 +590,18 @@
       },
       "24x24-polished": {
         "primary": "/uploads/tileworld/TWD-calcutta-white-24x24.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "TWD-spanish-satuario": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-spanish-satuario-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "24x24-polished": {
+        "primary": "/uploads/tileworld/TWD-spanish-satuario-24x24.jpg",
         "alternates": []
       }
     }
@@ -714,6 +766,18 @@
       }
     }
   },
+  "TWD-nrc006": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-nrc006-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "6x36-matte": {
+        "primary": "/uploads/tileworld/TWD-nrc006-6x36.jpg",
+        "alternates": []
+      }
+    }
+  },
   "TWD-nrc012": {
     "product": {
       "primary": "/uploads/tileworld/TWD-nrc012-primary.jpg",
@@ -774,6 +838,42 @@
       }
     }
   },
+  "TWD-excide-03": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-excide-03-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "8x55-matte": {
+        "primary": "/uploads/tileworld/TWD-excide-03-8x55.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "TWD-bianco-grey": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-bianco-grey-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x36-polished": {
+        "primary": "/uploads/tileworld/TWD-bianco-grey-12x36.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "TWD-bianco-grey-hl-winter": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-bianco-grey-hl-winter-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x36-polished": {
+        "primary": "/uploads/tileworld/TWD-bianco-grey-hl-winter-12x36.jpg",
+        "alternates": []
+      }
+    }
+  },
   "TWD-crema-marfil-2": {
     "product": {
       "primary": "/uploads/tileworld/TWD-crema-marfil-2-primary.jpg",
@@ -806,6 +906,54 @@
     "skus": {
       "12x36-polished": {
         "primary": "/uploads/tileworld/TWD-cronus-lt-12x36.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "TWD-cronus-hl-stark": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-cronus-hl-stark-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x36-polished": {
+        "primary": "/uploads/tileworld/TWD-cronus-hl-stark-12x36.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "TWD-prosture-lt": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-prosture-lt-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x36-polished": {
+        "primary": "/uploads/tileworld/TWD-prosture-lt-12x36.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "TWD-plain-white": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-plain-white-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x36-polished": {
+        "primary": "/uploads/tileworld/TWD-plain-white-12x36.jpg",
+        "alternates": []
+      }
+    }
+  },
+  "TWD-stark-white": {
+    "product": {
+      "primary": "/uploads/tileworld/TWD-stark-white-primary.jpg",
+      "alternates": []
+    },
+    "skus": {
+      "12x36-polished": {
+        "primary": "/uploads/tileworld/TWD-stark-white-12x36.jpg",
         "alternates": []
       }
     }

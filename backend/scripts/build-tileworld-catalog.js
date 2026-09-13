@@ -231,6 +231,27 @@ const CAT_QUALIFIER = { 'ceramic-tile': ' (Wall)', 'wood-look-tile': ' (Plank)' 
 let siteDetails = {};
 try { siteDetails = JSON.parse(fs.readFileSync(path.join(DIR, 'site-details.json'), 'utf8')); }
 catch { console.warn('! site-details.json not found — building without site photos/colors'); }
+
+// Hand-verified site-name → sheet-name aliases for pairs the SPELLING/key rules can't
+// bridge. Each pair was confirmed against the site record's size page AND color meta
+// (e.g. "Plain" is the 12x36 White wall tile = sheet "PLAIN WHITE"; site "006" lives on
+// the 6-x-36 wood-plank page = NRC006, NOT the 12x24 outdoor "6006"). Do NOT bulk-fuzzy
+// beyond this list — remaining site names (HARRY BEIGE, MALIBU BEIGE, CANUS ASH 1,
+// EXIDE-01-3…) have no sheet row and must stay unmatched.
+const SITE_ALIAS = {
+  '007_LT': '007-1-LT',
+  '053': '53',
+  'F-Spanis Satuario': 'Spanish Satuario',
+  'EXIDE-03-1': 'EXCIDE 03',
+  'Cronus LT_HL_STARK': 'Cronus HL Stark',
+  'Prosture': 'Prosture LT',
+  'Plain': 'Plain White',
+  'Stark': 'Stark White',
+  'Bianco Stone Grey': 'Bianco Grey',
+  'Bianco Stone Grey_HL_Winter': 'Bianco Grey HL Winter',
+  'TRAVO NRA2023': 'Travo Beige',
+  '006': 'NRC006',
+};
 const siteByName = new Map();   // spaced key OR tight key -> [rec] (both point at the same recs)
 function indexSite(k, rec) {
   if (!k) return;
@@ -247,8 +268,9 @@ for (const key of Object.keys(siteDetails)) {
     color: (meta.Color || '').trim() || null,
     surface: (meta['Surface look'] || '').split(/&nbsp;|&|\s{2,}/)[0].trim() || null,
   };
-  indexSite(siteKey(e.name), rec);
-  indexSite(tightKey(e.name), rec);
+  const name = SITE_ALIAS[e.name] || e.name;
+  indexSite(siteKey(name), rec);
+  indexSite(tightKey(name), rec);
 }
 // look up a design's site records by spaced key, falling back to the tight key
 function siteRecsFor(base) {

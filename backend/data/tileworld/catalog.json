@@ -90,7 +90,7 @@
       "status": "active",
       "material": "Porcelain",
       "look": null,
-      "color": null,
+      "color": "Silver",
       "origins": [
         "India"
       ],
@@ -222,7 +222,7 @@
       "status": "active",
       "material": "Porcelain",
       "look": null,
-      "color": null,
+      "color": "Gray",
       "origins": [
         "India"
       ],
@@ -1388,7 +1388,7 @@
       "status": "active",
       "material": "Porcelain",
       "look": null,
-      "color": null,
+      "color": "Beige",
       "origins": [
         "India"
       ],
@@ -2942,7 +2942,7 @@
       "status": "active",
       "material": "Porcelain",
       "look": null,
-      "color": null,
+      "color": "Silver",
       "origins": [
         "India"
       ],
@@ -4501,7 +4501,7 @@
       "status": "active",
       "material": "Porcelain",
       "look": "Wood",
-      "color": null,
+      "color": "Beige",
       "origins": [
         "India"
       ],
@@ -5194,7 +5194,7 @@
       "status": "active",
       "material": "Porcelain",
       "look": "Wood",
-      "color": null,
+      "color": "Gray",
       "origins": [
         "India"
       ],
@@ -5260,7 +5260,7 @@
       "status": "active",
       "material": "Ceramic",
       "look": null,
-      "color": null,
+      "color": "Gray",
       "origins": [
         "India"
       ],
@@ -5326,7 +5326,7 @@
       "status": "active",
       "material": "Ceramic",
       "look": null,
-      "color": null,
+      "color": "Gray",
       "origins": [
         "India"
       ],
@@ -5590,7 +5590,7 @@
       "status": "active",
       "material": "Ceramic",
       "look": null,
-      "color": null,
+      "color": "Cream",
       "origins": [
         "India"
       ],
@@ -5656,7 +5656,7 @@
       "status": "active",
       "material": "Ceramic",
       "look": null,
-      "color": null,
+      "color": "Cream",
       "origins": [
         "India"
       ],
@@ -5722,7 +5722,7 @@
       "status": "active",
       "material": "Ceramic",
       "look": null,
-      "color": null,
+      "color": "White",
       "origins": [
         "India"
       ],
@@ -5788,7 +5788,7 @@
       "status": "active",
       "material": "Ceramic",
       "look": null,
-      "color": null,
+      "color": "White",
       "origins": [
         "India"
       ],
