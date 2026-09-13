@@ -69,6 +69,13 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # Twilio SMS for consent-gated review-request texts. TWILIO_FROM = an E.164
+      # number you own (e.g. +17149990009) or a Messaging Service SID (MG...). Set
+      # all three in the prod .env to enable — empty = SMS skipped, email still sends.
+      # NOTE: only turn on once A2P 10DLC is APPROVED, else US carriers filter the texts.
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM: ${TWILIO_FROM:-}
       # Valor Connect (in-store VP800 terminal). App ID + App Key from Valor Portal
       # → Settings → API Keys; EPI is the device id. Base URLs default to Valor's
       # UAT hosts inside the app — set the PRODUCTION hosts (from Valor) here to
