@@ -551,8 +551,8 @@
   "sqft_per_sheet": 0.78,
   "pcs_per_box": 10,
   "lbs_per_box": 35.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/elegance-carrara.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/elegance-carrara.jpg"
  },
  {
   "sku": "CAY-ELMW",
@@ -1061,8 +1061,8 @@
   "sqft_per_sheet": 0.9,
   "pcs_per_box": 10,
   "lbs_per_box": 38.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/loft-alu-grey.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/loft-alu-grey.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-MARMCBAR",
@@ -1166,8 +1166,8 @@
   "sqft_per_sheet": 90.0,
   "pcs_per_box": 10,
   "lbs_per_box": 27.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/marmo-2x2-calacatta-gold.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/marmo-2x2-calacatta-gold.jpg"
+  "primary_img": "https://akuamosaics.com/images/swatches/marmo-mini-hex-calacatta-grey.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/marmo-mini-hex-calacatta-grey.jpg"
  },
  {
   "sku": "CAY-MARMCGSUB",
@@ -1226,8 +1226,8 @@
   "sqft_per_sheet": 90.0,
   "pcs_per_box": 10,
   "lbs_per_box": 27.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/marmo-2x2-calacatta-gold.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/marmo-2x2-calacatta-gold.jpg"
+  "primary_img": "https://akuamosaics.com/images/swatches/marmo-mini-hex-calacatta-gold.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/marmo-mini-hex-calacatta-gold.jpg"
  },
  {
   "sku": "CAY-MARMCGOSUB",
@@ -1286,8 +1286,8 @@
   "sqft_per_sheet": 90.0,
   "pcs_per_box": 10,
   "lbs_per_box": 27.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/marmo-2x2-carrara.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/marmo-2x2-carrara.jpg"
+  "primary_img": "https://akuamosaics.com/images/swatches/marmo-mini-hex-carrara.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/marmo-mini-hex-carrara.jpg"
  },
  {
   "sku": "CAY-MARMCARSUB",
@@ -1346,8 +1346,8 @@
   "sqft_per_sheet": 90.0,
   "pcs_per_box": 10,
   "lbs_per_box": 27.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/marmo-2x2-thassos.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/marmo-2x2-thassos.jpg"
+  "primary_img": "https://akuamosaics.com/images/swatches/marmo-mini-hex-thassos.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/marmo-mini-hex-thassos.jpg"
  },
  {
   "sku": "CAY-MARMTHASSUB",
@@ -1676,8 +1676,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 38.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/nuur-onyx.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/nuur-onyx.jpg"
  },
  {
   "sku": "CAY-NUSM",
@@ -1706,8 +1706,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 38.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/nuur-black-and-white-mix.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/nuur-black-and-white-mix.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-NUSWMAR",
@@ -1721,8 +1721,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 38.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/nuur-marmara.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/nuur-marmara.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-NUWG",
@@ -1976,8 +1976,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 42.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-multicolor-sliced.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-multicolor-sliced.jpg"
  },
  {
   "sku": "CAY-PSWHSL",
@@ -1991,8 +1991,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 42.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-white-sliced.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-white-sliced.jpg"
  },
  {
   "sku": "CAY-PSYESL",
@@ -2006,8 +2006,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 42.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-yellow-sliced.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-yellow-sliced.jpg"
  },
  {
   "sku": "CAY-PSSWSL",
@@ -2021,8 +2021,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 42.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-super-white-sliced.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-super-white-sliced.jpg"
  },
  {
   "sku": "CAY-PSMASL",
@@ -2036,8 +2036,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 42.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-marmara-sliced.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-marmara-sliced.jpg"
  },
  {
   "sku": "CAY-PSRSBL",
@@ -2066,8 +2066,8 @@
   "sqft_per_sheet": 0.98,
   "pcs_per_box": 10,
   "lbs_per_box": 40.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-river-stone-cappucino.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-river-stone-cappucino.jpg"
  },
  {
   "sku": "CAY-PSRSGR",
@@ -2081,8 +2081,8 @@
   "sqft_per_sheet": 0.98,
   "pcs_per_box": 10,
   "lbs_per_box": 40.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-river-stone-grey.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-river-stone-grey.jpg"
  },
  {
   "sku": "CAY-PSRSSUM",
@@ -2096,8 +2096,8 @@
   "sqft_per_sheet": 0.98,
   "pcs_per_box": 10,
   "lbs_per_box": 40.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-river-stone-sumatra.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-river-stone-sumatra.jpg"
  },
  {
   "sku": "CAY-PSRSWH",
@@ -2111,8 +2111,8 @@
   "sqft_per_sheet": 0.98,
   "pcs_per_box": 10,
   "lbs_per_box": 40.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-river-stone-white.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-river-stone-white.jpg"
  },
  {
   "sku": "CAY-PSRSWTG`",
@@ -2126,8 +2126,8 @@
   "sqft_per_sheet": 0.98,
   "pcs_per_box": 10,
   "lbs_per_box": 40.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-river-stone-wtg.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-river-stone-wtg.jpg"
  },
  {
   "sku": "CAY-PCBW",
@@ -2141,8 +2141,8 @@
   "sqft_per_sheet": 0.86,
   "pcs_per_box": 10,
   "lbs_per_box": 30.0,
-  "primary_img": null,
-  "room_img": null
+  "primary_img": "https://akuamosaics.com/images/swatches/pebblecycle-black-and-white.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/pebblecycle-black-and-white.jpg"
  },
  {
   "sku": "CAY-PCCA",
@@ -2396,8 +2396,8 @@
   "sqft_per_sheet": 0.99,
   "pcs_per_box": 15,
   "lbs_per_box": 31.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/sea-hex-emerald.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/sea-hex-emerald.jpg"
+  "primary_img": "https://akuamosaics.com/images/swatches/sea-seahex-emerald-green.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/sea-seahex-emerald-green.jpg"
  },
  {
   "sku": "CAY-SEAOB",
@@ -2456,8 +2456,8 @@
   "sqft_per_sheet": 0.99,
   "pcs_per_box": 15,
   "lbs_per_box": 31.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/sea-hex-ocean-blue.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/sea-hex-ocean-blue.jpg"
+  "primary_img": "https://akuamosaics.com/images/swatches/sea-seahex-ocean-blue.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/sea-seahex-ocean-blue.jpg"
  },
  {
   "sku": "CAY-SEAWF",
@@ -2516,8 +2516,8 @@
   "sqft_per_sheet": 0.99,
   "pcs_per_box": 15,
   "lbs_per_box": 31.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/sea-hex-white-foam.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/sea-hex-white-foam.jpg"
+  "primary_img": "https://akuamosaics.com/images/swatches/sea-seahex-white-foam.jpg",
+  "room_img": "https://akuamosaics.com/images/rooms/sea-seahex-white-foam.jpg"
  },
  {
   "sku": "CAY-SESECBGD",
@@ -3191,8 +3191,8 @@
   "sqft_per_sheet": 0.98,
   "pcs_per_box": 10,
   "lbs_per_box": 40.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/core-white-wood.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/core-white-wood.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-DIAG",
@@ -3266,8 +3266,8 @@
   "sqft_per_sheet": 0.78,
   "pcs_per_box": 10,
   "lbs_per_box": 35.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/elegance-white-mix.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/elegance-white-mix.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-EXBG1X2",
@@ -3281,8 +3281,8 @@
   "sqft_per_sheet": 0.93,
   "pcs_per_box": 10,
   "lbs_per_box": 35.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/extant-1x2-emerald.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/extant-1x2-emerald.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-EXBG2X2",
@@ -3296,8 +3296,8 @@
   "sqft_per_sheet": 0.96,
   "pcs_per_box": 10,
   "lbs_per_box": 38.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/extant-2x2-emerald.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/extant-2x2-emerald.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-EXBL1X1",
@@ -3311,8 +3311,8 @@
   "sqft_per_sheet": 0.96,
   "pcs_per_box": 10,
   "lbs_per_box": 34.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/extant-1x1-emerald.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/extant-1x1-emerald.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-EXBL3X6",
@@ -3326,8 +3326,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 42.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/extant-3x6-emerald.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/extant-3x6-emerald.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-EXBM1X2",
@@ -3341,8 +3341,8 @@
   "sqft_per_sheet": 0.93,
   "pcs_per_box": 10,
   "lbs_per_box": 35.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/extant-1x2-emerald.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/extant-1x2-emerald.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-EXBM3X6",
@@ -3356,8 +3356,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 42.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/extant-3x6-emerald.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/extant-3x6-emerald.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-GD36",
@@ -3536,8 +3536,8 @@
   "sqft_per_sheet": 0.9,
   "pcs_per_box": 10,
   "lbs_per_box": 38.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/loft-alu-grey.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/loft-alu-grey.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-MAJU",
@@ -3776,8 +3776,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 40.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-black-round.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-black-round.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-PSBW",
@@ -3791,8 +3791,8 @@
   "sqft_per_sheet": 1.0,
   "pcs_per_box": 10,
   "lbs_per_box": 42.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/pebble-stone-black-sliced.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/pebble-stone-black-sliced.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-PCGM",
@@ -3806,8 +3806,8 @@
   "sqft_per_sheet": 0.86,
   "pcs_per_box": 10,
   "lbs_per_box": 30.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/pebblecycle-grey.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/pebblecycle-grey.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-PTCA",
@@ -4046,8 +4046,8 @@
   "sqft_per_sheet": 0.96,
   "pcs_per_box": 11,
   "lbs_per_box": 30.0,
-  "primary_img": "https://akuamosaics.com/images/swatches/stickcycle-avorio-mix.jpg",
-  "room_img": "https://akuamosaics.com/images/rooms/stickcycle-avorio-mix.jpg"
+  "primary_img": null,
+  "room_img": null
  },
  {
   "sku": "CAY-SYSX001",
