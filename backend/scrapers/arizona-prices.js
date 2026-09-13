@@ -418,6 +418,49 @@ export function loadAllPriceLists() {
   // Merge all into one unified map (tile entries take priority for overlaps)
   const allMaps = new Map([...stoneMap, ...porcelainSlabMap, ...quartzMap, ...tileMap]);
 
+  // ── Canonical shape index (2026-09-13, loose-hex families) ──
+  // Several loose-piece rows resist the positional fallbacks in lookup(): the
+  // WC attrs give size "hex20x24" with NO finish attr while the list says
+  // "ICON SILVER MATTE HEX 20X24"; stone hexes give "8 Hex" vs "JADE SATIN
+  // 8IN HEX"; Spark's size attr is just "hex" and the dims exist only in the
+  // list ("SPARK IVORY MATTE HEX 6X7"). Canonical form: uppercase, finish
+  // word extracted, HEXAGON→HEX, "8IN"→"8", trailing dim thickness stripped
+  // (8X8X3/8→8X8), fused shape/dims split (HEX20X24→HEX 20X24), leading
+  // phrase echoes collapsed ("JADE JADE …", "CALACATTA UMBER CALACATTA
+  // UMBER …"). Index: canon → (finish|'' → entry, null = ambiguous).
+  const CANON_FINISH = {
+    GLOSSY: 'GLOSSY', MATTE: 'MATTE', POLISHED: 'POLISHED', HONED: 'HONED',
+    SATIN: 'SATIN', NATURAL: 'NATURAL', POL: 'POLISHED', HON: 'HONED', MAT: 'MATTE',
+  };
+  function canonKey(raw) {
+    let finish = null;
+    let s = String(raw || '').toUpperCase()
+      .replace(/\b(GLOSSY|MATTE|POLISHED|HONED|SATIN|NATURAL|POL|HON|MAT)\b/g,
+        (m) => { if (!finish) finish = CANON_FINISH[m]; return ' '; })
+      .replace(/\bHEXAGON\b/g, 'HEX')
+      .replace(/\bHEX(?=\d)/g, 'HEX ')
+      .replace(/(\d)IN\b/g, '$1')
+      .replace(/(\d+X\d+)X\d+\/\d+/g, '$1')
+      .replace(/\s+/g, ' ').trim();
+    const toks = s.split(' ');
+    for (let n = Math.min(4, toks.length >> 1); n >= 1; n--) {
+      if (toks.slice(0, n).join(' ') === toks.slice(n, 2 * n).join(' ')) {
+        toks.splice(n, n);
+        break;
+      }
+    }
+    return { canon: toks.join(' '), finish };
+  }
+  const canonIndex = new Map();
+  for (const [k, entry] of allMaps) {
+    const { canon, finish } = canonKey(k);
+    if (!canon) continue;
+    let byFinish = canonIndex.get(canon);
+    if (!byFinish) { byFinish = new Map(); canonIndex.set(canon, byFinish); }
+    const fk = finish || '';
+    byFinish.set(fk, byFinish.has(fk) ? null : entry);
+  }
+
   /**
    * Look up pricing for a given item.
    * Tries exact key first, then progressively looser matches.
@@ -779,6 +822,32 @@ export function loadAllPriceLists() {
     const keyCompact = key.replace(/[\s\-\/]+/g, '');
     for (const [k, v] of allMaps) {
       if (k.replace(/[\s\-\/]+/g, '') === keyCompact) return v;
+    }
+
+    // ── Canonical fallback (loose-hex families; see canonKey above) ──
+    {
+      const { canon: qCanon } = canonKey(key);
+      const qFinish = finishName ? (CANON_FINISH[finishName] || finishName) : null;
+      const pick = (byFinish) => {
+        if (!byFinish) return null;
+        if (qFinish) return byFinish.get(qFinish) || null;
+        // No finish on the WC side — unambiguous only if a single row exists
+        return byFinish.size === 1 ? [...byFinish.values()][0] : null;
+      };
+      if (qCanon && qCanon.includes(' ')) {
+        const exact = pick(canonIndex.get(qCanon));
+        if (exact) return exact;
+        // Unique word-boundary prefix: query "SPARK IVORY HEX" → list canon
+        // "SPARK IVORY HEX 6X7" (dims only exist on the price-list side)
+        let hit = null, hits = 0;
+        for (const [c, byFinish] of canonIndex) {
+          if (c.length > qCanon.length && c.startsWith(qCanon + ' ')) {
+            const e = pick(byFinish);
+            if (e) { hit = e; hits++; if (hits > 1) break; }
+          }
+        }
+        if (hits === 1) return hit;
+      }
     }
 
     return null;

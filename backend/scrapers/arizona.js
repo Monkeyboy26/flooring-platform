@@ -714,11 +714,26 @@ export async function run(pool, job, source) {
             // Sub-group variations by format for variant-level category splitting
             const formatGroups = new Map();
             for (const entry of variations) {
-              const fmt = classifyVariation(
+              let fmt = classifyVariation(
                 entry.v.attributes?.attribute_pa_size,
                 originalFormatSlug,
                 originalSlabSlug
               );
+              // Loose-piece override (owner, 2026-09-13 — "Icon Silver Hex is
+              // not a mosaic"): AZ's price list marks every true mesh sheet
+              // SHT; a shape-word size (Hex 20x24, 8in Hex, Hex 9x11 …) whose
+              // list row is SF/BX-priced inside a real multi-piece box is a
+              // loose tile, not a mesh mount. Route it to the default group so
+              // it lands beside its field-tile siblings as a size variant
+              // instead of forking a per-piece "X Mosaics / X Hex" product.
+              if (fmt === 'mosaic' && priceList) {
+                const plE = priceList.lookup(collectionName, colorSlug,
+                  entry.v.attributes?.attribute_pa_size, entry.v.attributes?.attribute_pa_finishes);
+                if (plE && (plE.unit === 'SF' || plE.unit === 'BX')
+                    && plE.sfPerPc > 0 && plE.pcsPerBox > 1) {
+                  fmt = 'default';
+                }
+              }
               if (!formatGroups.has(fmt)) formatGroups.set(fmt, []);
               formatGroups.get(fmt).push(entry);
             }
@@ -783,7 +798,18 @@ export async function run(pool, job, source) {
                   return d && Number.isInteger(d[0]) && Number.isInteger(d[1])
                     && Math.min(d[0], d[1]) <= 4 && Math.max(d[0], d[1]) <= 24;
                 });
-                if (allWallPieces) {
+                // Loose SF/BX-priced pieces (the shape-word override above) on a
+                // page that never shed its mosaic tags (all-mosaic pages like
+                // Basalt): same demotion, but to the material category — these
+                // are floor tiles, not wall pieces.
+                const allLoosePieces = !allWallPieces && pieceSizes.length > 0 && !!priceList
+                  && fmtVariations.every(e => {
+                    const pl = priceList.lookup(collectionName, colorSlug,
+                      e.v.attributes?.attribute_pa_size, e.v.attributes?.attribute_pa_finishes);
+                    return pl && (pl.unit === 'SF' || pl.unit === 'BX')
+                      && pl.sfPerPc > 0 && pl.pcsPerBox > 1;
+                  });
+                if (allWallPieces || allLoosePieces) {
                   // Strongest non-format material tag. The ≥50 floor skips the
                   // generic special-order/outer-limits fallbacks so tag-less
                   // glass mosaic series (Geo-Solid etc.) keep mosaic-tile.
@@ -798,10 +824,18 @@ export async function run(pool, job, source) {
                     if (priority > altP && categoryLookup.has(slug)) { altP = priority; altSlug = slug; }
                   }
                   const fluted = /flut/i.test(`${apiProduct.title} ${apiProduct.description || ''}`);
+                  // Wall pieces without a specific material tag read as backsplash;
+                  // loose floor pieces (8in hex etc.) keep their material tag and
+                  // fall back to the spec-sheet body type — never the wall category.
+                  const bodyType = (detail.specs?.type || '').toLowerCase();
+                  const looseFallback = /porcelain/.test(bodyType) ? 'porcelain-tile'
+                    : /ceramic/.test(bodyType) ? 'ceramic-tile' : null;
                   const target = fluted && categoryLookup.has('fluted-tile') ? 'fluted-tile'
-                    : (!altSlug || altSlug === 'porcelain-tile' || altSlug === 'ceramic-tile')
-                      ? 'backsplash-wall' : altSlug;
-                  if (categoryLookup.has(target)) {
+                    : allWallPieces
+                      ? ((!altSlug || altSlug === 'porcelain-tile' || altSlug === 'ceramic-tile')
+                        ? 'backsplash-wall' : altSlug)
+                      : (altSlug || looseFallback);
+                  if (target && categoryLookup.has(target)) {
                     effectiveCatId = categoryLookup.get(target);
                     effectiveCatSlug = target;
                   }
@@ -916,6 +950,10 @@ export async function run(pool, job, source) {
             for (const { vi, v } of subVariations) {
               // Variant name: size + finish (color is now in product name)
               let sizePart = v.attributes?.attribute_pa_size ? deslugify(v.attributes.attribute_pa_size) : '';
+              // "Hex20x24" → "Hex 20x24" (shape word fused to the dims in the
+              // size slug; surfaces as-is now that loose hexes keep their shape
+              // in the variant name instead of the product name)
+              sizePart = sizePart.replace(/^([A-Za-z]+?)(\d+(?:\.\d+)?x\d)/i, '$1 $2');
               const finishPart = v.attributes?.attribute_pa_finishes ? deslugify(v.attributes.attribute_pa_finishes) : '';
 
               // Strip mosaic shape from sizePart — it's already in the product name

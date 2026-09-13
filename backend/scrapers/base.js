@@ -81,7 +81,10 @@ export function normalizeSize(raw) {
   if (!raw) return '';
   let s = raw
     .replace(/["″'']/g, '')
-    .replace(/\s*[xX×]\s*/g, 'x')
+    // Collapse whitespace around the dimension separator only BETWEEN digits —
+    // a bare /\s*[xX×]\s*/ also matched the trailing x of a shape word and ate
+    // the following space ("Hex 20x24" → "Hex20x24", "Hex 2x2 Mesh" → "Hex2x2 Mesh")
+    .replace(/(\d)\s*[xX×]\s*(\d)/g, '$1x$2')
     .trim();
   // Remap vendor-specific size roundings to standard sizes
   if (SIZE_EQUIVALENTS[s]) s = SIZE_EQUIVALENTS[s];
@@ -436,9 +439,19 @@ export async function upsertProduct(pool, rawData, opts = {}) {
   // style dupes. Shared with the storefront title builder and the one-time
   // dedupe-product-names backfill. See lib/productName.js dedupeStoredName.
   const name = dedupeStoredName(collection || '', cleaned.name) || cleaned.name;
-  const slugBase = (collection && !name.toLowerCase().startsWith(collection.toLowerCase()))
-    ? (collection + ' ' + name)
-    : name;
+  // Collection-prefixed slug, collapsing leading words the name shares with the
+  // collection so a series word never repeats: "Icon Mosaics" + "Icon Silver
+  // Hex" → icon-mosaics-silver-hex, not icon-mosaics-icon-silver-hex.
+  let slugBase = name;
+  if (collection && !name.toLowerCase().startsWith(collection.toLowerCase())) {
+    const colToks = collection.toLowerCase().split(/\s+/);
+    const nameToks = name.split(/\s+/);
+    let k = 0;
+    while (k < nameToks.length && k < colToks.length
+           && nameToks[k].toLowerCase() === colToks[k]) k++;
+    const rest = nameToks.slice(k).join(' ');
+    slugBase = rest ? (collection + ' ' + rest) : collection;
+  }
   const slug = slugify(slugBase) || null;
   let result;
   try {
