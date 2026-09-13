@@ -213,6 +213,28 @@ async function fetchSkuData(pool, skuId) {
   return row;
 }
 
+// Resolve a product's CURRENT canonical URL by product slug alone (ignoring the
+// category segment). Used to 301 old/renamed/recategorized category paths — e.g.
+// /shop/vanity/{slug} after the category was renamed to "vanities" — to the live URL
+// instead of 404ing. Matches the same visibility rules as fetchProductBySlug so we
+// only ever redirect to a page that will actually render.
+async function fetchCanonicalProductUrl(pool, productSlug) {
+  if (!productSlug) return null;
+  try {
+    const res = await pool.query(`
+      SELECT c.slug AS category_slug, p.slug AS product_slug
+      FROM products p
+      JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+        AND COALESCE(s.variant_type, '') NOT IN ('accessory','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+      JOIN categories c ON c.id = p.category_id
+      WHERE p.slug = $1 AND p.status = 'active'
+      ORDER BY s.created_at
+      LIMIT 1
+    `, [productSlug]);
+    return res.rows[0] || null;
+  } catch { return null; }
+}
+
 async function fetchProductBySlug(pool, categorySlug, productSlug) {
   const result = await pool.query(`
     SELECT
@@ -1857,6 +1879,18 @@ export default function createSeoRouter(pool) {
       case 'product': {
         const sku = await fetchProductBySlug(pool, parsed.categorySlug, parsed.productSlug);
         if (!sku) {
+          // Category renamed/recategorized? If the product slug still resolves under a
+          // different current category, 301 to the canonical URL instead of 404 (e.g.
+          // /shop/vanity/... → /shop/vanities/... after the category fold).
+          const canon = await fetchCanonicalProductUrl(pool, parsed.productSlug);
+          if (canon && canon.category_slug !== parsed.categorySlug) {
+            const newUrl = `${SITE_URL}/shop/${canon.category_slug}/${canon.product_slug}`;
+            return {
+              html: `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${escapeHtml(newUrl)}"><link rel="canonical" href="${escapeHtml(newUrl)}"></head><body><p>Redirecting to <a href="${escapeHtml(newUrl)}">${escapeHtml(newUrl)}</a></p></body></html>`,
+              statusCode: 301,
+              redirectUrl: newUrl
+            };
+          }
           pageData = render404Page('Product not found.');
           statusCode = 404;
         } else {
