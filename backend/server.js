@@ -34943,10 +34943,11 @@ async function runMigrations() {
 // rep/admin endpoints to send manually and an admin list for visibility.
 
 // Public review destinations. Default to Roma's own Google Business Profile
-// (opens the profile → "Write a review") and Yelp write-a-review page; override
-// per-environment with the BUSINESS_*_REVIEW_URL env vars (e.g. to swap the
-// Google link for the owner's one-tap g.page/r/.../review link).
-const BUSINESS_GOOGLE_REVIEW_URL = process.env.BUSINESS_GOOGLE_REVIEW_URL || 'https://www.google.com/maps?cid=2785608408570257354';
+// Google's one-tap "write a review" deep link (placeid = Roma's Google listing;
+// verified it opens the review dialog directly, not just the profile — higher
+// review conversion) and Yelp write-a-review page; override per-environment with
+// the BUSINESS_*_REVIEW_URL env vars.
+const BUSINESS_GOOGLE_REVIEW_URL = process.env.BUSINESS_GOOGLE_REVIEW_URL || 'https://search.google.com/local/writereview?placeid=ChIJuQBNYKPX3IARyt8rvBZ4qCY';
 const BUSINESS_YELP_URL = process.env.BUSINESS_YELP_URL || 'https://www.yelp.com/writeareview/biz/8om-PJEuqhMpLdN-Rcd7VQ';
 
 // One-tap rating capture + routing. ?r=N records the rating; no r shows a star
