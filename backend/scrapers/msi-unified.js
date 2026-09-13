@@ -351,7 +351,7 @@ function makeNewItem(lineNumber) {
   };
 }
 
-function cleanProductName(raw) {
+export function cleanProductName(raw) {
   if (!raw) return null;
   let name = raw
     .replace(/\s*\([^)]*sq(?:ft|yd)[^)]*\)/gi, '')
@@ -407,7 +407,7 @@ const EDI_COLOR_FAMILIES = new Set([
   'YELLOW', 'PURE WHITE', 'ADHESIVE',
 ]);
 
-function buildVariantName(item, isAccessory) {
+export function buildVariantName(item, isAccessory) {
   // Accessories: use trim description
   if (isAccessory) {
     return item._trimDescription || item._accessoryLabel || item.product_name || null;
@@ -586,7 +586,7 @@ function finalizeItem(item) {
   }
 }
 
-function parse832(raw) {
+export function parse832(raw) {
   const segments = tokenizeSegments(raw).map(parseSegment);
   const catalog = { items: [], summary: { total_items: 0, segment_count: segments.length } };
   let currentItem = null;
