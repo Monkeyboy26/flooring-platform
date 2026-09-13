@@ -16634,6 +16634,50 @@ app.post('/api/rep/trade-customers/:id/deny', repAuth, requireRepManager, async 
   }
 });
 
+// Rep: send a trade-program INVITE to a prospect. Available to ANY rep (not just
+// managers) — it's outreach, not an approval. Sends AS the acting rep, or as the
+// recipient's assigned rep if the email already maps to a trade_customer.
+app.post('/api/rep/trade-invites/send', repAuth, async (req, res) => {
+  try {
+    const { name, email, order_count, note } = req.body || {};
+    const cleanEmail = (email || '').trim().toLowerCase();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return res.status(400).json({ error: 'A valid recipient email is required.' });
+    }
+
+    let existing = null;
+    try {
+      const r = await pool.query('SELECT * FROM trade_customers WHERE lower(email) = $1 LIMIT 1', [cleanEmail]);
+      if (r.rows.length) existing = r.rows[0];
+    } catch {}
+
+    const withRep = await withTradeRep(existing || {}, req.rep);
+    const orderCount = Number.isFinite(parseInt(order_count, 10)) ? parseInt(order_count, 10) : undefined;
+    const recipient = {
+      name: (name || '').trim() || (existing && existing.contact_name) || '',
+      email: cleanEmail,
+      order_count: orderCount,
+      note: (note || '').trim() || undefined,
+      rep_email: withRep.rep_email,
+      rep_first_name: withRep.rep_first_name,
+      rep_last_name: withRep.rep_last_name
+    };
+
+    const { sendTradeInvite } = await import('./services/emailService.js');
+    const result = await sendTradeInvite(recipient);
+    if (result && result.skipped) return res.status(503).json({ error: 'Email is not configured on this server.' });
+    if (!result || !result.sent) return res.status(502).json({ error: 'The invite could not be delivered. Check email failures and try again.' });
+
+    const repName = `${req.rep.first_name} ${req.rep.last_name}`.trim();
+    await logAudit(null, 'trade.invite', 'trade_customers', existing ? existing.id : null,
+      { email: cleanEmail, order_count: orderCount, sent_by_rep: req.rep.id, sent_by_name: repName }, req.ip);
+
+    res.json({ sent: true, email: cleanEmail });
+  } catch (err) {
+    console.error(err); res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // ==================== Manager: rep reassignment ====================
 // Managers (staff_accounts.is_manager) can reassign a retail customer or an
 // individual order to another rep. Reassigning a customer cascades ONLY to

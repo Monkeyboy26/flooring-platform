@@ -1444,6 +1444,29 @@
     const limit = 50;
     const repInfo = JSON.parse(sessionStorage.getItem("rep_info") || "{}");
     const repName = ((repInfo.first_name || "") + " " + (repInfo.last_name || "")).trim();
+    const [showInvite, setShowInvite] = useState(false);
+    const [inviteForm, setInviteForm] = useState({ name: "", email: "", order_count: "", note: "" });
+    const [sendingInvite, setSendingInvite] = useState(false);
+    const sendInvite = async () => {
+      setSendingInvite(true);
+      try {
+        const data = await repFetch("/api/rep/trade-invites/send", {
+          method: "POST",
+          body: JSON.stringify({
+            name: inviteForm.name || void 0,
+            email: inviteForm.email,
+            order_count: inviteForm.order_count ? parseInt(inviteForm.order_count, 10) : void 0,
+            note: inviteForm.note || void 0
+          })
+        });
+        setShowInvite(false);
+        setInviteForm({ name: "", email: "", order_count: "", note: "" });
+        repToast("Trade invite sent to " + data.email);
+      } catch (err) {
+        alert(err.message || "Error sending invite");
+      }
+      setSendingInvite(false);
+    };
     const load = useCallback(() => {
       setLoading(true);
       let url = "/api/rep/customers?page=" + page + "&limit=" + limit + "&sort=" + sortCol + "&dir=" + sortDir + "&type=all";
@@ -1540,7 +1563,7 @@
     const avgLtv = accts ? (s.book_value || 0) / accts : 0;
     const medOrders = median(displayCustomers.map((c) => c.order_count || 0));
     const sortValue = sortCol + ":" + sortDir;
-    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cv-head" }, /* @__PURE__ */ React.createElement("div", { className: "cv-head-top" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cv-kicker" }, "Your book", repName ? " \xB7 " + repName : ""), /* @__PURE__ */ React.createElement("h1", { className: "cv-title" }, /* @__PURE__ */ React.createElement("em", null, "Customers"))), /* @__PURE__ */ React.createElement("div", { className: "cv-actions" }, /* @__PURE__ */ React.createElement("button", { className: "cv-btn primary", onClick: () => navigate("customer-create") }, "+ New customer"))), /* @__PURE__ */ React.createElement("div", { className: "cv-stats" }, kpis.map((k) => /* @__PURE__ */ React.createElement("div", { key: k.l, className: "cv-stat" }, /* @__PURE__ */ React.createElement("div", { className: "cv-stat-l" }, k.l), /* @__PURE__ */ React.createElement("div", { className: "cv-stat-v" }, k.v), /* @__PURE__ */ React.createElement("div", { className: "cv-stat-s" }, k.sub))))), attention.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cv-attention" }, /* @__PURE__ */ React.createElement("div", { className: "cv-attention-head" }, /* @__PURE__ */ React.createElement("h2", { className: "cv-attention-title" }, "Needs you today"), /* @__PURE__ */ React.createElement("span", { className: "cv-attention-count" }, attention.length, " of ", accts.toLocaleString())), /* @__PURE__ */ React.createElement("div", { className: "cv-cards" }, attention.map((a) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cv-head" }, /* @__PURE__ */ React.createElement("div", { className: "cv-head-top" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cv-kicker" }, "Your book", repName ? " \xB7 " + repName : ""), /* @__PURE__ */ React.createElement("h1", { className: "cv-title" }, /* @__PURE__ */ React.createElement("em", null, "Customers"))), /* @__PURE__ */ React.createElement("div", { className: "cv-actions" }, /* @__PURE__ */ React.createElement("button", { className: "cv-btn", onClick: () => setShowInvite(true) }, "Invite to Trade"), /* @__PURE__ */ React.createElement("button", { className: "cv-btn primary", onClick: () => navigate("customer-create") }, "+ New customer"))), /* @__PURE__ */ React.createElement("div", { className: "cv-stats" }, kpis.map((k) => /* @__PURE__ */ React.createElement("div", { key: k.l, className: "cv-stat" }, /* @__PURE__ */ React.createElement("div", { className: "cv-stat-l" }, k.l), /* @__PURE__ */ React.createElement("div", { className: "cv-stat-v" }, k.v), /* @__PURE__ */ React.createElement("div", { className: "cv-stat-s" }, k.sub))))), attention.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cv-attention" }, /* @__PURE__ */ React.createElement("div", { className: "cv-attention-head" }, /* @__PURE__ */ React.createElement("h2", { className: "cv-attention-title" }, "Needs you today"), /* @__PURE__ */ React.createElement("span", { className: "cv-attention-count" }, attention.length, " of ", accts.toLocaleString())), /* @__PURE__ */ React.createElement("div", { className: "cv-cards" }, attention.map((a) => /* @__PURE__ */ React.createElement(
       "div",
       {
         key: a.id,
@@ -1610,7 +1633,44 @@
         onClick: () => setPage(p)
       },
       p
-    )), /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page >= totalPages, onClick: () => setPage((p) => p + 1) }, "\u2192")))));
+    )), /* @__PURE__ */ React.createElement("button", { className: "ol-page-btn", disabled: page >= totalPages, onClick: () => setPage((p) => p + 1) }, "\u2192")))), showInvite && /* @__PURE__ */ React.createElement("div", { className: "modal-overlay", onClick: () => !sendingInvite && setShowInvite(false) }, /* @__PURE__ */ React.createElement("div", { className: "modal-box", onClick: (e) => e.stopPropagation(), style: { maxWidth: "520px", width: "92vw" } }, /* @__PURE__ */ React.createElement("h3", { style: { margin: "0 0 0.35rem" } }, "Invite a customer to the Trade Program"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: "0.85rem", color: "var(--brass-muted)", margin: "0 0 1rem" } }, "Sends the trade-invite email inviting them to apply. It goes out ", /* @__PURE__ */ React.createElement("strong", null, "from you"), " (or their assigned rep, if they already have one), so replies come back to you."), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "0.75rem" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: "0.72rem", fontWeight: 600, marginBottom: "0.25rem" } }, "Name"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "text",
+        value: inviteForm.name,
+        onChange: (e) => setInviteForm({ ...inviteForm, name: e.target.value }),
+        placeholder: "Daniel Ortiz",
+        style: { width: "100%", padding: "0.5rem", border: "0.5px solid rgba(168,121,53,0.4)", font: '400 0.82rem "Inter", sans-serif' }
+      }
+    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: "0.72rem", fontWeight: 600, marginBottom: "0.25rem" } }, "Email *"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "email",
+        value: inviteForm.email,
+        onChange: (e) => setInviteForm({ ...inviteForm, email: e.target.value }),
+        placeholder: "daniel@example.com",
+        style: { width: "100%", padding: "0.5rem", border: "0.5px solid rgba(168,121,53,0.4)", font: '400 0.82rem "Inter", sans-serif' }
+      }
+    ))), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "0.75rem" } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: "0.72rem", fontWeight: 600, marginBottom: "0.25rem" } }, "Orders in last 12 months (optional)"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "number",
+        min: "0",
+        value: inviteForm.order_count,
+        onChange: (e) => setInviteForm({ ...inviteForm, order_count: e.target.value }),
+        placeholder: "e.g. 6",
+        style: { width: "140px", padding: "0.5rem", border: "0.5px solid rgba(168,121,53,0.4)", font: '400 0.82rem "Inter", sans-serif' }
+      }
+    ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: "0.72rem", color: "var(--brass-muted)", marginTop: "0.25rem" } }, `Enter a count for existing customers ("you've placed N orders"). Leave blank for prospects who haven't ordered \u2014 the email switches to first-time wording automatically.`)), /* @__PURE__ */ React.createElement("div", { style: { marginBottom: "1rem" } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: "0.72rem", fontWeight: 600, marginBottom: "0.25rem" } }, "Personal note (optional)"), /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        value: inviteForm.note,
+        onChange: (e) => setInviteForm({ ...inviteForm, note: e.target.value }),
+        placeholder: "e.g. Loved working with you on the Maple St. job \u2014 thought you'd want in on trade pricing.",
+        rows: 3,
+        style: { width: "100%", padding: "0.5rem", border: "0.5px solid rgba(168,121,53,0.4)", font: '400 0.82rem "Inter", sans-serif', resize: "vertical" }
+      }
+    )), /* @__PURE__ */ React.createElement("div", { className: "modal-actions" }, /* @__PURE__ */ React.createElement("button", { className: "cv-btn", onClick: () => setShowInvite(false), disabled: sendingInvite }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "cv-btn primary", disabled: sendingInvite || !inviteForm.email.trim(), onClick: sendInvite }, sendingInvite ? "Sending\u2026" : "Send invite")))));
   }
   function RepCustomerCreateView({ navigate }) {
     const [form, setForm] = useState({ first_name: "", middle_initial: "", last_name: "", email: "", phone: "", company_name: "", address_line1: "", address_line2: "", city: "", state: "", zip: "", sms_consent: false });
