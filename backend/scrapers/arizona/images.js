@@ -52,14 +52,25 @@ export async function filterWidenPlaceholders(urls) {
   if (!urls || urls.length === 0) return [];
   const checks = await Promise.allSettled(urls.map(async (url) => {
     if (!url.includes('.widen.net')) return { url, ok: true };
-    try {
-      const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
-      if (!res.ok) return { url, ok: false };
-      const len = parseInt(res.headers.get('content-length') || '0', 10);
-      // Reject small/corrupt images AND the known 8,016-byte placeholder
-      if (len > 0 && len <= WIDEN_PLACEHOLDER_BYTES) return { url, ok: false };
-      return { url, ok: true };
-    } catch { return { url, ok: false }; }
+    // Fail OPEN on transient errors: a timeout/429/5xx during the HEAD check
+    // must not drop a real image — that silently demotes the product to a
+    // fallback (lifestyle shot or a wrong-format sibling image). Only a
+    // definitive 404/410 (the CDN's placeholder response) or a tiny
+    // content-length marks a placeholder.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+        if (res.status === 404 || res.status === 410) return { url, ok: false };
+        if (res.ok) {
+          const len = parseInt(res.headers.get('content-length') || '0', 10);
+          // Reject small/corrupt images AND the known 8,016-byte placeholder
+          if (len > 0 && len <= WIDEN_PLACEHOLDER_BYTES) return { url, ok: false };
+          return { url, ok: true };
+        }
+        // other status (429/5xx): retry once, then keep
+      } catch { /* timeout/network: retry once, then keep */ }
+    }
+    return { url, ok: true };
   }));
   return checks
     .filter(r => r.status === 'fulfilled' && r.value.ok)
@@ -72,7 +83,7 @@ export async function filterWidenPlaceholders(urls) {
  * (12x12, 18x18, etc.) or detail-shot markers (-DT-) that indicate
  * a non-mosaic product shot — these should NOT be used for mosaic SKUs.
  */
-export const FIELD_TILE_IMAGE_RE = /[-_](12x12|18x18|24x24|12x24|16x16|6x24|6x12|4x12|3x6)[-_.]/i;
+export const FIELD_TILE_IMAGE_RE = /[-_](12x12|18x18|24x24|12x24|24x48|12x48|8x48|16x16|6x24|6x12|4x12|3x6)[-_.]/i;
 export const DETAIL_SHOT_RE = /[-_]DT[-_.]/i;
 export const MOSAIC_IMAGE_INDICATOR_RE = /mosaic|mesh|hex|herringbone|chevron|basket|penny|fan|flower|brick|bubble|scallop|picket|rhomboid|stanza|pinwheel|octagon|arabesque|lantern/i;
 export function isFieldTileUrl(url) {

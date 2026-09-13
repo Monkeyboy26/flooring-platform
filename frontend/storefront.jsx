@@ -1473,6 +1473,27 @@
           return colToks.length > 0 && colToks.every(t => nameToks.has(t));
         })()) {
           showCollection = '';
+        } else if ((() => {
+          // Format-suffixed collection echo: collection and name share their
+          // leading word(s) and the collection's ONLY other words are format
+          // words — "Icon Mosaics" + "Icon Black", "Aequa Pavers" + "Aequa
+          // Castor", "Anthea Stacked Stone" + "Anthea Dark". Scrapers split one
+          // vendor series into per-format collections by suffixing the format
+          // word, so prefixing the collection would double the series name
+          // ("Icon Mosaics Icon Black 2x2"). The format still surfaces via the
+          // variant/category suffix, so skip the prefix. A collection whose
+          // extra words carry identity ("Natural Gold" vs "Natural Stone Ledger
+          // Panel") is left untouched.
+          const FORMAT_WORDS = new Set(['mosaic', 'mosaics', 'tile', 'tiles', 'paver', 'pavers',
+            'slab', 'slabs', 'plank', 'planks', 'panel', 'panels', 'stacked', 'stone',
+            'ledger', 'wall', 'pebbles']);
+          const nToks = nameLower.split(/[^a-z0-9']+/).filter(Boolean);
+          const cToks = colLower.split(/[^a-z0-9']+/).filter(Boolean);
+          let k = 0;
+          while (k < nToks.length && k < cToks.length && nToks[k] === cToks[k]) k++;
+          return k > 0 && cToks.slice(k).every(t => FORMAT_WORDS.has(t));
+        })()) {
+          showCollection = '';
         } else if (/\b(series|collection|edition)\b/i.test(name)) {
           // Product name is self-identifying (e.g. "Bohol Series", "Carrara Collection")
           // Skip the broader collection/category prefix to avoid "Pool Tile Bohol Series"

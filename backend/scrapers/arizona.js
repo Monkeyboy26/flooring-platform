@@ -868,6 +868,12 @@ export async function run(pool, job, source) {
             // Collect ALL candidate images from all subVariation galleries + variation.image,
             // then run preferProductShot to select the best product shot.
             const isMosaicCtx = effectiveCatSlug === 'mosaic-tile';
+            // Never propagate a FIELD-TILE sibling shot into a mosaic product —
+            // that's how a 12x24 hero lands on a 2x2 mosaic when its own gallery
+            // image is (transiently) unavailable. A lifestyle image or no image
+            // beats a wrong-format product shot.
+            const siblingShot = (isMosaicCtx && colorBestProductShot && isFieldTileUrl(colorBestProductShot))
+              ? null : colorBestProductShot;
             let productPrimaryCandidates = [];
             for (const { v: cv } of subVariations) {
               const varGal = galleryData.byVariationId[cv.variation_id] || [];
@@ -888,10 +894,10 @@ export async function run(pool, job, source) {
               if (mosaicOnly.length > 0) productPrimaryCandidates = mosaicOnly;
             }
             // Sibling propagation: if first candidate is lifestyle, use color group's product shot
-            if (colorBestProductShot && productPrimaryCandidates.length > 0 && isLifestyleUrl(productPrimaryCandidates[0], effectiveName)) {
-              productPrimaryCandidates.unshift(colorBestProductShot);
-            } else if (colorBestProductShot && productPrimaryCandidates.length === 0) {
-              productPrimaryCandidates.push(colorBestProductShot);
+            if (siblingShot && productPrimaryCandidates.length > 0 && isLifestyleUrl(productPrimaryCandidates[0], effectiveName)) {
+              productPrimaryCandidates.unshift(siblingShot);
+            } else if (siblingShot && productPrimaryCandidates.length === 0) {
+              productPrimaryCandidates.push(siblingShot);
             }
             const productPrimaryUrl = productPrimaryCandidates.length > 0 ? productPrimaryCandidates[0] : null;
 
@@ -1035,10 +1041,10 @@ export async function run(pool, job, source) {
 
               // Sibling propagation: if primary is a lifestyle image but a sibling variant
               // in the same color group has a product shot, use that instead
-              if (colorBestProductShot && allVarImages.length > 0 && isLifestyleUrl(allVarImages[0], effectiveName)) {
-                allVarImages.unshift(colorBestProductShot);
-              } else if (colorBestProductShot && allVarImages.length === 0) {
-                allVarImages.push(colorBestProductShot);
+              if (siblingShot && allVarImages.length > 0 && isLifestyleUrl(allVarImages[0], effectiveName)) {
+                allVarImages.unshift(siblingShot);
+              } else if (siblingShot && allVarImages.length === 0) {
+                allVarImages.push(siblingShot);
               }
 
               for (let gi = 0; gi < allVarImages.length && gi < MAX_GALLERY_IMAGES; gi++) {

@@ -1526,6 +1526,33 @@
         return colToks.length > 0 && colToks.every((t) => nameToks.has(t));
       })()) {
         showCollection = "";
+      } else if ((() => {
+        const FORMAT_WORDS = /* @__PURE__ */ new Set([
+          "mosaic",
+          "mosaics",
+          "tile",
+          "tiles",
+          "paver",
+          "pavers",
+          "slab",
+          "slabs",
+          "plank",
+          "planks",
+          "panel",
+          "panels",
+          "stacked",
+          "stone",
+          "ledger",
+          "wall",
+          "pebbles"
+        ]);
+        const nToks = nameLower.split(/[^a-z0-9']+/).filter(Boolean);
+        const cToks = colLower.split(/[^a-z0-9']+/).filter(Boolean);
+        let k = 0;
+        while (k < nToks.length && k < cToks.length && nToks[k] === cToks[k]) k++;
+        return k > 0 && cToks.slice(k).every((t) => FORMAT_WORDS.has(t));
+      })()) {
+        showCollection = "";
       } else if (/\b(series|collection|edition)\b/i.test(name)) {
         showCollection = "";
         const colorAttr = (sku.attributes || []).find((a) => a.slug === "color");

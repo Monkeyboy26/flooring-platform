@@ -1392,7 +1392,12 @@ export function filterImageUrls(urls, opts = {}) {
   const { maxImages = 8, extraExclude = [] } = opts;
 
   const EXCLUDE = [
-    'logo', 'icon', 'favicon', 'social', 'sprite', 'pixel', 'tracking',
+    // Bare 'icon' is BANNED here: it substring-matches real product lines
+    // (AZT "Icon-Black.jpeg", Bosphorus "Iconica", Shaw "Iconic", "Rubicon")
+    // and silently discards their entire galleries. Match UI-icon shapes only.
+    '/icons/', '-icon.', '_icon.', 'icon.png', 'icon-192', 'icon-512',
+    'icon-search', 'icon-menu', 'icon-cart', 'icon-user', 'icon-play',
+    'logo', 'favicon', 'social', 'sprite', 'pixel', 'tracking',
     'blank', 'spacer', 'nav', 'menu', 'footer', 'header', 'badge', 'flag',
     'spinner', 'loader', 'avatar', 'caret',
     // Directional UI icons only — bare 'chevron'/'arrow'/'close' clash with
