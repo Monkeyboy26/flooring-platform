@@ -212,10 +212,23 @@ function titleCase(str) {
     .replace(/\bDi\b/g, 'di').replace(/\bDu\b/g, 'du');
 }
 
+// ─── Vendor color aliases ───
+// The price book itself is inconsistent: ALBA's color W is "NERO" on the 2X8
+// rows and "NOITE" on the 8X8/3X12 rows (same color, SKU suffix W throughout).
+// Without the alias one color splits into two products.
+const COLOR_ALIASES = {
+  'ALBA': { 'NERO': 'NOITE' },
+};
+
 // ─── Extract color from description ───
 function extractColor(desc, collectionName) {
   let text = desc.trim();
-  const isMosaicCollection = /^CC\s+(MOSAICS?|PORCELAIN)/i.test(collectionName);
+  // ROCKART is one-product-per-pattern; its chip-shape descriptors sit AFTER
+  // the chip size ("CARRARA MARBLE 1X1 HEXAGON 12X12 MOSAIC") and were being
+  // destroyed by size-stripping, collapsing distinct patterns (1x1 hexagon /
+  // 1x1 square / 2x2 hexagon) into one product. Run it through the same
+  // shape-preserving path as the CC mosaic collections.
+  const isMosaicCollection = /^CC\s+(MOSAICS?|PORCELAIN)/i.test(collectionName) || /^ROCKART$/i.test(collectionName);
 
   // Remove common prefixes
   text = text.replace(/^SUITE\s+/i, '');
@@ -254,6 +267,7 @@ function extractColor(desc, collectionName) {
   // For mosaic collections, extract specific shape/pattern BEFORE stripping sizes
   // (size stripping removes everything after the first NxN, losing shape words)
   let mosaicShape = '';
+  let mosaicAccent = '';
   if (isMosaicCollection) {
     const u = text.toUpperCase();
     let m;
@@ -278,15 +292,30 @@ function extractColor(desc, collectionName) {
     // Shapes already preserved in text after stripping (no extraction needed)
     // PENNY ROUND, STACKED, PICKET, OVAL, FEATHER, DOTS — handled by existing logic
 
-    // Generic "Mosaic" fallback only if no specific shape detected
-    if (!mosaicShape) {
+    // Generic "Mosaic" fallback only if no specific shape detected.
+    // CC collections only — every ROCKART row is a mosaic, so appending
+    // "Mosaic" there would rename existing single-pattern products
+    // ("Carrara" → "Carrara Mosaic") and orphan them on re-import.
+    if (!mosaicShape && !/^ROCKART$/i.test(collectionName)) {
       const afterSize = text.match(/\d+[xX×]\d+\s+(.+)$/i);
       if (afterSize && /\b(MOS|MOSAIC)\b/i.test(afterSize[1])) mosaicShape = 'Mosaic';
       else if (/\b(MOSAIC|MOS)\s*$/i.test(text)) mosaicShape = 'Mosaic';
     }
 
-    // Expand standalone PENNY to PENNY ROUND
-    text = text.replace(/\bPENNY\b(?!\s+ROUND)/i, 'PENNY ROUND');
+    // Expand standalone PENNY to PENNY ROUND (RND = abbreviated ROUND)
+    text = text.replace(/\bPENNY\b(?!\s+(?:ROUND|RND))/i, 'PENNY ROUND');
+
+    // Accent qualifiers sit AFTER the sheet size ("MG SN WH 12X12 W/ BLK OCT
+    // MOSAIC", "MG S.WHITE 12X12 OCT MOS GRAY") and get destroyed by the
+    // size-stripping below — which collapsed three distinct octagon designs
+    // (plain / w/ black / w/ gray) into one product. Capture them here.
+    const ACCENT_WORDS = { BLK: 'Black', BLACK: 'Black', GRAY: 'Gray', GREY: 'Gray', WHITE: 'White', BLUE: 'Blue', GREEN: 'Green', BEIGE: 'Beige', CREAM: 'Cream', TAN: 'Tan' };
+    let m2;
+    if ((m2 = u.match(/\bW\/\s*([A-Z]+)/)) && ACCENT_WORDS[m2[1]]) {
+      mosaicAccent = '& ' + ACCENT_WORDS[m2[1]];
+    } else if ((m2 = u.match(/\b(?:MOS\.?|MOSAIC)\s+([A-Z]+)\s*$/)) && ACCENT_WORDS[m2[1]]) {
+      mosaicAccent = '& ' + ACCENT_WORDS[m2[1]];
+    }
   }
 
   // Normalize Unicode curly quotes to ASCII (XLSX sometimes uses U+201C/U+201D)
@@ -373,13 +402,17 @@ function extractColor(desc, collectionName) {
   };
   if (finishCodes[text.toLowerCase()]) text = finishCodes[text.toLowerCase()];
 
-  // For mosaic collections: append shape if the result is just a color (no shape word present)
+  // For mosaic collections: append accent + shape if the result is just a color (no shape word present)
   if (isMosaicCollection && mosaicShape && text) {
-    const hasShape = /\b(PENNY|ROUND|STACKED|PICKET|OVAL|FEATHER|HEXAGON|HEX|BRICK|HERRING|BASKET|3D|DOTS?|OCTAGON|OCT|LANTERN|PINWHEEL|DIAMOND|SQUARES?|FLOWER|BEVELED)\b/i.test(text);
+    const hasShape = /\b(PENNY|ROUND|STACKED|PICKET|OVAL|FEATHER|HEXAGON|HEX|BRICK|HERRING\w*|BASKET|3D|DOTS?|OCTAGON|OCT|LANTERN|PINWHEEL|DIAMOND|SQUARES?|FLOWER|BEVELED)\b/i.test(text);
     if (!hasShape) {
-      text = text + ' ' + mosaicShape;
+      text = text + (mosaicAccent ? ' ' + mosaicAccent : '') + ' ' + mosaicShape;
     }
   }
+
+  // Vendor color aliases (see COLOR_ALIASES above)
+  const aliases = COLOR_ALIASES[(collectionName || '').trim().toUpperCase()];
+  if (aliases && aliases[text.toUpperCase()]) text = aliases[text.toUpperCase()];
 
   return text || desc.replace(/\s+\d+.*$/, '').trim() || desc;
 }
@@ -395,6 +428,10 @@ function extractFinish(desc) {
     [/\bMT\b/, 'Matte'], [/\bMC\b/, 'Matte Calibrated'],
     [/\bST\b/, 'Structured'], [/\bABS\b/, 'Abrasive'],
     [/\bBRIGHT\b/, 'Bright'], [/\bMATTE\b/, 'Matte'],
+    // Glaze codes mid-description ("ALBA NERO MG 2X8" / "ALBA NERO BG 2X8"):
+    // MG = matte glazed, BG = bright glazed. Without these, same-size glaze
+    // pairs collapsed to meaningless A/B letter variants.
+    [/\bMG\b/, 'Matte'], [/\bBG\b/, 'Bright'],
   ];
   for (const [re, label] of finishMap) {
     if (re.test(u)) return label;
@@ -527,9 +564,31 @@ async function run() {
   // Key = normalized collection name + "|" + color
   const productMap = new Map(); // key → { collection, material, color, skus[] }
 
+  // Roca lists many CC mosaics twice — a legacy code and a "NEW SKU" SA-code
+  // replacement (UFCC100-12MT / UFCC100SAMG). Same design, but the two rows'
+  // descriptions drift ("MG WHITE OCT" vs "MG SNOW WH OCT"), splitting one
+  // design across two products. Unify: rows sharing a design root take the
+  // SA row's color (its description is the current catalog wording).
+  const ccRootOf = (sku) => { const m = String(sku).match(/^(U[A-Z]{0,4}\d+)/); return m ? m[1] : null; };
+  const ccRootColor = new Map(); // collection|root → { color, isNew }
+  for (const rec of allRecords) {
+    if (!/^CC\s+(MOSAICS?|PORCELAIN)/i.test(rec.collection)) continue;
+    const root = ccRootOf(rec.sku);
+    if (!root) continue;
+    const key = rec.collection.toUpperCase() + '|' + root;
+    const isNew = /SA[A-Z]{2,3}$/i.test(rec.sku);
+    const cur = ccRootColor.get(key);
+    if (!cur || (isNew && !cur.isNew)) ccRootColor.set(key, { color: extractColor(rec.desc, rec.collection), isNew });
+  }
+
   for (const rec of allRecords) {
     const normCol = normalizeCollectionName(rec.collection);
     let color = extractColor(rec.desc, rec.collection);
+    if (/^CC\s+(MOSAICS?|PORCELAIN)/i.test(rec.collection)) {
+      const root = ccRootOf(rec.sku);
+      const unified = root && ccRootColor.get(rec.collection.toUpperCase() + '|' + root);
+      if (unified) color = unified.color;
+    }
     // Detect mosaic items by type label OR description keyword
     const isMosaicCol = /^CC\s+(MOSAICS?|PORCELAIN)/i.test(rec.collection) ||
       /ROCKART|METALS/i.test(rec.collection) ||
@@ -567,6 +626,20 @@ async function run() {
   }
 
   console.log(`Grouped into ${productMap.size} products\n`);
+
+  // DRY_PARSE=1 → print the full grouping (product → variant names) and exit
+  // without touching the DB. Diff this against the live catalog before
+  // importing a new price book.
+  if (process.env.DRY_PARSE) {
+    for (const [key, prod] of [...productMap.entries()].sort()) {
+      console.log(`${prod.collection} :: ${prod.color || prod.collection}`);
+      for (const rec of prod.skus) {
+        console.log(`    ${rec.sku}\t${cleanSize(rec.sizeLabel)}\t${rec.desc}`);
+      }
+    }
+    await pool.end();
+    return;
+  }
 
   // ── Insert into DB ──
   const client = await pool.connect();
@@ -612,13 +685,43 @@ async function run() {
         sizeGroups.get(size).push(rec);
       }
 
-      // Pre-compute finishes per size group to detect when finish alone doesn't disambiguate
-      const sizeFinishes = new Map(); // size → [finish, finish, ...]
-      for (const [size, group] of sizeGroups) {
-        if (group.length > 1) {
-          const finishes = group.map(r => extractFinish(r.desc));
-          sizeFinishes.set(size, finishes);
-        }
+      // Disambiguate same-size rows by the DESCRIPTION TOKENS unique to each
+      // row (finish/glaze codes, PICKET/BEVELED shapes, SUITE series) instead
+      // of blind A/B letters. Letters remain only where descriptions are
+      // effectively identical — Roca's duplicate legacy + "NEW SKU" listings
+      // (UFCC111-12MT / UFCC111SABG), which are the same design under two
+      // orderable codes and stay as two SKUs of one variant pair.
+      const TOKEN_LABELS = {
+        MG: 'Matte', BG: 'Bright', MT: 'Matte', MC: 'Matte Calibrated',
+        PO: 'Polished', UP: 'Unpolished', ABS: 'Abrasive', ST: 'Structured',
+        BRIGHT: 'Bright', MATTE: 'Matte',
+        PICKET: 'Picket', BEVELED: 'Beveled', SUITE: 'Suite',
+      };
+      const LABEL_ORDER = ['Suite', 'Bright', 'Matte', 'Matte Calibrated', 'Polished', 'Unpolished', 'Abrasive', 'Structured', 'Picket', 'Beveled'];
+      const variantLabel = new Map(); // rec → label ('' = plain / unlabeled)
+      for (const [, group] of sizeGroups) {
+        if (group.length < 2) continue;
+        const tokSets = group.map(r => new Set(r.desc.toUpperCase().split(/[\s.,"']+/).filter(Boolean)));
+        const labels = group.map((r, i) => {
+          // Tokens some OTHER row in the group lacks = this row's distinguishers
+          const own = [...tokSets[i]].filter(t => tokSets.some((o, j) => j !== i && !o.has(t)));
+          return [...new Set(own.map(t => TOKEN_LABELS[t]).filter(Boolean))]
+            .filter(n => !productName.toLowerCase().includes(n.toLowerCase()))
+            .sort((a, b) => LABEL_ORDER.indexOf(a) - LABEL_ORDER.indexOf(b))
+            .join(' ');
+        });
+        const counts = {};
+        labels.forEach(l => { counts[l] = (counts[l] || 0) + 1; });
+        const used = {};
+        group.forEach((r, i) => {
+          let label = labels[i];
+          if (counts[label] > 1) {
+            const letter = String.fromCharCode(65 + (used[label] = (used[label] || 0) + 1) - 1);
+            if (label === '') console.log(`  ⚠ duplicate listing (letters kept): ${r.sku} "${r.desc}"`);
+            label = (label ? label + ' ' : '') + letter;
+          }
+          variantLabel.set(r, label);
+        });
       }
 
       // Insert field tile SKUs
@@ -626,24 +729,9 @@ async function run() {
         const internalSku = 'ROCA-' + rec.sku;
         const size = cleanSize(rec.sizeLabel);
         let variantName = `${productName} ${size}`.trim();
-        // Append finish when multiple SKUs share the same size within this product
-        const group = sizeGroups.get(size);
-        if (group.length > 1) {
-          const idx = group.indexOf(rec);
-          const finish = extractFinish(rec.desc);
-          const nameHasFinish = finish && productName.toLowerCase().includes(finish.toLowerCase());
-          // Check if finishes are unique across the group
-          const groupFinishes = sizeFinishes.get(size);
-          const finishesUnique = new Set(groupFinishes).size === groupFinishes.length && groupFinishes.every(f => f);
-
-          if (finish && !nameHasFinish && finishesUnique) {
-            variantName = `${productName} ${finish} ${size}`.trim();
-          } else {
-            // Fallback: append A/B/C based on position within the size group
-            const letter = String.fromCharCode(65 + idx); // A, B, C...
-            variantName = `${productName} ${letter} ${size}`.trim();
-          }
-        }
+        // Append the distinguishing label when multiple SKUs share the size
+        const label = variantLabel.get(rec);
+        if (label) variantName = `${productName} ${label} ${size}`.trim();
         const sellBy = rec.uom === 'PC' ? 'unit' : 'box';
 
         const skuRes = await client.query(`
@@ -812,4 +900,6 @@ async function upsertAttr(client, skuId, attrId, value) {
   `, [skuId, attrId, value]);
 }
 
-run().catch(err => { console.error(err); process.exit(1); });
+if (import.meta.url === `file://${process.argv[1]}`) {
+  run().catch(err => { console.error(err); process.exit(1); });
+}

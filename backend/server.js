@@ -3761,7 +3761,14 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     let collectionSiblings = [];
     // isAdexVendor already declared above (media section)
     if (sku.collection) {
-      const isMosaicProduct = /mosaic|hexagon|bullnose/i.test(sku.product_name);
+      // The name-based mosaic/tile split protects MIXED collections (Avalon:
+      // "Arena" tile vs "Arena Mosaic"). In an all-mosaic category the names
+      // rarely say "mosaic" — but one saying "Hexagon" (Rockart Carrara Marble
+      // 1x1 Hexagon) would strand that product with only hexagon-named
+      // siblings. Category already scopes the query, so skip the split there.
+      const isMosaicProduct = /mosaic/.test(sku.category_slug || '')
+        ? null
+        : /mosaic|hexagon|bullnose/i.test(sku.product_name);
       if (isAdexVendor) {
         // ADEX: return ALL SKUs in entire collection (all colors, finishes, products) for swatch grid
         const collResult = await pool.query(`
@@ -3814,7 +3821,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
             AND p.category_id = $3
             AND p.vendor_id = $6
             AND (
-              ($4 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
+              $4::boolean IS NULL
+              OR ($4 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
               OR ($4 = false AND p.name !~* '(mosaic|hexagon|bullnose)')
             )
           ORDER BY p.id,
@@ -3862,7 +3870,10 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
     // Used so variant pills don't disappear when current color has fewer options
     let collectionAttributes = {};
     if (sku.collection) {
-      const isMosaicProduct = /mosaic|hexagon|bullnose/i.test(sku.product_name);
+      // Same category-aware skip as the collection-siblings query above
+      const isMosaicProduct = /mosaic/.test(sku.category_slug || '')
+        ? null
+        : /mosaic|hexagon|bullnose/i.test(sku.product_name);
       const caResult = await pool.query(`
         SELECT a.slug, a.name, ARRAY_AGG(DISTINCT CASE WHEN a.slug = 'finish' THEN INITCAP(sa.value) ELSE sa.value END) as values
         FROM products p
@@ -3874,7 +3885,8 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           AND p.category_id = $2
           AND p.vendor_id = $4
           AND (
-            ($3 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
+            $3::boolean IS NULL
+            OR ($3 = true AND p.name ~* '(mosaic|hexagon|bullnose)')
             OR ($3 = false AND p.name !~* '(mosaic|hexagon|bullnose)')
           )
         GROUP BY a.slug, a.name

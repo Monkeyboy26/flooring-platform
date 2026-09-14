@@ -9169,6 +9169,13 @@
                     ..._colorSibs
                   ];
                   let eligible = !showSizePills;
+                  // Mosaic collections are one-product-per-pattern: the wall IS the
+                  // collection navigation, and any size pills are same-line chip
+                  // scales (Rockart Carrara Marble 1x1 ↔ 2x2 Hexagon), not
+                  // colors-as-sizes. The color↔key 1:1 guard below protects
+                  // vanity-style size-split products; on mosaic PDPs it only
+                  // misfires — pattern products legitimately share a color attr.
+                  if (!eligible && multiColorCollection && /mosaic/.test(sku.category_slug || '')) eligible = true;
                   if (!eligible && multiColorCollection) {
                     const keyToColor = new Map(), colorToKey = new Map();
                     eligible = candidates.every(c => {

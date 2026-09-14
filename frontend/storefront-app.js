@@ -6813,6 +6813,7 @@
           ..._colorSibs
         ];
         let eligible = !showSizePills;
+        if (!eligible && multiColorCollection && /mosaic/.test(sku.category_slug || "")) eligible = true;
         if (!eligible && multiColorCollection) {
           const keyToColor = /* @__PURE__ */ new Map(), colorToKey = /* @__PURE__ */ new Map();
           eligible = candidates.every((c) => {
