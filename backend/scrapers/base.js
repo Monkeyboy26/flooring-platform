@@ -102,7 +102,7 @@ export function buildVariantName(size, ...qualifiers) {
   return parts.join(', ') || null;
 }
 
-function slugify(text) {
+export function slugify(text) {
   return (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 

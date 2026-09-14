@@ -21,6 +21,7 @@ const require = createRequire(import.meta.url);
 const { Client: FtpClient } = require('basic-ftp');
 const { pickPrimaryImage } = require('./daltile-image-rank.cjs');
 const { resolveMosaicPattern } = require('./daltile-mosaic-pattern.cjs');
+import { daltileSkuDescriptors } from './daltile-832.js';
 
 import fs from 'fs';
 import path from 'path';
@@ -30,6 +31,7 @@ import {
   upsertProduct, upsertSku,
   upsertSkuAttribute, upsertPackaging, upsertPricing,
   upsertMediaAsset, applySheetSelling,
+  resolveBrandId, slugify,
 } from './base.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -39,6 +41,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VENDOR_CODE = 'DAL';
 
 const DEFAULT_PRODUCT_MAP = path.join(__dirname, '..', 'data', 'daltile-product-map.json');
+
+// The DAL vendor carries three storefront brands, each with its own Coveo
+// domain and product map. Product names are brand-prefixed ("Daltile Keystones
+// Berry Blend") to match the storewide convention; slugs stay unprefixed
+// ("keystones-berry-blend").
+const DEFAULT_PRODUCT_MAPS = [
+  { path: DEFAULT_PRODUCT_MAP, brand: 'Daltile' },
+  { path: path.join(__dirname, '..', 'data', 'ao-product-map.json'), brand: 'American Olean' },
+  { path: path.join(__dirname, '..', 'data', 'marazzi-product-map.json'), brand: 'Marazzi' },
+];
 
 const DEFAULT_FTP = {
   host: 'daltileb2b.daltile.com',
@@ -592,13 +604,30 @@ function resolveProductCategory(skus, seriesName, catMap) {
 // ─── Main run() ──────────────────────────────────────────────────────────────
 
 export async function run(pool, job, source) {
-  // Step 1: Load product map
-  const mapPath = source.config?.product_map_path || DEFAULT_PRODUCT_MAP;
-  if (!fs.existsSync(mapPath)) {
-    throw new Error(`Product map not found at ${mapPath}. Run build-daltile-product-map.cjs first.`);
+  // Step 1: Load product maps (one per brand). Config may override with either
+  // the legacy single product_map_path or an array product_maps: [{path, brand}].
+  let mapSpecs;
+  if (Array.isArray(source.config?.product_maps) && source.config.product_maps.length) {
+    mapSpecs = source.config.product_maps;
+  } else if (source.config?.product_map_path) {
+    mapSpecs = [{ path: source.config.product_map_path, brand: 'Daltile' }];
+  } else {
+    mapSpecs = DEFAULT_PRODUCT_MAPS;
   }
-  const productMap = JSON.parse(fs.readFileSync(mapPath, 'utf-8'));
-  await appendLog(pool, job.id, `Loaded product map: ${productMap.summary.series} series, ${productMap.summary.products} products, ${productMap.summary.skus} SKUs`);
+
+  const loadedMaps = [];
+  for (const spec of mapSpecs) {
+    if (!fs.existsSync(spec.path)) {
+      if (spec.brand === 'Daltile') {
+        throw new Error(`Product map not found at ${spec.path}. Run build-daltile-product-map.cjs first.`);
+      }
+      await appendLog(pool, job.id, `WARNING: ${spec.brand} product map missing at ${spec.path} — that brand will not be imported.`);
+      continue;
+    }
+    const map = JSON.parse(fs.readFileSync(spec.path, 'utf-8'));
+    loadedMaps.push({ brand: spec.brand, map });
+    await appendLog(pool, job.id, `Loaded ${spec.brand} map: ${map.summary.series} series, ${map.summary.products} products, ${map.summary.skus} SKUs`);
+  }
 
   // Step 2: Download and parse EDI 832
   const ediItems = await downloadAndParse832(pool, job, source);
@@ -634,6 +663,48 @@ export async function run(pool, job, source) {
   }
   const vendorId = vendorResult.rows[0].id;
   const catMap = await loadCategoryMap(pool);
+
+  // Resolve brand ids up front
+  for (const lm of loadedMaps) {
+    lm.brandId = await resolveBrandId(pool, lm.brand);
+    if (!lm.brandId) await appendLog(pool, job.id, `WARNING: brand "${lm.brand}" not found in brands table — products import without brand_id.`);
+  }
+
+  // Step 3a: Snapshot the outgoing catalog BEFORE the wipe — used to (1) write a
+  // recovery backup file and (2) carry paid SEO content + slugs onto the fresh
+  // import (matched by slug, then by normalized name).
+  const snapRes = await pool.query(`
+    SELECT p.id, p.name, p.slug, p.status, p.collection,
+           p.meta_title, p.meta_description, p.seo_h1,
+           p.content_html, p.content_status, p.content_hash
+    FROM products p WHERE p.vendor_id = $1`, [vendorId]);
+  const snapshot = snapRes.rows;
+  const snapBySlug = new Map();
+  const snapByName = new Map();
+  const nameKey = (n) => (n || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  for (const row of snapshot) {
+    if (row.slug && !snapBySlug.has(row.slug)) snapBySlug.set(row.slug, row);
+    const nk = nameKey(row.name);
+    // Prefer active rows when names collide across statuses
+    if (nk && (!snapByName.has(nk) || row.status === 'active')) snapByName.set(nk, row);
+  }
+  try {
+    const skuSnap = await pool.query(`
+      SELECT s.vendor_sku, s.internal_sku, s.variant_name, s.status, s.sell_by,
+             p.name AS product_name, pr.cost, pr.retail_price, pr.price_basis,
+             pk.sqft_per_box, pk.pieces_per_box, pk.weight_per_box_lbs,
+             pk.boxes_per_pallet, pk.sqft_per_pallet
+      FROM skus s JOIN products p ON p.id = s.product_id
+      LEFT JOIN pricing pr ON pr.sku_id = s.id
+      LEFT JOIN packaging pk ON pk.sku_id = s.id
+      WHERE p.vendor_id = $1`, [vendorId]);
+    const backupPath = path.join(__dirname, '..', 'data',
+      `daltile-reonboard-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+    fs.writeFileSync(backupPath, JSON.stringify({ products: snapshot, skus: skuSnap.rows }, null, 1));
+    await appendLog(pool, job.id, `Backed up ${snapshot.length} products / ${skuSnap.rows.length} SKUs to ${backupPath}`);
+  } catch (bkErr) {
+    throw new Error(`Refusing to wipe without a backup: ${bkErr.message}`);
+  }
 
   // Step 3b: Clean slate — remove old Daltile products to prevent duplicates
   // The old 832 pipeline grouped products differently (by EDI collection+color).
@@ -700,61 +771,74 @@ export async function run(pool, job, source) {
     await appendLog(pool, job.id, `Cleared old Daltile data. Starting fresh import.`);
   }
 
-  // Step 4: Process each series
-  const seriesEntries = Object.entries(productMap.series);
+  // Step 4: Process each series, per brand map
   let stats = {
     productsCreated: 0, productsUpdated: 0,
     skusCreated: 0, skusUpdated: 0,
     imagesSet: 0, attributesSet: 0,
     pricingSet: 0, packagingSet: 0,
     ediMatches: 0, ediMisses: 0,
+    seoCarried: 0, slugsCarried: 0,
     errors: 0,
   };
 
-  for (let si = 0; si < seriesEntries.length; si++) {
-    const [seriesName, seriesData] = seriesEntries[si];
+  // The brand sites cross-list some SKUs (americanolean.com re-lists Daltile
+  // items with the same SKU code). internal_sku is globally unique, so a later
+  // brand would silently yank the SKU off the earlier brand's product
+  // (upsertSku moves product_id) and leave a 0-SKU husk. First brand wins.
+  const importedSkusGlobal = new Set();
 
-    // Process main products (series + color)
-    for (const [colorName, colorData] of Object.entries(seriesData.products)) {
-      try {
-        await processProduct(pool, {
-          vendorId, seriesName, colorName, colorData,
-          category: seriesData.category, catMap,
-          ediLookup, ediFuzzy, stats, isAccessory: false,
-        });
-      } catch (err) {
-        stats.errors++;
-        if (stats.errors <= 50) {
-          await addJobError(pool, job.id, `${seriesName} / ${colorName}: ${err.message}`);
+  for (const { brand, brandId, map } of loadedMaps) {
+    const seriesEntries = Object.entries(map.series);
+    await appendLog(pool, job.id, `Importing brand ${brand}: ${seriesEntries.length} series…`);
+
+    for (let si = 0; si < seriesEntries.length; si++) {
+      const [seriesName, seriesData] = seriesEntries[si];
+
+      // Process main products (series + color)
+      for (const [colorName, colorData] of Object.entries(seriesData.products)) {
+        try {
+          await processProduct(pool, {
+            vendorId, brandName: brand, brandId, seriesName, colorName, colorData,
+            category: seriesData.category, catMap,
+            ediLookup, ediFuzzy, stats, isAccessory: false,
+            snapBySlug, snapByName, nameKey, importedSkusGlobal,
+          });
+        } catch (err) {
+          stats.errors++;
+          if (stats.errors <= 50) {
+            await addJobError(pool, job.id, `${seriesName} / ${colorName}: ${err.message}`);
+          }
         }
       }
-    }
 
-    // Process accessories
-    for (const [accName, accData] of Object.entries(seriesData.accessories)) {
-      try {
-        await processProduct(pool, {
-          vendorId, seriesName, colorName: accName, colorData: accData,
-          category: seriesData.category, catMap,
-          ediLookup, ediFuzzy, stats, isAccessory: true,
-        });
-      } catch (err) {
-        stats.errors++;
-        if (stats.errors <= 50) {
-          await addJobError(pool, job.id, `${seriesName} / ${accName} (acc): ${err.message}`);
+      // Process accessories
+      for (const [accName, accData] of Object.entries(seriesData.accessories)) {
+        try {
+          await processProduct(pool, {
+            vendorId, brandName: brand, brandId, seriesName, colorName: accName, colorData: accData,
+            category: seriesData.category, catMap,
+            ediLookup, ediFuzzy, stats, isAccessory: true,
+            snapBySlug, snapByName, nameKey, importedSkusGlobal,
+          });
+        } catch (err) {
+          stats.errors++;
+          if (stats.errors <= 50) {
+            await addJobError(pool, job.id, `${seriesName} / ${accName} (acc): ${err.message}`);
+          }
         }
       }
-    }
 
-    // Progress log every 20 series
-    if ((si + 1) % 20 === 0 || si === seriesEntries.length - 1) {
-      await appendLog(pool, job.id,
-        `Progress: ${si + 1}/${seriesEntries.length} series — ` +
-        `products: ${stats.productsCreated + stats.productsUpdated}, ` +
-        `SKUs: ${stats.skusCreated + stats.skusUpdated}, ` +
-        `images: ${stats.imagesSet}, EDI matches: ${stats.ediMatches}`,
-        { products_found: si + 1, products_updated: stats.productsCreated + stats.productsUpdated }
-      );
+      // Progress log every 20 series
+      if ((si + 1) % 20 === 0 || si === seriesEntries.length - 1) {
+        await appendLog(pool, job.id,
+          `[${brand}] ${si + 1}/${seriesEntries.length} series — ` +
+          `products: ${stats.productsCreated + stats.productsUpdated}, ` +
+          `SKUs: ${stats.skusCreated + stats.skusUpdated}, ` +
+          `images: ${stats.imagesSet}, EDI matches: ${stats.ediMatches}`,
+          { products_found: si + 1, products_updated: stats.productsCreated + stats.productsUpdated }
+        );
+      }
     }
   }
 
@@ -765,7 +849,7 @@ export async function run(pool, job, source) {
     `Images: ${stats.imagesSet}. Attributes: ${stats.attributesSet}. ` +
     `Pricing: ${stats.pricingSet}. Packaging: ${stats.packagingSet}. ` +
     `EDI matches: ${stats.ediMatches}/${stats.ediMatches + stats.ediMisses} (${stats.ediFuzzyMatches || 0} fuzzy). ` +
-    `Errors: ${stats.errors}.`,
+    `SEO carried over: ${stats.seoCarried}. Errors: ${stats.errors}.`,
     {
       products_created: stats.productsCreated,
       products_updated: stats.productsUpdated,
@@ -778,17 +862,26 @@ export async function run(pool, job, source) {
 
 async function processProduct(pool, ctx) {
   const {
-    vendorId, seriesName, colorName, colorData,
+    vendorId, brandName, brandId, seriesName, colorName, colorData,
     category, catMap, ediLookup, ediFuzzy, stats, isAccessory,
+    snapBySlug, snapByName, nameKey, importedSkusGlobal,
   } = ctx;
 
-  // Product name: "Series Color" for main, "Series Color TrimType" for accessories
-  const productName = isAccessory
+  // Product name: brand-prefixed to match the storewide convention
+  // ("Daltile Keystones Berry Blend", "American Olean Color Story Floor Matte Shadow").
+  const baseName = isAccessory
     ? `${seriesName} Trim & Accessories`
     : `${seriesName} ${colorName}`;
+  const productName = brandName ? `${brandName} ${baseName}` : baseName;
 
-  // Resolve category per-product from SKU-level productType/bodyType
-  const categoryId = resolveProductCategory(colorData.skus || [], seriesName, catMap);
+  // Resolve category per-product from SKU-level productType/bodyType.
+  // Accessory bundles ("X Trim & Accessories") always live in trim-accessories —
+  // their SKUs are all trim productTypes, which resolveProductCategory ignores,
+  // so they'd otherwise fall through to the porcelain-tile default and pollute
+  // the tile browse grids.
+  const categoryId = isAccessory
+    ? (catMap['trim-accessories'] || null)
+    : resolveProductCategory(colorData.skus || [], seriesName, catMap);
   const categorySlug = Object.keys(catMap).find(sl => catMap[sl] === categoryId) || null;
 
   // Upsert product: conflict key is (vendor_id, collection, name)
@@ -797,10 +890,50 @@ async function processProduct(pool, ctx) {
     name: productName,
     collection: seriesName,
     category_id: categoryId,
+    brand_id: brandId || null,
   });
   const productId = productRow.id;
   if (productRow.is_new) stats.productsCreated++;
   else stats.productsUpdated++;
+
+  // Slug: unprefixed "{series}-{color}" per the live URL convention. The
+  // brand-prefixed name would otherwise make base.js build a
+  // "keystones-daltile-keystones-…" slug (the historical doubled-slug bug), so
+  // set it explicitly, deduping with numeric suffixes on cross-vendor collisions.
+  const desiredSlug = slugify(baseName);
+  let finalSlug = null;
+  if (desiredSlug) {
+    for (const candidate of [desiredSlug, `${desiredSlug}-2`, `${desiredSlug}-3`]) {
+      try {
+        await pool.query(
+          `UPDATE products SET slug = $1 WHERE id = $2 AND slug IS DISTINCT FROM $1`,
+          [candidate, productId]
+        );
+        finalSlug = candidate;
+        break;
+      } catch (err) {
+        if (err.code !== '23505') throw err; // keep trying only on slug collisions
+      }
+    }
+  }
+
+  // Carry over paid SEO content (+ nothing else) from the pre-wipe snapshot,
+  // matched by slug first, then by normalized name.
+  const snap = (finalSlug && snapBySlug?.get(finalSlug)) || snapByName?.get(nameKey(productName)) || null;
+  if (snap && (snap.meta_title || snap.meta_description || snap.seo_h1 || snap.content_html)) {
+    await pool.query(`
+      UPDATE products SET
+        meta_title = COALESCE($1, meta_title),
+        meta_description = COALESCE($2, meta_description),
+        seo_h1 = COALESCE($3, seo_h1),
+        content_html = COALESCE($4, content_html),
+        content_status = CASE WHEN $4 IS NOT NULL THEN $5 ELSE content_status END,
+        content_hash = COALESCE($6, content_hash)
+      WHERE id = $7`,
+      [snap.meta_title, snap.meta_description, snap.seo_h1,
+       snap.content_html, snap.content_status, snap.content_hash, productId]);
+    stats.seoCarried++;
+  }
 
   // Process each SKU variant
   for (const sku of colorData.skus) {
@@ -808,6 +941,12 @@ async function processProduct(pool, ctx) {
     if (!coveoSku) continue;
 
     const internalSku = makeInternalSku(coveoSku);
+    // Cross-listed SKU already imported this run (americanolean.com re-lists
+    // some Daltile items under the same SKU code) — first brand wins. A second
+    // upsert would silently move the SKU onto the later brand's product and
+    // leave the first as a 0-SKU husk.
+    if (importedSkusGlobal.has(internalSku)) continue;
+    importedSkusGlobal.add(internalSku);
     const isTrim = isAccessory || isTrimProductType(sku.productType);
 
     // Build variant name from size + finish + pattern
@@ -816,7 +955,30 @@ async function processProduct(pool, ctx) {
     if (skuSize.includes(',')) {
       skuSize = skuSize.split(',')[0].trim();
     }
-    const variantParts = [skuSize, sku.finish, sku.designPattern, sku.shape].filter(Boolean);
+    // Mosaic piece sizes come through as a bare number ("2" = 2-inch pieces) —
+    // render with an inch mark so the variant reads "2\", Honed, Hexagon".
+    if (/^\d+(\.\d+)?$/.test(skuSize)) skuSize = `${skuSize}"`;
+    // Accessory buckets lump every trim piece of a color under one product
+    // ("Color Wheel Classic Trim & Accessories"), so the color and the trim
+    // profile (Bullnose / Cove Base / Quarter Round — only encoded in the
+    // vendor SKU) are what tell 50+ SKUs apart. Lead with the color and append
+    // the decoded profile, mirroring the old 832 naming.
+    const accColor = isAccessory ? colorName.replace(/\s+Trim$/i, '').trim() : null;
+    // Skip SKU-code trim decoding for Liners — liner codes (S1/2…) false-match
+    // the bullnose pattern, producing "Liner, Bullnose" contradictions.
+    const skuDescriptors = (isTrim && sku.shape !== 'Liner') ? daltileSkuDescriptors(coveoSku) : [];
+    let variantParts = [accColor, skuSize, sku.finish, sku.designPattern, sku.shape].filter(Boolean);
+    for (const d of skuDescriptors) {
+      if (!variantParts.join(' ').toLowerCase().includes(d.toLowerCase())) variantParts.push(d);
+    }
+    // Coveo sometimes echoes the same word in designPattern and shape
+    // ("Liner, Liner") — keep first occurrence only.
+    const seenParts = new Set();
+    variantParts = variantParts.filter(pt => {
+      const k = pt.toLowerCase();
+      if (seenParts.has(k)) return false;
+      seenParts.add(k); return true;
+    });
     let variantName = variantParts.join(', ') || colorName;
 
     // State the mosaic layout (Brick Joint, Penny Round, …) when Coveo left
@@ -834,9 +996,11 @@ async function processProduct(pool, ctx) {
     // Determine sell_by
     let sellBy = isTrim ? 'unit' : 'box';
 
-    // Trim SKUs are regular products (browseable), not hidden accessories.
-    // The sku_accessories junction table handles cross-linking.
-    const variantType = null;
+    // Trim/accessory SKUs are marked variant_type='accessory' — the storewide
+    // convention (attach-daltile-accessories.cjs keys on it to build
+    // sku_accessories links, and browse/PDP default-SKU queries exclude it so
+    // trim pieces surface on parent tile PDPs instead of the browse grid).
+    const variantType = isTrim ? 'accessory' : null;
 
     // Match EDI data — try exact first, then fuzzy (colorCode + dimensions)
     const coveoKey = coveoSku.toUpperCase();
@@ -857,6 +1021,18 @@ async function processProduct(pool, ctx) {
       stats.ediMatches++;
       // Only let EDI override sell_by for trims — regular tiles are always box
       if (ediItem.sell_by && isTrim) sellBy = ediItem.sell_by;
+      // Refresh the persistent live↔EDI crosswalk so the 6-hourly
+      // daltile-edi-overlay keeps repricing this SKU after the re-onboard.
+      const wasFuzzy = !ediLookup.get(coveoKey);
+      await pool.query(`
+        INSERT INTO daltile_edi_map (live_vendor_sku, edi_vendor_sku, confidence, method, updated_at)
+        VALUES ($1, $2, $3, 'unified-import', now())
+        ON CONFLICT (live_vendor_sku) DO UPDATE SET
+          edi_vendor_sku = EXCLUDED.edi_vendor_sku,
+          confidence = EXCLUDED.confidence,
+          method = EXCLUDED.method,
+          updated_at = now()`,
+        [coveoSku, ediItem.vendor_sku, wasFuzzy ? 'fuzzy' : 'exact']);
     } else {
       stats.ediMisses++;
     }

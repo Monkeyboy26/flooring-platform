@@ -72,3 +72,4 @@ backend/data/siena/reonboard-plan.json
 # SEO GSC service-account key (never commit)
 backend/secrets/
 *.iam.gserviceaccount.com.json
+backend/data/daltile-reonboard-backup-*.json

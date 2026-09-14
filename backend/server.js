@@ -3073,8 +3073,19 @@ app.get('/api/storefront/products/:categorySlug/:productSlug', optionalTradeAuth
       LIMIT 1
     `, [categorySlug, productSlug]);
 
-    if (!productResult.rows.length) return res.status(404).json({ error: 'Product not found' });
-    const productId = productResult.rows[0].product_id;
+    let productId = productResult.rows.length ? productResult.rows[0].product_id : null;
+    if (!productId) {
+      // Retired slug? (re-onboard renames, slug-format fixes). Resolve through
+      // slug_aliases so old indexed/bookmarked URLs keep rendering the PDP.
+      const alias = await pool.query(`
+        SELECT p.id AS product_id
+        FROM slug_aliases sa JOIN products p ON p.id = sa.product_id
+        WHERE sa.old_slug = $1 AND p.status = 'active'
+        LIMIT 1
+      `, [productSlug]);
+      if (alias.rows.length) productId = alias.rows[0].product_id;
+    }
+    if (!productId) return res.status(404).json({ error: 'Product not found' });
 
     // Find the default SKU (first non-accessory SKU)
     const defaultSku = await pool.query(`
@@ -34933,6 +34944,24 @@ async function runMigrations() {
     await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS sms_consent BOOLEAN NOT NULL DEFAULT false`);
     await pool.query(`ALTER TABLE review_requests ADD COLUMN IF NOT EXISTS sms_consent BOOLEAN NOT NULL DEFAULT false`);
     console.log('Migrations: sms_consent columns applied');
+  } catch (err) {
+    console.error('Migration warning:', err.message);
+  }
+
+  // Slug aliases: 301 map from retired product slugs (re-onboards, slug-format
+  // fixes like the doubled "granite-natural-stone-slab-granite-…" bug) to the
+  // live product. Consulted by seoRenderer (crawler 301) and the storefront
+  // product-by-slug API when the direct slug lookup misses.
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS slug_aliases (
+        old_slug TEXT PRIMARY KEY,
+        product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_slug_aliases_product ON slug_aliases(product_id);
+    `);
+    console.log('Migrations: slug_aliases table applied');
   } catch (err) {
     console.error('Migration warning:', err.message);
   }

@@ -24,7 +24,9 @@ const path = require('path');
 const DOMAIN = process.argv.find(a => a.startsWith('--domain='))
   ?.split('=')[1] || 'www.daltile.com';
 
-const OUTPUT_PATH = path.join(__dirname, '..', 'data', 'daltile-product-map.json');
+const OUTPUT_PATH = process.argv.find(a => a.startsWith('--out='))
+  ?.split('=')[1]
+  || path.join(__dirname, '..', 'data', 'daltile-product-map.json');
 
 const PAGE_SIZE = 1000;
 const COVEO_OFFSET_LIMIT = 5000;

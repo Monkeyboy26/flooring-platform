@@ -231,7 +231,22 @@ async function fetchCanonicalProductUrl(pool, productSlug) {
       ORDER BY s.created_at
       LIMIT 1
     `, [productSlug]);
-    return res.rows[0] || null;
+    if (res.rows[0]) return res.rows[0];
+    // Retired product slug? (vendor re-onboards, slug-format fixes like the
+    // doubled "granite-natural-stone-slab-granite-…" bug). slug_aliases maps the
+    // old slug to the live product — 301 there.
+    const alias = await pool.query(`
+      SELECT c.slug AS category_slug, p.slug AS product_slug
+      FROM slug_aliases sa
+      JOIN products p ON p.id = sa.product_id AND p.status = 'active'
+      JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
+        AND COALESCE(s.variant_type, '') NOT IN ('accessory','floor_trim','wall_trim','lvt_trim','quarry_trim','mosaic_trim')
+      JOIN categories c ON c.id = p.category_id
+      WHERE sa.old_slug = $1
+      ORDER BY s.created_at
+      LIMIT 1
+    `, [productSlug]);
+    return alias.rows[0] || null;
   } catch { return null; }
 }
 
@@ -1883,7 +1898,8 @@ export default function createSeoRouter(pool) {
           // different current category, 301 to the canonical URL instead of 404 (e.g.
           // /shop/vanity/... → /shop/vanities/... after the category fold).
           const canon = await fetchCanonicalProductUrl(pool, parsed.productSlug);
-          if (canon && canon.category_slug !== parsed.categorySlug) {
+          if (canon && (canon.category_slug !== parsed.categorySlug
+                        || canon.product_slug !== parsed.productSlug)) {
             const newUrl = `${SITE_URL}/shop/${canon.category_slug}/${canon.product_slug}`;
             return {
               html: `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${escapeHtml(newUrl)}"><link rel="canonical" href="${escapeHtml(newUrl)}"></head><body><p>Redirecting to <a href="${escapeHtml(newUrl)}">${escapeHtml(newUrl)}</a></p></body></html>`,

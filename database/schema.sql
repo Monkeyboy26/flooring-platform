@@ -2850,3 +2850,13 @@ CREATE TABLE IF NOT EXISTS quality_runs (
     error TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_quality_runs_started ON quality_runs(started_at DESC);
+
+-- Retired product slugs → live product. Populated by vendor re-onboards
+-- (e.g. daltile-reonboard-post.mjs) whenever a product's slug changes; consulted
+-- by seoRenderer (crawler 301) and /api/storefront/products/:cat/:slug fallback.
+CREATE TABLE IF NOT EXISTS slug_aliases (
+    old_slug TEXT PRIMARY KEY,
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_slug_aliases_product ON slug_aliases(product_id);

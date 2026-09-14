@@ -951,6 +951,28 @@ export async function run(pool, job, source) {
   let totalSkusCreated = 0, totalSkusUpdated = 0;
   let totalPricing = 0, totalPackaging = 0, totalAttrs = 0;
 
+  // ── Intake-only mode (the default since the 2026-09 Coveo re-onboard) ──
+  // The catalog's structure/naming/images now come from daltile-unified (Coveo),
+  // and repricing from daltile-edi-overlay via daltile_edi_map. Creating
+  // products straight from raw EDI descriptions is what minted ~1.5k junk
+  // drafts ("daltile Black Matte"), and the per-collection deactivation pass
+  // would mass-deactivate Coveo-keyed SKUs (EDI internal_skus never match).
+  // So this job now only: downloads new 832 files, validates the parse, sends
+  // 997 acks, and reports feed changes (new/unknown items). Set config
+  // full_import=true to restore the legacy import behavior.
+  const intakeOnly = (source.config || {}).full_import !== true;
+  let liveVendorSkus = new Set(), mappedEdiSkus = new Set();
+  if (intakeOnly) {
+    const liveRes = await pool.query(
+      `SELECT UPPER(s.vendor_sku) AS vs FROM skus s
+       JOIN products p ON p.id = s.product_id
+       WHERE p.vendor_id = $1 AND s.vendor_sku IS NOT NULL`, [vendorId]);
+    liveVendorSkus = new Set(liveRes.rows.map(r => r.vs));
+    const mapRes = await pool.query(`SELECT UPPER(edi_vendor_sku) AS es FROM daltile_edi_map`);
+    mappedEdiSkus = new Set(mapRes.rows.map(r => r.es));
+    await appendLog(pool, job.id, `Intake-only mode: validating + acknowledging new 832 files (no product/SKU writes). Live SKUs: ${liveVendorSkus.size}, EDI-mapped: ${mappedEdiSkus.size}.`);
+  }
+
   // ── Step 4: Parse and import each file ──
   for (const file of downloadedFiles) {
     await appendLog(pool, job.id, `\nParsing ${file.remoteName} (${file.sizeKb}KB)...`);
@@ -964,6 +986,37 @@ export async function run(pool, job, source) {
     if (catalog.items.length === 0) {
       await appendLog(pool, job.id, '  No items found — skipping file.');
       processedFiles = [...processedFiles, file.remoteName];
+      continue;
+    }
+
+    if (intakeOnly) {
+      // Report-only reconciliation: how much of this file we already carry,
+      // and which items are new to the feed (candidates for the next
+      // build-daltile-product-map + daltile-unified refresh).
+      let known = 0, mappedOnly = 0;
+      const unknown = [];
+      for (const item of catalog.items) {
+        const key = (item.vendor_sku || '').toUpperCase();
+        if (!key) continue;
+        if (liveVendorSkus.has(key)) known++;
+        else if (mappedEdiSkus.has(key)) mappedOnly++;
+        else unknown.push(item);
+      }
+      await appendLog(pool, job.id, `  Reconcile: ${known} live, ${mappedOnly} EDI-mapped, ${unknown.length} unknown to catalog.`);
+      for (const u of unknown.slice(0, 20)) {
+        const desc = (u.descriptions.find(d => d.characteristic_label === 'trade_name')
+          || u.descriptions.find(d => d.characteristic_label === 'description'))?.description || '';
+        await appendLog(pool, job.id, `    NEW in feed: ${u.vendor_sku} ${desc}`.trim());
+      }
+      if (unknown.length > 20) await appendLog(pool, job.id, `    …and ${unknown.length - 20} more new items.`);
+
+      // Mark file as processed
+      processedFiles = [...processedFiles, file.remoteName];
+      await pool.query(
+        `UPDATE vendor_sources SET config = jsonb_set(COALESCE(config, '{}'), '{processed_files}', $1::jsonb), updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        [JSON.stringify(processedFiles), source.id]
+      );
+      try { fs.unlinkSync(file.localPath); } catch { }
       continue;
     }
 
@@ -1246,8 +1299,10 @@ export async function run(pool, job, source) {
   // ── Step 5: Per-collection discontinuation detection ──
   // Only deactivate SKUs within collections that appeared in this import batch.
   // This prevents File A (brand X) from deactivating File B (brand Y) SKUs.
+  // Never runs in intake-only mode: EDI internal_skus don't match the live
+  // Coveo-keyed catalog, so this pass would mass-deactivate valid SKUs.
   let totalDeactivated = 0;
-  for (const [collKey, importedSkus] of allImportedSkusByCollection) {
+  for (const [collKey, importedSkus] of intakeOnly ? new Map() : allImportedSkusByCollection) {
     if (importedSkus.size < 5) continue; // skip tiny collections — likely a delta, not a full refresh
 
     const activeResult = await pool.query(
@@ -1285,6 +1340,10 @@ export async function run(pool, job, source) {
   }
 
   // Log final stats
+  if (intakeOnly) {
+    await appendLog(pool, job.id, `Intake complete (${downloadedFiles.length} files): validated, acknowledged, and reconciled — no catalog writes (intake-only mode).`);
+    return;
+  }
   await appendLog(pool, job.id, `Import complete (${downloadedFiles.length} files): ${totalProductsCreated} products created, ${totalProductsUpdated} updated, ${totalSkusCreated} SKUs created, ${totalSkusUpdated} updated`, {
     products_created: totalProductsCreated,
     products_updated: totalProductsUpdated,
@@ -1295,5 +1354,8 @@ export async function run(pool, job, source) {
 
 // Reusable pieces for the EDI price-overlay module (daltile-edi-overlay.js) and the
 // offline validation harness. parse832 is the fixed authoritative parser.
-export { parse832, getFtpConfig, findRemote832Files };
+// daltileSkuDescriptors decodes trim profiles / paver finishes / mosaic dot
+// colors from the vendor SKU — also used by daltile-unified for accessory
+// variant names.
+export { parse832, getFtpConfig, findRemote832Files, daltileSkuDescriptors };
 export const __test__ = { parse832, finalizeItem, makeInternalSku };
