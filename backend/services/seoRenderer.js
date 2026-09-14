@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { fullProductName } from '../lib/productName.js';
-import { stripHiddenVendorPrices } from '../lib/hiddenPrices.js';
 import { facetSlug } from '../lib/facetSlug.js';
 import { SERVICE_AREAS, SERVICE_CITIES, cityBySlug, citySlug } from '../lib/serviceAreas.js';
 import { MATERIALS, REMODEL_ROOMS, PRIORITY_CITIES, materialBySlug, roomBySlug, isPriorityCity } from '../lib/localServices.js';
@@ -211,8 +210,7 @@ async function fetchSkuData(pool, skuId) {
   `, [skuId]);
 
   row.attributes = attrResult.rows;
-  // Hidden-price vendors: no price in crawler HTML or JSON-LD offers
-  return stripHiddenVendorPrices(row);
+  return row;
 }
 
 // Resolve a product's CURRENT canonical URL by product slug alone (ignoring the
@@ -307,8 +305,7 @@ async function fetchProductBySlug(pool, categorySlug, productSlug) {
   `, [row.sku_id]);
 
   row.attributes = attrResult.rows;
-  // Hidden-price vendors: no price in crawler HTML or JSON-LD offers
-  return stripHiddenVendorPrices(row);
+  return row;
 }
 
 async function fetchSkuRedirectSlugs(pool, skuId) {
@@ -344,7 +341,6 @@ async function fetchCollectionData(pool, slug) {
     SELECT * FROM (
       SELECT DISTINCT ON (p.id) p.id, p.name as product_name,
         p.slug as product_slug, c.slug as category_slug,
-        v.code as vendor_code,
         pr.retail_price, s.sell_by, s.id as sku_id,
         (SELECT ma.url FROM media_assets ma
          WHERE ma.product_id = p.id AND ma.asset_type != 'spec_pdf'
@@ -354,7 +350,6 @@ async function fetchCollectionData(pool, slug) {
       FROM products p
       JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
         AND COALESCE(s.variant_type, '') != 'accessory'
-      JOIN vendors v ON v.id = p.vendor_id
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       WHERE p.status = 'active' AND p.collection = $1
@@ -377,7 +372,7 @@ async function fetchCollectionData(pool, slug) {
     slug,
     product_count: countResult.rows[0].product_count,
     image: repImage,
-    products: stripHiddenVendorPrices(result.rows)
+    products: result.rows
   };
 }
 
