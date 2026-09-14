@@ -967,8 +967,8 @@ app.get('/api/storefront/featured', async (req, res) => {
     // Curated homepage picks (shown first in "Selected specimens")
     const CURATED_IDS = [
       '958d6e91-90b8-40ab-a46c-f04d6c2b48c4', // Allora Doma 9-1/2" Select - Old Master Products (warm greige European oak)
-      '837127eb-01c2-4efb-b57f-9381d77d2d49', // Bianco Carrara 24x48 Polished - Arizona Tile (marble large format)
-      '4df82a34-19ce-467e-b159-384914617a8f', // Calacatta Gold Herringbone - Arizona Tile (gold-veined marble mosaic)
+      'b385455e-9021-402a-909f-b2a5c1eccb1c', // Magnifica Bianco Lasa 24x48 Polished - Bedrosians (marble large format)
+      'ab707acf-ca26-471b-92e9-7b9de42235f8', // Herringbone Calacatta Gold Polished - Elysium (gold-veined marble mosaic)
     ];
 
     // Best-sellers: SKUs ordered most often in confirmed/shipped/delivered orders
