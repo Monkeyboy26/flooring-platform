@@ -135,8 +135,9 @@ export async function overlayFromEdiMap(pool, ediMap, { dryRun = false } = {}) {
   return stats;
 }
 
-/** Download + parse all 832 files, merged into one edi price map. */
-async function fetchEdiPriceMap(source, job, pool) {
+/** Download + parse all 832 files, merged into one edi price map.
+ * Exported for audit-daltile-edi-prices.mjs (full-catalog freshness check). */
+export async function fetchEdiPriceMap(source, job, pool) {
   const cfg = getFtpConfig(source);
   // Test / offline hook: parse a local file instead of hitting FTP.
   const local = (source.config || {}).local_edi_file;
