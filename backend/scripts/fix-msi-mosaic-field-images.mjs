@@ -58,10 +58,13 @@ function candidates(name, variantName, borrowedUrl) {
 
   // Base from product name: drop the trailing shape/mosaic words.
   const nameBase = slug(name.replace(/\b(2x2|1x1|12x15|matte|polished|mosaic|hexagon|chevron|basketweave|penny\s*round|dotty|subway|3d|lappatpo)\b/gi, ' ').replace(/\s+/g, ' ').trim());
-  // Base from the borrowed URL filename: strip dir/ext, size, finish, material.
+  // Base from the borrowed URL filename: strip dir/ext, size, finish. Keep TWO
+  // variants — one that also strips the material word and one that retains it,
+  // since MSI mosaics use both forms (silver-trav-porcelain-2x2.jpg keeps
+  // "-porcelain"; savoy-azula-2x2.jpg has none).
   const fn = (borrowedUrl || '').split('?')[0].split('/').pop().replace(/\.(jpg|jpeg|png|webp)$/i, '');
-  const urlBase = fn.replace(/-\d+x\d+/g, '').replace(/-(polished|matte|honed|glossy|satin|brushed)/gi, '')
-                    .replace(/-(porcelain|ceramic|marble|granite|travertine|essentials|slab)/gi, '').replace(/-+$/, '');
+  const urlBaseMat = fn.replace(/-\d+x\d+/g, '').replace(/-(polished|matte|honed|glossy|satin|brushed)/gi, '').replace(/-+$/, '');
+  const urlBase = urlBaseMat.replace(/-(porcelain|ceramic|marble|granite|travertine|essentials|slab)/gi, '').replace(/-+$/, '');
 
   // Color-only base: MSI mosaics often drop the collection word
   // ("Pietra Carrara 2x2 Mosaic" → carrara-2x2.jpg). Take the name minus its
@@ -69,7 +72,7 @@ function candidates(name, variantName, borrowedUrl) {
   const words = name.replace(/\b(2x2|1x1|12x15|matte|polished|mosaic|hexagon|chevron|basketweave|penny\s*round|dotty|subway|3d|lappatpo)\b/gi, ' ').replace(/\s+/g, ' ').trim().split(' ');
   const colorOnly = words.length > 1 ? slug(words.slice(1).join('-')) : '';
 
-  const bases = [nameBase, urlBase, colorOnly].filter(Boolean);
+  const bases = [urlBaseMat, urlBase, nameBase, colorOnly].filter(Boolean);
   const dirs = ['porcelainceramic', 'mosaics'];
   for (const b of bases) for (const d of dirs) for (const sh of shape) {
     cands.add(`${CDN}/${d}/${b}-${sh}.jpg`);
