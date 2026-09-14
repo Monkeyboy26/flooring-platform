@@ -25,7 +25,11 @@ const VENDOR = '550e8400-e29b-41d4-a716-446655440001';
 const CDN = 'https://cdn.msisurfaces.com/images';
 const APPLY = process.argv.includes('--apply');
 // A filename already showing a mosaic/shape token is presumed correct.
-const MOSAIC_TOKEN = /2x2|1x1|hex|mosaic|penny|basketweave|herringbone|chevron|dotty|subway|floret|hatchwork|kaya|linea|sazi|arabesque|picket|pinwheel/i;
+// Numeric dims must be boundaried so a mosaic "2x2" is caught but a FIELD size
+// like "12x24"/"24x24" (which contains "2x2" as a substring) is NOT.
+const MOSAIC_DIM = /(^|[^0-9])(2x2|1x1|2x4|1x2|3x3|3x6|1x6|1x3|1x4|2x6)([^0-9]|$)/i;
+const MOSAIC_WORD = /hex|mosaic|penny|basketweave|herringbone|chevron|dotty|subway|floret|hatchwork|kaya|linea|sazi|arabesque|picket|pinwheel|geometrica|pebble|interlocking|radius|shelf|brick|diamond|lattice|leaf|octagon|scallop|rhombus|rhombix|estrella|lola|regency|lynx|moderno|alana|starlite|fretwork|cube|argyle|stack|beveled|blend|pattern|hive|petal|medley|splitface/i;
+const MOSAIC_TOKEN = { test: (s) => MOSAIC_DIM.test(s) || MOSAIC_WORD.test(s) };
 
 function headOk(url) {
   return new Promise((resolve) => {
@@ -84,21 +88,35 @@ function candidates(name, variantName, borrowedUrl) {
 async function main() {
   const pool = new Pool({ host: process.env.DB_HOST || 'localhost', port: parseInt(process.env.DB_PORT || '5432', 10),
     database: process.env.DB_NAME || 'flooring_pim', user: process.env.DB_USER || 'postgres', password: process.env.DB_PASSWORD || 'postgres' });
+  // Robust detection: resolve mirror/DAM copies to their real CDN source via
+  // COALESCE(original_url, url) so a field image hiding behind a /uploads/mirror
+  // or /uploads/msi-dam path is still seen. `url` is what the storefront serves;
+  // `canon` is the source we probe from.
   const { rows } = await pool.query(`
-    WITH mos AS (
-      SELECT s.id sid, s.product_id pid, s.vendor_sku, s.variant_name, p.name, ma.url
+    WITH mm AS (
+      SELECT s.id sid, s.product_id pid, s.vendor_sku, s.variant_name, p.name, ma.url,
+        regexp_replace(COALESCE(NULLIF(ma.original_url,''), ma.url),'^https?://[^/]+','') AS canon,
+        c.slug AS cat
       FROM products p JOIN categories c ON c.id=p.category_id
       JOIN skus s ON s.product_id=p.id
       JOIN media_assets ma ON ma.sku_id=s.id AND ma.asset_type='primary'
-      WHERE p.vendor_id=$1 AND c.slug='mosaic-tile' AND s.status='active'
+      WHERE p.vendor_id=$1 AND s.status='active'
     )
-    SELECT * FROM mos WHERE EXISTS (
-      SELECT 1 FROM media_assets ma2 JOIN skus s2 ON s2.id=ma2.sku_id JOIN products p2 ON p2.id=s2.product_id
-      JOIN categories c2 ON c2.id=p2.category_id
-      WHERE ma2.url=mos.url AND p2.vendor_id=$1 AND c2.slug<>'mosaic-tile')`, [VENDOR]);
+    SELECT sid, pid, vendor_sku, variant_name, name, url, canon FROM mm mos
+    WHERE cat='mosaic-tile'`, [VENDOR]);
 
-  // keep only the true bugs: borrowed URL filename lacks a mosaic token
-  const buggy = rows.filter(r => !MOSAIC_TOKEN.test((r.url.split('/').pop() || '')));
+  // A mosaic-tile SKU is CORRECT when its primary image lives in the dedicated
+  // mosaics directory, or is an SKU-specific DAM render (/uploads/msi-dam/ or a
+  // "primary-web-image"). Anything else — a /porcelainceramic/, /colornames/,
+  // /skus/, /backsplash/, /hardscaping/ path — is a borrowed FIELD/hero image.
+  const buggy = rows.filter(r => {
+    const canon = r.canon || r.url;
+    if (/\/mosaics\//i.test(canon)) return false;          // real mosaic shot
+    if (/\/uploads\/msi-dam\//i.test(canon)) return false; // SKU-named DAM render
+    if (/primary-web-image/i.test(canon)) return false;    // SKU-specific DAM render
+    if (MOSAIC_TOKEN.test(canon.split('/').pop() || '')) return false; // shape in name
+    return true; // field/hero image on a mosaic product
+  }).map(r => ({ ...r, url: r.canon || r.url }));
   console.log(`MSI mosaic borrowed-field-image fix — ${APPLY ? 'APPLY' : 'DRY/PROBE'}`);
   console.log(`  Candidate buggy mosaics: ${buggy.length} (of ${rows.length} sharing an image)`);
   console.log('');
