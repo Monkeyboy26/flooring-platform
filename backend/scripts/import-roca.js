@@ -667,7 +667,9 @@ async function run() {
         INSERT INTO products (id, vendor_id, name, collection, category_id, status)
         VALUES (gen_random_uuid(), $1, $2, $3, $4, 'active')
         ON CONFLICT ON CONSTRAINT products_vendor_collection_name_unique
-        DO UPDATE SET category_id = EXCLUDED.category_id, status = 'active'
+        -- Preserve deliberate deactivations (folded duplicates, merged misparses)
+        DO UPDATE SET category_id = EXCLUDED.category_id,
+          status = CASE WHEN products.status = 'inactive' THEN products.status ELSE 'active' END
         RETURNING id
       `, [vendorId, productName, prod.collection, prod.categoryId]);
       const productId = prodRes.rows[0].id;
@@ -699,6 +701,7 @@ async function run() {
       };
       const LABEL_ORDER = ['Suite', 'Bright', 'Matte', 'Matte Calibrated', 'Polished', 'Unpolished', 'Abrasive', 'Structured', 'Picket', 'Beveled'];
       const variantLabel = new Map(); // rec → label ('' = plain / unlabeled)
+      const dupSkip = new Set();      // duplicate listings — not imported at all
       for (const [, group] of sizeGroups) {
         if (group.length < 2) continue;
         const tokSets = group.map(r => new Set(r.desc.toUpperCase().split(/[\s.,"']+/).filter(Boolean)));
@@ -712,12 +715,41 @@ async function run() {
         });
         const counts = {};
         labels.forEach(l => { counts[l] = (counts[l] || 0) + 1; });
+        // Rows with NO distinguishing label AND byte-identical descriptions are
+        // duplicate listings (legacy code + "NEW SKU" SA replacement of the same
+        // design). Import only ONE — prefer the SA code, then a sole U-prefixed
+        // code, then book order — and skip the rest so they never (re)surface
+        // as meaningless A/B options. Previously-folded duplicates in the DB
+        // stay untouched (skipped rows are never upserted).
+        const normDesc = (d) => d.toUpperCase().replace(/\s+/g, ' ').trim();
+        if ((counts[''] || 0) > 1) {
+          const blank = group.filter((r, i) => labels[i] === '');
+          const byDesc = new Map();
+          blank.forEach(r => {
+            const k = normDesc(r.desc);
+            if (!byDesc.has(k)) byDesc.set(k, []);
+            byDesc.get(k).push(r);
+          });
+          for (const rows of byDesc.values()) {
+            if (rows.length < 2) continue;
+            const pick = rows.find(r => /SA[A-Z]{2,3}$/i.test(r.sku))
+              || (rows.filter(r => /^U/i.test(r.sku)).length === 1 ? rows.find(r => /^U/i.test(r.sku)) : null)
+              || rows[0];
+            rows.forEach(r => {
+              if (r !== pick) {
+                dupSkip.add(r);
+                counts[''] -= 1;
+                console.log(`  ⚠ duplicate listing skipped: ${r.sku} (kept ${pick.sku}) "${r.desc}"`);
+              }
+            });
+          }
+        }
         const used = {};
         group.forEach((r, i) => {
+          if (dupSkip.has(r)) return;
           let label = labels[i];
           if (counts[label] > 1) {
             const letter = String.fromCharCode(65 + (used[label] = (used[label] || 0) + 1) - 1);
-            if (label === '') console.log(`  ⚠ duplicate listing (letters kept): ${r.sku} "${r.desc}"`);
             label = (label ? label + ' ' : '') + letter;
           }
           variantLabel.set(r, label);
@@ -726,6 +758,7 @@ async function run() {
 
       // Insert field tile SKUs
       for (const rec of fieldSkus) {
+        if (dupSkip.has(rec)) continue; // duplicate listing — see above
         const internalSku = 'ROCA-' + rec.sku;
         const size = cleanSize(rec.sizeLabel);
         let variantName = `${productName} ${size}`.trim();
@@ -738,7 +771,8 @@ async function run() {
           INSERT INTO skus (id, product_id, vendor_sku, internal_sku, variant_name, sell_by, status)
           VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'active')
           ON CONFLICT ON CONSTRAINT skus_internal_sku_key
-          DO UPDATE SET product_id = EXCLUDED.product_id, variant_name = EXCLUDED.variant_name, sell_by = EXCLUDED.sell_by, status = 'active'
+          DO UPDATE SET product_id = EXCLUDED.product_id, variant_name = EXCLUDED.variant_name, sell_by = EXCLUDED.sell_by,
+            status = CASE WHEN skus.status = 'inactive' THEN skus.status ELSE 'active' END
           RETURNING id
         `, [productId, rec.sku, internalSku, variantName, sellBy]);
         const skuId = skuRes.rows[0].id;
@@ -830,7 +864,8 @@ async function run() {
           VALUES (gen_random_uuid(), $1, $2, $3, $4, 'unit', 'accessory', 'active')
           ON CONFLICT ON CONSTRAINT skus_internal_sku_key
           DO UPDATE SET product_id = EXCLUDED.product_id, variant_name = EXCLUDED.variant_name, sell_by = 'unit',
-                       variant_type = 'accessory', status = 'active'
+                       variant_type = 'accessory',
+                       status = CASE WHEN skus.status = 'inactive' THEN skus.status ELSE 'active' END
           RETURNING id
         `, [productId, rec.sku, internalSku, variantName]);
         const skuId = skuRes.rows[0].id;
