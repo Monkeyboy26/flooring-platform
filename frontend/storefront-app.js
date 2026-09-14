@@ -6471,6 +6471,14 @@
       const collColorKeys = new Set(_nonAccCollSiblings.map((s) => siblingColorKey(s.product_name)));
       if (_nonAccCollSiblings.length > 0) collColorKeys.add(siblingColorKey(sku.product_name));
       const multiColorCollection = collColorKeys.size > 1;
+      const _collFinishVals = collectionAttributes.finish && collectionAttributes.finish.values || [];
+      const _finishStripRe = _collFinishVals.length ? new RegExp("\\b(" + _collFinishVals.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")\\b", "gi") : null;
+      const _finishStrippedKey = (name) => {
+        let k = siblingColorLabel(name || "");
+        if (_finishStripRe) k = k.replace(_finishStripRe, " ");
+        return k.replace(/\s+/g, " ").trim().toLowerCase();
+      };
+      const _sameLine = (name) => !multiColorCollection || _finishStrippedKey(name) === _finishStrippedKey(sku.product_name);
       const _oneSkuPerColor = mainSiblings.length === 0 && _nonAccCollSiblings.length > 0 && !_nonAccCollSiblings.some((cs) => (cs.available_sizes || []).length > 1 || (cs.available_finishes || []).length > 1) && collColorKeys.size === _nonAccCollSiblings.length + 1;
       const _isDecorativeHW = (sku.vendor_code || "") === "HR" && !["Vanity", "Mirrors"].includes(sku.category_name || "");
       let collectionSizeItems = [];
@@ -6577,7 +6585,7 @@
           }
           let targetSkuId = null;
           for (const cs of collectionSiblings) {
-            if (!cs.sku_map) continue;
+            if (!cs.sku_map || !_sameLine(cs.product_name)) continue;
             for (const [key, sid] of Object.entries(cs.sku_map)) {
               const parts = key.split("|");
               if (parts[1] !== fn) continue;
@@ -6759,7 +6767,7 @@
             if (!dm) return;
             let targetSkuId = null;
             for (const cs of collectionSiblings) {
-              if (!cs.sku_map) continue;
+              if (!cs.sku_map || !_sameLine(cs.product_name)) continue;
               for (const [key, sid] of Object.entries(cs.sku_map)) {
                 const parts = key.split("|");
                 if (normalizeSize(parts[0]) === nk) {
@@ -6786,11 +6794,12 @@
         [{ attributes: sku.attributes }, ...mainSiblings.filter((s) => s.variant_type !== "accessory")].forEach((s) => {
           const fa = (s.attributes || []).find((a) => a.slug === "finish");
           const za = (s.attributes || []).find((a) => a.slug === "size");
-          if (fa && za && fa.value === _curFinishAvail) _sizesForCurFinish.add(normalizeSize(za.value));
+          if (za && (!fa || fa.value === _curFinishAvail)) _sizesForCurFinish.add(normalizeSize(za.value));
         });
       }
       const _applySizeAvail = !!_curFinishAvail && _sizesForCurFinish.size > 0 && attrSizeItems.some((s) => s.nsize && !_sizesForCurFinish.has(s.nsize));
       const _sizeAvail = (s) => !_applySizeAvail || !s.nsize || _sizesForCurFinish.has(s.nsize);
+      let _collectionColorWall = false;
       if (colorItems.length <= 1 && _nonAccCollSiblings.length > 0) {
         const _finClause = (n) => {
           const m = (n || "").match(/,\s*(.+?)(?:\s*\(|$)/);
@@ -6844,8 +6853,10 @@
               return cv && (c.product_name || "").toLowerCase().includes(cv.toLowerCase());
             }) && new Set(_vals.map((c) => c.color.trim().toLowerCase())).size === _vals.length;
             colorItems = _vals.map((c) => ({ ...c, color: _colorIs1to1 ? c.color.trim() : siblingColorLabel(c.product_name) })).sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
+            _collectionColorWall = true;
           } else if (!showSizePills) {
             colorItems = candidates.sort((a, b) => (a.product_name || "").localeCompare(b.product_name || ""));
+            _collectionColorWall = true;
           }
         }
       }
@@ -6912,6 +6923,7 @@
         Object.entries(collectionAttributes).forEach(([slug, ca]) => {
           if (!ca || !ca.values || ca.values.length < 2) return;
           if (NON_SELECTABLE.has(slug) || slug === "color") return;
+          if (slug !== "finish") return;
           if (!attrMap[slug]) attrMap[slug] = { name: ca.name, values: /* @__PURE__ */ new Set() };
           if (currentAttrs[slug]) attrMap[slug].values.add(currentAttrs[slug]);
           const localCount = attrMap[slug].values.size;
@@ -7050,6 +7062,25 @@
       }
       const showColors = colorItems.length >= 2;
       const isRomanVariants = showColors && colorItems.some((c) => hasRomanSuffix(c.product_name));
+      let sibOptionItems = [];
+      if (!_designFallback && mainSiblings.length > 0 && !_isSlabVariant && slabSizeItems.length === 0) {
+        const _attrKey = (attrs) => (attrs || []).map((a) => a.slug + ":" + String(a.value).toLowerCase().trim()).sort().join("|");
+        const curKey = _attrKey(sku.attributes);
+        const twins = curKey ? mainSiblings.filter((s) => (s.variant_type || "") !== "accessory" && (s.variant_name || "") !== (sku.variant_name || "") && _attrKey(s.attributes) === curKey) : [];
+        if (twins.length > 0) {
+          const group = [
+            { sku_id: sku.sku_id, variant_name: sku.variant_name || "", primary_image: media && media[0] ? media[0].url : null, is_current: true },
+            ...twins.map((s) => ({ sku_id: s.sku_id, variant_name: s.variant_name || "", primary_image: getVariantImage(s), is_current: false }))
+          ];
+          const lists = group.map((g) => (g.variant_name || "").split(/\s+/).filter(Boolean));
+          const sharedLc = new Set(lists[0].map((t) => t.toLowerCase()).filter((t) => lists.every((tl) => tl.some((x) => x.toLowerCase() === t))));
+          sibOptionItems = group.map((g, i) => {
+            const own = lists[i].filter((t) => !sharedLc.has(t.toLowerCase())).join(" ");
+            return { ...g, label: own || g.variant_name || "Option " + (i + 1) };
+          }).sort((a, b) => a.label.localeCompare(b.label, void 0, { numeric: true }));
+        }
+      }
+      const showSibOptions = sibOptionItems.length >= 2;
       let romanStyleItems = [];
       const parseCarpetSeries = (name) => {
         if (!name) return null;
@@ -7102,13 +7133,15 @@
         }
       }
       const showRomanStylePills = romanStyleItems.length >= 2;
-      const colorLabel = _designFallback ? "Design" : attrMap["countertop_finish"] ? "Cabinet Color" : isRomanVariants ? "Style" : _isDecorativeHW && !currentAttrs["color"] ? "Collection" : "Color";
+      const _patternWordRe = /\b(penny|hexagons?|hex|octagon|pickets?|herringbone|chevron|arabesque|lanterns?|basket|weave|bricks?|ovals?|dots?|stacked|pinwheel|circles?|triangles?|squares?|arrows?|fans?|rhombus|medallions?|feathers?|kaleidoscope|rounds?)\b/i;
+      const _patternWall = _collectionColorWall && /mosaic/.test(sku.category_slug || "") && colorItems.filter((c) => _patternWordRe.test(c.color || c.product_name || "")).length >= 2;
+      const colorLabel = _designFallback ? "Design" : attrMap["countertop_finish"] ? "Cabinet Color" : isRomanVariants ? "Style" : _isDecorativeHW && !currentAttrs["color"] ? "Collection" : _patternWall ? "Pattern" : "Color";
       const showAttrs = attrSlugs.length > 0;
       const isColorCompatible = (c) => {
         if (c.is_current) return true;
         const curSize = _isSlabVariant || slabSizeItems.length > 0 ? void 0 : currentAttrs["size"];
         if (!curSize && attrSlugs.every((s) => !currentAttrs[s])) return true;
-        if (mainSiblings.length === 0 && (!c.available_sizes || c.available_sizes.length <= 1) && (!c.available_finishes || c.available_finishes.length <= 1)) return true;
+        if ((mainSiblings.length === 0 || c.available_sizes || c.available_finishes) && (!c.available_sizes || c.available_sizes.length <= 1) && (!c.available_finishes || c.available_finishes.length <= 1)) return true;
         if (c.available_sizes || c.available_finishes) {
           const sizeOk2 = !curSize || !c.available_sizes || c.available_sizes.some((s) => normalizeSize(s) === normalizeSize(curSize));
           const finishOk = _finishIsColor || !currentAttrs["finish"] || !c.available_finishes || c.available_finishes.includes(currentAttrs["finish"]);
@@ -7138,7 +7171,7 @@
       };
       const showFormatSiblings = formatSiblings.length > 0 && formatLabel;
       const showSibFinish = sibFinishItems.length > 0 && !showFinishPills && !_finishIsColor && !attrSlugs.includes("finish") && !currentAttrs["color"];
-      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish) return null;
+      if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish && !showSibOptions) return null;
       return /* @__PURE__ */ React.createElement("div", { className: "variant-selectors" }, showColors && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, colorLabel, /* @__PURE__ */ React.createElement("span", null, (() => {
         const cur = colorItems.find((c) => c.is_current);
         return cur ? isRomanVariants ? romanPillLabel(cur.product_name) : cur.color || cur.variant_name || cur.product_name : "";
@@ -7148,7 +7181,9 @@
         return /* @__PURE__ */ React.createElement("div", { key: c.sku_id, className: "color-swatch-wrap" + (!compatible ? " limited" : ""), onClick: () => {
           if (!c.is_current) onSkuClick(c.sku_id);
         } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (c.is_current ? " active" : "") + (!compatible ? " limited" : "") }, c.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(c.primary_image, 120), alt: label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 600, color: "var(--stone-500)", textAlign: "center", lineHeight: 1.2, padding: "4px" } }, label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, label, !compatible ? " (other options may change)" : ""));
-      }))), showFormatSiblings && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Style", /* @__PURE__ */ React.createElement("span", null, formatLabel)), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, /* @__PURE__ */ React.createElement("button", { className: "attr-pill active" }, formatLabel), formatSiblings.map((fs) => /* @__PURE__ */ React.createElement("button", { key: fs.sku_id, className: "attr-pill", onClick: () => onSkuClick(fs.sku_id) }, fs.format_label)))), showSizePills && !attrSlugs.includes("shape") && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, collectionSizeItems.find((s) => s.is_current)?.label || "")), sku.vendor_code === "JMV" ? (
+      }))), showSibOptions && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Option", /* @__PURE__ */ React.createElement("span", null, (sibOptionItems.find((o) => o.is_current) || {}).label || "")), /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, sibOptionItems.map((o) => /* @__PURE__ */ React.createElement("div", { key: o.sku_id, className: "color-swatch-wrap", onClick: () => {
+        if (!o.is_current) onSkuClick(o.sku_id);
+      } }, /* @__PURE__ */ React.createElement("div", { className: "color-swatch" + (o.is_current ? " active" : "") }, o.primary_image ? /* @__PURE__ */ React.createElement("img", { onLoad: handleProductImgLoad, src: optimizeImg(o.primary_image, 120), alt: o.label, loading: "lazy", decoding: "async", width: "64", height: "64" }) : /* @__PURE__ */ React.createElement("div", { style: { width: "100%", height: "100%", background: "var(--stone-100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.625rem", fontWeight: 600, color: "var(--stone-500)", textAlign: "center", lineHeight: 1.2, padding: "4px" } }, o.label)), /* @__PURE__ */ React.createElement("div", { className: "color-swatch-tooltip" }, o.label))))), showFormatSiblings && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Style", /* @__PURE__ */ React.createElement("span", null, formatLabel)), /* @__PURE__ */ React.createElement("div", { className: "attr-pills" }, /* @__PURE__ */ React.createElement("button", { className: "attr-pill active" }, formatLabel), formatSiblings.map((fs) => /* @__PURE__ */ React.createElement("button", { key: fs.sku_id, className: "attr-pill", onClick: () => onSkuClick(fs.sku_id) }, fs.format_label)))), showSizePills && !attrSlugs.includes("shape") && /* @__PURE__ */ React.createElement("div", { className: "variant-selector-group" }, /* @__PURE__ */ React.createElement("div", { className: "variant-selector-label" }, "Size", /* @__PURE__ */ React.createElement("span", null, collectionSizeItems.find((s) => s.is_current)?.label || "")), sku.vendor_code === "JMV" ? (
         // James Martin Vanities
         /* @__PURE__ */ React.createElement("div", { className: "color-swatches" }, collectionSizeItems.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.label, className: "color-swatch-wrap", onClick: () => {
           if (!s.is_current) onSkuClick(s.sku_id);
@@ -7323,7 +7358,7 @@
           if (!collectionSiblings.length) return null;
           let bestMatch = null;
           for (const cs of collectionSiblings) {
-            if (!cs.sku_map) continue;
+            if (!cs.sku_map || !_sameLine(cs.product_name)) continue;
             for (const [key, sid] of Object.entries(cs.sku_map)) {
               const [szVal, fnVal] = key.split("|");
               const attrMatch = slug === "finish" ? fnVal === val : false;

@@ -8806,6 +8806,25 @@
                 if (_nonAccCollSiblings.length > 0) collColorKeys.add(siblingColorKey(sku.product_name));
                 const multiColorCollection = collColorKeys.size > 1;
 
+                // Cross-product pill routing must stay on the current "line" (color/
+                // pattern). Compare color keys with the collection's FINISH values
+                // stripped, so finish-in-name splits still match ("Bright Black Penny
+                // Round" ↔ "Matte Black Penny Round") while true pattern jumps don't
+                // ("Bright Black Penny Round" ↛ "Matte Pinwheel"). Mosaic collections
+                // (Roca Rockart/CC Mosaics) are one-product-per-pattern: without this
+                // scoping, every other pattern's sheet size/finish leaked in as dead
+                // struck-out pills or pattern-jumping traps.
+                const _collFinishVals = (collectionAttributes.finish && collectionAttributes.finish.values) || [];
+                const _finishStripRe = _collFinishVals.length
+                  ? new RegExp('\\b(' + _collFinishVals.map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\b', 'gi')
+                  : null;
+                const _finishStrippedKey = (name) => {
+                  let k = siblingColorLabel(name || '');
+                  if (_finishStripRe) k = k.replace(_finishStripRe, ' ');
+                  return k.replace(/\s+/g, ' ').trim().toLowerCase();
+                };
+                const _sameLine = (name) => !multiColorCollection || _finishStrippedKey(name) === _finishStrippedKey(sku.product_name);
+
                 // One-SKU-per-color collections (Stanza pebble collections): every product is
                 // a distinct color with exactly one variant, so ANY attribute difference
                 // across the collection (finish, pack_size…) is a property of some OTHER
@@ -8928,10 +8947,11 @@
                       collectionFinishItems.push({ label: fn, sku_id: sameProductMatch.sku_id, is_current: false });
                       return;
                     }
-                    // Fall back to collection siblings (cross-product)
+                    // Fall back to collection siblings (cross-product) — same line only,
+                    // so a finish pill never jumps to a different color/pattern
                     let targetSkuId = null;
                     for (const cs of collectionSiblings) {
-                      if (!cs.sku_map) continue;
+                      if (!cs.sku_map || !_sameLine(cs.product_name)) continue;
                       for (const [key, sid] of Object.entries(cs.sku_map)) {
                         const parts = key.split('|');
                         if (parts[1] !== fn) continue;
@@ -9079,9 +9099,11 @@
                       if (sizeMap.has(nk)) return;
                       const dm = sv.match(_dimRe);
                       if (!dm) return;
+                      // Same line only: a size pill must not jump colors/patterns (a
+                      // mosaic collection's other sheet sizes belong to other patterns)
                       let targetSkuId = null;
                       for (const cs of collectionSiblings) {
-                        if (!cs.sku_map) continue;
+                        if (!cs.sku_map || !_sameLine(cs.product_name)) continue;
                         for (const [key, sid] of Object.entries(cs.sku_map)) {
                           const parts = key.split('|');
                           if (normalizeSize(parts[0]) === nk) {
@@ -9115,7 +9137,9 @@
                   [{ attributes: sku.attributes }, ...mainSiblings.filter(s => s.variant_type !== 'accessory')].forEach(s => {
                     const fa = (s.attributes || []).find(a => a.slug === 'finish');
                     const za = (s.attributes || []).find(a => a.slug === 'size');
-                    if (fa && za && fa.value === _curFinishAvail) _sizesForCurFinish.add(normalizeSize(za.value));
+                    // No finish attribute ≠ unavailable at this finish — deco/trim
+                    // siblings often just lack the attr (Roca Alba A/B patterns).
+                    if (za && (!fa || fa.value === _curFinishAvail)) _sizesForCurFinish.add(normalizeSize(za.value));
                   });
                 }
                 const _applySizeAvail = !!_curFinishAvail && _sizesForCurFinish.size > 0 &&
@@ -9127,6 +9151,7 @@
                 // where widths are separate products) — otherwise sizes render as fake color swatches.
                 // Exception: when size pills were color-scoped and the sibling products are clearly
                 // colors (name-derived color keys map 1:1 to color attribute values), still show them.
+                let _collectionColorWall = false; // colorItems sourced from collection siblings (cross-product wall)
                 if (colorItems.length <= 1 && _nonAccCollSiblings.length > 0) {
                   // Only siblings sharing the current FINISH are alternate colors. Collections
                   // that split finish into separate products (MOMA: "…12x24, R11" vs "…, Natural")
@@ -9187,8 +9212,10 @@
                       colorItems = _vals
                         .map(c => ({ ...c, color: _colorIs1to1 ? c.color.trim() : siblingColorLabel(c.product_name) }))
                         .sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
+                      _collectionColorWall = true;
                     } else if (!showSizePills) {
                       colorItems = candidates.sort((a, b) => (a.product_name || '').localeCompare(b.product_name || ''));
+                      _collectionColorWall = true;
                     }
                   }
                 }
@@ -9269,6 +9296,11 @@
                   Object.entries(collectionAttributes).forEach(([slug, ca]) => {
                     if (!ca || !ca.values || ca.values.length < 2) return;
                     if (NON_SELECTABLE.has(slug) || slug === 'color') return;
+                    // Only finish can route cross-product (sku_map keys are size|finish).
+                    // Any other augmented value (shape, pattern…) has no navigation path,
+                    // so it could only ever render as a permanently-dead struck pill
+                    // (Roca CC Mosaics: 13 dead Shape pills from the other patterns).
+                    if (slug !== 'finish') return;
                     if (!attrMap[slug]) attrMap[slug] = { name: ca.name, values: new Set() };
                     if (currentAttrs[slug]) attrMap[slug].values.add(currentAttrs[slug]);
                     const localCount = attrMap[slug].values.size;
@@ -9443,6 +9475,35 @@
                 const showColors = colorItems.length >= 2;
                 const isRomanVariants = showColors && colorItems.some(c => hasRomanSuffix(c.product_name));
 
+                // Same-product variants indistinguishable by ANY attribute (Roca mosaic
+                // sheets: "Carrara Marble" A/B/C share color/size/finish yet are a 1" hex,
+                // 2x2 squares, and 2x2 hex — the chip layout only lives in variant_name +
+                // image). Every pill row above routes by attributes, so these siblings are
+                // otherwise unreachable. Surface the group holding the CURRENT sku as
+                // image swatches labeled by the distinguishing variant_name tokens
+                // (tokens shared by the whole group stripped: "A 12X12" → "A").
+                let sibOptionItems = [];
+                if (!_designFallback && mainSiblings.length > 0 && !_isSlabVariant && slabSizeItems.length === 0) {
+                  const _attrKey = (attrs) => (attrs || []).map(a => a.slug + ':' + String(a.value).toLowerCase().trim()).sort().join('|');
+                  const curKey = _attrKey(sku.attributes);
+                  const twins = curKey ? mainSiblings.filter(s => (s.variant_type || '') !== 'accessory'
+                    && (s.variant_name || '') !== (sku.variant_name || '')
+                    && _attrKey(s.attributes) === curKey) : [];
+                  if (twins.length > 0) {
+                    const group = [
+                      { sku_id: sku.sku_id, variant_name: sku.variant_name || '', primary_image: (media && media[0]) ? media[0].url : null, is_current: true },
+                      ...twins.map(s => ({ sku_id: s.sku_id, variant_name: s.variant_name || '', primary_image: getVariantImage(s), is_current: false })),
+                    ];
+                    const lists = group.map(g => (g.variant_name || '').split(/\s+/).filter(Boolean));
+                    const sharedLc = new Set(lists[0].map(t => t.toLowerCase()).filter(t => lists.every(tl => tl.some(x => x.toLowerCase() === t))));
+                    sibOptionItems = group.map((g, i) => {
+                      const own = lists[i].filter(t => !sharedLc.has(t.toLowerCase())).join(' ');
+                      return { ...g, label: own || g.variant_name || ('Option ' + (i + 1)) };
+                    }).sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
+                  }
+                }
+                const showSibOptions = sibOptionItems.length >= 2;
+
                 // Build separate roman numeral style pills from collection siblings
                 // when colors already exist (carpet with both colors AND roman variants like I/II/III)
                 let romanStyleItems = [];
@@ -9512,7 +9573,14 @@
                 // When the product has its own color axis (Jeffrey Alexander: color↔finish
                 // 1:1), the grid IS the finish selector — keep it "Color" and don't ALSO
                 // render the same-product finish row below (that was the duplication).
-                const colorLabel = _designFallback ? 'Design' : attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : (_isDecorativeHW && !currentAttrs['color']) ? 'Collection' : 'Color';
+                // Mosaic collections are one-product-per-PATTERN (Roca Rockart: basket
+                // weave / penny round / chevron…) — a cross-product wall there is a
+                // pattern picker, not a color picker. Detect via pattern words in the
+                // swatch labels so true color walls (Avalon Arena/Blanco) stay "Color".
+                const _patternWordRe = /\b(penny|hexagons?|hex|octagon|pickets?|herringbone|chevron|arabesque|lanterns?|basket|weave|bricks?|ovals?|dots?|stacked|pinwheel|circles?|triangles?|squares?|arrows?|fans?|rhombus|medallions?|feathers?|kaleidoscope|rounds?)\b/i;
+                const _patternWall = _collectionColorWall && /mosaic/.test(sku.category_slug || '')
+                  && colorItems.filter(c => _patternWordRe.test(c.color || c.product_name || '')).length >= 2;
+                const colorLabel = _designFallback ? 'Design' : attrMap['countertop_finish'] ? 'Cabinet Color' : isRomanVariants ? 'Style' : (_isDecorativeHW && !currentAttrs['color']) ? 'Collection' : _patternWall ? 'Pattern' : 'Color';
                 const showAttrs = attrSlugs.length > 0;
                 // Check if the currently selected size/finish is available for a color swatch
                 const isColorCompatible = (c) => {
@@ -9527,8 +9595,11 @@
                   // by switching — there is no size/finish choice to preserve on the other
                   // side, the click is a whole-product jump (same reasoning as slabs above).
                   // Greying these out just dashes half the collection's colors (Stanza:
-                  // per-color finishes) without protecting any selection.
-                  if (mainSiblings.length === 0 &&
+                  // per-color finishes) without protecting any selection. Applies whether
+                  // or not THIS product has siblings (Roca mosaic A/B products dashed most
+                  // of the pattern wall) — but only to collection candidates (they carry
+                  // available_*); same-product items keep the full check below.
+                  if ((mainSiblings.length === 0 || c.available_sizes || c.available_finishes) &&
                       (!c.available_sizes || c.available_sizes.length <= 1) &&
                       (!c.available_finishes || c.available_finishes.length <= 1)) return true;
                   // Collection siblings have available_sizes/available_finishes from API
@@ -9571,7 +9642,7 @@
                 // color↔finish 1:1) — the color swatch grid is already the finish selector,
                 // so a finish row here would duplicate it.
                 const showSibFinish = sibFinishItems.length > 0 && !showFinishPills && !_finishIsColor && !attrSlugs.includes('finish') && !currentAttrs['color'];
-                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish) return null;
+                if (!showColors && !showAttrs && !hasFormatPill && !showSubLinePill && !showRomanStylePills && !showSizePills && !showFinishPills && !showSibSizes && !showAttrSizes && !showFormatSiblings && !showSibFinish && !showSibOptions) return null;
                 return (
                   <div className="variant-selectors">
                     {showColors && (
@@ -9590,6 +9661,21 @@
                             </div>
                             );
                           })}
+                        </div>
+                      </div>
+                    )}
+                    {showSibOptions && (
+                      <div className="variant-selector-group">
+                        <div className="variant-selector-label">Option<span>{(sibOptionItems.find(o => o.is_current) || {}).label || ''}</span></div>
+                        <div className="color-swatches">
+                          {sibOptionItems.map(o => (
+                            <div key={o.sku_id} className="color-swatch-wrap" onClick={() => { if (!o.is_current) onSkuClick(o.sku_id); }}>
+                              <div className={'color-swatch' + (o.is_current ? ' active' : '')}>
+                                {o.primary_image ? <img onLoad={handleProductImgLoad} src={optimizeImg(o.primary_image, 120)} alt={o.label} loading="lazy" decoding="async" width="64" height="64" /> : <div style={{ width: '100%', height: '100%', background: 'var(--stone-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.625rem', fontWeight: 600, color: 'var(--stone-500)', textAlign: 'center', lineHeight: 1.2, padding: '4px' }}>{o.label}</div>}
+                              </div>
+                              <div className="color-swatch-tooltip">{o.label}</div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -9875,7 +9961,8 @@
                         if (!collectionSiblings.length) return null;
                         let bestMatch = null;
                         for (const cs of collectionSiblings) {
-                          if (!cs.sku_map) continue;
+                          // Same line only — never jump to a different color/pattern
+                          if (!cs.sku_map || !_sameLine(cs.product_name)) continue;
                           for (const [key, sid] of Object.entries(cs.sku_map)) {
                             const [szVal, fnVal] = key.split('|');
                             const attrMatch = slug === 'finish' ? fnVal === val : false;

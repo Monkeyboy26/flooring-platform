@@ -1,10 +1,10 @@
-const CACHE_NAME = 'roma-v467';
+const CACHE_NAME = 'roma-v468';
 const IMAGE_CACHE = 'roma-images-v9';
 const IMAGE_CACHE_LIMIT = 2000;
 const SHELL_ASSETS = [
   '/storefront.html',
   '/storefront.css?v=197',
-  '/storefront-app.js?v=627',
+  '/storefront-app.js?v=628',
   // Self-hosted React — precached so the SPA boots offline-first and never
   // depends on a third-party CDN being reachable (see storefront.html).
   '/vendor/react-18.3.1.production.min.js',
