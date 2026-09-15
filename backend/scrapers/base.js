@@ -598,6 +598,10 @@ export function normalizeAttributeValue(slug, value) {
   if (!value || !value.trim()) return null;
   let v = value.trim().replace(/\s{2,}/g, ' ');
 
+  // Vendor-feed placeholders are noise, not values — they leak into composed
+  // titles ("Extero Silver N/a 16x24") and filter facets. Store nothing.
+  if (/^(n\/?\s?a|n\.a\.|none|null|-{1,2}|tbd|unknown)$/i.test(v)) return null;
+
   if (slug === 'size') {
     // Reject packaging quantities masquerading as sizes ("12 EA/CTN", "2 EA/CT")
     if (/\b(EA|CTN?|PCS?|BOX|PLT|GAL|OZ)\b/i.test(v)) return null;
