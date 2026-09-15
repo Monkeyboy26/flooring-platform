@@ -130,7 +130,11 @@ export async function run(pool, job, source) {
     const seriesMatched = await matchImagesBySeries(pool, vendorId, apiProducts, job);
     stats.imagesSet += seriesMatched;
 
-    // Step 6: Add room scene images via CDN URL construction
+    // Step 6: Exact per-SKU {code}_hr images for primary-less SKUs
+    const hrAdded = await addExactHrImages(pool, vendorId, job);
+    stats.imagesSet += hrAdded;
+
+    // Step 6b: Add room scene images via CDN URL construction
     const roomScenesAdded = await addRoomScenes(pool, vendorId, job);
 
     // Step 7: Cleanup orphaned catalog-only products
@@ -235,6 +239,28 @@ function sameColorish(a, b) {
         for (let j = 1; j <= b.length; j++)
             d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
     return d[a.length][b.length] <= 2;
+}
+
+/**
+ * Pattern/type suffix after the 4-digit size in an Emser code: '' = plain
+ * field tile, BWH = basketweave, MOV = oval mosaic, AUT = tumbled field, ...
+ * Revision (V2), pack (P24) and a trailing finish letter (H/P) are normalized
+ * away — those are the same look. Different suffixes = different pattern; a
+ * borrowed same-color shot with another pattern is misleading on a PDP
+ * (12x12 basketweave mosaic showing the oval mosaic).
+ */
+function codePatternSuffix(code) {
+    const m = (code || '').toLowerCase().match(/\d{4}([a-z0-9]*)$/);
+    if (!m) return null;
+    let s = m[1];
+    for (;;) { const n = s.replace(/(v\d|p\d+)$/, ''); if (n === s) break; s = n; }
+    if (s.length && /[hp]$/.test(s)) s = s.slice(0, -1);
+    return s;
+}
+function patternSuffixMismatch(a, b) {
+    const sa = codePatternSuffix(a), sb = codePatternSuffix(b);
+    if (sa == null || sb == null) return false;
+    return sa !== sb;
 }
 
 /** Parse a SKU's color from API structured attrs, falling back to title */
@@ -517,6 +543,14 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
                     const imgColor = skuColorMap.get(imgStem);
                     if (imgColor && colorVal && !sameColorish(imgColor, colorVal)) {
                         stats.imagesSkippedWrongColor = (stats.imagesSkippedWrongColor || 0) + 1;
+                        continue;
+                    }
+                    // Same color but a different PATTERN suffix on a product
+                    // shot (f1/f2/scan) — don't attach a sibling pattern's
+                    // photo as this SKU's own image. Room scenes stay.
+                    if (/_f\d|_scan_f\d/i.test(fileName) &&
+                        patternSuffixMismatch(productNumber, codeMatch[1])) {
+                        stats.imagesSkippedWrongPattern = (stats.imagesSkippedWrongPattern || 0) + 1;
                         continue;
                     }
                 }
@@ -891,6 +925,53 @@ function buildCdnUrl(filename) {
     const c2 = lower.substring(2, 4);
     const c3 = lower.substring(4, 6);
     return `${CDN_BASE}/${c1}/${c2}/${c3}/${lower}`;
+}
+
+/**
+ * For SKUs with a code-style vendor_sku and NO sku-level primary image,
+ * probe Emser's code-keyed high-res CDN family ({code}_hr_large.jpg, path
+ * sharded by the first 6 chars of the code) and attach hits as the SKU
+ * primary. This is the exact per-variant shot (mosaic pattern included) —
+ * see fix-emser-sku-images.mjs for the one-time backfill version.
+ */
+async function addExactHrImages(pool, vendorId, job) {
+    const candidates = await pool.query(`
+        SELECT s.id AS sku_id, s.product_id, lower(s.vendor_sku) AS code
+        FROM skus s
+        JOIN products p ON p.id = s.product_id
+        WHERE p.vendor_id = $1 AND s.status = 'active' AND p.status = 'active'
+          AND lower(s.vendor_sku) ~ '^[a-z][0-9]{2}[a-z0-9]{6,17}$'
+          AND NOT EXISTS (
+              SELECT 1 FROM media_assets ma
+              WHERE ma.sku_id = s.id AND ma.asset_type = 'primary'
+          )
+    `, [vendorId]);
+
+    if (candidates.rows.length === 0) return 0;
+    await appendLog(pool, job.id,
+        `Exact-image pass: probing ${candidates.rows.length} primary-less SKUs for {code}_hr CDN images`
+    );
+
+    let added = 0;
+    const CONCURRENCY = 10;
+    for (let i = 0; i < candidates.rows.length; i += CONCURRENCY) {
+        const batch = candidates.rows.slice(i, i + CONCURRENCY);
+        await Promise.all(batch.map(async (row) => {
+            try {
+                const url = buildCdnUrl(`${row.code}_hr_large.jpg`);
+                const res = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+                if (res.ok) {
+                    await upsertMediaAsset(pool, {
+                        product_id: row.product_id, sku_id: row.sku_id,
+                        asset_type: 'primary', url, original_url: url, sort_order: 0,
+                    });
+                    added++;
+                }
+            } catch { /* probe failed — no hr image */ }
+        }));
+    }
+    await appendLog(pool, job.id, `Exact-image pass: attached ${added} hr primaries`);
+    return added;
 }
 
 /**
