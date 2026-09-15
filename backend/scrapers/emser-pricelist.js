@@ -287,7 +287,11 @@ function extractPdfText(pdfPath) {
  * Uses column-position tracking to handle multi-size series where a single
  * row contains prices for multiple sizes (e.g., 12X24 at col 90, 24X47 at col 110).
  */
-function parsePDF(text) {
+// opts.includeTrims: capture TRIM-section rows into series.trims[] ({label, price, prices, special})
+// opts.includeSpecial: parse @ (special order / MOQ) rows instead of skipping, flagged item.special
+// Both default false so run()'s onboarding behavior is unchanged.
+export function parsePDF(text, opts = {}) {
+  const { includeTrims = false, includeSpecial = false } = opts;
   const lines = text.split('\n');
   const allSeries = [];
 
@@ -347,8 +351,9 @@ function parsePDF(text) {
     // Skip setting-material-style tabular data
     if (isSettingMaterialLine(trimmed)) continue;
 
-    // Skip @ items (special order / MOQ)
-    if (trimmed.includes('@')) continue;
+    // Skip @ items (special order / MOQ) — unless caller wants them flagged
+    const isSpecialRow = trimmed.includes('@');
+    if (isSpecialRow && !includeSpecial) continue;
 
     // Skip bare page numbers
     if (/^\d{1,3}$/.test(trimmed)) continue;
@@ -412,6 +417,16 @@ function parsePDF(text) {
       // Stay in TRIM until we hit a new section, series, or PER CARTON
       if (!(!lineHasPrice && isSeriesHeader(line, strippedLine)) &&
           !/PER CARTON/i.test(trimmed) && !isSectionHeader(trimmed)) {
+        if (includeTrims && lineHasPrice && currentSeries) {
+          const priceMatches = [...line.matchAll(/([\d,]+\.\d{2})/g)];
+          const label = line.slice(0, priceMatches[0].index)
+            .replace(/[-@]/g, '').replace(/\s+/g, ' ').trim();
+          const prices = priceMatches.map(m => parseFloat(m[1].replace(/,/g, ''))).filter(p => p > 0);
+          if (label && prices.length) {
+            if (!currentSeries.trims) currentSeries.trims = [];
+            currentSeries.trims.push({ label, price: prices[0], prices, special: isSpecialRow });
+          }
+        }
         continue;
       }
       // Fall through to handle the new section/series/PER CARTON
@@ -691,6 +706,10 @@ function parsePDF(text) {
     if (items) {
       for (const { colIdx, item } of items) {
         if (colIdx < currentColumns.length && item.price > 0) {
+          if (isSpecialRow) {
+            item.special = true;
+            item.color = item.color.replace(/@/g, ' ').replace(/\s+/g, ' ').trim();
+          }
           currentColumns[colIdx].block.items.push(item);
         }
       }
@@ -1026,7 +1045,7 @@ function resolveCategory(material, seriesName, catMap) {
   return catMap['porcelain-tile'] || null;
 }
 
-function normalizeSize(raw) {
+export function normalizeSize(raw) {
   if (!raw) return '';
   return raw.replace(/["″'']/g, '').replace(/\s*[xX×]\s*/g, 'x').trim().toLowerCase();
 }
@@ -1038,7 +1057,7 @@ function slugify(str) {
     .replace(/^-|-$/g, '');
 }
 
-function titleCase(s) {
+export function titleCase(s) {
   if (!s) return s;
   // Normalize all whitespace and strip PUA characters from pdftotext (U+E000–U+F8FF)
   const cleaned = s.replace(/[\uE000-\uF8FF]/g, '').replace(/[\s\u00A0\u2000-\u200B]+/g, ' ').trim();
