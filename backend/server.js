@@ -8073,6 +8073,10 @@ async function buildLabels(rows) {
 const LABEL_ZERO_MARGIN = { margin: { top: '0', bottom: '0', left: '0', right: '0' } };
 // Roll format: one 4in x 2in label per page for a thermal label printer (?format=roll).
 const LABEL_ROLL_OPTS = { width: '4in', height: '2in', margin: { top: '0', bottom: '0', left: '0', right: '0' } };
+// Portrait roll: same label rotated onto a 2in x 4in page for a 2in-wide roll that
+// feeds long-edge-first (the shop's Brother QL-1110NWB — CUPS clips, not rotates,
+// landscape pages on that media, so the rotation must be baked into the PDF).
+const LABEL_ROLL_PORTRAIT_OPTS = { width: '2in', height: '4in', margin: { top: '0', bottom: '0', left: '0', right: '0' } };
 
 // Render the requested label format and send it. Formats:
 //   (default)      Avery 5163 sheet PDF (10-up on Letter)
@@ -8082,18 +8086,22 @@ const LABEL_ROLL_OPTS = { width: '4in', height: '2in', margin: { top: '0', botto
 // Honors ?preview=true (generatePDF returns raw HTML) for every format.
 async function sendLabels(labels, req, res, filenameBase) {
   const format = req.query.format;
+  // Roll orientation defaults to portrait (the Brother QL-1110NWB's 2in-wide roll);
+  // ?orientation=landscape restores the 4in-wide dispenser layout (e.g. Zebra ZD230).
+  const orientation = req.query.orientation === 'landscape' ? 'landscape' : 'portrait';
+  const rollOpts = orientation === 'portrait' ? LABEL_ROLL_PORTRAIT_OPTS : LABEL_ROLL_OPTS;
   if (format === 'image') {
     try {
       const pngs = await renderLabelPngs(labels);
-      const html = generateLabelImageRollHtml(pngs);
-      return await generatePDF(html, `${filenameBase}-roll.pdf`, req, res, LABEL_ROLL_OPTS);
+      const html = generateLabelImageRollHtml(pngs, { orientation });
+      return await generatePDF(html, `${filenameBase}-roll.pdf`, req, res, rollOpts);
     } catch (imgErr) {
       console.warn('label image render failed, falling back to vector roll:', imgErr.message);
     }
   }
   const roll = format === 'roll' || format === 'image';
-  const html = roll ? generateLabelRollHtml(labels) : generateLabelSheetHtml(labels);
-  await generatePDF(html, roll ? `${filenameBase}-roll.pdf` : `${filenameBase}.pdf`, req, res, roll ? LABEL_ROLL_OPTS : LABEL_ZERO_MARGIN);
+  const html = roll ? generateLabelRollHtml(labels, { orientation }) : generateLabelSheetHtml(labels);
+  await generatePDF(html, roll ? `${filenameBase}-roll.pdf` : `${filenameBase}.pdf`, req, res, roll ? rollOpts : LABEL_ZERO_MARGIN);
 }
 
 // Single SKU label. See sendLabels() for the ?format options.

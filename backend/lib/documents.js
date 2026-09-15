@@ -2529,7 +2529,7 @@ export function generateLabelSheetHtml(labels) {
 // every accent that is gold on the sheet version becomes solid black here, and the
 // faint gold gradient rule becomes a crisp black hairline. Same content/QR as the
 // sheet labels; only the page geometry and ink change.
-export function generateLabelRollHtml(labels) {
+export function generateLabelRollHtml(labels, { orientation = 'landscape' } = {}) {
   const esc = (s) => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -2608,6 +2608,11 @@ export function generateLabelRollHtml(labels) {
   .rl-foot { position: absolute; left: 0.17in; right: 0.17in; bottom: 0.1in; display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid #000; padding-top: 3px; }
   .rl-brand { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 8pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #000; }
   .rl-web { font-size: 5.6pt; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #333; }
+  ${orientation === 'portrait' ? `
+  /* 2in-wide roll (labels feed long-edge-first, e.g. Brother QL-1110NWB): keep the
+     4x2 layout but rotate each label onto a 2in x 4in portrait page. */
+  @page { size: 2in 4in; margin: 0; }
+  .rl-page { transform: rotate(90deg) translateY(-2in); transform-origin: top left; }` : ''}
   </style></head><body>${pagesHtml}</body></html>`;
 }
 
@@ -2648,7 +2653,7 @@ export async function renderLabelPngs(labels, { dpi = 203 } = {}) {
 
 // Wrap pre-rendered 203-dpi label PNGs into a one-4x2-label-per-page document for a
 // thermal roll printer. Each page holds exactly one bitmap, filling the label 1:1.
-export function generateLabelImageRollHtml(pngDataUris) {
+export function generateLabelImageRollHtml(pngDataUris, { orientation = 'landscape' } = {}) {
   const list = pngDataUris.length ? pngDataUris : [null];
   const pages = list.map((src, i) => {
     const last = i === list.length - 1;
@@ -2662,5 +2667,11 @@ export function generateLabelImageRollHtml(pngDataUris) {
   .ip { width: 4in; height: 2in; overflow: hidden; page-break-after: always; }
   .ip.last { page-break-after: auto; }
   .ip img { width: 4in; height: 2in; display: block; }
+  ${orientation === 'portrait' ? `
+  /* 2in-wide roll: rotate the pre-rendered 4x2 bitmap onto a 2in x 4in portrait
+     page (still 1:1 at 203 dpi — a pure 90-degree remap, no resampling). */
+  @page { size: 2in 4in; margin: 0; }
+  .ip { width: 2in; height: 4in; }
+  .ip img { transform: rotate(90deg) translateY(-2in); transform-origin: top left; }` : ''}
   </style></head><body>${pages}</body></html>`;
 }
