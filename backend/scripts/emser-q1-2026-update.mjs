@@ -118,7 +118,10 @@ function sizeNeighbors(sizeKey) {
 
 // ─── PDF parse + indexes ─────────────────────────────────────────────────────
 
-const rawText = execSync(`pdftotext -layout "${PDF_PATH}" -`, { maxBuffer: 100 * 1024 * 1024, encoding: 'utf-8' });
+// Accept a pre-extracted `pdftotext -layout` dump too (containers without poppler)
+const rawText = PDF_PATH.endsWith('.txt')
+  ? fs.readFileSync(PDF_PATH, 'utf-8')
+  : execSync(`pdftotext -layout "${PDF_PATH}" -`, { maxBuffer: 100 * 1024 * 1024, encoding: 'utf-8' });
 const rawLines = rawText.split('\n');
 const parsed = parsePDF(rawText, { includeTrims: true, includeSpecial: true });
 
