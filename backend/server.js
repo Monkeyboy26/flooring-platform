@@ -8073,7 +8073,10 @@ async function buildLabels(rows) {
       colors: r.colors || [],
       sizes: r.sizes || [],
       accessories: r.accessories || [],
-      internalSku: r.internal_sku,
+      // Internal SKUs lead with a vendor/import prefix ("EMSER-F19…", "AZT-…") that
+      // identifies the supplier — strip the first token on this customer-facing tag
+      // so only the part number prints. Staff recover the full SKU via the QR link.
+      internalSku: String(r.internal_sku || '').replace(/^[A-Za-z0-9]{1,12}-(?=.)/, ''),
       qrDataUri
     };
   }));
