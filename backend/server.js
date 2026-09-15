@@ -7963,11 +7963,21 @@ const MAX_LABELS = 200;
 // clicking a product in the admin prints one label per color/variant.
 async function expandProductIdsToSkuIds(productIds) {
   if (!productIds.length) return [];
+  // One label per COLOR, not per SKU — a product with 9 sizes per color would
+  // otherwise spit out 9 near-identical stickers per sample board. The sizes are
+  // already summarized on the label's "Available" line. Representative SKU per
+  // color = first by variant_name; colorless products collapse to one label.
   const { rows } = await pool.query(`
-    SELECT id FROM skus
-    WHERE product_id = ANY($1::uuid[]) AND status = 'active' AND is_sample = false
-      AND COALESCE(variant_type, '') <> 'accessory'
-    ORDER BY variant_name
+    SELECT DISTINCT ON (t.product_id, t.color) t.id FROM (
+      SELECT s.id, s.product_id, s.variant_name,
+        COALESCE((SELECT sa.value FROM sku_attributes sa
+           JOIN attributes a ON a.id = sa.attribute_id
+          WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1), '') AS color
+      FROM skus s
+      WHERE s.product_id = ANY($1::uuid[]) AND s.status = 'active' AND s.is_sample = false
+        AND COALESCE(s.variant_type, '') <> 'accessory'
+    ) t
+    ORDER BY t.product_id, t.color, t.variant_name
   `, [productIds]);
   return rows.map(r => r.id);
 }
