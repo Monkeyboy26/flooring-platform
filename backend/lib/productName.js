@@ -451,6 +451,8 @@ export function fullProductName(sku) {
       const isBosphorusVendor = (sku.vendor_code || '').toUpperCase() === 'BOS';
       const extras = [patternAttr, sizeAttr, isBosphorusVendor ? finishAttr : null]
         .filter(Boolean)
+        // placeholder attr values (Emser feeds pattern "N/A") must never reach a title
+        .filter(a => a.value && !/^(n\/?\s?a|none|null|-|not applicable)$/i.test(String(a.value).trim()))
         .filter(a => !nameLowerDedup.includes(a.value.toLowerCase())
           && !(a === sizeAttr && nameDimNorm.includes(normDim(a.value))))
         .map(a => a.value);

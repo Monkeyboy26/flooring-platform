@@ -438,7 +438,9 @@ function enrichProduct(apiProduct, existingSkus, stats, catMap, skuColorMap) {
 
     // Queue all attributes
     for (const [slug, val] of attrPairs) {
-        if (val) {
+        // Emser's API hands back literal placeholders ("N/A" pattern, "Na" dcof)
+        // that would otherwise leak into composed product titles
+        if (val && !/^(n\/?\s?a|none|null|-|not applicable)$/i.test(String(val).trim())) {
             queue.attributes.push({ skuId, slug, val });
             stats.attributesSet++;
         }
