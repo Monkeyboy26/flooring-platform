@@ -35,6 +35,7 @@ import { formatRugDims, computeRugCost, computeRugQuote } from './lib/rugPricing
 import * as valorConnect from './lib/valorConnect.js';
 import { enrichItemsForNaming } from './lib/enrichItems.js';
 import { fullProductName } from './lib/productName.js';
+import { HIDDEN_PRICE_VENDOR_SQL, stripHiddenVendorPrices } from './lib/hiddenPrices.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
 import { docUpload, mediaUpload, importUpload, pricelistUpload, receiptUpload } from './lib/uploads.js';
@@ -236,6 +237,16 @@ app.use('/api/customer/reset-password', authLimiter);
 app.use('/api/customer/forgot-password', authLimiter);
 app.use('/api/checkout', checkoutLimiter);
 app.use('/api/storefront/search/suggest', searchLimiter);
+
+// Hidden-price vendors (lib/hiddenPrices): scrub every storefront response so
+// their SKUs render "Call for Price" — cards, PDP, search, compare, featured.
+// Wraps res.json, so per-route caches (browseCache etc.) stay coherent: the
+// cached body is the same object and the scrub is idempotent.
+app.use('/api/storefront', (req, res, next) => {
+  const origJson = res.json.bind(res);
+  res.json = (body) => origJson(stripHiddenVendorPrices(body));
+  next();
+});
 // Note: the trade registration limiter is applied per-route on the account-creating
 // endpoints (POST /api/trade/register and /register/enhanced) — NOT here as a path
 // prefix, which would also throttle /register/upload and cap document uploads.
@@ -2180,7 +2191,7 @@ app.get('/api/storefront/search/suggest', async (req, res) => {
       products: prodRows.map(r => ({
         sku_id: r.sku_id, product_name: r.product_name, collection: r.collection,
         variant_name: r.variant_name, vendor_name: r.vendor_name, brand_name: r.brand_name, brand_hidden: r.brand_hidden, primary_image: r.primary_image,
-        vendor_sku: r.vendor_sku,
+        vendor_sku: r.vendor_sku, vendor_code: r.vendor_code,
         retail_price: r.retail_price, price_basis: r.price_basis, sell_by: r.sell_by, sqft_per_box: r.sqft_per_box, sale_price: r.sale_price,
         color_family: colorMap[r.sku_id] || null
       })),
@@ -2486,6 +2497,9 @@ app.get('/api/storefront/skus', optionalTradeAuth, async (req, res) => {
       params.push(parseFloat(req.query.price_max));
       whereClauses.push(`pr.retail_price <= $${paramIndex++}`);
     }
+    // A price window must not match hidden-price vendors — landing inside a
+    // narrow min/max would reveal the number their cards deliberately omit
+    if (req.query.price_min || req.query.price_max) whereClauses.push(HIDDEN_PRICE_VENDOR_SQL);
 
     // Attribute filters: any query param matching an attribute slug
     // Sale filter
@@ -3630,6 +3644,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         sa.sort_order,
         s.id as sku_id, s.variant_name, s.vendor_sku, s.variant_type, s.sell_by,
         COALESCE(NULLIF(s.accessory_label, ''), p_acc.name) as accessory_label,
+        v_acc.code as vendor_code,
         pr.retail_price, pr.price_basis,
         CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
         COALESCE(
@@ -3646,6 +3661,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       FROM sku_accessories sa
       JOIN skus s ON s.id = sa.accessory_sku_id
       JOIN products p_acc ON p_acc.id = s.product_id
+      JOIN vendors v_acc ON v_acc.id = p_acc.vendor_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       LEFT JOIN LATERAL (
         SELECT SUM(qty_on_hand) AS qty_on_hand, SUM(qty_in_transit) AS qty_in_transit, MAX(fresh_until) AS fresh_until
@@ -3931,6 +3947,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         SELECT DISTINCT ON (p.id)
           s.id as sku_id, p.id as product_id, p.format_label,
           COALESCE(p.display_name, p.name) as product_name,
+          v.code as vendor_code,
           s.variant_name, pr.retail_price, col.value as color,
           COALESCE(
             (SELECT ma.url FROM media_assets ma WHERE ma.sku_id = s.id AND ma.asset_type IN ('primary','lifestyle','alternate') ORDER BY CASE ma.asset_type WHEN 'primary' THEN 0 WHEN 'lifestyle' THEN 1 ELSE 2 END, ma.sort_order LIMIT 1),
@@ -3939,6 +3956,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         FROM products p
         JOIN skus s ON s.product_id = p.id AND s.status = 'active' AND s.is_sample = false
           AND COALESCE(s.variant_type,'') != 'accessory'
+        JOIN vendors v ON v.id = p.vendor_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
         LEFT JOIN LATERAL (
           SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
@@ -3990,6 +4008,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
           s.id as sku_id, s.variant_name, s.variant_type, s.sell_by,
           p.id as product_id, COALESCE(p.display_name, p.name) as product_name, p.collection,
           c.name as category_name, c.slug as category_slug,
+          v.code as vendor_code,
           pr.retail_price, pr.price_basis, pk.sqft_per_box,
           CASE WHEN pr.sale_price IS NOT NULL AND (pr.sale_ends_at IS NULL OR pr.sale_ends_at > NOW()) THEN pr.sale_price ELSE NULL END as sale_price,
           COALESCE(
@@ -3999,6 +4018,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
         FROM sku_attributes sa
         JOIN skus s ON s.id = sa.sku_id AND s.status = 'active' AND s.is_sample = false
         JOIN products p ON p.id = s.product_id AND p.status = 'active'
+        JOIN vendors v ON v.id = p.vendor_id
         LEFT JOIN categories c ON c.id = p.category_id
         LEFT JOIN pricing pr ON pr.sku_id = s.id
         LEFT JOIN packaging pk ON pk.sku_id = s.id
@@ -4063,7 +4083,7 @@ app.get('/api/storefront/skus/:skuId', optionalTradeAuth, async (req, res) => {
       tags: productTags,
       accessories: skuAccessories,
       same_product_siblings: withVendorCode(sameSiblings),
-      cross_product_accessories: crossProductAccessories,
+      cross_product_accessories: withVendorCode(crossProductAccessories),
       collection_siblings: withVendorCode(collectionSiblings),
       collection_attributes: collectionAttributes,
       grouped_products: withVendorCode(groupedProducts),
@@ -4200,6 +4220,8 @@ app.get('/api/storefront/facets', async (req, res) => {
       params.push(parseFloat(req.query.price_max));
       baseWhere.push(`pr.retail_price <= $${paramIndex++}`);
     }
+    // Mirror of the browse-grid rule: price windows never match hidden-price vendors
+    if (req.query.price_min || req.query.price_max) baseWhere.push(HIDDEN_PRICE_VENDOR_SQL);
 
     // Sale filter
     if (req.query.sale === 'true') {
@@ -4343,6 +4365,7 @@ app.get('/api/storefront/facets', async (req, res) => {
       LEFT JOIN categories c ON c.id = p.category_id
       LEFT JOIN pricing pr ON pr.sku_id = s.id
       WHERE pr.retail_price IS NOT NULL AND pr.retail_price::numeric > 0 AND ${priceReindexed.where}
+        AND ${HIDDEN_PRICE_VENDOR_SQL}
     `;
 
     // Tag facets (disjunctive: skip tag filter from WHERE)
