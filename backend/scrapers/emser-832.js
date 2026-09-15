@@ -914,6 +914,13 @@ function makeInternalSku(vendorSku, productName) {
 export async function run(pool, job, source) {
   const connConfig = getConnConfig(source);
   const processedFiles = (source.config || {}).processed_files || [];
+  // The dealer PRICE LIST is the pricing + assortment authority (Q1-2026
+  // applied 2026-09-15 via scripts/emser-q1-2026-update.mjs): existing SKUs
+  // keep their status (no resurrecting list-dropped items when they linger in
+  // EDI files), pricing, and curated sell_by. The 832 still onboards NEW SKUs
+  // in full and refreshes packaging/attributes on everything.
+  // Escape hatch: set config.pricelist_authoritative=false on the source.
+  const pricelistAuthoritative = (source.config || {}).pricelist_authoritative !== false;
 
   await appendLog(pool, job.id, `Connecting to ${connConfig.host}:${connConfig.port} via ${connConfig.transport} as ${connConfig.user}...`);
 
@@ -1183,28 +1190,33 @@ export async function run(pool, job, source) {
         variant_name: variantName,
         sell_by: sheet.sellBy,
         variant_type: variantType,
-      });
+        // new rows still seed sell_by; existing curated sell_by (price-list
+        // trim/mosaic corrections) survives the rescrape
+      }, { sellByAuthoritative: !pricelistAuthoritative });
       const skuId = skuRow.id;
       if (skuRow.is_new) skusCreated++; else skusUpdated++;
 
-      // Re-activate SKUs that reappear in the 832 feed
-      await pool.query(
-        `UPDATE skus SET status = 'active', updated_at = NOW() WHERE id = $1 AND status != 'active'`,
-        [skuId]
-      );
-
-      await upsertPricing(pool, skuId, {
-        cost: sheet.cost,
-        retail_price: sheet.retail_price,
-        price_basis: sheet.priceBasis,
-        cut_price: item.cut_price || null,
-        roll_price: item.roll_price || null,
-        cut_cost: item.cut_cost || null,
-        roll_cost: item.roll_cost || null,
-        roll_min_sqft: item.roll_min_sqft || null,
-        map_price: item.map_price || null,
-      }, { coveringFloor: sheet.coveringFloor });
-      pricingUpserted++;
+      if (skuRow.is_new || !pricelistAuthoritative) {
+        // Re-activate SKUs that reappear in the 832 feed (legacy behavior) —
+        // under price-list authority the LIST decides the assortment, so a
+        // list-dropped SKU lingering in EDI files must stay inactive.
+        await pool.query(
+          `UPDATE skus SET status = 'active', updated_at = NOW() WHERE id = $1 AND status != 'active'`,
+          [skuId]
+        );
+        await upsertPricing(pool, skuId, {
+          cost: sheet.cost,
+          retail_price: sheet.retail_price,
+          price_basis: sheet.priceBasis,
+          cut_price: item.cut_price || null,
+          roll_price: item.roll_price || null,
+          cut_cost: item.cut_cost || null,
+          roll_cost: item.roll_cost || null,
+          roll_min_sqft: item.roll_min_sqft || null,
+          map_price: item.map_price || null,
+        }, { coveringFloor: sheet.coveringFloor });
+        pricingUpserted++;
+      }
 
       // Packaging
       if (item.sqft_per_box || item.pieces_per_box || item.weight_per_box_lbs) {
