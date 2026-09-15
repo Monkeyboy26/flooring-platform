@@ -90,7 +90,15 @@ export async function recalculateCommission(queryable, orderId) {
     );
     if (!orderRes.rows.length) return;
     const order = orderRes.rows[0];
-    if (!order.sales_rep_id) return;
+    if (!order.sales_rep_id) {
+      // Order was unassigned — no rep, no commission. Drop any stale row so the
+      // old rep doesn't keep credit, but never touch an already-paid commission.
+      await queryable.query(
+        "DELETE FROM rep_commissions WHERE order_id = $1 AND status != 'paid'",
+        [orderId]
+      );
+      return;
+    }
 
     // Fetch commission config
     const configRes = await queryable.query('SELECT rate, labor_rate, default_cost_ratio FROM commission_config LIMIT 1');

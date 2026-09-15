@@ -16812,10 +16812,11 @@ app.put('/api/rep/customers/:id/assign-rep', repAuth, requireRepManager, async (
 
     res.json({ customer: custRes.rows[0], reassigned_orders: orderRes.rows.length });
 
-    // Log activity on each reassigned order + notify the new rep.
+    // Log activity on each reassigned order + move its commission + notify the new rep.
     setImmediate(async () => {
       for (const o of orderRes.rows) {
         try { await logOrderActivity(pool, o.id, 'rep_assigned', req.rep.id, manager, { rep_name: newRepName, via: 'customer_reassign' }); } catch {}
+        try { await recalculateCommission(pool, o.id); } catch {}
       }
       if (orderRes.rows.length) {
         createRepNotification(pool, rep_id, 'customer_assigned',
@@ -16859,6 +16860,8 @@ app.put('/api/rep/orders/:id/assign-rep', repAuth, requireRepManager, async (req
     await logOrderActivity(pool, id, 'rep_assigned', req.rep.id, manager, { rep_name: newRepName });
     res.json({ order: result.rows[0] });
 
+    // Move any existing commission row to the new rep along with the order.
+    setImmediate(() => recalculateCommission(pool, id));
     setImmediate(() => createRepNotification(pool, rep_id, 'order_assigned',
       'Order ' + result.rows[0].order_number + ' assigned to you',
       'You have been assigned to order ' + result.rows[0].order_number + '.',
@@ -20806,6 +20809,8 @@ app.put('/api/rep/orders/:id/assign', repAuth, async (req, res) => {
     await logOrderActivity(pool, id, 'rep_assigned', req.rep.id, repName, { rep_name: repName });
     res.json({ order: result.rows[0] });
 
+    // Move any existing commission row to the claiming rep.
+    setImmediate(() => recalculateCommission(pool, id));
     // Notify the assigned rep
     setImmediate(() => createRepNotification(pool, req.rep.id, 'order_assigned',
       'Order ' + result.rows[0].order_number + ' assigned to you',
@@ -30397,6 +30402,10 @@ app.put('/api/admin/orders/:id/assign', staffAuth, requireRole('admin', 'manager
         { unassigned: true });
     }
     res.json({ order: result.rows[0] });
+
+    // Sync the commission row: moves it to the new rep, or (on unassign) deletes
+    // the non-paid row via recalculateCommission's no-rep branch.
+    setImmediate(() => recalculateCommission(pool, id));
   } catch (err) {
     console.error(err); res.status(500).json({ error: 'Internal server error' });
   }
