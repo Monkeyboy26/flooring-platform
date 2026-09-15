@@ -34,7 +34,7 @@ import { generatePDF, generatePDFBuffer, generatePOHtml, PO_PDF_MARGIN, generate
 import { formatRugDims, computeRugCost, computeRugQuote } from './lib/rugPricing.js';
 import * as valorConnect from './lib/valorConnect.js';
 import { enrichItemsForNaming } from './lib/enrichItems.js';
-import { fullProductName } from './lib/productName.js';
+import { fullProductName, skuShapeFromLine } from './lib/productName.js';
 import { HIDDEN_PRICE_VENDOR_SQL, stripHiddenVendorPrices } from './lib/hiddenPrices.js';
 import QRCode from 'qrcode';
 import { s3, S3_BUCKET, uploadToS3, getPresignedUrl } from './lib/s3.js';
@@ -7979,14 +7979,16 @@ async function getLabelData(skuIds) {
   if (!skuIds.length) return [];
   const { rows } = await pool.query(`
     SELECT
-      s.id AS sku_id, s.internal_sku, s.variant_name, s.product_id,
-      p.name AS product_name, p.collection,
+      s.id AS sku_id, s.internal_sku, s.variant_name, s.variant_type, s.accessory_label, s.product_id,
+      p.name AS product_name, p.collection, c.name AS category_name,
       COALESCE(br.name, v.name) AS vendor_name,
       (COALESCE(br.hide_public_name, false) OR COALESCE(v.hide_public_name, false)) AS brand_hidden, v.code AS vendor_code, v.public_code AS vendor_public_code,
       (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
          WHERE sa.sku_id = s.id AND a.slug = 'color' LIMIT 1) AS color,
       (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
          WHERE sa.sku_id = s.id AND a.slug = 'size' LIMIT 1) AS size,
+      (SELECT sa.value FROM sku_attributes sa JOIN attributes a ON a.id = sa.attribute_id
+         WHERE sa.sku_id = s.id AND a.slug = 'finish' LIMIT 1) AS finish,
       (SELECT COUNT(DISTINCT sa.value)
          FROM skus s2 JOIN sku_attributes sa ON sa.sku_id = s2.id
          JOIN attributes a ON a.id = sa.attribute_id AND a.slug = 'color'
@@ -8021,6 +8023,7 @@ async function getLabelData(skuIds) {
        ) accs WHERE lbl IS NOT NULL AND lbl <> '') AS accessories
     FROM skus s
     JOIN products p ON p.id = s.product_id
+    LEFT JOIN categories c ON c.id = p.category_id
     LEFT JOIN vendors v ON v.id = p.vendor_id
     LEFT JOIN brands br ON br.id = p.brand_id
     WHERE s.id = ANY($1::uuid[])
@@ -8034,16 +8037,16 @@ async function buildLabels(rows) {
   return Promise.all(rows.map(async (r) => {
     const url = `${LABEL_SITE_BASE}/shop/sku/${r.sku_id}`;
     const qrDataUri = await QRCode.toDataURL(url, { margin: 0, width: 220 });
-    // Identify this specific tile by color + size (deduped); fall back to the raw
-    // variant_name. This keeps same-color/different-size SKUs distinguishable.
-    const variantLabel = [...new Set([r.color, r.size].filter(Boolean))].join(' · ')
-      || r.variant_name || '';
+    // Storefront-identical title: the exact fullProductName() the PDP h1 uses
+    // (name + color/size/finish + category suffix), so the tag reads like the
+    // website. The old two-line productName + variantLabel split is folded into
+    // this single title; variantLabel stays blank so renderers skip that line.
     // The renderer normally strips a leading brand word off the title using the
     // eyebrow (vendorName). When the brand is public-hidden we blank the eyebrow,
     // so strip that leading brand off the title HERE too — otherwise a brand baked
     // into the product name (e.g. "Daltile Choice Calm Beige") would leak on the tag.
     const realBrand = r.vendor_name || '';
-    let productName = r.product_name;
+    let productName = (fullProductName(skuShapeFromLine(r)) || r.product_name || '').trim();
     if (r.brand_hidden && realBrand && productName
         && productName.toLowerCase().startsWith(realBrand.toLowerCase() + ' ')) {
       productName = productName.slice(realBrand.length).trim();
@@ -8051,7 +8054,7 @@ async function buildLabels(rows) {
     return {
       productName,
       collection: r.collection,
-      variantLabel,
+      variantLabel: '',
       // Customer-facing showroom tag: show the brand (vendor fallback), suppressed
       // when the brand/vendor is public-hidden. See vendors.hide_public_name.
       vendorName: r.brand_hidden ? (r.vendor_public_code || '') : r.vendor_name,

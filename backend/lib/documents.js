@@ -2555,11 +2555,15 @@ export function generateLabelRollHtml(labels) {
     if (variantList) availBody.push(`<div class="rl-availv">${esc(variantList)}</div>`);
     if (acc.length) availBody.push(`<div class="rl-availv rl-availacc">+ ${esc(acc.join(', '))}</div>`);
 
+    // Storefront-style titles run long (name + color + size + category suffix);
+    // step the type down so up to ~3 lines still land inside the fixed body box.
+    const titleSize = title.length > 60 ? '12.5pt' : title.length > 38 ? '15pt' : '19pt';
+
     return `
       <div class="rl-page${isLast ? ' last' : ''}">
         <div class="rl-body">
           ${vendor ? `<div class="rl-eyebrow">${esc(vendor)}</div>` : ''}
-          <div class="rl-title">${esc(title)}</div>
+          <div class="rl-title" style="font-size:${titleSize}">${esc(title)}</div>
           ${variant ? `<div class="rl-variant">${variant}</div>` : ''}
           ${availBody.length ? `<div class="rl-rule"></div><div class="rl-availk">Available</div>${availBody.join('')}` : ''}
         </div>
