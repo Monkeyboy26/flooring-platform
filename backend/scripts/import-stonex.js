@@ -39,9 +39,13 @@ const pool = new pg.Pool({
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.STONEX_DATA_DIR || path.join(__dirname, '..', 'data', 'stonex');
 const catalog = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'catalog.json'), 'utf8'));
-let images = {};
-try { images = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'images.json'), 'utf8')); }
-catch { console.warn('! images.json not found — importing without photos'); }
+// Per-SKU image map keyed by item number (= vendor_sku), built by
+// build-stonex-images.js from the scraped stonextile.com WooCommerce catalog.
+// Each website listing is one size/finish variant, so images match our SKUs
+// exactly by item#. { "<item#>": { primary, gallery: [...] } }.
+let skuImages = {};
+try { skuImages = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'sku-images.json'), 'utf8')); }
+catch { console.warn('! sku-images.json not found — importing without photos'); }
 
 // ==================== Helpers ====================
 async function upsertVendor(name, code, extra = {}) {
@@ -90,6 +94,24 @@ async function ensureCategory(slug, name, parentSlug, description, sortOrder) {
   return r.rows[0].id;
 }
 
+// Clean, unique product slug from the (material-qualified) name — e.g.
+// "Silver Travertine Paver" -> "silver-travertine-paver". Collision-checked
+// against every OTHER product's slug so re-runs are idempotent for our own rows.
+// This replaces the generic collection+name backfill, which doubled StoneX slugs
+// ("nero-marquina-marble-nero-marquina-marble") because collection == name.
+const _slugTaken = new Set();
+async function uniqueProductSlug(name, productId) {
+  const base = String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'stonex';
+  let slug = base, n = 2;
+  while (true) {
+    if (!_slugTaken.has(slug)) {
+      const r = await pool.query('SELECT 1 FROM products WHERE slug=$1 AND id<>$2 LIMIT 1', [slug, productId]);
+      if (!r.rows.length) { _slugTaken.add(slug); return slug; }
+    }
+    slug = `${base}-${n++}`;
+  }
+}
+
 async function upsertProduct(vendorId, brandId, categoryId, p) {
   const res = await pool.query(`
     INSERT INTO products (vendor_id, brand_id, name, collection, category_id, status, description_short, description_long)
@@ -100,7 +122,10 @@ async function upsertProduct(vendorId, brandId, categoryId, p) {
       updated_at=CURRENT_TIMESTAMP
     RETURNING id, (xmax = 0) AS is_new
   `, [vendorId, brandId, p.name, p.collection, categoryId, (p.description||'').slice(0, 250), p.description]);
-  return res.rows[0];
+  const row = res.rows[0];
+  const slug = await uniqueProductSlug(p.name, row.id);
+  await pool.query('UPDATE products SET slug=$1 WHERE id=$2', [slug, row.id]);
+  return row;
 }
 
 async function upsertSku(productId, s) {
@@ -164,6 +189,16 @@ async function upsertMedia(productId, url, assetType, sortOrder) {
   `, [productId, assetType, url, sortOrder]);
 }
 
+async function upsertSkuMedia(productId, skuId, url, assetType, sortOrder) {
+  if (!url) return;
+  await pool.query(`
+    INSERT INTO media_assets (product_id, sku_id, asset_type, url, original_url, sort_order)
+    VALUES ($1,$2,$3,$4,$4,$5)
+    ON CONFLICT (product_id, sku_id, asset_type, sort_order) WHERE sku_id IS NOT NULL
+    DO UPDATE SET url=EXCLUDED.url, original_url=EXCLUDED.original_url
+  `, [productId, skuId, assetType, url, sortOrder]);
+}
+
 // ==================== Main ====================
 async function main() {
   console.log('=== StoneX Import ===\n');
@@ -188,13 +223,17 @@ async function main() {
   const catCache = {};
   const catFor = async (slug) => (catCache[slug] ??= await getCategoryId(slug));
 
-  let pNew=0,pUpd=0,sNew=0,sUpd=0,mediaN=0,noImg=[];
+  let pNew=0,pUpd=0,sNew=0,sUpd=0,prodMediaN=0,skuMediaN=0,noImg=[];
   for (const p of catalog) {
     const categoryId = await catFor(p.category_slug);
     if (!categoryId) { console.warn('! missing category', p.category_slug, 'for', p.name); continue; }
     const prod = await upsertProduct(vendorId, brandId, categoryId, p);
     prod.is_new ? pNew++ : pUpd++;
 
+    // Product-level hero: the first SKU (in price-list order) that has a matched
+    // image. Unmatched SKUs fall back to this at display time — we never fabricate
+    // a per-SKU photo, so a honed SKU is never shown a tumbled sibling's image.
+    let hero = null;
     for (const s of p.skus) {
       const sku = await upsertSku(prod.id, s);
       sku.is_new ? sNew++ : sUpd++;
@@ -203,14 +242,22 @@ async function main() {
       const merged = { ...(p.attrs||{}), ...(s.attrs||{}) };
       if (s._flags && s._flags.made_usa) merged.country = 'USA (Made in USA)';
       for (const [slug, val] of Object.entries(merged)) await setAttr(sku.id, slug, val);
+
+      // Per-SKU media, matched by item number (vendor_sku).
+      const img = skuImages[s.vendor_sku];
+      if (img && img.primary) {
+        await upsertSkuMedia(prod.id, sku.id, img.primary, 'primary', 0);
+        skuMediaN++;
+        const gallery = (img.gallery || []).filter(u => u && u !== img.primary);
+        for (let i=0; i<gallery.length && i<6; i++) await upsertSkuMedia(prod.id, sku.id, gallery[i], 'alternate', i+1);
+        if (!hero) hero = img;
+      }
     }
 
-    // media: primary = product-page main photo, gallery = the rest (page order)
-    const img = images[p.slug];
-    if (img && img.primary) {
-      await upsertMedia(prod.id, img.primary, 'primary', 0);
-      mediaN++;
-      const gallery = (img.gallery || []).filter(u => u && u !== img.primary);
+    if (hero) {
+      await upsertMedia(prod.id, hero.primary, 'primary', 0);
+      prodMediaN++;
+      const gallery = (hero.gallery || []).filter(u => u && u !== hero.primary);
       for (let i=0; i<gallery.length && i<8; i++) await upsertMedia(prod.id, gallery[i], 'alternate', i+1);
     } else {
       noImg.push(p.name);
@@ -219,7 +266,7 @@ async function main() {
 
   console.log(`\nProducts: ${pNew} new, ${pUpd} updated`);
   console.log(`SKUs:     ${sNew} new, ${sUpd} updated`);
-  console.log(`Media:    ${mediaN} products with a primary photo`);
+  console.log(`Media:    ${prodMediaN} products with a hero photo, ${skuMediaN} SKUs with a matched photo`);
   if (noImg.length) console.log(`No photo (${noImg.length}): ${noImg.slice(0,40).join(', ')}${noImg.length>40?' …':''}`);
   await pool.end();
   console.log('\nDone.');
