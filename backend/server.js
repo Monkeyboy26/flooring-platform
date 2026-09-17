@@ -9,7 +9,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import dns from 'dns';
-import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
+import { sendOrderConfirmation, sendQuoteSent, sendCreditMemoIssued, sendOrderStatusUpdate, sendTradeApproval, sendTradeDenial, sendTierPromotion, send2FACode, sendInstallationInquiryNotification, sendInstallationInquiryConfirmation, sendPasswordReset, sendStaffPasswordReset, sendStaffInvite, sendPurchaseOrderToVendor, sendPaymentRequest, sendPaymentReceived, sendVisitRecap, sendSampleRequestShipped, sendSampleRequestReady, sendScraperFailure, sendStockAlert, sendInvoiceSent, sendInvoiceReminder, sendSampleRequestToVendor, sendSampleShippingPayment, sendWelcomeSetPassword, sendOrderInvoiceEmail, sendEstimateSent, sendEstimateAccepted, sendProductShare, sendScraperHealthCheck, sendWeeklyTrafficReport, sendBankTransferAwaitingEmail, sendNewOrderStaffAlert, sendNewOrderRepAlert, sendNewSampleRequestRepAlert, sendNewInstallInquiryRepAlert, sendMaterialRelease, sendInstallScheduled, sendInstallComplete, sendEmailChangeConfirm, sendEmailChangeNotice, sendWelcomeCustomer, sendQualityDiffAlert, SCRAPER_ALERT_ADDR } from './services/emailService.js';
 import { queueReviewRequest, processDueReviewRequests, recordRating, saveFeedback, recordPublicClick, getByToken as getReviewByToken, reviewsEnabled, autoReviewEnabled, sendTestReviewRequest, saveFirstPartyReview, listFirstPartyReviews, setReviewPublished, MIN_PUBLIC_RATING } from './services/reviewService.js';
 import { reviewStarPickerPage, reviewWriteReviewPage, reviewPrivateFeedbackPage, reviewGenericThanksPage } from './templates/reviewRequest.js';
 import { generateSampleRequestVendorHTML } from './templates/sampleRequestVendor.js';
@@ -7422,6 +7422,23 @@ app.get('/api/admin/site-analytics/realtime', staffAuth, requireRole('admin', 'm
       active_sessions: sessionsRes.rows[0]?.active_sessions || 0,
       recent_events: eventsRes.rows
     });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
+});
+
+// Weekly traffic report — preview the digest data, or send it on demand.
+// ?end=YYYY-MM-DD overrides the window end (defaults to yesterday); ?send=1
+// emails it to TRAFFIC_REPORT_EMAIL (or the alert address).
+app.get('/api/admin/site-analytics/weekly-report', staffAuth, requireRole('admin', 'manager'), async (req, res) => {
+  try {
+    const end = (req.query.end || new Date(Date.now() - 86400000).toISOString().slice(0, 10)).slice(0, 10);
+    const data = await computeWeeklyTrafficData(end);
+    if (req.query.send === '1') {
+      const recipients = (process.env.TRAFFIC_REPORT_EMAIL || SCRAPER_ALERT_ADDR)
+        .split(',').map(s => s.trim()).filter(Boolean);
+      await sendWeeklyTrafficReport(recipients, data);
+      return res.json({ sent: true, recipients, data });
+    }
+    res.json({ sent: false, data });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Internal server error' }); }
 });
 
@@ -34172,6 +34189,128 @@ cron.schedule('0 7 * * *', async () => {
 
   } catch (err) {
     console.error('[Analytics] Daily aggregation error:', err.message);
+  }
+}, { timezone: 'America/Los_Angeles' });
+
+// Gather a week of traffic (the 7 days ending on `endDate`, inclusive) plus the
+// prior 7 days for week-over-week deltas. Computed from raw events/sessions
+// rather than summing analytics_daily_stats so visitor/session counts are truly
+// unique over the window (summing daily rows would double-count repeat visitors).
+async function computeWeeklyTrafficData(endDate) {
+  // endDate = 'YYYY-MM-DD' (last full day). Windows are [curStart, endExclusive)
+  // and [prevStart, curStart).
+  const end = new Date(endDate + 'T00:00:00');
+  const endExclusive = new Date(end.getTime() + 86400000).toISOString().slice(0, 10) + 'T00:00:00';
+  const curStart = new Date(end.getTime() - 6 * 86400000).toISOString().slice(0, 10) + 'T00:00:00';
+  const prevStart = new Date(end.getTime() - 13 * 86400000).toISOString().slice(0, 10) + 'T00:00:00';
+
+  const windowAgg = async (start, stop) => {
+    const [ev, sess, rev, bounce] = await Promise.all([
+      pool.query(`
+        SELECT
+          COUNT(DISTINCT visitor_id)::int AS visitors,
+          COUNT(DISTINCT session_id)::int AS sessions,
+          COUNT(*) FILTER (WHERE event_type='page_view')::int AS page_views,
+          COUNT(*) FILTER (WHERE event_type='product_view')::int AS product_views,
+          COUNT(*) FILTER (WHERE event_type='add_to_cart')::int AS add_to_carts,
+          COUNT(*) FILTER (WHERE event_type='checkout_started')::int AS checkouts,
+          COUNT(*) FILTER (WHERE event_type='order_completed')::int AS orders,
+          COUNT(*) FILTER (WHERE event_type='search')::int AS searches,
+          COUNT(*) FILTER (WHERE event_type='sample_request')::int AS sample_requests,
+          COUNT(*) FILTER (WHERE event_type='trade_signup_complete')::int AS trade_signups
+        FROM analytics_events WHERE created_at >= $1 AND created_at < $2`, [start, stop]),
+      pool.query(`SELECT COUNT(*)::int AS sessions FROM analytics_sessions WHERE first_seen_at >= $1 AND first_seen_at < $2`, [start, stop]),
+      pool.query(`SELECT COALESCE(SUM(total),0) AS revenue FROM orders WHERE created_at >= $1 AND created_at < $2 AND status != 'cancelled'`, [start, stop]),
+      pool.query(`
+        WITH c AS (
+          SELECT session_id, COUNT(*) FILTER (WHERE event_type='page_view') pv
+          FROM analytics_events WHERE created_at >= $1 AND created_at < $2 AND session_id IS NOT NULL
+          GROUP BY session_id)
+        SELECT COALESCE(ROUND(100.0*COUNT(*) FILTER (WHERE pv<=1)/NULLIF(COUNT(*),0),1),0) AS bounce_rate FROM c`, [start, stop]),
+    ]);
+    const e = ev.rows[0] || {};
+    // Prefer the sessions table count (session-level rows); fall back to distinct
+    // session_id in events if the table lags.
+    e.sessions = sess.rows[0]?.sessions || e.sessions || 0;
+    e.revenue = parseFloat(rev.rows[0]?.revenue || 0);
+    e.bounce_rate = parseFloat(bounce.rows[0]?.bounce_rate || 0);
+    return e;
+  };
+
+  const [cur, prev, searches, products, sources, devices] = await Promise.all([
+    windowAgg(curStart, endExclusive),
+    windowAgg(prevStart, curStart),
+    pool.query(`
+      SELECT LOWER(properties->>'query') AS term, COUNT(*)::int AS count,
+             BOOL_AND(COALESCE((properties->>'results_count')::int, 1) = 0) AS zero_results
+      FROM analytics_events
+      WHERE event_type='search' AND created_at >= $1 AND created_at < $2
+        AND properties->>'query' IS NOT NULL AND properties->>'query' != ''
+      GROUP BY LOWER(properties->>'query') ORDER BY count DESC LIMIT 12`, [curStart, endExclusive]),
+    pool.query(`
+      SELECT COALESCE(p.name, ae.properties->>'sku_id') AS name, COUNT(*)::int AS views
+      FROM analytics_events ae
+      LEFT JOIN skus s ON s.id::text = ae.properties->>'sku_id'
+      LEFT JOIN products p ON p.id = s.product_id
+      WHERE ae.event_type='product_view' AND ae.created_at >= $1 AND ae.created_at < $2
+        AND ae.properties->>'sku_id' IS NOT NULL
+      GROUP BY 1 ORDER BY views DESC LIMIT 10`, [curStart, endExclusive]),
+    pool.query(`
+      SELECT COALESCE(NULLIF(split_part(split_part(referrer,'/',3),':',1),''),'') AS host, COUNT(*)::int AS sessions
+      FROM analytics_sessions WHERE first_seen_at >= $1 AND first_seen_at < $2
+      GROUP BY 1 ORDER BY sessions DESC LIMIT 12`, [curStart, endExclusive]),
+    pool.query(`
+      SELECT COALESCE(NULLIF(device_type,''),'unknown') AS label, COUNT(*)::int AS sessions
+      FROM analytics_sessions WHERE first_seen_at >= $1 AND first_seen_at < $2
+      GROUP BY 1 ORDER BY sessions DESC`, [curStart, endExclusive]),
+  ]);
+
+  // Label referrer hosts into friendly source buckets, then re-aggregate.
+  const labelSource = (host) => {
+    if (!host) return 'Direct';
+    const h = host.toLowerCase();
+    if (h.includes('google')) return 'Google';
+    if (h.includes('bing')) return 'Bing';
+    if (h.includes('duckduckgo')) return 'DuckDuckGo';
+    if (h.includes('facebook') || h === 'm.facebook.com' || h.includes('fb.')) return 'Facebook';
+    if (h.includes('instagram')) return 'Instagram';
+    if (h.includes('yelp')) return 'Yelp';
+    if (h.includes('chatgpt') || h.includes('openai')) return 'ChatGPT';
+    if (h.includes('romaflooringdesigns')) return 'Internal';
+    if (h.includes('stripe')) return 'Internal';
+    return host;
+  };
+  const sourceMap = {};
+  for (const r of sources.rows) {
+    const label = labelSource(r.host);
+    sourceMap[label] = (sourceMap[label] || 0) + r.sessions;
+  }
+  const sourceList = Object.entries(sourceMap).map(([label, sessions]) => ({ label, sessions }))
+    .sort((a, b) => b.sessions - a.sessions);
+
+  const fmtDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const rangeLabel = `${fmtDate(curStart)} – ${new Date(end).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+  return {
+    rangeLabel, cur, prev,
+    topSearches: searches.rows.map(r => ({ term: r.term, count: r.count, zeroResults: r.zero_results })),
+    topProducts: products.rows.map(r => ({ name: r.name, views: r.views })),
+    sources: sourceList,
+    devices: devices.rows.map(r => ({ label: r.label, sessions: r.sessions })),
+  };
+}
+
+// Weekly traffic digest — Mondays 8:00 AM Pacific, covering the prior Mon–Sun.
+cron.schedule('0 8 * * 1', async () => {
+  console.log('[Analytics] Building weekly traffic report...');
+  try {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const data = await computeWeeklyTrafficData(yesterday);
+    const recipients = (process.env.TRAFFIC_REPORT_EMAIL || SCRAPER_ALERT_ADDR)
+      .split(',').map(s => s.trim()).filter(Boolean);
+    await sendWeeklyTrafficReport(recipients, data);
+  } catch (err) {
+    console.error('[Analytics] Weekly traffic report error:', err.message);
   }
 }, { timezone: 'America/Los_Angeles' });
 

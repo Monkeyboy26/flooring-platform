@@ -2439,6 +2439,7 @@
     const [selectedSkuId, setSelectedSkuId] = useState(null);
     const [skus, setSkus] = useState([]);
     const [totalSkus, setTotalSkus] = useState(0);
+    const pendingSearchTrack = useRef(null);
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [selectedCollection, setSelectedCollection] = useState(null);
@@ -2621,6 +2622,9 @@
     useEffect(() => {
       track("page_view", { view });
     }, [view]);
+    useEffect(() => {
+      if (view === "detail" && selectedSkuId) track("product_view", { sku_id: selectedSkuId });
+    }, [view, selectedSkuId]);
     const tradeHeaders = () => {
       const h = {};
       const t = localStorage.getItem("trade_token");
@@ -2692,6 +2696,10 @@
             if (job.cancelled) return;
             setSkus(data.skus || []);
             setTotalSkus(data.total || 0);
+            if (pendingSearchTrack.current != null) {
+              track("search", { query: pendingSearchTrack.current, results_count: data.total || 0 });
+              pendingSearchTrack.current = null;
+            }
             setSearchDidYouMean(data.didYouMean || null);
             setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
             setLoadingSkus(false);
@@ -3219,7 +3227,6 @@
       if (fromDetail) history.replaceState({ view: "detail", skuId }, "", url);
       else history.pushState({ view: "detail", skuId }, "", url);
       window.scrollTo(0, 0);
-      track("product_view", { sku_id: skuId });
       gaEvent("view_item", { items: [{ item_id: skuId }] });
     };
     const goBackToBrowse = () => {
@@ -3265,7 +3272,10 @@
       track("order_completed", { order_number: orderData && orderData.order ? orderData.order.order_number : void 0 });
       const gaOrder = orderData && orderData.order;
       if (gaOrder) gaEvent("purchase", { transaction_id: gaOrder.order_number, currency: "USD", value: parseFloat(gaOrder.total || 0) || 0, items: (gaOrder.items || []).map(gaItem) });
-      if (orderData && orderData.sample_request) gaEvent("generate_lead", { lead_source: "sample_request" });
+      if (orderData && orderData.sample_request) {
+        track("sample_request", { order_number: gaOrder ? gaOrder.order_number : void 0 });
+        gaEvent("generate_lead", { lead_source: "sample_request" });
+      }
       fetch(API + "/api/cart/clear", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -3415,7 +3425,7 @@
       pushShopUrl(selectedCategory, selectedCollection, searchQuery, {}, true, [], null, null, []);
     };
     const handleSearch = (query) => {
-      track("search", { query });
+      pendingSearchTrack.current = query;
       gaEvent("search", { search_term: query });
       setSearchQuery(query);
       setSearchDidYouMean(null);

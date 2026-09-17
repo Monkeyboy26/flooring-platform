@@ -35,6 +35,17 @@ export default function createAnalyticsRoutes(ctx) {
            VALUES ${values.join(', ')}`,
           params
         );
+        // Mark any session that completed an order as converted so conversion-rate
+        // and cart-abandonment metrics reflect reality (the flag was never set before).
+        const convertedSessions = [...new Set(events
+          .filter(e => e.event_type === 'order_completed' && e.session_id)
+          .map(e => e.session_id))];
+        if (convertedSessions.length > 0) {
+          await pool.query(
+            `UPDATE analytics_sessions SET is_converted = true WHERE session_id = ANY($1) AND is_converted = false`,
+            [convertedSessions]
+          );
+        }
       } catch (err) { console.error('[Analytics] Event insert error:', err.message); }
     });
   });

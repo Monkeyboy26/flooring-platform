@@ -2746,6 +2746,9 @@
       // SKU browse state
       const [skus, setSkus] = useState([]);
       const [totalSkus, setTotalSkus] = useState(0);
+      // Holds a just-submitted search query until its result count is known, so
+      // the 'search' analytics event can carry results_count (zero-result gaps).
+      const pendingSearchTrack = useRef(null);
       const [categories, setCategories] = useState([]);
       const [selectedCategory, setSelectedCategory] = useState(null);
       const [selectedCollection, setSelectedCollection] = useState(null);
@@ -2921,6 +2924,12 @@
       // Session ping on load; page_view whenever the view changes.
       useEffect(() => { pingSession(); }, []);
       useEffect(() => { track('page_view', { view }); }, [view]);
+      // product_view whenever a SKU detail is shown — covers both in-app
+      // navigation AND direct/deep-link landings on /shop/sku/:id (which never
+      // call goSkuDetail, so the event would otherwise never fire).
+      useEffect(() => {
+        if (view === 'detail' && selectedSkuId) track('product_view', { sku_id: selectedSkuId });
+      }, [view, selectedSkuId]);
 
       const tradeHeaders = () => {
         const h = {};
@@ -2996,6 +3005,11 @@
               if (job.cancelled) return;
               setSkus(data.skus || []);
               setTotalSkus(data.total || 0);
+              // Log the deferred search event now that we know how many matched.
+              if (pendingSearchTrack.current != null) {
+                track('search', { query: pendingSearchTrack.current, results_count: data.total || 0 });
+                pendingSearchTrack.current = null;
+              }
               setSearchDidYouMean(data.didYouMean || null);
               setSearchTimeMs(data.searchTimeMs != null ? data.searchTimeMs : null);
               setLoadingSkus(false);
@@ -3544,7 +3558,7 @@
         if (fromDetail) history.replaceState({ view: 'detail', skuId }, '', url);
         else history.pushState({ view: 'detail', skuId }, '', url);
         window.scrollTo(0, 0);
-        track('product_view', { sku_id: skuId });
+        // product_view is fired by the view/selectedSkuId effect (covers direct loads too)
         gaEvent('view_item', { items: [{ item_id: skuId }] });
       };
 
@@ -3598,7 +3612,10 @@
         // Sample requests are leads, not revenue — mirrored so GA4 can key on
         // generate_lead (purchase alone misses sample-only checkouts, which
         // create no order).
-        if (orderData && orderData.sample_request) gaEvent('generate_lead', { lead_source: 'sample_request' });
+        if (orderData && orderData.sample_request) {
+          track('sample_request', { order_number: gaOrder ? gaOrder.order_number : undefined });
+          gaEvent('generate_lead', { lead_source: 'sample_request' });
+        }
         fetch(API + '/api/cart/clear', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -3763,7 +3780,10 @@
       };
 
       const handleSearch = (query) => {
-        track('search', { query: query });
+        // Defer the first-party search event until fetchSkus returns so we can
+        // record results_count — this is what surfaces zero-result searches
+        // (catalog gaps) in the admin dashboard. gaEvent has no such need.
+        pendingSearchTrack.current = query;
         gaEvent('search', { search_term: query });
         setSearchQuery(query);
         setSearchDidYouMean(null);

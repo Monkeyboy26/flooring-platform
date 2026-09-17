@@ -25,6 +25,7 @@ import { generateSampleShippingPaymentHTML } from '../templates/sampleShippingPa
 import { generateWelcomeSetPasswordHTML } from '../templates/welcomeSetPassword.js';
 import { generateWelcomeCustomerHTML } from '../templates/welcomeCustomer.js';
 import { generateDailyHealthCheckHTML } from '../templates/dailyHealthCheck.js';
+import { generateWeeklyTrafficHTML } from '../templates/weeklyTrafficReport.js';
 import { generateEstimateSentHTML } from '../templates/estimateSent.js';
 import { generateEstimateAcceptedHTML } from '../templates/estimateAccepted.js';
 import { generateProductShareHTML } from '../templates/productShare.js';
@@ -1627,6 +1628,26 @@ export async function sendScraperHealthCheck(staffEmails, healthData) {
     console.log(`[Email] Scraper health check sent to ${staffEmails.length} recipient(s) (${problemCount} issues)`);
   } catch (err) {
     console.error(`[Email] Failed to send scraper health check:`, err.message);
+  }
+}
+
+export async function sendWeeklyTrafficReport(staffEmails, data) {
+  if (!transporter) {
+    console.log(`[Email] Skipping weekly traffic report — SMTP not configured`);
+    return;
+  }
+  if (!staffEmails || staffEmails.length === 0) {
+    console.log(`[Email] Skipping weekly traffic report — no recipients`);
+    return;
+  }
+  try {
+    const html = generateWeeklyTrafficHTML(data);
+    const cur = data.cur || {};
+    const subject = `[Weekly Traffic] ${data.rangeLabel} — ${(cur.visitors || 0).toLocaleString('en-US')} visitors, ${cur.orders || 0} order${cur.orders === 1 ? '' : 's'}`;
+    await deliver({ from: NOREPLY_FROM, to: staffEmails.join(', '), subject, html });
+    console.log(`[Email] Weekly traffic report sent to ${staffEmails.length} recipient(s)`);
+  } catch (err) {
+    console.error(`[Email] Failed to send weekly traffic report:`, err.message);
   }
 }
 
