@@ -8025,7 +8025,20 @@ async function getLabelData(skuIds) {
           WHERE s3.product_id = s.product_id AND s3.status = 'active'
             AND COALESCE(s3.variant_type, '') = 'accessory'
          UNION
-         SELECT COALESCE(NULLIF(acc.accessory_label, ''), acc.variant_name, pacc.name) AS lbl
+         -- Companion trims are separate products named "{collection} {finish} {type}"
+         -- (e.g. "Sterlina II Matte Single Bullnose") whose accessory_label/variant_name
+         -- is just the COLOR ("Asphalt") — listing those duplicates the tile's color
+         -- line. Derive the accessory TYPE instead: strip the parent's collection
+         -- prefix and a leading finish word so all colors/finishes collapse (DISTINCT)
+         -- to one "Single Bullnose". Fall back to the old labels only if that yields
+         -- nothing.
+         SELECT COALESCE(
+                  NULLIF(TRIM(regexp_replace(
+                    CASE WHEN pacc.name ILIKE COALESCE(NULLIF(p.collection, ''), p.name) || ' %'
+                         THEN SUBSTRING(pacc.name FROM length(COALESCE(NULLIF(p.collection, ''), p.name)) + 1)
+                         ELSE pacc.name END,
+                    '^\s*(matte|polished|satin|glossy|gloss|honed|semigloss|brushed|textured|lappato|rectified|structured|grip)(/(matte|satin|polished|glossy|gloss))?\s+', '', 'i')), ''),
+                  NULLIF(acc.accessory_label, ''), acc.variant_name, pacc.name) AS lbl
            FROM sku_accessories sax
            JOIN skus par ON par.id = sax.parent_sku_id AND par.product_id = s.product_id
            JOIN skus acc ON acc.id = sax.accessory_sku_id AND acc.status = 'active'

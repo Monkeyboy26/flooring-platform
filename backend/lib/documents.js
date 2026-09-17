@@ -2462,9 +2462,13 @@ export function generateLabelSheetHtml(labels) {
     if (sizes.length > 1) variantParts.push(...sizes);
     const variantList = variantParts.join(' · ');
 
+    // Safety net: never repeat a color/size on the accessory line (a companion
+    // trim mislabeled with its color would otherwise duplicate the list above).
+    const shownSet = new Set([...colors, ...sizes].map(x => String(x).toLowerCase()));
+    const accShown = acc.filter(a => !shownSet.has(String(a).toLowerCase()));
     const availBody = [];
     if (variantList) availBody.push(`<div class="l-availv">${esc(variantList)}</div>`);
-    if (acc.length) availBody.push(`<div class="l-availv l-availacc">+ ${esc(acc.join(', '))}</div>`);
+    if (accShown.length) availBody.push(`<div class="l-availv l-availacc">+ ${esc(accShown.join(', '))}</div>`);
 
     return `
       <div class="label">
@@ -2551,9 +2555,13 @@ export function generateLabelRollHtml(labels, { orientation = 'landscape' } = {}
     if (sizes.length > 1) variantParts.push(...sizes);
     const variantList = variantParts.join(' · ');
 
+    // Safety net: never repeat a color/size on the accessory line (a companion
+    // trim mislabeled with its color would otherwise duplicate the list above).
+    const shownSet = new Set([...colors, ...sizes].map(x => String(x).toLowerCase()));
+    const accShown = acc.filter(a => !shownSet.has(String(a).toLowerCase()));
     const availBody = [];
     if (variantList) availBody.push(`<div class="rl-availv">${esc(variantList)}</div>`);
-    if (acc.length) availBody.push(`<div class="rl-availv rl-availacc">+ ${esc(acc.join(', '))}</div>`);
+    if (accShown.length) availBody.push(`<div class="rl-availv rl-availacc">+ ${esc(accShown.join(', '))}</div>`);
 
     // Storefront-style titles run long (name + color + size + category suffix);
     // step the type down so up to ~3 lines still land inside the fixed body box.
