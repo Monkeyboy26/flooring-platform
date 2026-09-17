@@ -2622,8 +2622,16 @@
     useEffect(() => {
       track("page_view", { view });
     }, [view]);
+    const lastProductViewSku = useRef(null);
     useEffect(() => {
-      if (view === "detail" && selectedSkuId) track("product_view", { sku_id: selectedSkuId });
+      if (view !== "detail") {
+        lastProductViewSku.current = null;
+        return;
+      }
+      if (selectedSkuId && lastProductViewSku.current !== selectedSkuId) {
+        lastProductViewSku.current = selectedSkuId;
+        track("product_view", { sku_id: selectedSkuId });
+      }
     }, [view, selectedSkuId]);
     const tradeHeaders = () => {
       const h = {};

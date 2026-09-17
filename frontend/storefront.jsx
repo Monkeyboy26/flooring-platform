@@ -2926,9 +2926,16 @@
       useEffect(() => { track('page_view', { view }); }, [view]);
       // product_view whenever a SKU detail is shown — covers both in-app
       // navigation AND direct/deep-link landings on /shop/sku/:id (which never
-      // call goSkuDetail, so the event would otherwise never fire).
+      // call goSkuDetail, so the event would otherwise never fire). Dedup on the
+      // last SKU viewed: a direct load canonicalizes its URL after data loads,
+      // which would otherwise fire the effect twice for the same product.
+      const lastProductViewSku = useRef(null);
       useEffect(() => {
-        if (view === 'detail' && selectedSkuId) track('product_view', { sku_id: selectedSkuId });
+        if (view !== 'detail') { lastProductViewSku.current = null; return; }
+        if (selectedSkuId && lastProductViewSku.current !== selectedSkuId) {
+          lastProductViewSku.current = selectedSkuId;
+          track('product_view', { sku_id: selectedSkuId });
+        }
       }, [view, selectedSkuId]);
 
       const tradeHeaders = () => {
