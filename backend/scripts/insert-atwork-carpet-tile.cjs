@@ -14,6 +14,9 @@
 
 const { Pool } = require('pg');
 const fs = require('fs');
+// Shared retail-name cleaner (same one the importer + backfill use) so these
+// hardcoded "@work … Carpet Tile 24x24" strings insert as clean "@work …" names.
+const { cleanTriwestName } = require('../lib/triwestName.cjs');
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432', 10),
@@ -197,7 +200,8 @@ async function main() {
 
     let productsCreated = 0, skusCreated = 0, imagesAdded = 0, pricingSet = 0, packagingSet = 0;
 
-    const allCollections = [...COLLECTIONS, ...EXTRA_832_PRODUCTS];
+    const allCollections = [...COLLECTIONS, ...EXTRA_832_PRODUCTS]
+      .map(col => ({ ...col, productName: cleanTriwestName(col.productName) }));
 
     for (const col of allCollections) {
       // 1. Check if product already exists

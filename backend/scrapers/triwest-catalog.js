@@ -7,6 +7,9 @@ import {
   MANUFACTURER_NAMES, MFGR_CATEGORY,
   searchByManufacturer, navigateToSearchForm,
 } from './triwest-search.js';
+// Shared cleaner: strip trailing catalog-code fragments from color/variant
+// strings ("Golden Glaze, ARMW81" → "Golden Glaze") before title-casing.
+import { cleanTriwestVariant } from '../lib/triwestName.cjs';
 
 const MAX_ERRORS = 50;
 
@@ -410,7 +413,7 @@ export async function run(pool, job, source) {
           for (const row of group.rows) {
             try {
               const internalSku = `TW-${row.itemNumber}`;
-              const colorName = titleCase(row.color);
+              const colorName = titleCase(cleanTriwestVariant(row.color));
 
               const sku = await upsertSku(pool, {
                 product_id: product.id,
@@ -490,7 +493,7 @@ export async function run(pool, job, source) {
             for (const row of group.rows) {
               try {
                 const internalSku = `TW-${row.itemNumber}`;
-                const colorName = titleCase(row.color);
+                const colorName = titleCase(cleanTriwestVariant(row.color));
 
                 const sku = await upsertSku(pool, {
                   product_id: product.id,

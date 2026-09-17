@@ -1691,7 +1691,13 @@
       const colLower2 = (showCollection || "").toLowerCase();
       const nameLower2 = name.toLowerCase();
       const vendorLower = (sku.vendor_name || "").toLowerCase();
-      if (bLower !== colLower2 && bLower !== nameLower2 && bLower !== vendorLower && !nameLower2.includes(bLower) && !colLower2.includes(bLower)) {
+      const GENERIC_BRAND_WORDS = /* @__PURE__ */ new Set(["hardwood", "flooring", "floors", "floor", "vinyl", "tile", "tiles", "laminate", "luxury", "spc", "wpc", "lvt", "lvp", "inc", "llc", "ltd", "co", "company", "products", "group", "international", "usa", "brand", "brands", "collection", "and", "the"]);
+      const _btoks = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean);
+      const _titleToks = /* @__PURE__ */ new Set([..._btoks(nameLower2), ..._btoks(colLower2)]);
+      const _titleConcat = [..._btoks(nameLower2), ..._btoks(colLower2)].join("");
+      const _brandDistinct = _btoks(brandAttr.value).filter((t) => !GENERIC_BRAND_WORDS.has(t));
+      const brandRedundant = _brandDistinct.length === 0 || _brandDistinct.every((t) => _titleToks.has(t) || t.length >= 4 && _titleConcat.includes(t));
+      if (bLower !== colLower2 && bLower !== nameLower2 && bLower !== vendorLower && !nameLower2.includes(bLower) && !colLower2.includes(bLower) && !brandRedundant) {
         brand = brandAttr.value;
       }
     }

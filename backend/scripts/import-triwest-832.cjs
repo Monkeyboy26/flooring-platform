@@ -20,6 +20,10 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 const { Writable } = require('stream');
+// Shared retail-name cleaner (SINGLE source of truth, also used by the one-time
+// backfill scripts/fix-triwest-names.mjs) so a re-import never re-introduces the
+// SPC/WPC/W-pad/mil catalog noise, @work redundancy, or trim-length formatting.
+const { cleanTriwestName, cleanTriwestVariant } = require('../lib/triwestName.cjs');
 
 // ---------------------------------------------------------------------------
 // Database connection
@@ -160,12 +164,17 @@ function cleanAndTitle(raw) {
 
 function cleanProductName(raw) {
   if (!raw) return null;
+  // Drop the sqft/ctn parenthetical, then title-case the ALL-CAPS EDI string,
+  // then run the shared cleaner. The old blanket "strip any NxM dimension" step
+  // is gone: cleanTriwestName only removes a size when true catalog noise
+  // (SPC/WPC/W-pad/mil) is present, so sizes that DISTINGUISH sibling products
+  // ("Deja New Oak Framing 7x48" vs "9x60") are preserved instead of collapsed.
   let name = raw
     .replace(/\s*\([^)]*sq(?:ft|yd)[^)]*\)/gi, '')
-    .replace(/\s+\d+\.?\d*[xX]\d+\.?\d*/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
-  return cleanAndTitle(name) || null;
+  name = cleanTriwestName(cleanAndTitle(name));
+  return name || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -977,7 +986,12 @@ async function importToDatabase(allItems) {
     for (const item of group.items) {
       const internalSku = makeInternalSku(item.vendor_sku, item.brand);
       const vendorSku = item.vendor_sku || internalSku;
-      const variantName = item.color ? cleanAndTitle(item.color) : cleanAndTitle(item.product_name);
+      // Strip trailing catalog-code fragments ("Golden Glaze, ARMW81") BEFORE
+      // title-casing — cleanTriwestVariant keys on all-caps codes, which
+      // cleanAndTitle would otherwise lowercase ("Armw81") and hide.
+      const variantName = item.color
+        ? cleanAndTitle(cleanTriwestVariant(item.color))
+        : cleanAndTitle(item.product_name);
       const sellBy = item.sell_by || 'box';
       const variantType = group.isAccessory ? 'accessory' : null;
 
