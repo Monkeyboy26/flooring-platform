@@ -67,6 +67,7 @@ const SIZE_MAP = [
   ['natural terrazzo', '16x16'],
   ['neowood', '8x48'],
   ['olympia white', '24x48'],
+  ['oni blue', '24x48'],
   ['oni coral', '24x48'],
   ['oni pearl', '24x48'],
   ['oni white', '24x48'],
